@@ -1,0 +1,131 @@
+import type {Event, IUniform, Material, MaterialParameters, Shader} from 'three'
+import type {AnyOptions, IDisposable, IJSONSerializable} from 'ts-browser-helpers'
+import type {MaterialExtension} from '../materials'
+import type {IUiConfigContainer} from 'uiconfig.js'
+import type {SerializationMetaType} from '../utils/serialization'
+import type {IObject3D} from './IObject'
+import type {ITexture} from './ITexture'
+import type {IImportResultUserData} from '../assetmanager'
+
+export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
+export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureChanged'
+export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
+    type: T
+    bubbleToObject?: boolean
+    material?: IMaterial
+
+    texture?: ITexture
+    oldTexture?: ITexture
+}
+export type IMaterialSetDirtyOptions = AnyOptions & {bubbleToObject?: boolean}
+export interface IMaterialUserData extends IImportResultUserData{
+    uuid?: string // adding to userdata also, so that its saved in gltf
+
+    disposeOnIdle?: boolean // default: true
+
+    renderToGBuffer?: boolean
+    /**
+     * Same as {@link renderToGBuffer} for now
+     */
+    renderToDepth?: boolean
+
+    // only for materials that have envMapIntensity
+    separateEnvMapIntensity?: boolean // default: false
+
+    cloneId?: string
+    cloneCount?: number
+
+    __envIntensity?: number // temp storage for envMapIntensity while rendering
+    __isVariation?: boolean
+
+    inverseAlphaMap?: boolean // only for physical material right now
+
+    // [key: string]: any // commented for noe
+
+
+    // legacy, to be removed
+    setDirty?: (options?: IMaterialSetDirtyOptions) => void
+}
+
+export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMaterialEventTypes> extends Material<E, ET>, IJSONSerializable, IDisposable, IUiConfigContainer {
+    constructor: {
+        TYPE: string
+        TypeSlug: string
+        MaterialProperties?: Record<string, any>
+        MaterialTemplate?: IMaterialTemplate
+    }
+    assetType: 'material'
+    setDirty(options?: IMaterialSetDirtyOptions): void;
+
+    // clone?: ()=> any;
+
+    needsUpdate: boolean;
+
+
+    // toJSON same as three.js Material.toJSON
+    // toJSON(meta?: any): any;
+
+    // copyProps should be just setValues
+    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean): this;
+    toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
+    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
+
+    extraUniformsToUpload?: Record<string, IUniform>
+    materialExtensions?: MaterialExtension[]
+    registerMaterialExtensions?: (customMaterialExtensions: MaterialExtension[]) => void;
+    unregisterMaterialExtensions?: (customMaterialExtensions: MaterialExtension[]) => void;
+
+    /**
+     * Managed internally, do not change manually
+     */
+    generator?: IMaterialGenerator
+
+    /**
+     * Managed internally, do not change manually
+     */
+    appliedMeshes: Set<IObject3D>
+    lastShader?: Shader
+
+    // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
+    userData: IMaterialUserData
+
+    // optional from subclasses, added here for autocomplete
+    flatShading?: boolean
+    map?: ITexture | null
+    alphaMap?: ITexture | null
+    envMap?: ITexture | null
+    envMapIntensity?: number
+    aoMap?: ITexture | null
+    lightMap?: ITexture | null
+    normalMap?: ITexture | null
+    bumpMap?: ITexture | null
+    aoMapIntensity?: number
+    lightMapIntensity?: number
+    roughnessMap?: ITexture | null
+    metalnessMap?: ITexture | null
+    roughness?: number
+    metalness?: number
+    transmissionMap?: ITexture | null
+    transmission?: number
+
+
+    isRawShaderMaterial?: boolean
+    isPhysicalMaterial?: boolean
+    isUnlitMaterial?: boolean
+
+    // [key: string]: any
+}
+
+
+export type IMaterialGenerator<T extends IMaterial = IMaterial> = (params: any)=>T
+
+export interface IMaterialTemplate<T extends IMaterial = IMaterial, TP = any>{
+    templateUUID?: string,
+    name: string,
+    typeSlug?: string,
+    alias?: string[], // alternate names
+    materialType: string,
+    generator?: IMaterialGenerator<T>,
+
+    params?: TP
+}

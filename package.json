@@ -1,0 +1,123 @@
+{
+  "name": "threepipe",
+  "version": "0.0.1",
+  "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
+  "main": "src/index.ts",
+  "module": "dist/index.mjs",
+  "types": "src/index.ts",
+  "sources": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
+    "new:publish": "npm run prepare && clean-package && npm publish && clean-package restore",
+    "build": "rimraf dist ; NODE_ENV=production rollup -c",
+    "dev": "rollup -c -w",
+    "build-examples": "tsc --project examples/tsconfig.build.json",
+    "dev-examples": "tsc --project examples/tsconfig.build.json -w",
+    "serve-docs": "ws -d docs -p 8080",
+    "serve": "ws -d . -p 8000",
+    "docs": "npx typedoc",
+    "prepare": "npm run build && npm run build-examples && npm run docs"
+  },
+  "clean-package": {
+    "remove": [
+      "clean-package",
+      "scripts",
+      "devDependencies",
+      "optionalDependencies",
+      "//"
+    ],
+    "replace": {
+      "main": "dist/index.min.js",
+      "module": "dist/index.mjs",
+      "browser": "dist/index.js",
+      "types": "dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "examples",
+    "plugins",
+    "tsconfig.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/repalash/threepipe.git"
+  },
+  "keywords": [
+    "3d",
+    "three.js",
+    "typescript",
+    "javascipt",
+    "browser",
+    "esm",
+    "rendering",
+    "viewer",
+    "webgl",
+    "webgi",
+    "canvas"
+  ],
+  "author": "repalash <palash@shaders.app>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/repalash/threepipe/issues"
+  },
+  "homepage": "https://github.com/repalash/threepipe#readme",
+  "devDependencies": {
+    "rimraf": "^5.0.1",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.2",
+    "@rollup/plugin-terser": "^0.4.1",
+    "@rollup/plugin-typescript": "^11.1.1",
+    "@types/stats.js": "^0.17.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.5",
+    "@typescript-eslint/parser": "^5.59.5",
+    "clean-package": "^2.2.0",
+    "eslint": "^8.40.0",
+    "eslint-import-resolver-typescript": "^3.5.5",
+    "eslint-plugin-deprecation": "^1.4.1",
+    "eslint-plugin-html": "^7.1.0",
+    "eslint-plugin-import": "^2.27.5",
+    "local-web-server": "^5.3.0",
+    "rollup": "^3.21.7",
+    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2005/package.tgz",
+    "rollup-plugin-license": "^3.0.1",
+    "ts-browser-helpers": "^0.4.0",
+    "stats.js": "^0.17.0",
+    "tslib": "^2.5.0",
+    "typedoc": "^0.24.7",
+    "typescript": "^5.0.4",
+    "uiconfig.js": "^0.0.2",
+    "typescript-plugin-css-modules": "^5.0.1",
+    "rollup-plugin-postcss": "^4.0.2"
+  },
+  "dependencies": {
+    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.0004/package.tgz",
+    "@types/webxr": "^0.5.1",
+    "@types/wicg-file-system-access": "^2020.9.5"
+  },
+  "//": {
+    "dependencies": {
+      "ts-browser-helpers": "^0.4.0",
+      "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2005/package.tgz",
+      "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2005.tar.gz",
+      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.0004/package.tgz",
+      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.0004.tar.gz",
+      "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three"
+    },
+    "local_dependencies": {
+      "ts-browser-helpers": "file:./../ts-browser-helpers",
+      "three": "file:./../three.js",
+      "@types/three": "file:./../three-ts-types/types/three"
+    }
+  },
+  "optionalDependencies": {
+    "win-node-env": "^0.6.1"
+  },
+  "browserslist": [
+    "defaults"
+  ]
+}

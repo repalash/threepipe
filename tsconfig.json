@@ -1,0 +1,42 @@
+
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "isolatedModules": true,
+        "module": "es2020",
+        "noImplicitAny": true,
+        "declaration": true,
+        "declarationMap": true,
+        "declarationDir": "dist",
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": true,
+        "sourceMap": true,
+        "target": "ES2020",
+        "strictNullChecks": true,
+        "paths": {
+        },
+        "lib": [
+            "es2020",
+            "esnext",
+            "dom"
+        ],
+        "plugins": [{ "name": "typescript-plugin-css-modules" }]
+    },
+    "include": [
+        "src/**/*",
+        "node_modules/@types/wicg-file-system-access/index.d.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "examples",
+        "**/*.spec.ts"
+    ]
+}

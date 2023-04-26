@@ -1,0 +1,13 @@
+export * from './viewer/index'
+export * from './three/Threejs'
+export * from './three/index'
+export * from './core/index'
+export * from './assetmanager/index'
+export * from './utils/index'
+export * from './plugins/index'
+export * from './postprocessing/index'
+export * from './materials/index'
+export * from './rendering/index'
+export {_testStart, _testFinish} from './testing/testing'
+
+export {autoCenterObject3D, autoScaleObject3D} from './three/utils/object-transform'

@@ -1,0 +1,277 @@
+import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import {ThreeSerialization} from '../../utils/serialization'
+import {DoubleSide, Material} from 'three'
+import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+
+export class GLTFMaterialExtrasExtension {
+    static readonly WebGiMaterialExtrasExtension = 'WEBGI_material_extras'
+
+    /**
+     * for physical material
+     * Also {@link Export}
+     * @param loadConfigResources
+     */
+    static Import = (loadConfigResources: (res: any)=>any)=> (_: GLTFParser): GLTFLoaderPlugin=>({
+        name: '__' + GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension, // __ is prefix so that the extension is added to userdata, and we can process later in afterRoot
+        afterRoot: async(result: GLTF) => {
+            const scenes = result.scenes || (result.scene ? [result.scene] : [])
+            for (const s of scenes) {
+                const resExt = s.userData?.gltfExtensions?.[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] // Note: see exporter for details of material extra resources in scene.
+                const resources = resExt?.resources ? await loadConfigResources(resExt.resources) : {}
+
+                s.traverse((obj: any)=>{
+                    const o = obj?.material
+                    if (!o?.isMaterial) return
+                    const ext = o.userData?.gltfExtensions?.[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
+                    if (!ext) return
+
+                    // extras from MaterialLoader.js
+
+                    if (ext.emissiveIntensity !== undefined) o.emissiveIntensity = ext.emissiveIntensity // kept for old versions, this is not saved in extras because of KHR_materials_emissive_strength
+                    // bumpMap, displacementMap, lightMap, alphaMap moved to separate extensions
+
+                    // if (material.shininess !== undefined) dat.shininess = material.shininess
+                    if (ext.fog !== undefined) o.fog = ext.fog
+                    if (ext.flatShading !== undefined) o.flatShading = ext.flatShading
+                    if (ext.blending !== undefined) o.blending = ext.blending
+                    // if (ext.combine !== undefined) o.combine = ext.combine
+                    if (ext.side !== undefined) o.side = ext.side
+                    if (ext.shadowSide !== undefined) o.shadowSide = ext.shadowSide
+                    if (ext.depthFunc !== undefined) o.depthFunc = ext.depthFunc
+                    if (ext.depthTest !== undefined) o.depthTest = ext.depthTest
+                    if (ext.depthWrite !== undefined) o.depthWrite = ext.depthWrite
+                    if (ext.colorWrite !== undefined) o.colorWrite = ext.colorWrite
+
+                    if (ext.vertexColors !== undefined) o.vertexColors = ext.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
+                    if (ext.alphaTest !== undefined) o.alphaTest = ext.alphaTest
+
+                    // if (ext.transparent !== undefined) o.transparent = ext.transparent // this is set by GLTFLoader based on alpha mode
+
+                    // if (ext.envMapIntensity !== undefined) o.envMapIntensity = ext.envMapIntensity // this is set in global by rootscene
+
+                    // if (ext.stencilWrite !== undefined) o.stencilWrite = ext.stencilWrite
+                    // if (ext.stencilWriteMask !== undefined) o.stencilWriteMask = ext.stencilWriteMask
+                    // if (ext.stencilFunc !== undefined) o.stencilFunc = ext.stencilFunc
+                    // if (ext.stencilRef !== undefined) o.stencilRef = ext.stencilRef
+                    // if (ext.stencilFuncMask !== undefined) o.stencilFuncMask = ext.stencilFuncMask
+                    // if (ext.stencilFail !== undefined) o.stencilFail = ext.stencilFail
+                    // if (ext.stencilZFail !== undefined) o.stencilZFail = ext.stencilZFail
+                    // if (ext.stencilZPass !== undefined) o.stencilZPass = ext.stencilZPass
+
+                    if (ext.wireframe !== undefined) o.wireframe = ext.wireframe
+                    if (ext.wireframeLinewidth !== undefined) o.wireframeLinewidth = ext.wireframeLinewidth
+                    if (ext.wireframeLinecap !== undefined) o.wireframeLinecap = ext.wireframeLinecap
+                    if (ext.wireframeLinejoin !== undefined) o.wireframeLinejoin = ext.wireframeLinejoin
+
+                    if (ext.rotation !== undefined) o.rotation = ext.rotation
+
+                    // if (ext.linewidth !== 1) o.linewidth = ext.linewidth
+                    // if (ext.dashSize !== undefined) o.dashSize = ext.dashSize
+                    // if (ext.gapSize !== undefined) o.gapSize = ext.gapSize
+                    // if (ext.scale !== undefined) o.scale = ext.scale
+
+                    if (ext.polygonOffset !== undefined) o.polygonOffset = ext.polygonOffset
+                    if (ext.polygonOffsetFactor !== undefined) o.polygonOffsetFactor = ext.polygonOffsetFactor
+                    if (ext.polygonOffsetUnits !== undefined) o.polygonOffsetUnits = ext.polygonOffsetUnits
+
+                    if (ext.dithering !== undefined) o.dithering = ext.dithering
+
+                    if (ext.alphaToCoverage !== undefined) o.alphaToCoverage = ext.alphaToCoverage
+                    if (ext.premultipliedAlpha !== undefined) o.premultipliedAlpha = ext.premultipliedAlpha
+
+                    // if (ext.visible !== undefined) o.visible = ext.visible
+
+                    if (ext.toneMapped !== undefined) o.toneMapped = ext.toneMapped
+
+                    // we are ignoring the normalScale set from the GLTFLoader, because it is not correct in some cases.
+                    // todo: check if this is still the case
+                    if (ext.normalScale !== undefined && o.normalScale !== undefined) {
+                        if (Array.isArray(ext.normalScale)) o.normalScale.fromArray(ext.normalScale)
+                        else if (typeof ext.normalScale === 'number') o.normalScale.set(ext.normalScale, ext.normalScale)
+                        else console.warn('normalScale is not an array or number', ext.normalScale)
+                    }
+
+                    if (ext.reflectivity !== undefined) o.reflectivity = ext.reflectivity // this is not present in the extras exporter because KHR_materials_ior, todo: kept for backward compatibility, remove ?
+                    // if (ext.refractionRatio !== undefined) o.refractionRatio = ext.refractionRatio
+
+                    // todo forceSinglePass
+
+                    // todo: make extension for these like GLTFMaterialsBumpMapExtension
+                    // if ( ext.gradientMap !== undefined ) o.gradientMap = getTexture( json.gradientMap );
+
+                    Object.entries(ext).forEach(([key, value]: [string, any])=>{
+                        if (key.startsWith('_')) return
+                        if (value && value.resource && typeof value.resource === 'string') {
+                            o[key] = ThreeSerialization.Deserialize(value, o[key], resources)
+                        }
+                    })
+
+                    delete o.userData.gltfExtensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
+
+                })
+
+                // todo: check for resources that are not used and dispose them? see todo in ThreeViewer.fromJSON
+
+                if (resExt) delete s.userData.gltfExtensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
+            }
+        },
+    })
+
+    /**
+     * Also see {@link Import}
+     * @param w
+     * @constructor
+     */
+    static Export = (w: GLTFWriter): GLTFExporterPlugin&{materialExternalResources:any, serializedMeta: any}=> ({
+        writeMaterial(material: Material & any, matDef: any) {
+            if (!material?.isMaterial) return
+            if (!matDef.extensions) matDef.extensions = {}
+            const dat: any = {}
+
+            // non-default stuff from MaterialLoader.js
+
+            // hardcode fix for: emissive components are limited to stay within the 0 - 1 range to accommodate glTF spec. see threejs: #21849 and #22000.
+            // not needed anymore.
+            // if (material.emissiveIntensity !== undefined && material.emissive?.isColor) {
+            //     const emissive = material.emissive.clone().multiplyScalar(material.emissiveIntensity)
+            //     const maxEmissiveComponent = Math.max(emissive.r, emissive.g, emissive.b)
+            //     if (maxEmissiveComponent > 1) {
+            //         dat.emissiveIntensity = maxEmissiveComponent
+            //     }
+            // }
+
+            // bumpMap, lightMap, alphaMap moved to separate extensions
+
+            // if (material.shininess !== undefined) dat.shininess = material.shininess
+            if (material.fog !== undefined) dat.fog = material.fog
+            if (material.flatShading !== undefined) dat.flatShading = material.flatShading
+            if (material.blending !== undefined) dat.blending = material.blending
+            // if (material.combine !== undefined) dat.combine = material.combine
+            if (material.side !== undefined && material.side !== DoubleSide) dat.side = material.side // DoubleSide handled in GLTF
+            if (material.shadowSide !== undefined) dat.shadowSide = material.shadowSide
+            if (material.depthFunc !== undefined) dat.depthFunc = material.depthFunc
+            if (material.depthTest !== undefined) dat.depthTest = material.depthTest
+            if (material.depthWrite !== undefined) dat.depthWrite = material.depthWrite
+            if (material.colorWrite !== undefined) dat.colorWrite = material.colorWrite
+
+            if (material.vertexColors !== undefined) dat.vertexColors = material.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
+            if (material.alphaTest !== undefined) dat.alphaTest = material.alphaTest
+
+            // if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity
+
+            // if (material.stencilWrite !== undefined) dat.stencilWrite = material.stencilWrite
+            // if (material.stencilWriteMask !== undefined) dat.stencilWriteMask = material.stencilWriteMask
+            // if (material.stencilFunc !== undefined) dat.stencilFunc = material.stencilFunc
+            // if (material.stencilRef !== undefined) dat.stencilRef = material.stencilRef
+            // if (material.stencilFuncMask !== undefined) dat.stencilFuncMask = material.stencilFuncMask
+            // if (material.stencilFail !== undefined) dat.stencilFail = material.stencilFail
+            // if (material.stencilZFail !== undefined) dat.stencilZFail = material.stencilZFail
+            // if (material.stencilZPass !== undefined) dat.stencilZPass = material.stencilZPass
+
+            if (material.wireframe !== undefined) dat.wireframe = material.wireframe
+            if (material.wireframeLinewidth !== undefined) dat.wireframeLinewidth = material.wireframeLinewidth
+            if (material.wireframeLinecap !== undefined) dat.wireframeLinecap = material.wireframeLinecap
+            if (material.wireframeLinejoin !== undefined) dat.wireframeLinejoin = material.wireframeLinejoin
+
+            if (material.rotation !== undefined) dat.rotation = material.rotation
+
+            // if (material.linewidth !== 1) dat.linewidth = material.linewidth
+            // if (material.dashSize !== undefined) dat.dashSize = material.dashSize
+            // if (material.gapSize !== undefined) dat.gapSize = material.gapSize
+            // if (material.scale !== undefined) dat.scale = material.scale
+
+            if (material.polygonOffset !== undefined) dat.polygonOffset = material.polygonOffset
+            if (material.polygonOffsetFactor !== undefined) dat.polygonOffsetFactor = material.polygonOffsetFactor
+            if (material.polygonOffsetUnits !== undefined) dat.polygonOffsetUnits = material.polygonOffsetUnits
+
+            if (material.dithering !== undefined) dat.dithering = material.dithering
+
+            if (material.alphaToCoverage !== undefined) dat.alphaToCoverage = material.alphaToCoverage
+            if (material.premultipliedAlpha !== undefined) dat.premultipliedAlpha = material.premultipliedAlpha
+
+            // if (material.visible !== undefined) dat.visible = material.visible
+
+            if (material.toneMapped !== undefined) dat.toneMapped = material.toneMapped
+
+            // ignoring data from the GLTFExporter.
+            if (material.normalScale !== undefined) dat.normalScale = [material.normalScale.x, material.normalScale.y]
+
+            // if (material.reflectivity !== undefined) dat.reflectivity = material.reflectivity // see KHR_materials_ior, and comments in parser.
+
+            // if (material.refractionRatio !== undefined) dat.refractionRatio = material.refractionRatio
+
+            // todo: make extension for this like GLTFMaterialsBumpMapExtension
+            // if ( material.gradientMap !== undefined ) dat.gradientMap = getTexture( json.gradientMap );
+
+            const resources = this.materialExternalResources[material.uuid]
+            if (resources) {
+                Object.entries(resources).forEach(([k, v]) => {
+                    if (k.startsWith('_')) return
+                    dat[k] = ThreeSerialization.Serialize(v, this.serializedMeta)
+                })
+            }
+            if (Object.keys(dat).length > 0) {
+                matDef.extensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] = dat
+                w.extensionsUsed[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] = true
+            }
+        },
+
+        materialExternalResources: {},
+        serializedMeta: {
+            images: {},
+            textures: {},
+        },
+        beforeParse(input) {
+            this.materialExternalResources = {}
+            // externalImagesInExtras: this is required because gltf-transform doesnt support external images in glb
+            // see https://github.com/donmccurdy/glTF-Transform/discussions/644
+            if (!w.options.externalImagesInExtras) return
+            const materials: (Material&any)[] = [];
+            (Array.isArray(input) ? input : [input]).forEach(obj=>{
+                obj?.traverse((o: any)=>{
+                    if (o && o.material?.isMaterial) materials.push(o.material)
+                })
+            })
+            materials.forEach(material=>{
+                if (material) {
+                    if (!this.materialExternalResources[material.uuid])
+                        this.materialExternalResources[material.uuid] = {}
+                    this.materialExternalResources[material.uuid].__materialRef = material
+                    Object.entries(material).forEach(([k, v]: [string, any])=>{
+                        if (k.startsWith('_')) return
+                        if (!v) return
+                        if (!v.isTexture) return
+                        if (
+                            v.userData.rootPath
+                            && (v.userData.rootPath.startsWith('http') || v.userData.rootPath.startsWith('data:'))
+                        ) {
+                            material[k] = null
+                            this.materialExternalResources[material.uuid][k] = v
+                        }
+                    })
+                }
+            })
+        },
+        afterParse(_) {
+            const vals = Object.values(this.materialExternalResources)
+            if (vals.length < 1) return
+            vals.forEach((resources: any)=>{
+                const mat = resources.__materialRef
+                if (!mat) return
+                Object.entries(resources).forEach(([k, v]: [string, any])=>{
+                    if (k.startsWith('_')) return
+                    if (!v) return
+                    mat[k] = v
+                })
+                delete this.materialExternalResources[mat.uuid]
+            })
+            const scene = w.json.scenes[w.json.scene || 0]
+            if (!scene.extensions) scene.extensions = {}
+            scene.extensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] = {
+                resources: this.serializedMeta,
+            }
+            w.extensionsUsed[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] = true
+            // console.log(w)
+        },
+    })
+}

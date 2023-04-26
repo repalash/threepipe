@@ -1,0 +1,28 @@
+{
+    "externalSymbolLinkMappings": {
+        "@types/three": {
+            "*": "https://threejs.org/docs"
+        },
+        "three": {
+            "*": "https://threejs.org/docs/"
+        },
+        "ts-browser-helpers": {
+            "*": "https://repalash.com/ts-browser-helpers"
+        },
+        "uiconfig.js": {
+            "*": "https://repalash.com/uiconfig.js"
+        }
+    },
+    "entryPoints": ["src/index.ts"],
+    "name": "ThreePipe",
+    "excludeExternals": true,
+    "readme": "none",
+    "categorizeByGroup": false,
+    "categoryOrder": [
+        "Viewer", "*", "Others"
+    ],
+    "externalPattern": [
+        "**/node_modules/**",
+        "**/three-ts-types/**"
+    ]
+}

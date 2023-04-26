@@ -1,0 +1,436 @@
+import {ImportAssetOptions, ImportResult, ProcessRawOptions, RootSceneImportResult} from './IAssetImporter'
+import {
+    BaseEvent,
+    Cache as threeCache,
+    Camera,
+    EventDispatcher,
+    LinearFilter,
+    LinearMipmapLinearFilter,
+    LoadingManager,
+    PerspectiveCamera,
+    TextureLoader,
+} from 'three'
+import {ISerializedConfig, IViewerPlugin, ThreeViewer} from '../viewer'
+import {AssetImporter} from './AssetImporter'
+import {generateUUID, getTextureDataType, overrideThreeCache} from '../three'
+import {IAsset} from './IAsset'
+import {
+    AddObjectOptions,
+    ICamera,
+    iCameraCommons,
+    IMaterial,
+    iMaterialCommons,
+    IObject3D,
+    iObjectCommons,
+    ISceneEvent,
+    PerspectiveCamera2,
+    upgradeTexture,
+} from '../core'
+import {Importer} from './Importer'
+import {MaterialManager} from './MaterialManager'
+import {DRACOLoader2, GLTFLoader2, JSONMaterialLoader, MTLLoader2, OBJLoader2, ZipLoader} from './import'
+import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
+import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js'
+import {EXRLoader} from 'three/examples/jsm/loaders/EXRLoader.js'
+import {Class, ValOrArr} from 'ts-browser-helpers'
+import {ILoader} from './IImporter'
+import {AssetExporter} from './AssetExporter'
+import {IExporter} from './IExporter'
+import {GLTFExporter2} from './export'
+
+export interface AssetManagerOptions{
+    simpleCache?: boolean // simple memory based cache for downloaded files, default = false
+    storage?: Cache | Storage // cache storage for downloaded files, can use with `caches.open` default = undefined
+}
+
+export type ImportAddOptions = ImportAssetOptions & AddObjectOptions
+export type AddRawOptions = ProcessRawOptions & AddObjectOptions
+
+
+export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}, 'loadAsset'> {
+    static readonly PluginType = 'AssetManager'
+    readonly viewer: ThreeViewer
+    readonly importer: AssetImporter
+    readonly exporter: AssetExporter
+    readonly materials: MaterialManager
+    // private readonly _linkDropzone: boolean
+    readonly storage?: Cache | Storage
+
+    constructor(viewer: ThreeViewer, {simpleCache = false, storage}: AssetManagerOptions = {}) {
+        super()
+        this._sceneUpdated = this._sceneUpdated.bind(this)
+        this.addAsset = this.addAsset.bind(this)
+        this.addRaw = this.addRaw.bind(this)
+        this.addImported = this.addImported.bind(this)
+
+        this.importer = new AssetImporter(!!viewer.getPlugin('debug'))
+        this.exporter = new AssetExporter()
+        this.materials = new MaterialManager()
+        this.viewer = viewer
+        this.viewer.scene.addEventListener('addSceneObject', this._sceneUpdated)
+        this.viewer.scene.addEventListener('materialChanged', this._sceneUpdated)
+        this._initCacheStorage(simpleCache, storage)
+        this.storage = storage
+
+        this.importer.addEventListener('processRaw', (event)=>{
+            // console.log('preprocess mat', mat)
+            const mat = event.data as IMaterial
+            if (!mat || !mat.isMaterial || !mat.uuid) return
+            if (this.materials?.findMaterial(mat.uuid)) {
+                console.warn('imported material uuid already exists, creating new uuid')
+                mat.uuid = generateUUID()
+                if (mat.userData.uuid) mat.userData.uuid = mat.uuid
+            }
+            // todo: check for name exists also
+            this.materials.registerMaterial(mat)
+        })
+
+        this.importer.addEventListener('processRawStart', (event)=>{
+            // console.log('preprocess mat', mat)
+            const res = event.data!
+            // if (!res.assetType) {
+            //     if (res.isBufferGeometry) { // for eg stl todo
+            //         res = new Mesh(res, new MeshStandardMaterial())
+            //     }
+            //     if (res.isObject3D) {
+            //     }
+            // }
+            if (res.isObject3D) {
+                // todo replace lights
+                // if (res.isLight) {
+                //     res = upgradeThreejsLight(res)
+                // } else {
+                //     const lights: any[] = []
+                //     res.traverse((rr: any)=>{
+                //         if (rr !== res && rr.isLight) lights.push(rr)
+                //     })
+                //     for (const light of lights) {
+                //         upgradeThreejsLight(light)
+                //     }
+                //     res = new Object3DModel(res, options as any)
+                // }
+
+                const cameras: Camera[] = []
+                res.traverse((obj: any) => {
+                    if (obj.material) {
+                        const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
+                        const newMaterials = []
+                        for (const material of materials) {
+                            const mat = this.materials.convertToIMaterial(material) || material
+                            mat.uuid = material.uuid
+                            mat.userData.uuid = material.uuid
+                            newMaterials.push(mat)
+                        }
+                        if (Array.isArray(obj.material)) obj.material = newMaterials
+                        else obj.material = newMaterials[0]
+                    }
+                    if (obj.isCamera) cameras.push(obj)
+                })
+                for (const camera of cameras) {
+                    // todo: OrthographicCamera
+                    if (!(camera as PerspectiveCamera).isPerspectiveCamera || !camera.parent) {
+                        iCameraCommons.upgradeCamera.call(camera)
+                    } else {
+                        const newCamera: ICamera = (camera as any).iCamera ?? new PerspectiveCamera2('', this.viewer.canvas).copy(camera)
+                        if (camera === newCamera) continue
+                        ;(newCamera as any).uuid = camera.uuid
+                        newCamera.userData.uuid = camera.uuid
+                        ;(camera as any).iCamera = newCamera
+                        camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
+                    }
+                }
+
+                iObjectCommons.upgradeObject3D.call(res)
+            } else if (res.isMaterial) {
+                iMaterialCommons.upgradeMaterial.call(res)
+                // todo update res by generating new material?
+            } else if (res.isTexture) {
+                upgradeTexture.call(res)
+
+                if (event?.options?.generateMipmaps !== undefined)
+                    res.generateMipmaps = event?.options.generateMipmaps
+                if (!res.generateMipmaps && !res.isRenderTargetTexture) { // todo: do we need to check more?
+                    res.minFilter = res.minFilter === LinearMipmapLinearFilter ? LinearFilter : res.minFilter
+                    res.magFilter = res.magFilter === LinearMipmapLinearFilter ? LinearFilter : res.magFilter
+                }
+
+            }
+            // todo other asset/object types?
+        })
+
+        this._addImporters()
+        this._addExporters()
+
+    }
+
+    async addAsset<T extends ImportResult = ImportResult>(assetOrPath?: string | IAsset | IAsset[], options?: ImportAddOptions): Promise<(T|undefined)[]> {
+        if (!this.importer || !this.viewer) return []
+        const imported = await this.importer.import<T>(assetOrPath, options)
+        if (!imported) {
+            console.warn('Unable to import', assetOrPath, imported)
+            return []
+        }
+        return this.loadImported<(T|undefined)[]>(imported, options)
+    }
+
+    // materials: IMaterial[] = []
+    // textures: ITexture[] = []
+
+    async loadImported<T extends ValOrArr<ImportResult|undefined> = ImportResult>(imported: T, options?: AddObjectOptions): Promise<T | never[]> {
+        const arr: (ImportResult|undefined)[] = Array.isArray(imported) ? imported : [imported]
+
+        for (const obj of arr) {
+            if (!obj) continue
+
+            switch (obj.assetType) {
+            case 'material':
+                this.materials.registerMaterial(<IMaterial>obj)
+                break
+            case 'texture':
+                break
+            case 'model':
+            case 'light':
+            case 'camera':
+                await this.viewer.addSceneObject(<IObject3D|RootSceneImportResult>obj, options) // todo update references in scene update event
+                break
+            case 'config':
+                if (options?.importConfig !== false) await this.viewer.importConfig(<ISerializedConfig>obj)
+                break
+            default:
+
+                // legacy
+                if (obj.type && typeof obj.type === 'string' && (Array.isArray((obj as any).plugins) ||
+                    (obj as any).type === 'ThreeViewer' || this.viewer.getPlugin((obj as any).type))) {
+                    await this.viewer.importConfig(<ISerializedConfig>obj)
+                }
+                break
+            }
+            this.dispatchEvent({type:  'loadAsset', data: obj})
+        }
+
+        return imported || []
+    }
+
+    /**
+     * same as {@link loadImported}
+     * @param imported
+     * @param options
+     */
+    async addProcessedAssets<T extends ImportResult|undefined = ImportResult>(imported: (T|undefined)[], options?: AddObjectOptions): Promise<(T | undefined)[]> {
+        return this.loadImported(imported, options)
+    }
+
+    async addAssetSingle<T extends ImportResult = ImportResult>(asset?: IAsset | string, options?: ImportAssetOptions): Promise<T|undefined> {
+        return !asset ? undefined : (await this.addAsset<T>(asset, options))?.[0]
+    }
+
+    // processAndAddObjects
+    async addRaw<T extends (ImportResult|undefined) = ImportResult>(res: T|T[], options: AddRawOptions = {}): Promise<(T|undefined)[]> {
+        const r = await this.importer.processRaw<T>(res, options)
+        return this.loadImported<T[]>(r, options)
+    }
+    async addRawSingle<T extends ImportResult|undefined = ImportResult|undefined>(res: T, options: AddRawOptions = {}): Promise<T|undefined> {
+        return (await this.addRaw<T>(res, options))?.[0]
+    }
+
+    private _sceneUpdated(event: ISceneEvent) { // todo: check if objects are added some other way.
+        if (event.type === 'addSceneObject') {
+            const target = event.object as ImportResult
+            switch (target.assetType) {
+            case 'material':
+                this.materials.registerMaterial(<IMaterial>target)
+                break
+            case 'texture':
+                break
+            case 'model':
+            case 'light':
+            case 'camera':
+                break
+            default:
+                break
+            }
+        } else if (event.type === 'materialChanged') {
+            const target = event.material as IMaterial | IMaterial[] | undefined
+            const targets = Array.isArray(target) ? target : target ? [target] : []
+            for (const t of targets) {
+                this.materials.registerMaterial(t)
+            }
+        } else {
+            console.error('Unexpected')
+        }
+    }
+
+    dispose() {
+        this.importer.dispose()
+        this.materials.dispose()
+        this.viewer.scene.removeEventListener('addSceneObject', this._sceneUpdated)
+        this.viewer.scene.removeEventListener('materialChanged', this._sceneUpdated)
+        this.exporter.dispose()
+    }
+
+    protected _addImporters() {
+        const viewer = this.viewer
+        if (!viewer) return
+
+        console.log(['mat', ...this.materials.templates.map(t=>t.typeSlug!).filter(v=>v)])
+        const importers: Importer[] = [
+            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'svg', 'ico', 'data:image'], [
+                'image/webp', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon',
+            ], false), // todo: use ImageBitmapLoader if supported (better performance)
+
+            new Importer<JSONMaterialLoader>(JSONMaterialLoader,
+                ['mat', ...this.materials.templates.map(t=>t.typeSlug!).filter(v=>v)], // todo add others
+                [], false, (loader)=>{
+                    if (loader) loader.viewer = this.viewer
+                    return loader
+                }),
+
+            new Importer(class extends RGBELoader {
+                constructor(manager: LoadingManager) {
+                    super(manager)
+                    this.setDataType(getTextureDataType(viewer.renderManager.renderer))
+                }
+            }, ['hdr'], ['image/vnd.radiance'], false),
+
+            new Importer(class extends EXRLoader {
+                constructor(manager: LoadingManager) {
+                    super(manager)
+                    this.setDataType(getTextureDataType(viewer.renderManager.renderer))
+                }
+            }, ['exr'], ['image/x-exr'], false),
+
+            new Importer(FBXLoader, ['fbx'], ['model/fbx'], true),
+            new Importer(ZipLoader, ['zip'], ['application/zip'], true),
+
+            new Importer(OBJLoader2 as any as Class<ILoader>, ['obj'], ['model/obj'], true),
+            new Importer(MTLLoader2 as any as Class<ILoader>, ['mtl'], ['model/mtl'], false),
+
+            new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary'], true, (l, _, i) => l?.setup(this.viewer, i.extensions)),
+
+            new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco'], true),
+        ]
+
+        this.importer.addImporter(...importers)
+
+    }
+
+    protected _addExporters() {
+        const exporters: IExporter[] = [
+            {ext: ['gltf', 'glb'], extensions: [], ctor: (_, exporter)=>{
+                const ex = new GLTFExporter2()
+                // This should be added at the end.
+                ex.setup(this.viewer, exporter.extensions)
+                return ex
+            }},
+        ]
+
+        this.exporter.addExporter(...exporters)
+    }
+
+    private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage) {
+        if (simpleCache || storage) {
+            // three.js built-in simple memory cache. used in FileLoader.js todo: use local storage somehow
+            if (simpleCache) threeCache.enabled = true
+
+            if (storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache) {
+                overrideThreeCache(storage)
+                // todo: clear cache
+            }
+        }
+    }
+
+
+    // region deprecated
+
+    /**
+     * @deprecated use addRaw instead
+     * @param res
+     * @param options
+     */
+    async addImported<T extends (ImportResult|undefined) = ImportResult>(res: T|T[], options: AddRawOptions = {}): Promise<(T|undefined)[]> {
+        console.error('addImported is deprecated, use addRaw instead')
+        return this.addRaw(res, options)
+    }
+
+    /**
+     * @deprecated use addAsset instead
+     * @param path
+     * @param options
+     */
+    public async addFromPath(path: string, options: ImportAddOptions = {}): Promise<any[]> {
+        console.error('addFromPath is deprecated, use addAsset instead')
+        return this.addAsset(path, options)
+    }
+
+    /**
+     * @deprecated use {@link ThreeViewer.exportConfig} instead
+     * @param binary - if set to false, encodes all the array buffers to base64
+     */
+    exportViewerConfig(binary = true): Record<string, any> {
+        if (!this.viewer) return {}
+        console.error('exportViewerConfig is deprecated, use viewer.toJSON instead')
+        return this.viewer.toJSON(binary, undefined)
+    }
+
+    /**
+     * @deprecated use {@link ThreeViewer.exportPluginsConfig} instead
+     * @param filter
+     */
+    exportPluginPresets(filter?: string[]) {
+        console.error('exportPluginPresets is deprecated, use viewer.exportPluginsConfig instead')
+        return this.viewer?.exportPluginsConfig(filter)
+    }
+
+    /**
+     * @deprecated use {@link ThreeViewer.exportPluginConfig} instead
+     * @param plugin
+     */
+    exportPluginPreset(plugin: IViewerPlugin) {
+        console.error('exportPluginPreset is deprecated, use viewer.exportPluginConfig instead')
+        return this.viewer?.exportPluginConfig(plugin)
+    }
+
+    /**
+     * @deprecated use {@link ThreeViewer.importPluginConfig} instead
+     * @param json
+     * @param plugin
+     */
+    async importPluginPreset(json: any, plugin?: IViewerPlugin) {
+        console.error('importPluginPreset is deprecated, use viewer.importPluginConfig instead')
+        return this.viewer?.importPluginConfig(json, plugin)
+    }
+
+    // todo continue from here by moving functions to the viewer.
+    /**
+     * @deprecated use {@link ThreeViewer.importConfig} instead
+     * @param viewerConfig
+     */
+    async importViewerConfig(viewerConfig: any) {
+        return this.viewer?.importConfig(viewerConfig)
+    }
+
+    /**
+     * @deprecated use {@link ThreeViewer.fromJSON} instead
+     * @param viewerConfig
+     */
+    applyViewerConfig(viewerConfig: any, resources?: any) {
+        console.error('applyViewerConfig is deprecated, use viewer.fromJSON instead')
+        return this.viewer?.fromJSON(viewerConfig, resources)
+    }
+
+    /**
+     * @deprecated moved to {@link ThreeViewer.loadConfigResources}
+     * @param json
+     * @param extraResources - preloaded resources in the format of viewer config resources.
+     */
+    async importConfigResources(json: any, extraResources?: any) {
+        if (!this.importer) throw 'Importer not initialized yet.'
+
+        // console.log(json)
+        if (json.__isLoadedResources) return json
+
+        return this.viewer?.loadConfigResources(json, extraResources)
+    }
+
+    // endregion
+}
