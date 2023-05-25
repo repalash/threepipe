@@ -1,5 +1,7 @@
 dist
 docs
+examples/**/*.js
+examples/**/*.js.map
 
 # Logs
 logs

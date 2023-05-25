@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        "baseUrl": "./",
+        "allowJs": false,
+        "checkJs": false,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "isolatedModules": false,
+        "module": "es2020",
+        "noImplicitAny": true,
+        "declaration": false,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": true,
+        "sourceMap": false,
+        "paths": {
+            "threepipe": ["../src/"]
+        },
+        "target": "ES2020",
+        "strictNullChecks": true,
+        "lib": [
+            "es2020",
+            "esnext",
+            "dom"
+        ]
+    },
+    "include": [
+        "./**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "../dist/**/*",
+        "../src/**/*",
+        "**/*.spec.ts"
+    ]
+}

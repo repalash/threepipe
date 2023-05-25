@@ -4,3 +4,5 @@ public
 config
 libs
 docs
+examples/**/*.js
+examples/**/*.html
