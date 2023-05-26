@@ -10,6 +10,8 @@ async function init() {
         autoScale: true,
     })
 
+    // todo wait for images to load
+
     // export to glb
     const blob = await viewer.exportScene()
     if (!blob || blob.ext !== 'glb') {

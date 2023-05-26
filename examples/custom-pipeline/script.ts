@@ -1,5 +1,5 @@
 import {_testFinish, DepthBufferPlugin, downloadBlob, HalfFloatType, ThreeViewer} from 'threepipe'
-import {createSimpleButtons} from '../js-utils/simple-bottom-buttons.js'
+import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,

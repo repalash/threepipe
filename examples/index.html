@@ -3,28 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <title>ThreePipe Examples</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+        }
+
+        .root-container {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hamburger {
+            position: absolute;
+            background: transparent;
+            border: none;
+            top: 0.25rem;
+            right: 0.5rem;
+            font-size: 1.75rem;
+            padding: 0.5rem;
+            color: #bbb;
+        }
+
+        .hamburger:hover {
+            color: #fff;
+        }
+
+        .sidebar {
+            max-width: min(350px, 30%);
+            height: 100%;
+            background: #1a1a1c;
+            color: #bbb;
+            padding: 1rem 1rem;
+            box-sizing: border-box;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+        }
+
+        .sidebar h1 {
+            color: #ddd;
+            font-size: 1.5rem;
+            margin: 0 3rem 1rem 0;
+            font-weight: normal;
+            padding: 0;
+        }
+
+        .sidebar h1 a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .sidebar h1 a:hover {
+            color: #eee;
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            margin: 0 0 0.5rem 0.25rem;
+            font-weight: normal;
+            padding: 0;
+        }
+
+        .sidebar ul {
+            font-size: 1rem;
+            list-style: none;
+            padding: 0 0 0 1rem;
+            margin: 0 0 1rem;
+            display: flex;
+            flex-direction: column;
+            font-weight: normal;
+            gap: 0.6rem;
+        }
+
+        .sidebar ul li a {
+            color: #58a6ff;
+            text-underline-offset: 0.25rem;
+            text-decoration: none;
+            transition: color 0.25s ease-in-out;
+        }
+
+        .sidebar ul li a:hover {
+            color: #eee;
+        }
+
+        .sidebar ul li a.selected {
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .iframe-container {
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .closed > ul {
+            display: none;
+        }
+
+        .closed > h1 {
+            display: none;
+        }
+
+        .closed > h2 {
+            display: none;
+        }
+
+        .closed.sidebar{
+            padding: 1.75rem;
+        }
+        .closed:before{
+            content: attr(data-selected-example);
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 3.3rem;
+            color: #58a6ff;
+            font-size: 1.25rem;
+            text-align: center;
+            vertical-align: middle;
+            line-height: 3.25rem;
+            writing-mode: vertical-lr;
+            text-orientation: upright;
+        }
+
+
+        @media only screen and (max-width: 768px) {
+            .root-container {
+                flex-direction: column;
+            }
+            .sidebar{
+                max-width: 100%;
+                height: auto;
+                max-height: 50%;
+                padding: 1rem;
+                position: relative;
+            }
+            .hamburger{
+                padding: 0.25rem;
+            }
+            .closed:before{
+                width: 100%;
+                height: 3rem;
+                writing-mode: unset;
+                text-orientation: unset;
+            }
+        }
+
+
+    </style>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const hamburger = document.querySelector('.hamburger');
+            const sidebar = document.querySelector('.sidebar');
+            hamburger.addEventListener('click', () => {
+                sidebar.classList.toggle('closed');
+            });
+
+            const iframe = document.querySelector('#example-iframe');
+            const links = document.querySelectorAll('li>a');
+            let selected = document.querySelector('a.selected');
+            links.forEach(link => {
+                link.onclick = (ev) => {
+                    selected.classList.remove('selected');
+                    ev.target.classList.add('selected');
+                    selected = ev.target;
+                    iframe.src = ev.target.href;
+                    ev.preventDefault()
+                    sidebar.dataset.selectedExample = ev.target.innerText;
+                }
+            });
+        });
+    </script>
 </head>
 <body>
-<div>
-    <h1>Examples</h1>
-    <ul>
-        <li><a href="./import-test">Import Test</a></li>
-        <li><a href="./sphere-rgbm-test">Sphere RGBM Test </a></li>
-        <li><a href="./sphere-half-float-test">Sphere Half Float Test </a></li>
-        <li><a href="./sphere-msaa-test">Sphere MSAA Test </a></li>
-        <li><a href="./z-prepass">Z-Prepass Test </a></li>
-        <li><a href="./fbx-load">FBX Load </a></li>
-        <li><a href="./hdr-load">HDR Load </a></li>
-        <li><a href="./obj-mtl-load">OBJ MTL Load </a></li>
-        <li><a href="./gltf-load">GLTF Load </a></li>
-        <li><a href="./drc-load">DRACO(DRC) Load </a></li>
-        <li><a href="./obj-to-glb">Convert OBJ to GLB </a></li>
-        <li><a href="./depth-buffer-plugin">Depth Buffer Plugin </a></li>
-        <li><a href="./custom-pipeline">Custom Pipeline specification </a></li>
-        <li><a href="./render-target-preview">Render Target Preview </a></li>
-        <li><a href="./glb-export">GLB Export </a></li>
-        <li><a href="./glb-export">GLB Export </a></li>
-        <li><a href="./pmat-material-export">PMAT Material export </a></li>
-    </ul>
+<div class="root-container">
+    <div class="sidebar" data-selected-example="GLTF Load">
+        <button class="hamburger"> &#9776;</button>
+        <h1><a href="https://github.com/repalash/threepipe">ThreePipe</a> Examples</h1>
+        <h2 class="category">Plugins</h2>
+        <ul>
+            <li><a href="./depth-buffer-plugin">Depth Buffer Plugin </a></li>
+            <li><a href="./render-target-preview">Render Target Preview </a></li>
+        </ul>
+        <h2 class="category">Import/Export</h2>
+        <ul>
+            <li><a href="./fbx-load">FBX Load </a></li>
+            <li><a href="./hdr-load">HDR Load </a></li>
+            <li><a href="./obj-mtl-load">OBJ MTL Load </a></li>
+            <li><a class="selected" href="./gltf-load">GLTF Load </a></li>
+            <li><a href="./drc-load">DRACO(DRC) Load </a></li>
+            <li><a href="./glb-export">GLB Export </a></li>
+            <li><a href="./pmat-material-export">PMAT Material export </a></li>
+        </ul>
+        <h2 class="category">Rendering</h2>
+        <ul>
+            <li><a href="./custom-pipeline">Custom Pipeline specification </a></li>
+        </ul>
+        <h2 class="category">Utils</h2>
+        <ul>
+            <li><a href="./obj-to-glb">Convert OBJ to GLB </a></li>
+        </ul>
+        <h2 class="category">Tests</h2>
+        <ul>
+            <li><a href="./import-test">Import Test</a></li>
+            <li><a href="./sphere-rgbm-test">Sphere RGBM Test </a></li>
+            <li><a href="./sphere-half-float-test">Sphere Half Float Test </a></li>
+            <li><a href="./sphere-msaa-test">Sphere MSAA Test </a></li>
+            <li><a href="./z-prepass">Z-Prepass Test </a></li>
+        </ul>
+    </div>
+    <div class="iframe-container">
+        <iframe id="example-iframe" src="./gltf-load" frameborder="0" allowfullscreen="allowfullscreen"
+                allow="accelerometer *; ambient-light-sensor *; autoplay *; camera *; clipboard-read *; clipboard-write *; encrypted-media *; fullscreen *; geolocation *; gyroscope *; magnetometer *; microphone *; midi *; payment *; picture-in-picture *; screen-wake-lock *; speaker *; sync-xhr *; usb *; web-share *; vibrate *; vr *">
+        </iframe>
+    </div>
 </div>
 </body>

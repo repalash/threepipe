@@ -1,5 +1,6 @@
 dist
 docs
+index.html
 examples/**/*.js
 examples/**/*.js.map
 

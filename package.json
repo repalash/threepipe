@@ -16,7 +16,7 @@
     "dev-examples": "tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
     "serve": "ws -d . -p 8000",
-    "docs": "npx typedoc",
+    "docs": "npx typedoc && markdown-to-html",
     "prepare": "npm run build && npm run build-examples && npm run docs"
   },
   "clean-package": {
@@ -25,10 +25,11 @@
       "scripts",
       "devDependencies",
       "optionalDependencies",
-      "//"
+      "//",
+      "markdown-to-html"
     ],
     "replace": {
-      "main": "dist/index.min.js",
+      "main": "dist/index.js",
       "module": "dist/index.mjs",
       "browser": "dist/index.js",
       "types": "dist/index.d.ts"
@@ -92,7 +93,8 @@
     "typescript": "^5.0.4",
     "uiconfig.js": "^0.0.3",
     "typescript-plugin-css-modules": "^5.0.1",
-    "rollup-plugin-postcss": "^4.0.2"
+    "rollup-plugin-postcss": "^4.0.2",
+    "markdown-to-html-cli": "^3.7.0"
   },
   "dependencies": {
     "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.0004/package.tgz",
@@ -119,5 +121,21 @@
   },
   "browserslist": [
     "defaults"
-  ]
+  ],
+  "markdown-to-html": {
+    "document": {
+      "title": "Three Pipe",
+      "description": "A new way to work with three.js, 3D models and rendering on the web.",
+      "style": "body { padding: 4rem; } @media (max-width: 768px) { body { padding: 2.5rem 1rem; } }",
+      "meta": [
+        { "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility" },
+        { "keywords": "3d,three.js,typescript,javascipt,browser,esm,rendering,viewer,webgl,webgi,canvas" }
+      ]
+    },
+    "favicon": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>",
+    "github-corners": "https://github.com/repalash/threepipe",
+    "reurls": {
+      "README.md": "index.html"
+    }
+  }
 }
