@@ -26,7 +26,7 @@ export class GBufferRenderPass<TP extends IPassID, T extends WebGLMultipleRender
      * @param deltaTime
      * @param maskActive
      */
-    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget|null, _1?: WebGLRenderTarget|WebGLMultipleRenderTargets, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget|WebGLMultipleRenderTargets|null, _1?: WebGLRenderTarget|WebGLMultipleRenderTargets, deltaTime?: number, maskActive?: boolean) {
         if (!this.scene || !this.camera) return
 
         const t = renderer.getRenderTarget()
