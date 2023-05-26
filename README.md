@@ -44,8 +44,8 @@ First, create a canvas element in your HTML page:
 Then, import the viewer and create a new instance:
 
 ```typescript
-import {ThreeViewer} from 'threepipe'
-import {IObject3D} from './IObject'
+import {ThreeViewer, IObject3D} from 'threepipe'
+
 // Create a viewer
 const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas') as HTMLCanvasElement})
 

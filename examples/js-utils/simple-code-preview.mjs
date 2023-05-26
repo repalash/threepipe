@@ -10,7 +10,9 @@ setupCodePreview(
     scripts,
     scripts.map(s=>s.textContent ? 'js' : s.split('.').pop()), // title
     scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : 'https://github.com/repalash/threepipe/tree/master/examples/'+ window.location.pathname.split('/examples/').pop().replace('index.html', '')+(s.textContent ? 'index.html' : s)), // todo: github link
-    (c)=>c.replaceAll(" from 'threepipe'", " from 'https://repalash.com/threepipe/dist/index.mjs'"), // todo: fix link
+    (c)=>c
+        .replaceAll(" from 'threepipe'", " from 'https://threepipe.org/dist/index.mjs'")
+        .replaceAll(" from '../", " from 'https://threepipe.org/examples/"),
     {
         title: 'ThreePipe: ' + document.title,
         css,
