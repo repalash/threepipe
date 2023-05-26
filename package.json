@@ -90,7 +90,7 @@
     "tslib": "^2.5.0",
     "typedoc": "^0.24.7",
     "typescript": "^5.0.4",
-    "uiconfig.js": "^0.0.2",
+    "uiconfig.js": "^0.0.3",
     "typescript-plugin-css-modules": "^5.0.1",
     "rollup-plugin-postcss": "^4.0.2"
   },

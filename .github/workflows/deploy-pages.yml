@@ -8,6 +8,9 @@ on:
   push:
     branches: ["master"]
 
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
@@ -40,12 +43,14 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
+    - run: mkdir _site
+    - run: mv -t _site docs dist examples README.md LICENSE
     - name: Setup Pages
       uses: actions/configure-pages@v3
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
       with:
-        path: '.'
+        path: '_site'
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v1
