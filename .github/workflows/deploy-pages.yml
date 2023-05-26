@@ -44,7 +44,7 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: mkdir _site
-    - run: mv -t _site docs dist examples README.md LICENSE
+    - run: mv -t _site docs dist examples Readme.md LICENSE
     - name: Setup Pages
       uses: actions/configure-pages@v3
     - name: Upload artifact
