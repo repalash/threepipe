@@ -1,4 +1,5 @@
 import {
+    HalfFloatType,
     IUniform,
     NoColorSpace,
     NoToneMapping,
@@ -10,9 +11,8 @@ import {
     WebGLRenderer,
     WebGLRenderTarget,
 } from 'three'
-import {IPassID, IPipelinePass, sortPasses} from '../postprocessing'
+import {EffectComposer2, IPassID, IPipelinePass, sortPasses} from '../postprocessing'
 import {IRenderTarget} from './RenderTarget'
-import {EffectComposer2} from '../postprocessing/EffectComposer2'
 import {RenderTargetManager} from './RenderTargetManager'
 import {IShaderPropertiesUpdater} from '../materials'
 import {
@@ -263,16 +263,29 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         }
     }
 
+    /**
+     * Only to be used for testing. To do it properly, render the target to the main canvas(with proper encoding and type conversion) and call canvas.toDataURL()
+     * @param target
+     * @param mimeType
+     * @param quality
+     */
     renderTargetToDataUrl(target: WebGLRenderTarget, mimeType = 'image/png', quality = 90): string {
-        const buffer = new Uint8Array(target.width * target.height * 4)
-        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
         const canvas = document.createElement('canvas')
         canvas.width = target.width
         canvas.height = target.height
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('Unable to get 2d context')
         const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(target.texture.colorSpace) ? <PredefinedColorSpace>target.texture.colorSpace : undefined})
-        imageData.data.set(buffer)
+        if (target.texture.type === HalfFloatType) {
+            const buffer = new Uint16Array(target.width * target.height * 4)
+            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
+            for (let i = 0; i < buffer.length; i++) {
+                imageData.data[i] = buffer[i] / 15360 * 255 // todo check packing
+            }
+        } else {
+            // todo: handle rgbm to srgb conversion?
+            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data)
+        }
         ctx.putImageData(imageData, 0, 0)
         const string = canvas.toDataURL(mimeType, quality)
         canvas.remove()

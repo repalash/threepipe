@@ -1,9 +1,8 @@
-import {ThreeViewer} from '../../viewer'
+import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
 import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
-import {Vector4} from 'three'
+import {Vector4, WebGLRenderTarget} from 'three'
 import styles from './RenderTargetPreviewPlugin.css'
-import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 
 export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
@@ -47,7 +46,7 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
         if (!this._viewer) return
 
         for (const target of this.targetBlocks) {
-            if (!target.visible) return
+            if (!target.visible) continue
             const rt = getOrCall(target.target)
             if (!rt) {
                 // todo draw white or pink
@@ -85,6 +84,35 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
             else div.classList.remove('RenderTargetPreviewPluginCollapsed')
             this._viewer?.setDirty()
         }
+        header.oncontextmenu = (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const menu = document.createElement('div')
+            menu.classList.add('RenderTargetPreviewPluginContextMenu')
+            menu.style.left = e.clientX + 'px'
+            menu.style.top = e.clientY + 'px'
+            const download = document.createElement('div')
+            download.innerText = 'Download'
+            download.onclick = () => {
+                this.downloadTarget(target)
+                menu.remove()
+            }
+            const remove = document.createElement('div')
+            remove.innerText = 'Remove'
+            remove.onclick = () => {
+                this.removeTarget(target)
+                menu.remove()
+            }
+            const cancel = document.createElement('div')
+            cancel.innerText = 'Cancel'
+            cancel.onclick = () => {
+                menu.remove()
+            }
+            menu.appendChild(download)
+            menu.appendChild(remove)
+            menu.appendChild(cancel)
+            document.body.appendChild(menu)
+        }
         div.appendChild(header)
         this.mainDiv.appendChild(div)
         this.targetBlocks.push(targetDef)
@@ -102,6 +130,29 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
         this.refreshUi()
         return this
     }
+    downloadTarget(target1: ValOrFunc<IRenderTarget|undefined>): this {
+        if (!this._viewer) return this
+        const target = getOrCall(target1)
+        if (!target) return this
+        const tex = target.texture
+        if (Array.isArray(tex)) {
+            // todo support multi target
+            console.warn('todo: multi target')
+            return this
+        }
+        const canvas = this._viewer?.canvas
+        if (!canvas) return this
+        // todo: encoding?
+        const dataUrl = this._viewer.renderManager.renderTargetToDataUrl(target as WebGLRenderTarget, 'image/jpeg')
+        const link = document.createElement('a')
+        document.body.appendChild(link)
+        link.style.display = 'none'
+        link.href = dataUrl
+        link.download = 'image.png'
+        link.click()
+        document.body.removeChild(link)
+        return this
+    }
 
     refreshUi(): void {
         if (!this.mainDiv) return
@@ -114,6 +165,7 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
         if (!this.mainDiv.parentElement) this._viewer.container?.appendChild(this.mainDiv)
         this.mainDiv.style.display = this.enabled ? 'flex' : 'none'
         this.mainDiv.style.zIndex = parseInt(this._viewer.canvas.style.zIndex || '0') + 1 + ''
+        this._viewer?.setDirty()
     }
 
     dispose() {

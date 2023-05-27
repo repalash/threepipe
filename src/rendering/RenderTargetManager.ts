@@ -144,10 +144,15 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
                 if (Array.isArray(this.texture)) {
                     this.texture.forEach(t => {
                         t.colorSpace = options.colorSpace
-                        t.toJSON = () => ({})
+                        t.toJSON = () => {
+                            console.warn('Multiple render target texture.toJSON not supported yet.')
+                            return {}
+                        }
                     })
                 } else {
-                    this.texture.toJSON = () => ({}) // so that it doesn't get serialized
+                    this.texture.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
+                        isRenderTargetTexture: true,
+                    }) // so that it doesn't get serialized
                 }
             }
 
