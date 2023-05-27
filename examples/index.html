@@ -181,16 +181,30 @@
             const iframe = document.querySelector('#example-iframe');
             const links = document.querySelectorAll('li>a');
             let selected = document.querySelector('a.selected');
+
+            function selectTarget(target) {
+                selected.classList.remove('selected');
+                target.classList.add('selected');
+                selected = target;
+                iframe.src = target.href;
+                sidebar.dataset.selectedExample = target.innerText;
+                window.location.hash = "#" + target.getAttribute("href").slice(2);
+            }
+
             links.forEach(link => {
                 link.onclick = (ev) => {
-                    selected.classList.remove('selected');
-                    ev.target.classList.add('selected');
-                    selected = ev.target;
-                    iframe.src = ev.target.href;
                     ev.preventDefault()
-                    sidebar.dataset.selectedExample = ev.target.innerText;
+                    const target = ev.target;
+                    selectTarget(target);
                 }
             });
+
+            const hash = window.location.hash.slice(1);
+            if(hash){
+                const target = document.querySelector(`a[href="./${hash}"]`);
+                selectTarget(target || selected);
+            }
+            else selectTarget(selected);
         });
     </script>
 </head>
