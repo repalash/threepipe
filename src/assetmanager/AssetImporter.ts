@@ -362,11 +362,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
         if (options.processRaw === false) return [res]
 
-        // todo;
-        // if (res.userData?.rootSceneModelRoot) {
-        //     options._rootSceneImported = true // used in Dropzone
-        // }
-
         if (res.assetImporterProcessed && !options.forceImporterReprocess) return [res]
 
         this.dispatchEvent({type: 'processRawStart', data: res, options})

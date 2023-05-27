@@ -23,6 +23,7 @@ import {
     IObject3D,
     iObjectCommons,
     ISceneEvent,
+    ITexture,
     PerspectiveCamera2,
     upgradeTexture,
 } from '../core'
@@ -39,12 +40,29 @@ import {IExporter} from './IExporter'
 import {GLTFExporter2} from './export'
 
 export interface AssetManagerOptions{
-    simpleCache?: boolean // simple memory based cache for downloaded files, default = false
-    storage?: Cache | Storage // cache storage for downloaded files, can use with `caches.open` default = undefined
+    /**
+     * simple memory based cache for downloaded files, default = false
+     */
+    simpleCache?: boolean
+    /**
+     * cache storage for downloaded files, can use with `caches.open` default = undefined
+     */
+    storage?: Cache | Storage
 }
 
-export type ImportAddOptions = ImportAssetOptions & AddObjectOptions
-export type AddRawOptions = ProcessRawOptions & AddObjectOptions
+export type AddAssetOptions = AddObjectOptions & {
+    /**
+     * Automatically set any loaded HDR, EXR file as the scene environment map
+     * @default true
+     */
+    autoSetEnvironment?: boolean
+    /**
+     * Automatically set any loaded image(ITexture) file as the scene background
+     */
+    autoSetBackground?: boolean
+}
+export type ImportAddOptions = ImportAssetOptions & AddAssetOptions
+export type AddRawOptions = ProcessRawOptions & AddAssetOptions
 
 
 export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}, 'loadAsset'> {
@@ -176,7 +194,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
     // materials: IMaterial[] = []
     // textures: ITexture[] = []
 
-    async loadImported<T extends ValOrArr<ImportResult|undefined> = ImportResult>(imported: T, options?: AddObjectOptions): Promise<T | never[]> {
+    async loadImported<T extends ValOrArr<ImportResult|undefined> = ImportResult>(imported: T, {autoSetEnvironment = true, autoSetBackground = false, ...options}: AddAssetOptions = {}): Promise<T | never[]> {
         const arr: (ImportResult|undefined)[] = Array.isArray(imported) ? imported : [imported]
 
         for (const obj of arr) {
@@ -187,6 +205,10 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                 this.materials.registerMaterial(<IMaterial>obj)
                 break
             case 'texture':
+                if (autoSetEnvironment && (
+                    obj.__rootPath?.endsWith('.hdr') || obj.__rootPath?.endsWith('.exr')
+                )) this.viewer.scene.environment = <ITexture>obj
+                if (autoSetBackground) this.viewer.scene.background = <ITexture>obj
                 break
             case 'model':
             case 'light':
@@ -216,7 +238,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
      * @param imported
      * @param options
      */
-    async addProcessedAssets<T extends ImportResult|undefined = ImportResult>(imported: (T|undefined)[], options?: AddObjectOptions): Promise<(T | undefined)[]> {
+    async addProcessedAssets<T extends ImportResult|undefined = ImportResult>(imported: (T|undefined)[], options?: AddAssetOptions): Promise<(T | undefined)[]> {
         return this.loadImported(imported, options)
     }
 
@@ -272,7 +294,6 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         const viewer = this.viewer
         if (!viewer) return
 
-        console.log(['mat', ...this.materials.templates.map(t=>t.typeSlug!).filter(v=>v)])
         const importers: Importer[] = [
             new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'svg', 'ico', 'data:image'], [
                 'image/webp', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon',
@@ -426,7 +447,6 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
     async importConfigResources(json: any, extraResources?: any) {
         if (!this.importer) throw 'Importer not initialized yet.'
 
-        // console.log(json)
         if (json.__isLoadedResources) return json
 
         return this.viewer?.loadConfigResources(json, extraResources)

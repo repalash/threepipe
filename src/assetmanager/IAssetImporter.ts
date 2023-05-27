@@ -44,28 +44,54 @@ export type ImportResult = ImportResultObject & ImportResultExtras
 export interface IImportResultUserData{
     rootPath?: string
 
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
-    __importData?: any // extra arbitrary data saved by the importer that can be used by the plugins (like gltf material variants)
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
-    __needsSourceBuffer?: boolean // This  can be set to true in the importer to indicate that the source buffer should be loaded and cached in the userdata during processRaw
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
-    __sourceBuffer?: ArrayBuffer // Cache d source buffer for the asset (only cached when __needsSourceBuffer is set)
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
-    __sourceBlob?: IFile // Cache d source blob for the asset
+    /**
+     * extra arbitrary data saved by the importer that can be used by the plugins (like gltf material variants)
+     */
+    __importData?: any
+    /**
+     * This can be set to true in the importer to indicate that the source buffer should be loaded and cached in the userdata during processRaw
+     */
+    __needsSourceBuffer?: boolean
+    /**
+     * Cached source buffer for the asset (only cached when __needsSourceBuffer is set)
+     */
+    __sourceBuffer?: ArrayBuffer
+    /**
+     * Cached source blob for the asset
+     */
+    __sourceBlob?: IFile
 }
 
 export type ProcessRawOptions = {
-    processRaw?: boolean, // defau lt = true, toggle to control the processing of the raw objects in the proecssRaw method
-    forceImporterReprocess?: boolean, // defau lt = false. If true, the importer will reprocess the imported objects, even if they are already processed.
+    /**
+     * default = true, toggle to control the processing of the raw objects in the proecssRaw method
+     */
+    processRaw?: boolean,
+    /**
+     * default = false. If true, the importer will reprocess the imported objects, even if they are already processed.
+     */
+    forceImporterReprocess?: boolean,
 
-    rootPath?: string, // internal use
+    /**
+     * internal use
+     */
+    rootPath?: string,
 
-    generateMipmaps?: boolean|undefined, // defau lt = undefined, only used for textures
+    /**
+     * default = undefined, only used for textures
+     */
+    generateMipmaps?: boolean|undefined,
 
-    autoImportZipContents?: boolean, // defau lt = true, if true, the importer will automatically import the contents of zip files, if zip importer is registered.
+    /**
+     * default = true, if true, the importer will automatically import the contents of zip files, if zip importer is registered.
+     */
+    autoImportZipContents?: boolean,
 
-    // inter nal
-    _testDataTextureComplete?: boolean, // defau lt = false, if set to true, it will test if the data textures are complete. [internal use]
+    /**
+     * @internal
+     * default = false, if set to true, it will test if the data textures are complete. [internal use]
+     */
+    _testDataTextureComplete?: boolean,
 
     /**
      * @deprecated use processRaw instead
