@@ -6,14 +6,47 @@ import {Box3B} from '../three/math/Box3B'
 import {ITexture} from './ITexture'
 
 export interface AddObjectOptions {
-    addToRoot?: boolean // default = false
-    // TODO; add more options
+    /**
+     * Add directly to the {@link RootScene} object instead of {@link RootScene.modelRoot}
+     * @default false
+     */
+    addToRoot?: boolean
+    /**
+     * Automatically center the object in the scene.
+     * @default false
+     */
     autoCenter?: boolean,
+    /**
+     * Add a license to the object
+     */
     license?: string,
+    /**
+     * Automatically scale the object according to its bounding box and the {@link autoScaleRadius} setting
+     * @default false
+     */
     autoScale?: boolean
-    autoScaleRadius?: number // default = 2
+    /**
+     * Radius to use for {@link autoScale}
+     * @default 2
+     */
+    autoScaleRadius?: number
+    /**
+     * any attached viewer config will be ignored if this is set to true
+     * @default true
+     */
+    importConfig?: boolean
 
-    importConfig?: boolean // any attached viewer config will be ignored if this is set to true
+    /**
+     * Clear the viewer scene objects before the new object is added. Same as {@link disposeSceneObjects} but does not dispose the objects.
+     */
+    clearSceneObjects?: boolean
+    /**
+     * Dispose all the scene objects before the new object is added. Same as {@link clearSceneObjects} but also disposes the objects.
+     */
+    disposeSceneObjects?: boolean
+
+
+    // TODO; add more options
 }
 
 // | string
@@ -30,6 +63,7 @@ export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObjec
     // change?: string
 }
 export type ISceneSetDirtyOptions = IObjectSetDirtyOptions & {
+    [key: string]: any
 }
 
 

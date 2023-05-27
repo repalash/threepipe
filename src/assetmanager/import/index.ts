@@ -1,6 +1,6 @@
 export {JSONMaterialLoader} from './JSONMaterialLoader'
 export {SimpleJSONLoader} from './SimpleJSONLoader'
-export {MTLLoader2} from './MTLLoader2'
+export {MTLLoader2, type MaterialCreator} from './MTLLoader2'
 export {OBJLoader2} from './OBJLoader2'
 export {ZipLoader} from './ZipLoader'
 export {GLTFLoader2} from './GLTFLoader2'

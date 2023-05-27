@@ -583,4 +583,4 @@ class MaterialCreator {
 
 }
 
-export {MTLLoader2};
+export {MTLLoader2, type MaterialCreator};

@@ -146,6 +146,9 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param options
      */
     addObject<T extends IObject3D|Object3D = IObject3D>(imported: T, options?: AddObjectOptions): T {
+        if (options?.clearSceneObjects || options?.disposeSceneObjects) {
+            this.clearSceneModels(options.disposeSceneObjects)
+        }
         if (!imported) return imported
         if (!imported.isObject3D) {
             console.error('Invalid object, cannot add to scene.', imported)
@@ -162,6 +165,9 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param options
      */
     loadModelRoot(obj: RootSceneImportResult, options?: AddObjectOptions) {
+        if (options?.clearSceneObjects || options?.disposeSceneObjects) {
+            this.clearSceneModels(options.disposeSceneObjects)
+        }
         if (!obj.userData?.rootSceneModelRoot) {
             console.error('Invalid model root scene object. Trying to add anyway.', obj)
         }
@@ -221,11 +227,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty({refreshScene: true})
     }
 
-    clearSceneModels(dispose = false): void {
-        if (dispose) this.disposeSceneModels()
+    clearSceneModels(dispose = false, setDirty = true): void {
+        if (dispose) return this.disposeSceneModels(setDirty)
         this.modelRoot.clear()
         this.modelRoot.children = []
-        this.setDirty({refreshScene: true})
+        setDirty && this.setDirty({refreshScene: true})
     }
 
     disposeSceneModels(setDirty = true) {
@@ -261,7 +267,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     public backgroundColor: Color | null = null // read in three.js WebGLBackground
 
     /**
-     * @deprecated Use addSceneObject
+     * @deprecated Use {@link addObject}
      */
     add(...object: Object3D[]): this {
         super.add(...object)

@@ -34,6 +34,7 @@ import {
 } from '../assetmanager'
 import {GLStatsJS, IDialogWrapper, windowDialogWrapper} from '../utils'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
+import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'
@@ -66,7 +67,7 @@ export type IConsoleWrapper = Partial<Console> & Pick<Console, 'log'|'warn'|'err
  * Options for the ThreeViewer creation.
  * @category Viewer
  */
-export interface ThreeViewerOptions extends AssetManagerOptions{
+export interface ThreeViewerOptions {
     /**
      * The canvas element to use for rendering. Only one of container and canvas must be specified.
      */
@@ -94,6 +95,15 @@ export interface ThreeViewerOptions extends AssetManagerOptions{
     zPrepass?: boolean
 
     debug?: boolean
+
+    assetManager?: AssetManagerOptions
+
+    /**
+     * Add the dropzone plugin to the viewer, allowing to drag and drop files into the viewer over the canvas/container.
+     * Set to true/false to enable/disable the plugin, or pass options to configure the plugin. Assuming true if options are passed.
+     * @default - false
+     */
+    dropzone?: boolean|DropzonePluginOptions
 
     /**
      * @deprecated use {@link msaa} instead
@@ -266,7 +276,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             this.setDirty(this.renderManager, e)
         })
 
-        this.assetManager = new AssetManager(this, options)
+        this.assetManager = new AssetManager(this, options.assetManager)
 
         if (this.resizeObserver) this.resizeObserver.observe(this._canvas)
         // sometimes resize observer is late, so extra check
@@ -275,7 +285,13 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this._canvas.addEventListener('webglcontextrestored', this._onContextRestore, false)
         this._canvas.addEventListener('webglcontextlost', this._onContextLost, false)
 
+        if (options.dropzone) {
+            this.addPluginSync(new DropzonePlugin(typeof options.dropzone === 'object' ? options.dropzone : undefined))
+        }
+
         this.console.log('ThreePipe Viewer instance initialized, version: ', ThreeViewer.VERSION)
+
+
     }
 
     private _objectProcessor: IObjectProcessor = {
@@ -347,19 +363,23 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     /**
      * Set the environment map of the scene from url or an {@link IAsset} object.
      * @param map
-     * @param options
+     * @param setBackground - Set the background image of the scene from the same map.
+     * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setEnvironmentMap(map: string | IAsset | null, options?: ImportAssetOptions): Promise<void> {
-        this._scene.environment = map ? await this.assetManager.importer.importSingle<ITexture>(map, options) || null : null
+    async setEnvironmentMap(map: string | IAsset | null | ITexture, {setBackground = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<void> {
+        this._scene.environment = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
+        if (setBackground) return this.setBackgroundMap(this._scene.environment)
     }
 
     /**
      * Set the background image of the scene from url or an {@link IAsset} object.
      * @param map
-     * @param options
+     * @param setEnvironment - Set the environment map of the scene from the same map.
+     * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setBackgroundMap(map: string | IAsset | null, options?: ImportAssetOptions): Promise<void> {
-        this._scene.background = map ? await this.assetManager.importer.importSingle<ITexture>(map, options) || null : null
+    async setBackgroundMap(map: string | IAsset | null | ITexture, {setEnvironment = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<void> {
+        this._scene.background = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
+        if (setEnvironment) return this.setEnvironmentMap(this._scene.background)
     }
 
     /**
@@ -757,7 +777,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Deserialize and import all the viewer and plugin settings, exported with {@link exportConfig}.
      */
     async importConfig(json: ISerializedConfig|ISerializedViewerConfig) {
-        if (json.type !== this.type || <string>json.type !== 'ViewerApp') {
+        if (json.type !== this.type && <string>json.type !== 'ViewerApp') {
             if (this.getPlugin(json.type)) {
                 return this.importPluginConfig(json)
             } else {
