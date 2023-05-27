@@ -45,9 +45,11 @@ export interface AssetManagerOptions{
      */
     simpleCache?: boolean
     /**
-     * cache storage for downloaded files, can use with `caches.open` default = undefined
+     * Cache Storage for downloaded files, can use with `caches.open`
+     * When true and by default uses `caches.open('threepipe-assetmanager')`, set to false to disable
+     * @default true
      */
-    storage?: Cache | Storage
+    storage?: Cache | Storage | boolean
 }
 
 export type AddAssetOptions = AddObjectOptions & {
@@ -71,8 +73,8 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
     readonly importer: AssetImporter
     readonly exporter: AssetExporter
     readonly materials: MaterialManager
-    // private readonly _linkDropzone: boolean
-    readonly storage?: Cache | Storage
+    private _storage?: Cache | Storage
+    get storage() {return this._storage}
 
     constructor(viewer: ThreeViewer, {simpleCache = false, storage}: AssetManagerOptions = {}) {
         super()
@@ -87,8 +89,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         this.viewer = viewer
         this.viewer.scene.addEventListener('addSceneObject', this._sceneUpdated)
         this.viewer.scene.addEventListener('materialChanged', this._sceneUpdated)
-        this._initCacheStorage(simpleCache, storage)
-        this.storage = storage
+        this._initCacheStorage(simpleCache, storage ?? true)
 
         this.importer.addEventListener('processRaw', (event)=>{
             // console.log('preprocess mat', mat)
@@ -348,7 +349,14 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         this.exporter.addExporter(...exporters)
     }
 
-    private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage) {
+    private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage | boolean) {
+        if (storage === true && window?.caches) {
+            window.caches.open?.('threepipe-assetmanager').then(c => {
+                this._initCacheStorage(simpleCache, c)
+                this._storage = c
+            })
+            return
+        }
         if (simpleCache || storage) {
             // three.js built-in simple memory cache. used in FileLoader.js todo: use local storage somehow
             if (simpleCache) threeCache.enabled = true
@@ -358,6 +366,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                 // todo: clear cache
             }
         }
+        this._storage = typeof storage === 'boolean' ? undefined : storage
     }
 
 
