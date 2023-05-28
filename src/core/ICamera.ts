@@ -90,9 +90,9 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
     traverseAncestors(callback: (object: IObject3D) => void): void
-    getObjectById(id: number): IObject3D | undefined
-    getObjectByName(name: string): IObject3D | undefined
-    getObjectByProperty(name: string, value: string): IObject3D | undefined
+    getObjectById<T extends IObject3D = IObject3D>(id: number): T | undefined
+    getObjectByName<T extends IObject3D = IObject3D>(name: string): T | undefined
+    getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
     copy(source: this, recursive?: boolean, distanceFromTarget?: number, ...args: any[]): this
     clone(recursive?: boolean): this
     add(...object: IObject3D[]): this

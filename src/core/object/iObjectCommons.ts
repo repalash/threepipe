@@ -1,5 +1,5 @@
 import {Event, Mesh, Vector3} from 'three'
-import {IMaterial, IMaterialEvent} from '../IMaterial'
+import {IMaterial} from '../IMaterial'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEvent, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData} from '../../utils/serialization'
@@ -95,10 +95,6 @@ export const iObjectCommons = {
                 })
             }
         },
-        onMaterialUpdate: function(this: IObject3D, e: IMaterialEvent<'materialUpdate'>): void {
-            if (!e.bubbleToObject) return
-            this.dispatchEvent({bubbleToParent: true, ...e, object: this, material: e.target})
-        },
         onGeometryUpdate: function(this: IObject3D, e: IGeometryEvent<'geometryUpdate'>): void {
             if (!e.bubbleToObject) return
             this.dispatchEvent({bubbleToParent: true, ...e, object: this, geometry: e.geometry})
@@ -160,7 +156,6 @@ export const iObjectCommons = {
         const mats = Array.isArray(this.material) ? [...(this.material as IMaterial[])] : [this.material!]
         for (const mat of mats) {
             if (!mat) continue
-            this._onMaterialUpdate && mat.removeEventListener('materialUpdate', this._onMaterialUpdate)
             if (mat.appliedMeshes) {
                 mat.appliedMeshes.delete(this)
                 if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
@@ -178,7 +173,6 @@ export const iObjectCommons = {
             }
             materials.push(mat)
             if (mat) {
-                this._onMaterialUpdate && mat.addEventListener('materialUpdate', this._onMaterialUpdate)
                 mat.appliedMeshes.add(this)
             }
         }
@@ -385,7 +379,6 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
         this.userData.__meshSetup = true
 
-        this._onMaterialUpdate = (e: IMaterialEvent) => iObjectCommons.eventCallbacks.onMaterialUpdate.call(this, e)
         this._onGeometryUpdate = (e: IGeometryEvent) => iObjectCommons.eventCallbacks.onGeometryUpdate.call(this, e)
 
         // Material, Geometry prop init
@@ -415,7 +408,6 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
                 // if (oldGeom && oldGeom.userData && oldGeom.appliedMeshes?.size === 0 && oldGeom.userData.disposeOnIdle !== false) oldGeom.dispose()
             }
 
-            delete this._onMaterialUpdate
             delete this._onGeometryUpdate
         })
 

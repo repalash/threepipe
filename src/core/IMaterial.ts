@@ -1,23 +1,44 @@
 import type {Event, IUniform, Material, MaterialParameters, Shader} from 'three'
-import type {AnyOptions, IDisposable, IJSONSerializable} from 'ts-browser-helpers'
+import type {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
 import type {MaterialExtension} from '../materials'
-import type {IUiConfigContainer} from 'uiconfig.js'
-import type {SerializationMetaType} from '../utils/serialization'
+import type {ChangeEvent, IUiConfigContainer} from 'uiconfig.js'
+import type {SerializationMetaType} from '../utils'
 import type {IObject3D} from './IObject'
 import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
-export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureChanged'
+export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureChanged' | 'beforeDeserialize'
 export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
     type: T
     bubbleToObject?: boolean
+    bubbleToParent?: boolean
     material?: IMaterial
 
     texture?: ITexture
     oldTexture?: ITexture
+
+    uiChangeEvent?: ChangeEvent
 }
-export type IMaterialSetDirtyOptions = AnyOptions & {bubbleToObject?: boolean}
+export interface IMaterialSetDirtyOptions {
+    /**
+     * @default true
+     */
+    bubbleToObject?: boolean,
+    /**
+     * @default true
+     */
+    refreshUi?: boolean,
+    /**
+     * @default true
+     */
+    needsUpdate?: boolean,
+    /**
+     * Event from uiconfig.js
+     */
+    uiChangeEvent?: ChangeEvent,
+    [key: string]: any
+}
 export interface IMaterialUserData extends IImportResultUserData{
     uuid?: string // adding to userdata also, so that its saved in gltf
 

@@ -160,7 +160,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     * Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
+     Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
      * @param obj
      * @param options
      */
@@ -512,10 +512,10 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: (id: number) => IObject3D | undefined
-    getObjectByName: (name: string) => IObject3D | undefined
-    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
-    copy: (source: IObject3D, recursive?: boolean) => this
+    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
+    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
+    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
+    copy: (source: this, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ISceneEvent) => void

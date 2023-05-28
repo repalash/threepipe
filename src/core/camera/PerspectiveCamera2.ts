@@ -453,9 +453,9 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: (id: number) => IObject3D | undefined
-    getObjectByName: (name: string) => IObject3D | undefined
-    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
+    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
+    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
+    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
     copy: (source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number) => this
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this

@@ -1,6 +1,7 @@
 import {SimpleJSONLoader} from './SimpleJSONLoader'
 import {ThreeViewer} from '../../viewer'
 import {getEmptyMeta, SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
+import {IMaterial} from '../../core'
 
 export class JSONMaterialLoader extends SimpleJSONLoader {
 
@@ -10,7 +11,11 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
         if (!this.viewer) throw 'Viewer not set in JSONMaterialLoader.'
 
         const json = await super.loadAsync(url, onProgress) as any
-        const meta: SerializationMetaType = getEmptyMeta()
+        return await JSONMaterialLoader.DeserializeMaterialJSON(json, this.viewer)
+    }
+
+    static async DeserializeMaterialJSON(json: any, viewer: ThreeViewer, meta?: SerializationMetaType, obj?: IMaterial|IMaterial[]) {
+        meta = meta || getEmptyMeta()
         const json2 = {...json}
         if (json.images) {
             if (Array.isArray(json.images)) meta.images = Object.fromEntries(json.images.map((i: any) => [i.uuid, i]))
@@ -27,7 +32,7 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
             else meta.materials = json.materials
             delete json2.materials
         }
-        const resources = await this.viewer.loadConfigResources(meta)
-        return ThreeSerialization.Deserialize(json2, undefined, resources)
+        const resources = await viewer.loadConfigResources(meta)
+        return ThreeSerialization.Deserialize(json2, obj || undefined, resources)
     }
 }

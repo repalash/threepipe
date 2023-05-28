@@ -1,5 +1,5 @@
 import {IDisposable} from 'ts-browser-helpers'
-import {IMaterial, IMaterialEvent} from './IMaterial'
+import {IMaterial} from './IMaterial'
 import {Event, Object3D} from 'three'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEvent} from './IGeometry'
@@ -7,7 +7,7 @@ import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'geometryChanged' |
-    'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' |
+    'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
     'setView' | 'activateMain' | 'cameraUpdate' // from camera
     // | string
 export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends Event {
@@ -169,8 +169,6 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    _onMaterialUpdate?: (e: IMaterialEvent<'materialUpdate'>) => void
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     _onGeometryUpdate?: (e: IGeometryEvent<'geometryUpdate'>) => void
 
     objectProcessor?: IObjectProcessor
@@ -183,9 +181,9 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
     traverseAncestors(callback: (object: IObject3D) => void): void
-    getObjectById(id: number): IObject3D | undefined
-    getObjectByName(name: string): IObject3D | undefined
-    getObjectByProperty(name: string, value: string): IObject3D | undefined
+    getObjectById<T extends IObject3D = IObject3D>(id: number): T | undefined
+    getObjectByName<T extends IObject3D = IObject3D>(name: string): T | undefined
+    getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
     copy(source: this, recursive?: boolean, ...args: any[]): this
     clone(recursive?: boolean): this
     add(...object: IObject3D[]): this

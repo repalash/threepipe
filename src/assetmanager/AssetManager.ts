@@ -89,6 +89,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         this.viewer = viewer
         this.viewer.scene.addEventListener('addSceneObject', this._sceneUpdated)
         this.viewer.scene.addEventListener('materialChanged', this._sceneUpdated)
+        this.viewer.scene.addEventListener('beforeDeserialize', this._sceneUpdated)
         this._initCacheStorage(simpleCache, storage ?? true)
 
         this.importer.addEventListener('processRaw', (event)=>{
@@ -278,6 +279,23 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
             for (const t of targets) {
                 this.materials.registerMaterial(t)
             }
+        } else if (event.type === 'beforeDeserialize') {
+            // object/material/texture to be deserialized
+            const data = event.data
+            const meta = event.meta
+            if (!data.metadata) {
+                console.warn('Invalid data(no metadata)', data)
+            }
+            console.log(data, event)
+            if (event.material) {
+                if (data.metadata?.type !== 'Material') {
+                    console.warn('Invalid material data', data)
+                }
+                JSONMaterialLoader.DeserializeMaterialJSON(data, this.viewer, meta, event.material).then(()=>{
+                    //
+                })
+            }
+
         } else {
             console.error('Unexpected')
         }

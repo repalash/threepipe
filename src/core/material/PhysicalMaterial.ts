@@ -45,6 +45,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
+    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 
@@ -123,6 +124,10 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         label: 'Physical Material',
         uuid: 'MPM2_' + this.uuid,
         expanded: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+        },
         children: [
             ...iMaterialUI.base(this),
             iMaterialUI.blending(this),
@@ -188,8 +193,8 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
     /**
      * Deserializes the material from JSON.
-     * Textures should be loaded and in meta.textures before calling this method.
-     * todo - needs to be tested
+     * Note: some properties that are not serialized in Material.toJSON when they are default values (like side, alphaTest, blending, maps), they wont be reverted back if not present in JSON
+     * If _internal = true, Textures should be loaded and in meta.textures before calling this method.
      * @param data
      * @param meta
      * @param _internal
@@ -199,7 +204,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
             ThreeSerialization.Deserialize(data, this, meta, true)
             return this.setValues(data)
         }
-        ThreeSerialization.Deserialize(data, this, meta, false)
+        this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true})
         return this
     }
 

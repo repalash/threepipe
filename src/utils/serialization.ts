@@ -232,8 +232,8 @@ export class ThreeSerialization {
 
                 // data has deserialized textures and userData, assuming the rest can be deserialized by material.fromJSON
 
-                if (!obj || !obj.isMaterial || obj.type !== type) {
-                    if (obj && Object.keys(obj).length) console.warn('Material type mismatch during deserialize, creating a new material', obj, data)
+                if (!obj || !obj.isMaterial || obj.type !== type && obj.constructor?.TYPE !== type) {
+                    if (obj && Object.keys(obj).length) console.warn('Material type mismatch during deserialize, creating a new material', obj, data, type, obj.constructor?.type)
                     obj = null
                 }
                 // if obj is not null

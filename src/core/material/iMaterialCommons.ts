@@ -18,7 +18,7 @@ import {copyProps} from 'ts-browser-helpers'
 import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
-import {IMaterial, IMaterialSetDirtyOptions} from '../IMaterial'
+import {IMaterial, IMaterialEvent, IMaterialSetDirtyOptions} from '../IMaterial'
 
 /**
  * Map of all material properties and their default values in three.js - Material.js
@@ -75,7 +75,7 @@ export const iMaterialCommons = {
     threeMaterialPropList,
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         this.needsUpdate = true
-        this.dispatchEvent({bubbleToObject: true, ...options, type: 'materialUpdate', material: this}) // this sets sceneUpdate in root scene
+        this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
     setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
@@ -122,6 +122,16 @@ export const iMaterialCommons = {
             material.name = material.name + '_' + material.userData.cloneId
 
             return material
+        },
+    dispatchEvent: (superDispatchEvent: Material['dispatchEvent']): IMaterial['dispatchEvent'] =>
+        function(this: IMaterial, event: IMaterialEvent): void {
+            superDispatchEvent.call(this, event)
+            const type = event.type
+            if (event.bubbleToObject && (
+                type === 'beforeDeserialize' || type === 'materialUpdate' // todo - add more events
+            )) {
+                this.appliedMeshes.forEach(m => m.dispatchEvent({...event, material: this, type}))
+            }
         },
 
     registerMaterialExtensions: function(this: IMaterial, customMaterialExtensions: MaterialExtension[]): void {
@@ -193,6 +203,7 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     this.assetType = 'material'
     this.setValues = iMaterialCommons.setValues(this.setValues)
     this.clone = iMaterialCommons.clone(this.clone)
+    this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
 
     // todo: add uiconfig, serialization, other stuff from UnlitMaterial?
     // dispose uiconfig etc. on dispose

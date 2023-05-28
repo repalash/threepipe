@@ -45,6 +45,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
+    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 
@@ -159,7 +160,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
             ThreeSerialization.Deserialize(data, this, meta, true)
             return this.setValues(data)
         }
-        ThreeSerialization.Deserialize(data, this, meta, false)
+        this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true})
         return this
     }
 

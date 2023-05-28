@@ -25,8 +25,9 @@ import {
     SubtractiveBlending,
     TangentSpaceNormalMap,
 } from 'three'
-import {downloadBlob} from 'ts-browser-helpers'
+import {downloadBlob, uploadFile} from 'ts-browser-helpers'
 import {PhysicalMaterial} from './PhysicalMaterial'
+import {getEmptyMeta} from '../../utils/serialization'
 
 export const iMaterialUI = {
     base: (material: IMaterial): UiObjectConfig[] => [
@@ -73,7 +74,7 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     property: [material, 'transparent'],
-                    onChange: material.setDirty,
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
                 },
                 {
                     type: 'dropdown',
@@ -95,12 +96,12 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     property: [material, 'depthTest'],
-                    onChange: material.setDirty,
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
                 },
                 {
                     type: 'checkbox',
                     property: [material, 'depthWrite'],
-                    onChange: material.setDirty,
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
                 },
                 {
                     type: 'slider',
@@ -229,10 +230,22 @@ export const iMaterialUI = {
         },
         {
             type: 'button',
-            label: `Download ${material.constructor.TypeSlug}}`,
+            label: `Download ${material.constructor.TypeSlug}`,
             value: ()=>{
                 const blob = new Blob([JSON.stringify(material.toJSON(), null, 2)], {type: 'application/json'})
-                downloadBlob(blob, `unlit-material.${material.constructor.TypeSlug}`)
+                downloadBlob(blob, `material.${material.constructor.TypeSlug}`)
+            },
+        },
+        {
+            type: 'button',
+            label: `Select ${material.constructor.TypeSlug}`,
+            value: ()=>{
+                uploadFile(false, false, material.constructor.TypeSlug).then(async(files)=>files?.[0]?.text()).then((text)=>{
+                    if (!text) return
+                    const json = JSON.parse(text)
+                    if (json.uuid) delete json.uuid // just copy the material properties
+                    material.fromJSON(json, getEmptyMeta())
+                })
             },
         },
         ()=>material.materialExtensions?.map(v=>v.getUiConfig?.(material, material.uiConfig?.uiRefresh)).filter(v=>v),

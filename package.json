@@ -15,7 +15,7 @@
     "build-examples": "tsc --project examples/tsconfig.build.json",
     "dev-examples": "tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
-    "serve": "ws -d . -p 8000",
+    "serve": "ws -d . -p 9229",
     "docs": "npx typedoc && markdown-to-html",
     "prepare": "npm run build && npm run build-examples && npm run docs"
   },
