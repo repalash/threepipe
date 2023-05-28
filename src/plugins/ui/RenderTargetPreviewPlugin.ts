@@ -3,6 +3,7 @@ import {IRenderTarget} from '../../rendering'
 import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
 import {Vector4, WebGLRenderTarget} from 'three'
 import styles from './RenderTargetPreviewPlugin.css'
+import {CustomContextMenu} from '../../utils'
 
 export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
@@ -87,31 +88,10 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
         header.oncontextmenu = (e) => {
             e.preventDefault()
             e.stopPropagation()
-            const menu = document.createElement('div')
-            menu.classList.add('RenderTargetPreviewPluginContextMenu')
-            menu.style.left = e.clientX + 'px'
-            menu.style.top = e.clientY + 'px'
-            const download = document.createElement('div')
-            download.innerText = 'Download'
-            download.onclick = () => {
-                this.downloadTarget(target)
-                menu.remove()
-            }
-            const remove = document.createElement('div')
-            remove.innerText = 'Remove'
-            remove.onclick = () => {
-                this.removeTarget(target)
-                menu.remove()
-            }
-            const cancel = document.createElement('div')
-            cancel.innerText = 'Cancel'
-            cancel.onclick = () => {
-                menu.remove()
-            }
-            menu.appendChild(download)
-            menu.appendChild(remove)
-            menu.appendChild(cancel)
-            document.body.appendChild(menu)
+            CustomContextMenu.Create({
+                'Download': () => this.downloadTarget(target),
+                'Remove': () => this.removeTarget(target),
+            }, e.clientX, e.clientY)
         }
         div.appendChild(header)
         this.mainDiv.appendChild(div)

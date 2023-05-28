@@ -25,16 +25,20 @@ import {
     IWebGLRenderer,
     upgradeWebGLRenderer,
 } from '../core'
-import {onChange, serializable, serialize} from 'ts-browser-helpers'
+import {onChange2, serializable, serialize} from 'ts-browser-helpers'
+import {uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 
 @serializable('RenderManager')
+@uiFolderContainer('Render Manager')
 export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRenderManagerEventTypes> implements IShaderPropertiesUpdater, IRenderManager {
     private readonly _isWebGL2: boolean
     private readonly _composer: EffectComposer2
     private readonly _context: WebGLRenderingContext
+    @uiMonitor('Render Size')
     private readonly _renderSize = new Vector2(512, 512) // this is updated automatically.
     protected readonly _renderer: IWebGLRenderer<this>
     private _renderScale = 1.
+    @uiConfig(undefined, {label: 'Passes'})
     private _passes: IPipelinePass[] = []
     private _pipeline: IPassID[] = []
     private _passesNeedsUpdate = true
@@ -50,7 +54,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
      * Use total frame count, if this is set to true, then frameCount won't be reset when the viewer is set to dirty.
      * Which will generate different random numbers for each frame during postprocessing steps. With TAA set properly, this will give a smoother result.
      */
-    @serialize() stableNoise = false
+    @uiToggle() @serialize() stableNoise = false
 
     public frameWaitTime = 0 // time to wait before next frame // used by canvas recorder //todo/
 
@@ -59,7 +63,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     /**
      * Set autoBuildPipeline = false to be able to set the pipeline manually.
      */
-    @onChange(RenderManager.prototype.rebuildPipeline)
+    @onChange2(RenderManager.prototype.rebuildPipeline)
     public autoBuildPipeline = true
 
     rebuildPipeline(setDirty = true): void {
@@ -331,6 +335,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     get renderSize(): Vector2 {
         return this._renderSize
     }
+    @uiSlider('Render Scale', [0.1, 8], 0.05)
     get renderScale(): number {
         return this._renderScale
     }

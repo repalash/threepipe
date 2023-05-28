@@ -24,42 +24,32 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
         type: 'folder',
         label: <string>map + ' Sampler',
         hidden: ()=>!mat[map],
+        onChange: ()=>mat.setDirty(),
         children: [
             ()=>({
                 type: 'vec2',
                 label: 'Repeat',
-                // hidden: ()=>!im && mat.map,
-                bounds: [-100, 100],
                 stepSize: 0.001,
                 property: [mat[map], 'repeat'],
-                onChange: mat?.setDirty,
             }),
             ()=>({
                 type: 'vec2',
                 label: 'Offset',
-                // hidden: ()=>!im && mat.map,
-                bounds: [-2, 2],
                 stepSize: 0.001,
                 property: [mat[map], 'offset'],
-                onChange: mat?.setDirty,
             }),
             ()=>({
                 type: 'vec2',
                 label: 'Center',
-                // hidden: ()=>!im && mat.map,
-                bounds: [-2, 2],
                 stepSize: 0.001,
                 property: [mat[map], 'center'],
-                onChange: mat?.setDirty,
             }),
             ()=>({
                 type: 'input',
                 label: 'Rotation',
                 stepSize: 0.001,
-                // hidden: ()=>!im && mat.map,
                 bounds: [-Math.PI, Math.PI],
                 property: [mat[map], 'rotation'],
-                onChange: mat?.setDirty,
             }),
             ()=>({
                 type: 'dropdown',
@@ -81,7 +71,17 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                     // mat[map] = tex.clone() // it doesn't work with just setting needsUpdate = true
                     // ;(mat[map] as any).uuid = tex.uuid
                     // tex!.dispose()
-                }, mat?.setDirty],
+                }],
+            }),
+            ()=>({
+                type: 'dropdown',
+                label: 'UV Channel',
+                property: [mat[map], 'channel'],
+                children: [0, 1, 2, 3].map(value => ({label: value.toString(), value})),
+                onChange: ()=>{
+                    const tex = mat[map] as any
+                    if (tex) tex.needsUpdate = true
+                },
             }),
             ()=>({
                 type: 'checkbox',
@@ -134,7 +134,7 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                     label: value[0],
                     value: value[1],
                 })),
-                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}, mat?.setDirty],
+                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}],
             }),
             ()=>({
                 type: 'dropdown',
@@ -148,7 +148,7 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                     label: value[0],
                     value: value[1],
                 })),
-                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}, mat?.setDirty],
+                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}],
             }),
             ()=>({
                 type: 'input',
@@ -156,7 +156,7 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                 bounds: [1, 6],
                 stepSize: 1,
                 property: [mat[map], 'anisotropy'],
-                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true; mat.needsUpdate = true}, mat?.setDirty],
+                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true; mat.needsUpdate = true}],
             }),
             ()=>({
                 type: 'dropdown',
@@ -173,7 +173,7 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                     label: value[0],
                     value: value[1],
                 })),
-                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}, mat?.setDirty],
+                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}],
             }),
             ()=>({
                 type: 'dropdown',
@@ -186,7 +186,7 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                     label: value[0],
                     value: value[1],
                 })),
-                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}, mat?.setDirty],
+                onChange: [()=>{if (mat[map])(mat[map] as any)!.needsUpdate = true}],
             }),
 
         ],

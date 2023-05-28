@@ -88,9 +88,11 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Auto Scale',
                 hidden: ()=>!this.autoScale,
                 prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
-                value: (res: string|null)=>{
-                    if (!res) return
-                    const rad = parseFloat(res)
+                value: ()=>{
+                    const def = (this.userData.autoScaleRadius || 2) + ''
+                    const res = prompt('Auto Scale Radius: Object will be scaled to the given radius', def)
+                    if (res === null) return
+                    const rad = parseFloat(res || def)
                     if (Math.abs(rad) > 0) this.autoScale?.(rad)
                 },
             },

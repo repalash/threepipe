@@ -3,10 +3,12 @@ import {Shader} from 'three'
 import {ShaderMaterial2} from '../core'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
+import {uiFolderContainer} from 'uiconfig.js'
 
 export type TViewerScreenShaderFrag = string | [string, string] | {pars?: string, main: string}
 export type TViewerScreenShader = TViewerScreenShaderFrag | Shader | ShaderMaterial2
 
+@uiFolderContainer('Screen Pass')
 export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'screen'> {
     readonly passId = 'screen'
     after: IPassID[] = ['render']

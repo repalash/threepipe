@@ -2,6 +2,7 @@ import {IRenderTarget, RenderManager} from '../rendering'
 import {HalfFloatType, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
 import {IRenderManagerOptions} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
+import {uiFolderContainer} from 'uiconfig.js'
 
 export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     rgbm?: boolean,
@@ -11,6 +12,7 @@ export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     screenShader?: TViewerScreenShader
 }
 
+@uiFolderContainer('Render Manager')
 export class ViewerRenderManager extends RenderManager {
     readonly rgbm: boolean
     readonly msaa: boolean

@@ -2,6 +2,7 @@ import {IMaterial} from './IMaterial'
 import {Texture} from 'three'
 
 export interface ITextureUserData{
+    mimeType?: string
     disposeOnIdle?: boolean // automatically dispose when added to a material and then not used in any material
     __appliedMaterials?: Set<IMaterial>
 }

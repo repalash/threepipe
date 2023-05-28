@@ -1,6 +1,6 @@
 import {Camera, Event, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {generateUiConfig, UiObjectConfig, uiSlider, uiVector} from 'uiconfig.js'
-import {onChange, serialize} from 'ts-browser-helpers'
+import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiVector} from 'uiconfig.js'
+import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
@@ -16,10 +16,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         return this._controls
     }
 
+    @uiInput('Name') name: string
+
     @serialize('camControls')
     private _controls?: ICameraControls
     private _currentControlsMode: TCameraControlsMode = ''
-    @onChange(PerspectiveCamera2.prototype.refreshCameraControls)
+    @onChange2(PerspectiveCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
     /**
      * It should be the canvas actually
@@ -33,38 +35,38 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize()
         userData: ICameraUserData = {}
 
-    @onChange(PerspectiveCamera2.prototype.setDirty)
+    @onChange3(PerspectiveCamera2.prototype.setDirty)
     @uiSlider('Field Of View', [1, 180], 0.001)
     @serialize() fov: number
 
-    @onChange(PerspectiveCamera2.prototype.setDirty)
+    @onChange3(PerspectiveCamera2.prototype.setDirty)
     @serialize() focus: number
 
-    @onChange(PerspectiveCamera2.prototype.setDirty)
+    @onChange3(PerspectiveCamera2.prototype.setDirty)
     // @uiSlider('Zoom', [0.001, 20], 0.001)
     @serialize() zoom: number
 
     @uiVector('Position')
     @serialize() readonly position: Vector3
 
-    @onChange(PerspectiveCamera2.prototype.setDirty)
+    @onChange3(PerspectiveCamera2.prototype.setDirty)
     @uiVector('Target')
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
     @serialize()
-    @onChange(PerspectiveCamera2.prototype.refreshAspect)
+    @onChange2(PerspectiveCamera2.prototype.refreshAspect)
         autoAspect: boolean
 
     /**
      * Near clipping plane. This is managed by RootScene for active cameras
      */
-    @onChange(PerspectiveCamera2.prototype._nearFarChanged)
+    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
         near = 0.01
 
     /**
      * Far clipping plane. This is managed by RootScene for active cameras
      */
-    @onChange(PerspectiveCamera2.prototype._nearFarChanged)
+    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
         far = 50
 
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
@@ -128,6 +130,8 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     setDirty(options?: ICameraSetDirtyOptions|Event): void {
         if (!this._positionWorld) return // class not initialized
+
+        if (options?.key === 'fov') this.updateProjectionMatrix()
 
         this.getWorldPosition(this._positionWorld)
 
@@ -317,8 +321,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
-        label: 'Camera',
-        limitedUi: true,
+        label: ()=>this.name || 'Camera',
         children: [
             ...this._camUi,
             // todo hack for zoom in and out for now.

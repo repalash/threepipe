@@ -1,0 +1,140 @@
+#tweakpaneUiContainer {
+    /*padding-right: 0.25rem;*/
+}
+
+:root {
+    --tp-blade-unit-size: 24px;
+
+    /*
+    --tp-base-shadow-color: #00000000;
+    --tp-base-background-color: #00000000;
+    --tp-container-background-color: rgba(32, 32, 32, 0.8);
+    --tp-container-background-color-hover: rgba(32, 32, 32, 0.9);
+    --tp-container-background-color-active: rgba(32, 32, 32, 1.0);
+    --tp-container-background-color-focus: rgba(32, 32, 32, 1.0);
+    --tp-base-border-radius: 0.4rem;
+
+    --tp-button-background-color: hsla(0, 0%, 70%, 1.00);
+    --tp-button-background-color-active: hsla(0, 0%, 85%, 1.00);
+    --tp-button-background-color-focus: hsla(0, 0%, 80%, 1.00);
+    --tp-button-background-color-hover: hsla(0, 0%, 75%, 1.00);
+    --tp-button-foreground-color: hsla(0, 0%, 5%, 1.00);
+    --tp-container-foreground-color: hsla(0, 0%, 95%, 1.00);
+    --tp-groove-foreground-color: hsla(0, 0%, 10%, 1.00);
+    --tp-input-background-color: hsla(0, 0%, 10%, 1.00);
+    --tp-input-background-color-active: hsla(0, 0%, 25%, 1.00);
+    --tp-input-background-color-focus: hsla(0, 0%, 20%, 1.00);
+    --tp-input-background-color-hover: hsla(0, 0%, 15%, 1.00);
+    --tp-input-foreground-color: hsla(0, 0%, 90%, 1.00);
+    --tp-label-foreground-color: hsla(0, 0%, 85%, 1.00);
+    --tp-monitor-background-color: hsla(0, 0%, 8%, 1.00);
+    --tp-monitor-foreground-color: hsla(0, 0%, 48%, 1.00);
+    */
+    --tp-element-border-radius: 0.25rem;
+
+    --tp-base-background-color: #28223C;
+
+    /*--tp-base-background-color: hsla(235, 21%, 31%, 0.5);*/
+    --tp-base-shadow-color: hsla(0, 0%, 0%, 0.2);
+    --tp-button-background-color: hsla(230, 10%, 80%, 1.00);
+    --tp-button-background-color-active: hsla(230, 10%, 95%, 1.00);
+    --tp-button-background-color-focus: hsla(230, 10%, 90%, 1.00);
+    --tp-button-background-color-hover: hsla(230, 10%, 85%, 1.00);
+    --tp-button-foreground-color: hsla(230, 20%, 11%, 1.00);
+    --tp-container-background-color: hsla(230, 25%, 16%, 0.65);
+    --tp-container-background-color-active: hsla(230, 25%, 31%, 0.65);
+    --tp-container-background-color-focus: hsla(230, 25%, 26%, 0.65);
+    --tp-container-background-color-hover: hsla(230, 25%, 21%, 0.65);
+    --tp-container-foreground-color: hsl(240, 10%, 92%);
+    --tp-groove-foreground-color: hsla(230, 20%, 8%, 1.00);
+    --tp-input-background-color: hsla(230, 20%, 8%, 1.00);
+    --tp-input-background-color-active: hsla(230, 28%, 23%, 1.00);
+    --tp-input-background-color-focus: hsla(230, 28%, 18%, 1.00);
+    --tp-input-background-color-hover: hsla(230, 20%, 13%, 1.00);
+    --tp-input-foreground-color: hsla(230, 10%, 80%, 1.00);
+    /*--tp-label-foreground-color: hsl(229, 100%, 97%);*/
+    --tp-monitor-background-color: hsla(230, 20%, 8%, 1.00);
+    --tp-monitor-foreground-color: hsla(230, 12%, 48%, 1.00);
+
+    --tp-label-foreground-color: #E4E2ED;
+
+    /*--tp-font-family: 'Inter';*/
+    --tp-font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+}
+
+.tp-fldv {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    background-blend-mode: luminosity;
+    position: relative;
+}
+
+.tp-fldv .tp-fldv {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.tp-fldv .tp-brkv {
+    background-color: rgba(32, 32, 50, 0.85);
+}
+
+.tp-fldv .tp-fldv .tp-brkv {
+    background-color: rgba(32, 32, 50, 0.25) !important;
+}
+
+.tp-fldv-expanded > .tp-fldv_b {
+    background-color: rgba(32, 32, 50, 0.80) !important;
+}
+
+.tp-fldv_b {
+    height: calc(var(--bld-us) * 1.5 + 4px) !important;
+    font-size: 0.85rem !important;
+}
+
+.tp-fldv_b + .tp-brkv .tp-fldv_b {
+    height: calc(var(--bld-us) * 1.1 + 4px) !important;
+    font-size: 0.65rem !important;
+}
+
+.tp-fldv_b + .tp-brkv .tp-fldv-expanded > .tp-fldv_b {
+}
+
+.tp-lblv_l {
+    font-size: 0.7rem !important;
+    font-weight: 400 !important;
+    flex-grow: 1 !important;
+    flex-basis: 20% !important;
+}
+
+.tp-lblv_v {
+    flex-grow: 1 !important;
+    flex-basis: 50% !important;
+}
+
+.tp-txtv_i {
+    font-size: 0.7rem !important;
+    font-weight: 400 !important;
+}
+
+.tp-fldv_t {
+    font-weight: 400 !important;
+    padding-left: 1.5rem !important;
+}
+
+.tp-fldv_m {
+    right: auto !important;
+    left: 0.75rem;
+    opacity: 1.0 !important;
+}
+
+.pluginOptionsButton{
+    position: absolute;
+    right: 0;
+    top: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    height: min-content;
+    background: transparent;
+    color: #eeeeee;
+    border: none;
+}

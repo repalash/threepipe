@@ -8,20 +8,24 @@ import {
     UVMapping,
     Vector3,
 } from 'three'
-import {IObject3D, IObjectProcessor} from '../IObject'
+import type {IObject3D, IObjectProcessor} from '../IObject'
 import {type ICamera} from '../ICamera'
-import {Box3B} from '../../three/math/Box3B'
-import {AnyOptions, onChange, serialize} from 'ts-browser-helpers'
+import {Box3B} from '../../three'
+import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
-import {ThreeSerialization} from '../../utils/serialization'
+import {ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
 import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
-import {RootSceneImportResult} from '../../assetmanager/IAssetImporter'
+import {RootSceneImportResult} from '../../assetmanager'
+import {uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 
+@uiFolderContainer('Root Scene')
 export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements IScene<ISceneEvent, ISceneEventTypes> {
-    isRootScene = true
+    readonly isRootScene = true
+
     assetType = 'model' as const
+    uiConfig!: UiObjectConfig
 
     // private _processors = new ObjectProcessorMap<'environment' | 'background'>()
     // private _sceneObjects: ISceneObject[] = []
@@ -31,26 +35,43 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      */
     readonly modelRoot: IObject3D
 
+    @uiColor<RootScene>('Background Color', (s)=>({
+        onChange: ()=>s?._onBackgroundChange(),
+    }))
+    @serialize() @onChange2(RootScene.prototype._onBackgroundChange)
+        backgroundColor: Color | null = null // read in three.js WebGLBackground
+
+    @onChange2(RootScene.prototype._onBackgroundChange)
+    @serialize() @uiImage('Background Image')
+        background: null | Color | ITexture | 'environment' = null
     /**
-     * The default camera in the scene
+     * The intensity for the environment light.
      */
-    @serialize() readonly defaultCamera: ICamera
+    @serialize() @onChange3(RootScene.prototype.setDirty)
+    @uiSlider('Background Intensity', [0, 10], 0.01)
+        backgroundIntensity = 1
+
+    @uiImage('Environment')
+    @serialize() @onChange2(RootScene.prototype._onEnvironmentChange)
+        environment: ITexture | null = null
 
     /**
      * The intensity for the environment light.
      */
-    @onChange(RootScene.prototype.setDirty) // todo: fix options that get passed to setDirty
-    @serialize() envMapIntensity = 1
+    @uiSlider('Environment Intensity', [0, 10], 0.01)
+    @serialize() @onChange3(RootScene.prototype.setDirty)
+        envMapIntensity = 1
     /**
      * Fixed direction environment reflections irrespective of camera position.
      */
-    @onChange(RootScene.prototype.setDirty) // todo: fix options that get passed to setDirty
-    @serialize() fixedEnvMapDirection = false
+    @uiToggle('Fixed Env Direction')
+    @serialize() @onChange3(RootScene.prototype.setDirty)
+        fixedEnvMapDirection = false
+
     /**
-     * The intensity for the environment light.
+     * The default camera in the scene
      */
-    @onChange(RootScene.prototype.setDirty) // todo: fix options that get passed to setDirty
-    @serialize() backgroundIntensity = 1
+    @uiConfig() @serialize() readonly defaultCamera: ICamera
 
     // private _environmentLight?: IEnvironmentLight
 
@@ -80,14 +101,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty()
     }
 
-    addEventListener<T extends ISceneEventTypes>(type: T, listener: EventListener<ISceneEvent, T, this>): void {
-        if (type === 'activeCameraChange') console.error('activeCameraChange is deprecated. Use mainCameraChange instead.')
-        if (type === 'activeCameraUpdate') console.error('activeCameraUpdate is deprecated. Use mainCameraUpdate instead.')
-        if (type === 'sceneMaterialUpdate') console.error('sceneMaterialUpdate is deprecated. Use materialUpdate instead.')
-        if (type === 'update') console.error('update is deprecated. Use sceneUpdate instead.')
-        super.addEventListener(type, listener)
-    }
-
     /**
      * Create a scene instance. This is done automatically in the {@link ThreeViewer} and must not be created separately.
      * @param camera
@@ -102,6 +115,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         // this is called from parentDispatch since scene is a parent.
         this.addEventListener('materialUpdate', ()=>this.dispatchEvent({type: 'sceneMaterialUpdate'}))
         this.addEventListener('objectUpdate', this.refreshScene)
+        this.addEventListener('geometryUpdate', this.refreshScene)
+        this.addEventListener('geometryChanged', this.refreshScene)
 
         this.defaultCamera = camera
         this.modelRoot = new Object3D() as IObject3D
@@ -240,10 +255,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (setDirty) this.setDirty({refreshScene: true})
     }
 
-    @serialize()
-    @onChange(RootScene.prototype._onEnvironmentChange.name) // cannot do this as updateShadow in shadowBaker resets it every frame temporarily, todo: why was that needed?
-    public environment: ITexture | null = null
-
     private _onEnvironmentChange() {
         // console.warn('environment changed')
         if (this.environment?.mapping === UVMapping) {
@@ -252,19 +263,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         }
         this.dispatchEvent({type: 'environmentChanged', environment: this.environment})
         this.setDirty({refreshScene: true, geometryChanged: false})
+        this.refreshUi?.()
     }
 
     private _onBackgroundChange() {
         this.dispatchEvent({type: 'backgroundChanged', background: this.background, backgroundColor: this.backgroundColor})
         this.setDirty({refreshScene: true, geometryChanged: false})
+        this.refreshUi?.()
     }
-
-    @serialize()
-    @onChange(RootScene.prototype._onBackgroundChange)
-    public background: null | Color | ITexture | 'environment' = null
-    @serialize()
-    @onChange(RootScene.prototype._onBackgroundChange)
-    public backgroundColor: Color | null = null // read in three.js WebGLBackground
 
     /**
      * @deprecated Use {@link addObject}
@@ -284,7 +290,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param options - set sceneUpdate to true to to mark that any object transformations have changed. It might trigger effects like frame fade depening on plugins.
      * @returns {this}
      */
-    setDirty(options?: ISceneSetDirtyOptions): this { // todo;;;
+    setDirty(options?: ISceneSetDirtyOptions): this {
+        // todo: for onChange calls -> check options.key for specific key that's changed and use it to determine refreshScene
         if (options?.sceneUpdate) {
             console.warn('sceneUpdate is deprecated, use refreshScene instead.')
             options.refreshScene = true
@@ -302,7 +309,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     private _mainCameraUpdate = () => {
         this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
-        this.dispatchEvent({type: 'mainCameraUpdate'}) // this sets dirty in the viewer
+        this.dispatchEvent({type: 'mainCameraUpdate'})
         this.dispatchEvent({type: 'activeCameraUpdate'}) // deprecated
     }
 
@@ -328,7 +335,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         return this
     }
 
-    refreshUi = iObjectCommons.refreshUi
+    refreshUi = iObjectCommons.refreshUi.bind(this)
 
     /**
      * Dispose the scene and clear all resources.
@@ -461,6 +468,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         return this
     }
 
+    addEventListener<T extends ISceneEventTypes>(type: T, listener: EventListener<ISceneEvent, T, this>): void {
+        if (type === 'activeCameraChange') console.error('activeCameraChange is deprecated. Use mainCameraChange instead.')
+        if (type === 'activeCameraUpdate') console.error('activeCameraUpdate is deprecated. Use mainCameraUpdate instead.')
+        if (type === 'sceneMaterialUpdate') console.error('sceneMaterialUpdate is deprecated. Use materialUpdate instead.')
+        if (type === 'update') console.error('update is deprecated. Use sceneUpdate instead.')
+        super.addEventListener(type, listener)
+    }
+
     /**
      * Minimum Camera near plane
      * @deprecated - use camera.userData.minNearPlane instead
@@ -469,7 +484,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
         return this.mainCamera.userData.minNearPlane ?? 0.02
     }
-
     /**
      * @deprecated - use camera.userData.minNearPlane instead
      */

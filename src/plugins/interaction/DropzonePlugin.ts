@@ -1,8 +1,9 @@
 import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {type ThreeViewer} from '../../viewer/'
 import {Dropzone} from '../../utils'
-import {uiButton, uiConfig, uiFolderContainer, uiToggle} from 'uiconfig.js'
+import {uiButton, uiConfig, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import type {AddAssetOptions, ImportFilesOptions, ImportResult} from '../../assetmanager'
+import {serialize} from 'ts-browser-helpers'
 
 export interface DropzonePluginOptions {
     domElement?: HTMLElement
@@ -15,7 +16,8 @@ export interface DropzonePluginOptions {
 @uiFolderContainer('Dropzone')
 export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     static readonly PluginType = 'Dropzone'
-    @uiToggle() enabled = true
+    uiConfig!: UiObjectConfig
+    @uiToggle() @serialize() enabled = true
     private _inputEl?: HTMLInputElement
     private _dropzone?: Dropzone
     private _allowedExtensions: string[]|undefined = undefined // undefined and empty array is different.
@@ -23,17 +25,17 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     /**
      * Automatically import assets when dropped.
      */
-    autoImport = true
+    @serialize() autoImport = true
     /**
      * Automatically add dropped and imported assets to the scene.
-     * Works only if {@link autoImport} is true.
+     Works only if {@link autoImport} is true.
      */
-    @uiToggle() autoAdd = true
+    @uiToggle() @serialize() autoAdd = true
 
     /**
      * Import options for the {@link AssetImporter.importFiles}
      */
-    @uiConfig() importOptions: ImportFilesOptions = {
+    @uiConfig() @serialize() importOptions: ImportFilesOptions = {
         autoImportZipContents: true,
         forceImporterReprocess: false,
     }
@@ -41,7 +43,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     /**
      * Add options for the {@link RootScene.addObject}
      */
-    @uiConfig() addOptions: AddAssetOptions = {
+    @uiConfig() @serialize() addOptions: AddAssetOptions = {
         autoCenter: true,
         importConfig: true,
         autoScale: true,

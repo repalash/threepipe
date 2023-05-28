@@ -1,5 +1,6 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
+import {toIndexedGeometry} from '../../three'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -21,18 +22,74 @@ export const iGeometryCommons = {
                     property: [this, 'uuid'],
                     disabled: true,
                 },
-                // {
-                //     type: 'input',
-                //     property: [this, 'name'],
-                // },
+                {
+                    type: 'input',
+                    property: [this, 'name'],
+                },
                 {
                     type: 'button',
-                    label: 'Create uv2 from uv',
+                    label: 'Center Geometry',
                     value: () => {
-                        if (this.hasAttribute('uv2')) {
-                            if (!confirm('uv2 already exists, replace with uv data?')) return
+                        this.center()
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Compute vertex normals',
+                    value: () => {
+                        if (this.hasAttribute('normal') && !confirm('Normals already exist, replace with computed normals?')) return
+                        this.computeVertexNormals()
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Compute vertex tangents',
+                    value: () => {
+                        if (this.hasAttribute('tangent') && !confirm('Tangents already exist, replace with computed tangents?')) return
+                        this.computeTangents()
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Normalize normals',
+                    value: () => {
+                        this.normalizeNormals()
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Convert to indexed',
+                    hidden: () => !!this.index,
+                    value: () => {
+                        if (this.attributes.index) return
+                        const tolerance = parseFloat(prompt('Tolerance', '-1') ?? '-1')
+                        toIndexedGeometry(this, tolerance)
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Convert to non-indexed',
+                    hidden: () => !this.index,
+                    value: () => {
+                        if (!this.attributes.index) return
+                        this.toNonIndexed()
+                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Create uv1 from uv',
+                    value: () => {
+                        if (this.hasAttribute('uv1')) {
+                            if (!confirm('uv1 already exists, replace with uv data?')) return
                         }
-                        this.setAttribute('uv2', this.getAttribute('uv'))
+                        this.setAttribute('uv1', this.getAttribute('uv'))
+                        this.setDirty()
                     },
                 },
                 {
@@ -46,27 +103,9 @@ export const iGeometryCommons = {
                         }
                         if (!confirm('Remove color attribute?')) return
                         this.deleteAttribute('color')
+                        this.setDirty()
                     },
                 },
-                // {
-                //     type: 'button',
-                //     label: 'Invert eigen vectors',
-                //     value: () => {
-                //         console.log(geometry)
-                //         const offsets = geometry.userData.normalsCaptureOffsets
-                //         if (!offsets) return
-                //         const m = offsets.offsetMatrix as Matrix4
-                //         console.log(offsets.offsetMatrix.toArray())
-                //         console.log(m.determinant())
-                //
-                //         const m1 = new Matrix4().makeRotationX(Math.PI / 2)
-                //         m.multiply(m1)
-                //
-                //         console.log(m.determinant())
-                //         offsets.offsetMatrixInv.copy(m).invert()
-                //         console.log(offsets.offsetMatrix.toArray())
-                //     },
-                // },
                 {
                     type: 'input',
                     label: 'Mesh count',

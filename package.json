@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",
@@ -67,14 +67,13 @@
   },
   "homepage": "https://github.com/repalash/threepipe#readme",
   "devDependencies": {
-    "rimraf": "^5.0.1",
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-node-resolve": "^15.0.2",
-    "@rollup/plugin-terser": "^0.4.1",
+    "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.1",
     "@types/stats.js": "^0.17.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.5",
+    "@typescript-eslint/eslint-plugin": "^5.59.7",
     "@typescript-eslint/parser": "^5.59.5",
     "clean-package": "^2.2.0",
     "eslint": "^8.40.0",
@@ -83,18 +82,23 @@
     "eslint-plugin-html": "^7.1.0",
     "eslint-plugin-import": "^2.27.5",
     "local-web-server": "^5.3.0",
-    "rollup": "^3.21.7",
-    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2005/package.tgz",
+    "markdown-to-html-cli": "^3.7.0",
+    "rimraf": "^5.0.1",
+    "rollup": "^3.23.0",
     "rollup-plugin-license": "^3.0.1",
-    "ts-browser-helpers": "^0.4.0",
+    "rollup-plugin-postcss": "^4.0.2",
     "stats.js": "^0.17.0",
+    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2005/package.tgz",
+    "ts-browser-helpers": "^0.5.0",
     "tslib": "^2.5.0",
+    "tweakpane": "^3.1.9",
+    "@tweakpane/core": "^1.1.8",
     "typedoc": "^0.24.7",
     "typescript": "^5.0.4",
-    "uiconfig.js": "^0.0.3",
     "typescript-plugin-css-modules": "^5.0.1",
-    "rollup-plugin-postcss": "^4.0.2",
-    "markdown-to-html-cli": "^3.7.0"
+    "uiconfig-tweakpane": "^0.0.3",
+    "uiconfig.js": "^0.0.4",
+    "tweakpane-image-plugin": "https://github.com/repalash/tweakpane-image-plugin/releases/download/v1.1.403/package.tgz"
   },
   "dependencies": {
     "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.0004/package.tgz",
@@ -103,14 +107,19 @@
   },
   "//": {
     "dependencies": {
-      "ts-browser-helpers": "^0.4.0",
+      "uiconfig.js": "^0.0.4",
+      "ts-browser-helpers": "^0.5.0",
+      "uiconfig-tweakpane": "^0.0.3",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2005/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2005.tar.gz",
       "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.0004/package.tgz",
       "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.0004.tar.gz",
-      "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three"
+      "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three",
+      "tweakpane-image-plugin": "git+ssh://github.com/repalash/tweakpane-image-plugin.git#52d5542047fd07d2e7225b5b67c9f7620366f2c7"
     },
     "local_dependencies": {
+      "uiconfig-tweakpane": "^file:./../uiconfig-tweakpane",
+      "uiconfig.js": "^file:./../uiconfig",
       "ts-browser-helpers": "file:./../ts-browser-helpers",
       "three": "file:./../three.js",
       "@types/three": "file:./../three-ts-types/types/three"
@@ -128,8 +137,12 @@
       "description": "A new way to work with three.js, 3D models and rendering on the web.",
       "style": "body { padding: 4rem; } @media (max-width: 768px) { body { padding: 2.5rem 1rem; } }",
       "meta": [
-        { "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility" },
-        { "keywords": "3d,three.js,typescript,javascipt,browser,esm,rendering,viewer,webgl,webgi,canvas" }
+        {
+          "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility"
+        },
+        {
+          "keywords": "3d,three.js,typescript,javascipt,browser,esm,rendering,viewer,webgl,webgi,canvas"
+        }
       ]
     },
     "favicon": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>",

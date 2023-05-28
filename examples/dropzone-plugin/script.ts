@@ -1,4 +1,4 @@
-import {_testFinish, DropzonePlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, DropzonePlugin, ThreeViewer, TweakpaneUiPlugin} from 'threepipe'
 
 async function init() {
 
@@ -21,13 +21,16 @@ async function init() {
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
-    const dropzone = viewer.getPlugin(DropzonePlugin)
-    dropzone?.addEventListener('drop', (e: any) => {
+    const dropzone = viewer.getPlugin(DropzonePlugin)!
+    dropzone.addEventListener('drop', (e: any) => {
         if (!e.assets?.length) return // no assets imported
         console.log('Dropped Event:', e)
         const promptDiv = document.getElementById('prompt-div')!
         promptDiv.style.display = 'none'
     })
+
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    ui.appendChild(dropzone.uiConfig)
 
 }
 

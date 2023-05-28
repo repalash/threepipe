@@ -35,6 +35,7 @@ import {
 import {GLStatsJS, IDialogWrapper, windowDialogWrapper} from '../utils'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
+import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'
@@ -125,9 +126,11 @@ const VIEWER_VERSION = '0.0.1'
  * The ThreeViewer is the main class in the framework.
  * @category Viewer
  */
+@uiFolderContainer('Viewer')
 export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes> {
     public static readonly VERSION = VIEWER_VERSION
     public static readonly ConfigTypeSlug = 'vjson'
+    uiConfig!: UiObjectConfig
 
     static Console: IConsoleWrapper = console
     static Dialog: IDialogWrapper = windowDialogWrapper
@@ -150,14 +153,14 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     // this can be used by other plugins to add ui elements alongside the canvas
     private readonly _container: HTMLElement // todo: add a way to move the canvas to a new container... and dispatch event...
 
-    @serialize('renderManager')
+    @uiConfig() @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
 
     /**
      * The Scene attached to the viewer, this cannot be changed.
      * @type {RootScene}
      */
-    @serialize('scene')
+    @uiConfig() @serialize('scene')
     private readonly _scene: RootScene
 
     public readonly plugins: Record<string, IViewerPlugin> = {}
@@ -221,6 +224,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         // camera
 
         const camera = new PerspectiveCamera2('orbit', this._canvas)
+        camera.name = 'Default Camera'
         camera.position.set(0, 0, 5)
         camera.userData.autoLookAtTarget = true
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.

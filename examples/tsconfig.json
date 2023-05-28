@@ -3,6 +3,7 @@
         "baseUrl": "./",
         "allowJs": false,
         "checkJs": false,
+        "skipLibCheck": true,
         "allowSyntheticDefaultImports": true,
         "experimentalDecorators": true,
         "isolatedModules": false,

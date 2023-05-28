@@ -12,7 +12,7 @@ import {
     WebGLMultipleRenderTargets,
     WebGLRenderTarget,
 } from 'three'
-import {uiToggle} from 'uiconfig.js'
+import {generateUiConfig, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {GenericBlendTexturePass} from './GenericBlendTexturePass'
 import {IRenderTarget} from '../rendering'
@@ -294,6 +294,12 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     beforeRender(scene: IScene, camera: ICamera, _: IRenderManager): void {
         this.scene = scene
         this.camera = camera
+    }
+
+    uiConfig: UiObjectConfig = {
+        label: 'Render Pass',
+        type: 'folder',
+        children: generateUiConfig(this),
     }
 
 
