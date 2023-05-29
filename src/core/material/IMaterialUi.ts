@@ -357,10 +357,15 @@ export const iMaterialUI = {
             type: 'folder',
             label: 'Refraction',
             children: [
+                // {
+                //     type: 'slider',
+                //     bounds: [0, 1],
+                //     property: [material, 'reflectivity'],
+                // },
                 {
                     type: 'slider',
-                    bounds: [0, 1],
-                    property: [material, 'reflectivity'],
+                    bounds: [0, 4],
+                    property: [material, 'ior'],
                 },
                 {
                     type: 'slider',
@@ -384,6 +389,14 @@ export const iMaterialUI = {
                     property: [material, 'thicknessMap'],
                 },
                 makeSamplerUi(material, 'thicknessMap'),
+                {
+                    type: 'number',
+                    property: [material, 'attenuationDistance'],
+                },
+                {
+                    type: 'color',
+                    property: [material, 'attenuationColor'],
+                },
             ],
         }
     ),
@@ -428,6 +441,50 @@ export const iMaterialUI = {
                     hidden: ()=>!material.clearcoatNormalMap,
                 },
                 makeSamplerUi(material, 'clearcoatNormalMap'),
+            ],
+        }
+    ),
+    iridescence: (material: PhysicalMaterial): UiObjectConfig => (
+        {
+            type: 'folder',
+            label: 'Iridescence',
+            children: [
+                {
+                    type: 'slider',
+                    bounds: [0, 3],
+                    label: 'Intensity',
+                    property: [material, 'iridescence'],
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 3],
+                    label: 'IOR',
+                    property: [material, 'iridescenceIOR'],
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 500],
+                    label: 'Thickness0',
+                    property: [material.iridescenceThicknessRange, '0'],
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 500],
+                    label: 'Thickness1',
+                    property: [material.iridescenceThicknessRange, '1'],
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                },
+                {
+                    type: 'image',
+                    property: [material, 'iridescenceMap'],
+                },
+                makeSamplerUi(material, 'iridescenceMap'),
+                {
+                    type: 'image',
+                    property: [material, 'iridescenceThicknessMap'],
+                },
+                makeSamplerUi(material, 'iridescenceThicknessMap'),
             ],
         }
     ),

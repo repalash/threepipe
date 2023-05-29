@@ -1,7 +1,6 @@
 import {IPipelinePass} from './Pass'
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {
-    CanvasTexture,
     Color,
     HalfFloatType,
     LinearFilter,
@@ -53,12 +52,10 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         this._transparentTarget = undefined
     }
 
-    canvasTexture: CanvasTexture
 
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager
-        // this.canvasTexture = new CanvasTexture(renderManager.renderer.domElement)
         this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb * b.a, 1.);')
         this.setDirty = this.setDirty.bind(this)
     }
@@ -250,6 +247,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 this.clear = curClear
             }
 
+            // console.log(renderer.info.render.calls)
             if (renderer.info.render.calls > 0) {
 
                 // console.log('missive blit', renderer.info.render.frame)

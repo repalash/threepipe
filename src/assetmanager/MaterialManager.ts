@@ -28,8 +28,9 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
 
     /**
      * @param info: uuid or template name or material type
+     * @param params
      */
-    public findOrCreate(info: string, params?: IMaterialParameters): IMaterial | undefined {
+    public findOrCreate(info: string, params?: IMaterialParameters|Material): IMaterial | undefined {
         let mat = this.findMaterial(info)
         if (!mat) mat = this.create(info, params)
         return mat
@@ -41,7 +42,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
      * @param register
      * @param params
      */
-    public create<TM extends IMaterial>(nameOrType: string, {register = true, ...params}: IMaterialParameters&{register?: boolean} = {}): TM | undefined {
+    public create<TM extends IMaterial>(nameOrType: string, params: IMaterialParameters = {}, register = true): TM | undefined {
         let template: IMaterialTemplate<any> = {materialType: nameOrType, name: nameOrType}
         while (!template.generator) { // looping so that we can inherit templates, not fully implemented yet
             const t2 = this.findTemplate(template.materialType) // todo add a baseTemplate property to the template?
@@ -52,7 +53,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             template = {...template, ...t2}
         }
         const material = this._create<TM>(template, params)
-        if (material && register !== false) this.registerMaterial(material)
+        if (material && register) this.registerMaterial(material)
         return material
     }
 

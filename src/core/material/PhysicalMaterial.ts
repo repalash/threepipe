@@ -61,6 +61,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     constructor({customMaterialExtensions, ...parameters}: MeshPhysicalMaterialParameters & IMaterialParameters = {}) {
         super(parameters)
         this.fog = false
+        this.attenuationDistance = 0 // infinite distance (for Ui)
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
@@ -138,6 +139,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
             iMaterialUI.emission(this),
             iMaterialUI.transmission(this),
             iMaterialUI.clearcoat(this),
+            iMaterialUI.iridescence(this),
             iMaterialUI.sheen(this),
             ...iMaterialUI.misc(this),
         ],
@@ -170,6 +172,9 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
         if (clearCurrentUserData) this.userData = {}
         iMaterialCommons.setValues(super.setValues).call(this, parameters)
+
+        if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
+
         this.userData.uuid = this.uuid // just in case
         return this
     }
@@ -273,6 +278,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
         reflectivity: 0.5, // because this is used in Material.js->toJSON and fromJSON instead of ior
 
+        iridescence: 0,
         iridescenceMap: null,
         iridescenceIOR: 1.3,
         iridescenceThicknessRange: [100, 400],
