@@ -281,13 +281,17 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         return this
     }
 
+    /**
+     * Sets the backgroundColor property from a string, number or Color, and updates the scene.
+     * @param color
+     */
     setBackgroundColor(color: string | number | Color | null) {
         this.backgroundColor = color ? new Color(color) : null
     }
 
     /**
      * Mark the scene dirty, and force render in the next frame.
-     * @param options - set sceneUpdate to true to to mark that any object transformations have changed. It might trigger effects like frame fade depening on plugins.
+     * @param options - set `refreshScene` to true to mark that any object transformations have changed. It might trigger effects like frame fade depening on plugins.
      * @returns {this}
      */
     setDirty(options?: ISceneSetDirtyOptions): this {

@@ -216,5 +216,8 @@ export {WebGLUtils} from 'three'
 
 export * from 'three/src/constants.js'
 
+export type {Shader} from 'three'
 
 export * from 'three/examples/jsm/libs/fflate.module.js'
+
+export {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'

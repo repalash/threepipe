@@ -23,7 +23,6 @@ export interface IViewerPlugin<TViewer extends ThreeViewer = ThreeViewer, IsSync
     // Called when this plug-in is removed from the viewer
     onRemove(viewer: TViewer): IsSync extends false ? Promise<void> : void;
 
-
     // the viewer will render the next frame if this is set to true
     dirty?: boolean;
 

@@ -1,5 +1,5 @@
 import {BaseEvent, Color, Event, EventDispatcher, LinearSRGBColorSpace, Object3D, Vector2} from 'three'
-import {Class, createCanvasElement, serialize} from 'ts-browser-helpers'
+import {Class, createCanvasElement, onChange, serialize} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -38,7 +38,7 @@ import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/Drop
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 
 export type IViewerEvent = BaseEvent & {
-    type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'
+    type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
 }
 export type IViewerEventTypes = IViewerEvent['type']
 export interface ISerializedConfig {
@@ -132,7 +132,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     public static readonly ConfigTypeSlug = 'vjson'
     uiConfig!: UiObjectConfig
 
-    static Console: IConsoleWrapper = console
+    static Console: IConsoleWrapper = {
+        log: console.log.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+    }
     static Dialog: IDialogWrapper = windowDialogWrapper
 
     renderStats: GLStatsJS
@@ -172,10 +176,12 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      */
     enabled = true
 
+
     /**
      * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
      */
-    renderEnabled = true
+    @onChange(ThreeViewer.prototype._renderEnabledChanged)
+        renderEnabled = true
 
     private _isRenderingFrame = false
 
@@ -190,12 +196,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return this._scene
     }
 
-
     /**
      * The ResizeObserver observing the canvas element. Add more elements to this observer to resize viewer on their size change.
      * @type {ResizeObserver | undefined}
      */
-    readonly resizeObserver = window.ResizeObserver ? new window.ResizeObserver(_ => this.resize()) : undefined
+    readonly resizeObserver = window?.ResizeObserver ? new window.ResizeObserver(_ => this.resize()) : undefined
 
     readonly debug: boolean
     /**
@@ -260,7 +265,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         // render manager
 
         if (options.isAntialiased !== undefined || options.useRgbm !== undefined || options.useGBufferDepth !== undefined) {
-            console.warn('isAntialiased, useRgbm and useGBufferDepth are deprecated, use msaa, rgbm and zPrepass instead.')
+            this.console.warn('isAntialiased, useRgbm and useGBufferDepth are deprecated, use msaa, rgbm and zPrepass instead.')
         }
         this.renderManager = new ViewerRenderManager({
             canvas: this._canvas,
@@ -349,7 +354,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @deprecated - use {@link renderManager} instead
      */
     get renderer(): ViewerRenderManager {
-        console.error('renderer is deprecated, use renderManager instead')
+        this.console.error('renderer is deprecated, use renderManager instead')
         return this.renderManager
     }
 
@@ -548,7 +553,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
 
     /**
-     * Add a plugin with a type.
+     * Add a plugin to the viewer.
      * @param plugin - The instance of the plugin to add or the class of the plugin to add.
      * @param args - Arguments for the constructor of the plugin, in case a class is passed.
      * @returns {Promise<T>} - The plugin added.
@@ -576,6 +581,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return p
     }
 
+    /**
+     * Add a plugin to the viewer(sync).
+     * @param plugin
+     * @param args
+     */
     addPluginSync<T extends IViewerPluginSync>(plugin: T|Class<T>, ...args: ConstructorParameters<Class<T>>): T {
         const p = this._resolvePluginOrClass(plugin, ...args)
         const type = p.constructor.PluginType
@@ -602,9 +612,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         for (const p of plugins) await this.addPlugin(p)
     }
 
-    // async addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): Promise<void> {
-    //     for (const p of plugins) this.addPluginSync(p)
-    // }
+    async addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): Promise<void> {
+        for (const p of plugins) this.addPluginSync(p)
+    }
 
     /**
      * Remove a plugin instance or a plugin class. Works similar to {@link ThreeViewer.addPlugin}
@@ -736,15 +746,15 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param plugin
      */
     async importPluginConfig(json: ISerializedConfig, plugin?: IViewerPlugin) {
-        // console.log('importing plugin preset', json, plugin)
+        // this.console.log('importing plugin preset', json, plugin)
         const type = json.type
         plugin = plugin || this.getPlugin(type)
         if (!plugin) {
-            console.warn(`No plugin found for type ${type} to import config`)
+            this.console.warn(`No plugin found for type ${type} to import config`)
             return undefined
         }
         if (!plugin.fromJSON) {
-            console.warn(`Plugin ${type} does not support importing presets`)
+            this.console.warn(`Plugin ${type} does not support importing presets`)
             return undefined
         }
         const resources = json.resources || {}
@@ -901,7 +911,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
 
     loadConfigResources = async(json: Partial<SerializationMetaType>, extraResources?: Partial<SerializationResourcesType>): Promise<any> => {
-        // console.log(json)
+        // this.console.log(json)
         if (json.__isLoadedResources) return json
         const meta = metaFromResources(json, this)
         return await MetaImporter.ImportMeta(meta, extraResources)
@@ -933,6 +943,14 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         let p: T
         if ((plugin as Class<IViewerPlugin>).prototype) p = new (plugin as Class<T>)(...args)
         else p = plugin as T
+        if ((plugin as Class<IViewerPlugin>).prototype) {
+            const p1 = this.getPlugin(plugin as Class<T>)
+            if (p1) {
+                this.console.error(`Plugin of type ${p1.constructor.PluginType} already exists, no new plugin created`, p1)
+                return p1
+            }
+            p = new (plugin as Class<T>)(...args)
+        } else p = plugin as T
         return p
     }
 
@@ -970,6 +988,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
 
+
+    private _renderEnabledChanged(): void {
+        this.dispatchEvent({type: this.renderEnabled ? 'renderEnabled' : 'renderDisabled'})
+    }
 
     private readonly _defaultConfig: ISerializedViewerConfig = {
         assetType: 'config',
