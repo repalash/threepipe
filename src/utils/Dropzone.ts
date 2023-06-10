@@ -96,7 +96,7 @@ export class Dropzone {
             // if (entries[0].name.match(/\.zip$/)) {
             //     this._loadZip(items[0].getAsFile())
             // } else {
-            this._loadNextEntry(new Map(), entries)
+            this._loadNextEntry(new Map(), entries, e)
             // }
 
             return
@@ -106,10 +106,13 @@ export class Dropzone {
         // if (files.length === 1 && files[0].name.match(/\.zip$/)) {
         //     this._loadZip(files[0])
         // }
-        this._emit('drop', {files: new Map(files.map((file) => {
-            file.filePath = file.name
-            return [file.filePath, file]
-        }))})
+        this._emit('drop', {
+            nativeEvent: e,
+            files: new Map(files.map((file) => {
+                file.filePath = file.name
+                return [file.filePath, file]
+            })),
+        })
     }
 
     /**
@@ -142,19 +145,21 @@ export class Dropzone {
             file.filePath = (file as any).webkitRelativePath || file.name
             fileMap.set(file.filePath, file)
         })
-        this._emit('drop', {files: fileMap})
+        this._emit('drop', {files: fileMap, nativeEvent: e})
     }
 
     /**
      * Iterates through a list of FileSystemEntry objects, creates the fileMap
      * tree, and emits the result.
+     * @param fileMap
      * @param  {Array<FileSystemEntry>} entries
+     * @param e
      */
-    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: any[]) {
+    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: any[], e: DragEvent) {
         const entry = entries.pop()
 
         if (!entry) {
-            this._emit('drop', {files: fileMap})
+            this._emit('drop', {files: fileMap, nativeEvent: e})
             return
         }
 
@@ -163,7 +168,7 @@ export class Dropzone {
             entry.file((file: DropFile) => {
                 file.filePath = entry.fullPath
                 fileMap.set(entry.fullPath, file)
-                this._loadNextEntry(fileMap, entries)
+                this._loadNextEntry(fileMap, entries, e)
             }, () => console.error('Could not load file: %s', entry.fullPath))
         } else if (entry.isDirectory) {
             // readEntries() must be called repeatedly until it stops returning results.
@@ -177,14 +182,14 @@ export class Dropzone {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                     reader.readEntries(readerCallback)
                 } else {
-                    this._loadNextEntry(fileMap, entries)
+                    this._loadNextEntry(fileMap, entries, e)
                 }
             }
             // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             reader.readEntries(readerCallback)
         } else {
             console.warn('Unknown asset type: ' + entry.fullPath)
-            this._loadNextEntry(fileMap, entries)
+            this._loadNextEntry(fileMap, entries, e)
         }
     }
 

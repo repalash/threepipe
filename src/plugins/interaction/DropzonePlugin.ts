@@ -93,7 +93,8 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
         super.onAdded(viewer)
         this._inputEl = document.createElement('input')!
         this._inputEl.type = 'file'
-        this._dropzone = new Dropzone(this._domElement || viewer.canvas, this._inputEl, {
+        if (!this._domElement) this._domElement = viewer.canvas
+        this._dropzone = new Dropzone(this._domElement, this._inputEl, {
             drop: this._onFileDrop.bind(this),
         })
         this.allowedExtensions = this._allowedExtensions
@@ -106,7 +107,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
         this._inputEl = undefined
     }
 
-    private async _onFileDrop({files}: {files: Map<string, File>}&any) {
+    private async _onFileDrop({files, nativeEvent}: {files: Map<string, File>, nativeEvent: DragEvent}) {
         if (!files) return
         if (!this.enabled) return
         const viewer = this._viewer
@@ -131,7 +132,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
                 assets = await manager.loadImported(toAdd, {...this.addOptions})
             }
         }
-        this.dispatchEvent({type: 'drop', files, imported, assets})
+        this.dispatchEvent({type: 'drop', files, imported, assets, nativeEvent})
     }
 
 }
