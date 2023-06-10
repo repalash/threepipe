@@ -28,10 +28,10 @@ async function init() {
     })
 
     viewer.renderManager.autoBuildPipeline = false
-    viewer.renderManager.pipeline = ['depth', 'render', 'screen']
+    viewer.renderManager.pipeline = ['depth', 'normal', 'render', 'screen']
 
     targetPreview.addTarget(()=>depth.target, 'depth', false, true)
-    targetPreview.addTarget(()=>normal.target, 'normal', false, true)
+    targetPreview.addTarget(()=>normal.target, 'normal', false, false)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget, 'composer-1', false, false)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget2, 'composer-2', false, false)
 
