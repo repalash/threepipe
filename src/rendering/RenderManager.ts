@@ -1,7 +1,11 @@
 import {
+    Blending,
+    Color,
     HalfFloatType,
     IUniform,
+    NoBlending,
     NoColorSpace,
+    NormalBlending,
     NoToneMapping,
     PCFShadowMap,
     ShaderMaterial,
@@ -296,6 +300,13 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         return string
     }
 
+    renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array {
+        const buffer = target.texture.type === HalfFloatType ?
+            new Uint16Array(target.width * target.height * 4) :
+            new Uint8Array(target.width * target.height * 4)
+        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
+        return buffer
+    }
 
     // endregion
 
@@ -306,6 +317,9 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     }
     get totalFrameCount(): number {
         return this._totalFrameCount
+    }
+    resetTotalFrameCount(): void {
+        this._totalFrameCount = 0
     }
     set pipeline(value: IPassID[]) {
         this._pipeline = value
@@ -383,25 +397,50 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     // / TODO
 
 
-
-    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false}: {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean} = {}): void {
+    /**
+     *
+     * @param destination - destination target, or screen if undefined or null
+     * @param source - source Texture
+     * @param viewport - viewport and scissor
+     * @param material - override material
+     * @param clear - clear before blit
+     * @param respectColorSpace - does color space conversion when reading and writing to the target
+     * @param blending - Note - Set to NormalBlending if transparent is set to false
+     * @param transparent
+     */
+    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false, blending = NoBlending, transparent = true}: {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean} = {}): void {
         const copyPass = !respectColorSpace ? this._composer.copyPass : this._composer.copyPass2
         const {renderToScreen, material: oldMaterial, uniforms: oldUniforms, clear: oldClear} = copyPass
         if (material) {
             copyPass.material = material
         }
-        const oldViewport = this._renderer.getViewport(new Vector4())
-        const oldScissor = this._renderer.getScissor(new Vector4())
-        const oldScissorTest = this._renderer.getScissorTest()
+        const oldTransparent = copyPass.material.transparent
+        const oldViewport = !destination ? this._renderer.getViewport(new Vector4()) : destination.viewport.clone()
+        const oldScissor = !destination ? this._renderer.getScissor(new Vector4()) : destination.scissor.clone()
+        const oldScissorTest = !destination ? this._renderer.getScissorTest() : destination.scissorTest
         const oldAutoClear = this._renderer.autoClear
         const oldTarget = this._renderer.getRenderTarget()
-        if (viewport) this._renderer.setViewport(viewport)
-        if (viewport) this._renderer.setScissor(viewport)
-        if (viewport) this._renderer.setScissorTest(true)
+        const oldBlending = copyPass.material.blending
+
+        if (viewport) {
+            if (!destination) {
+                this._renderer.setViewport(viewport)
+                this._renderer.setScissor(viewport)
+                this._renderer.setScissorTest(true)
+            } else {
+                destination.viewport.copy(viewport)
+                destination.scissor.copy(viewport)
+                destination.scissorTest = true
+            }
+        }
         this._renderer.autoClear = false
+        copyPass.material.blending = !transparent ? NormalBlending : blending
         copyPass.uniforms = copyPass.material.uniforms
         copyPass.renderToScreen = false
         copyPass.clear = clear
+        copyPass.material.transparent = transparent
+        copyPass.material.needsUpdate = true
+
         this._renderer.renderWithModes({
             sceneRender: true,
             opaqueRender: true,
@@ -416,28 +455,67 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         copyPass.clear = oldClear
         copyPass.material = oldMaterial
         copyPass.uniforms = oldUniforms
+        copyPass.material.blending = oldBlending
+        copyPass.material.transparent = oldTransparent
         this._renderer.autoClear = oldAutoClear
-        if (viewport) this._renderer.setViewport(oldViewport)
-        if (viewport) this._renderer.setScissor(oldScissor)
-        if (viewport) this._renderer.setScissorTest(oldScissorTest)
+        if (viewport) {
+            if (!destination) {
+                this._renderer.setViewport(oldViewport)
+                this._renderer.setScissor(oldScissor)
+                this._renderer.setScissorTest(oldScissorTest)
+            } else {
+                destination.viewport.copy(oldViewport)
+                destination.scissor.copy(oldScissor)
+                destination.scissorTest = oldScissorTest
+            }
+        }
         this._renderer.setRenderTarget(oldTarget) // todo: active cubeface etc
     }
 
-    // clearColor({r, g, b, a, target, depth = true, stencil = true}:
-    //                {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean}): void {
-    //     const color = this._renderer.getClearColor(new Color())
-    //     const alpha = this._renderer.getClearAlpha()
-    //     this._renderer.setClearAlpha(a ?? alpha)
-    //     this._renderer.setClearColor(new Color(r ?? color.r, g ?? color.g, b ?? color.b))
-    //     const lastTarget = this._renderer.getRenderTarget()
-    //     const activeCubeFace = this._renderer.getActiveCubeFace()
-    //     const activeMipLevel = this._renderer.getActiveMipmapLevel()
-    //     this._renderer.setRenderTarget((target as WebGLRenderTarget) ?? null)
-    //     this._renderer.clear(true, depth, stencil)
-    //     this._renderer.setRenderTarget(lastTarget, activeCubeFace, activeMipLevel)
-    //     this._renderer.setClearColor(color)
-    //     this._renderer.setClearAlpha(alpha)
-    // }
+    clearColor({r, g, b, a, target, depth = true, stencil = true, viewport}:
+                   {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void {
+        const color = this._renderer.getClearColor(new Color())
+        const alpha = this._renderer.getClearAlpha()
+        this._renderer.setClearAlpha(a ?? alpha)
+        this._renderer.setClearColor(new Color(r ?? color.r, g ?? color.g, b ?? color.b))
+        const lastTarget = this._renderer.getRenderTarget()
+        const activeCubeFace = this._renderer.getActiveCubeFace()
+        const activeMipLevel = this._renderer.getActiveMipmapLevel()
+
+        const oldViewport = !target ? this._renderer.getViewport(new Vector4()) : target.viewport.clone()
+        const oldScissor = !target ? this._renderer.getScissor(new Vector4()) : target.scissor.clone()
+        const oldScissorTest = !target ? this._renderer.getScissorTest() : target.scissorTest
+        if (viewport) {
+            if (!target) {
+                this._renderer.setViewport(viewport)
+                this._renderer.setScissor(viewport)
+                this._renderer.setScissorTest(true)
+            } else {
+                target.viewport.copy(viewport)
+                target.scissor.copy(viewport)
+                target.scissorTest = true
+            }
+        }
+
+        this._renderer.setRenderTarget((target as WebGLRenderTarget) ?? null)
+        this._renderer.clear(true, depth, stencil)
+
+        if (viewport) {
+            if (!target) {
+                this._renderer.setViewport(oldViewport)
+                this._renderer.setScissor(oldScissor)
+                this._renderer.setScissorTest(oldScissorTest)
+            } else {
+                target.viewport.copy(oldViewport)
+                target.scissor.copy(oldScissor)
+                target.scissorTest = oldScissorTest
+            }
+        }
+
+        this._renderer.setRenderTarget(lastTarget, activeCubeFace, activeMipLevel)
+        this._renderer.setClearColor(color)
+        this._renderer.setClearAlpha(alpha)
+    }
 
 
     /**

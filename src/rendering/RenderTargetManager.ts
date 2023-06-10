@@ -87,12 +87,12 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         target.dispose()
     }
 
-    getTempTarget(op: CreateRenderTargetOptions = {}): IRenderTarget {
+    getTempTarget<T extends IRenderTarget = IRenderTarget>(op: CreateRenderTargetOptions = {}): T {
         const key = createRenderTargetKey(op)
-        let target: IRenderTarget | undefined
-        if (this._releasedTempTargets[key]?.length) target = this._releasedTempTargets[key].pop()
+        let target: T | undefined
+        if (this._releasedTempTargets[key]?.length) target = this._releasedTempTargets[key].pop() as T
         if (!target) {
-            target = this.createTarget(op)
+            target = this.createTarget<T>(op)
             this._processNewTempTarget(target, key)
         } else {
             this._setTargetOptions(target, op)
