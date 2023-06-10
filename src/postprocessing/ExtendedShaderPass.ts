@@ -21,11 +21,16 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
         super(
             (<ShaderMaterial2>shader).isMaterial ? <ShaderMaterial2>shader : new ExtendedShaderMaterial(<Shader>shader, textureID),
             textureID.length < 1 ? ExtendedShaderPass.DEFAULT_TEX_ID : textureID[0])
+        this.setDirty = this.setDirty.bind(this)
     }
 
     render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget|null, readBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
-        super.render(renderer, writeBuffer || null, this.overrideReadBuffer || readBuffer, deltaTime, maskActive)
+        renderer.renderWithModes({
+            backgroundRender: false,
+        }, ()=>{
+            super.render(renderer, writeBuffer || null, this.overrideReadBuffer || readBuffer, deltaTime, maskActive)
+        })
     }
 
     updateShaderProperties(updater?: (IShaderPropertiesUpdater|undefined) | (IShaderPropertiesUpdater|undefined)[]) {

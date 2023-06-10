@@ -1,6 +1,6 @@
 import {ExtendedShaderPass} from './ExtendedShaderPass'
-import {Shader} from 'three'
-import {ShaderMaterial2} from '../core'
+import {ColorSpace, Shader, SRGBColorSpace, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
+import {IWebGLRenderer, ShaderMaterial2} from '../core'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {uiFolderContainer} from 'uiconfig.js'
@@ -20,10 +20,20 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
                 makeScreenShader(shader),
             ...textureID.length ? textureID : ['tDiffuse'])
     }
+
+    outputColorSpace: ColorSpace = SRGBColorSpace
+
+    render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, readBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
+        const colorSpace = renderer.outputColorSpace
+        if (!writeBuffer || this.renderToScreen) renderer.outputColorSpace = this.outputColorSpace
+        else console.warn('ScreenPass: outputColorSpace is ignored when renderToScreen is false')
+        super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
+        renderer.outputColorSpace = colorSpace
+    }
 }
 
 function makeScreenShader(shader: string | [string, string] | {pars?: string; main: string} | Shader | ShaderMaterial2) {
-    const c = {
+    return {
         ...CopyShader,
         fragmentShader: `
 varying vec2 vUv;
@@ -36,12 +46,11 @@ void main() {
     
     ${Array.isArray(shader) ? shader[1] : typeof shader === 'string' ? shader : (shader as any)?.main || ''}
     
-    gl_FragColor = LinearTosRGB(gl_FragColor);
+    #include <encodings_fragment>
 }`,
         uniforms: {
             tDiffuse: {value: null},
         },
     }
-    return c
 }
 
