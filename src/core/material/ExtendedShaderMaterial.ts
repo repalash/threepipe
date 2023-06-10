@@ -10,17 +10,18 @@ import {
     Scene,
     Shader,
     ShaderMaterialParameters,
-    Texture,
+    Vector2,
     WebGLRenderer,
 } from 'three'
+import {shaderReplaceString} from '../../utils'
 
 export class ExtendedShaderMaterial extends ShaderMaterial2 {
     declare ['constructor']: (typeof ExtendedShaderMaterial) & (typeof ShaderMaterial2)
 
     textures: {colorSpace: ColorSpace, id: string}[] = []
 
-    constructor(parameters: ShaderMaterialParameters, textureIds: string[]) {
-        super(parameters)
+    constructor(parameters: ShaderMaterialParameters, textureIds: string[], isRawShaderMaterial = false) {
+        super(parameters, isRawShaderMaterial)
         this.setTextureIds(textureIds)
     }
 
@@ -31,10 +32,10 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
         }
     }
 
-    private _setUniformTexSize(uniform?: IUniform, t?: Texture) {
+    private _setUniformTexSize(uniform?: IUniform, t?: {width: number, height: number}) {
         if (!t || !uniform) return
-        const w = t.image?.width ?? 512
-        const h = t.image?.height ?? 512
+        const w = t?.width ?? 512
+        const h = t?.height ?? 512
         const last = uniform.value
         if (!last.isVector2) console.warn('uniform is not a Vector2')
         if (last && Math.abs(last.x - w) + Math.abs(last.y - h) > 0.1) {
@@ -43,13 +44,13 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
         }
     }
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget()?.texture)
+        this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget() ?? renderer.getSize(new Vector2()))
 
         for (const item of this.textures) {
             const textureID = item.id
             const t = this.uniforms[textureID]?.value
             if (t) {
-                this._setUniformTexSize(this.uniforms[textureID + 'Size'], t)
+                this._setUniformTexSize(this.uniforms[textureID + 'Size'], t.image)
                 if (t.colorSpace !== item.colorSpace) {
                     item.colorSpace = t.colorSpace
                     this.needsUpdate = true
@@ -61,10 +62,17 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
     }
 
     onBeforeCompile(s: Shader, renderer: WebGLRenderer) {
-        s.fragmentShader = this.textures
+        const pars = '\n' + this.textures
             .map(t=>`uniform sampler2D ${t.id}; \n`
                     + getTexelDecoding2(t.id ?? 'input', t.colorSpace ?? LinearSRGBColorSpace)).join('\n')
-            + s.fragmentShader
+
+        if (s.fragmentShader.includes('#include <encodings_pars_fragment>')) {
+            s.fragmentShader = shaderReplaceString(s.fragmentShader, '#include <encodings_pars_fragment>', pars, {append: true})
+        } else if (s.fragmentShader.includes('precision highp float;')) {
+            s.fragmentShader = shaderReplaceString(s.fragmentShader, 'precision highp float;', pars, {append: true})
+        } else {
+            s.fragmentShader = pars + s.fragmentShader
+        }
         super.onBeforeCompile(s, renderer)
     }
 
