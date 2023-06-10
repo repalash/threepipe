@@ -17,12 +17,14 @@ export interface ITexture extends Texture {
     isCompressedTexture?: boolean
     is3DDataTexture?: boolean
 
+    setDirty?(): void
+
 }
 
 export function upgradeTexture(this: ITexture) {
     this.assetType = 'texture'
     if (!this.userData) this.userData = {}
     if (!this.userData.__appliedMaterials) this.userData.__appliedMaterials = new Set()
+    if (!this.setDirty) this.setDirty = ()=>this.needsUpdate = true
     // todo: uiconfig, dispose, etc
-
 }
