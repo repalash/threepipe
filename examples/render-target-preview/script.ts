@@ -1,4 +1,11 @@
-import {_testFinish, DepthBufferPlugin, HalfFloatType, RenderTargetPreviewPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    DepthBufferPlugin,
+    HalfFloatType,
+    NormalBufferPlugin,
+    RenderTargetPreviewPlugin,
+    ThreeViewer,
+} from 'threepipe'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -10,6 +17,8 @@ const viewer = new ThreeViewer({
 async function init() {
 
     const depth = viewer.addPluginSync(new DepthBufferPlugin(HalfFloatType, true))
+    const normal = viewer.addPluginSync(new NormalBufferPlugin(HalfFloatType))
+
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
@@ -21,7 +30,8 @@ async function init() {
     viewer.renderManager.autoBuildPipeline = false
     viewer.renderManager.pipeline = ['depth', 'render', 'screen']
 
-    targetPreview.addTarget(()=>depth.getTarget(), 'depth', false, true)
+    targetPreview.addTarget(()=>depth.target, 'depth', false, true)
+    targetPreview.addTarget(()=>normal.target, 'normal', false, true)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget, 'composer-1', false, false)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget2, 'composer-2', false, false)
 

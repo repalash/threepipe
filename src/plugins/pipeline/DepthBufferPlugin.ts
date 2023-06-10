@@ -25,8 +25,8 @@ export class DepthBufferPlugin
     readonly passId = 'depth'
     public static readonly PluginType = 'DepthBufferPlugin'
 
-    private _depthTarget?: DepthBufferPluginTarget
-    private _depthTexture?: Texture
+    target?: DepthBufferPluginTarget
+    texture?: Texture
     readonly material: MeshDepthMaterial = new MeshDepthMaterial({
         depthPacking: BasicDepthPacking,
         blending: NoBlending,
@@ -34,7 +34,7 @@ export class DepthBufferPlugin
     // private _gbufferPass?: IFilter<GBufferRenderPass<WebGLMultipleRenderTargets>
 
     createPass(v: ThreeViewer) {
-        const target = v.renderManager.createTarget<DepthBufferPluginTarget>(
+        if (!this.target) this.target = v.renderManager.createTarget<DepthBufferPluginTarget>(
             {
                 depthBuffer: true,
                 samples: v.renderManager.composerTarget.samples || 0,
@@ -44,14 +44,15 @@ export class DepthBufferPlugin
                 // generateMipmaps: false,
                 // encoding: LinearEncoding,
             })
-        target.texture.name = 'depthBuffer'
-        this._depthTexture = target.texture
-        this._depthTarget = target
+        this.texture = this.target.texture
+        this.texture.name = 'depthBuffer'
 
-        if (this.isPrimaryGBuffer) v.renderManager.gbufferTarget = target
+        if (this.isPrimaryGBuffer) v.renderManager.gbufferTarget = this.target
 
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass('depth', target, this.material, new Color(0, 0, 0), 1)
+        const pass = new GBufferRenderPass('depth', this.target, this.material, new Color(0, 0, 0), 1)
+        const preprocessMaterial = pass.preprocessMaterial
+        pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth)
         pass.before = ['render']
         pass.after = []
         pass.required = ['render']
@@ -66,19 +67,15 @@ export class DepthBufferPlugin
     }
 
     onRemove(viewer: ThreeViewer): void {
-        if (this._depthTarget) {
-            viewer.renderManager.disposeTarget(this._depthTarget)
-            this._depthTarget = undefined
+        if (this.target) {
+            viewer.renderManager.disposeTarget(this.target)
+            this.target = undefined
         }
         return super.onRemove(viewer)
     }
 
-    getTarget() {
-        return this._depthTarget
-    }
-
     updateShaderProperties(material: {defines: Record<string, string | number | undefined>; uniforms: {[p: string]: IUniform}}): this {
-        if (material.uniforms.tDepth) material.uniforms.tDepth.value = this._depthTexture ?? undefined
+        if (material.uniforms.tDepth) material.uniforms.tDepth.value = this.texture ?? undefined
         else this._viewer?.console.warn('BaseRenderer: no uniform: tDepth')
         return this
     }

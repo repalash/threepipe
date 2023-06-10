@@ -18,6 +18,26 @@ export class GBufferRenderPass<TP extends IPassID, T extends WebGLMultipleRender
     private _transparentMats = new Set<IMaterial>()
     private _transmissiveMats = new Set<[IMaterial, number]>()
 
+    preprocessMaterial = (material: IMaterial, renderToGBuffer?: boolean) => {
+        renderToGBuffer = renderToGBuffer ?? material.userData.renderToGBuffer
+        if (
+            material.transparent && renderToGBuffer || // transparent and render to gbuffer
+            !material.transparent && !material.transmission && renderToGBuffer === false // opaque and dont render to gbuffer
+        ) {
+            this._transparentMats.add(material)
+            material.transparent = !material.transparent
+            // material.needsUpdate = true
+        }
+        if (
+            material.transmission &&
+            Math.abs(material.transmission || 0) > 0 && renderToGBuffer // transmission and render to gbuffer
+        ) {
+            this._transmissiveMats.add([material, material.transmission])
+            material.transmission = 0
+            // material.needsUpdate = true
+        }
+    }
+
     /**
      * Renders to {@link target}
      * @param renderer
@@ -33,30 +53,10 @@ export class GBufferRenderPass<TP extends IPassID, T extends WebGLMultipleRender
         const activeCubeFace = renderer.getActiveCubeFace()
         const activeMipLevel = renderer.getActiveMipmapLevel()
 
-        const preprocessMaterial = (material: IMaterial) => {
-            const renderToGBuffer = material.userData.renderToGBuffer === undefined ? material.userData.renderToDepth : material.userData.renderToGBuffer
-            if (
-                material.transparent && material.userData.renderToDepth || // transparent and render to gbuffer
-                !material.transparent && !material.transmission && renderToGBuffer === false // opaque and dont render to gbuffer
-            ) {
-                this._transparentMats.add(material)
-                material.transparent = !material.transparent
-                // material.needsUpdate = true
-            }
-            if (
-                material.transmission &&
-                Math.abs(material.transmission || 0) > 0 && renderToGBuffer // transmission and render to gbuffer
-            ) {
-                this._transmissiveMats.add([material, material.transmission])
-                material.transmission = 0
-                // material.needsUpdate = true
-            }
-        }
-
         this.scene.traverse(({material}) => {
             if (!material) return
-            if (Array.isArray(material)) material.forEach(preprocessMaterial)
-            else preprocessMaterial(material)
+            if (Array.isArray(material)) material.forEach((m)=>this.preprocessMaterial(m))
+            else this.preprocessMaterial(material)
         })
 
         // todo; copy double sided, check with post processing

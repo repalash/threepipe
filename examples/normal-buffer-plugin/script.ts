@@ -1,21 +1,22 @@
 import {
     _testFinish,
-    DepthBufferPlugin,
     downloadBlob,
     HalfFloatType,
+    NoColorSpace,
+    NormalBufferPlugin,
     RenderTargetPreviewPlugin,
+    SRGBColorSpace,
     ThreeViewer,
 } from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
-    msaa: true,
 })
 
 async function init() {
 
-    const depthPlugin = viewer.addPluginSync(new DepthBufferPlugin(HalfFloatType))
+    const normalPlugin = viewer.addPluginSync(new NormalBufferPlugin(HalfFloatType))
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     await viewer.load('https://threejs.org/examples/models/gltf/kira.glb', {
@@ -23,28 +24,23 @@ async function init() {
         autoScale: true,
     })
 
-    // Disable automatic near/far plane calculation based on scene bounding box
-    viewer.scene.mainCamera.userData.autoNearFar = false
-    viewer.scene.mainCamera.userData.minNearPlane = 1
-    viewer.scene.mainCamera.userData.maxFarPlane = 10
-    viewer.scene.refreshScene()
-
-    const depthTarget = depthPlugin.target
-    if (!depthTarget) {
-        throw new Error('depthPlugin.target returned undefined')
+    const normalTarget = normalPlugin.target
+    if (!normalTarget) {
+        throw new Error('normalPlugin.target returned undefined')
     }
 
-    // to render depth buffer to screen, uncomment this line:
-    // viewer.renderManager.screenPass.overrideReadBuffer = depthTarget
+    viewer.renderManager.screenPass.overrideReadBuffer = normalTarget
+    viewer.renderManager.screenPass.outputColorSpace = NoColorSpace // default is SRGBColorSpace
 
 
     const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(()=>depthTarget, 'depth')
+    targetPreview.addTarget(()=>normalTarget, 'normal')
 
     createSimpleButtons({
-        ['Toggle Depth rendering']: () => {
-            viewer.renderManager.screenPass.overrideReadBuffer =
-                viewer.renderManager.screenPass.overrideReadBuffer ? null : depthTarget
+        ['Toggle Normal rendering']: () => {
+            const state = !!viewer.renderManager.screenPass.overrideReadBuffer
+            viewer.renderManager.screenPass.overrideReadBuffer = state ? null : normalTarget
+            viewer.renderManager.screenPass.outputColorSpace = state ? SRGBColorSpace : NoColorSpace
             viewer.setDirty()
         },
         ['Download snapshot']: async(btn: HTMLButtonElement) => {
