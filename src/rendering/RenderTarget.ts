@@ -10,7 +10,13 @@ import {Vector4} from 'three/src/math/Vector4'
 import {DepthTexture} from 'three/src/textures/DepthTexture'
 
 export interface IRenderTarget extends EventDispatcher {
+    isWebGLRenderTarget: boolean
+    width: number
+    height: number
+    depth: number
+
     texture: Texture | Texture[]
+    uuid?: string
     sizeMultiplier?: number
     isTemporary?: boolean
     targetKey?: string // for caching.
@@ -44,6 +50,9 @@ export interface IRenderTarget extends EventDispatcher {
      * @default 0
      */
     samples: number;
+
+    isWebGLCubeRenderTarget?: boolean
+    isWebGLMultipleRenderTargets?: boolean
 
 }
 

@@ -17,6 +17,7 @@ import type {AssetImporter, AssetManager, MaterialManager} from '../assetmanager
 import {IAssetImporter} from '../assetmanager'
 import {ThreeViewer} from '../viewer'
 import {ITexture} from '../core'
+import {IRenderTarget, RenderManager} from '../rendering'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
 export class ThreeSerialization {
@@ -276,6 +277,88 @@ export class ThreeSerialization {
 
             },
         })
+
+        // render target
+        Serialization.RegisterSerializer({
+            priority: 2,
+            isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
+            serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
+                if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
+                if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
+
+                const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
+                let res: any = {
+                    metadata: {type: 'RenderTarget'},
+                    uuid: obj.uuid,
+                    width: obj.width,
+                    height: obj.height,
+                    depth: obj.depth,
+                    sizeMultiplier: obj.sizeMultiplier,
+                    count: Array.isArray(obj.texture) ? obj.texture.length : undefined,
+                    isCubeRenderTarget: obj.isWebGLCubeRenderTarget || undefined,
+                    isTemporary: obj.isTemporary,
+                    textureName: Array.isArray(obj.texture) ? obj.texture.map(t => t.name) : obj.texture?.name,
+                    options: {
+                        wrapS: tex?.wrapS,
+                        wrapT: tex?.wrapT,
+                        magFilter: tex?.magFilter,
+                        minFilter: tex?.minFilter,
+                        format: tex?.format,
+                        type: tex?.type,
+                        anisotropy: tex?.anisotropy,
+                        depthBuffer: !!obj.depthBuffer,
+                        stencilBuffer: !!obj.stencilBuffer,
+                        generateMipmaps: tex?.generateMipmaps,
+                        depthTexture: !!obj.depthTexture,
+                        colorSpace: tex?.colorSpace,
+                        samples: obj.samples,
+                    },
+                }
+
+                if (meta?.extras) {
+                    if (!meta.extras[res.uuid])
+                        meta.extras[res.uuid] = res
+                    res = {uuid: res.uuid, resource: 'extras'}
+                }
+                return res
+            },
+            deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
+                if (obj?.uuid === dat.uuid) return obj
+                if (dat.isWebGLRenderTarget) return dat
+
+                const renderManager = meta?._context.renderManager
+                if (!renderManager) {
+                    console.error('Cannot deserialize render target without render manager', dat)
+                    return obj
+                }
+                if (dat.isWebGLCubeRenderTarget || dat.isTemporary) {
+                    // todo support cube, temporary render target here
+                    console.warn('Cannot deserialize WebGLCubeRenderTarget or temporary render target yet', dat)
+                    return obj
+                }
+
+                const res = renderManager.createTarget({
+                    sizeMultiplier: dat.sizeMultiplier || undefined,
+                    size: dat.sizeMultiplier ? undefined : {width: dat.width, height: dat.height},
+                    textureCount: dat.count,
+                    ...dat.options,
+                })
+                if (dat.textureName) {
+                    if (Array.isArray(dat.textureName) && Array.isArray(res.texture)) {
+                        for (let i = 0; i < dat.textureName.length; i++) {
+                            res.texture[i].name = dat.textureName[i]
+                        }
+                    } else if (!Array.isArray(res.texture)) {
+                        res.texture.name = Array.isArray(dat.textureName) ? dat.textureName[0] : dat.textureName
+                    }
+                }
+                if (!res) return res
+                res.uuid = dat.uuid
+                if (meta?.extras) meta.extras[dat.uuid] = res
+                return res
+            },
+        })
+
     }
 
     /**
@@ -477,6 +560,7 @@ export interface SerializationMetaType extends SerializationResourcesType {
         objectLoader?: ObjectLoader,
         materialManager?: MaterialManager,
         assetManager?: AssetManager,
+        renderManager?: RenderManager,
 
         imagePromises?: Promise<any>[],
 
@@ -571,7 +655,10 @@ export class MetaImporter {
             resources.extras = json.extras
             for (const e of (Object.values(json.extras) as any as any[])) {
                 if (!e.uuid) continue
-                if (!e.url) continue
+                if (!e.url) {
+                    resources.extras[e.uuid] = ThreeSerialization.Deserialize(e, undefined, resources)
+                    continue
+                }
                 // see LUTCubeTextureWrapper, KTX2LoadPlugin for sample use
                 if (typeof e.url === 'string') {
                     const r = await assetImporter.importPath(e.url)
@@ -637,6 +724,7 @@ export function metaFromResources(resources?: Partial<SerializationResourcesType
             assetManager: viewer?.assetManager,
             assetImporter: viewer?.assetManager.importer,
             materialManager: viewer?.assetManager.materials,
+            renderManager: viewer?.renderManager,
         }, // clear context even if its present in resources
     }
 }

@@ -16,6 +16,7 @@ import {
     WebGLRenderTarget,
     WebGLRenderTargetOptions,
 } from 'three'
+import {generateUUID} from '../three'
 
 export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET extends string = string> extends EventDispatcher<E, ET> {
     abstract isWebGL2: boolean
@@ -125,7 +126,7 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             if (width !== height) throw 'Width and height of cube render target must be equal'
             size = [width]
         }
-        options = {
+        const params = [...size, {
             format: RGBAFormat,
             minFilter: LinearFilter,
             magFilter: LinearFilter,
@@ -133,17 +134,19 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             type: UnsignedByteType,
             colorSpace: NoColorSpace,
             ...options,
-        }
-        const params = [...size, options]
+        }]
         return new class RenderTarget extends ((clazz as any as Class<WebGLRenderTarget>) ?? WebGLRenderTarget) implements IRenderTarget {
             isTemporary?: boolean
             sizeMultiplier?: number
+            uuid: string
 
             constructor(...ps: any[]) {
                 super(...ps)
+                this.uuid = generateUUID()
+                const ops = ps[ps.length - 1] as WebGLRenderTargetOptions
                 if (Array.isArray(this.texture)) {
                     this.texture.forEach(t => {
-                        t.colorSpace = options.colorSpace
+                        t.colorSpace = ops.colorSpace
                         t.toJSON = () => {
                             console.warn('Multiple render target texture.toJSON not supported yet.')
                             return {}
@@ -172,6 +175,7 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
                 else tex.isRenderTargetTexture = true
                 return processNewTarget(cloned, this.sizeMultiplier || 1, trackTarget)
             }
+
         }(...params) as any as T
     }
 
