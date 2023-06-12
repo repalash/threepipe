@@ -476,8 +476,8 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
                    {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void {
         const color = this._renderer.getClearColor(new Color())
         const alpha = this._renderer.getClearAlpha()
-        this._renderer.setClearAlpha(a ?? alpha)
         this._renderer.setClearColor(new Color(r ?? color.r, g ?? color.g, b ?? color.b))
+        this._renderer.setClearAlpha(a ?? alpha)
         const lastTarget = this._renderer.getRenderTarget()
         const activeCubeFace = this._renderer.getActiveCubeFace()
         const activeMipLevel = this._renderer.getActiveMipmapLevel()

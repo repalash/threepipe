@@ -10,16 +10,15 @@ export class ExtendedCopyPass extends ExtendedShaderPass {
             vertexShader: CopyShader.vertexShader,
             fragmentShader: glsl`
                 uniform float opacity;
-                uniform float alphaTest;
+                #include <alphatest_pars_fragment>
                 varying vec2 vUv;
                 void main() {
-                    gl_FragColor = tDiffuseTexelToLinear(texture2D(tDiffuse, vUv)) * opacity;
-                    #ifdef USE_ALPHATEST
-                    if ( gl_FragColor.a < alphaTest ) discard;
-                    #endif
+                    vec4 diffuseColor = tDiffuseTexelToLinear(texture2D(tDiffuse, vUv)) * opacity;
+                    #include <alphatest_fragment>
                     #ifdef OPAQUE
-                    gl_FragColor.a = 1.0;
+                    diffuseColor.a = 1.0;
                     #endif
+                    gl_FragColor = diffuseColor;
                     #include <encodings_fragment>
                 }
             `,

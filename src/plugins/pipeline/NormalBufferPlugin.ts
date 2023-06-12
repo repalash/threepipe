@@ -1,19 +1,27 @@
 import {
+    BufferGeometry,
+    Camera,
     Color,
+    FrontSide,
     HalfFloatType,
     IUniform,
     LinearSRGBColorSpace,
     MeshNormalMaterial,
     NearestFilter,
     NoBlending,
+    Object3D,
+    Scene,
+    TangentSpaceNormalMap,
     Texture,
     TextureDataType,
+    WebGLRenderer,
     WebGLRenderTarget,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {IShaderPropertiesUpdater} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
+import type {IMaterial, PhysicalMaterial} from '../../core'
 
 export type NormalBufferPluginEventTypes = ''
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
@@ -28,7 +36,7 @@ export class NormalBufferPlugin
 
     target?: NormalBufferPluginTarget
     texture?: Texture
-    readonly material: MeshNormalMaterial = new MeshNormalMaterial({
+    readonly material: MeshNormalMaterial = new MeshNormalMaterial2({
         blending: NoBlending,
     })
     // private _gbufferPass?: IFilter<GBufferRenderPass<WebGLMultipleRenderTargets>
@@ -80,3 +88,44 @@ export class NormalBufferPlugin
 
 }
 
+class MeshNormalMaterial2 extends MeshNormalMaterial {
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object)
+
+        if (!(object as any).material) return
+        const material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
+
+        if (material.bumpMap !== undefined) this.bumpMap = material.bumpMap
+        if (material.bumpScale !== undefined) this.bumpScale = material.bumpScale
+
+        if (material.normalMap !== undefined) this.normalMap = material.normalMap
+        if (material.normalMapType !== undefined) this.normalMapType = material.normalMapType
+        if (material.normalScale !== undefined) this.normalScale.copy(material.normalScale)
+
+        if (material.displacementMap !== undefined) this.displacementMap = material.displacementMap
+        if (material.displacementScale !== undefined) this.displacementScale = material.displacementScale
+        if (material.displacementBias !== undefined) this.displacementBias = material.displacementBias
+
+        if (material.flatShading !== undefined) this.flatShading = material.flatShading
+
+        if (material.side !== undefined) this.side = material.side
+    }
+
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
+        super.onAfterRender(renderer, scene, camera, geometry, object)
+
+        this.bumpMap = null
+        this.bumpScale = 1
+
+        this.normalMap = null
+        this.normalMapType = TangentSpaceNormalMap
+
+        this.displacementMap = null
+        this.displacementScale = 1
+        this.displacementBias = 0
+
+        this.flatShading = false
+
+        this.side = FrontSide
+    }
+}

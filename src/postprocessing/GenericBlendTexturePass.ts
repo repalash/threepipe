@@ -3,13 +3,12 @@ import {Texture} from 'three'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {ExtendedShaderPass} from './ExtendedShaderPass'
 import {IPass} from './Pass'
-import {glsl} from 'ts-browser-helpers'
 
 export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass {
     constructor(uniforms: {[uniform: string]: IUniform}, blendFunc = 'c = a + b;', extraFrag = '', texture?: Texture) {
         super({
             vertexShader: CopyShader.vertexShader,
-            fragmentShader: glsl`
+            fragmentShader: `
                 varying vec2 vUv;
                 ${extraFrag}
                 void blend(in vec4 a, in vec4 b, inout vec4 c){

@@ -44,7 +44,7 @@ export class ViewerRenderManager extends RenderManager {
         this._renderer.userData.renderTransmissionPass = !doTransmissionFix // hack. used in WebGLRenderer.js
 
         this.renderPass = new ExtendedRenderPass(this)
-        this.screenPass = new ScreenPass(options.screenShader || '') // todo gamma correction by default?
+        this.screenPass = new ScreenPass(options.screenShader || '')
         this.registerPass(this.renderPass)
         this.registerPass(this.screenPass)
     }
