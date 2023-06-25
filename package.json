@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",
@@ -89,7 +89,6 @@
     "rollup-plugin-postcss": "^4.0.2",
     "stats.js": "^0.17.0",
     "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2006/package.tgz",
-    "ts-browser-helpers": "^0.5.0",
     "tslib": "^2.5.0",
     "tweakpane": "^3.1.9",
     "@tweakpane/core": "^1.1.8",
@@ -101,9 +100,10 @@
     "tweakpane-image-plugin": "https://github.com/repalash/tweakpane-image-plugin/releases/download/v1.1.403/package.tgz"
   },
   "dependencies": {
-    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1005/package.tgz",
+    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1006/package.tgz",
     "@types/webxr": "^0.5.1",
-    "@types/wicg-file-system-access": "^2020.9.5"
+    "@types/wicg-file-system-access": "^2020.9.5",
+    "ts-browser-helpers": "^0.6.0"
   },
   "//": {
     "dependencies": {
@@ -112,8 +112,8 @@
       "uiconfig-tweakpane": "^0.0.3",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2006/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2006.tar.gz",
-      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1005/package.tgz",
-      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.1005.tar.gz",
+      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1006/package.tgz",
+      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.1006.tar.gz",
       "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three",
       "tweakpane-image-plugin": "git+ssh://github.com/repalash/tweakpane-image-plugin.git#52d5542047fd07d2e7225b5b67c9f7620366f2c7"
     },

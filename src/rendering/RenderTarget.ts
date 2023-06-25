@@ -5,6 +5,7 @@ import {
     MinificationTextureFilter,
     Texture,
     TextureDataType,
+    Wrapping,
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
 import {DepthTexture} from 'three/src/textures/DepthTexture'
@@ -69,6 +70,8 @@ export interface CreateRenderTargetOptions {
     depthBuffer?: boolean
     depthTexture?: boolean
     textureCount?: number
+    wrapS?: Wrapping
+    wrapT?: Wrapping
 }
 
 export function createRenderTargetKey(op: CreateRenderTargetOptions = {}): string {

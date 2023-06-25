@@ -39,7 +39,7 @@ export abstract class AViewerPlugin<T extends string, TViewer extends ThreeViewe
         if (data.type !== this.constructor.PluginType)
             return null
         ThreeSerialization.Deserialize(data, this, meta, true)
-        this.dispatchEvent({type: 'deserialize', data})
+        this.dispatchEvent({type: 'deserialize', data, meta})
         return this
     }
 
