@@ -6,6 +6,7 @@ import {
     IMaterialParameters,
     IMaterialTemplate,
     ITexture,
+    ITextureEvent,
     PhysicalMaterial,
     UnlitMaterial,
 } from '../core'
@@ -121,24 +122,30 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         this._refreshTextureRefs(mat)
     }
 
+    protected _textureUpdate = function(this: IMaterial, e: ITextureEvent<'update'>) {
+        if (!this || this.assetType !== 'material') return
+        this.dispatchEvent({texture: e.target, bubbleToParent: true, bubbleToObject: true, ...e, type: 'textureUpdate'})
+    }
+
     private _refreshTextureRefs(mat: any) {
+        if (!mat.__textureUpdate) mat.__textureUpdate = this._textureUpdate.bind(mat)
         const newMaps = this._getMapsForMaterial(mat)
         const oldMaps = this._materialMaps.get(mat.uuid) || new Set<ITexture>()
-        newMaps.forEach(map => {
-            if (!oldMaps.has(map)) {
-                if (!map.userData.__appliedMaterials) map.userData.__appliedMaterials = new Set<IMaterial>()
-                map.userData.__appliedMaterials.add(mat)
-            }
-        })
-        oldMaps.forEach(map => {
-            if (!newMaps.has(map)) {
-                if (!map.userData.__appliedMaterials) return
-                const mats = map.userData.__appliedMaterials
-                mats?.delete(mat)
-                if (!mats || map.userData.disposeOnIdle === false) return
-                if (mats.size === 0) map.dispose()
-            }
-        })
+        for (const map of newMaps) {
+            if (oldMaps.has(map)) continue
+            if (!map.userData.__appliedMaterials) map.userData.__appliedMaterials = new Set<IMaterial>()
+            map.userData.__appliedMaterials.add(mat)
+            map.addEventListener('update', mat.__textureUpdate)
+        }
+        for (const map of oldMaps) {
+            if (newMaps.has(map)) continue
+            map.removeEventListener('update', mat.__textureUpdate)
+            if (!map.userData.__appliedMaterials) continue
+            const mats = map.userData.__appliedMaterials
+            mats?.delete(mat)
+            if (!mats || map.userData.disposeOnIdle === false) continue
+            if (mats.size === 0) map.dispose()
+        }
         this._materialMaps.set(mat.uuid, newMaps)
     }
 
@@ -289,6 +296,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         for (const c of currentMats) {
             // console.log(c)
             if (!c) continue
+            if (c === material) continue
             if (c.userData.__isVariation) continue
             const cType = Object.getPrototypeOf(c).constructor.TYPE
             // console.log(cType, mType)

@@ -1,11 +1,19 @@
 import {IMaterial} from './IMaterial'
-import {Texture} from 'three'
+import {Event, Texture} from 'three'
+import {ChangeEvent} from 'uiconfig.js'
 
 export interface ITextureUserData{
     mimeType?: string
     disposeOnIdle?: boolean // automatically dispose when added to a material and then not used in any material
     __appliedMaterials?: Set<IMaterial>
 }
+export type ITextureEventTypes = 'dispose' | 'update'
+export type ITextureEvent<T extends string = ITextureEventTypes> = Event & {
+    type: T
+    texture?: ITexture
+    uiChangeEvent?: ChangeEvent
+}
+
 export interface ITexture extends Texture {
     assetType?: 'texture'
     userData: ITextureUserData

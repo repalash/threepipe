@@ -255,6 +255,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('materialChanged', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('objectUpdate', (e) => this.setDirty(this._scene, e))
+        this._scene.addEventListener('textureUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('sceneUpdate', (e) => {
             this.setDirty(this._scene, e)
             if (e.geometryChanged === false) return

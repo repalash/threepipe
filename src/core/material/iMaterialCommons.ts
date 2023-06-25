@@ -128,7 +128,7 @@ export const iMaterialCommons = {
             superDispatchEvent.call(this, event)
             const type = event.type
             if (event.bubbleToObject && (
-                type === 'beforeDeserialize' || type === 'materialUpdate' // todo - add more events
+                type === 'beforeDeserialize' || type === 'materialUpdate' || type === 'textureUpdate' // todo - add more events
             )) {
                 this.appliedMeshes.forEach(m => m.dispatchEvent({...event, material: this, type}))
             }

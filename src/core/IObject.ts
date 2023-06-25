@@ -6,7 +6,7 @@ import {IGeometry, IGeometryEvent} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'geometryChanged' |
+export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'textureUpdate' | 'geometryChanged' |
     'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
     'setView' | 'activateMain' | 'cameraUpdate' // from camera
     // | string

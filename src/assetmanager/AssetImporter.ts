@@ -248,7 +248,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
             res = await loader.loadAsync(path + (options.queryString ? (path.includes('?') ? '&' : '?') + options.queryString : ''), (e)=>{
                 if (onDownloadProgress) onDownloadProgress(e)
-                this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: e.loaded / e.total})
+                this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: e.total > 0 ? e.loaded / e.total : 1})
             })
             if (loader.transform) res = await loader.transform(res, options)
 

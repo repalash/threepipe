@@ -286,6 +286,7 @@ export class ThreeSerialization {
                 if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
                 if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
 
+                // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
                 const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
                 let res: any = {
                     metadata: {type: 'RenderTarget'},
@@ -714,7 +715,7 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
     if (!meta) return {}
     const res: Partial<SerializationResourcesType> = {...meta}
     if (res._context) delete res._context
-    return meta
+    return res
 }
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {
     return {

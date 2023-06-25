@@ -8,7 +8,7 @@ import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
-export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureChanged' | 'beforeDeserialize'
+export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
 export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
     type: T
     bubbleToObject?: boolean

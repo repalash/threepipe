@@ -17,4 +17,4 @@ export type {IMaterial, IMaterialEvent, IMaterialEventTypes, IMaterialParameters
 export type {IObject3D, IObject3DEvent, IObjectSetDirtyOptions, IObjectProcessor, IObject3DEventTypes, IObject3DUserData} from './IObject'
 export type {IRenderManager, IRenderManagerOptions, IWebGLRenderer, IRenderManagerEventTypes, IAnimationLoopEvent, TThreeRendererMode, TThreeRendererModeUserData, IRenderManagerUpdateEvent, IRenderManagerEvent} from './IRenderer'
 export type {IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions, AddObjectOptions, ISceneUserData, IWidget} from './IScene'
-export type {ITexture, ITextureUserData} from './ITexture'
+export type {ITexture, ITextureUserData, ITextureEvent, ITextureEventTypes} from './ITexture'

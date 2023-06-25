@@ -2,6 +2,7 @@ import {Class} from 'ts-browser-helpers'
 import {createRenderTargetKey, CreateRenderTargetOptions, IRenderTarget} from './RenderTarget'
 import {
     BaseEvent,
+    ClampToEdgeWrapping,
     DepthTexture,
     EventDispatcher,
     LinearFilter,
@@ -187,15 +188,19 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         this._trackedTempTargets = []
     }
 
-    protected _resizeTracedTargets() {
-        this._trackedTargets.forEach(v=>{
-            const target = v as any as WebGLRenderTarget
-            const multiplier = (target as any).sizeMultiplier
-            if (multiplier) {
-                const s = this.renderSize.clone().multiplyScalar(this.renderScale * multiplier)
-                target.setSize(Math.floor(s.width), Math.floor(s.height))
-            }
-        })
+    /**
+     * Resizes all tracked targets with a sizeMultiplier based on the current renderSize and renderScale.
+     * This must be automatically called by the renderer on resize, and manually when sizeMultiplier of a target changes.
+     */
+    resizeTrackedTargets() {
+        for (const v of this._trackedTargets) this.resizeTrackedTarget(v)
+    }
+    resizeTrackedTarget(target: IRenderTarget): void {
+        const multiplier = target.sizeMultiplier
+        if (multiplier) {
+            const s = this.renderSize.clone().multiplyScalar(this.renderScale * multiplier)
+            target.setSize(Math.floor(s.width), Math.floor(s.height))
+        }
     }
 
     private _processNewTempTarget(target: IRenderTarget, key: string): IRenderTarget {
@@ -215,8 +220,10 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
     private _setTargetTextureOptions(texture: Texture, op: CreateRenderTargetOptions) {
         texture.minFilter = op.minFilter ?? LinearFilter
         texture.magFilter = op.magFilter ?? LinearFilter
+        texture.wrapS = op.wrapS ?? ClampToEdgeWrapping
+        texture.wrapT = op.wrapT ?? ClampToEdgeWrapping
         texture.generateMipmaps = op.generateMipmaps ?? false
-        if (texture.generateMipmaps && texture.minFilter === LinearFilter) // todo: check if this is needed for magFilter
+        if (texture.generateMipmaps && texture.minFilter === LinearFilter)
             texture.minFilter = LinearMipMapLinearFilter
         if (!texture.generateMipmaps && texture.minFilter === LinearMipMapLinearFilter)
             texture.minFilter = LinearFilter

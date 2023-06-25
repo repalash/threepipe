@@ -160,7 +160,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         this._composer.setPixelRatio(this._renderScale, false)
         this._composer.setSize(this._renderSize.width, this._renderSize.height)
 
-        this._resizeTracedTargets()
+        this.resizeTrackedTargets()
 
         // console.log('setSize', {...this._renderSize}, this._trackedTargets.length)
 
