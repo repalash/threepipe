@@ -17,7 +17,7 @@
     "serve-docs": "ws -d docs -p 8080",
     "serve": "ws -d . -p 9229",
     "docs": "npx typedoc && markdown-to-html",
-    "prepare": "npm run build && npm run build-examples && npm run docs"
+    "prepare": "npm run build && npm run build-examples"
   },
   "clean-package": {
     "remove": [
@@ -38,7 +38,6 @@
   "files": [
     "dist",
     "src",
-    "docs",
     "examples",
     "plugins",
     "tsconfig.json"

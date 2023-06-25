@@ -42,7 +42,8 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm ci
+    - run: npm ci # this will also run `npm run prepare` which will build
+    - run: npm run docs
     - run: mkdir _site
     - run: mv -t _site docs dist examples README.md LICENSE index.html
     - name: Setup Pages
