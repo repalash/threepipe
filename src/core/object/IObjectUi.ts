@@ -1,13 +1,14 @@
 import {IObject3D} from '../IObject'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
+import {Vector3} from 'three'
 
 export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjectConfig {
     if (!this) return {}
     if (this.uiConfig) return this.uiConfig
     const config: UiObjectConfig = {
         type: 'folder',
-        label: this.name || 'unnamed',
+        label: ()=>this.name || 'unnamed',
         expanded: true,
         limitedUi: true,
         children: [
@@ -40,6 +41,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 label: 'Name',
                 property: [this, 'name'],
+                onChange: (e: any)=>{
+                    if (e.last) this.setDirty?.({refreshScene: true, frameFade: false, refreshUi: true})
+                },
             },
             {
                 type: 'checkbox',
@@ -96,13 +100,31 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     if (Math.abs(rad) > 0) this.autoScale?.(rad)
                 },
             },
-            // {
-            //     type: 'button',
-            //     label: 'Auto Center',
-            //     value: ()=>{
-            //         autoCenterObject3D(object)
-            //     },
-            // },
+            {
+                type: 'button',
+                label: 'Auto Center',
+                value: ()=>{
+                    const res = confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
+                    if (!res) return
+                    this.autoCenter?.(true)
+                },
+            },
+            {
+                type: 'folder',
+                label: 'Rotate model',
+                children: [
+                    'X +', 'X -', 'Y +', 'Y -', 'Z +', 'Z -',
+                ].map((l)=>{
+                    return {
+                        type: 'button',
+                        label: 'Rotate ' + l + '90',
+                        value: ()=>{
+                            this.rotateOnAxis(new Vector3(l.includes('X') ? 1 : 0, l.includes('Y') ? 1 : 0, l.includes('Z') ? 1 : 0), Math.PI / 2 * (l.includes('-') ? -1 : 1))
+                            this.setDirty?.({refreshScene: true, refreshUi: false})
+                        },
+                    }
+                }),
+            },
             this.userData.license !== undefined ? {
                 type: 'input',
                 label: 'License/Credits',

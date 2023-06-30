@@ -364,8 +364,8 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (!this.setDirty) this.setDirty = iObjectCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iObjectCommons.refreshUi
-    if (!this.autoScale) this.autoScale = iObjectCommons.autoScale
-    if (!this.autoCenter) this.autoCenter = iObjectCommons.autoCenter
+    if (!this.autoScale) this.autoScale = iObjectCommons.autoScale.bind(this)
+    if (!this.autoCenter) this.autoCenter = iObjectCommons.autoCenter.bind(this)
 
     // fired from Object3D.js
     this.addEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)

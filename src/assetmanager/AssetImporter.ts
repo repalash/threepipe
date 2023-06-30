@@ -8,6 +8,7 @@ import {
     ImportResult,
     LoadFileOptions,
     ProcessRawOptions,
+    RootSceneImportResult,
 } from './IAssetImporter'
 import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
@@ -139,6 +140,13 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
             const results = await this.processRaw<T>(result, options) // just in case its not processed. Internal check is done to ensure it's not processed twice
             let isDisposed = false // if any of the objects is disposed
             for (const r of results) {
+                // todo: check if this is still required.
+                if ((r as RootSceneImportResult)?.userData?.rootSceneModelRoot) { // in case processImported is false we need a special case check here
+                    if (r?.children?.find((c: any) => c.__disposed)) {
+                        isDisposed = true
+                        break
+                    }
+                }
                 if (r && !r.__disposed) continue // todo add __disposed to object, material, texture, etc
                 isDisposed = true
                 break
@@ -290,7 +298,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         }
         if (res && typeof res === 'object' && !Array.isArray(res)) {
             res.__rootPath = path
-            if (file) res.__rootBlob = file
+            const f = file || this._fileDatabase.get(path)
+            if (f) res.__rootBlob = f
         }
         return res
     }
@@ -434,7 +443,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
     clearLoaderCache(): void {
         for (const lc of this._loaderCache) {
-            lc.loader?.dispose?.()
+            lc.loader?.dispose && lc.loader?.dispose()
         }
         this._loaderCache = []
     }

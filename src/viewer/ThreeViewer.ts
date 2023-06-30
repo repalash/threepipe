@@ -44,7 +44,7 @@ export type IViewerEventTypes = IViewerEvent['type']
 export interface ISerializedConfig {
     assetType: 'config',
     type: string,
-    metadata: {
+    metadata?: {
         generator: string,
         version: number,
         [key: string]: any
@@ -79,7 +79,6 @@ export interface ThreeViewerOptions {
     container?: HTMLElement,
     /**
      * The fragment shader snippet to render on screen.
-     * not used with TonemapPlugin
      */
     screenShader?: TViewerScreenShader,
     /**
@@ -97,6 +96,9 @@ export interface ThreeViewerOptions {
 
     debug?: boolean
 
+    /**
+     * Options for the asset manager.
+     */
     assetManager?: AssetManagerOptions
 
     /**

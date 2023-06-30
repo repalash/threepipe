@@ -158,7 +158,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
     /**
      *
-     * @param setDirty - true by default
+     * @param setDirty - calls {@link setDirty} @default true
      */
     autoCenter?<T extends IObject3D>(setDirty?: boolean): T
 

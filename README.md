@@ -83,7 +83,7 @@ Some plugins(in the [plugins](https://github.com/repalash/threepipe/tree/master/
 ## Status 
 The project is in `alpha` stage and under active development. Many features will be added but the core API will not change significantly in future releases. 
 
-Check out [WebGi](https://webgi.xyz/) for a advanced tailor-made solution for e-commerce, jewelry, automobile, apparel, furniture etc.
+Check out [WebGi](https://webgi.xyz/) for an advanced tailor-made solution for e-commerce, jewelry, automobile, apparel, furniture etc.
 
 ## Documentation
 

@@ -1,11 +1,12 @@
 import {IDisposable, PartialRecord} from 'ts-browser-helpers'
-import {Clock, Event, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer} from 'three'
+import {Clock, Event, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
 import {CreateRenderTargetOptions, IRenderTarget} from '../rendering/RenderTarget'
 import {IShaderPropertiesUpdater} from '../materials/MaterialExtension'
 import {IPassID, IPipelinePass} from '../postprocessing/Pass'
 import {EffectComposer2} from '../postprocessing/EffectComposer2'
 import {RenderTargetManager} from '../rendering/RenderTargetManager'
 import {IScene} from './IScene'
+import {BlobExt} from '../assetmanager'
 
 export type TThreeRendererMode = 'shadowMapRender' | 'backgroundRender' | 'sceneRender' | 'opaqueRender' | 'transparentRender' | 'transmissionRender' | 'mainRenderPass' | 'screenSpaceRendering'
 export type TThreeRendererModeUserData = PartialRecord<TThreeRendererMode, boolean>
@@ -54,6 +55,14 @@ export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEv
     clock: Clock
 
     blit(destination: IRenderTarget|undefined|null, options?: {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean}): void
+    clearColor({r, g, b, a, target, depth = true, stencil = true, viewport}:
+                   {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void
+
+    renderTargetToDataUrl(target: WebGLRenderTarget, mimeType?: string, quality?: number): string
+
+    renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array|Float32Array
+
+    exportRenderTarget(target: WebGLRenderTarget, mimeType?: 'auto'|string): BlobExt
 }
 
 export interface IRenderManagerOptions {
