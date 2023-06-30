@@ -18,6 +18,7 @@ import {IAssetImporter} from '../assetmanager'
 import {ThreeViewer} from '../viewer'
 import {ITexture} from '../core'
 import {IRenderTarget, RenderManager} from '../rendering'
+import {textureToCanvas} from '../three/utils/texture'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
 export class ThreeSerialization {
@@ -49,18 +50,28 @@ export class ThreeSerialization {
             serialize: (obj: any, meta?: SerializationMetaType) => {
                 if (!obj?.isTexture) throw new Error('Expected a texture')
                 if (obj.isRenderTargetTexture) return undefined // todo: support render targets
+                // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
                 if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
                 const imgData = obj.source.data
-                if (obj.userData.rootPath) obj.source.data = null // if root-path exists we don't need to serialize the image data
+                const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath
+                if (hasRootPath) {
+                    if (obj.source.data) {
+                        if (!obj.userData.embedUrlImagePreviews) // todo make sure its only Texture, check for svg etc
+                            obj.source.data = null // handled in GLTFWriter2.processImage
+                        else {
+                            obj.source.data = textureToCanvas(obj, 16, obj.flipY) // todo: check flipY
+                        }
+                    }
+                }
                 const ud = obj.userData
                 obj.userData = {} // toJSON will call JSON.stringify, which will serialize userData
                 const meta2 = {images: {} as any} // in-case meta is undefined
                 let res = obj.toJSON(meta || meta2)
-                if (!meta && res.image) res.image = obj.userData.rootPath ? undefined : meta2.images[res.image]
+                if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
                 obj.userData = ud
                 res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
-                if (obj.userData.rootPath) {
-                    if (meta) delete meta.images[obj.source.uuid] // because its empty. uuid still stored in the texture.image
+                if (hasRootPath) {
+                    if (meta && !obj.userData.embedUrlImagePreviews) delete meta.images[obj.source.uuid] // because its empty. uuid still stored in the texture.image
                     obj.source.data = imgData
                 }
 
@@ -612,6 +623,15 @@ export class MetaImporter {
         //     })
         // }
 
+        if (Array.isArray(json.textures)) {
+            console.error('TODO: check file format')
+            json.textures = json.textures.reduce((acc, cur) => {
+                if (!cur) return acc
+                acc[cur.uuid] = cur
+                return acc
+            })
+        }
+
         await MetaImporter.LoadRootPathTextures({textures: json.textures, images: resources.images}, assetImporter)
 
         // console.log(json.textures)
@@ -622,6 +642,20 @@ export class MetaImporter {
             textures.push(tex)
         }
         resources.textures = json.textures ? objLoader.parseTextures(textures, resources.images) : {}
+
+        // replace the source of the textures(which has preview) with the loaded images, see {@link LoadRootPathTextures} for `rootPathPromise`
+        // todo: should this be moved after processRaw?
+        const textures2 = {...resources.textures}
+        for (const inpTexture of Object.values(json.textures)) {
+            inpTexture.rootPathPromise?.then((v: Source|null) => {
+                if (!v) return
+                const texture = textures2[inpTexture.uuid]
+                texture.dispose()
+                texture.source = v
+                texture.source.needsUpdate = true
+                texture.needsUpdate = true
+            })
+        }
 
         for (const entry of Object.entries(resources.textures)) {
             entry[1] = await assetImporter.processRawSingle(entry[1], {})
@@ -687,25 +721,33 @@ export class MetaImporter {
 
     static async LoadRootPathTextures({textures, images}: Pick<SerializationMetaType, 'textures'|'images'>, importer: IAssetImporter) {
         const pms = []
-        for (const inpTexture of Object.values(textures ?? {} as any) as any as any[]) {
-            const path = inpTexture?.userData?.rootPath // done separately(from parseTextures2) for hdr etc textures.
-            if (path && (!inpTexture.image || !images[inpTexture.image])) {
-                pms.push(importer.importSingle<ITexture>(path, {processRaw: false}).then(texture => {
-                    const source = texture?.source as any
-                    // const image = texture?.image as any
-                    if (!texture || !source) return
-                    // console.log(typeof image)
-                    const source2 = new Source(source.data)
-                    if (inpTexture.image) source2.uuid = inpTexture.image
+
+        for (const inpTexture of Array.isArray(textures) ? textures : Object.values(textures ?? {} as any) as any as any[]) {
+            const path = inpTexture?.userData?.rootPath
+            const hasImage = inpTexture.image && images[inpTexture.image] // its possible to have both image and rootPath, then the image will be preview image.
+            if (!path) continue
+            // console.warn(path, inpTexture, images)
+            const promise = importer.importSingle<ITexture>(path, {processRaw: false}).then((texture) => {
+                const source = texture?.source as any
+                // const image = texture?.image as any
+                if (!texture || !source) return null
+                // console.log(typeof image)
+                const source2 = new Source(source.data)
+                if (inpTexture.image) source2.uuid = inpTexture.image
+                inpTexture.image = source2.uuid
+                if (!hasImage)
                     images[source2.uuid] = source2
-                    inpTexture.image = source2.uuid
-                    texture.dispose() // todo: what happens when we reimport a cached disposed texture asset, is three.js able to recreate the webgl texture on render?
-                }).catch((e)=>{
-                    console.error(e)
-                    delete inpTexture.userData.rootPath
-                }))
-            }
+                texture.dispose() // todo: what happens when we reimport a cached disposed texture asset, is three.js able to recreate the webgl texture on render?
+                return source2
+            }).catch((e) => {
+                console.error(e)
+                delete inpTexture.userData.rootPath
+                return null
+            })
+            if (hasImage) inpTexture.rootPathPromise = promise
+            else pms.push(promise)
         }
+
         await Promise.allSettled(pms)
     }
 

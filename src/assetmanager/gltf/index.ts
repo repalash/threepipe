@@ -6,3 +6,4 @@ export {GLTFMaterialsDisplacementMapExtension} from './GLTFMaterialsDisplacement
 export {GLTFMaterialsLightMapExtension} from './GLTFMaterialsLightMapExtension'
 export {GLTFObject3DExtrasExtension} from './GLTFObject3DExtrasExtension'
 export {GLTFViewerConfigExtension} from './GLTFViewerConfigExtension'
+export {glbEncryptionPreparser, glbEncryptionProcessor, type IGLBEncryptionPreparser} from './gltfEncyptionHelpers'

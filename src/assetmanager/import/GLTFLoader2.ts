@@ -13,12 +13,13 @@ import {GLTFMaterialsDisplacementMapExtension} from '../gltf/GLTFMaterialsDispla
 import {GLTFMaterialsAlphaMapExtension} from '../gltf/GLTFMaterialsAlphaMapExtension'
 import {RootSceneImportResult} from '../IAssetImporter'
 import {ILoader} from '../IImporter'
+import {glbEncryptionPreparser} from '../gltf'
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
     constructor(manager: LoadingManager) {
         super(manager)
-
+        this.preparsers.push(glbEncryptionPreparser)
     }
 
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [
@@ -30,7 +31,32 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         GLTFMaterialsAlphaMapExtension.Import,
     ]
 
+    /**
+     * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data
+     */
+    preparsers: GLTFPreparser[] = []
 
+    async preparse(data: ArrayBuffer | string): Promise<ArrayBuffer | string> {
+        for (const preparser of this.preparsers) {
+            data = await preparser.process(data)
+        }
+        return data
+    }
+
+    parse(data: ArrayBuffer | string, path: string, onLoad: (gltf: GLTF) => void, onError?: (event: ErrorEvent) => void) {
+        this.preparse.call(this, data)
+            .then((res: ArrayBuffer | string) => res ? super.parse(res, path, onLoad, onError) : onError && onError(new ErrorEvent('no data')))
+            .catch((e: any) => {
+                console.error(e)
+                if (onError) onError(e ?? new ErrorEvent('unknown error'))
+            })
+    }
+
+    /**
+     * This is run post parse to extract the result scene from the GLTF object
+     * @param res
+     * @param _
+     */
     transform(res: GLTF, _: AnyOptions): Object3D|undefined {
         // todo: support loading of multiple scenes?
         const scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
@@ -48,7 +74,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
         return scene
     }
-
 
     register(callback: (parser: GLTFParser) => GLTFLoaderPlugin): this {
         return super.register(callback) as this
@@ -104,3 +129,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 
 }
 
+export interface GLTFPreparser{
+    process(dat: string | ArrayBuffer): Promise<string | ArrayBuffer>
+    [key: string]: any
+}

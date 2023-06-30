@@ -172,7 +172,10 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
             !this.options.exporterOptions.embedUrlImages
             && (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
         ) {
-            map.source.data = null // handled below in GLTFWriter2.processImage
+            if (map.source.data) { // handled below in GLTFWriter2.processImage
+                if (!this.options.exporterOptions.embedUrlImagePreviews || (map as any).isDataTexture) map.source.data = null // todo make sure its only Texture, check for svg etc
+                else map.source.data._savePreview = true
+            }
             delete map.userData.mimeType // for extensions like ktx2
         }
 
@@ -198,14 +201,26 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         if (map.userData.rootPath && !this.options.exporterOptions.embedUrlImages
             && (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
         ) {
-            map.source.data = srcData
+            if (map.source.data) delete map.source.data._savePreview
+            else map.source.data = srcData
+
             map.userData.mimeType = mimeType
             if (!textureDef) {
                 console.error('textureDef is null', processed, map)
                 return processed
             }
             if (textureDef.source >= 0) {
-                console.warn('textureDef.source is already set', processed, map)
+                // console.warn('textureDef.source is already set', processed, map)
+                const img = this.json.images[textureDef.source]
+                if (img.uri) {
+                    console.warn('uri already set', img.uri)
+                } else {
+                    img.uri = map.userData.rootPath
+                    img.mimeType = mimeType
+                    if (!img.extras) img.extras = {}
+                    img.extras.flipY = map.flipY
+                    img.extras.uri = map.userData.rootPath // uri is removed by gltf-transform if bufferView is set
+                }
             } else {
                 textureDef.source = this.processImageUri(map.image, map.userData.rootPath, map.flipY, mimeType)
             }
@@ -220,7 +235,8 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     // Add extra check for null images. This is set in processTexture when we have a rootPath
     processImage(image: any, format: PixelFormat, flipY: boolean, mimeType = 'image/png') {
         if (!image) return -1
-        return super.processImage(image, format, flipY, mimeType)
+        // @ts-expect-error todo: update in three-ts-types
+        return super.processImage(image, format, flipY, mimeType, image._savePreview ? 32 : undefined, image._savePreview ? 32 : undefined)
     }
 
     /**

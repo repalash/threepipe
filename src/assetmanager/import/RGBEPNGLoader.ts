@@ -47,7 +47,7 @@ export class RGBEPNGLoader extends FileLoader {
         if (created) URL.revokeObjectURL(url)
         let aType: any = Uint8Array
         if (this.type === HalfFloatType) aType = Uint16Array
-        else if (this.type === FloatType) aType = Uint32Array
+        else if (this.type === FloatType) aType = Float32Array
         const buffer = rgbeToHalfFloat(imageData.data, 4, aType, isFloat16Data)
         return {data: buffer, width: imageData.width, height: imageData.height}
     }

@@ -4,6 +4,7 @@ import {ChangeEvent} from 'uiconfig.js'
 
 export interface ITextureUserData{
     mimeType?: string
+    embedUrlImagePreviews?: boolean
     disposeOnIdle?: boolean // automatically dispose when added to a material and then not used in any material
     __appliedMaterials?: Set<IMaterial>
 }

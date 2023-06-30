@@ -2,6 +2,7 @@ import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loader
 import {ThreeSerialization} from '../../utils/serialization'
 import {DoubleSide, Material} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+import {ITexture} from '../../core'
 
 export class GLTFMaterialExtrasExtension {
     static readonly WebGiMaterialExtrasExtension = 'WEBGI_material_extras'
@@ -205,9 +206,15 @@ export class GLTFMaterialExtrasExtension {
 
             const resources = this.materialExternalResources[material.uuid]
             if (resources) {
-                Object.entries(resources).forEach(([k, v]) => {
+                Object.entries(resources).forEach(([k, v]: [string, any|ITexture]) => {
                     if (k.startsWith('_')) return
+                    let setFlag = false
+                    if (v?.userData && v.userData.embedUrlImagePreviews === undefined) { // check ThreeSerialization texture serialization and GLTFWriter2.processTexture
+                        v.userData.embedUrlImagePreviews = w.options.exporterOptions?.embedUrlImagePreviews
+                        setFlag = true
+                    }
                     dat[k] = ThreeSerialization.Serialize(v, this.serializedMeta)
+                    if (v?.userData && setFlag) delete v.userData.embedUrlImagePreviews
                 })
             }
             if (Object.keys(dat).length > 0) {

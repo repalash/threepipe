@@ -3,7 +3,9 @@ import type {GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
 import {ISerializedViewerConfig, ThreeViewer} from '../../viewer'
 import {Group, ImageUtils} from 'three'
 import {RGBEPNGLoader} from '../import/RGBEPNGLoader'
-import {SerializationResourcesType} from '../../utils/serialization'
+import {SerializationResourcesType} from '../../utils'
+import {RootSceneImportResult} from '../IAssetImporter'
+import {halfFloatToRgbe} from '../../three'
 
 export class GLTFViewerConfigExtension {
 
@@ -30,13 +32,20 @@ export class GLTFViewerConfigExtension {
             }
             scene = scenes[0]
         }
-        const resultScene = resultScenes[0]
+        const resultScene = resultScenes.length > 0 ? resultScenes[0] : undefined
 
-        const viewerConfig: Partial<ISerializedViewerConfig> = scene.extensions?.[this.ViewerConfigGLTFExtension]
+        const viewerConfig1: Partial<ISerializedViewerConfig> = scene.extensions?.[this.ViewerConfigGLTFExtension]
         // console.log({...viewerConfig?.resources})
 
-        if (!viewerConfig) return {}
+        if (!viewerConfig1) return {}
 
+        const viewerConfig: ISerializedViewerConfig = {
+            type: 'ThreeViewer',
+            version: '0',
+            plugins: [],
+            assetType: 'config',
+            ...viewerConfig1,
+        }
         if (viewerConfig.resources) {
             await this._parseArrayBuffers(viewerConfig.resources, parser)
 
@@ -45,7 +54,7 @@ export class GLTFViewerConfigExtension {
 
             viewerConfig.resources = await viewer.loadConfigResources(viewerConfig.resources || {}, extraResources)
 
-            ;(resultScene as any).importedViewerConfig = viewerConfig // todo
+            if (resultScene) (resultScene as RootSceneImportResult).importedViewerConfig = viewerConfig
         }
 
         return viewerConfig
@@ -128,12 +137,13 @@ export class GLTFViewerConfigExtension {
                 const blob = new Blob([bufferView])
                 // const blob2 = new Blob([await blob.text()], {type: img.mimeType})
                 let url = URL.createObjectURL(blob)
-                if ((buff.encodingVersion || 1) < 2) {
+                const encodingVersion = buff.encodingVersion || 1
+                if (encodingVersion < 2) {
                     url = 'data:image/png;base64,' + btoa(await blob.text())
                 }
                 // fetch(url).then(async r=>r.blob()).then(b=>console.log(b))
                 // console.log(view2)
-                buff.data = (await new RGBEPNGLoader().parseAsync(url, undefined, true)).data
+                buff.data = (await new RGBEPNGLoader().parseAsync(url, undefined, encodingVersion < 3)).data
                 URL.revokeObjectURL(url)
                 delete buff.encoding
                 delete buff.encodingVersion
@@ -196,19 +206,19 @@ export class GLTFViewerConfigExtension {
             if (encodeUint16Rgbe && buffer.type === 'Uint16Array' && buffer.width > 0 && buffer.height > 0) { // import for this is handled in gltf.ts:importViewer.
                 // todo: also check if this is indeed an hdr image or something else like LUT or other kind of embedded file.
 
-                // todo: can we optimize this? this is too many steps
-                const d = halfFloatToRgbe(buffer.data, 4)
-                const id = new ImageData(d, buffer.width, buffer.height)
-                // @ts-expect-error patched three
-                const b64 = ImageUtils.getDataURL(id, true).split(',')[1]
-                // console.log(b64)
+                const encodingVersion: any = 3
 
-                const encodingVersion: any = 2
+                // todo: can we optimize this? this is too many steps
+                const d = encodingVersion < 3 ? halfFloatToRgbe2(buffer.data, 4) : halfFloatToRgbe(buffer.data, 4)
+                const id = new ImageData(d, buffer.width, buffer.height)
+
+                // @ts-expect-error patched three. todo: update the types
+                const b64 = ImageUtils.getDataURL(id, true).split(',')[1]
 
                 mime = 'image/png'
                 if (encodingVersion === 1) {
                     buffer.data = atob(b64)
-                } else if (encodingVersion === 2) {
+                } else if (encodingVersion === 2 || encodingVersion === 3) {
                     buffer.data = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
                 } else {
                     throw new Error('Invalid encoding version')
@@ -271,9 +281,15 @@ export class GLTFViewerConfigExtension {
 
 }
 
-// adapted from https://github.com/enkimute/hdrpng.js/blob/3a62b3ae2940189777df9f669df5ece3e78d9c16/hdrpng.js#L235
-// channels = 4 for RGBA data or 3 for RGB data. buffer from THREE.DataTexture
-function halfFloatToRgbe(buffer: Uint16Array, channels = 3, res?: Uint8ClampedArray): Uint8ClampedArray {
+/**
+ * @deprecated old version. see {@link halfFloatToRgbe} to convert half float buffer to rgbe
+ * adapted from https://github.com/enkimute/hdrpng.js/blob/3a62b3ae2940189777df9f669df5ece3e78d9c16/hdrpng.js#L235
+ * channels = 4 for RGBA data or 3 for RGB data. buffer from THREE.DataTexture
+ * @param buffer
+ * @param channels
+ * @param res
+ */
+function halfFloatToRgbe2(buffer: Uint16Array, channels = 3, res?: Uint8ClampedArray): Uint8ClampedArray {
     let r, g, b, v, s
     const l = buffer.byteLength / (channels * 2) | 0
     res = res || new Uint8ClampedArray(l * 4)

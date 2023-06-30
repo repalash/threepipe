@@ -1,23 +1,29 @@
 import {GLTFExporter, GLTFExporterOptions, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {IExportParser} from '../IExporter'
-import {AnyOptions} from 'ts-browser-helpers'
 import {GLTFWriter2} from './GLTFWriter2'
 import {Object3D} from 'three'
 import {ThreeViewer} from '../../viewer'
-import {GLTFObject3DExtrasExtension} from '../gltf/GLTFObject3DExtrasExtension'
-import {GLTFLightExtrasExtension} from '../gltf/GLTFLightExtrasExtension'
-import {GLTFMaterialsBumpMapExtension} from '../gltf/GLTFMaterialsBumpMapExtension'
-import {GLTFMaterialsDisplacementMapExtension} from '../gltf/GLTFMaterialsDisplacementMapExtension'
-import {GLTFMaterialsLightMapExtension} from '../gltf/GLTFMaterialsLightMapExtension'
-import {GLTFMaterialsAlphaMapExtension} from '../gltf/GLTFMaterialsAlphaMapExtension'
-import {GLTFMaterialExtrasExtension} from '../gltf/GLTFMaterialExtrasExtension'
-import {GLTFViewerConfigExtension} from '../gltf/GLTFViewerConfigExtension'
+import {
+    GLTFLightExtrasExtension,
+    GLTFMaterialExtrasExtension,
+    GLTFMaterialsAlphaMapExtension,
+    GLTFMaterialsBumpMapExtension,
+    GLTFMaterialsDisplacementMapExtension,
+    GLTFMaterialsLightMapExtension,
+    GLTFObject3DExtrasExtension,
+    GLTFViewerConfigExtension,
+} from '../gltf'
+import {glbEncryptionProcessor} from '../gltf/gltfEncyptionHelpers'
 
 export type GLTFExporter2Options = GLTFExporterOptions & {
     /**
-     * embed images in glb even when remote url is available, default = false
+     * embed images in glb even when remote url is available, {@default false}
      */
     embedUrlImages?: boolean,
+    /**
+     * Embed previews of images in glb, {@default false}
+     */
+    embedUrlImagePreviews?: boolean,
     /**
      * export viewer config (scene settings)
      */
@@ -27,19 +33,53 @@ export type GLTFExporter2Options = GLTFExporterOptions & {
      */
     exportExt?: string,
     preserveUUIDs?: boolean,
-    externalImagesInExtras?: boolean, // see GLTFDracoExporter and extras extension
-    encodeUint16Rgbe?: boolean // see GLTFViewerExport->processViewer, default = true
+    /**
+     * see GLTFDracoExporter and {@link GLTFMaterialExtrasExtension}
+     */
+    externalImagesInExtras?: boolean,
+    /**
+     * see GLTFViewerExport->processViewer, {@default false}
+     */
+    encodeUint16Rgbe?: boolean
+    /**
+     * Number of spaces to use when exporting to json, {@default 2}
+     */
+    jsonSpaces?: number,
+    /**
+     * Encrypt the exported file in a GLB container using {@link encryptKey}, {@default false}. Works only for glb export.
+     */
+    encrypt?: boolean,
+    /**
+     * Encryption key, if not provided, will be prompted, {@default undefined}. Works only for glb export.
+     */
+    encryptKey?: string|Uint8Array,
+
+    [key: string]: any
 }
 
 export class GLTFExporter2 extends GLTFExporter implements IExportParser {
+
+    constructor() {
+        super()
+        this.processors.push(glbEncryptionProcessor)
+    }
 
     register(callback: (writer: GLTFWriter2)=>GLTFExporterPlugin): this {
         return super.register(callback as any)
     }
 
-    async parseAsync(obj: any, options: AnyOptions): Promise<Blob> {
+    processors: ((obj: ArrayBuffer|any|Blob, options: GLTFExporter2Options) => Promise<ArrayBuffer|any|Blob>)[] = []
+
+    async parseAsync(obj: ArrayBuffer|any, options: GLTFExporter2Options): Promise<Blob> {
         if (!obj) throw new Error('No object to export')
-        const gltf = !obj.__isGLTFOutput && (Array.isArray(obj) || obj.isObject3D) ? await new Promise((resolve, reject) => this.parse(obj, resolve, reject, options)) : obj
+        let gltf = !obj.__isGLTFOutput && (Array.isArray(obj) || obj.isObject3D) ? await new Promise((resolve, reject) => this.parse(obj, resolve, reject, options)) : obj
+
+        for (const processor of this.processors) {
+            gltf = await processor(gltf, options)
+        }
+
+        if (gltf && gltf instanceof Blob) return gltf
+
         if (gltf && typeof gltf === 'object' && !gltf.byteLength) { // byteLength is for ArrayBuffer
             return new Blob([JSON.stringify(gltf, (k, v)=> k.startsWith('__') ? undefined : v, options.jsonSpaces ?? 2)], {type: 'model/gltf+json'})
         } else if (gltf) {
@@ -54,7 +94,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
         onDone: (gltf: ArrayBuffer | {[key: string]: any}) => void,
         onError: (error: ErrorEvent) => void,
         options: GLTFExporter2Options = {},
-    ): any {
+    ): void {
         const gltfOptions: GLTFWriter2['options'] = {
             // default options
             binary: false,
