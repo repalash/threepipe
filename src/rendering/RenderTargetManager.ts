@@ -17,7 +17,6 @@ import {
     WebGLRenderTarget,
     WebGLRenderTargetOptions,
 } from 'three'
-import {generateUUID} from '../three'
 
 export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET extends string = string> extends EventDispatcher<E, ET> {
     abstract isWebGL2: boolean
@@ -119,7 +118,6 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         height,
         count,
     }: {width: number, height: number, count?: number}, options: WebGLRenderTargetOptions = {}, clazz?: Class<T>): T {
-        const processNewTarget = this._processNewTarget
         let size = [width, height]
         if (count && count > 1) size.push(count)
 
@@ -127,7 +125,7 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             if (width !== height) throw 'Width and height of cube render target must be equal'
             size = [width]
         }
-        const params = [...size, {
+        return this._createTargetClass((clazz as any) ?? WebGLRenderTarget, size, {
             format: RGBAFormat,
             minFilter: LinearFilter,
             magFilter: LinearFilter,
@@ -135,50 +133,10 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             type: UnsignedByteType,
             colorSpace: NoColorSpace,
             ...options,
-        }]
-        return new class RenderTarget extends ((clazz as any as Class<WebGLRenderTarget>) ?? WebGLRenderTarget) implements IRenderTarget {
-            isTemporary?: boolean
-            sizeMultiplier?: number
-            uuid: string
-
-            constructor(...ps: any[]) {
-                super(...ps)
-                this.uuid = generateUUID()
-                const ops = ps[ps.length - 1] as WebGLRenderTargetOptions
-                if (Array.isArray(this.texture)) {
-                    this.texture.forEach(t => {
-                        t.colorSpace = ops.colorSpace
-                        t.toJSON = () => {
-                            console.warn('Multiple render target texture.toJSON not supported yet.')
-                            return {}
-                        }
-                    })
-                } else {
-                    this.texture.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
-                        isRenderTargetTexture: true,
-                    }) // so that it doesn't get serialized
-                }
-            }
-
-            setSize(w: number, h: number, depth?: number) {
-                super.setSize(Math.floor(w), Math.floor(h), depth)
-                // console.log('setSize', w, h, depth)
-                return this
-            }
-
-            clone(trackTarget = true): any {
-                if (this.isTemporary) throw 'Cloning temporary render targets not supported'
-                if (Array.isArray(this.texture)) throw 'Cloning multiple render targets not supported'
-                // Note: todo: webgl render target.clone messes up the texture, by not copying isRenderTargetTexture prop and maybe some other stuff. So its better to just create a new one
-                const cloned = super.clone() as IRenderTarget
-                const tex = cloned.texture
-                if (Array.isArray(tex)) tex.forEach(t => t.isRenderTargetTexture = true)
-                else tex.isRenderTargetTexture = true
-                return processNewTarget(cloned, this.sizeMultiplier || 1, trackTarget)
-            }
-
-        }(...params) as any as T
+        }) as T
     }
+
+    protected abstract _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget
 
     dispose() {
         this._trackedTargets.forEach(t=>t.dispose())
@@ -229,7 +187,7 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             texture.minFilter = LinearFilter
     }
 
-    private _processNewTarget(target: IRenderTarget, sizeMultiplier: number | undefined, trackTarget: boolean): IRenderTarget {
+    protected _processNewTarget(target: IRenderTarget, sizeMultiplier: number | undefined, trackTarget: boolean): IRenderTarget {
         if (sizeMultiplier !== undefined) target.sizeMultiplier = sizeMultiplier
         if (trackTarget) this.trackTarget(target)
         return target

@@ -1,6 +1,7 @@
 import {
     Blending,
     Color,
+    FloatType,
     HalfFloatType,
     IUniform,
     NoBlending,
@@ -14,6 +15,7 @@ import {
     Vector4,
     WebGLRenderer,
     WebGLRenderTarget,
+    WebGLRenderTargetOptions,
 } from 'three'
 import {EffectComposer2, IPassID, IPipelinePass, sortPasses} from '../postprocessing'
 import {IRenderTarget} from './RenderTarget'
@@ -29,8 +31,12 @@ import {
     IWebGLRenderer,
     upgradeWebGLRenderer,
 } from '../core'
-import {onChange2, serializable, serialize} from 'ts-browser-helpers'
+import {base64ToArrayBuffer, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
 import {uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
+import {generateUUID} from '../three'
+import {textureDataToImageData} from '../three/utils/texture'
+import {EXRExporter2} from '../assetmanager/export/EXRExporter2'
+import {BlobExt} from '../assetmanager'
 
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')
@@ -239,10 +245,10 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         // if (material.uniforms.currentFrameCount) material.uniforms.currentFrameCount.value = this.frameCount
         if (!this.stableNoise) {
             if (material.uniforms.frameCount) material.uniforms.frameCount.value = this._totalFrameCount
-            else console.warn('BaseRenderer: no uniform: frameCount')
+            else console.warn('RenderManager: no uniform: frameCount')
         } else {
             if (material.uniforms.frameCount) material.uniforms.frameCount.value = this.frameCount
-            else console.warn('BaseRenderer: no uniform: frameCount')
+            else console.warn('RenderManager: no uniform: frameCount')
         }
         return this
     }
@@ -271,43 +277,6 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         }
     }
 
-    /**
-     * Only to be used for testing. To do it properly, render the target to the main canvas(with proper encoding and type conversion) and call canvas.toDataURL()
-     * @param target
-     * @param mimeType
-     * @param quality
-     */
-    renderTargetToDataUrl(target: WebGLRenderTarget, mimeType = 'image/png', quality = 90): string {
-        const canvas = document.createElement('canvas')
-        canvas.width = target.width
-        canvas.height = target.height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) throw new Error('Unable to get 2d context')
-        const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(target.texture.colorSpace) ? <PredefinedColorSpace>target.texture.colorSpace : undefined})
-        if (target.texture.type === HalfFloatType) {
-            const buffer = new Uint16Array(target.width * target.height * 4)
-            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
-            for (let i = 0; i < buffer.length; i++) {
-                imageData.data[i] = buffer[i] / 15360 * 255 // todo check packing
-            }
-        } else {
-            // todo: handle rgbm to srgb conversion?
-            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data)
-        }
-        ctx.putImageData(imageData, 0, 0)
-        const string = canvas.toDataURL(mimeType, quality)
-        canvas.remove()
-        return string
-    }
-
-    renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array {
-        const buffer = target.texture.type === HalfFloatType ?
-            new Uint16Array(target.width * target.height * 4) :
-            new Uint8Array(target.width * target.height * 4)
-        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
-        return buffer
-    }
-
     // endregion
 
     // region Getters and Setters
@@ -324,7 +293,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     set pipeline(value: IPassID[]) {
         this._pipeline = value
         if (this.autoBuildPipeline) {
-            console.warn('BaseRenderer: pipeline changed, but autoBuildPipeline is true. This will not have any effect.')
+            console.warn('RenderManager: pipeline changed, but autoBuildPipeline is true. This will not have any effect.')
         }
         this.rebuildPipeline()
     }
@@ -384,18 +353,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
 
     // endregion
 
-    // region Events Dispatch
-
-    private _updated(data?: Partial<IRenderManagerUpdateEvent>) {
-        this.dispatchEvent({...data, type: 'update'})
-    }
-
-    // endregion
-
-
-
-    // / TODO
-
+    // region Utils
 
     /**
      *
@@ -517,6 +475,131 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         this._renderer.setClearAlpha(alpha)
     }
 
+
+    /**
+     * Converts a render target to a png/jpeg data url string.
+     * @param target
+     * @param mimeType
+     * @param quality
+     */
+    renderTargetToDataUrl(target: WebGLRenderTarget, mimeType = 'image/png', quality = 90): string {
+        const canvas = document.createElement('canvas')
+        canvas.width = target.width
+        canvas.height = target.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Unable to get 2d context')
+        const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(target.texture.colorSpace) ? <PredefinedColorSpace>target.texture.colorSpace : undefined})
+        if (target.texture.type === HalfFloatType || target.texture.type === FloatType) {
+            const buffer = this.renderTargetToBuffer(target)
+            textureDataToImageData({data: buffer, width: target.width, height: target.height}, target.texture.colorSpace, imageData) // this handles converting to srgb
+        } else {
+            // todo: handle rgbm to srgb conversion?
+            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data)
+        }
+
+        ctx.putImageData(imageData, 0, 0)
+        const string = canvas.toDataURL(mimeType, quality)
+        canvas.remove()
+        return string
+    }
+
+    renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array|Float32Array {
+        const buffer =
+            target.texture.type === HalfFloatType ?
+                new Uint16Array(target.width * target.height * 4) :
+                target.texture.type === FloatType ?
+                    new Float32Array(target.width * target.height * 4) :
+                    new Uint8Array(target.width * target.height * 4)
+        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
+        return buffer
+    }
+
+    exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto'): BlobExt {
+        const hdrFormats = ['image/x-exr']
+        let hdr = target.texture.type === HalfFloatType || target.texture.type === FloatType
+        if (mimeType === 'auto') {
+            mimeType = hdr ? 'image/x-exr' : 'image/png'
+        }
+        if (!hdrFormats.includes(mimeType)) hdr = false
+        let buffer: ArrayBufferLike
+        if (!hdr) {
+            const url = this.renderTargetToDataUrl(target, mimeType === 'auto' ? undefined : mimeType)
+            buffer = base64ToArrayBuffer(url.split(',')[1])
+            mimeType = url.split(';')[0].split(':')[1]
+        } else {
+            if (mimeType !== 'image/x-exr') {
+                console.warn('RenderManager: mimeType ', mimeType, ' is not supported for HDR. Using EXR instead')
+                mimeType = 'image/x-exr'
+            }
+            const exporter = new EXRExporter2()
+            buffer = exporter.parse(this._renderer, target)
+        }
+        const b = new Blob([buffer], {type: mimeType}) as BlobExt
+        b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]
+        return b
+    }
+
+    // endregion
+
+
+    // region Events Dispatch
+
+    private _updated(data?: Partial<IRenderManagerUpdateEvent>) {
+        this.dispatchEvent({...data, type: 'update'})
+    }
+
+    // endregion
+
+    protected _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget {
+        const processNewTarget = this._processNewTarget
+        return new class RenderTarget extends clazz implements IRenderTarget {
+            isTemporary?: boolean
+            sizeMultiplier?: number
+            uuid: string
+            readonly assetType = 'renderTarget'
+            name = 'RenderTarget'
+            // @ts-expect-error because WebGLRenderTarget does not have texture as array
+            texture: ValOrArr<Texture&{_target: IRenderTarget}>
+
+            constructor(public readonly renderManager: IRenderManager, ...ps: any[]) {
+                super(...ps)
+                this.uuid = generateUUID()
+                const ops = ps[ps.length - 1] as WebGLRenderTargetOptions
+                if (Array.isArray(this.texture)) {
+                    this.texture.forEach(t => {
+                        if (ops.colorSpace !== undefined) t.colorSpace = ops.colorSpace
+                        t._target = this
+                        t.toJSON = () => {
+                            console.warn('Multiple render target texture.toJSON not supported yet.')
+                            return {}
+                        }
+                    })
+                } else {
+                    this.texture._target = this
+                    this.texture.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
+                        isRenderTargetTexture: true,
+                    }) // so that it doesn't get serialized
+                }
+            }
+
+            setSize(w: number, h: number, depth?: number) {
+                super.setSize(Math.floor(w), Math.floor(h), depth)
+                // console.log('setSize', w, h, depth)
+                return this
+            }
+
+            clone(trackTarget = true): any {
+                if (this.isTemporary) throw 'Cloning temporary render targets not supported'
+                if (Array.isArray(this.texture)) throw 'Cloning multiple render targets not supported'
+                // Note: todo: webgl render target.clone messes up the texture, by not copying isRenderTargetTexture prop and maybe some other stuff. So its better to just create a new one
+                const cloned = super.clone() as IRenderTarget
+                const tex = cloned.texture
+                if (Array.isArray(tex)) tex.forEach(t => t.isRenderTargetTexture = true)
+                else tex.isRenderTargetTexture = true
+                return processNewTarget(cloned, this.sizeMultiplier || 1, trackTarget)
+            }
+        }(this, ...size, options)
+    }
 
     /**
      * @deprecated use renderScale instead

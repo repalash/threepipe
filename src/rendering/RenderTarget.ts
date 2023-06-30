@@ -9,14 +9,18 @@ import {
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
 import {DepthTexture} from 'three/src/textures/DepthTexture'
+import type {IRenderManager} from '../core'
+import {ValOrArr} from 'ts-browser-helpers'
 
 export interface IRenderTarget extends EventDispatcher {
     isWebGLRenderTarget: boolean
     width: number
     height: number
     depth: number
+    assetType?: 'renderTarget'
+    name?: string
 
-    texture: Texture | Texture[]
+    texture: ValOrArr<Texture&{_target?: IRenderTarget}>
     uuid?: string
     sizeMultiplier?: number
     isTemporary?: boolean
@@ -55,6 +59,7 @@ export interface IRenderTarget extends EventDispatcher {
     isWebGLCubeRenderTarget?: boolean
     isWebGLMultipleRenderTargets?: boolean
 
+    readonly renderManager?: IRenderManager
 }
 
 export interface CreateRenderTargetOptions {

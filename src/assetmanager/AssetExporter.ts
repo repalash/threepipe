@@ -1,14 +1,15 @@
-import {BaseEvent, EventDispatcher} from 'three'
+import {BaseEvent, EventDispatcher, WebGLRenderTarget} from 'three'
 import {IMaterial, IObject3D, ITexture} from '../core'
 import {AnyOptions} from 'ts-browser-helpers'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportParser} from './IExporter'
-import {SimpleTextExporter} from './export/SimpleTextExporter'
-import {SimpleJSONExporter} from './export/SimpleJSONExporter'
+import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
+import {IRenderTarget} from '../rendering'
 
 export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' | 'exportFile'> implements IAssetExporter {
     readonly exporters: IExporter[] = [
         {ctor: ()=>new SimpleJSONExporter(), ext: ['json']},
         {ctor: ()=>new SimpleTextExporter(), ext: ['txt', 'text']},
+        {ctor: ()=>new EXRExporter2(), ext: ['exr']},
         // {ctor: ()=>new GLTFDracoExporter(), ext: ['gltf', 'glb']},
     ]
 
@@ -36,7 +37,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
         super()
     }
 
-    public async exportObject(obj?: IObject3D|IMaterial|ITexture, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
+    public async exportObject(obj?: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
         if (!obj?.assetType) {
             console.error('Object has no asset type')
             return undefined
@@ -61,7 +62,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
     }
 
     // export to blob
-    private async _exportFile(obj: IObject3D|IMaterial|ITexture, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
+    private async _exportFile(obj: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
         // if ((file as any)?.__imported) return (file as any).__imported // todo: cache exports?
 
         let res: BlobExt
@@ -71,12 +72,14 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
             const processed = await this.processBeforeExport(obj, options)
             const ext = options.exportExt ?? processed?.typeExt ?? processed?.ext
             if (!processed || !ext) throw new Error(`Unable to preprocess before export ${ext}`)
-            const parser = this._getParser(ext)
+            if (processed.blob) res = processed.blob
+            else {
+                const parser = this._getParser(ext)
 
-            this.dispatchEvent({type: 'exportFile', obj, state:'exporting'})
-            const blob = await parser.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
-            blob.ext = processed.ext
-            res = blob
+                this.dispatchEvent({type: 'exportFile', obj, state:'exporting'})
+                res = await parser.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
+                res.ext = processed.ext
+            }
 
             this.dispatchEvent({type: 'exportFile', obj, state: 'done'})
 
@@ -108,7 +111,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
         return this._cachedParsers.find(e => e.ext.includes(ext))?.parser ?? this._createParser(ext)
     }
 
-    public async processBeforeExport(obj: IObject3D|IMaterial|ITexture, _: AnyOptions = {}): Promise<{obj:any, ext:string, typeExt?:string}|undefined> {
+    public async processBeforeExport(obj: IObject3D|IMaterial|ITexture|IRenderTarget, _: AnyOptions = {}): Promise<{obj:any, ext:string, typeExt?:string, blob?: BlobExt}|undefined> {
         // if (obj.assetExporterProcessed && !options.forceExporterReprocess) return obj //todo;;;
 
         switch (obj.assetType) {
@@ -122,6 +125,16 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
             return {obj: (obj as IMaterial).toJSON(), ext: (obj as IMaterial).constructor?.TypeSlug || 'json', typeExt: 'json'}
         case 'texture':
             return {obj: (obj as ITexture).toJSON(), ext: 'json'}
+        case 'renderTarget':
+            if (obj.isWebGLMultipleRenderTargets) console.error('AssetExporter: WebGLMultipleRenderTargets export not supported')
+            else if (!obj.renderManager) return {obj, ext: 'exr'}
+            else {
+                const blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget, 'auto')
+                return {
+                    obj, ext: blob.ext, blob,
+                }
+            }
+            break
         default:
             console.error('AssetExporter: unknown asset type', obj.assetType)
         }
