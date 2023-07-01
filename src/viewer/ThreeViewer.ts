@@ -4,6 +4,7 @@ import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
     IAnimationLoopEvent,
+    IMaterial,
     IObject3D,
     IObjectProcessor,
     ITexture,
@@ -14,6 +15,7 @@ import {ViewerRenderManager} from './ViewerRenderManager'
 import {
     convertArrayBufferToStringsInMeta,
     getEmptyMeta,
+    jsonToBlob,
     metaFromResources,
     MetaImporter,
     metaToResources,
@@ -36,6 +38,7 @@ import {GLStatsJS, IDialogWrapper, windowDialogWrapper} from '../utils'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
+import {IRenderTarget} from '../rendering'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
@@ -370,6 +373,30 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     async load<T extends ImportResult = ImportResult>(obj: string | IAsset | null, options?: ImportAddOptions) {
         if (!obj) return
         return await this.assetManager.addAssetSingle<T>(obj, options)
+    }
+
+    /**
+     * Imports an object/model/material/texture/viewer-config/plugin-preset/... to the viewer scene from url or an {@link IAsset} object.
+     * Same as {@link AssetImporter.importSingle}
+     * @param obj
+     * @param options
+     */
+    async import<T extends ImportResult = ImportResult>(obj: string | IAsset | null, options?: ImportAddOptions) {
+        if (!obj) return
+        return await this.assetManager.importer.importSingle<T>(obj, options)
+    }
+
+    /**
+     * Exports an object/mesh/material/texture/render-target/plugin-preset/viewer to a blob.
+     * If no object is given, a glb is exported with the current viewer state.
+     * @param obj
+     * @param options
+     */
+    async export(obj?: IObject3D|IMaterial|ITexture|IRenderTarget|IViewerPlugin|(typeof this), options?: ExportFileOptions) {
+        if (!obj) obj = this._scene // this will export the glb with the scene and viewer config
+        if ((<typeof this>obj).type === this.type) return jsonToBlob((<typeof this>obj).exportConfig())
+        if ((<IViewerPlugin>obj).constructor?.PluginType) return jsonToBlob(this.exportPluginConfig(<IViewerPlugin>obj))
+        return await this.assetManager.exporter.exportObject(<IObject3D|IMaterial|ITexture|IRenderTarget>obj, options)
     }
 
     /**

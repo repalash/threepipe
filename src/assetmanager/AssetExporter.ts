@@ -1,6 +1,5 @@
 import {BaseEvent, EventDispatcher, WebGLRenderTarget} from 'three'
 import {IMaterial, IObject3D, ITexture} from '../core'
-import {AnyOptions} from 'ts-browser-helpers'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportParser} from './IExporter'
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
@@ -111,7 +110,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
         return this._cachedParsers.find(e => e.ext.includes(ext))?.parser ?? this._createParser(ext)
     }
 
-    public async processBeforeExport(obj: IObject3D|IMaterial|ITexture|IRenderTarget, _: AnyOptions = {}): Promise<{obj:any, ext:string, typeExt?:string, blob?: BlobExt}|undefined> {
+    public async processBeforeExport(obj: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<{obj:any, ext:string, typeExt?:string, blob?: BlobExt}|undefined> {
         // if (obj.assetExporterProcessed && !options.forceExporterReprocess) return obj //todo;;;
 
         switch (obj.assetType) {
@@ -124,7 +123,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
         case 'material':
             return {obj: (obj as IMaterial).toJSON(), ext: (obj as IMaterial).constructor?.TypeSlug || 'json', typeExt: 'json'}
         case 'texture':
-            return {obj: (obj as ITexture).toJSON(), ext: 'json'}
+            return options.exportExt ? {obj, ext: options.exportExt} : {obj: (obj as ITexture).toJSON(), ext: 'json'}
         case 'renderTarget':
             if (obj.isWebGLMultipleRenderTargets) console.error('AssetExporter: WebGLMultipleRenderTargets export not supported')
             else if (!obj.renderManager) return {obj, ext: 'exr'}

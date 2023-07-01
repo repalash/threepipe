@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>EXR Load</title>
+    <title>HDR To EXR</title>
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -24,20 +24,7 @@
         }
     </style>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
-    <script id="example-script" type="module">
-        import {_testFinish, ThreeViewer} from 'threepipe'
-
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
-
-        async function init() {
-
-            await viewer.setEnvironmentMap('https://threejs.org/examples/textures/piz_compressed.exr')
-            viewer.scene.background = viewer.scene.environment
-
-        }
-
-        init().then(_testFinish)
-    </script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
 </head>
 <body>
 <div id="canvas-container">

@@ -6,14 +6,14 @@ async function init() {
 
     viewer.addPluginSync(Rhino3dmLoadPlugin)
 
-    // load obj + mtl
+    // load a 3dm file
     const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/3dm/Rhino_Logo.3dm', {
         autoCenter: true,
         autoScale: true,
     })
 
     // export to glb
-    const blob = await viewer.assetManager.exporter.exportObject(result)
+    const blob = await viewer.export(result)
     // const blob = await viewer.exportScene(); // its possible to export the whole scene also
 
     if (!blob || blob.ext !== 'glb') {

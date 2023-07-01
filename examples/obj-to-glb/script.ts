@@ -13,7 +13,7 @@ async function init() {
     // todo wait for images to load
 
     // export to glb
-    const blob = await viewer.assetManager.exporter.exportObject(result)
+    const blob = await viewer.export(result)
     // const blob = await viewer.exportScene(); // its possible to export the whole scene also
 
     if (!blob || blob.ext !== 'glb') {

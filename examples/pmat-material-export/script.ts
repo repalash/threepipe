@@ -22,10 +22,9 @@ async function init() {
     sphere.position.setX(2)
     await viewer.addSceneObject(sphere)
 
-    const matBlob = await viewer.assetManager.exporter.exportObject(material)
-    if (!matBlob) {
-        return
-    }
+    const matBlob = await viewer.export(material)
+    if (!matBlob) return
+
     const material2 = await viewer.assetManager.importer.importSingle<IMaterial>({file: matBlob, path: 'mat.' + matBlob.ext})
     if (!material2) {
         return
@@ -39,7 +38,7 @@ async function init() {
 
     createSimpleButtons({
         ['Download PMAT']: async() => {
-            const blob = await viewer.assetManager.exporter.exportObject(material)
+            const blob = await viewer.export(material)
             if (!blob) {
                 alert('Unable to export material')
                 return

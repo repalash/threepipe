@@ -17,13 +17,13 @@ async function init() {
     }
     const mesh = helmet.getObjectByName('node_damagedHelmet_-6514')!
 
-    // const blob = await viewer.assetManager.exporter.exportObject(helmetObject, {exportExt: 'glb'})
+    // const blob = await viewer.export(helmetObject, {exportExt: 'glb'})
     // const blob = await viewer.exportScene({viewerConfig: false}) // export scene without viewer config
     // const blob = await viewer.exportScene() // export scene with viewer config and default settings.
 
     createSimpleButtons({
         ['Download Helmet Object GLB']: async() => {
-            const blob = await viewer.assetManager.exporter.exportObject(mesh, {
+            const blob = await viewer.export(mesh, {
                 exportExt: 'glb',
                 embedUrlImages: true, // embed images in glb even when url is available.
             })
@@ -34,7 +34,7 @@ async function init() {
             downloadBlob(blob, 'helmet.' + blob.ext)
         },
         ['Download Helmet Material']: async() => {
-            const blob = await viewer.assetManager.exporter.exportObject(<IMaterial>mesh.material)
+            const blob = await viewer.export(<IMaterial>mesh.material)
             if (!blob) {
                 alert('Unable to export helmet material')
                 return

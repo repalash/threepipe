@@ -14,7 +14,7 @@ import {
     Vector4,
 } from 'three'
 import type {AssetImporter, AssetManager, MaterialManager} from '../assetmanager'
-import {IAssetImporter} from '../assetmanager'
+import {BlobExt, IAssetImporter} from '../assetmanager'
 import {ThreeViewer} from '../viewer'
 import {ITexture} from '../core'
 import {IRenderTarget, RenderManager} from '../rendering'
@@ -770,4 +770,10 @@ export function metaFromResources(resources?: Partial<SerializationResourcesType
             renderManager: viewer?.renderManager,
         }, // clear context even if its present in resources
     }
+}
+
+export function jsonToBlob(json: any): BlobExt {
+    const b = new Blob([JSON.stringify(json)], {type: 'application/json'}) as BlobExt
+    b.ext = 'json'
+    return b
 }
