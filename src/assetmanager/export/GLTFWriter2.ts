@@ -235,7 +235,6 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     // Add extra check for null images. This is set in processTexture when we have a rootPath
     processImage(image: any, format: PixelFormat, flipY: boolean, mimeType = 'image/png') {
         if (!image) return -1
-        // @ts-expect-error todo: update in three-ts-types
         return super.processImage(image, format, flipY, mimeType, image._savePreview ? 32 : undefined, image._savePreview ? 32 : undefined)
     }
 

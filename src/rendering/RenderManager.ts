@@ -33,10 +33,8 @@ import {
 } from '../core'
 import {base64ToArrayBuffer, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
 import {uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
-import {generateUUID} from '../three'
-import {textureDataToImageData} from '../three/utils/texture'
-import {EXRExporter2} from '../assetmanager/export/EXRExporter2'
-import {BlobExt} from '../assetmanager'
+import {generateUUID, textureDataToImageData} from '../three'
+import {BlobExt, EXRExporter2} from '../assetmanager'
 
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')

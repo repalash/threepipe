@@ -50,14 +50,4 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
 
     throttleUpdate = 60 // throttle to 60 updates per second (implemented in OrbitControls.js.update() method)
 
-    zoomIn(delta: number) {
-        // @ts-expect-error not in ts
-        super.zoomIn(delta)
-    }
-
-    zoomOut(delta: number) {
-        // @ts-expect-error not in ts
-        super.zoomOut(delta)
-    }
-
 }

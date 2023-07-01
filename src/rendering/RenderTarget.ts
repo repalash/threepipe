@@ -27,6 +27,7 @@ export interface IRenderTarget extends EventDispatcher {
     targetKey?: string // for caching.
     clone(trackTarget?: boolean): this
     setSize(width: number, height: number, depth?: number): void;
+    copy(source: IRenderTarget): this;
     dispose(): void;
 
     scissor: Vector4;

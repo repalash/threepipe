@@ -15,7 +15,7 @@ import {
 } from '../gltf'
 import {glbEncryptionProcessor} from '../gltf/gltfEncyptionHelpers'
 
-export type GLTFExporter2Options = GLTFExporterOptions & {
+export type GLTFExporter2Options = {
     /**
      * embed images in glb even when remote url is available, {@default false}
      */
@@ -55,7 +55,7 @@ export type GLTFExporter2Options = GLTFExporterOptions & {
     encryptKey?: string|Uint8Array,
 
     [key: string]: any
-}
+} & GLTFExporterOptions
 
 export class GLTFExporter2 extends GLTFExporter implements IExportParser {
 
@@ -137,7 +137,6 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
             }
             // eslint-disable-next-line @typescript-eslint/naming-convention
             onDone(Object.assign(o, {__isGLTFOutput: true}))
-            // @ts-expect-error wrong ts
         }, onError, gltfOptions, new GLTFWriter2())
     }
 

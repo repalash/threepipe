@@ -92,8 +92,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         }
 
         let renderFn = ()=> {
-            // @ts-expect-error patched three.js RenderPass to accept depthBuffer
-            super.render(renderer, undefined, readBuffer, deltaTime, maskActive, depthRenderBuffer) // read is write in super.render (RenderPass)
+            super.render(renderer, null, readBuffer, deltaTime, maskActive, depthRenderBuffer) // read is write in super.render (RenderPass)
         }
 
         if (!this.renderManager.rgbm) {
@@ -189,8 +188,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 depthRenderBuffer = renderBufferProps2.__webglDepthRenderbuffer || renderBufferProps2.__webglDepthbuffer
             }
             renderFn = ()=> {
-                // @ts-expect-error patched three.js RenderPass to accept depthBuffer
-                super.render(renderer, undefined, this.transparentTarget, deltaTime, maskActive, depthRenderBuffer)
+                super.render(renderer, null, this.transparentTarget as any, deltaTime, maskActive, depthRenderBuffer)
             }
 
             // Transparent

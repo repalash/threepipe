@@ -763,7 +763,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (plugin && typeof plugin === 'string' || (plugin as any).PluginType) plugin = this.getPlugin(plugin as any)
         if (!plugin) return {}
         const meta = getEmptyMeta()
-        const data = (plugin as IViewerPlugin).toJSON?.(meta)
+        const data = (<IViewerPlugin>plugin).toJSON?.(meta)
         if (!data) return {}
         data.resources = metaToResources(meta)
         return data

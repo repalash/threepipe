@@ -12,14 +12,13 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
 
     materials: Material[] = []
 
-    private _createMaterial(material: any): Material {
+    protected _createMaterial(material: any): Material {
         if (!Rhino3dmLoader2.ImportMaterials) return this.materials[0] || new MeshStandardMaterial({
             color: new Color(1, 1, 1),
             metalness: 0.8,
             name: 'default',
             side: DoubleSide,
         })
-        // @ts-expect-error not in ts
         return super._createMaterial(material)
     }
     private _compareMaterials!: (material: Material) => Material

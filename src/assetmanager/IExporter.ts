@@ -20,11 +20,14 @@ export type ExportFileOptions = {
      */
     exportExt?: string,
     /**
-     * Export the viewer config (scene settings).
-     * only works for rootSceneModelRoot. default = true
+     * Export and bundle the viewer config (scene settings).
+     * only works for rootSceneModelRoot and supported only in GLTFExporter2 {@link GLTFExporter2Options.viewerConfig}
+     * @default true
      */
     viewerConfig?: boolean,
-} & GLTFExporter2Options & AnyOptions
+
+    [key: string]: any
+} & GLTFExporter2Options
 
 export interface IAssetExporter extends IEventDispatcher<'exportFile' | 'exporterCreate'>{
     getExporter(...ext: string[]): IExporter|undefined
