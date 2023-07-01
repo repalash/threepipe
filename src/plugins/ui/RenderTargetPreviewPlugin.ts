@@ -1,11 +1,11 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
 import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
-import {Vector4, WebGLRenderTarget} from 'three'
+import {SRGBColorSpace, Vector4, WebGLRenderTarget} from 'three'
 import styles from './RenderTargetPreviewPlugin.css'
 import {CustomContextMenu} from '../../utils'
 
-export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPluginSync<TEvent> {
+export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
 
     @onChange(RenderTargetPreviewPlugin.prototype.refreshUi) enabled = true
@@ -60,15 +60,18 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
             rect.y = canvasRect.height + canvasRect.y - rect.y - rect.height
             if (Array.isArray(tex)) {
                 // todo support multi target
-                console.warn('todo: multi target')
+                this._viewer.console.warn('Multi target preview not supported yet')
                 continue
             }
+            const outputColorSpace = this._viewer.renderManager.webglRenderer.outputColorSpace
+            if (!target.originalColorSpace) this._viewer.renderManager.webglRenderer.outputColorSpace = SRGBColorSpace
             this._viewer.renderManager.blit(null, {
                 source: tex,
                 clear: !target.transparent,
                 respectColorSpace: !target.originalColorSpace,
                 viewport: new Vector4(rect.x, rect.y, rect.width, rect.height),
             })
+            this._viewer.renderManager.webglRenderer.outputColorSpace = outputColorSpace
         }
     }
 
@@ -117,20 +120,22 @@ export class RenderTargetPreviewPlugin <TEvent extends string> extends AViewerPl
         const tex = target.texture
         if (Array.isArray(tex)) {
             // todo support multi target
-            console.warn('todo: multi target')
+            this._viewer.dialog.alert('Multi target not supported yet')
+            this._viewer.console.warn('support multi target export')
             return this
         }
         const canvas = this._viewer?.canvas
         if (!canvas) return this
-        // todo: encoding?
-        const dataUrl = this._viewer.renderManager.renderTargetToDataUrl(target as WebGLRenderTarget, 'image/jpeg')
+        const blob = this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget)
+        const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         document.body.appendChild(link)
         link.style.display = 'none'
-        link.href = dataUrl
-        link.download = 'image.png'
+        link.href = url
+        link.download = 'renderTarget.' + (blob.ext || 'png')
         link.click()
         document.body.removeChild(link)
+        URL.revokeObjectURL(url)
         return this
     }
 
