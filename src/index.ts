@@ -8,6 +8,9 @@ export * from './plugins/index'
 export * from './postprocessing/index'
 export * from './materials/index'
 export * from './rendering/index'
+
+// testing
 export {_testStart, _testFinish} from './testing/testing'
 
+// deprecated
 export {autoCenterObject3D, autoScaleObject3D} from './three/utils/object-transform'
