@@ -2,11 +2,21 @@ import {ThreeViewer} from '../../../viewer'
 import type {FolderApi} from 'tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {imageBitmapToBase64, makeTextSvg} from 'ts-browser-helpers'
-import {generateUUID} from '../../../three'
+import {generateUUID, textureToDataUrl} from '../../../three'
 import {ITexture, upgradeTexture} from '../../../core'
-import {LinearSRGBColorSpace, RepeatWrapping, SRGBColorSpace, Texture} from 'three'
+import {
+    FloatType,
+    HalfFloatType,
+    LinearSRGBColorSpace,
+    RepeatWrapping,
+    SRGBColorSpace,
+    Texture,
+    WebGLRenderTarget,
+} from 'three'
 import {CustomContextMenu} from '../../../utils'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
+import {IRenderTarget} from '../../../rendering'
+import {EXRExporter2} from '../../../assetmanager'
 
 const staticData = {
     placeholderVal: 'placeholder',
@@ -18,16 +28,10 @@ const staticData = {
     tempMap: {} as any,
 }
 
-function proxyGetValue(cc: any) {
+function proxyGetValue(cc: any, viewer: ThreeViewer) {
     if (cc?.get) cc = cc.get()
     let ret: any = undefined
     if (!cc) return staticData.placeholderVal
-    if (cc.isRenderTargetTexture && !cc.image.tp_src) {
-        cc.image.tp_src = staticData.renderTarImage
-    }
-    if (cc.isDataTexture && !cc.image.tp_src) {
-        cc.image.tp_src = staticData.dataTexImage
-    }
     if (cc.isCompressedTexture && !cc.image.tp_src) {
         cc.image.tp_src = staticData.compressedTexImage
     }
@@ -37,8 +41,19 @@ function proxyGetValue(cc: any) {
     // }
     if (cc.isTexture) {
         // console.warn('here')
-        if (cc.image && (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) && !cc.image.tp_src) {
-            cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
+        if (cc.image && !cc.image.tp_src) {
+            if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) {
+                cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
+            } else if (cc.isRenderTargetTexture) {
+                if (cc.__target) cc.image.tp_src = viewer.renderManager.renderTargetToDataUrl(cc.__target) // todo; update preview when renderTarget updates?
+            } else {
+                cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
+            }
+
+            if (!cc.image.tp_src) {
+                if (cc.isRenderTargetTexture) cc.image.tp_src = staticData.renderTarImage
+                else if (cc.isDataTexture) cc.image.tp_src = staticData.dataTexImage
+            }
         }
         if (cc.image) {
             ret = cc.image.tp_src_uuid
@@ -153,19 +168,71 @@ function removeImage(config: UiObjectConfig, renderer: TweakpaneUiPlugin) {
     setterTex(isStr ? '' : null, config, renderer)
 }
 
-function downloadImage(config: UiObjectConfig) {
-    const cc = config.__proxy.value_
-    let vcv = cc?.image ?? config.uiRef.controller_.valueController.value.rawValue
-    if (vcv && (vcv instanceof ImageBitmap || vcv instanceof HTMLImageElement || vcv instanceof HTMLVideoElement) && !(vcv as any).src)
+function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: ThreeViewer) {
+    CustomContextMenu.Remove()
+    const tex = config.__proxy.value_
+    if (!tex) return
+    let vcv = tex.image ?? config.uiRef.controller_.valueController.value.rawValue
+    if (tex.__rootBlob && !tex.__rootBlob.objectUrl) tex.__rootBlob.objectUrl = URL.createObjectURL(tex.__rootBlob)
+    let src = tex.__rootBlob ? tex.__rootBlob.objectUrl : tex.userData.rootPath || vcv?.src
+    let revokeSrc = false
+
+    // HTML image/video/bitmap
+    if (vcv && (vcv instanceof ImageBitmap || vcv instanceof HTMLImageElement || vcv instanceof HTMLVideoElement) && !src)
         vcv = imageBitmapToBase64(vcv)
+
+    let name = tex.__rootBlob ? tex.__rootBlob.name || 'image.' + (tex.__rootBlob.ext || 'png') : null
+
+    // Render target texture
+    if (!src && tex.isRenderTargetTexture) {
+        const target1 = tex.__target as IRenderTarget
+        if (target1.isWebGLRenderTarget) {
+            const val = viewer.renderManager.exportRenderTarget(target1 as WebGLRenderTarget)
+            if (!val) {
+                console.error('cannot export render target', vcv, tex, target1, config)
+                return
+            }
+            name = 'renderTarget.' + (val.ext || 'png')
+            src = URL.createObjectURL(val)
+            revokeSrc = true
+        } else {
+            console.error('Render target not supported', vcv, tex, target1, config)
+            return
+        }
+    }
+    // data texture
+    if (!src && tex.isDataTexture) {
+        if (tex.type !== HalfFloatType && tex.type !== FloatType) {
+            console.error('Only Float and HalfFloat Data texture export is supported', vcv, tex, config)
+            return
+        }
+        const buffer = new EXRExporter2().parse(undefined as any, tex)
+        const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
+        if (!val) {
+            console.error('cannot export data texture', vcv, tex, config)
+            return
+        }
+        name = 'dataTexture.exr'
+        src = URL.createObjectURL(val)
+    }
+
+
+    if (!src) {
+        console.error('cannot export image', vcv, tex, config)
+        return
+    }
+
     const link = document.createElement('a')
     document.body.appendChild(link)
     link.style.display = 'none'
-    link.href = vcv?.src ?? vcv
-    link.download = 'image.png'
-    // link.target = '_blank'
+    link.href = src
+    link.download = name || (src.startsWith('data:') ? 'image.png' : src.split('/').pop() ?? 'image.png')
+    link.target = '_blank'
     link.click()
-    document.body.removeChild(link)
+    if (revokeSrc) setTimeout(()=>{
+        document.body.removeChild(link)
+        URL.revokeObjectURL(src)
+    }, 1000)
 }
 
 async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig, viewer: ThreeViewer) {
@@ -207,7 +274,7 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: FolderApi
         Object.defineProperty(config.__proxy, 'value', {
             get: () => {
                 config.__proxy.value_ = renderer.methods.getValue(config)
-                return proxyGetValue(config.__proxy.value_)
+                return proxyGetValue(config.__proxy.value_, viewer)
             },
             set: (v: any) => {
                 config.__proxy.value_ = renderer.methods.getValue(config)
@@ -233,7 +300,7 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: FolderApi
         const isPlaceholder = cv === staticData.placeholderVal || cv?.isPlaceholder
         const items: any = isPlaceholder ? {} : {
             ['remove image']: () => removeImage(config, renderer),
-            ['download image']: () => downloadImage(config),
+            ['download image']: () => downloadImage(config, renderer, viewer),
         }
         const menu = CustomContextMenu.Create({
             ...items,
