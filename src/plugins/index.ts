@@ -5,6 +5,7 @@ export {PipelinePassPlugin} from './base/PipelinePassPlugin'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
 export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
+export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
 
 // ui
 export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'

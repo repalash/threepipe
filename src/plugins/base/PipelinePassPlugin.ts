@@ -1,8 +1,7 @@
 import {IPassID, IPipelinePass} from '../../postprocessing'
-import {ISerializedConfig, ThreeViewer} from '../../viewer'
+import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
 import {AnyFunction, serialize} from 'ts-browser-helpers'
-import {SerializationMetaType} from '../../utils/serialization'
-import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
+import {SerializationMetaType} from '../../utils'
 
 export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId

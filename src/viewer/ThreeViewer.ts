@@ -15,6 +15,8 @@ import {ViewerRenderManager} from './ViewerRenderManager'
 import {
     convertArrayBufferToStringsInMeta,
     getEmptyMeta,
+    GLStatsJS,
+    IDialogWrapper,
     jsonToBlob,
     metaFromResources,
     MetaImporter,
@@ -22,7 +24,8 @@ import {
     SerializationMetaType,
     SerializationResourcesType,
     ThreeSerialization,
-} from '../utils/serialization'
+    windowDialogWrapper,
+} from '../utils'
 import {
     AssetManager,
     AssetManagerOptions,
@@ -34,8 +37,8 @@ import {
     ImportResult,
     RootSceneImportResult,
 } from '../assetmanager'
-import {GLStatsJS, IDialogWrapper, windowDialogWrapper} from '../utils'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
+// noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'

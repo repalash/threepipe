@@ -33,36 +33,36 @@ export const glbEncryptionProcessor = async(gltf: ArrayBuffer|any, options: GLTF
 }
 
 export interface IGLBEncryptionPreparser extends GLTFPreparser{
-    key: string | ((encryption: any, json: any)=>string|Promise<string>)
+    key: string | ((encryption: any, json: any, path: string)=>string|Promise<string>)
 }
 
 /**
  * Sample encryption preparser for {@link GLTFLoader2} that unwraps the glb container and decrypts the content. The encryption key can be provided in the file or set in this const is prompted from the user.
  */
 export const glbEncryptionPreparser: IGLBEncryptionPreparser = {
-    key: (encryption: any, _: any) => {
-        return encryption.key || window && window.prompt && window.prompt('GLTFEncryption: Please enter the password/key for this model') || ''
+    key: (encryption: any, _: any, path: string) => {
+        return encryption.key || window && window.prompt && window.prompt('GLTFEncryption: Please enter the password/key for the model: ' + path) || ''
     },
-    async process(dat: string | ArrayBuffer) {
-        if (typeof dat === 'string') return dat
+    async process(data: string | ArrayBuffer, path: string) {
+        if (typeof data === 'string') return data
         const prefixBytes = 100
-        const prefix = new TextDecoder().decode(new Uint8Array(dat, 0, prefixBytes))
-        if (!prefix.includes('GLBWrapper')) return dat
-        const binaryExtension = new GLTFBinaryExtension(dat)
+        const prefix = new TextDecoder().decode(new Uint8Array(data, 0, prefixBytes))
+        if (!prefix.includes('GLBWrapper')) return data
+        const binaryExtension = new GLTFBinaryExtension(data)
         const json = JSON.parse(binaryExtension.content || '{}')
-        let dat2 = binaryExtension.body || dat
+        let data2 = binaryExtension.body || data
         const encryption = json.asset?.encryption
-        if (!encryption) return dat2
+        if (!encryption) return data2
         const type = encryption.type
         const version = encryption.version
         if (type === 'aesgcm' && version === 1) {
-            const key = await getOrCall(this.key, encryption, json) || ''
+            const key = await getOrCall(this.key, encryption, json, path) || ''
             try {
-                dat2 = (await aesGcmDecrypt(new Uint8Array(dat2), key)).buffer
+                data2 = (await aesGcmDecrypt(new Uint8Array(data2), key)).buffer
             } catch (e) {
                 throw new ErrorEvent('decryption error')
             }
         }
-        return dat2
+        return data2
     },
 }

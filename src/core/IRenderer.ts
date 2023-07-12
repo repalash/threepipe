@@ -1,10 +1,8 @@
 import {IDisposable, PartialRecord} from 'ts-browser-helpers'
 import {Clock, Event, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
-import {CreateRenderTargetOptions, IRenderTarget} from '../rendering/RenderTarget'
-import {IShaderPropertiesUpdater} from '../materials/MaterialExtension'
-import {IPassID, IPipelinePass} from '../postprocessing/Pass'
-import {EffectComposer2} from '../postprocessing/EffectComposer2'
-import {RenderTargetManager} from '../rendering/RenderTargetManager'
+import {CreateRenderTargetOptions, IRenderTarget, RenderTargetManager} from '../rendering'
+import {IShaderPropertiesUpdater} from '../materials'
+import {EffectComposer2, IPassID, IPipelinePass} from '../postprocessing'
 import {IScene} from './IScene'
 import {BlobExt} from '../assetmanager'
 

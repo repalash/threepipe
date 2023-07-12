@@ -1,19 +1,21 @@
 import {GLTF, GLTFLoader, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {LoadingManager, Object3D} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
-import {ThreeViewer} from '../../viewer/ThreeViewer'
-import {generateUUID} from '../../three/utils/misc'
-import {GLTFViewerConfigExtension} from '../gltf/GLTFViewerConfigExtension'
-import {GLTFMaterialExtrasExtension} from '../gltf/GLTFMaterialExtrasExtension'
-import {GLTFObject3DExtrasExtension} from '../gltf/GLTFObject3DExtrasExtension'
-import {GLTFLightExtrasExtension} from '../gltf/GLTFLightExtrasExtension'
-import {GLTFMaterialsBumpMapExtension} from '../gltf/GLTFMaterialsBumpMapExtension'
-import {GLTFMaterialsLightMapExtension} from '../gltf/GLTFMaterialsLightMapExtension'
-import {GLTFMaterialsDisplacementMapExtension} from '../gltf/GLTFMaterialsDisplacementMapExtension'
-import {GLTFMaterialsAlphaMapExtension} from '../gltf/GLTFMaterialsAlphaMapExtension'
+import {ThreeViewer} from '../../viewer'
+import {generateUUID} from '../../three'
+import {
+    glbEncryptionPreparser,
+    GLTFLightExtrasExtension,
+    GLTFMaterialExtrasExtension,
+    GLTFMaterialsAlphaMapExtension,
+    GLTFMaterialsBumpMapExtension,
+    GLTFMaterialsDisplacementMapExtension,
+    GLTFMaterialsLightMapExtension,
+    GLTFObject3DExtrasExtension,
+    GLTFViewerConfigExtension,
+} from '../gltf'
 import {RootSceneImportResult} from '../IAssetImporter'
 import {ILoader} from '../IImporter'
-import {glbEncryptionPreparser} from '../gltf'
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
@@ -36,15 +38,15 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      */
     preparsers: GLTFPreparser[] = []
 
-    async preparse(data: ArrayBuffer | string): Promise<ArrayBuffer | string> {
+    async preparse(data: ArrayBuffer | string, path: string): Promise<ArrayBuffer | string> {
         for (const preparser of this.preparsers) {
-            data = await preparser.process(data)
+            data = await preparser.process(data, path)
         }
         return data
     }
 
-    parse(data: ArrayBuffer | string, path: string, onLoad: (gltf: GLTF) => void, onError?: (event: ErrorEvent) => void) {
-        this.preparse.call(this, data)
+    parse(data: ArrayBuffer | string, path: string, onLoad: (gltf: GLTF) => void, onError?: (event: ErrorEvent) => void, url?: string) {
+        this.preparse.call(this, data, url || path)
             .then((res: ArrayBuffer | string) => res ? super.parse(res, path, onLoad, onError) : onError && onError(new ErrorEvent('no data')))
             .catch((e: any) => {
                 console.error(e)
@@ -130,6 +132,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 }
 
 export interface GLTFPreparser{
-    process(dat: string | ArrayBuffer): Promise<string | ArrayBuffer>
+    process(data: string | ArrayBuffer, path: string): Promise<string | ArrayBuffer>
     [key: string]: any
 }

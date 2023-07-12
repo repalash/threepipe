@@ -1,5 +1,5 @@
 import {ShaderMaterial2} from './ShaderMaterial2'
-import {getTexelDecoding2} from '../../three/utils/encoding'
+import {getTexelDecoding2} from '../../three'
 import {
     BufferGeometry,
     Camera,

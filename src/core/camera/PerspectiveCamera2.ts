@@ -4,9 +4,9 @@ import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
-import {OrbitControls3} from '../../three/controls/OrbitControls3'
+import {OrbitControls3} from '../../three'
 import {IObject3D} from '../IObject'
-import {ThreeSerialization} from '../../utils/serialization'
+import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 
 // todo: maybe change domElement to some wrapper/base class of viewer

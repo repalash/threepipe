@@ -4,6 +4,7 @@ import {GLTFWriter2} from './GLTFWriter2'
 import {Object3D} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {
+    glbEncryptionProcessor,
     GLTFLightExtrasExtension,
     GLTFMaterialExtrasExtension,
     GLTFMaterialsAlphaMapExtension,
@@ -13,15 +14,16 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
-import {glbEncryptionProcessor} from '../gltf/gltfEncyptionHelpers'
 
 export type GLTFExporter2Options = {
     /**
-     * embed images in glb even when remote url is available, {@default false}
+     * embed images in glb even when remote url is available
+     * @default false
      */
     embedUrlImages?: boolean,
     /**
-     * Embed previews of images in glb, {@default false}
+     * Embed previews of images in glb
+     * @default false
      */
     embedUrlImagePreviews?: boolean,
     /**
@@ -38,19 +40,25 @@ export type GLTFExporter2Options = {
      */
     externalImagesInExtras?: boolean,
     /**
-     * see GLTFViewerExport->processViewer, {@default false}
+     * see GLTFViewerExport->processViewer
+     * @default false
      */
     encodeUint16Rgbe?: boolean
     /**
-     * Number of spaces to use when exporting to json, {@default 2}
+     * Number of spaces to use when exporting to json
+     * @default 2
      */
     jsonSpaces?: number,
     /**
-     * Encrypt the exported file in a GLB container using {@link encryptKey}, {@default false}. Works only for glb export.
+     * Encrypt the exported file in a GLB container using {@link encryptKey}
+     * @default false.
+     * Works only for glb export.
      */
     encrypt?: boolean,
     /**
-     * Encryption key, if not provided, will be prompted, {@default undefined}. Works only for glb export.
+     * Encryption key, if not provided, will be prompted
+     * @default undefined.
+     * Works only for glb export.
      */
     encryptKey?: string|Uint8Array,
 

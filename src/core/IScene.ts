@@ -1,8 +1,8 @@
 import {IObject3D, IObject3DEvent, IObject3DEventTypes, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
 import {Color, Scene} from 'three'
-import {IShaderPropertiesUpdater} from '../materials/MaterialExtension'
+import {IShaderPropertiesUpdater} from '../materials'
 import {ICamera} from './ICamera'
-import {Box3B} from '../three/math/Box3B'
+import {Box3B} from '../three'
 import {ITexture} from './ITexture'
 
 export interface AddObjectOptions {

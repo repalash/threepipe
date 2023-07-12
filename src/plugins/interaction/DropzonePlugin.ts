@@ -1,5 +1,6 @@
-import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {type ThreeViewer} from '../../viewer/'
+// noinspection ES6PreferShortImport
+import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {Dropzone} from '../../utils'
 import {uiButton, uiConfig, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import type {AddAssetOptions, ImportFilesOptions, ImportResult} from '../../assetmanager'
