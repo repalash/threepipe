@@ -1,4 +1,4 @@
-import {IUiConfigContainer} from 'uiconfig.js'
+import {IUiConfigContainer, UiConfigContainer} from 'uiconfig.js'
 import {Class, IDisposable, IJSONSerializable} from 'ts-browser-helpers'
 import {SerializationMetaType} from '../utils'
 import {ISerializedConfig, ThreeViewer} from './ThreeViewer'
@@ -8,7 +8,7 @@ import {ISerializedConfig, ThreeViewer} from './ThreeViewer'
  * @category Viewer
  */
 export interface IViewerPlugin<TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean>
-    extends IUiConfigContainer, Partial<IJSONSerializable<ISerializedConfig, SerializationMetaType>>, IDisposable {
+    extends IUiConfigContainer, Partial<IJSONSerializable<ISerializedConfig, SerializationMetaType>>, IDisposable, Partial<UiConfigContainer> {
     // all classes must have this static property with a unique identifier value for this plugin
     constructor: {
         PluginType: string

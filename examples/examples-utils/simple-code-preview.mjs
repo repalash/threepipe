@@ -17,7 +17,7 @@ setupCodePreview(
     scripts,
     scripts.map(s=>s.textContent ? 'js' : s.split('.').pop()), // title
     scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : 'https://github.com/repalash/threepipe/tree/master/examples/'+ window.location.pathname.split('/examples/').pop().replace('index.html', '')+(s.textContent ? 'index.html' : s)), // todo: github link
-    (c) => replaceImports(c).replaceAll(` from '../`, ` from 'https://threepipe.org/examples/`),
+    (c) => '// Threepipe example: ' + window.location.href + '\n' + replaceImports(c).replaceAll(` from '../`, ` from 'https://threepipe.org/examples/`),
     {
         title: 'ThreePipe: ' + document.title,
         css,

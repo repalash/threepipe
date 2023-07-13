@@ -13,6 +13,7 @@ export {TweakpaneUiPlugin} from './ui/tweakpane/TweakpaneUiPlugin'
 
 // interaction
 export {DropzonePlugin, type DropzonePluginOptions} from './interaction/DropzonePlugin'
+export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'

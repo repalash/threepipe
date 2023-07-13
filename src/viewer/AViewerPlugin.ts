@@ -2,17 +2,18 @@ import {ISerializedConfig, ThreeViewer} from './ThreeViewer'
 import {Event, EventDispatcher} from 'three'
 import {SerializationMetaType, ThreeSerialization} from '../utils'
 import {IViewerPlugin, IViewerPluginAsync} from './IViewerPlugin'
+import {UiObjectConfig} from 'uiconfig.js'
 
 /**
  * Base Class for Viewer Plugins
  * @category Viewer
  */
-export abstract class AViewerPlugin<T extends string, TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean> extends EventDispatcher<Event, T|'serialize'|'deserialize'> implements IViewerPlugin<TViewer, IsSync> {
+export abstract class AViewerPlugin<T extends string = string, TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean> extends EventDispatcher<Event, T|'serialize'|'deserialize'> implements IViewerPlugin<TViewer, IsSync> {
     declare ['constructor']: typeof AViewerPlugin
     public static readonly PluginType: string = 'AViewerPlugin'
     protected _dirty = false
 
-    // uiConfig?: UiObjectConfig = undefined // todo: this should work when uncommented, remove all get uiConfig and do it properly
+    uiConfig?: UiObjectConfig = undefined // todo: this should work when uncommented, remove all get uiConfig and do it properly
 
     protected _viewer?: TViewer
 

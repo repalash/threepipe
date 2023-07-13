@@ -55,8 +55,8 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         }
         this._plugins.push(p)
         if (p.uiConfig && p.uiConfig.hidden === undefined) p.uiConfig.hidden = false // todo; this is a hack for now
-        this.appendChild(p)
         const ui = p.uiConfig
+        this.appendChild(ui)
         this._setupPluginSerializationContext(ui, p)
         return ui
     }
