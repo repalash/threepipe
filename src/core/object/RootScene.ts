@@ -213,7 +213,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
                 this.modelRoot.animations.push(animation)
             }
         }
-        obj.children.forEach(c=>this.addObject(c, options))
+        return obj.children.map(c=>this.addObject(c, options))
     }
 
     private _addObject3D(model: IObject3D|null, {autoCenter = false, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {

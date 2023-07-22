@@ -69,8 +69,11 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
             this.dispatchEvent({type: 'exportFile', obj, state:'processing', exportOptions: options})
 
             const processed = await this.processBeforeExport(obj, options)
-            const ext = options.exportExt ?? processed?.typeExt ?? processed?.ext
-            if (!processed || !ext) throw new Error(`Unable to preprocess before export ${ext}`)
+            const ext = options.exportExt || processed?.typeExt || processed?.ext
+            if (!processed || !ext) {
+                console.error(processed, options, obj)
+                throw new Error(`Unable to preprocess before export ${ext}`)
+            }
             if (processed.blob) res = processed.blob
             else {
                 const parser = this._getParser(ext)
@@ -128,7 +131,9 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
             if (obj.isWebGLMultipleRenderTargets) console.error('AssetExporter: WebGLMultipleRenderTargets export not supported')
             else if (!obj.renderManager) return {obj, ext: 'exr'}
             else {
-                const blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget, 'auto')
+                const blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget,
+                    (options.exportExt || '' !== '') && options.exportExt !== 'auto' ?
+                        options.exportExt === 'exr' ? 'image/x-exr' : 'image/' + options.exportExt : 'auto')
                 return {
                     obj, ext: blob.ext, blob,
                 }

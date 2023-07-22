@@ -11,7 +11,7 @@ import {
     WebGLRenderer,
 } from 'three'
 import {TextureImageData} from 'three/src/textures/types'
-import {LinearToSRGB} from 'ts-browser-helpers'
+import {canvasFlipY, LinearToSRGB} from 'ts-browser-helpers'
 
 export function getTextureDataType(renderer?: WebGLRenderer): TextureDataType {
     if (!renderer) return UnsignedByteType
@@ -51,15 +51,15 @@ export function textureDataToImageData(imgData: TextureImageData | ImageData | {
  * @param flipY
  * @param canvas
  */
-export function textureToCanvas(texture: Texture|DataTexture, maxWidth: number, flipY = false, canvas?: HTMLCanvasElement) {
+export function textureToCanvas(texture: Texture|DataTexture, maxWidth: number, flipY = false) {
     let img
     if ((texture as DataTexture).isDataTexture) img = textureDataToImageData(texture.image, texture.colorSpace)
     else img = texture.image
-    return imageToCanvas(img, maxWidth, flipY, canvas)
+    return texImageToCanvas(img, maxWidth, flipY)
 }
 
-export function imageToCanvas(image: TexImageSource, maxWidth: number, flipY = false, canvas?: HTMLCanvasElement) {
-    canvas = canvas || document.createElement('canvas')
+export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY = false) {
+    const canvas = document.createElement('canvas')
     // resize it to the size of our image
     canvas.width = Math.min(maxWidth, image.width as number)
     canvas.height = Math.floor(1.0 + canvas.width * (image.height as number) / (image.width as number))
@@ -77,6 +77,7 @@ export function imageToCanvas(image: TexImageSource, maxWidth: number, flipY = f
 
     }
 
+    let needsFlipY = false
     if ((image as ImageData).data !== undefined) { // THREE.DataTexture
         const imageData = image as ImageData
 
@@ -89,17 +90,18 @@ export function imageToCanvas(image: TexImageSource, maxWidth: number, flipY = f
                 console.error('textureToDataUrl: could not get temp canvas context')
                 ctx.putImageData(imageData, 0, 0)
             } else {
-                tempCtx.putImageData(imageData, 0, 0)
+                tempCtx.putImageData(imageData, 0, 0) // for resize
                 ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height)
             }
         } else {
             ctx.putImageData(imageData, 0, 0)
+            if (flipY) needsFlipY = true // because of putImageData
         }
 
     } else {
         ctx.drawImage(image as any, 0, 0, canvas.width, canvas.height)
     }
-    return canvas
+    return !needsFlipY ? canvas : canvasFlipY(canvas)
 }
 
 export function textureToDataUrl(texture: Texture|DataTexture, maxWidth: number, flipY: boolean, mimeType?: string, quality?: number) {

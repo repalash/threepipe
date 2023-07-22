@@ -79,7 +79,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
     // }
 
     get dirty(): boolean {
-        return this._dirty
+        return this.enabled && this._dirty
     }
 
     set dirty(value: boolean) {

@@ -4,6 +4,6 @@ export {dataTextureFromColor, dataTextureFromVec4, halfFloatToRgbe} from './conv
 export {uniform, matDefine} from './decorators'
 export {getEncodingComponents, getTexelEncoding, getTexelDecoding, getTexelDecoding2, getTexelDecodingFunction, getTexelEncodingFunction, getTextureColorSpaceFromMap} from './encoding'
 export {generateUUID, toIndexedGeometry} from './misc'
-export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, imageToCanvas} from './texture'
+export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, texImageToCanvas} from './texture'
 
 // export {} from './constants'

@@ -84,6 +84,9 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
     removeControlsCtor(key: string): void;
     refreshCameraControls(setDirty?: boolean): void
 
+    updateProjectionMatrix(): void
+    fov?: number
+
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 

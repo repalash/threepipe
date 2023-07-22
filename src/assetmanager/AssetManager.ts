@@ -198,9 +198,15 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
 
     async loadImported<T extends ValOrArr<ImportResult|undefined> = ImportResult>(imported: T, {autoSetEnvironment = true, autoSetBackground = false, ...options}: AddAssetOptions = {}): Promise<T | never[]> {
         const arr: (ImportResult|undefined)[] = Array.isArray(imported) ? imported : [imported]
+        let ret: T = Array.isArray(imported) ? [] : undefined as any
 
         for (const obj of arr) {
-            if (!obj) continue
+            if (!obj) {
+                if (Array.isArray(ret)) ret.push(undefined)
+                continue
+            }
+
+            let r = obj
 
             switch (obj.assetType) {
             case 'material':
@@ -215,7 +221,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
             case 'model':
             case 'light':
             case 'camera':
-                await this.viewer.addSceneObject(<IObject3D|RootSceneImportResult>obj, options) // todo update references in scene update event
+                r = await this.viewer.addSceneObject(<IObject3D|RootSceneImportResult>obj, options) // todo update references in scene update event
                 break
             case 'config':
                 if (options?.importConfig !== false) await this.viewer.importConfig(<ISerializedConfig>obj)
@@ -230,9 +236,11 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                 break
             }
             this.dispatchEvent({type:  'loadAsset', data: obj})
+            if (Array.isArray(ret)) ret.push(r)
+            else ret = r as T
         }
 
-        return imported || []
+        return ret || []
     }
 
     /**

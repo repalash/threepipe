@@ -7,4 +7,3 @@ export {ThreeSerialization, type SerializationMetaType, type SerializationResour
 export {shaderReplaceString} from './shader-helpers'
 export {makeGLBFile} from './gltf'
 
-export {serialize, serializable, Serialization} from 'ts-browser-helpers'

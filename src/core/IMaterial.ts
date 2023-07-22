@@ -1,4 +1,4 @@
-import type {Event, IUniform, Material, MaterialParameters, Shader} from 'three'
+import type {Color, Event, IUniform, Material, MaterialParameters, Shader} from 'three'
 import type {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
 import type {MaterialExtension} from '../materials'
 import type {ChangeEvent, IUiConfigContainer} from 'uiconfig.js'
@@ -128,6 +128,9 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     metalness?: number
     transmissionMap?: ITexture | null
     transmission?: number
+
+    color?: Color
+    wireframe?: boolean
 
 
     isRawShaderMaterial?: boolean

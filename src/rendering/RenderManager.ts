@@ -31,7 +31,7 @@ import {
     IWebGLRenderer,
     upgradeWebGLRenderer,
 } from '../core'
-import {base64ToArrayBuffer, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
+import {base64ToArrayBuffer, canvasFlipY, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
 import {uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 import {generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
@@ -476,6 +476,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
 
     /**
      * Converts a render target to a png/jpeg data url string.
+     * Note: this will clamp the values to [0, 1] and converts to srgb for float and half-float render targets.
      * @param target
      * @param mimeType
      * @param quality
@@ -496,7 +497,8 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         }
 
         ctx.putImageData(imageData, 0, 0)
-        const string = canvas.toDataURL(mimeType, quality)
+
+        const string = (target.texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
         canvas.remove()
         return string
     }

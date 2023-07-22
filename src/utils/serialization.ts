@@ -538,16 +538,16 @@ export function convertStringsToArrayBuffersInMeta(meta: SerializationMetaType) 
     })
 }
 
-export function getEmptyMeta(): SerializationMetaType {
+export function getEmptyMeta(res?: Partial<SerializationResourcesType>): SerializationMetaType {
     return { // see Object3D.js toJSON for more details
-        geometries: {},
-        materials: {},
-        textures: {},
-        images: {},
-        shapes: [],
-        skeletons: {},
-        animations: [],
-        extras: {},
+        geometries: {...res?.geometries},
+        materials: {...res?.materials},
+        textures: {...res?.textures},
+        images: {...res?.images},
+        shapes: {...res?.shapes},
+        skeletons: {...res?.skeletons},
+        animations: {...res?.animations},
+        extras: {...res?.extras},
         _context: {},
     }
 }
@@ -761,8 +761,8 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
 }
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {
     return {
-        ...getEmptyMeta(),
         ...resources,
+        ...getEmptyMeta(resources),
         _context: {
             assetManager: viewer?.assetManager,
             assetImporter: viewer?.assetManager.importer,

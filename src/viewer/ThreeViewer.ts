@@ -955,7 +955,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             const obj = <RootSceneImportResult>imported
             if (obj.importedViewerConfig && options?.importConfig !== false) await this.importConfig(obj.importedViewerConfig)
             this._scene.loadModelRoot(obj, options)
-            return imported
+            return this._scene.modelRoot as T
         }
         this._scene.addObject(imported, options)
         return imported
