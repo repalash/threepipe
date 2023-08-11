@@ -6,7 +6,7 @@ export function sortPasses(ps: IPipelinePass<IPassID>[]) {
 
     const dict: Record<IPassID, {after: IPassID[], before: IPassID[], dependencies: Set<IPassID>}> = {}
     for (const pass of ps) {
-        if (!pass.enabled || !pass.passId) continue
+        if (!pass.passId) continue
         dict[pass.passId] = {
             after: pass.after ?? [],
             before: pass.before ?? [],
