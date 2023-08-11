@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tweakpane Editor</title>
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/repalash/gilroy-free-webfont@master/Gilroy-Extrabold.css" rel="stylesheet">
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugins/ui/tweakpane-editor": "./../../plugins/ui/tweakpane-editor/dist/index.mjs",
+          "uiconfig-tweakpane": "https://unpkg.com/uiconfig-tweakpane@latest/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html {
+            display: block;
+        }
+    </style>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+</body>

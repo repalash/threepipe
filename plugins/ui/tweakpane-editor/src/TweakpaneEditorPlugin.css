@@ -1,0 +1,301 @@
+.button-bar{
+    background: var(--tp-base-background-color);
+    /*background: #2c2c2e99;*/
+    /*backdrop-filter: blur(8px);*/
+    border: 1px solid #8F949C;
+    width: fit-content;
+    width: -moz-fit-content;
+    height: auto;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    z-index: 200;
+    padding: 0.25rem 0.5rem 0.5rem;
+    border-radius: 0.5rem;
+    pointer-events: auto;
+    box-shadow: 0 2px 4px var(--tp-base-shadow-color);
+    gap: 8px;
+    font-size: 0.85rem;
+    line-height: 130%;
+    font-family: Inter, "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace;
+    opacity: 1;
+    transition: all 0.25s;
+}
+
+.button-bar-button {
+    /*background-color: var(--tp-container-background-color-active);*/
+    background-color: transparent;
+    cursor: pointer;
+    /*border-radius: 0.25rem;*/
+    width: auto;
+    height: auto;
+    font-weight: 400;
+    /*overflow: hidden;*/
+    padding: 0.35rem 0.5rem;
+    position: relative;
+    user-select: none;
+    color: #cccccc;
+    transition: color 0.25s;
+}
+
+.button-bar-button:hover {
+    /*background-color: var(--tp-container-background-color-hover);*/
+    color: #eeeeee;
+}
+
+.button-bar-selected {
+    color: white;
+    /*background-color: #2c2c2eaa;*/
+    /*outline: 1px solid #ccccccaa;*/
+}
+
+.button-bar-selected-box {
+    color: white;
+}
+
+/*Divider*/
+.button-bar > .button-bar-button:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 20%;
+    width: 2px;
+    height: 60%;
+    border-radius: 1px;
+    /*background-color: #555555;*/
+    background-color: #413762;
+}
+
+.button-bar-selected {
+    /*background-color: #2c2c2eaa;*/
+    /*outline: 1px solid #ccccccaa;*/
+}
+.button-bar-button:before {
+    left: 50%;
+    width: 0;
+    content: '';
+    position: absolute;
+}
+.button-bar-selected:before {
+    left: 25%;
+    width: 50%;
+
+    bottom: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: #cccccc;
+    transition: width 0.25s, left 0.25s;
+    /*background-color: #2c2c2eaa;*/
+    /*outline: 1px solid #ccccccaa;*/
+}
+.button-bar-selected-box {
+    background-color: #eeeeee55;
+    border-radius: 0.25rem;
+    transition: all 0.25s;
+}
+
+.round-button{
+    width: 1rem;
+    height: 1rem;
+    padding: 0.6rem;
+    background-color: var(--tp-base-background-color);
+    border-radius: 1.2rem;
+    color: #cccccc;
+    cursor: pointer;
+    box-shadow: 0 2px 4px var(--tp-base-shadow-color);
+    transition: all 0.25s;
+}
+.round-button:hover{
+    color: white;
+}
+
+.util-buttons-container{
+    bottom: 1.25rem;
+    right: 1.25rem;
+    position: absolute;
+    gap: 8px;
+    padding: 0.25rem;
+}
+.util-button{
+    position: relative;
+    width: auto;
+    height: 1.2rem;
+}
+
+.mode-buttons-container{
+    border-top: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    position: absolute;
+    min-width: 6rem;
+    border-radius: 0 0 0.5rem 0.5rem;
+    gap: 8px;
+}
+
+.mode-button {
+    font-weight: 400;
+}
+.mode-button:hover {
+    /*background-color: var(--tp-container-background-color-hover);*/
+}
+
+#webgi-logo{
+    background-image: url("https://static.webgi.xyz/logo.svg");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    bottom: 1.25rem;
+    left: 1rem;
+    z-index: 100;
+    width: 8rem;
+    height: 2.5rem;
+    position: absolute;
+    cursor: pointer;
+    /*background-color: white;*/
+    /*border-radius: 1.25rem;*/
+}
+#webgi-logo:hover{
+    filter: grayscale(100%);
+}
+
+#fsToggle{
+    position: absolute;
+    right: 1.25rem;
+    top: 1.25rem;
+}
+/*#modesToggle{*/
+/*    top: 0;*/
+/*    left: 0;*/
+/*    width: auto;*/
+/*    height: auto;*/
+/*    padding: 0.5rem;*/
+/*    position: absolute;*/
+/*    border-radius: 0.375rem;*/
+/*    color: white;*/
+/*    z-index: 250;*/
+/*    font-weight: 400;*/
+/*    background: var(--tp-base-background-color);*/
+/*    font-size: 0.75rem;*/
+/*    cursor: pointer;*/
+/*    user-select: none;*/
+/*}*/
+/*#modesToggle:hover{*/
+/*    font-weight: 800;*/
+/*}*/
+/*.hidden{*/
+/*    visibility: hidden;*/
+/*    opacity: 0;*/
+/*}*/
+
+#assetManagerPopup {
+    position: absolute;
+    margin: auto;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    color: white;
+    padding: 1.5rem;
+    font-size: 0.85rem;
+    overflow-y: scroll;
+    background-color: var(--tp-base-background-color);
+}
+
+
+::-webkit-scrollbar
+{
+    width: 8px;  /* for vertical scrollbars */
+    height: 8px; /* for horizontal scrollbars */
+}
+::-webkit-scrollbar-track
+{
+    background: #28223Ccc !important;
+    border-radius: 6px;
+}
+::-webkit-scrollbar-thumb
+{
+    background: #ffffff66;
+    border-radius: 6px;
+}
+::-webkit-scrollbar-corner {background: rgba(0,0,0,0.5);}
+
+
+.tippy-box[data-theme~='editor']{
+    margin: 0.25rem !important;
+    background-color: var(--tp-base-background-color) !important;
+    font-size: 0.8rem !important;
+    color: #dddddd !important;
+}
+
+
+#tweakpaneUiContainer {
+    margin-top: 7.5rem;
+}
+@media only screen and (min-width: 480px) {
+    #tweakpaneUiContainer {
+        margin-top: 5.5rem;
+    }
+}
+#mcanvas {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    /*touch-action: none;*/
+    z-index: -1;
+    /*pointer-events: none; // dont */
+    display: block;
+}
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+@media only screen and (min-width: 920px) {
+    #canvas-container {
+        width: calc(100% - 3.5rem - max(var(--tweakpane-ui-container-width, 300px), 3rem)) !important;
+        height: calc(100% - 5rem);
+        margin: 3.5rem 1.5rem 1.5rem 1.5rem !important;
+        border-radius: 0.5rem;
+
+        box-shadow: rgba(0, 0, 0, 0.25) 0px 25px 50px -12px;
+    }
+    #mcanvas{
+        border-radius: 0.5rem;
+    }
+    #tweakpaneUiContainer {
+        margin-top: 3.5rem;
+    }
+}
+body {
+    background-color: #D1D4E7;
+}
+
+html, body {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: block;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.font-inter {
+    font-family: 'Inter', sans-serif !important;
+}
+
+.font-gilroy {
+    font-family: 'Gilroy', sans-serif !important;
+}
+

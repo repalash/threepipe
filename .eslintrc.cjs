@@ -49,7 +49,7 @@ module.exports = {
             'parserOptions': {
                 'ecmaVersion': 2021, // Allows for the parsing of modern ECMAScript features
                 'sourceType': 'module', // Allows for the use of imports
-                'project': ['./tsconfig.json', './examples/tsconfig.json'],
+                'project': ['./tsconfig.json', './examples/tsconfig.json', './plugins/ui/tweakpane-editor/tsconfig.json'],
                 'tsconfigRootDir': './',
             },
             'extends': [
