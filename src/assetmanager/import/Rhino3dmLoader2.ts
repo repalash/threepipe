@@ -36,7 +36,7 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
             const receiveShadow = obj.userData.attributes?.receivesShadows
             obj.castShadow = castShadow
             obj.receiveShadow = receiveShadow
-            const layerIndex = obj.userData.attributes?.layerIndex || obj.userData.defAttributes?.layerIndex
+            const layerIndex = obj.userData.attributes?.layerIndex ?? obj.userData.defAttributes?.layerIndex
             const layer = layers[layerIndex]
             if (layer) obj.userData.rhinoLayer = layer
             obj.userData.rhino3dmRoot = ret.uuid
