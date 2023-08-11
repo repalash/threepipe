@@ -2,9 +2,14 @@ import {Color, Material, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'th
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
+import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 
-export class GBufferRenderPass<TP extends IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
+@uiFolderContainer<GBufferRenderPass>((c)=>c.passId + ' Render Pass')
+export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget=WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
     readonly isGBufferRenderPass = true
+    uiConfig: UiObjectConfig
+
+    @uiToggle('Enabled') enabled = true
 
     scene?: IScene
     before?: IPassID[]

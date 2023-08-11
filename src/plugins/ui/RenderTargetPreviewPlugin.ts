@@ -4,18 +4,22 @@ import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browse
 import {SRGBColorSpace, Vector4, WebGLRenderTarget} from 'three'
 import styles from './RenderTargetPreviewPlugin.css'
 import {CustomContextMenu} from '../../utils'
+import {uiFolderContainer, uiToggle} from 'uiconfig.js'
 
+@uiFolderContainer('Render Target Preview Plugin')
 export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
 
+    @uiToggle('Enabled')
     @onChange(RenderTargetPreviewPlugin.prototype.refreshUi) enabled = true
     toJSON: any = null
 
-    mainDiv: HTMLDivElement = createDiv({id: 'RenderTargetPreviewPluginContainer'})
+    mainDiv: HTMLDivElement = createDiv({id: 'RenderTargetPreviewPluginContainer', addToBody: false})
     stylesheet?: HTMLStyleElement
 
-    constructor() {
+    constructor(enabled = true) {
         super()
+        this.enabled = enabled
     }
 
     targetBlocks: {
@@ -76,9 +80,11 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
     }
 
     addTarget(target: ValOrFunc<IRenderTarget|undefined>, name: string, transparent = false, originalColorSpace = false, visible = true): this {
+        if (!target) return this
         const div = document.createElement('div')
         const targetDef = {target, name, transparent, div, originalColorSpace, visible}
         div.classList.add('RenderTargetPreviewPluginTarget')
+        if (!targetDef.visible) div.classList.add('RenderTargetPreviewPluginCollapsed')
         const header = document.createElement('div')
         header.classList.add('RenderTargetPreviewPluginTargetHeader')
         header.innerText = name

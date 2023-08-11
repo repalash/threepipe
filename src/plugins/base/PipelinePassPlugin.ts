@@ -2,9 +2,24 @@ import {IPassID, IPipelinePass} from '../../postprocessing'
 import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
 import {AnyFunction, serialize} from 'ts-browser-helpers'
 import {SerializationMetaType} from '../../utils'
+import {uiConfig, uiToggle} from 'uiconfig.js'
 
 export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId
+
+    @serialize()
+    @uiToggle('Enabled')
+    get enabled(): boolean {
+        return this._pass?.enabled || this._enabledTemp
+    }
+
+    set enabled(value: boolean) {
+        if (this._pass) this._pass.enabled = value
+        this._enabledTemp = value
+    }
+
+
+    @uiConfig()
     @serialize('pass')
     protected _pass?: T
     abstract createPass(v:TViewer):T
@@ -17,15 +32,6 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     protected _beforeRender(): boolean {return this._pass?.enabled && this.enabled || false}
     private _enabledTemp = true // to save enabled state when pass is not yet created
 
-    @serialize()
-    get enabled(): boolean {
-        return this._pass?.enabled || this._enabledTemp
-    }
-
-    set enabled(value: boolean) {
-        if (this._pass) this._pass.enabled = value
-        this._enabledTemp = value
-    }
 
     constructor() {
         super()

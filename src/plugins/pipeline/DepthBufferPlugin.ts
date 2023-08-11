@@ -13,11 +13,14 @@ import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {IShaderPropertiesUpdater} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
+import {uiFolderContainer, uiImage} from 'uiconfig.js'
 
 export type DepthBufferPluginEventTypes = ''
 // type DepthBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type DepthBufferPluginTarget = WebGLRenderTarget
 export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget>
+
+@uiFolderContainer('Depth Buffer Plugin')
 export class DepthBufferPlugin
     extends PipelinePassPlugin<DepthBufferPluginPass, 'depth', DepthBufferPluginEventTypes>
     implements IShaderPropertiesUpdater {
@@ -26,7 +29,9 @@ export class DepthBufferPlugin
     public static readonly PluginType = 'DepthBufferPlugin'
 
     target?: DepthBufferPluginTarget
-    texture?: Texture
+
+    @uiImage('Depth Buffer' /* {readOnly: true}*/) texture?: Texture
+
     readonly material: MeshDepthMaterial = new MeshDepthMaterial({
         depthPacking: BasicDepthPacking,
         blending: NoBlending,
@@ -39,10 +44,10 @@ export class DepthBufferPlugin
                 depthBuffer: true,
                 samples: v.renderManager.composerTarget.samples || 0,
                 type: this.bufferType,
-                // magFilter: NearestFilter,
-                // minFilter: NearestFilter,
-                // generateMipmaps: false,
-                // encoding: LinearEncoding,
+            // magFilter: NearestFilter,
+            // minFilter: NearestFilter,
+            // generateMipmaps: false,
+            // encoding: LinearEncoding,
             })
         this.texture = this.target.texture
         this.texture.name = 'depthBuffer'
@@ -61,9 +66,11 @@ export class DepthBufferPlugin
 
     constructor(
         public readonly bufferType: TextureDataType = UnsignedByteType,
-        public readonly isPrimaryGBuffer = false
+        public readonly isPrimaryGBuffer = false,
+        enabled = true,
     ) {
         super()
+        this.enabled = enabled
     }
 
     onRemove(viewer: ThreeViewer): void {

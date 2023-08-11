@@ -43,7 +43,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
 
     private _plugins: IViewerPlugin[] = []
 
-    setupPlugins<T extends IViewerPlugin>(...plugins: Class<T>[]): void {
+    setupPlugins(...plugins: Class<IViewerPlugin>[]): void {
         plugins.forEach(plugin => this.setupPluginUi(plugin))
     }
 

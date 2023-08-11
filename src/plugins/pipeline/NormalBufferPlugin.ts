@@ -22,11 +22,13 @@ import {ThreeViewer} from '../../viewer'
 import {IShaderPropertiesUpdater} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import type {IMaterial, PhysicalMaterial} from '../../core'
+import {uiFolderContainer, uiImage} from 'uiconfig.js'
 
 export type NormalBufferPluginEventTypes = ''
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget>
+@uiFolderContainer('Normal Buffer Plugin')
 export class NormalBufferPlugin
     extends PipelinePassPlugin<NormalBufferPluginPass, 'normal', NormalBufferPluginEventTypes>
     implements IShaderPropertiesUpdater {
@@ -35,7 +37,7 @@ export class NormalBufferPlugin
     public static readonly PluginType = 'NormalBufferPlugin'
 
     target?: NormalBufferPluginTarget
-    texture?: Texture
+    @uiImage('Normal Buffer' /* {readOnly: true}*/) texture?: Texture
     readonly material: MeshNormalMaterial = new MeshNormalMaterial2({
         blending: NoBlending,
     })
@@ -68,8 +70,10 @@ export class NormalBufferPlugin
 
     constructor(
         public readonly bufferType: TextureDataType = HalfFloatType,
+        enabled = true,
     ) {
         super()
+        this.enabled = enabled
     }
 
     onRemove(viewer: ThreeViewer): void {

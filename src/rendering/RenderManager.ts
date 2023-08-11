@@ -32,7 +32,7 @@ import {
     upgradeWebGLRenderer,
 } from '../core'
 import {base64ToArrayBuffer, canvasFlipY, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
-import {uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiButton, uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 import {generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
 
@@ -74,6 +74,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     @onChange2(RenderManager.prototype.rebuildPipeline)
     public autoBuildPipeline = true
 
+    @uiButton('Rebuild Pipeline')
     rebuildPipeline(setDirty = true): void {
         this._passesNeedsUpdate = true
         if (setDirty) this._updated({change: 'rebuild'})
