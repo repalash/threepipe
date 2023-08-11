@@ -1,7 +1,7 @@
 import {ThreeViewer} from '../../../viewer'
 import type {FolderApi} from 'tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {imageBitmapToBase64, makeTextSvg} from 'ts-browser-helpers'
+import {getOrCall, imageBitmapToBase64, makeTextSvg} from 'ts-browser-helpers'
 import {generateUUID, textureToDataUrl} from '../../../three'
 import {ITexture, upgradeTexture} from '../../../core'
 import {
@@ -24,6 +24,7 @@ const staticData = {
     dataTexImage: makeTextSvg('Data Texture'),
     lutCubeTexImage: makeTextSvg('CUBE Texture'),
     compressedTexImage: makeTextSvg('Compressed Texture'),
+    textureMap: {} as any,
     imageMap: {} as any,
     tempMap: {} as any,
 }
@@ -88,7 +89,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
 }
 
 const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)=>{
-    if (v1?.isTexture) {
+    if (v1 && v1.isTexture) {
         if (!v1.isDataTexture) {
             const key = renderer.methods.getBinding(config)[1] + ''
             const isLinear = ['normalMap', 'aoMap', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'displacementMap', 'bumpMap', 'alphaMap'].includes(key)
@@ -99,6 +100,7 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         } else {
             v1.needsUpdate = true
         }
+        if (!staticData.textureMap[v1.image?.id]) staticData.textureMap[v1.image?.id] = v1
     }
     config.__proxy.value_ = v1
     renderer.methods.setValue(config, v1, {last: true}, false)
@@ -129,12 +131,13 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
         setterTex(iMapKey, config, renderer)
         return
     }
-    if (cc?.image === v
-        || cc?.image?.src === v.src
-        || cc?.image?.tp_src === v.tp_src && v.tp_src != null
-        || cc?.image?.tp_src === v.src && v.src != null
-        || cc?.image?.src === v.tp_src && v.tp_src != null
-    ) return
+    if (cc === v || cc && (
+        cc.image === v
+        || cc.image?.src === v.src
+        || cc.image?.tp_src === v.tp_src && v.tp_src != null
+        || cc.image?.tp_src === v.src && v.src != null
+        || cc.image?.src === v.tp_src && v.tp_src != null
+    )) return
 
     if (v instanceof File) { // v.src must be from createObjectURL.
         viewer.assetManager.importer.importSingle<ITexture>({file: v, path: (v as any).src}).then(texture => {
@@ -147,8 +150,15 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
             }
             setterTex(texture, config, renderer)
         })
+    } else if (v.isTexture) {
+        setterTex(v, config, renderer)
     } else { // HTMLImageElement, ImageBitmap, HTMLVideoElement
-        const tex: ITexture = new Texture(v)
+        let tex: ITexture = staticData.textureMap[v.id] || staticData.textureMap[v.src] || staticData.textureMap[v.tp_src]
+        if (tex) {
+            setterTex(tex, config, renderer)
+            return
+        }
+        tex = new Texture(v)
         upgradeTexture.call(tex)
         tex.assetType = 'texture'
         tex.needsUpdate = true
@@ -274,10 +284,13 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: FolderApi
         Object.defineProperty(config.__proxy, 'value', {
             get: () => {
                 config.__proxy.value_ = renderer.methods.getValue(config)
-                return proxyGetValue(config.__proxy.value_, viewer)
+                const ret = proxyGetValue(config.__proxy.value_, viewer)
+                if (!staticData.textureMap[ret.id ?? ret]) staticData.textureMap[ret.id ?? ret] = config.__proxy.value_
+                return ret
             },
             set: (v: any) => {
-                config.__proxy.value_ = renderer.methods.getValue(config)
+                if (getOrCall(config.readOnly)) return
+                config.__proxy.value_ = renderer.methods.getValue(config) // current value
                 proxySetValue(v, config.__proxy.value_, config, viewer, renderer)
             },
         })
@@ -299,13 +312,18 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: FolderApi
         const cv = config.uiRef.controller_.valueController.value.rawValue
         const isPlaceholder = cv === staticData.placeholderVal || cv?.isPlaceholder
         const items: any = isPlaceholder ? {} : {
-            ['remove image']: () => removeImage(config, renderer),
             ['download image']: () => downloadImage(config, renderer, viewer),
         }
-        const menu = CustomContextMenu.Create({
-            ...items,
+        const readOnly = getOrCall(config.readOnly)
+        if (!isPlaceholder && !readOnly) Object.assign(items, {
+            ['remove image']: () => removeImage(config, renderer),
+        })
+        if (!readOnly) Object.assign(items, {
             ['set/replace image']: () => inp.click(),
             ['from url']: async() => imageFromUrl(renderer, config, viewer),
+        })
+        const menu = CustomContextMenu.Create({
+            ...items,
             'cancel': () => {return},
         }, 2, rect.height + 8, false, true)
         target.parentElement?.appendChild(menu)
