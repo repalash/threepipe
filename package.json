@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.8-dev.1",
+  "version": "0.0.8",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",
@@ -17,7 +17,8 @@
     "serve-docs": "ws -d docs -p 8080",
     "serve": "ws -d . -p 9229",
     "docs": "npx typedoc && markdown-to-html",
-    "prepare": "npm run build && npm run build-examples"
+    "build-plugins": "node scripts/build-plugins.mjs",
+    "prepare": "npm run build && npm run build-plugins && npm run build-examples"
   },
   "clean-package": {
     "remove": [
@@ -89,8 +90,6 @@
     "stats.js": "^0.17.0",
     "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2012/package.tgz",
     "tslib": "^2.5.0",
-    "tweakpane": "^3.1.9",
-    "@tweakpane/core": "1.1.8",
     "typedoc": "^0.24.7",
     "typescript": "^5.0.4",
     "typescript-plugin-css-modules": "^5.0.1",

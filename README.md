@@ -13,7 +13,7 @@ A new way to work with three.js, 3D models and rendering on the web.
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/repalash.svg?style=social&label=Follow%20%40repalash)](https://twitter.com/repalash)
 
-ThreePipe is a 3D framework built on top of [three.js](https://threejs.org/) in TypeScript with a focus on quality rendering, modularity and extensibility.
+ThreePipe is a 3D framework built on top of [three.js](https://threejs.org/) in TypeScript with a focus on rendering quality, modularity and extensibility.
 
 Key features include:
 - Simple, intuitive API for creating 3D model viewers/configurators/editors on web pages, with many built-in presets for common workflows and use-cases.

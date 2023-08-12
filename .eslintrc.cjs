@@ -5,6 +5,7 @@ module.exports = {
     ],
     'parserOptions': {
         'ecmaVersion': 2018,
+        'sourceType': 'module', // Allows for the use of imports
     },
     'plugins': [
         'html',

@@ -18,7 +18,6 @@ import {
     upgradeTexture,
     WebGLRenderTarget,
 } from 'threepipe'
-import type {FolderApi} from 'tweakpane'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
 
@@ -277,7 +276,7 @@ async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig,
     }
 }
 
-export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: FolderApi, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => {
+export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* FolderApi */, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => {
     // if (config.value !== undefined) throw 'Not supported yet'
 
     if (!config.__proxy) {

@@ -19,7 +19,7 @@
         ],
         "replace": {
             "dependencies": {
-                "threepipe": "^0.0.8-dev.1",
+                "threepipe": "^0.0.8",
                 "@threepipe/plugin-tweakpane": "^0.1.0"
             }
         }
@@ -33,6 +33,8 @@
         "src"
     ],
     "scripts": {
+        "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
+        "new:publish": "npm run prepare && clean-package && npm publish --access public && clean-package restore",
         "prepare": "npm run build",
         "build": "rimraf dist && NODE_ENV=production rollup -c",
         "dev": "rollup -c -w"

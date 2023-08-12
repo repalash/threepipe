@@ -1,4 +1,3 @@
-import {FolderApi} from 'tweakpane'
 import * as TweakpaneImagePlugin from 'tweakpane-image-plugin'
 import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane'
 import {
@@ -84,7 +83,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
             await p.fromJSON?.((p as any)._defaultState)
             ui.uiRefresh?.(true, 'postFrame')
         }
-        const topBtn = (ui.uiRef as FolderApi).controller_.view.element
+        const topBtn = (ui.uiRef as any).controller_.view.element
         const opBtn = createDiv({
             innerHTML: '&#8942;',
             classList: ['pluginOptionsButton'],
