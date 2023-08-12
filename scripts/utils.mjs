@@ -11,7 +11,6 @@ export function loopPluginDirs(callback){
         const pluginDir = path.join(pluginsDir, pluginFolder)
         const packageJsonPath = path.join(pluginDir, 'package.json')
         if (!fs.existsSync(packageJsonPath)) continue;
-        console.log(`NPM install ${pluginFolder}...`)
         callback(pluginDir)
     }
 
@@ -19,6 +18,7 @@ export function loopPluginDirs(callback){
 
 export function execEachPlugin(command){
     loopPluginDirs((pluginDir) => {
+        console.log(`Executing ${command} in ${pluginDir}`)
         execSync(command, {cwd: pluginDir, stdio: 'inherit'})
     })
 }
