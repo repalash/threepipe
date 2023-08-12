@@ -70,6 +70,7 @@ export class MaterialExtender {
             }
 
         material.materialExtensions = [...material.materialExtensions || [], ...exts]
+            .sort((a, b)=>(b.priority || 0) - (a.priority || 0))
 
         if (!(material as any).__ext_beforeRenderListen) {
             (material as any).__ext_beforeRenderListen = true

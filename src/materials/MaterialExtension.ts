@@ -86,6 +86,11 @@ export interface MaterialExtension{
      */
     getUiConfig?: (material: IMaterial, refreshUi: UiObjectConfig['uiRefresh']) => UiObjectConfig | undefined
 
+    /**
+     * Higher priority extensions are applied first.
+     */
+    priority?: number // default 0
+
     updateVersion?: number
     // eslint-disable-next-line @typescript-eslint/naming-convention
     __setDirty?: () => void // set by MaterialExtender, this increments updateVersion, which ends up calling needsUpdate on all the materials with this extension
