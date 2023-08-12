@@ -1,22 +1,26 @@
-import {ThreeViewer} from '../../../viewer'
-import type {FolderApi} from 'tweakpane'
-import {UiObjectConfig} from 'uiconfig.js'
-import {getOrCall, imageBitmapToBase64, makeTextSvg} from 'ts-browser-helpers'
-import {generateUUID, textureToDataUrl} from '../../../three'
-import {ITexture, upgradeTexture} from '../../../core'
 import {
+    CustomContextMenu,
+    EXRExporter2,
     FloatType,
+    generateUUID,
+    getOrCall,
     HalfFloatType,
+    imageBitmapToBase64,
+    IRenderTarget,
+    ITexture,
     LinearSRGBColorSpace,
+    makeTextSvg,
     RepeatWrapping,
     SRGBColorSpace,
     Texture,
+    textureToDataUrl,
+    ThreeViewer,
+    upgradeTexture,
     WebGLRenderTarget,
-} from 'three'
-import {CustomContextMenu} from '../../../utils'
+} from 'threepipe'
+import type {FolderApi} from 'tweakpane'
+import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
-import {IRenderTarget} from '../../../rendering'
-import {EXRExporter2} from '../../../assetmanager'
 
 const staticData = {
     placeholderVal: 'placeholder',

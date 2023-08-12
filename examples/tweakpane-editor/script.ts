@@ -9,10 +9,10 @@ import {
     NormalBufferPlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
-    TweakpaneUiPlugin,
     UnsignedByteType,
 } from 'threepipe'
-import {TweakpaneEditorPlugin} from '@threepipe/plugins/ui/tweakpane-editor'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 
 class ViewerUiConfig extends AViewerPluginSync<''> {
     static readonly PluginType = 'ViewerUiConfig'

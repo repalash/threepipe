@@ -7,13 +7,13 @@ import {
     FullScreenPlugin,
     safeSetProperty,
     ThreeViewer,
-    TweakpaneUiPlugin,
 } from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
 import {setupWebGiLogo} from './logo'
 import styles from './TweakpaneEditorPlugin.css'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync<string> {
     public static readonly PluginType: string = 'TweakpaneEditorPlugin'

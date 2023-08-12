@@ -1,5 +1,6 @@
-import {_testFinish, FullScreenPlugin, IObject3D, ThreeViewer, TweakpaneUiPlugin} from 'threepipe'
+import {_testFinish, FullScreenPlugin, IObject3D, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 

@@ -9,7 +9,6 @@ export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferP
 
 // ui
 export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'
-export {TweakpaneUiPlugin} from './ui/tweakpane/TweakpaneUiPlugin'
 
 // interaction
 export {DropzonePlugin, type DropzonePluginOptions} from './interaction/DropzonePlugin'

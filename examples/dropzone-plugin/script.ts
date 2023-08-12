@@ -1,4 +1,5 @@
-import {_testFinish, DropzonePlugin, ThreeViewer, TweakpaneUiPlugin} from 'threepipe'
+import {_testFinish, DropzonePlugin, ThreeViewer} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 

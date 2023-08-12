@@ -19,7 +19,7 @@
         "emitDecoratorMetadata": true,
         "sourceMap": false,
         "paths": {
-            "@threepipe/plugins/*": ["../plugins/*/src"],
+            "@threepipe/plugin-*": ["../plugins/*/src"],
             "threepipe": ["../src/"]
         },
         "target": "ES2020",

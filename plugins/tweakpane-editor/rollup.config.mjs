@@ -7,18 +7,22 @@ import license from 'rollup-plugin-license'
 import packageJson from './package.json' assert {type: 'json'};
 import path from 'path'
 import {fileURLToPath} from 'url';
-import terser from "@rollup/plugin-terser";
 import postcss from 'rollup-plugin-postcss'
+import replace from 'rollup-plugin-replace'
+import terser from "@rollup/plugin-terser";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const {name, version, author} = packageJson
-const {main, module, browser} = packageJson["clean-package"].replace
+// const {main, module, browser} = packageJson["clean-package"].replace
 const isProduction = process.env.NODE_ENV === 'production'
 
 const settings = {
-    globals: {},
+    globals: {
+        "threepipe": "threepipe",
+        "@threepipe/plugin-tweakpane": "@threepipe/plugin-tweakpane"
+    },
     sourcemap: true
 }
 
@@ -35,16 +39,16 @@ export default {
         //   ]
         // },
         {
-            file: module,
+            file: './dist/index.mjs',
             ...settings,
             name: name,
-            // dir: 'dist', // indicate not create a single-file
-            // preserveModules: true, // indicate not create a single-file
-            // preserveModulesRoot: 'src', // optional but useful to create a more plain folder structure
-            format: 'es'
+            format: 'es',
+            plugins: [
+                isProduction && terser()
+            ]
         },
         {
-            file: browser,
+            file: './dist/index.js',
             ...settings,
             name: name,
             format: 'umd',
@@ -53,8 +57,13 @@ export default {
             ]
         }
     ],
-    external: [],
+    external: Object.keys(settings.globals),
     plugins: [
+        replace({
+            // If you would like DEV messages, specify 'development'
+            // Otherwise use 'production'
+            'process.env.NODE_ENV': JSON.stringify('production') // for tippy.js
+        }),
         postcss({
             modules: false,
             autoModules: true,  // todo; issues with typescript import css, because inject is false
@@ -64,7 +73,8 @@ export default {
         }),
         json(),
         resolve({}),
-        typescript({}),
+        typescript({
+        }),
         commonjs({
             include: 'node_modules/**',
             extensions: ['.js'],

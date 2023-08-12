@@ -19,7 +19,9 @@ const {name, version, author} = packageJson
 const isProduction = process.env.NODE_ENV === 'production'
 
 const settings = {
-    globals: {},
+    globals: {
+        "threepipe": "threepipe"
+    },
     sourcemap: true
 }
 
@@ -39,7 +41,10 @@ export default {
             file: './dist/index.mjs',
             ...settings,
             name: name,
-            format: 'es'
+            format: 'es',
+            plugins: [
+                isProduction && terser()
+            ]
         },
         {
             file: './dist/index.js',
@@ -51,7 +56,7 @@ export default {
             ]
         }
     ],
-    external: ["threepipe"],
+    external: Object.keys(settings.globals),
     plugins: [
         replace({
             // If you would like DEV messages, specify 'development'

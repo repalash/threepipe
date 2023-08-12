@@ -1,4 +1,5 @@
-import {_testFinish, IObject3D, ThreeViewer, TweakpaneUiPlugin} from 'threepipe'
+import {_testFinish, IObject3D, ThreeViewer} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 

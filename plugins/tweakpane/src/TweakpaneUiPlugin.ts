@@ -1,12 +1,25 @@
 import {FolderApi} from 'tweakpane'
 import * as TweakpaneImagePlugin from 'tweakpane-image-plugin'
 import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane'
-import {IViewerPlugin, IViewerPluginSync, ThreeViewer} from '../../../viewer'
+import {
+    Class,
+    Color,
+    createDiv,
+    createStyles,
+    CustomContextMenu,
+    downloadBlob,
+    getOrCall,
+    IEvent,
+    IViewerPlugin,
+    IViewerPluginSync,
+    ThreeViewer,
+    uploadFile,
+    Vector2,
+    Vector3,
+    Vector4,
+} from 'threepipe'
 import styles from './tpTheme.css'
-import {Class, createDiv, createStyles, downloadBlob, getOrCall, IEvent, uploadFile} from 'ts-browser-helpers'
 import {UiObjectConfig} from 'uiconfig.js'
-import {CustomContextMenu} from '../../../utils'
-import {Color, Vector2, Vector3, Vector4} from 'three'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
 
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
@@ -121,7 +134,6 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
             }
         })
     }
-
 
     private _preRender = () => this.refreshQueue('preRender')
     private _postRender = () => this.refreshQueue('postRender')

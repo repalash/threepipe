@@ -1,4 +1,5 @@
-import {_testFinish, IObject3D, RenderTargetPreviewPlugin, ThreeViewer, TweakpaneUiPlugin} from 'threepipe'
+import {_testFinish, IObject3D, RenderTargetPreviewPlugin, ThreeViewer} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
