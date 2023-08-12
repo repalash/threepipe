@@ -40,7 +40,9 @@
     "dist",
     "src",
     "examples",
-    "plugins",
+    "plugins/*/dist",
+    "plugins/*/src",
+    "plugins/*/tsconfig.json",
     "tsconfig.json"
   ],
   "repository": {
