@@ -5,5 +5,6 @@ export {uniform, matDefine} from './decorators'
 export {getEncodingComponents, getTexelEncoding, getTexelDecoding, getTexelDecoding2, getTexelDecodingFunction, getTexelEncodingFunction, getTextureColorSpaceFromMap} from './encoding'
 export {generateUUID, toIndexedGeometry} from './misc'
 export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, texImageToCanvas} from './texture'
+export {threeConstMappings} from './const-mappings'
 
 // export {} from './constants'
