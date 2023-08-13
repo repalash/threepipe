@@ -6,7 +6,7 @@ import {
     getOrCall,
     HalfFloatType,
     imageBitmapToBase64,
-    IRenderTarget,
+    ImportResultExtras,
     ITexture,
     LinearSRGBColorSpace,
     makeTextSvg,
@@ -20,6 +20,7 @@ import {
 } from 'threepipe'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
+import {DataTexture} from 'three'
 
 const staticData = {
     placeholderVal: 'placeholder',
@@ -46,10 +47,13 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
     if (cc.isTexture) {
         // console.warn('here')
         if (cc.image && !cc.image.tp_src) {
-            if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) {
+            if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) { // todo: support playback in video
                 cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
             } else if (cc.isRenderTargetTexture) {
-                if (cc.__target) cc.image.tp_src = viewer.renderManager.renderTargetToDataUrl(cc.__target) // todo; update preview when renderTarget updates?
+                if (cc._target) {
+                    cc.image.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target)
+                    setTimeout(()=>cc.image.tp_src && delete cc.image.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                }
             } else {
                 cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
             }
@@ -183,7 +187,7 @@ function removeImage(config: UiObjectConfig, renderer: TweakpaneUiPlugin) {
 
 function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: ThreeViewer) {
     CustomContextMenu.Remove()
-    const tex = config.__proxy.value_
+    const tex: ITexture&Partial<ImportResultExtras> = config.__proxy.value_
     if (!tex) return
     let vcv = tex.image ?? config.uiRef.controller_.valueController.value.rawValue
     if (tex.__rootBlob && !tex.__rootBlob.objectUrl) tex.__rootBlob.objectUrl = URL.createObjectURL(tex.__rootBlob)
@@ -198,8 +202,8 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
 
     // Render target texture
     if (!src && tex.isRenderTargetTexture) {
-        const target1 = tex.__target as IRenderTarget
-        if (target1.isWebGLRenderTarget) {
+        const target1 = tex._target
+        if (target1?.isWebGLRenderTarget) {
             const val = viewer.renderManager.exportRenderTarget(target1 as WebGLRenderTarget)
             if (!val) {
                 console.error('cannot export render target', vcv, tex, target1, config)
@@ -219,7 +223,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
             console.error('Only Float and HalfFloat Data texture export is supported', vcv, tex, config)
             return
         }
-        const buffer = new EXRExporter2().parse(undefined as any, tex)
+        const buffer = new EXRExporter2().parse(undefined as any, tex as DataTexture&ITexture)
         const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
         if (!val) {
             console.error('cannot export data texture', vcv, tex, config)
