@@ -524,6 +524,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             }
 
             this.dispatchEvent({type: 'postFrame', target: this})
+            this.renderManager.onPostFrame()
 
             if (!needsRender) // break if no frame rendered
                 break

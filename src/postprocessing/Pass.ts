@@ -29,4 +29,7 @@ export interface IPipelinePass<Tid extends IPassID = IPassID> extends IPass<Tid>
 
     onRegister?(renderer: IRenderManager): void;
     onUnregister?(renderer: IRenderManager): void;
+
+    onPostFrame?(renderManager: IRenderManager): void;
+
 }

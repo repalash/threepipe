@@ -189,12 +189,18 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
             this.refreshPasses()
         }
         for (const pass of this._passes) {
-            if (pass.enabled) pass.beforeRender?.(scene, scene.mainCamera, this)
+            if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.mainCamera, this)
         }
         this._composer.render()
         this._frameCount += 1
         this._totalFrameCount += 1
         this._dirty = false
+    }
+
+    onPostFrame = () => {
+        for (const pass of this._passes) {
+            if (pass.enabled && pass.onPostFrame) pass.onPostFrame?.(this)
+        }
     }
 
     get needsRender(): boolean {

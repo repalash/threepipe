@@ -45,6 +45,12 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     reRender(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, deltaTime?: number, maskActive?: boolean) {
         if (this._lastReadBuffer) this.render(renderer, writeBuffer, this._lastReadBuffer, deltaTime, maskActive)
     }
+    private _needsReRender = false
+    onPostFrame(renderManager: IRenderManager) {
+        if (!this._needsReRender) return
+        this._needsReRender = false
+        this.reRender(renderManager.renderer)
+    }
 
     dispose() {
         this._lastReadBuffer = undefined
