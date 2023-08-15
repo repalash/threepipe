@@ -44,6 +44,9 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
 
     readonly appliedMeshes: Set<any> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
+    dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
+    clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
+    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     readonly isRawShaderMaterial: boolean
 

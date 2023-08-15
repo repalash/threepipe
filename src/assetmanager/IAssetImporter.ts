@@ -30,12 +30,9 @@ export interface ImportResultExtras {
 
     userData?: IImportResultUserData
 
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
     __rootPath?: string
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
     __rootBlob?: IFile
-    // eslin t-disable-next-line @typescript-eslint/naming-convention
-    __disposed?: boolean
+    // __disposed?: boolean
 
     [key: string]: any
 }

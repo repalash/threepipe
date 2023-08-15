@@ -8,7 +8,6 @@ import {
     ImportResult,
     LoadFileOptions,
     ProcessRawOptions,
-    RootSceneImportResult,
 } from './IAssetImporter'
 import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
@@ -138,21 +137,22 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         // console.log(result)
         if (!options.forceImport && result) {
             const results = await this.processRaw<T>(result, options) // just in case its not processed. Internal check is done to ensure it's not processed twice
-            let isDisposed = false // if any of the objects is disposed
-            for (const r of results) {
-                // todo: check if this is still required.
-                if ((r as RootSceneImportResult)?.userData?.rootSceneModelRoot) { // in case processImported is false we need a special case check here
-                    if (r?.children?.find((c: any) => c.__disposed)) {
-                        isDisposed = true
-                        break
-                    }
-                }
-                if (r && !r.__disposed) continue // todo add __disposed to object, material, texture, etc
-                isDisposed = true
-                break
-            }
+            // let isDisposed = false // if any of the objects is disposed
+            // for (const r of results) {
+            //     // todo: check if this is still required.
+            //     if ((r as RootSceneImportResult)?.userData?.rootSceneModelRoot) { // in case processImported is false we need a special case check here
+            //         if (r?.children?.find((c: any) => c.__disposed)) {
+            //             isDisposed = true
+            //             break
+            //         }
+            //     }
+            //     if (r && !r.__disposed) continue // todo add __disposed to object, material, texture, etc
+            //     isDisposed = true
+            //     break
+            // }
             // todo: should we check if any of it's children is disposed ?
-            if (!isDisposed || options.reimportDisposed === false) return results
+            // if (!isDisposed || options.reimportDisposed === false)
+            return results
         }
 
         // todo: add support to get cloned asset? if we want to import multiple times and everytime return a cloned asset
@@ -170,7 +170,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
                 else arrs.push(result)
             }
             // remove preImportedRaw when any of the assets is disposed. This is to prevent memory leaks
-            arrs.forEach(r=>r.addEventListener?.('dispose', () => {
+            arrs.forEach(r=>r.addEventListener?.('dispose', () => { // todo: recheck after dispose logic change
                 if (asset?.preImportedRaw) asset.preImportedRaw = undefined
                 if (asset?.preImported) asset.preImported = undefined
             }))
@@ -292,6 +292,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         this.dispatchEvent({type: 'importFile', path, state: 'done'}) // todo: do this after processing?
         if (file) {
             file.__loadedAsset = res
+
+
+            // todo: recheck below code after dispose logic change
 
             // Clear the reference __loadedAsset when any one asset is disposed.
             // it's a bit hacky to do this here, but it works for now. todo: move to a better place

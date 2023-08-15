@@ -6,7 +6,7 @@ import {copyObject3DUserData} from '../../utils'
 import {IGeometry, IGeometryEvent} from '../IGeometry'
 import {Box3B} from '../../three'
 import {makeIObject3DUiConfig} from './IObjectUi'
-import {upgradeGeometry} from '../geometry/iGeometryCommons'
+import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
 
 export const iObjectCommons = {
@@ -158,8 +158,8 @@ export const iObjectCommons = {
             if (!mat) continue
             if (mat.appliedMeshes) {
                 mat.appliedMeshes.delete(this)
-                if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
-                    mat.dispose() // this will dispose textures(if they are idle) if the material is registered in the material manager
+                // if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
+                mat.dispose(false) // this will dispose textures(if they are idle) if the material is registered in the material manager
             }
         }
 
@@ -223,13 +223,13 @@ export const iObjectCommons = {
             this._onGeometryUpdate && geom.removeEventListener('geometryUpdate', this._onGeometryUpdate)
             if (geom.appliedMeshes) {
                 geom.appliedMeshes.delete(this)
-                if (geom.userData && geom.appliedMeshes.size === 0 && geom.userData.disposeOnIdle !== false) geom.dispose()
+                geom.dispose(false)
             }
         }
         if (geometry) {
             if (!geometry.assetType) {
                 // console.error('Geometry not upgraded')
-                upgradeGeometry.call(geometry)
+                iGeometryCommons.upgradeGeometry.call(geometry)
             }
         }
         this._currentGeometry = geometry || null
@@ -286,27 +286,24 @@ export const iObjectCommons = {
             return superAdd.call(this, ...args)
         },
     dispose: (superDispose?: IObject3D['dispose']) =>
-        function(this: IObject3D): void {
+        function(this: IObject3D, removeFromParent = true): void {
+            if (removeFromParent && this.parent) {
+                this.removeFromParent()
+                delete this.parentRoot
+            }
+
             this.dispatchEvent({type: 'dispose', bubbleToParent: false})
 
-            if (this.__disposed) {
-                console.warn('Object already disposed', this)
-                return
-            }
-            this.__disposed = true
+            // if (this.__disposed) {
+            //     console.warn('Object already disposed', this)
+            //     return
+            // }
+            // this.__disposed = true
 
-            // this is first so that the leaf children are removed from parent first, removed event will be fired depth first
-            for (const c of [...this.children]) c?.dispose?.()
-            this.children = []
-            if (this.parent) this.removeFromParent()
-
-
-            delete this.parentRoot
-            // safeSetProperty(this, 'modelObject', undefined, true) // in-case modelObject is just a getter.
-            this.userData = {} // todo: clear only our userdata and maybe any private variables?
+            for (const c of [...this.children]) c?.dispose && c.dispose(false) // not removing the children from parent to preserve hierarchy
+            // this.children = []
 
             // this.uiConfig?.dispose?.() // todo: make uiConfig.dispose
-            this.uiConfig = undefined
 
             superDispose?.call(this)
         },
@@ -322,10 +319,10 @@ export const iObjectCommons = {
 function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): void { // parent is the root Object3DModel.
     if (!this) return
     // console.log('upgradeObject3D', this, parent, objectProcessor)
-    if (this.__disposed) {
-        console.warn('re-init/re-add disposed object, things might not work as intended', this)
-        delete this.__disposed
-    }
+    // if (this.__disposed) {
+    //     console.warn('re-init/re-add disposed object, things might not work as intended', this)
+    //     delete this.__disposed
+    // }
     if (!this.userData) this.userData = {}
     this.userData.uuid = this.uuid
 
@@ -346,14 +343,14 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (parent) this.parentRoot = parent
 
-    const oldFunctions = {
-        dispatchEvent: this.dispatchEvent,
-        clone: this.clone,
-        copy: this.copy,
-        add: this.add,
-        dispose: this.dispose,
-    }
-    this.addEventListener('dispose', () => Object.assign(this, oldFunctions)) // todo: is this required?
+    // const oldFunctions = {
+    //     dispatchEvent: this.dispatchEvent,
+    //     clone: this.clone,
+    //     copy: this.copy,
+    //     add: this.add,
+    //     dispose: this.dispose,
+    // }
+    // this.addEventListener('dispose', () => Object.assign(this, oldFunctions)) // todo: is this required?
 
     // typed because of type-checking
     this.dispatchEvent = iObjectCommons.dispatchEvent(this.dispatchEvent)
@@ -371,10 +368,10 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     this.addEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)
     this.addEventListener('removed', iObjectCommons.eventCallbacks.onRemovedFromParent)
 
-    this.addEventListener('dispose', ()=>{
-        this.removeEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)
-        this.removeEventListener('removed', iObjectCommons.eventCallbacks.onRemovedFromParent)
-    })
+    // this.addEventListener('dispose', ()=>{
+    //     this.removeEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)
+    //     this.removeEventListener('removed', iObjectCommons.eventCallbacks.onRemovedFromParent)
+    // })
 
     if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
         this.userData.__meshSetup = true
@@ -393,22 +390,26 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
         }
 
         this.addEventListener('dispose', ()=>{
-            if (this.material) {
-                // const oldMats = Array.isArray(this.material) ? [...(this.material as IMaterial[])] : [this.material!]
-                this.material = undefined // this will dispose material if not used by other meshes
-                // delete this.material
-                // for (const oldMat of oldMats) {
-                //     if (oldMat && oldMat.userData && oldMat.appliedMeshes?.size === 0 && oldMat.userData.disposeOnIdle !== false) oldMat.dispose()
-                // }
-            }
-            if (this.geometry) {
-                // const oldGeom = this.geometry
-                this.geometry = undefined // this will dispose geometry if not used by other meshes
-                // delete this.geometry
-                // if (oldGeom && oldGeom.userData && oldGeom.appliedMeshes?.size === 0 && oldGeom.userData.disposeOnIdle !== false) oldGeom.dispose()
-            }
 
-            delete this._onGeometryUpdate
+            (this.materials || [<IMaterial> this.material]).forEach(m => m?.dispose(false))
+            this.geometry?.dispose(false)
+
+            // if (this.material) {
+            //     // const oldMats = Array.isArray(this.material) ? [...(this.material as IMaterial[])] : [this.material!]
+            //     this.material = undefined // this will dispose material if not used by other meshes
+            //     // delete this.material
+            //     // for (const oldMat of oldMats) {
+            //     //     if (oldMat && oldMat.userData && oldMat.appliedMeshes?.size === 0 && oldMat.userData.disposeOnIdle !== false) oldMat.dispose()
+            //     // }
+            // }
+            // if (this.geometry) {
+            //     // const oldGeom = this.geometry
+            //     this.geometry = undefined // this will dispose geometry if not used by other meshes
+            //     // delete this.geometry
+            //     // if (oldGeom && oldGeom.userData && oldGeom.appliedMeshes?.size === 0 && oldGeom.userData.disposeOnIdle !== false) oldGeom.dispose()
+            // }
+            //
+            // delete this._onGeometryUpdate
         })
 
     }
@@ -424,29 +425,27 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     for (const c of children) upgradeObject3D.call(c, this)
 
     // region Legacy
-    if (this.userData.dispose) console.warn('userData.dispose already defined')
-    this.userData.dispose = () => {
+
+    // eslint-disable-next-line deprecation/deprecation
+    !this.userData.dispose && (this.userData.dispose = () => {
         console.warn('userData.dispose is deprecated, use dispose directly')
-        this.dispose?.()
-    }
-    if (!this.modelObject) {
-        Object.defineProperty(this, 'modelObject', {
-            get: ()=>{
-                console.error('modelObject is deprecated, use object directly')
-                return this
-            },
-        })
-    }
-    if (!this.userData.setDirty)
-        this.userData.setDirty = (e: any)=>{
-            console.error('object.userData.setDirty is deprecated, use object.setDirty directly')
-            this.setDirty?.(e)
-        }
+        this.dispose && this.dispose()
+    })
+    // eslint-disable-next-line deprecation/deprecation
+    !this.modelObject && Object.defineProperty(this, 'modelObject', {
+        get: ()=>{
+            console.error('modelObject is deprecated, use object directly')
+            return this
+        },
+    })
+    // eslint-disable-next-line deprecation/deprecation
+    !this.userData.setDirty && (this.userData.setDirty = (e: any)=>{
+        console.error('object.userData.setDirty is deprecated, use object.setDirty directly')
+        this.setDirty?.(e)
+    })
 
     // endregion
 
-    // if (!this.objectProcessor) console.warn('objectProcessor not set for', this)
-    // else
     this.objectProcessor?.processObject(this)
 
 }

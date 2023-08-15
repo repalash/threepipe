@@ -41,8 +41,11 @@ export interface IMaterialSetDirtyOptions {
 }
 export interface IMaterialUserData extends IImportResultUserData{
     uuid?: string // adding to userdata also, so that its saved in gltf
-
-    disposeOnIdle?: boolean // default: true
+    /**
+     * Automatically dispose material when not used by any object in the scene
+     * @default true
+     */
+    disposeOnIdle?: boolean
 
     renderToGBuffer?: boolean
     /**
@@ -61,7 +64,7 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     inverseAlphaMap?: boolean // only for physical material right now
 
-    // [key: string]: any // commented for noe
+    [key: string]: any // commented for noe
 
 
     // legacy, to be removed
@@ -109,6 +112,14 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IMaterialUserData
+
+    /**
+     * Disposes the material from the GPU.
+     * Set force to false if not sure the material is used by any object in the scene.
+     * // todo add check for visible in scene also? or is that overkill
+     * @param force - when true, same as three.js dispose. when false, only disposes if disposeOnIdle not false and not used by any object in the scene. default: true
+     */
+    dispose(force?: boolean): void
 
     // optional from subclasses, added here for autocomplete
     flatShading?: boolean

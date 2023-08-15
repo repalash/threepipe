@@ -1,6 +1,7 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
-import {toIndexedGeometry} from '../../three'
+import {isInScene, toIndexedGeometry} from '../../three'
+import {BufferGeometry} from 'three'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -10,6 +11,11 @@ export const iGeometryCommons = {
     refreshUi: function(this: IGeometry) {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
+    dispose: (superDispose: BufferGeometry['dispose']): IGeometry['dispose'] =>
+        function(this: IGeometry, force = true): void {
+            if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
+            superDispose.call(this)
+        },
     upgradeGeometry: upgradeGeometry,
     makeUiConfig: function(this: IGeometry): UiObjectConfig {
         if (this.uiConfig) return this.uiConfig
@@ -117,18 +123,23 @@ export const iGeometryCommons = {
     },
 }
 
-export function upgradeGeometry(this: IGeometry) {
+function upgradeGeometry(this: IGeometry) {
     if (this.assetType === 'geometry') return // already upgraded
     if (!this.isBufferGeometry) {
-        console.error('Material is not a this', this)
+        console.error('Geometry is not a this', this)
         return
     }
     this.assetType = 'geometry'
+
+    this.dispose = iGeometryCommons.dispose(this.dispose)
+
     if (!this.setDirty) this.setDirty = iGeometryCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iGeometryCommons.refreshUi
+
     if (!this.appliedMeshes) this.appliedMeshes = new Set()
     if (!this.userData) this.userData = {}
     this.uiConfig = iGeometryCommons.makeUiConfig.call(this)
+
     // todo: dispose uiconfig on geometry dispose
 
     // todo: add serialization?

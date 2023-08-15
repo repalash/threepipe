@@ -44,6 +44,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
+    dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
     dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 

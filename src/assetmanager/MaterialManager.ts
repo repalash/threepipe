@@ -12,7 +12,7 @@ import {
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
-import {generateUUID} from '../three/utils/misc'
+import {generateUUID, isInScene} from '../three'
 
 
 export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
@@ -104,14 +104,11 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
         mat.setDirty()
-        const maps = this._getMapsForMaterial(mat)
-        maps.forEach(map=>{
-            const mats = map.userData.__appliedMaterials!
-            mats?.delete(mat)
-            if (!mats || map.userData.disposeOnIdle === false) return
-            if (mats.size === 0) map.dispose()
-        })
-        this.unregisterMaterial(mat)
+        this._getMapsForMaterial(mat)
+            .forEach(map=>
+                !map.isRenderTargetTexture && map.userData.disposeOnIdle !== false &&
+                map.dispose && !isInScene(map) && map.dispose())
+        // this.unregisterMaterial(mat) // todo
     }
 
     private _materialMaps = new Map<string, Set<ITexture>>()

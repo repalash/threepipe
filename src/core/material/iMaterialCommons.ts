@@ -19,6 +19,7 @@ import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
 import {IMaterial, IMaterialEvent, IMaterialSetDirtyOptions} from '../IMaterial'
+import {isInScene} from '../../three'
 
 /**
  * Map of all material properties and their default values in three.js - Material.js
@@ -104,6 +105,11 @@ export const iMaterialCommons = {
 
             this.setDirty?.()
             return this
+        },
+    dispose: (superDispose: Material<any, any>['dispose']): IMaterial['dispose'] =>
+        function(this: IMaterial, force = true): void {
+            if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
+            superDispose.call(this)
         },
     clone: (superClone: Material<any, any>['clone']): IMaterial['clone'] =>
         function(this: IMaterial): IMaterial {
@@ -202,6 +208,7 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     if (this.assetType === 'material') return this // already upgraded
     this.assetType = 'material'
     this.setValues = iMaterialCommons.setValues(this.setValues)
+    this.dispose = iMaterialCommons.dispose(this.dispose)
     this.clone = iMaterialCommons.clone(this.clone)
     this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
 

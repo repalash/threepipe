@@ -90,8 +90,17 @@ export interface IObject3DUserData extends IImportResultUserData {
      * @deprecated
      */
     dispose?: any
+    /**
+     * @deprecated
+     */
     setMaterial?: any
+    /**
+     * @deprecated
+     */
     setGeometry?: any
+    /**
+     * @deprecated
+     */
     setDirty?: any
 
     /**
@@ -173,8 +182,12 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
     objectProcessor?: IObjectProcessor
 
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    __disposed?: boolean
+    // __disposed?: boolean
+    /**
+     *
+     * @param removeFromParent - remove from parent. Default true
+     */
+    dispose(removeFromParent?: boolean): void;
 
     // region inherited type fixes
 
