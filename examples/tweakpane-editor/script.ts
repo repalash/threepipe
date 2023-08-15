@@ -1,6 +1,5 @@
 import {
     _testFinish,
-    AViewerPluginSync,
     DepthBufferPlugin,
     DropzonePlugin,
     FullScreenPlugin,
@@ -8,27 +7,20 @@ import {
     IObject3D,
     NormalBufferPlugin,
     RenderTargetPreviewPlugin,
+    SceneUiConfigPlugin,
     ThreeViewer,
-    UnsignedByteType,
+    TonemapPlugin,
+    ViewerUiConfigPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 
-class ViewerUiConfig extends AViewerPluginSync<''> {
-    static readonly PluginType = 'ViewerUiConfig'
-    enabled = true
-    toJSON: any = undefined
-    constructor(viewer: ThreeViewer) {
-        super()
-        this._viewer = viewer
-        this.uiConfig = viewer.uiConfig
-    }
-}
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
-        msaa: false,
+        msaa: true,
+        rgbm: true,
         dropzone: {
             addOptions: {
                 clearSceneObjects: false,
@@ -40,10 +32,12 @@ async function init() {
     const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 
     await viewer.addPlugins([
-        new ViewerUiConfig(viewer),
-        new DepthBufferPlugin(UnsignedByteType, false, false),
+        new ViewerUiConfigPlugin(),
+        // new SceneUiConfigPlugin(),
+        new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
+        new TonemapPlugin(),
     ])
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
@@ -51,8 +45,9 @@ async function init() {
     rt.addTarget(viewer.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
 
     editor.loadPlugins({
-        ['Viewer']: [ViewerUiConfig, DropzonePlugin, FullScreenPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
+        ['Post-processing']: [TonemapPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 
@@ -71,3 +66,4 @@ async function init() {
 }
 
 init().then(_testFinish)
+
