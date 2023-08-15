@@ -16,13 +16,13 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     set enabled(value: boolean) {
         if (this._pass) this._pass.enabled = value
         this._enabledTemp = value
+        this.setDirty()
     }
-
 
     @uiConfig()
     @serialize('pass')
     protected _pass?: T
-    abstract createPass(v:TViewer):T
+    protected abstract _createPass():T
 
     /**
      * This function is called every frame before composer render, if this pass is being used in the pipeline
@@ -40,7 +40,7 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     onAdded(viewer: TViewer): void {
         super.onAdded(viewer)
 
-        this._pass = this.createPass(viewer)
+        this._pass = this._createPass()
         this._pass.onDirty?.push(viewer.setDirty)
         this._pass.beforeRender = wrapThisFunction(this._beforeRender, this._pass.beforeRender)
         viewer.renderManager.registerPass(this._pass)
@@ -64,6 +64,11 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
 
     fromJSON(data: ISerializedConfig&{pass?: any}, meta?: SerializationMetaType): this|null|Promise<this|null> {
         return super.fromJSON(data, meta)
+    }
+
+    setDirty() {
+        this._viewer?.setDirty()
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 100) // adding delay for a few frames, so render target(if any can update)
     }
 
 }

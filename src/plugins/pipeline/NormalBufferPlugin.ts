@@ -4,7 +4,6 @@ import {
     Color,
     FrontSide,
     HalfFloatType,
-    IUniform,
     LinearSRGBColorSpace,
     MeshNormalMaterial,
     NearestFilter,
@@ -19,7 +18,6 @@ import {
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
-import {IShaderPropertiesUpdater} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import type {IMaterial, PhysicalMaterial} from '../../core'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
@@ -30,8 +28,7 @@ export type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget>
 @uiFolderContainer('Normal Buffer Plugin')
 export class NormalBufferPlugin
-    extends PipelinePassPlugin<NormalBufferPluginPass, 'normal', NormalBufferPluginEventTypes>
-    implements IShaderPropertiesUpdater {
+    extends PipelinePassPlugin<NormalBufferPluginPass, 'normal', NormalBufferPluginEventTypes> {
 
     readonly passId = 'normal'
     public static readonly PluginType = 'NormalBufferPlugin'
@@ -41,10 +38,16 @@ export class NormalBufferPlugin
     readonly material: MeshNormalMaterial = new MeshNormalMaterial2({
         blending: NoBlending,
     })
-    // private _gbufferPass?: IFilter<GBufferRenderPass<WebGLMultipleRenderTargets>
 
-    createPass(v: ThreeViewer) {
-        if (!this.target) this.target = v.renderManager.createTarget<NormalBufferPluginTarget>(
+    // @onChange2(NormalBufferPlugin.prototype._createTarget)
+    // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
+    readonly bufferType: TextureDataType // cannot be changed after creation (for now)
+
+    protected _createTarget(recreate = true) {
+        if (!this._viewer) return
+        if (recreate) this._disposeTarget()
+
+        if (!this.target) this.target = this._viewer.renderManager.createTarget<NormalBufferPluginTarget>(
             {
                 depthBuffer: true,
                 // samples: v.renderManager.composerTarget.samples || 0,
@@ -57,7 +60,19 @@ export class NormalBufferPlugin
             })
         this.texture = this.target.texture
         this.texture.name = 'normalBuffer'
+    }
+    protected _disposeTarget() {
+        if (!this._viewer) return
+        if (this.target) {
+            this._viewer.renderManager.disposeTarget(this.target)
+            this.target = undefined
+        }
+        this.texture = undefined
+    }
 
+    protected _createPass() {
+        this._createTarget(true)
+        if (!this.target) throw new Error('NormalBufferPlugin: target not created')
         this.material.userData.isGBufferMaterial = true
         const pass = new GBufferRenderPass('normal', this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
@@ -69,25 +84,17 @@ export class NormalBufferPlugin
     }
 
     constructor(
-        public readonly bufferType: TextureDataType = HalfFloatType,
+        bufferType: TextureDataType = HalfFloatType,
         enabled = true,
     ) {
         super()
         this.enabled = enabled
+        this.bufferType = bufferType
     }
 
     onRemove(viewer: ThreeViewer): void {
-        if (this.target) {
-            viewer.renderManager.disposeTarget(this.target)
-            this.target = undefined
-        }
+        this._disposeTarget()
         return super.onRemove(viewer)
-    }
-
-    updateShaderProperties(material: {defines: Record<string, string | number | undefined>; uniforms: {[p: string]: IUniform}}): this {
-        if (material.uniforms.tNormal) material.uniforms.tNormal.value = this.texture ?? undefined
-        else this._viewer?.console.warn('BaseRenderer: no uniform: tNormal')
-        return this
     }
 
 }

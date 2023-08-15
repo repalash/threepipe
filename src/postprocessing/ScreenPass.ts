@@ -8,10 +8,14 @@ import {
     WebGLMultipleRenderTargets,
     WebGLRenderTarget,
 } from 'three'
-import {IWebGLRenderer, ShaderMaterial2} from '../core'
+import {ICamera, IRenderManager, IScene, IWebGLRenderer, ShaderMaterial2} from '../core'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
-import {uiFolderContainer} from 'uiconfig.js'
+import {uiFolderContainer, uiToggle} from 'uiconfig.js'
+import {ViewerRenderManager} from '../viewer'
+import {matDefine} from '../three'
+import ScreenPassShader from './ScreenPass.glsl'
+import {shaderReplaceString} from '../utils'
 
 export type TViewerScreenShaderFrag = string | [string, string] | {pars?: string, main: string}
 export type TViewerScreenShader = TViewerScreenShaderFrag | ShaderMaterialParameters | ShaderMaterial2
@@ -22,11 +26,12 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     after: IPassID[] = ['render']
     required: IPassID[] = ['render']
 
-    constructor(shader: TViewerScreenShader, ...textureID: string[]) {
+    constructor(shader: TViewerScreenShader = '', ...textureID: string[]) {
         super(
             (<any>shader)?.fragmentShader || (<ShaderMaterial2>shader)?.isShaderMaterial ? <ShaderMaterialParameters|ShaderMaterial2>shader :
                 makeScreenShader(shader),
-            ...textureID.length ? textureID : ['tDiffuse'])
+            ...textureID.length ? textureID : ['tDiffuse', 'tTransparent', 'tGBuffer'])
+        this.material.addEventListener('materialUpdate', this.setDirty)
     }
 
     outputColorSpace: ColorSpace = SRGBColorSpace
@@ -56,34 +61,32 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         this._lastReadBuffer = undefined
         super.dispose()
     }
+
+    @matDefine('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty, (v)=>v ? '1' : undefined, (v)=>!!v)
+    @uiToggle() clipBackground = false
+
+    beforeRender(_: IScene, _1: ICamera, renderManager: ViewerRenderManager) {
+        this.material.uniforms.tTransparent.value = renderManager.renderPass.preserveTransparentTarget ? renderManager.renderPass.transparentTarget?.texture || null : null
+        this.material.defines.HAS_TRANSPARENT_TARGET = this.material.uniforms.tTransparent.value ? 1 : undefined
+        if (!this.material.defines.HAS_TRANSPARENT_TARGET) delete this.material.defines.HAS_TRANSPARENT_TARGET
+    }
+
+    setDirty() {
+        super.setDirty()
+        this._needsReRender = true
+    }
 }
 
 function makeScreenShader(shader: string | [string, string] | {pars?: string; main: string} | ShaderMaterialParameters | ShaderMaterial2) {
     return {
         ...CopyShader,
-        fragmentShader: `
-varying vec2 vUv;
-
-#include <alphatest_pars_fragment>
-${Array.isArray(shader) ? shader[0] : (<any>shader)?.pars || ''}
-
-void main() {
-
-    vec4 diffuseColor = tDiffuseTexelToLinear (texture2D(tDiffuse, vUv));
-    
-    #glMarker
-    
-    ${Array.isArray(shader) ? shader[1] : typeof shader === 'string' ? shader : (shader as any)?.main || ''}
-        
-    #include <alphatest_fragment>
-    #ifdef OPAQUE
-    diffuseColor.a = 1.0;
-    #endif
-    gl_FragColor = diffuseColor;
-    #include <encodings_fragment>
-}`,
+        fragmentShader:
+            shaderReplaceString(shaderReplaceString(ScreenPassShader,
+                'void main()', (Array.isArray(shader) ? shader[0] : (<any>shader)?.pars || '') + '\n', {prepend: true}),
+            '#glMarker', (Array.isArray(shader) ? shader[1] : typeof shader === 'string' ? shader : (shader as any)?.main || '') + '\n', {prepend: true}),
         uniforms: {
             tDiffuse: {value: null},
+            tTransparent: {value: null},
         },
         transparent: true,
         blending: NoBlending,

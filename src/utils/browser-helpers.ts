@@ -19,10 +19,9 @@ export {imageToCanvas, imageBitmapToBase64, imageUrlToImageData, imageDataToCanv
 export {absMax, clearBit, updateBit} from 'ts-browser-helpers'
 export {includesAll} from 'ts-browser-helpers'
 export {copyProps, getOrCall, getPropertyDescriptor, isPropertyWritable, safeSetProperty} from 'ts-browser-helpers'
-export {deepAccessObject, getKeyByValue, objectHasOwn} from 'ts-browser-helpers'
+export {deepAccessObject, getKeyByValue, objectHasOwn, objectMap2, objectMap} from 'ts-browser-helpers'
 export {makeColorSvg, makeTextSvg, makeColorSvgCircle, svgToCanvas, svgToPng} from 'ts-browser-helpers'
 export {timeout, now} from 'ts-browser-helpers'
 export {pathJoin, getUrlQueryParam, setUrlQueryParam, remoteWorkerURL} from 'ts-browser-helpers'
 export {css, glsl, html, svgUrl} from 'ts-browser-helpers'
 export {Serialization} from 'ts-browser-helpers'
-
