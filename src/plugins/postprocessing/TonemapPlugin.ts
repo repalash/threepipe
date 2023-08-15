@@ -161,9 +161,15 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
             delete data.extension.enabled
             delete data.pass
         }
+        // legacy
         if (data.extension) {
-            console.error('TODO: old file')
-            return null
+            data = {...data, ...data.extension}
+            delete data.extension
+            if (data.clipBackground !== undefined) {
+                if (this._viewer) this._viewer.renderManager.screenPass.clipBackground = data.clipBackground
+                else console.warn('TonemapPlugin: no viewer attached, clipBackground ignored')
+                delete data.clipBackground
+            }
         }
         return super.fromJSON(data, meta)
     }

@@ -253,9 +253,23 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     }
 
     fromJSON(data: any, meta?: any): this | null {
+        if (data.camOptions || data.aspect === 'auto')
+            data = {...data}
         if (data.camOptions) {
-            // todo
-            console.error('todo: old file camOptions')
+            const op = data.camOptions
+            if (op.fov) data.fov = op.fov
+            if (op.focus) data.focus = op.focus
+            if (op.zoom) data.zoom = op.zoom
+            if (op.aspect) data.aspect = op.aspect
+            // todo: add support for this
+            // if (op.left) data.left = op.left
+            // if (op.right) data.right = op.right
+            // if (op.top) data.top = op.top
+            // if (op.bottom) data.bottom = op.bottom
+            // if (op.frustumSize) data.frustumSize = op.frustumSize
+            // if (op.controlsMode) data.controlsMode = op.controlsMode
+            // if (op.controlsEnabled) data.controlsEnabled = op.controlsEnabled
+            delete data.camOptions
         }
         if (data.aspect === 'auto') {
             data.aspect = this.aspect

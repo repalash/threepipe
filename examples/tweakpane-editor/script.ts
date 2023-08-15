@@ -23,7 +23,7 @@ async function init() {
         rgbm: true,
         dropzone: {
             addOptions: {
-                clearSceneObjects: false,
+                clearSceneObjects: false, // clear the scene before adding new objects on drop.
             },
         },
     })
