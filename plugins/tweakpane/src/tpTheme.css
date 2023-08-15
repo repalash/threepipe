@@ -1,5 +1,7 @@
 #tweakpaneUiContainer {
     /*padding-right: 0.25rem;*/
+    height: calc(100% - 6rem);
+    max-height: calc(100% - 6rem);
 }
 
 :root {

@@ -240,6 +240,12 @@
         margin-top: 5.5rem;
     }
 }
+@media only screen and (max-width: 920px) {
+    #tweakpaneUiContainer {
+        height: calc(100% - 12.5rem) !important;
+        max-height: calc(100% - 12.5rem) !important;
+    }
+}
 #mcanvas {
     width: 100%;
     height: 100%;
@@ -274,7 +280,7 @@
         border-radius: 0.5rem;
     }
     #tweakpaneUiContainer {
-        margin-top: 3.5rem;
+        margin-top: 2.5rem !important;
     }
 }
 body {
