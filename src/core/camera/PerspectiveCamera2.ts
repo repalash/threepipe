@@ -8,6 +8,7 @@ import {OrbitControls3} from '../../three'
 import {IObject3D} from '../IObject'
 import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
+import {bindToValue} from '../../three/utils/decorators'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
@@ -58,16 +59,40 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         autoAspect: boolean
 
     /**
-     * Near clipping plane. This is managed by RootScene for active cameras
+     * Near clipping plane.
+     * This is managed by RootScene for active cameras
+     * To change the minimum that's possible set {@link minNearPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane}
      */
     @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
         near = 0.01
 
     /**
-     * Far clipping plane. This is managed by RootScene for active cameras
+     * Far clipping plane.
+     * This is managed by RootScene for active cameras
+     * To change the maximum that's possible set {@link maxFarPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane}
      */
     @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
         far = 50
+
+    /**
+     * Automatically manage near and far clipping planes based on scene size.
+     */
+    @bindToValue({obj: 'userData', onChange: 'setDirty'})
+        autoNearFar = true
+
+    /**
+     * Minimum near clipping plane allowed. (Distance from camera)
+     * @default 0.2
+     */
+    @bindToValue({obj: 'userData', onChange: 'setDirty'})
+        minNearPlane = 0.2
+    /**
+     * Maximum far clipping plane allowed. (Distance from camera)
+     */
+    @bindToValue({obj: 'userData', onChange: 'setDirty'})
+        maxFarPlane = 1000
 
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
         super(fov, aspect)
@@ -261,13 +286,13 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
             if (op.focus) data.focus = op.focus
             if (op.zoom) data.zoom = op.zoom
             if (op.aspect) data.aspect = op.aspect
+            if (op.controlsMode) data.controlsMode = op.controlsMode
             // todo: add support for this
             // if (op.left) data.left = op.left
             // if (op.right) data.right = op.right
             // if (op.top) data.top = op.top
             // if (op.bottom) data.bottom = op.bottom
             // if (op.frustumSize) data.frustumSize = op.frustumSize
-            // if (op.controlsMode) data.controlsMode = op.controlsMode
             // if (op.controlsEnabled) data.controlsEnabled = op.controlsEnabled
             delete data.camOptions
         }
@@ -312,17 +337,18 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         ...generateUiConfig(this),
         {
             type: 'input',
-            label: 'Min Near',
-            getValue: () => this.userData.minNearPlane ?? 0.2,
-            setValue: (v) => this.userData.minNearPlane = v,
-            onChange: () => this.setDirty(),
+            label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',
+            property: [this, 'minNearPlane'],
         },
         {
             type: 'input',
-            label: 'Max Far',
-            getValue: () => this.userData.maxFarPlane ?? 1000,
-            setValue: (v) => this.userData.maxFarPlane = v,
-            onChange: () => this.setDirty(),
+            label: ()=>(this.autoNearFar ? 'Max' : '') + ' Far',
+            property: [this, 'maxFarPlane'],
+        },
+        {
+            type: 'input',
+            label: 'Auto Near Far',
+            property: [this, 'autoNearFar'],
         },
         ()=>({ // because _controlsCtors can change
             type: 'dropdown',
@@ -342,16 +368,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
             ()=>(this._controls as OrbitControls3)?.zoomIn ? {
                 type: 'button',
                 label: 'Zoom in',
-                value: ()=>{
-                    (this._controls as OrbitControls3)?.zoomIn(1)
-                },
+                value: ()=> (this._controls as OrbitControls3)?.zoomIn(1),
             } : {},
             ()=>(this._controls as OrbitControls3)?.zoomOut ? {
                 type: 'button',
                 label: 'Zoom out',
-                value: ()=>{
-                    (this._controls as OrbitControls3)?.zoomOut(1)
-                },
+                value: ()=> (this._controls as OrbitControls3)?.zoomOut(1),
             } : {},
             ()=>this._controls?.uiConfig,
         ],

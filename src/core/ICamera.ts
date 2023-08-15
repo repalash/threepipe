@@ -71,6 +71,11 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
     controlsMode?: TCameraControlsMode; // todo add more.
     // controlsEnabled: boolean; // use controlsMode = '' instead
 
+    // also in userData
+    autoNearFar: boolean // default = true
+    minNearPlane: number // default = 0.2
+    maxFarPlane: number // default = 1000
+
     // todo
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: ICameraUserData

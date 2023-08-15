@@ -1,4 +1,4 @@
-import {AnyFunction, safeSetProperty} from 'ts-browser-helpers'
+import {AnyFunction, getOrCall, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
 
 /**
  *
@@ -38,6 +38,18 @@ export function uniform({uniforms, propKey, thisTarget = false}: {uniforms?: any
     }
 }
 
+function callOnChange(this: any, onChange: (...args: any[]) => any, params: any[]) {
+    // same logic as onChange in ts-browser-helpers. todo: loop through object prototype chain like in onChange?
+    if (onChange.name) {
+        const fn: AnyFunction = this[onChange.name]
+        if (fn === onChange)
+            onChange.call(this, ...params)
+        else if (fn.name.endsWith(`bound ${onChange.name}`))
+            fn(...params)
+        else onChange(...params)
+    } else onChange(...params)
+}
+
 /**
  *
  * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
@@ -68,21 +80,50 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 if (onChange && typeof onChange === 'function') {
-                    const params = [p, newVal]
-                    // same logic as onChange in ts-browser-helpers. todo: loop through object prototype chain like in onChange?
-                    if (onChange.name) {
-                        const fn: AnyFunction = this[onChange.name]
-                        if (fn === onChange)
-                            onChange.call(this, ...params)
-                        else if (fn.name.endsWith(`bound ${onChange.name}`))
-                            fn(...params)
-                        else onChange(...params)
-                    } else {
-                        onChange(...params)
-                    }
+                    callOnChange.call(this, onChange, [p, newVal])
                 } else {
                     safeSetProperty(thisMat ? this : this.material, 'needsUpdate', true, true)
                 }
+            },
+            // configurable: true,
+            // enumerable: true,
+        })
+    }
+}
+
+/**
+ * Binds a property to a value in an object. If the object is a string, it is used as a property name in `this`.
+ * @param obj - object to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the object/string.
+ * @param key - key to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the key/string.
+ * @param onChange - function to call when the value changes. If a string, it is used as a property name in `this` and called. If a function, it is called. The function is called with the following parameters: key, newVal
+ * @param processVal - function that processes the value before setting it.
+ * @param invProcessVal - function that processes the value before returning it.
+ */
+export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {obj?: ValOrFunc<any>, key?: ValOrFunc<string | symbol>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any}): PropertyDecorator {
+    const cPropKey = !!key
+
+    return (targetPrototype: any, propertyKey: string|symbol) => {
+        const getTarget = (_this: any)=>{
+            let t = getOrCall(obj) || _this
+            if (typeof t === 'string') t = _this[t]
+            const p = cPropKey ? getOrCall(key) || propertyKey : propertyKey
+            return {t, p}
+        }
+        Object.defineProperty(targetPrototype, propertyKey, {
+            get() {
+                const {t, p} = getTarget(this)
+                let res = t[p]
+                if (invProcessVal) res = invProcessVal(res)
+                return res
+            },
+            set(newVal: any) {
+                const {t, p} = getTarget(this)
+                if (processVal) newVal = processVal(newVal)
+                safeSetProperty(t, p, newVal, true)
+                if (newVal === undefined) delete t[p]
+                let oc = onChange
+                if (oc && (typeof oc === 'string' || typeof oc === 'symbol')) oc = this[oc]
+                if (oc && typeof oc === 'function') callOnChange.call(this, oc, [p, newVal])
             },
             // configurable: true,
             // enumerable: true,
