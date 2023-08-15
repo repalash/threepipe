@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-tweakpane-editor",
     "description": "Tweakpane Editor Plugin for ThreePipe",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "devDependencies": {
         "tippy.js": "^6.3.7"
     },
@@ -20,7 +20,7 @@
         "replace": {
             "dependencies": {
                 "threepipe": "^0.0.8",
-                "@threepipe/plugin-tweakpane": "^0.1.0"
+                "@threepipe/plugin-tweakpane": "^0.1.1"
             }
         }
     },

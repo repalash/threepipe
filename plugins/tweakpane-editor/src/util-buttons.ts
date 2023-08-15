@@ -1,5 +1,5 @@
-import {AViewerPlugin, Class, createDiv, FullScreenPlugin, ThreeViewer} from 'threepipe'
-import {autoRotateCC, collapse, expand, resetSettings, trash} from './icons'
+import {AViewerPlugin, Class, createDiv, downloadBlob, FullScreenPlugin, ThreeViewer} from 'threepipe'
+import {autoRotateCC, collapse, download, expand, resetSettings, snapshot, trash} from './icons'
 import tippy, {createSingleton} from 'tippy.js'
 
 export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<AViewerPlugin>[]) {
@@ -63,32 +63,38 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<AViewer
                 controls.autoRotate = !controls.autoRotate
             },
         },
-        // {
-        //     id: 'snapshot',
-        //     icon: snapshot,
-        //     tooltip: 'Capture Snapshot',
-        //     onclick: async() => {
-        //         const s = viewer.getPlugin(CanvasSnipperPlugin)
-        //         if (!s) {
-        //             viewer.console.error('CanvasSnipperPlugin not added')
-        //             return
-        //         }
-        //         await s.downloadSnapshot()
-        //     },
-        // },
-        // {
-        //     id: 'glb-export',
-        //     icon: download,
-        //     tooltip: 'Export GLB',
-        //     onclick: async() => {
-        //         const exporter = viewer.getPlugin(AssetExporterPlugin)
-        //         if (!exporter) {
-        //             viewer.console.error('AssetExporterPlugin not added')
-        //             return
-        //         }
-        //         await exporter?.downloadSceneGlb()
-        //     },
-        // },
+        {
+            id: 'snapshot',
+            icon: snapshot,
+            tooltip: 'Capture Snapshot',
+            onclick: async() => {
+                const image = await viewer.getScreenshotBlob({mimeType: 'image/png'})
+                image && downloadBlob(image, 'screenshot.png')
+                // todo use this for waitForProgressive
+                // const s = viewer.getPlugin(CanvasSnipperPlugin)
+                // if (!s) {
+                //     viewer.console.error('CanvasSnipperPlugin not added')
+                //     return
+                // }
+                // await s.downloadSnapshot()
+            },
+        },
+        {
+            id: 'glb-export',
+            icon: download,
+            tooltip: 'Export GLB',
+            onclick: async() => {
+                const glb = await viewer.exportScene()
+                glb && downloadBlob(glb, 'scene.glb')
+                // todo use this for all export settings
+                // const exporter = viewer.getPlugin(AssetExporterPlugin)
+                // if (!exporter) {
+                //     viewer.console.error('AssetExporterPlugin not added')
+                //     return
+                // }
+                // await exporter?.downloadSceneGlb()
+            },
+        },
     ]
 }
 
