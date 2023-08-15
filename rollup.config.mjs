@@ -9,6 +9,7 @@ import path from 'path'
 import {fileURLToPath} from 'url';
 import terser from "@rollup/plugin-terser";
 import postcss from 'rollup-plugin-postcss'
+import glsl from "rollup-plugin-glsl"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,9 @@ export default {
     ],
     external: [],
     plugins: [
+        glsl({ // todo: minify glsl.
+            include: "src/**/*.glsl"
+        }),
         postcss({
             modules: false,
             autoModules: true,  // todo; issues with typescript import css, because inject is false
