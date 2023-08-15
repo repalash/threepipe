@@ -998,6 +998,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         })
     }
 
+    /**
+     * Export the scene to a file (default: glb with viewer config) and return a blob
+     * @param options
+     */
     async exportScene(options?: ExportFileOptions): Promise<BlobExt | undefined> {
         return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
     }

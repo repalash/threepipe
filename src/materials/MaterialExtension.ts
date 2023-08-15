@@ -1,6 +1,7 @@
 import {IUniform, Object3D, Shader, WebGLRenderer} from 'three'
 import {IMaterial} from '../core'
 import {UiObjectConfig} from 'uiconfig.js'
+import {ValOrFunc} from 'ts-browser-helpers'
 
 /**
  * Material extension interface
@@ -10,12 +11,12 @@ export interface MaterialExtension{
     /**
      * Extra uniforms to copy to material
      */
-    extraUniforms?: {[uniform: string]: IUniform};
+    extraUniforms?: {[uniform: string]: ValOrFunc<IUniform>};
 
     /**
      * Extra defines to copy to material
      */
-    extraDefines?: Record<string, number|string>;
+    extraDefines?: Record<string, ValOrFunc<number|string|undefined>>;
 
     /**
      * Custom callback to extend/modify/replace shader code and other shader properties

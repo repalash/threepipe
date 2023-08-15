@@ -1,5 +1,5 @@
 import {IMaterial, IMaterialUserData} from '../core'
-import {getOrCall} from 'ts-browser-helpers'
+import {getOrCall, objectMap} from 'ts-browser-helpers'
 import {shaderReplaceString} from '../utils/shader-helpers'
 import {Object3D, Shader, WebGLRenderer} from 'three'
 import {MaterialExtension} from './MaterialExtension'
@@ -27,7 +27,7 @@ export class MaterialExtender {
         }
         // Add extra uniforms
         if (materialExtension.extraUniforms) {
-            shader.uniforms = Object.assign(shader.uniforms, materialExtension.extraUniforms)
+            shader.uniforms = Object.assign(shader.uniforms, objectMap(materialExtension.extraUniforms, (v)=>getOrCall(v, shader) || {value: null}))
         }
         // Add extra defines and set needsUpdate to true if needed
         if (materialExtension.extraDefines)
@@ -50,7 +50,7 @@ export class MaterialExtender {
     static CacheKeyForExtension(material: IMaterial, materialExtension: MaterialExtension): string {
         let r = ''
         if (materialExtension.computeCacheKey) r += getOrCall(materialExtension.computeCacheKey, material)
-        if (materialExtension.extraDefines) r += Object.values(materialExtension.extraDefines).join('')
+        if (materialExtension.extraDefines) r += Object.values(materialExtension.extraDefines).map(v=>getOrCall(v) ?? '').join('')
         return r
     }
 
@@ -96,14 +96,16 @@ export class MaterialExtender {
     }
 }
 
-function updateMaterialDefines(defines: any, material: IMaterial) {
+function updateMaterialDefines(defines: MaterialExtension['extraDefines'], material: IMaterial) {
+    if (!defines) return
     if (!material.defines) {
         console.warn('Material does not have defines', material) // todo: check when material.defines is undefined
         material.defines = {}
     }
     let flag = false
     const entries = Object.entries(defines)
-    for (const [key, val] of entries) {
+    for (const [key, valF] of entries) {
+        const val = getOrCall(valF)
         if (val === undefined) {
             if (material.defines[key] !== undefined) {
                 delete material.defines[key]
