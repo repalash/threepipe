@@ -2,10 +2,15 @@ import {uiButton, uiFolderContainer} from 'uiconfig.js'
 import {AViewerPluginSync} from '../../viewer'
 
 /**
- * A simple plugin that provides functions to enter, exit, toggle full screen mode and check if the viewer is in full screen mode.
+ * Full Screen Plugin
+ *
+ * A simple plugin that provides functions to {@link enter}, {@link exit}, {@link toggle} full screen mode and check if the viewer is in full screen mode with {@link isFullScreen}.
+ *
  * Implementation from:
  * https://stackoverflow.com/questions/50568474/how-to-enter-fullscreen-in-three-js
+ *
  * @todo: try out some lib like https://github.com/sindresorhus/screenfull for proper cross browser support
+ * @category Plugins
  */
 @uiFolderContainer('Full Screen')
 export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {

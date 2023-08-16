@@ -24,6 +24,12 @@ export type DepthBufferPluginEventTypes = ''
 export type DepthBufferPluginTarget = WebGLRenderTarget
 export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget>
 
+/**
+ * Depth Buffer Plugin
+ *
+ * Adds a pre-render pass to render the depth buffer to a render target that can be used as gbuffer or for postprocessing.
+ * @category Plugins
+ */
 @uiFolderContainer('Depth Buffer Plugin')
 export class DepthBufferPlugin
     extends PipelinePassPlugin<DepthBufferPluginPass, 'depth', DepthBufferPluginEventTypes> {

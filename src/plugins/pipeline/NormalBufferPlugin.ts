@@ -26,6 +26,12 @@ export type NormalBufferPluginEventTypes = ''
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget>
+/**
+ * Normal Buffer Plugin
+ *
+ * Adds a pre-render pass to render the normal buffer to a render target that can be used for postprocessing.
+ * @category Plugins
+ */
 @uiFolderContainer('Normal Buffer Plugin')
 export class NormalBufferPlugin
     extends PipelinePassPlugin<NormalBufferPluginPass, 'normal', NormalBufferPluginEventTypes> {

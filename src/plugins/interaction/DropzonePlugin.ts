@@ -14,6 +14,15 @@ export interface DropzonePluginOptions {
     importOptions?: ImportFilesOptions
     addOptions?: AddAssetOptions
 }
+
+/**
+ * Dropzone Plugin
+ *
+ * Adds a dropzone to the viewer for importing assets.
+ *
+ * Automatically imports and adds assets to the scene, the behavior can be configured.
+ * @category Plugins
+ */
 @uiFolderContainer('Dropzone')
 export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     static readonly PluginType = 'Dropzone'

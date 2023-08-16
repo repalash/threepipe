@@ -4,6 +4,13 @@ import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportParser} fr
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
 
+/**
+ * Asset Exporter
+ *
+ * Utility class to export objects, materials, textures, render targets, etc.
+ * Used in {@link AssetManager} to export assets.
+ * @category Asset Manager
+ */
 export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' | 'exportFile'> implements IAssetExporter {
     readonly exporters: IExporter[] = [
         {ctor: ()=>new SimpleJSONExporter(), ext: ['json']},

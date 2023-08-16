@@ -14,7 +14,13 @@ import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID, isInScene} from '../three'
 
-
+/**
+ * Material Manager
+ * Utility class to manage materials.
+ * Maintains a library of materials and material templates that can be used to manage or create new materials.
+ * Used in {@link AssetManager} to manage materials.
+ * @category Asset Manager
+ */
 export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     readonly templates: IMaterialTemplate[] = [
         PhysicalMaterial.MaterialTemplate,

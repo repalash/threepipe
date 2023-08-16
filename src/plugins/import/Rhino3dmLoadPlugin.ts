@@ -1,6 +1,10 @@
 import {IViewerPluginSync, ThreeViewer} from '../../viewer'
 import {Importer, Rhino3dmLoader2} from '../../assetmanager'
 
+/**
+ * Adds support for loading Rhino `.3dm` files.
+ * @category Plugins
+ */
 export class Rhino3dmLoadPlugin implements IViewerPluginSync {
     declare ['constructor']: typeof Rhino3dmLoadPlugin
 

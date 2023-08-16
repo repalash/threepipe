@@ -24,6 +24,14 @@ export type IAssetImporterEvent = Event&{
     url?: string, loaded?: number, total?: number
     loader?: ILoader,
 }
+/**
+ * Asset Importer
+ *
+ * Utility class to import assets from local files, blobs, urls, etc.
+ * Used in {@link AssetManager} to import assets.
+ * Acts as a wrapper over three.js LoadingManager and adds support for dynamically loading loaders, caching assets, better event dispatching and file tracking.
+ * @category Asset Manager
+ */
 export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetImporterEventTypes> implements IAssetImporter {
     private _loadingManager: LoadingManager
 
@@ -54,8 +62,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         this._loadingManager = new LoadingManager(this._onLoad, this._onProgress, this._onError)
         this._loadingManager.onStart = this._onStart
         this._loadingManager.setURLModifier(this._urlModifier)
-
-        // addDracoLoader()
     }
 
     get loadingManager(): LoadingManager {

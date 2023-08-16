@@ -22,7 +22,7 @@ export type ExportFileOptions = {
     /**
      * Export and bundle the viewer config (scene settings).
      * only works for rootSceneModelRoot and supported only in GLTFExporter2 {@link GLTFExporter2Options.viewerConfig}
-     * {@default true}
+     * @default true
      */
     viewerConfig?: boolean,
 

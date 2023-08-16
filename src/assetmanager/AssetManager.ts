@@ -67,6 +67,12 @@ export type ImportAddOptions = ImportAssetOptions & AddAssetOptions
 export type AddRawOptions = ProcessRawOptions & AddAssetOptions
 
 
+/**
+ * Asset Manager
+ *
+ * Utility class to manage import, export, and material management.
+ * @category Asset Manager
+ */
 export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}, 'loadAsset'> {
     static readonly PluginType = 'AssetManager'
     readonly viewer: ThreeViewer

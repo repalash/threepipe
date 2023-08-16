@@ -16,13 +16,15 @@
             "*": "https://repalash.com/uiconfig-tweakpane"
         }
     },
-    "entryPoints": ["src/index.ts"],
+    "entryPoints": [
+        "src/index.ts"
+    ],
     "name": "ThreePipe",
     "excludeExternals": true,
     "readme": "none",
     "categorizeByGroup": false,
     "categoryOrder": [
-        "Viewer", "*", "Others"
+        "Viewer", "Plugins", "Asset Manager", "*", "Others"
     ],
     "externalPattern": [
         "**/node_modules/**",
