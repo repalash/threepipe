@@ -33,11 +33,10 @@ async function init() {
 
     await viewer.addPlugins([
         new ViewerUiConfigPlugin(),
-        // new SceneUiConfigPlugin(),
+        // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
-        new TonemapPlugin(),
     ])
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)

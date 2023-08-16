@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.9",
+  "version": "0.0.10-dev.1",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",

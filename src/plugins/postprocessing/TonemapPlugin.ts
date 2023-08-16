@@ -10,7 +10,6 @@ import {
     ReinhardToneMapping,
     Shader,
     ShaderChunk,
-    SRGBColorSpace,
     ToneMapping,
     Vector4,
     WebGLRenderer,
@@ -31,6 +30,15 @@ export interface GBufferUpdater {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
 
+/**
+ * Tonemap Plugin
+ *
+ * Adds an extension to {@link ScreenPass} material
+ * for applying tonemapping on the final buffer before rendering to screen.
+ *
+ * Also adds support for Uncharted2 tone-mapping.
+ * @category Plugins
+ */
 @uiFolderContainer('Tonemapping')
 export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExtension, GBufferUpdater {
     static readonly PluginType = 'Tonemap'
@@ -120,14 +128,12 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
 
     onObjectRender(_: Object3D, material: IMaterial, renderer: WebGLRenderer): void {
         if (!this.enabled) return
-        const {toneMapping, toneMappingExposure, outputColorSpace} = renderer
+        const {toneMapping, toneMappingExposure} = renderer
         this._rendererState.toneMapping = toneMapping
         this._rendererState.toneMappingExposure = toneMappingExposure
-        this._rendererState.outputColorSpace = outputColorSpace
 
         renderer.toneMapping = this.toneMapping
         renderer.toneMappingExposure = this.exposure
-        renderer.outputColorSpace = SRGBColorSpace
         material.toneMapped = true
         material.needsUpdate = true
     }
@@ -135,7 +141,6 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
     onAfterRender(_: Object3D, _1: IMaterial, renderer: WebGLRenderer): void {
         renderer.toneMapping = this._rendererState.toneMapping
         renderer.toneMappingExposure = this._rendererState.toneMappingExposure
-        renderer.outputColorSpace = this._rendererState.outputColorSpace
     }
 
     getUiConfig(): any {

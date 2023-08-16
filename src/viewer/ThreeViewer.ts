@@ -42,6 +42,7 @@ import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
+import {TonemapPlugin} from '../plugins'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
@@ -103,6 +104,12 @@ export interface ThreeViewerOptions {
     debug?: boolean
 
     /**
+     * TonemapPlugin is added to the viewer if this is true.
+     * @default true
+     */
+    tonemap?: boolean
+
+    /**
      * Options for the asset manager.
      */
     assetManager?: AssetManagerOptions
@@ -128,10 +135,12 @@ export interface ThreeViewerOptions {
     useGBufferDepth?: boolean
 }
 
-const VIEWER_VERSION = '0.0.1'
+const VIEWER_VERSION = '0.0.10-dev.1'
 
 /**
- * The ThreeViewer is the main class in the framework.
+ * Three Viewer
+ *
+ * The ThreeViewer is the main class in the framework to manage a scene, render and add plugins to it.
  * @category Viewer
  */
 @uiFolderContainer('Viewer')
@@ -305,6 +314,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
         if (options.dropzone) {
             this.addPluginSync(new DropzonePlugin(typeof options.dropzone === 'object' ? options.dropzone : undefined))
+        }
+        if (options.tonemap !== false) {
+            this.addPluginSync(new TonemapPlugin())
         }
 
         this.console.log('ThreePipe Viewer instance initialized, version: ', ThreeViewer.VERSION)

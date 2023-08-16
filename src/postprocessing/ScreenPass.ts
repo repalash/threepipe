@@ -11,9 +11,9 @@ import {
 import {ICamera, IRenderManager, IScene, IWebGLRenderer, ShaderMaterial2} from '../core'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
-import {uiFolderContainer, uiToggle} from 'uiconfig.js'
+import {uiDropdown, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {ViewerRenderManager} from '../viewer'
-import {matDefine} from '../three'
+import {matDefine, threeConstMappings} from '../three'
 import ScreenPassShader from './ScreenPass.glsl'
 import {shaderReplaceString} from '../utils'
 
@@ -22,6 +22,7 @@ export type TViewerScreenShader = TViewerScreenShaderFrag | ShaderMaterialParame
 
 @uiFolderContainer('Screen Pass')
 export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'screen'> {
+    uiConfig!: UiObjectConfig
     readonly passId = 'screen'
     after: IPassID[] = ['render']
     required: IPassID[] = ['render']
@@ -34,7 +35,8 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         this.material.addEventListener('materialUpdate', this.setDirty)
     }
 
-    outputColorSpace: ColorSpace = SRGBColorSpace
+    @uiDropdown('Output Color Space', threeConstMappings.ColorSpace.uiConfig, (t: ScreenPass)=>({onChange: t.setDirty}))
+        outputColorSpace: ColorSpace = SRGBColorSpace
 
     private _lastReadBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget
 
