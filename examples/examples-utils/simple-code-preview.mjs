@@ -10,7 +10,7 @@ if(exampleScript.textContent) scripts.push(exampleScript)
 const exampleStyle = document.querySelector('#example-style')
 const css = exampleStyle ? exampleStyle.textContent : ''
 const importMap = document.querySelector('script[type="importmap"]')
-const imports = JSON.parse(importMap.textContent||'{}').imports||{}
+const imports = importMap ? JSON.parse(importMap.textContent||'{}').imports||{} : {}
 Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\/\.\.\/\.\.\//, rootPath)) // ./../../ -> rootPath
 function replaceImports(code) {
     for (const [name, link] of Object.entries(imports)) code = code.replaceAll(` from '${name}'`, ` from '${link}'`)
@@ -19,7 +19,7 @@ function replaceImports(code) {
         .replaceAll(` from '../`, ` from '${rootPath+examplePath}`)
 }
 setupCodePreview(
-    document.getElementById('canvas-container') || document.querySelector('.code-preview-container'),
+    document.getElementById('canvas-container') || document.querySelector('.code-preview-container') || document.body,
     scripts,
     scripts.map(s=>s.textContent ? 'js' : s.split('.').pop()), // title
     scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : (codePath+examplePath+window.location.pathname.split('/examples/').pop().replace('index.html', '')+(s.textContent ? 'index.html' : s))), // todo: github link

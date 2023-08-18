@@ -4,10 +4,14 @@ import {
     DropzonePlugin,
     FullScreenPlugin,
     HalfFloatType,
-    IObject3D,
+    KTX2LoadPlugin,
+    KTXLoadPlugin,
     NormalBufferPlugin,
+    PLYLoadPlugin,
     RenderTargetPreviewPlugin,
+    Rhino3dmLoadPlugin,
     SceneUiConfigPlugin,
+    STLLoadPlugin,
     ThreeViewer,
     TonemapPlugin,
     ViewerUiConfigPlugin,
@@ -21,6 +25,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         rgbm: true,
+        zPrepass: false, // set it to true if you only have opaque objects in the scene to get better performance.
         dropzone: {
             addOptions: {
                 clearSceneObjects: false, // clear the scene before adding new objects on drop.
@@ -37,6 +42,11 @@ async function init() {
         new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
+        new KTX2LoadPlugin(),
+        new KTXLoadPlugin(),
+        new PLYLoadPlugin(),
+        new Rhino3dmLoadPlugin(),
+        new STLLoadPlugin(),
     ])
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
@@ -50,13 +60,12 @@ async function init() {
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
-        setBackground: true,
-    })
-    await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-        autoCenter: true,
-        autoScale: true,
-    })
+    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+
+    // await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    //     autoCenter: true,
+    //     autoScale: true,
+    // })
 
     // const model = result?.getObjectByName('node_damagedHelmet_-6514')
     // const config = model?.uiConfig

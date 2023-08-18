@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threepipe HTML/JS Sample</title>
+    <style>
+        html, body{
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+</head>
+<body>
+<canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
+<script id="example-script" type="module" data-scripts="./index.html">
+    import {ThreeViewer} from 'https://threepipe.org/dist/index.mjs'
+    const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
+
+    // Load an environment map
+    const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+        autoCenter: true,
+        autoScale: true,
+    })
+
+    Promise.all([envPromise, modelPromise]).then(([env, model])=>{
+        console.log('Loaded', model, env, viewer)
+    })
+</script>
+</body>

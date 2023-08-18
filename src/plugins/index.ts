@@ -18,6 +18,10 @@ export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'
+export {PLYLoadPlugin} from './import/PLYLoadPlugin'
+export {STLLoadPlugin} from './import/STLLoadPlugin'
+export {KTXLoadPlugin} from './import/KTXLoadPlugin'
+export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
 
 // postprocessing
 export {TonemapPlugin} from './postprocessing/TonemapPlugin'

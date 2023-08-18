@@ -5,7 +5,7 @@ import {AnyOptions, IDisposable} from 'ts-browser-helpers'
 export interface ILoader<T = any, T2 = any> extends Loader, Partial<IDisposable> {
     loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any>;
     /**
-     * Transform after load, like convert geometry to mesh, etc. for reference see {@link DRACOLoader2}
+     * Transform after load, like convert geometry to mesh, etc. for reference see {@link DRACOLoader2} or {@link PLYLoadPlugin}
      * @param res - result of load
      * @param options
      */

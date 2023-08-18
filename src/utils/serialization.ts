@@ -14,7 +14,7 @@ import {
     Vector4,
 } from 'three'
 import type {AssetImporter, AssetManager, MaterialManager} from '../assetmanager'
-import {BlobExt, IAssetImporter} from '../assetmanager'
+import {BlobExt, IAssetImporter, ImportResultExtras} from '../assetmanager'
 import {ThreeViewer} from '../viewer'
 import {ITexture} from '../core'
 import {IRenderTarget, RenderManager} from '../rendering'
@@ -776,4 +776,48 @@ export function jsonToBlob(json: any): BlobExt {
     const b = new Blob([JSON.stringify(json)], {type: 'application/json'}) as BlobExt
     b.ext = 'json'
     return b
+}
+
+
+
+/**
+ * Used in {@link LUTCubeTextureWrapper} and {@link KTX2LoadPlugin} and imported in {@link loadConfigResources}
+ * @param texture
+ * @param meta
+ * @param name
+ * @param mime
+ */
+export function serializeTextureInExtras(texture: ITexture & ImportResultExtras, meta: any, name?: string, mime?: string) {
+    if (meta?.extras[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
+
+    let url: any = ''
+    if (texture.source?._sourceImgBuffer || texture.__sourceBuffer) {
+        // serialize blob to data in image.
+        // Note: do not change to Uint16Array because it's encoded to rgbe in `processViewer`
+        const data = new Uint8Array(texture.source?._sourceImgBuffer || texture.__sourceBuffer as ArrayBuffer)
+        const mimeType = mime || texture.userData.mimeType || ''
+        url = {
+            data: Array.from(data), // texture need to be a normal array, not a typed array.
+            type: data.constructor.name,
+            path: texture.userData.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
+        }
+        if (mimeType) url.mimeType = mimeType
+    } else if (texture.userData.rootPath) {
+        url = texture.userData.rootPath
+    } else {
+        console.error('Unable to serialize LUT texture, not loaded through asset manager.')
+    }
+
+    const tex = {
+        uuid: texture.uuid,
+        url,
+        userData: copyTextureUserData({}, texture.userData),
+        type: texture.type,
+        name: name || texture.name,
+    }
+    if (meta?.extras) {
+        meta.extras[texture.uuid] = tex
+        return {uuid: texture.uuid, resource: 'extras'}
+    }
+    return tex
 }
