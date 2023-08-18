@@ -29,7 +29,7 @@ Key features include:
 
 ## Examples
 
-Code samples and demos covering various usecases and test are present in the [examples](./examples/) folder. 
+Code samples and demos covering various usecases and test are present in the [examples](./examples/) folder.
 
 Try them: https://threepipe.org/examples/
 
@@ -37,6 +37,48 @@ View the source code by pressing the code button on the top left of the example 
 
 To make changes and run the example, click on the CodePen button on the top right of the source code.
 
+# Table of Contents
+
+- [ThreePipe](#threepipe)
+  - [Examples](#examples)
+  - [Table of Contents](#table-of-contents)
+  - [Getting Started](#getting-started)
+    - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
+    - [NPM/YARN Package](#npmyarn)
+      - [Installation](#installation)
+      - [Loading a 3D Model](#loading-a-3d-model)
+  - [License](#license)
+  - [Status](#status)
+  - [Documentation (API Reference)](#documentation)
+  - [WebGi](#webgi)
+  - [Contributing](#contributing)
+- [Features](#features)
+  - [File Formats](#file-formats)
+  - [Loading files](#loading-files)
+    - [3D models](#3d-models)
+    - [Materials](#materials)
+    - [Images/Textures](#imagestextures)
+    - [zip files](#zip-files)
+    - [txt, json files](#txt-json-files)
+    - [Data URLs](#data-urls)
+    - [Local files, File and Blob](#local-files-file-and-blob)
+    - [Background, Environment maps](#background-environment-maps)
+    - [SVG strings](#svg-strings)
+- [Plugins](#threepipe-plugins)
+  - [TonemapPlugin](#tonemapplugin) - Tonemapping Plugin for post-processing
+  - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
+  - [DepthBufferPlugin](#depthbufferplugin) - Depth Buffer Plugin for pre-rendering depth buffer
+  - [NormalBufferPlugin](#normalbufferplugin) - Normal Buffer Plugin for pre-rendering normal buffer
+  - [DepthNormalBufferPlugin](#depthnormalbufferplugin) - Depth and Normal Buffer Plugin for pre-rendering depth and normal buffers in a single pass
+  - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Render Target Preview Plugin for previewing render targets
+  - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Rhino3dm Load Plugin for loading .3dm files
+  - [PLYLoadPlugin](#plyloadplugin) - PLY Load Plugin for loading .ply files
+  - [STLLoadPlugin](#stlloadplugin) - STL Load Plugin for loading .stl files
+  - [KTX2LoadPlugin](#ktx2loadplugin) - KTX2 Load Plugin for loading .ktx2 files
+  - [KTXLoadPlugin](#ktxloadplugin) - KTX Load Plugin for loading .ktx files
+- [Packages](#threepipe-packages)
+  - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
+  - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
 
 ## Getting Started
 
@@ -129,6 +171,8 @@ Check out WebGi - Premium Photo-realistic 3D rendering framework and tools for w
 ## Contributing
 Contributions to ThreePipe are welcome and encouraged! Feel free to open issues and pull requests on the GitHub repository.
 
+# Features
+
 ## File Formats
 
 ThreePipe Asset Manager supports the import of the following file formats out of the box:
@@ -172,7 +216,7 @@ can then be called to load the imported files after any processing.
 The `viewer.load()`, `viewer.assetManager.addAsset()`
 and `viewer.assetManager.addAssetSingle()` methods perform combination of `import` and `loadImported`.
 
-### 3d models.
+### 3D models
 
 The 3d models are added to `viewer.scene.modelRoot` on `viewer.load` unless some option is specified.
 
