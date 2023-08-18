@@ -114,7 +114,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             .forEach(map=>
                 !map.isRenderTargetTexture && map.userData.disposeOnIdle !== false &&
                 map.dispose && !isInScene(map) && map.dispose())
-        // this.unregisterMaterial(mat) // todo
+        this.unregisterMaterial(mat) // todo, re-add when material is added again to the scene.
     }
 
     private _materialMaps = new Map<string, Set<ITexture>>()
@@ -242,9 +242,10 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             const template = options.materialTemplate || (!ignoreSource && material.type ? material.type || 'physical' : 'physical')
             mat = this.create(template, ignoreSource ? undefined : material)
         } else {
+            // if ((mat as any).iMaterial) mat = (mat as any).iMaterial
             console.warn('Material with the same uuid already exists, copying properties')
-            if (material.type !== mat.type) console.error('Material type mismatch, delete previous material first?', material.type, mat.type)
-            mat.setValues(material)
+            if (material.type !== mat!.type) console.error('Material type mismatch, delete previous material first?', material, mat)
+            mat!.setValues(material)
         }
         if (mat) {
             mat.uuid = uuid

@@ -13,7 +13,7 @@ A new way to work with three.js, 3D models and rendering on the web.
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/repalash.svg?style=social&label=Follow%20%40repalash)](https://twitter.com/repalash)
 
-ThreePipe is a 3D framework built on top of [three.js](https://threejs.org/) in TypeScript with a focus on rendering quality, modularity and extensibility.
+ThreePipe is a 3D framework built on top of [three.js](https://threejs.org/) in TypeScript with a focus on rendering quality, modularity, and extensibility.
 
 Key features include:
 - Simple, intuitive API for creating 3D model viewers/configurators/editors on web pages, with many built-in presets for common workflows and use-cases.
@@ -39,6 +39,30 @@ To make changes and run the example, click on the CodePen button on the top righ
 
 
 ## Getting Started
+
+### HTML/JS Quickstart (CDN)
+
+```html
+<canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
+<script type="module">
+  import {ThreeViewer} from 'https://threepipe.org/dist/index.mjs'
+  const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
+  
+  // Load an environment map
+  const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+  const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    autoCenter: true,
+    autoScale: true,
+  })
+  
+  Promise.all([envPromise, modelPromise]).then(([env, model])=>{
+    console.log('Loaded', model, env, viewer)
+  })
+</script>
+```
+Check it in action: https://threepipe.org/examples/#html-sample/
+
+### NPM/YARN
 
 ### Installation
 
@@ -77,12 +101,12 @@ The 3D model can be opened in the [editor](TODO) to view and edit the scene sett
 
 The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), several importers, exporters and a default rendering pipeline. Additional functionality can be added with plugins.
 
-Check out the GLTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/gltf-load/
+Check out the GLTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#gltf-load/
 
 Check out the [Plugins](#plugins) section below to learn how to add additional functionality to the viewer.
 
 ## License
-The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE).
+The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the Free [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE).
 
 Some plugins(in the [plugins](https://github.com/repalash/threepipe/tree/master/plugins) folder) might have different licenses. Check the individual plugin documentation and the source folder/files for more details.
 
@@ -116,9 +140,8 @@ ThreePipe Asset Manager supports the import of the following file formats out of
 * Materials
   * mat, pmat, bmat (json based), registered material template slugs
 * Images
-  * webp, png, jpeg, jpg, svg, ico
+  * webp, png, jpeg, jpg, svg, ico, avif
   * hdr, exr
-  * ktx2, ktx, dds, pvr
 * Misc
   * json, vjson
   * zip
@@ -127,12 +150,200 @@ ThreePipe Asset Manager supports the import of the following file formats out of
 Plugins can add additional formats:
 * Models
   * 3dm - Using [Rhino3dmLoadPlugin](#Rhino3dmLoadPlugin)
+  * ply - Using [PLYLoadPlugin](#PLYLoadPlugin)
+  * stl - Using [STLLoadPlugin](#STLLoadPlugin)
+  * ktx - Using [KTXLoadPlugin](#KTXLoadPlugin)
+  * ktx2 - Using [KTX2LoadPlugin](#KTX2LoadPlugin)
 
-## Plugins
+## Loading files
+
+ThreePipe uses the [AssetManager](https://threepipe.org/docs/classes/AssetManager.html) to load files.
+The AssetManager has support for loading files from URLs, local files and data URLs.
+The AssetManager also adds support for loading files from a zip archive. The zip files are automatically unzipped, and the files are loaded from the zip archive.
+
+[viewer.load()](https://threepipe.org/docs/classes/ThreeViewer.html#load) is a high-level wrapper for loading files from the AssetManager.
+It automatically adds the loaded object to the scene and returns a promise that resolves to the loaded object,
+the materials are also automatically registered to the material manager.
+
+If the purpose is not to add files to the scene then [viewer.assetManager.importer.import()](https://threepipe.org/docs/classes/AssetImporter.html#import) method can be used
+to import files from the `AssetImporter`.
+viewer.assetManager.loadImported()](https://threepipe.org/docs/classes/AssetManager.html#loadImported)
+can then be called to load the imported files after any processing.
+The `viewer.load()`, `viewer.assetManager.addAsset()`
+and `viewer.assetManager.addAssetSingle()` methods perform combination of `import` and `loadImported`.
+
+### 3d models.
+
+The 3d models are added to `viewer.scene.modelRoot` on `viewer.load` unless some option is specified.
+
+```typescript
+const objectGlb = await viewer.load<IObject3D>('https://example.com/file.glb')
+const objectFbx = await viewer.load<IObject3D>('https://example.com/file.fbx')
+const objectObj = await viewer.load<IObject3D>('https://example.com/file.obj') // .mtl referenced in obj is automatically loaded
+// ... load any 3d model file as an object
+```
+Here, we are casting to [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html) type
+to get the proper type and autocomplete for the object.
+`IObject3D` inherits [Object3D](https://threejs.org/docs/#api/en/core/Object3D) from three.js and adds some additional properties.
+
+For JavaScript, the type can be omitted.
+```javascript
+const objectGlb = await viewer.load('https://example.com/file.glb')
+```
+
+When loading models, several options can be passed to automatically process the model first time, like `autoScale`, `autoCenter`, `addToRoot` etc. Check [AddObjectOptions](https://threepipe.org/docs/interfaces/AddObjectOptions.html) and [ImportAddOptions](https://threepipe.org/docs/interfaces/ImportAddOptions.html) for more details.
+
+### Materials
+
+The materials downloaded as PMAT/BMAT/JSON etc from threepipe,
+webgi or the editor can be loaded
+and registered with the [MaterialManager](https://threepipe.org/docs/classes/MaterialManager)
+using the `viewer.load` method. 
+
+Custom material types can also be registered by plugins(like dmat for diamonds), which can also be loaded automatically using the `viewer.load` method.
+
+```typescript
+const pMaterial = await viewer.load<PhysicalMaterial>('https://example.com/file.pmat')
+const bMaterial = await viewer.load<UnlitMaterial>('https://example.com/file.bmat')
+// ... load any material file as a material
+```
+Casting to [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial) or [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial) is optional but recommended to get the proper type and autocomplete for the material.
+
+To assign the material on any object, set it to `object.material`
+
+```typescript
+// find a loaded mesh in the scene
+const object = viewer.scene.getObjectByName('objectName');
+// assign the material
+object.material = pMaterial;
+```
+
+To copy the properties without changing the material reference, use `material.copy()` or `material.setValues()` methods.
+
+```typescript
+object.material.copy(pMaterial);
+```
+
+TODO: add examples for material load and copy
+
+### Images/Textures
+
+Images can be loaded using the `viewer.load` method.
+There is built-in support for loading all image formats supported by the browser (webp, png, jpeg, jpg, svg, ico, avif) and hdr, exr, hdr.png formats for all browsers.
+More formats like ktx2, ktx, etc. can be added using plugins.
+
+```typescript
+const texture = await viewer.load<ITexture>('https://example.com/file.png')
+// ... load any image file as a texture
+```
+Casting to [ITexture](https://threepipe.org/docs/interfaces/ITexture.html) is optional
+but recommended to get the proper type and autocomplete for the texture.
+It inherits from three.js [Texture](https://threejs.org/docs/#api/en/textures/Texture) and adds some additional properties.
+
+To assign the texture on any material, set it to `material.map`
+
+```typescript
+// find a loaded mesh in the scene
+const object = viewer.scene.getObjectByName('objectName');
+const material = object.material as PhysicalMaterial;
+// assign the texture
+material.map = texture;
+material.setDirty() // to let the viewer know that the material has changed and needs to re-render the scene. This will also trigger fade effect if FrameFadePlugin is added.
+```
+Check out the image load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#image-load/
+
+### Zip files
+
+.zip files are automatically unzipped and the files are sent to re-load recursively when loaded with `viewer.load`.
+Any level of zip hierarchy is flattened.
+Loading files like .gltf with references to assets inside the zip file,
+any relative references are also automatically resolved.
+This is supported for file types like gltf, glb, obj,
+etc which support references to external files and has `root` set to `true in [IImporter](https://threepipe.org/docs/interfaces/IImporter.html).
+
+```typescript
+const objectGltf = await viewer.load<IObject3D>('https://example.com/model.gltf.zip')
+```
+If we know that the zip file contains a single gltf with all the assets, we can cast the result to [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html) type. 
+
+To load multiple assets from zip files like multiple textures or materials, use `viewer.assetManager.addAsset` method which returns a promise of array of loaded assets.
+
+```typescript
+const textures = await viewer.assetManager.addAsset<ITexture[]>('https://example.com/textures.zip')
+const materials = await viewer.assetManager.addAsset<IMaterial[]>('https://example.com/materials.zip')
+```
+
+The auto import of zip contents can be disabled to get the files and blobs in the zip 
+```typescript
+const zip = await viewer.load<any>('https://example.com/file.zip', {autoImportZipContents: false})
+```
+
+TODO - add example for loading zip files.
+
+### txt, json files
+
+Text and JSON files can be loaded using the `viewer.load` method and return strings and objects respectively.
+
+```typescript
+const text = await viewer.load<string>('https://example.com/file.txt')
+const json = await viewer.load<any>('https://example.com/file.json')
+```
+
+### Data URLs
+
+Data URLs can be loaded using the `viewer.load` method. The correct mime-type is required to be set in the data URL for finding the correct importer.
+
+```typescript
+const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA' // ... some data url
+const texture = await viewer.load<ITexture>(dataUrl)
+```
+
+### Local files, File and Blob
+
+Local files can be loaded using the `viewer.load` method by passing a [IAsset](https://threepipe.org/docs/interfaces/IAsset) object with [File](https://developer.mozilla.org/en-US/docs/Web/API/File) or [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) object.
+
+```typescript
+const file: File|Blob = fileObject // create a new file, blob or get from input element 
+const text = await viewer.load<IObject>({
+  // a path/name is required to determine the proper importer by extension. `file.name` can also be used if available
+  path: 'file.glb', 
+  file
+})
+```
+The same can be done for any file type.
+
+To load a `Map` of files(like when multiple files are dragged and dropped on the webpage) with internal references to other files, use `viewer.assetManager.importer.importFiles` method. Check the source for [DropzonePlugin](#DropzonePlugin) for an example.
+
+### Background, Environment maps
+
+The background and environment maps can be set using the `viewer.setBackgroundMap` and `viewer.setEnvironmentMap` methods respectively. These accept both loaded textures from `viewer.load` and direct URLs. Files can be of any image format including hdr, exr.
+
+```typescript
+await viewer.setEnvironmentMap('https://example.com/file.hdr')
+await viewer.setBackgroundMap('https://example.com/file.png')
+```
+
+The same texture can be set to both by setting `setBackground` or `setEnvironment` to true in the options: 
+```typescript
+await viewer.setEnvironmentMap('https://example.com/file.hdr', {setBackground: true})
+```
+
+Check the HDR Load example to see it in action: https://threepipe.org/examples/#hdr-load/
+
+### SVG strings
+SVG strings can be converted to data urls using the [svgUrl](https://repalash.com/ts-browser-helpers/functions/svgUrl.html) string template function
+
+```typescript
+const svgDataUrl = svgUrl`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"> ... </svg>`;
+const texture = await viewer.load<ITexture>(dataUrl)
+```
+
+
+# Threepipe Plugins
 
 ThreePipe has a simple plugin system that allows you to easily add new features to the viewer. Plugins can be added to the viewer using the `addPlugin` and `addPluginSync` methods. The plugin system is designed to be modular and extensible. Plugins can be added to the viewer at any time and can be removed using the `removePlugin` and `removePluginSync` methods.
 
-### TonemapPlugin
+## TonemapPlugin
 
 todo: image
 
@@ -150,7 +361,7 @@ Other Tonemapping properties can be like `exposure`, `contrast` and `saturation`
 
 TonemapPlugin is added by default in ThreeViewer unless `tonemap` is set to `false` in the options.
 
-### DropzonePlugin
+## DropzonePlugin
 
 todo: image
 
@@ -196,7 +407,7 @@ const viewer = new ThreeViewer({
 })
 ```
 
-### DepthBufferPlugin
+## DepthBufferPlugin
 
 todo: image
 
@@ -222,7 +433,7 @@ const depthTarget = depthPlugin.target;
 
 The depth values are based on camera near far values, which are controlled automatically by the viewer. To manually specify near, far values and limits, it can be set in the camera userData. Check the [example](https://threepipe.org/examples/#depth-buffer-plugin/) for more details.
 
-### NormalBufferPlugin
+## NormalBufferPlugin
 
 todo: image
 
@@ -249,12 +460,12 @@ const normalTarget = normalPlugin.target;
 ```
 
 
-### DepthNormalBufferPlugin
+## DepthNormalBufferPlugin
 
 todo
 
 
-### RenderTargetPreviewPlugin
+## RenderTargetPreviewPlugin
 
 todo: image
 
@@ -279,7 +490,7 @@ const previewPlugin = viewer.addPluginSync(new RenderTargetPreviewPlugin())
 previewPlugin.addTarget(()=>normalPlugin.target, 'normal', false, false)
 ```
 
-### Rhino3dmLoadPlugin
+## Rhino3dmLoadPlugin
 
 Example: https://threepipe.org/examples/#rhino3dm-load/
 
@@ -289,12 +500,92 @@ API Reference: [Rhino3dmLoadPlugin](https://threepipe.org/docs/classes/Rhino3dmL
 
 Adds support for loading .3dm files generated by [Rhino 3D](https://www.rhino3d.com/). This plugin includes some changes with how 3dm files are loaded in three.js. The changes are around loading layer and primitive properties when set as reference in the 3dm files.
 
-## Additional Plugins
+```typescript
+import {Rhino3dmLoadPlugin} from 'threepipe'
+viewer.addPluginSync(new Rhino3dmLoadPlugin())
+
+const mesh = await viewer.load('file.3dm')
+```
+
+## PLYLoadPlugin
+
+Example: https://threepipe.org/examples/#ply-load/
+
+Source Code: [src/plugins/import/PLYLoadPlugin.ts](./src/plugins/import/PLYLoadPlugin.ts)
+
+API Reference: [PLYLoadPlugin](https://threepipe.org/docs/classes/PLYLoadPlugin.html)
+
+Adds support for loading .ply ([Polygon file format](https://en.wikipedia.org/wiki/PLY_(file_format))) files.
+
+```typescript
+import {PLYLoadPlugin} from 'threepipe'
+viewer.addPluginSync(new PLYLoadPlugin())
+
+const mesh = await viewer.load('file.ply')
+```
+
+## STLLoadPlugin
+
+Example: https://threepipe.org/examples/#stl-load/
+
+Source Code: [src/plugins/import/STLLoadPlugin.ts](./src/plugins/import/STLLoadPlugin.ts)
+
+API Reference: [STLLoadPlugin](https://threepipe.org/docs/classes/STLLoadPlugin.html)
+
+Adds support for loading .stl ([Stereolithography](https://en.wikipedia.org/wiki/STL_(file_format))) files.
+
+```typescript
+import {STLLoadPlugin} from 'threepipe'
+viewer.addPluginSync(new STLLoadPlugin())
+
+const mesh = await viewer.load('file.stl')
+```
+
+## KTX2LoadPlugin
+
+Example: https://threepipe.org/examples/#ktx2-load/
+
+Source Code: [src/plugins/import/KTX2LoadPlugin.ts](./src/plugins/import/KTX2LoadPlugin.ts)
+
+API Reference: [KTX2LoadPlugin](https://threepipe.org/docs/classes/KTX2LoadPlugin.html)
+
+Adds support for loading .ktx2 ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
+
+KTX2LoadPlugin also adds support for exporting loaded .ktx2 files in glTF files with the [KHR_texture_basisu](https://www.khronos.org/registry/KHR/textures/2.0-extensions/KHR_texture_basisu/) extension.
+
+```typescript
+import {KTX2LoadPlugin} from 'threepipe'
+viewer.addPluginSync(new KTX2LoadPlugin())
+
+const texture = await viewer.load('file.ktx2')
+```
+
+## KTXLoadPlugin
+
+Example: https://threepipe.org/examples/#ktx-load/
+
+Source Code: [src/plugins/import/KTXLoadPlugin.ts](./src/plugins/import/KTXLoadPlugin.ts)
+
+API Reference: [KTXLoadPlugin](https://threepipe.org/docs/classes/KTXLoadPlugin.html)
+
+Adds support for loading .ktx ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
+
+Note: This plugin only adds support for loading .ktx file, and not exporting them in the bundled .glb.  Use .ktx2 files instead of .ktx files for better compression and performance.
+
+```typescript
+import {KTXLoadPlugin} from 'threepipe'
+viewer.addPluginSync(new KTXLoadPlugin())
+
+const texture = await viewer.load('file.ktx')
+```
+
+# @threepipe Packages
 
 Additional plugins can be found in the [plugins](plugins/) directory.
 These add support for integrating with other libraries, adding new features, and other functionality with different licenses.
 
-### Tweakpane Ui plugin
+## @threepipe/plugin-tweakpane
+Tewakpane UI plugin for ThreePipe
 
 todo: image
 
@@ -329,7 +620,9 @@ plugin.appendChild(viewer.uiConfig)
 plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
 ```
 
-### Tweakpane Editor Plugin
+## @threepipe/plugin-tweakpane-editor
+
+Tweakpane Editor Plugin for ThreePipe
 
 todo: image
 
