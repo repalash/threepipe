@@ -24,7 +24,7 @@ import {
     IMaterialTemplate,
 } from '../IMaterial'
 import {SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
-import {MaterialExtender, MaterialExtension} from '../../materials'
+import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {ITexture} from '../ITexture'
@@ -39,8 +39,6 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     assetType = 'material' as const
 
     public readonly isPhysicalMaterial = true
-
-    public materialExtensions: MaterialExtension[] = []
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
@@ -70,13 +68,13 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
     // region Material Extension
 
+    materialExtensions: MaterialExtension[] = []
     extraUniformsToUpload: Record<string, IUniform> = {}
-
     registerMaterialExtensions = iMaterialCommons.registerMaterialExtensions
     unregisterMaterialExtensions = iMaterialCommons.unregisterMaterialExtensions
 
     customProgramCacheKey(): string {
-        return super.customProgramCacheKey() + MaterialExtender.CacheKeyForExtensions(this, this.materialExtensions) + this.userData.inverseAlphaMap
+        return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
     onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
@@ -110,10 +108,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         }
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object)
-    }
+    onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion
 

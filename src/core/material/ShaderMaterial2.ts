@@ -11,7 +11,7 @@ import {
     WebGLRenderer,
 } from 'three'
 import {IMaterial, IMaterialEvent, IMaterialEventTypes, IMaterialParameters} from '../IMaterial'
-import {MaterialExtender, MaterialExtension} from '../../materials'
+import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 
 export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMaterialEventTypes> extends ShaderMaterial<E, ET> implements IMaterial<E, ET> {
@@ -40,8 +40,6 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
     assetType = 'material' as const
     public readonly isAShaderMaterial = true
 
-    public materialExtensions: MaterialExtension[] = []
-
     readonly appliedMeshes: Set<any> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
@@ -64,12 +62,13 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
 
     // region Material Extension
 
+    materialExtensions: MaterialExtension[] = []
     extraUniformsToUpload: Record<string, IUniform> = {}
-
     registerMaterialExtensions = iMaterialCommons.registerMaterialExtensions
     unregisterMaterialExtensions = iMaterialCommons.unregisterMaterialExtensions
+
     customProgramCacheKey(): string {
-        return super.customProgramCacheKey() + MaterialExtender.CacheKeyForExtensions(this, this.materialExtensions) + this.userData.inverseAlphaMap
+        return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
     onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines

@@ -1,7 +1,8 @@
 import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js'
-import {BufferGeometry, Color, LoadingManager, Mesh, MeshStandardMaterial} from 'three'
+import {BufferGeometry, Color, LoadingManager, Mesh} from 'three'
 import {AnyOptions} from 'ts-browser-helpers'
 import {ILoader} from '../IImporter'
+import {PhysicalMaterial} from '../../core'
 
 export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry, Mesh|undefined> {
     public encoderPending: Promise<any>|null = null
@@ -20,7 +21,7 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
     transform(res: BufferGeometry, _: AnyOptions): Mesh|undefined {
         if (!res.attributes?.normal) res.computeVertexNormals()
         // todo set mesh name from options/path
-        return res ? new Mesh(res, new MeshStandardMaterial({color: new Color(1, 1, 1)})) : undefined
+        return res ? new Mesh(res, new PhysicalMaterial({color: new Color(1, 1, 1)})) : undefined
     }
 
     preload(decoder = true, encoder = false): DRACOLoader {

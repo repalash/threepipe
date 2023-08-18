@@ -1,5 +1,5 @@
 import {IMaterial} from './IMaterial'
-import {Event, Texture} from 'three'
+import {Event, Source, Texture} from 'three'
 import {ChangeEvent} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
 
@@ -32,6 +32,10 @@ export interface ITexture extends Texture {
     is3DDataTexture?: boolean
 
     setDirty?(): void
+
+    source: Source & {
+        _sourceImgBuffer?: ArrayBuffer // see KTX2LoadPlugin and serializeTextureInExtras
+    }
 
     _target?: IRenderTarget // for internal use only. refers to the render target that this texture is attached to
 }

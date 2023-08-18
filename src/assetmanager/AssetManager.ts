@@ -328,8 +328,8 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         if (!viewer) return
 
         const importers: Importer[] = [
-            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'svg', 'ico', 'data:image'], [
-                'image/webp', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon',
+            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'svg', 'ico', 'data:image', 'avif'], [
+                'image/webp', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
             ], false), // todo: use ImageBitmapLoader if supported (better performance)
 
             new Importer<JSONMaterialLoader>(JSONMaterialLoader,

@@ -94,10 +94,10 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
     fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
 
-    extraUniformsToUpload?: Record<string, IUniform>
-    materialExtensions?: MaterialExtension[]
-    registerMaterialExtensions?: (customMaterialExtensions: MaterialExtension[]) => void;
-    unregisterMaterialExtensions?: (customMaterialExtensions: MaterialExtension[]) => void;
+    extraUniformsToUpload: Record<string, IUniform>
+    materialExtensions: MaterialExtension[]
+    registerMaterialExtensions: (customMaterialExtensions: MaterialExtension[]) => void;
+    unregisterMaterialExtensions: (customMaterialExtensions: MaterialExtension[]) => void;
 
     /**
      * Managed internally, do not change manually

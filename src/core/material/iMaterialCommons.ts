@@ -140,6 +140,9 @@ export const iMaterialCommons = {
             }
         },
 
+    customProgramCacheKey: function(this: IMaterial): string {
+        return MaterialExtender.CacheKeyForExtensions(this, this.materialExtensions) + this.userData.inverseAlphaMap
+    },
     registerMaterialExtensions: function(this: IMaterial, customMaterialExtensions: MaterialExtension[]): void {
         MaterialExtender.RegisterExtensions(this, customMaterialExtensions)
     },
@@ -147,6 +150,7 @@ export const iMaterialCommons = {
         MaterialExtender.UnregisterExtensions(this, customMaterialExtensions)
     },
 
+    // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
     onBeforeCompile: function(this: IMaterial, shader: Shader, renderer: WebGLRenderer): void {
         if (this.materialExtensions) MaterialExtender.ApplyMaterialExtensions(this, shader, this.materialExtensions, renderer)
 
@@ -155,7 +159,6 @@ export const iMaterialCommons = {
         shader.fragmentShader = shader.fragmentShader.replaceAll('#glMarker', '// ')
         shader.vertexShader = shader.vertexShader.replaceAll('#glMarker', '// ')
     },
-
     onBeforeRender: function(this: IMaterial, renderer, scene: Scene & Partial<IScene>, camera, geometry, object) {
         if (this.envMapIntensity !== undefined && !this.userData.separateEnvMapIntensity && scene.envMapIntensity !== undefined) {
             this.userData.__envIntensity = this.envMapIntensity
@@ -182,6 +185,26 @@ export const iMaterialCommons = {
         this.dispatchEvent({type: 'afterRender', renderer, scene, camera, geometry, object})
     } as IMaterial['onAfterRender'],
 
+    onBeforeCompileOverride: (superOnBeforeCompile: Material['onBeforeCompile']): IMaterial['onBeforeCompile'] =>
+        function(this: IMaterial, shader: Shader, renderer: WebGLRenderer): void {
+            iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
+            superOnBeforeCompile.call(this, shader, renderer)
+        },
+    onBeforeRenderOverride: (superOnBeforeRender: Material['onBeforeRender']): IMaterial['onBeforeRender'] =>
+        function(this: IMaterial, ...args: Parameters<Material['onBeforeRender']>): void {
+            superOnBeforeRender.call(this, ...args)
+            iMaterialCommons.onBeforeRender.call(this, ...args)
+        },
+    onAfterRenderOverride: (superOnAfterRender: Material['onAfterRender']): IMaterial['onAfterRender'] =>
+        function(this: IMaterial, ...args: Parameters<Material['onAfterRender']>): void {
+            superOnAfterRender.call(this, ...args)
+            iMaterialCommons.onAfterRender.call(this, ...args)
+        },
+    customProgramCacheKeyOverride: (superCustomPropertyCacheKey: Material['customProgramCacheKey']): IMaterial['customProgramCacheKey'] =>
+        function(this: IMaterial): string {
+            return superCustomPropertyCacheKey.call(this) + iMaterialCommons.customProgramCacheKey.call(this)
+        },
+
     upgradeMaterial: upgradeMaterial,
     // todo;
 } as const
@@ -197,7 +220,7 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     if (!this.setDirty) this.setDirty = iMaterialCommons.setDirty
     if (!this.appliedMeshes) this.appliedMeshes = new Set()
     if (!this.userData) this.userData = {}
-    this.userData.uuid = this.uuid
+    this.userData.uuid = this.uuid // for serialization
 
     // legacy
     if (!this.userData.setDirty) this.userData.setDirty = (e: any) => {
@@ -211,6 +234,16 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     this.dispose = iMaterialCommons.dispose(this.dispose)
     this.clone = iMaterialCommons.clone(this.clone)
     this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
+
+    // material extensions
+    if (!this.extraUniformsToUpload) this.extraUniformsToUpload = {}
+    if (!this.materialExtensions) this.materialExtensions = []
+    if (!this.registerMaterialExtensions) this.registerMaterialExtensions = iMaterialCommons.registerMaterialExtensions
+    if (!this.unregisterMaterialExtensions) this.unregisterMaterialExtensions = iMaterialCommons.unregisterMaterialExtensions
+    this.onBeforeCompile = iMaterialCommons.onBeforeCompileOverride(this.onBeforeCompile)
+    this.onBeforeRender = iMaterialCommons.onBeforeRenderOverride(this.onBeforeRender)
+    this.onAfterRender = iMaterialCommons.onAfterRenderOverride(this.onAfterRender)
+    this.customProgramCacheKey = iMaterialCommons.customProgramCacheKeyOverride(this.customProgramCacheKey)
 
     // todo: add uiconfig, serialization, other stuff from UnlitMaterial?
     // dispose uiconfig etc. on dispose

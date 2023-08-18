@@ -1,14 +1,10 @@
 import {
-    BufferGeometry,
-    Camera,
     Color,
     IUniform,
     Material,
     MeshBasicMaterial,
     MeshBasicMaterialParameters,
     MultiplyOperation,
-    Object3D,
-    Scene,
     Shader,
     WebGLRenderer,
 } from 'three'
@@ -21,7 +17,7 @@ import {
     IMaterialParameters,
     IMaterialTemplate,
 } from '../IMaterial'
-import {MaterialExtender, MaterialExtension} from '../../materials'
+import {MaterialExtension} from '../../materials'
 import {shaderReplaceString} from '../../utils/shader-helpers'
 import {SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
 import {ITexture} from '../ITexture'
@@ -39,8 +35,6 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     assetType = 'material' as const
 
     public readonly isUnlitMaterial = true
-
-    public materialExtensions: MaterialExtension[] = []
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
@@ -60,16 +54,15 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         iMaterialCommons.upgradeMaterial.call(this)
     }
 
-
     // region Material Extension
 
+    materialExtensions: MaterialExtension[] = []
     extraUniformsToUpload: Record<string, IUniform> = {}
-
     registerMaterialExtensions = iMaterialCommons.registerMaterialExtensions
     unregisterMaterialExtensions = iMaterialCommons.unregisterMaterialExtensions
 
     customProgramCacheKey(): string {
-        return super.customProgramCacheKey() + MaterialExtender.CacheKeyForExtensions(this, this.materialExtensions) + this.userData.inverseAlphaMap
+        return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
     onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
@@ -92,21 +85,18 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         super.onBeforeCompile(shader, renderer)
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object)
-
-        // const t = this.userData.inverseAlphaMap ? 1 : 0 // todo
-        // if (t !== this.defines.INVERSE_ALPHAMAP) {
-        //     this.defines.INVERSE_ALPHAMAP = t
-        //     this.needsUpdate = true
-        // }
-    }
-
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object)
-    }
+    // onBeforeRender(...args: Parameters<IMaterial['onBeforeRender']>): void {
+    //     super.onBeforeRender(...args)
+    //     iMaterialCommons.onBeforeRender.call(this, ...args)
+    //
+    //     // const t = this.userData.inverseAlphaMap ? 1 : 0 // todo
+    //     // if (t !== this.defines.INVERSE_ALPHAMAP) {
+    //     //     this.defines.INVERSE_ALPHAMAP = t
+    //     //     this.needsUpdate = true
+    //     // }
+    // }
+    onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
+    onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion
 
