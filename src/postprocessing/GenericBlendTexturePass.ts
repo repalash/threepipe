@@ -11,14 +11,13 @@ export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass
             fragmentShader: `
                 varying vec2 vUv;
                 ${extraFrag}
-                void blend(in vec4 a, in vec4 b, inout vec4 c){
-                ${blendFunc}
-                }
                 void main() {
-                    vec4 texel = vec4(0);
-                    blend(tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) ), tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) ), texel);
-                    texel = clamp(texel, vec4(0), vec4(8));
-                    gl_FragColor = texel;
+                    vec4 a = tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) )
+                    vec4 b = tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) )
+                    vec4 c = vec4(0);
+                    ${blendFunc}
+                    c = clamp(c, vec4(0), vec4(8));
+                    gl_FragColor = c;
                     #include <encodings_fragment>
                 }
             `,

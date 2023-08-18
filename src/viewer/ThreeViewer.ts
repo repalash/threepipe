@@ -43,6 +43,7 @@ import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/Drop
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
 import {TonemapPlugin} from '../plugins'
+import {VERSION} from './version'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
@@ -135,8 +136,6 @@ export interface ThreeViewerOptions {
     useGBufferDepth?: boolean
 }
 
-const VIEWER_VERSION = '0.0.10-dev.1'
-
 /**
  * Three Viewer
  *
@@ -145,7 +144,7 @@ const VIEWER_VERSION = '0.0.10-dev.1'
  */
 @uiFolderContainer('Viewer')
 export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes> {
-    public static readonly VERSION = VIEWER_VERSION
+    public static readonly VERSION = VERSION
     public static readonly ConfigTypeSlug = 'vjson'
     uiConfig!: UiObjectConfig
 

@@ -41,7 +41,7 @@ export class NormalBufferPlugin
 
     target?: NormalBufferPluginTarget
     @uiImage('Normal Buffer' /* {readOnly: true}*/) texture?: Texture
-    readonly material: MeshNormalMaterial = new MeshNormalMaterial2({
+    readonly material: MeshNormalMaterial = new MeshNormalMaterialOverride({
         blending: NoBlending,
     })
 
@@ -105,7 +105,7 @@ export class NormalBufferPlugin
 
 }
 
-class MeshNormalMaterial2 extends MeshNormalMaterial {
+class MeshNormalMaterialOverride extends MeshNormalMaterial {
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onBeforeRender(renderer, scene, camera, geometry, object)
 
@@ -114,6 +114,8 @@ class MeshNormalMaterial2 extends MeshNormalMaterial {
 
         if (material.bumpMap !== undefined) this.bumpMap = material.bumpMap
         if (material.bumpScale !== undefined) this.bumpScale = material.bumpScale
+        // if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
+        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest
 
         if (material.normalMap !== undefined) this.normalMap = material.normalMap
         if (material.normalMapType !== undefined) this.normalMapType = material.normalMapType
@@ -126,6 +128,10 @@ class MeshNormalMaterial2 extends MeshNormalMaterial {
         if (material.flatShading !== undefined) this.flatShading = material.flatShading
 
         if (material.side !== undefined) this.side = material.side
+
+        if (material.wireframe !== undefined) this.wireframe = material.wireframe
+        if (material.wireframeLinewidth !== undefined) this.wireframeLinewidth = material.wireframeLinewidth
+
     }
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
@@ -133,6 +139,8 @@ class MeshNormalMaterial2 extends MeshNormalMaterial {
 
         this.bumpMap = null
         this.bumpScale = 1
+        // this.alphaMap = null
+        this.alphaTest = 0
 
         this.normalMap = null
         this.normalMapType = TangentSpaceNormalMap
@@ -144,5 +152,8 @@ class MeshNormalMaterial2 extends MeshNormalMaterial {
         this.flatShading = false
 
         this.side = FrontSide
+
+        this.wireframe = false
+        this.wireframeLinewidth = 1
     }
 }

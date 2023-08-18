@@ -1,12 +1,19 @@
 import {
     BasicDepthPacking,
+    BufferGeometry,
+    Camera,
     Color,
     DepthPackingStrategies,
+    DoubleSide,
+    FrontSide,
     MeshDepthMaterial,
     NoBlending,
+    Object3D,
+    Scene,
     Texture,
     TextureDataType,
     UnsignedByteType,
+    WebGLRenderer,
     WebGLRenderTarget,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
@@ -18,6 +25,7 @@ import {shaderReplaceString} from '../../utils'
 import {onChange} from 'ts-browser-helpers'
 import DepthBufferUnpack from './shaders/DepthBufferPlugin.unpack.glsl'
 import {threeConstMappings} from '../../three'
+import {IMaterial, PhysicalMaterial} from '../../core'
 
 export type DepthBufferPluginEventTypes = ''
 // type DepthBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
@@ -41,9 +49,10 @@ export class DepthBufferPlugin
 
     @uiImage('Depth Buffer' /* {readOnly: true}*/) texture?: Texture
 
-    readonly material: MeshDepthMaterial = new MeshDepthMaterial({
+    readonly material: MeshDepthMaterial = new MeshDepthMaterialOverride({
         depthPacking: BasicDepthPacking,
         blending: NoBlending,
+        transparent: true,
     })
 
     @onChange(DepthBufferPlugin.prototype._depthPackingChanged)
@@ -158,3 +167,45 @@ export class DepthBufferPlugin
 
 }
 
+class MeshDepthMaterialOverride extends MeshDepthMaterial {
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object)
+
+        let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
+        if (Array.isArray(material)) { // todo: add support for multi materials.
+            material = material[0]
+        }
+        if (!material) return
+
+        if (material.map !== undefined) this.map = material.map // in case there is alpha in the map.
+        if (material.side !== undefined) this.side = DoubleSide
+        if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
+        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+
+        if (material.displacementMap !== undefined) this.displacementMap = material.displacementMap
+        if (material.displacementScale !== undefined) this.displacementScale = material.displacementScale
+        if (material.displacementBias !== undefined) this.displacementBias = material.displacementBias
+
+        if (material.wireframe !== undefined) this.wireframe = material.wireframe
+        if (material.wireframeLinewidth !== undefined) this.wireframeLinewidth = material.wireframeLinewidth
+
+        this.needsUpdate = true
+
+    }
+
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
+        super.onAfterRender(renderer, scene, camera, geometry, object)
+
+        this.map = null
+        this.side = FrontSide
+        this.alphaMap = null
+        this.alphaTest = 0.001
+
+        this.displacementMap = null
+        this.displacementScale = 1
+        this.displacementBias = 0
+
+        this.wireframe = false
+        this.wireframeLinewidth = 1
+    }
+}
