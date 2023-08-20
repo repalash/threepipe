@@ -1,5 +1,13 @@
-import {AViewerPlugin, Class, createDiv, downloadBlob, FullScreenPlugin, ThreeViewer} from 'threepipe'
-import {autoRotateCC, collapse, download, expand, resetSettings, snapshot, trash} from './icons'
+import {
+    AViewerPlugin,
+    Class,
+    createDiv,
+    downloadBlob,
+    FullScreenPlugin,
+    GLTFAnimationPlugin,
+    ThreeViewer,
+} from 'threepipe'
+import {autoRotateCC, collapse, download, expand, playIcon, resetSettings, snapshot, trash} from './icons'
 import tippy, {createSingleton} from 'tippy.js'
 
 export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<AViewerPlugin>[]) {
@@ -43,15 +51,15 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<AViewer
         //         viewer.getPlugin(CameraViewPlugin)!.viewLooping = !viewer.getPlugin(CameraViewPlugin)!.viewLooping
         //     },
         // },
-        // {
-        //     id: 'play-gltf',
-        //     icon: playIcon,
-        //     tooltip: 'GLTF Animations',
-        //     toggle: true,
-        //     onclick: async() => {
-        //         viewer.getPlugin(GLTFAnimationPlugin)?.playPauseAnimation()
-        //     },
-        // },
+        {
+            id: 'play-gltf',
+            icon: playIcon,
+            tooltip: 'GLTF Animations',
+            toggle: true,
+            onclick: async() => {
+                viewer.getPlugin(GLTFAnimationPlugin)?.playPauseAnimation()
+            },
+        },
         {
             id: 'auto-rotate-cc',
             icon: autoRotateCC,
