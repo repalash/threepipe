@@ -77,24 +77,33 @@ export const iCameraCommons = {
                 return this
             }
             superCopy.call(this, camera, recursive, ...args)
-            this.position.copy(this.worldToLocal(camera.getWorldPosition(new Vector3())))
+            // moved to setView in ThreeViewer
+            // const worldPos = camera.getWorldPosition(this.position)
+            // camera.getWorldQuaternion(this.quaternion)
+            // if (this.parent) {
+            //     this.position.copy(this.parent.worldToLocal(worldPos))
+            //     this.quaternion.premultiply(this.parent.quaternion.clone().invert())
+            // }
             if ((<ICamera>camera).target?.isVector3) this.target.copy((<ICamera>camera).target)
             else {
-                const minDistance = (this.controls as any).minDistance ?? distanceFromTarget ?? 4
+                const minDistance = (this.controls as any)?.minDistance ?? distanceFromTarget ?? 4
                 camera.getWorldDirection(this.target).multiplyScalar(minDistance).add(this.getWorldPosition(new Vector3()))
             }
-            this.setDirty()
+            this.updateMatrixWorld(true)
+            this.updateProjectionMatrix()
+            this.refreshAspect(true)
             return this
         },
 
 }
 
 function upgradeCamera(this: ICamera) {
-    if (this.assetType === 'camera') return // already upgraded
     if (!this.isCamera) {
         console.error('Object is not a camera', this)
         return
     }
+    if (this.userData.__cameraSetup) return
+    this.userData.__cameraSetup = true
     iObjectCommons.upgradeObject3D.call(this)
     this.copy = iCameraCommons.copy(this.copy)
     if (!this.target) this.target = new Vector3()

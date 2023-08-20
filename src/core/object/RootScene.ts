@@ -90,9 +90,9 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             cam.removeEventListener('cameraUpdate', this._mainCameraUpdate)
         }
         if (camera) {
-            camera.activateMain(undefined, true)
-            camera.addEventListener('cameraUpdate', this._mainCameraUpdate)
             this._mainCamera = camera
+            camera.addEventListener('cameraUpdate', this._mainCameraUpdate)
+            camera.activateMain(undefined, true)
         } else {
             this._mainCamera = null
         }

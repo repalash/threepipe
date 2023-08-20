@@ -3,6 +3,51 @@ import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
 import {Vector3} from 'three'
 
+export function makeICameraCommonUiConfig(this: IObject3D, config: UiObjectConfig): UiObjectConfig[] {
+    return [
+        {
+            type: 'button',
+            label: 'Set View',
+            value: ()=>{
+                // todo: call setView on the camera, which will dispatch the event
+                (this as ICamera).dispatchEvent({type: 'setView', ui: true, camera: this as ICamera})
+                config.uiRefresh?.(true, 'postFrame')
+                console.log('set view', this)
+            },
+        },
+        {
+            type: 'button',
+            label: 'Activate main',
+            hidden: ()=>(this as ICamera)?.isMainCamera,
+            value: ()=>{
+                // todo: call activateMain on the camera, which will dispatch the event
+                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: this as ICamera})
+                config.uiRefresh?.(true, 'postFrame')
+            },
+        },
+        {
+            type: 'button',
+            label: 'Deactivate main',
+            hidden: ()=>!(this as ICamera)?.isMainCamera,
+            value: ()=>{
+                // todo: call activateMain on the camera, which will dispatch the event
+                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: undefined})
+                config.uiRefresh?.(true, 'postFrame')
+            },
+        },
+        {
+            type: 'checkbox',
+            label: 'Auto LookAt Target',
+            getValue: ()=>(this as ICamera).userData.autoLookAtTarget ?? false,
+            setValue: (v)=>{
+                (this as ICamera).userData.autoLookAtTarget = v
+                config.uiRefresh?.(true, 'postFrame')
+            },
+        },
+    ]
+}
+
+
 export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjectConfig {
     if (!this) return {}
     if (this.uiConfig) return this.uiConfig
@@ -167,47 +212,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
     }
     // todo: if we are replacing all the cameras in the scene, is this even required?
     if (this.isCamera) {
-        // todo: move to make camera ui function?
-        const ui: UiObjectConfig[] = [
-            {
-                type: 'button',
-                label: 'Set View',
-                value: ()=>{
-                    // todo: call setView on the camera, which will dispatch the event
-                    (this as ICamera).dispatchEvent({type: 'setView', ui: true, camera: this as ICamera})
-                    config.uiRefresh?.(true, 'postFrame')
-                },
-            },
-            {
-                type: 'button',
-                label: 'Activate main',
-                hidden: ()=>(this as ICamera)?.isMainCamera,
-                value: ()=>{
-                    // todo: call activateMain on the camera, which will dispatch the event
-                    (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: this as ICamera})
-                    config.uiRefresh?.(true, 'postFrame')
-                },
-            },
-            {
-                type: 'button',
-                label: 'Deactivate main',
-                hidden: ()=>!(this as ICamera)?.isMainCamera,
-                value: ()=>{
-                    // todo: call activateMain on the camera, which will dispatch the event
-                    (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: undefined})
-                    config.uiRefresh?.(true, 'postFrame')
-                },
-            },
-            {
-                type: 'checkbox',
-                label: 'Auto LookAt Target',
-                getValue: ()=>(this as ICamera).userData.autoLookAtTarget ?? false,
-                setValue: (v)=>{
-                    (this as ICamera).userData.autoLookAtTarget = v
-                    config.uiRefresh?.(true, 'postFrame')
-                },
-            },
-        ]
+        const ui: UiObjectConfig[] = makeICameraCommonUiConfig.call(this as ICamera, config)
         ;(config.children as UiObjectConfig[]).push(...ui)
     }
 

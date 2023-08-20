@@ -17,6 +17,7 @@ export interface ICameraUserData extends IObject3DUserData {
 
     __lastScale?: Vector3,
     __isMainCamera?: boolean,
+    __cameraSetup?: boolean,
 
     // [key: string]: any // commented for noe
 }

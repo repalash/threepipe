@@ -157,12 +157,16 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                     if (!(camera as PerspectiveCamera).isPerspectiveCamera || !camera.parent) {
                         iCameraCommons.upgradeCamera.call(camera)
                     } else {
-                        const newCamera: ICamera = (camera as any).iCamera ?? new PerspectiveCamera2('', this.viewer.canvas).copy(camera)
+                        const newCamera: ICamera = (camera as any).iCamera ?? new PerspectiveCamera2('', this.viewer.canvas)
                         if (camera === newCamera) continue
+                        camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
+                        newCamera.parent = camera.parent as any
+                        newCamera.copy(camera as any)
+                        camera.parent = null
                         ;(newCamera as any).uuid = camera.uuid
                         newCamera.userData.uuid = camera.uuid
                         ;(camera as any).iCamera = newCamera
-                        camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
+                        // console.log('replacing camera', camera, newCamera)
                     }
                 }
 

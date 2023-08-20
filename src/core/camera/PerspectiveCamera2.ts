@@ -1,5 +1,5 @@
 import {Camera, Event, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
@@ -9,6 +9,7 @@ import {IObject3D} from '../IObject'
 import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
+import {makeICameraCommonUiConfig} from '../object/IObjectUi'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
@@ -54,8 +55,13 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @uiVector('Target')
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
+    /**
+     * Automatically manage aspect ratio based on window/canvas size.
+     * Defaults to `true` if {@link domElement}(canvas) is set.
+     */
     @serialize()
     @onChange2(PerspectiveCamera2.prototype.refreshAspect)
+    @uiToggle('Auto Aspect')
         autoAspect: boolean
 
     /**
@@ -357,6 +363,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
             children: ['', 'orbit', ...this._controlsCtors.keys()].map(v=>({label: v === '' ? 'none' : v, value:v})),
             onChange: () => this.refreshCameraControls(),
         }),
+        ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
     ]
 
     uiConfig: UiObjectConfig = {

@@ -980,6 +980,13 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
                 return
             }
             this._scene.mainCamera.copy(event.camera)
+            const worldPos = event.camera.getWorldPosition(this._scene.mainCamera.position)
+            // camera.getWorldQuaternion(this.quaternion) // todo: do if autoLookAtTarget is false
+            if (this._scene.mainCamera.parent) {
+                this._scene.mainCamera.position.copy(this._scene.mainCamera.parent.worldToLocal(worldPos))
+            //     this.quaternion.premultiply(this.parent.quaternion.clone().invert())
+            }
+            this._scene.mainCamera.setDirty()
         } else if (event.type === 'activateMain')
             this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
     }

@@ -275,10 +275,14 @@ export const iObjectCommons = {
         function(this: IObject3D, source: IObject3D, ...args): IObject3D {
             const userData = source.userData
             source.userData = {}
-            const t: any = superCopy.call(this, source, ...args)
+
+            const selfUserData = this.userData
+            superCopy.call(this, source, ...args)
+            this.userData = selfUserData
+
             source.userData = userData
-            copyObject3DUserData(this.userData, source) // todo: do same for object.toJSON()
-            return t
+            copyObject3DUserData(this.userData, source.userData) // todo: do same for object.toJSON()
+            return this
         },
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
         function(this: IObject3D, ...args): IObject3D {
