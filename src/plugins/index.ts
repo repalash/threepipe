@@ -2,8 +2,10 @@
 export {PipelinePassPlugin} from './base/PipelinePassPlugin'
 
 // pipeline
+export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
+export type {ProgressivePluginEventTypes, ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
 export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
 export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
 
@@ -25,3 +27,6 @@ export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
 
 // postprocessing
 export {TonemapPlugin} from './postprocessing/TonemapPlugin'
+
+// animation
+export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'

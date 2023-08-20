@@ -3,11 +3,13 @@ import {
     DepthBufferPlugin,
     DropzonePlugin,
     FullScreenPlugin,
+    GLTFAnimationPlugin,
     HalfFloatType,
     KTX2LoadPlugin,
     KTXLoadPlugin,
     NormalBufferPlugin,
     PLYLoadPlugin,
+    ProgressivePlugin,
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
     SceneUiConfigPlugin,
@@ -33,10 +35,13 @@ async function init() {
         },
     })
 
-    viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    // @ts-expect-error unused
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 
     await viewer.addPlugins([
+        new ProgressivePlugin(),
+        new GLTFAnimationPlugin(),
         new ViewerUiConfigPlugin(),
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new DepthBufferPlugin(HalfFloatType, true, true),
@@ -56,19 +61,21 @@ async function init() {
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin],
+        ['Animation']: [GLTFAnimationPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
-    // await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
     //     autoCenter: true,
     //     autoScale: true,
     // })
-
-    // const model = result?.getObjectByName('node_damagedHelmet_-6514')
+    //
+    // const model = result?.getObjectByName('Correction__MovingCamera')
     // const config = model?.uiConfig
+    // console.log(model, config, result)
     // if (config) ui.appendChild(config)
 
 }

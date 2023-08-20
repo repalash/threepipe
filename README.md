@@ -65,17 +65,19 @@ To make changes and run the example, click on the CodePen button on the top righ
     - [Background, Environment maps](#background-environment-maps)
     - [SVG strings](#svg-strings)
 - [Plugins](#threepipe-plugins)
-  - [TonemapPlugin](#tonemapplugin) - Tonemapping Plugin for post-processing
+  - [TonemapPlugin](#tonemapplugin) - Add tonemap to the final screen pass
   - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
-  - [DepthBufferPlugin](#depthbufferplugin) - Depth Buffer Plugin for pre-rendering depth buffer
-  - [NormalBufferPlugin](#normalbufferplugin) - Normal Buffer Plugin for pre-rendering normal buffer
-  - [DepthNormalBufferPlugin](#depthnormalbufferplugin) - Depth and Normal Buffer Plugin for pre-rendering depth and normal buffers in a single pass
-  - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Render Target Preview Plugin for previewing render targets
-  - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Rhino3dm Load Plugin for loading .3dm files
-  - [PLYLoadPlugin](#plyloadplugin) - PLY Load Plugin for loading .ply files
-  - [STLLoadPlugin](#stlloadplugin) - STL Load Plugin for loading .stl files
-  - [KTX2LoadPlugin](#ktx2loadplugin) - KTX2 Load Plugin for loading .ktx2 files
-  - [KTXLoadPlugin](#ktxloadplugin) - KTX Load Plugin for loading .ktx files
+  - [ProgressivePlugin](#progressiveplugin) - Post-render pass to blend the last frame with the current frame
+  - [DepthBufferPlugin](#depthbufferplugin) - Pre-rendering of depth buffer
+  - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
+  - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
+  - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
+  - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
+  - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
+  - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
+  - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
+  - [KTX2LoadPlugin](#ktx2loadplugin) - Add support for loading .ktx2 files
+  - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
@@ -435,7 +437,7 @@ import {DropzonePlugin, ThreeViewer} from 'threepipe'
 const viewer = new ThreeViewer({
   canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
   dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
-    allowedExtensions: ['gltf', 'glb', 'hdr', 'png', 'jpg', 'json', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
+    allowedExtensions: ['gltf', 'glb', 'hdr', 'png', 'jpg', 'json', 'fbx', 'obj', 'bin', 'exr'], // only allow these file types. If undefined, all files are allowed.
     addOptions: {
       disposeSceneObjects: true, // auto dispose of old scene objects
       autoSetEnvironment: true, // when hdr is dropped
@@ -450,6 +452,20 @@ const viewer = new ThreeViewer({
   },
 })
 ```
+
+## ProgressivePlugin
+
+todo: image
+
+Example: https://threepipe.org/examples/#progressive-plugin/
+
+Source Code: [src/plugins/postprocessing/ProgressivePlugin.ts](./src/plugins/pipeline/ProgressivePlugin.ts)
+
+API Reference: [ProgressivePlugin](https://threepipe.org/docs/classes/ProgressivePlugin.html)
+
+Progressive Plugin adds a post-render pass to blend the last frame with the current frame.
+
+This is used as a dependency in other plugins for progressive rendering effect which is useful for progressive shadows, gi, denoising, baking, anti-aliasing, and many other effects.
 
 ## DepthBufferPlugin
 
@@ -504,10 +520,31 @@ const normalTarget = normalPlugin.target;
 ```
 
 
-## DepthNormalBufferPlugin
+## GBufferPlugin
 
 todo
 
+
+## GLTFAnimationPlugin
+
+todo: image
+
+Example: https://threepipe.org/examples/#gltf-animation-plugin/
+
+Source Code: [src/plugins/animation/GLTFAnimationPlugin.ts](./src/plugins/animation/GLTFAnimationPlugin.ts)
+
+API Reference: [GLTFAnimationPlugin](https://threepipe.org/docs/classes/GLTFAnimationPlugin.html)
+
+Manages playback of GLTF animations.
+
+The GLTF animations can be created in any 3d software that supports GLTF export like Blender.
+If animations from multiple files are loaded, they will be merged in a single root object and played together.
+
+The time playback is managed automatically, but can be controlled manually by setting {@link autoIncrementTime} to false and using {@link setTime} to set the time.
+
+This plugin is made for playing, pausing, stopping, all the animations at once, while it is possible to play individual animations, it is not recommended.
+
+To play individual animations, with custom choreography, use the {@link GLTFAnimationPlugin.animations} property to get reference to the animation clips and actions. Create your own mixers and control the animation playback like in three.js
 
 ## RenderTargetPreviewPlugin
 
