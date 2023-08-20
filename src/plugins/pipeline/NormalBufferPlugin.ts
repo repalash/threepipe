@@ -2,10 +2,11 @@ import {
     BufferGeometry,
     Camera,
     Color,
-    FrontSide,
+    DoubleSide,
     HalfFloatType,
     LinearSRGBColorSpace,
     MeshNormalMaterial,
+    MeshNormalMaterialParameters,
     NearestFilter,
     NoBlending,
     Object3D,
@@ -66,6 +67,8 @@ export class NormalBufferPlugin
             })
         this.texture = this.target.texture
         this.texture.name = 'normalBuffer'
+
+        if (this._pass) this._pass.target = this.target
     }
     protected _disposeTarget() {
         if (!this._viewer) return
@@ -106,6 +109,12 @@ export class NormalBufferPlugin
 }
 
 class MeshNormalMaterialOverride extends MeshNormalMaterial {
+
+    constructor(parameters: MeshNormalMaterialParameters) {
+        super(parameters)
+        this.reset()
+    }
+
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onBeforeRender(renderer, scene, camera, geometry, object)
 
@@ -136,7 +145,10 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onAfterRender(renderer, scene, camera, geometry, object)
+        this.reset()
+    }
 
+    reset() {
         this.bumpMap = null
         this.bumpScale = 1
         // this.alphaMap = null
@@ -151,7 +163,7 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
 
         this.flatShading = false
 
-        this.side = FrontSide
+        this.side = DoubleSide
 
         this.wireframe = false
         this.wireframeLinewidth = 1

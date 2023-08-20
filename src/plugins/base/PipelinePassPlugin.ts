@@ -32,7 +32,6 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     protected _beforeRender(): boolean {return this._pass?.enabled && this.enabled || false}
     private _enabledTemp = true // to save enabled state when pass is not yet created
 
-
     constructor() {
         super()
         this._beforeRender = this._beforeRender.bind(this)

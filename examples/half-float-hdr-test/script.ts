@@ -6,14 +6,6 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         rgbm: false,
-        dropzone: {
-            allowedExtensions: ['gltf', 'glb', 'hdr'],
-            addOptions: {
-                disposeSceneObjects: true,
-                autoSetEnvironment: true, // when hdr is dropped
-                autoSetBackground: true,
-            },
-        },
     })
     viewer.scene.backgroundColor = new Color().set('black')
     viewer.getPlugin(TonemapPlugin)!.exposure = 0.04

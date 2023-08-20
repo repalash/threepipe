@@ -1,4 +1,4 @@
-import {IDisposable} from 'ts-browser-helpers'
+import {IDisposable, ValOrFunc} from 'ts-browser-helpers'
 import {IUniform} from 'three'
 import {Pass} from 'three/examples/jsm/postprocessing/Pass.js'
 import {IShaderPropertiesUpdater, MaterialExtension} from '../materials'
@@ -12,7 +12,7 @@ export interface IPass<Tid extends IPassID = IPassID> extends Pass, IDisposable 
     updateShaderProperties?: (updater?: (IShaderPropertiesUpdater|undefined) | (IShaderPropertiesUpdater|undefined)[])=>void
     materialExtension?: MaterialExtension
 
-    dirty?: boolean // isDirty (optional)
+    dirty?: ValOrFunc<boolean> // isDirty (optional)
     setDirty?(): void
     onDirty?: (()=>void)[];
 

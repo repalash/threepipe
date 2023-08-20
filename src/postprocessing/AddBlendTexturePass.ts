@@ -28,20 +28,5 @@ export class AddBlendTexturePass extends ExtendedShaderPass implements IPass {
         this.clear = false
         this.needsSwap = true
     }
-    set weights2(value: Vector4) {
-        (this.uniforms.weight2.value as Vector4).copy(value)
-    }
-    get weights2(): Vector4 {
-        return this.uniforms.weight2.value as Vector4
-    }
-    set weights1(value: Vector4) {
-        (this.uniforms.weight.value as Vector4).copy(value)
-    }
-    get weights1(): Vector4 {
-        return this.uniforms.weight.value as Vector4
-    }
-    set blendTexture(value: Texture) {
-        this.uniforms.tDiffuse2.value = value
-    }
 
 }

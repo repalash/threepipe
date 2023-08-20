@@ -1,5 +1,4 @@
 import {
-    Blending,
     Color,
     FloatType,
     HalfFloatType,
@@ -9,7 +8,6 @@ import {
     NormalBlending,
     NoToneMapping,
     PCFShadowMap,
-    ShaderMaterial,
     Texture,
     Vector2,
     Vector4,
@@ -31,10 +29,20 @@ import {
     IWebGLRenderer,
     upgradeWebGLRenderer,
 } from '../core'
-import {base64ToArrayBuffer, canvasFlipY, Class, onChange2, serializable, serialize, ValOrArr} from 'ts-browser-helpers'
+import {
+    base64ToArrayBuffer,
+    canvasFlipY,
+    Class,
+    getOrCall,
+    onChange2,
+    serializable,
+    serialize,
+    ValOrArr,
+} from 'ts-browser-helpers'
 import {uiButton, uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 import {generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
+import {RendererBlitOptions} from '../core/IRenderer'
 
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')
@@ -204,7 +212,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     }
 
     get needsRender(): boolean {
-        this._dirty = this._dirty || this._passes.findIndex(value => value.dirty) >= 0 // todo: check for enabled passes only.
+        this._dirty = this._dirty || this._passes.findIndex(value => getOrCall(value.dirty)) >= 0 // todo: check for enabled passes only.
         return this._dirty
     }
 
@@ -371,7 +379,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
      * @param blending - Note - Set to NormalBlending if transparent is set to false
      * @param transparent
      */
-    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false, blending = NoBlending, transparent = true}: {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean} = {}): void {
+    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false, blending = NoBlending, transparent = true}: RendererBlitOptions = {}): void {
         const copyPass = !respectColorSpace ? this._composer.copyPass : this._composer.copyPass2
         const {renderToScreen, material: oldMaterial, uniforms: oldUniforms, clear: oldClear} = copyPass
         if (material) {

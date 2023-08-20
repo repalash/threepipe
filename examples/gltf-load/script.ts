@@ -6,7 +6,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
-            allowedExtensions: ['gltf', 'glb', 'hdr'],
+            allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr'],
             addOptions: {
                 disposeSceneObjects: true,
                 autoSetEnvironment: true, // when hdr is dropped

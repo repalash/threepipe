@@ -7,6 +7,7 @@ import {
     DoubleSide,
     FrontSide,
     MeshDepthMaterial,
+    MeshDepthMaterialParameters,
     NoBlending,
     Object3D,
     Scene,
@@ -49,6 +50,7 @@ export class DepthBufferPlugin
 
     @uiImage('Depth Buffer' /* {readOnly: true}*/) texture?: Texture
 
+    // @uiConfig() // not supported in this material yet
     readonly material: MeshDepthMaterial = new MeshDepthMaterialOverride({
         depthPacking: BasicDepthPacking,
         blending: NoBlending,
@@ -113,6 +115,8 @@ export class DepthBufferPlugin
         this.texture = this.target.texture
         this.texture.name = 'depthBuffer'
 
+        if (this._pass) this._pass.target = this.target
+
         if (this.isPrimaryGBuffer) {
             this._viewer.renderManager.gbufferTarget = this.target
             this._viewer.renderManager.screenPass.material.registerMaterialExtensions([this.unpackExtension])
@@ -168,6 +172,12 @@ export class DepthBufferPlugin
 }
 
 class MeshDepthMaterialOverride extends MeshDepthMaterial {
+
+    constructor(parameters: MeshDepthMaterialParameters) {
+        super(parameters)
+        this.reset()
+    }
+
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onBeforeRender(renderer, scene, camera, geometry, object)
 
@@ -178,7 +188,7 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
         if (!material) return
 
         if (material.map !== undefined) this.map = material.map // in case there is alpha in the map.
-        if (material.side !== undefined) this.side = DoubleSide
+        if (material.side !== undefined) this.side = material.side ?? FrontSide
         if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
 
@@ -196,8 +206,12 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onAfterRender(renderer, scene, camera, geometry, object)
 
+        this.reset()
+    }
+
+    reset() {
         this.map = null
-        this.side = FrontSide
+        this.side = DoubleSide
         this.alphaMap = null
         this.alphaTest = 0.001
 

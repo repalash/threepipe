@@ -1,5 +1,15 @@
 import {IDisposable, PartialRecord} from 'ts-browser-helpers'
-import {Clock, Event, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
+import {
+    Blending,
+    Clock,
+    Event,
+    ShaderMaterial,
+    Texture,
+    Vector2,
+    Vector4,
+    WebGLRenderer,
+    WebGLRenderTarget,
+} from 'three'
 import {CreateRenderTargetOptions, IRenderTarget, RenderTargetManager} from '../rendering'
 import {IShaderPropertiesUpdater} from '../materials'
 import {EffectComposer2, IPassID, IPipelinePass} from '../postprocessing'
@@ -25,6 +35,7 @@ export type IRenderManagerEvent = Partial<IAnimationLoopEvent>&Partial<IRenderMa
     [key: string]: any
 }
 export type IRenderManagerEventTypes = 'animationLoop'|'update'|'resize'|'contextLost'|'contextRestored'
+export interface RendererBlitOptions {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean}
 export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEvent, ET extends string = IRenderManagerEventTypes> extends RenderTargetManager<E, ET>, IDisposable, IShaderPropertiesUpdater{
     readonly renderer: IWebGLRenderer
     readonly needsRender: boolean
@@ -52,7 +63,7 @@ export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEv
     webglRenderer: WebGLRenderer
     clock: Clock
 
-    blit(destination: IRenderTarget|undefined|null, options?: {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean}): void
+    blit(destination: IRenderTarget|undefined|null, options?: RendererBlitOptions): void
     clearColor({r, g, b, a, target, depth = true, stencil = true, viewport}:
                    {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void
 

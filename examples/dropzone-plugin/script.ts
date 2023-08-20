@@ -6,7 +6,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
-            allowedExtensions: ['gltf', 'glb', 'hdr', 'png', 'jpg', 'json', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
+            allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
             addOptions: {
                 disposeSceneObjects: true, // auto dispose of old scene objects
                 autoSetEnvironment: true, // when hdr is dropped

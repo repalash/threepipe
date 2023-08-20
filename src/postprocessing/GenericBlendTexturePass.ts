@@ -12,8 +12,8 @@ export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass
                 varying vec2 vUv;
                 ${extraFrag}
                 void main() {
-                    vec4 a = tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) )
-                    vec4 b = tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) )
+                    vec4 a = tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) );
+                    vec4 b = tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) );
                     vec4 c = vec4(0);
                     ${blendFunc}
                     c = clamp(c, vec4(0), vec4(8));
