@@ -10,6 +10,7 @@ import {fileURLToPath} from 'url';
 import terser from "@rollup/plugin-terser";
 import postcss from 'rollup-plugin-postcss'
 import glsl from "rollup-plugin-glsl"
+import replace from "rollup-plugin-replace";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,6 +57,9 @@ export default {
     ],
     external: [],
     plugins: [
+        replace({
+            'process.env.NODE_ENV': JSON.stringify( 'production' )
+        }),
         glsl({ // todo: minify glsl.
             include: "src/**/*.glsl"
         }),

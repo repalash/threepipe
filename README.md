@@ -72,6 +72,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
   - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
+  - [PopmotionPlugin](#popmotionplugin) - Integrates with popmotion.io library for animation/tweening
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
   - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
@@ -546,6 +547,62 @@ The time playback is managed automatically, but can be controlled manually by se
 This plugin is made for playing, pausing, stopping, all the animations at once, while it is possible to play individual animations, it is not recommended.
 
 To play individual animations, with custom choreography, use the {@link GLTFAnimationPlugin.animations} property to get reference to the animation clips and actions. Create your own mixers and control the animation playback like in three.js
+
+## PopmotionPlugin
+
+todo: image
+
+Example: https://threepipe.org/examples/#popmotion-plugin/
+
+Source Code: [src/plugins/animation/PopmotionPlugin.ts](./src/plugins/animation/PopmotionPlugin.ts)
+
+API Reference: [PopmotionPlugin](https://threepipe.org/docs/classes/PopmotionPlugin.html)
+
+Provides animation/tweening capabilities to the viewer using the [popmotion.io](https://popmotion.io/) library.
+
+Overrides the driver in popmotion to sync with the viewer and provide ways to store and stop animations.
+
+```typescript
+import {PopmotionPlugin, ThreeViewer} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const cube = viewer.scene.getObjectByName('cube');
+
+const popmotion = viewer.addPluginSync(new PopmotionPlugin())
+
+// Move the object cube 1 unit up.
+const anim = popmotion.animate({
+  from: cube.position.y,
+  to: cube.position.y + 1,
+  duration: 500, // ms
+  onUpdate: (v) => {
+    cube.position.setY(v)
+    cube.setDirty()
+  },
+  onComplete: () => isMovedUp = !isMovedUp,
+})
+
+// await for animation
+await anim.promise;
+
+// or stop the animation
+// anim.stop()
+
+// Animate the color
+await popmotion.animateAsync({ // Also await for the animation.
+  from: '#' + cube.material.color.getHexString(),
+  to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
+  duration: 500,
+  onUpdate: (v) => {
+    cube.material.color.set(v)
+    cube.material.setDirty()
+  },
+})
+```
+
+Note: The animation is started when the animate or animateAsync function is called.
+
 
 ## RenderTargetPreviewPlugin
 

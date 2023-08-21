@@ -31,3 +31,4 @@ export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
+export {PopmotionPlugin} from './animation/PopmotionPlugin'

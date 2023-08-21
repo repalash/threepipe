@@ -98,7 +98,8 @@
     "typescript": "^5.0.4",
     "typescript-plugin-css-modules": "^5.0.1",
     "uiconfig.js": "^0.0.6",
-    "rollup-plugin-replace": "^2.2.0"
+    "rollup-plugin-replace": "^2.2.0",
+    "popmotion": "^11.0.5"
   },
   "dependencies": {
     "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1012/package.tgz",
