@@ -4,6 +4,7 @@ import type {MaterialExtension} from '../materials'
 import type {ChangeEvent, IUiConfigContainer} from 'uiconfig.js'
 import type {SerializationMetaType} from '../utils'
 import type {IObject3D} from './IObject'
+import {ISetDirtyCommonOptions} from './IObject'
 import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
 
@@ -20,7 +21,7 @@ export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
 
     uiChangeEvent?: ChangeEvent
 }
-export interface IMaterialSetDirtyOptions {
+export interface IMaterialSetDirtyOptions extends ISetDirtyCommonOptions{
     /**
      * @default true
      */
@@ -28,15 +29,8 @@ export interface IMaterialSetDirtyOptions {
     /**
      * @default true
      */
-    refreshUi?: boolean,
-    /**
-     * @default true
-     */
     needsUpdate?: boolean,
-    /**
-     * Event from uiconfig.js
-     */
-    uiChangeEvent?: ChangeEvent,
+
     [key: string]: any
 }
 export interface IMaterialUserData extends IImportResultUserData{

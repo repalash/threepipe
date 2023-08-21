@@ -5,25 +5,16 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        dropzone: {
-            allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr'],
-            addOptions: {
-                disposeSceneObjects: true,
-                autoSetEnvironment: true, // when hdr is dropped
-            },
-        },
     })
 
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)
     gltfAnimation.autoplayOnLoad = false
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-    const result = await viewer.load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
+    await viewer.load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
         autoCenter: true,
         autoScale: true,
     })
-    console.log(result)
-
 
     const fileCamera = viewer.scene.getObjectByName<ICamera>('Correction__MovingCamera')
     if (!fileCamera) return
@@ -32,10 +23,11 @@ async function init() {
     fileCamera.userData.autoLookAtTarget = false
     fileCamera.activateMain()
 
-    gltfAnimation.loopAnimations = true
-    gltfAnimation.playAnimation()
+    gltfAnimation.loopAnimations = false
+    gltfAnimation.animateOnPageScroll = true
+    gltfAnimation.pageScrollAnimationDamping = 0.1
 
-    console.log(gltfAnimation)
+    gltfAnimation.playAnimation()
 
 }
 

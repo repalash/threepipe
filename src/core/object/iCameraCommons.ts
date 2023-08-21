@@ -16,7 +16,7 @@ export const iCameraCommons = {
         }
         this.dispatchEvent({...options, type: 'update'}) // does not bubble
         this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true}) // this sets dirty in the viewer
-        iObjectCommons.setDirty.call(this, options)
+        iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})
     },
     activateMain: function(this: ICamera, options: Partial<ICameraEvent> = {}, _internal = false, _refresh = true): void {
         if (!_internal) return this.dispatchEvent({

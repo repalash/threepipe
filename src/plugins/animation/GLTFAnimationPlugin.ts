@@ -5,8 +5,7 @@ import {AnimationAction, AnimationClip, AnimationMixer, LoopOnce, LoopRepeat} fr
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {IObject3D} from '../../core'
 import {generateUUID} from '../../three'
-
-type FrameFadePlugin = any // todo
+import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 
 /**
  * Manages playback of GLTF animations.
@@ -68,9 +67,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
     @uiSlider('Speed', [0.1, 4], 0.1) @serialize() animationSpeed = 1
 
     /**
-     * Automatically track scroll and mouse wheel events to seek animations
+     * Automatically track mouse wheel events to seek animations
      * Control damping/smoothness with {@link scrollAnimationDamping}
-     * See also {@link animateOnDrag}
+     * See also {@link animateOnPageScroll}. {@link animateOnDrag}
      */
     @uiToggle() @serialize() animateOnScroll = false
 
@@ -78,6 +77,18 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
      * Damping for the scroll animation, when {@link animateOnScroll} is true.
      */
     @uiSlider('Scroll Damping', [0, 1]) @serialize() scrollAnimationDamping = 0.1
+
+    /**
+     * Automatically track scroll event in window and use `window.scrollY` along with {@link pageScrollHeight} to seek animations
+     * Control damping/smoothness with {@link pageScrollAnimationDamping}
+     * See also {@link animateOnDrag}, {@link animateOnScroll}
+     */
+    @uiToggle() @serialize() animateOnPageScroll = false
+
+    /**
+     * Damping for the scroll animation, when {@link animateOnPage Scroll} is true.
+     */
+    @uiSlider('Page Scroll Damping', [0, 1]) @serialize() pageScrollAnimationDamping = 0.1
 
     /**
      * Automatically track drag events in either x or y axes to seek animations
@@ -142,6 +153,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
     private _animationTime = 0
     private _animationDuration = 0
     private _scrollAnimationState = 0
+    private _pageScrollAnimationState = 0
     private _dragAnimationState = 0
     private _pointerDragHelper = new PointerDragHelper()
     private _lastFrameTime = 0
@@ -159,6 +171,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         this._onPropertyChange = this._onPropertyChange.bind(this)
         this._postFrame = this._postFrame.bind(this)
         this._wheel = this._wheel.bind(this)
+        this._scroll = this._scroll.bind(this)
         this._pointerDragHelper.addEventListener('drag', this._drag.bind(this))
     }
 
@@ -171,6 +184,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         viewer.scene.addEventListener('addSceneObject', this._objectAdded)
         viewer.addEventListener('postFrame', this._postFrame)
         window.addEventListener('wheel', this._wheel)
+        window.addEventListener('scroll', this._scroll)
         this._pointerDragHelper.element = viewer.canvas
         return super.onAdded(viewer)
     }
@@ -180,6 +194,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         viewer.scene.removeEventListener('addSceneObject', this._objectAdded)
         viewer.removeEventListener('postFrame', this._postFrame)
         window.removeEventListener('wheel', this._wheel)
+        window.removeEventListener('scroll', this._scroll)
         this._pointerDragHelper.element = undefined
         return super.onRemove(viewer)
     }
@@ -356,9 +371,10 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         if (!this._viewer) return
 
         const scrollAnimate = this.animateOnScroll //  && this._animationState === 'paused'
+        const pageScrollAnimate = this.animateOnPageScroll //  && this._animationState === 'paused'
         const dragAnimate = this.animateOnDrag //  && this._animationState === 'paused'
 
-        if (!this.enabled || this.animations.length < 1 || this._animationState !== 'playing' && !scrollAnimate && !dragAnimate) {
+        if (!this.enabled || this.animations.length < 1 || this._animationState !== 'playing' && !scrollAnimate && !dragAnimate && !pageScrollAnimate) {
             this._lastFrameTime = 0
             // console.log('not anim')
             if (this._fadeDisabled) {
@@ -380,7 +396,8 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
 
             this._lastFrameTime = time
 
-            if (scrollAnimate && dragAnimate) delta *= absMax(this._scrollAnimationState, this._dragAnimationState)
+            if (pageScrollAnimate) delta *= this._pageScrollAnimationState
+            else if (scrollAnimate && dragAnimate) delta *= absMax(this._scrollAnimationState, this._dragAnimationState)
             else if (scrollAnimate) delta *= this._scrollAnimationState
             else if (dragAnimate) delta *= this._dragAnimationState
 
@@ -413,6 +430,10 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         // if (this._animationTime > this._animationDuration) this._animationTime -= this._animationDuration
         // if (this._animationTime < 0) this._animationTime += this._animationDuration
 
+        this._pageScrollAnimationState = this.pageScrollTime - this._animationTime
+        if (Math.abs(this._pageScrollAnimationState) < 0.001) this._pageScrollAnimationState = 0
+        else this._pageScrollAnimationState *= 1.0 - this.pageScrollAnimationDamping
+
         if (Math.abs(this._scrollAnimationState) < 0.001) this._scrollAnimationState = 0
         else this._scrollAnimationState *= 1.0 - this.scrollAnimationDamping
 
@@ -420,12 +441,13 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         else this._dragAnimationState *= 1.0 - this.dragAnimationDamping
 
         this.dispatchEvent({type: 'animationStep', delta: animDelta, time: t})
-        // todo: find a wau to check if a camera is animating
+
+        // todo: this is now checked preFrame in ThreeViewer.ts
         // if (this._viewer.scene.mainCamera.userData.isAnimating) { // if camera is animating
-        this._viewer.scene.mainCamera.setDirty()
+        // this._viewer.scene.mainCamera.setDirty()
         // console.log(this._viewer.scene.mainCamera, this._viewer.scene.mainCamera.getWorldPosition(new Vector3()))
         // }
-        this._viewer.scene.refreshActiveCameraNearFar() // because it's based on scene bounding box.
+
         this._viewer.renderManager.resetShadows()
         this._viewer.setDirty()
 
@@ -484,6 +506,16 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         }
     }
 
+    get pageScrollTime() {
+        const scrollMax = this.pageScrollHeight()
+        const time = window.scrollY / scrollMax * (this.animationDuration - 0.05)
+        return time
+    }
+
+    private _scroll() {
+        if (!this.enabled) return
+        this._pageScrollAnimationState = this.pageScrollTime - this.animationTime
+    }
 
     private _wheel({deltaY}: any | WheelEvent) {
         if (!this.enabled) return
@@ -497,5 +529,15 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
             ev.delta.x * this._viewer.canvas.width / 4 :
             ev.delta.y * this._viewer.canvas.height / 4
     }
+
+
+    pageScrollHeight = () => Math.max(
+        document.body.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.clientHeight,
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight
+    ) - window.innerHeight
+
 
 }

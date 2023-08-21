@@ -1,7 +1,7 @@
 import {IDisposable} from 'ts-browser-helpers'
 import {IMaterial} from './IMaterial'
 import {Event, Object3D} from 'three'
-import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
+import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEvent} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -21,15 +21,36 @@ export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends 
     oldGeometry?: IGeometry|undefined // from geometryChanged
 }
 
-export interface IObjectSetDirtyOptions {
+export interface ISetDirtyCommonOptions {
+    /**
+     * Trigger UI Config Refresh along with setDirty.
+     * Default `true`. Set to `false` to prevent UI Config refresh.
+     */
+    refreshUi?: boolean
+
+    /**
+     * Enable/disable frame fade using {@link FrameFadePlugin}
+     * Default `true`. when the plugin is enabled and has corresponding flags enabled
+     */
+    frameFade?: boolean // for plugins
+    /**
+     * Duration for `frameFade` in ms. Check {@link FrameFadePlugin} for more details.
+     */
+    fadeDuration?: number // for plugins
+
+    /**
+     * Event from uiconfig.js when some value changes from the UI.
+     */
+    uiChangeEvent?: ChangeEvent,
+
+}
+
+export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
     bubbleToParent?: boolean // bubble event to parent root
     change?: string
     refreshScene?: boolean // update scene after setting dirty
 
     geometryChanged?: boolean // whether to refresh stuff like ground.
-
-    frameFade?: boolean // for plugins
-    refreshUi?: boolean // for plugins
 
     /**
      * @deprecated use {@link refreshScene} instead

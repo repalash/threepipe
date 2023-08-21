@@ -73,6 +73,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
+  - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -570,6 +571,36 @@ const previewPlugin = viewer.addPluginSync(new RenderTargetPreviewPlugin())
 // Show the normal buffer in a panel
 previewPlugin.addTarget(()=>normalPlugin.target, 'normal', false, false)
 ```
+
+## FrameFadePlugin
+
+todo: image
+
+Example: https://threepipe.org/examples/#frame-fade-plugin/
+
+Source Code: [src/plugins/pipeline/FrameFadePlugin.ts](./src/plugins/pipeline/FrameFadePlugin.ts)
+
+API Reference: [FrameFadePlugin](https://threepipe.org/docs/classes/FrameFadePlugin.html)
+
+FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc to avoid a sudden jump.
+
+```typescript
+import {ThreeViewer, FrameFadePlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const fadePlugin = viewer.addPluginSync(new FrameFadePlugin())
+
+// Make some changes in the scene (any visual change that needs to be faded)
+
+// Start transition and wait for it to finish
+await fadePlugin.startTransition(400) // duration in ms
+
+```
+
+To stop a transition, call `fadePlugin.stopTransition()`. This will immediately set the current frame to the last frame and stop the transition. The transition is also automatically stopped when the camera is moved or some pointer event occurs on the canvas.
+
+The plugin automatically tracks `setDirty()` function calls in objects, materials and the scene. It can be triggerred by calling `setDirty` on any material or object in the scene. Check the [example](https://threepipe.org/examples/#frame-fade-plugin/) for a demo. This can be disabled by options in the plugin.
 
 ## Rhino3dmLoadPlugin
 

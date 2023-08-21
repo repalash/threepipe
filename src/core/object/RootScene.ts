@@ -160,18 +160,18 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param imported
      * @param options
      */
-    addObject<T extends IObject3D|Object3D = IObject3D>(imported: T, options?: AddObjectOptions): T {
+    addObject<T extends IObject3D|Object3D = IObject3D>(imported: T, options?: AddObjectOptions): T&IObject3D {
         if (options?.clearSceneObjects || options?.disposeSceneObjects) {
             this.clearSceneModels(options.disposeSceneObjects)
         }
         if (!imported) return imported
         if (!imported.isObject3D) {
             console.error('Invalid object, cannot add to scene.', imported)
-            return imported
+            return imported as T&IObject3D
         }
         this._addObject3D(<IObject3D>imported, options)
         this.dispatchEvent({type: 'addSceneObject', object: <IObject3D>imported})
-        return imported
+        return imported as T&IObject3D
     }
 
     /**

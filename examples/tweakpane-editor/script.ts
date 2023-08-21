@@ -2,6 +2,7 @@ import {
     _testFinish,
     DepthBufferPlugin,
     DropzonePlugin,
+    FrameFadePlugin,
     FullScreenPlugin,
     GLTFAnimationPlugin,
     HalfFloatType,
@@ -47,6 +48,7 @@ async function init() {
         new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
+        new FrameFadePlugin(),
         new KTX2LoadPlugin(),
         new KTXLoadPlugin(),
         new PLYLoadPlugin(),
@@ -61,7 +63,7 @@ async function init() {
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin],
         ['Animation']: [GLTFAnimationPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })

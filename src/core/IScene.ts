@@ -62,9 +62,7 @@ export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObjec
     scene?: IScene | null
     // change?: string
 }
-export type ISceneSetDirtyOptions = IObjectSetDirtyOptions & {
-    [key: string]: any
-}
+export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
 
 
 export type ISceneUserData = IObject3DUserData
@@ -85,7 +83,7 @@ export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEv
     // environmentLight?: IEnvironmentLight;
     // processors: ObjectProcessorMap<'environment' | 'background'>
 
-    addObject<T extends IObject3D>(imported: T, options?: AddObjectOptions): T;
+    addObject<T extends IObject3D>(imported: T, options?: AddObjectOptions): T&IObject3D;
 
     setDirty(e?: ISceneSetDirtyOptions): void
 
