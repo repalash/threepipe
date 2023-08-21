@@ -1,4 +1,14 @@
-import {BaseEvent, Color, Event, EventDispatcher, LinearSRGBColorSpace, Object3D, Vector2} from 'three'
+import {
+    BaseEvent,
+    Color,
+    Event,
+    EventDispatcher,
+    LinearSRGBColorSpace,
+    Object3D,
+    Quaternion,
+    Vector2,
+    Vector3,
+} from 'three'
 import {Class, createCanvasElement, onChange, serialize} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
@@ -218,6 +228,12 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      */
     readonly resizeObserver = window?.ResizeObserver ? new window.ResizeObserver(_ => this.resize()) : undefined
 
+    private _lastCameraPosition: Vector3 = new Vector3()
+    private _lastCameraQuat: Quaternion = new Quaternion()
+    private _lastCameraTarget: Vector3 = new Vector3()
+    private _tempVec: Vector3 = new Vector3()
+    private _tempQuat: Quaternion = new Quaternion()
+
     readonly debug: boolean
     /**
      * Create a viewer instance for using the webgi viewer SDK.
@@ -247,7 +263,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const camera = new PerspectiveCamera2('orbit', this._canvas)
         camera.name = 'Default Camera'
         camera.position.set(0, 0, 5)
-        camera.userData.autoLookAtTarget = true
+        camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
+
+        // Update camera controls postFrame if allowed to interact
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
             if (cam && cam.canUserInteract) {
@@ -259,6 +277,16 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
                 cam.controls?.update()
             }
+        })
+
+        // if camera position or target changed in last frame, call setDirty on camera
+        this.addEventListener('preFrame', () => { // todo: move inside RootScene.
+            const cam = this._scene.mainCamera
+            if (
+                cam.getWorldPosition(this._tempVec).sub(this._lastCameraPosition).lengthSq() // position is in local space
+                + this._tempVec.subVectors(cam.target, this._lastCameraTarget).lengthSq() // target is in world space
+                + cam.getWorldQuaternion(this._tempQuat).angleTo(this._lastCameraQuat)
+                > 0.000001) cam.setDirty()
         })
 
         // scene
@@ -276,6 +304,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             this.setDirty(this._scene, e)
             if (e.geometryChanged === false) return
             this.renderManager.resetShadows()
+        })
+        this._scene.addEventListener('mainCameraUpdate', () => {
+            this._scene.mainCamera.getWorldPosition(this._lastCameraPosition)
+            this._lastCameraTarget.copy(this._scene.mainCamera.target)
+            this._scene.mainCamera.getWorldQuaternion(this._lastCameraQuat)
         })
 
 
