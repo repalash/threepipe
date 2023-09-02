@@ -12,6 +12,7 @@ export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferP
 
 // ui
 export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'
+export {GeometryUVPreviewPlugin} from './ui/GeometryUVPreviewPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
