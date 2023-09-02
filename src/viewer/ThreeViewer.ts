@@ -104,13 +104,23 @@ export interface ThreeViewerOptions {
      */
     msaa?: boolean,
     /**
-     * Use RGBM HDR Pipeline
+     * Use Uint8 RGBM HDR Render Pipeline.
+     * Provides better performance with post-processing.
+     * RenderManager Uses Half-float if set to false.
      */
     rgbm?: boolean
     /**
      * Use rendered gbuffer as depth-prepass / z-prepass.
      */
     zPrepass?: boolean
+
+    /*
+     * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
+     * Same as pixelRatio in three.js
+     * Can be set to `window.devicePixelRatio` to render at device resolution in browsers.
+     * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile.
+     */
+    renderScale?: number
 
     debug?: boolean
 
@@ -165,9 +175,50 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
     static Dialog: IDialogWrapper = windowDialogWrapper
 
+    /**
+     * If the viewer is enabled. Set this `false` to disable RAF loop.
+     * @type {boolean}
+     */
+    enabled = true
+    /**
+     * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
+     */
+    @onChange(ThreeViewer.prototype._renderEnabledChanged)
+        renderEnabled = true
     renderStats: GLStatsJS
-
     readonly assetManager: AssetManager
+    @uiConfig() @serialize('renderManager')
+    readonly renderManager: ViewerRenderManager
+    public readonly plugins: Record<string, IViewerPlugin> = {}
+    /**
+     * Scene with object hierarchy used for rendering
+     */
+    get scene(): RootScene {
+        return this._scene
+    }
+    /**
+     * Specifies how many frames to render in a single request animation frame. Keep to 1 for realtime rendering.
+     * Note: should be max (screen refresh rate / animation frame rate) like 60Hz / 30fps
+     * @type {number}
+     */
+    public maxFramePerLoop = 1
+    readonly debug: boolean
+
+    /**
+     * Get the HTML Element containing the canvas
+     * @returns {HTMLElement}
+     */
+    get container(): HTMLElement {
+        return this._container
+    }
+
+    /**
+     * Get the HTML Canvas Element where the viewer is rendering
+     * @returns {HTMLCanvasElement}
+     */
+    get canvas(): HTMLCanvasElement {
+        return this._canvas
+    }
 
     get console(): IConsoleWrapper {
         return ThreeViewer.Console
@@ -175,52 +226,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     get dialog(): IDialogWrapper {
         return ThreeViewer.Dialog
     }
-
     @serialize() readonly type = 'ThreeViewer'
-
-    private readonly _canvas: HTMLCanvasElement
-
-    // this can be used by other plugins to add ui elements alongside the canvas
-    private readonly _container: HTMLElement // todo: add a way to move the canvas to a new container... and dispatch event...
-
-    @uiConfig() @serialize('renderManager')
-    readonly renderManager: ViewerRenderManager
-
-    /**
-     * The Scene attached to the viewer, this cannot be changed.
-     * @type {RootScene}
-     */
-    @uiConfig() @serialize('scene')
-    private readonly _scene: RootScene
-
-    public readonly plugins: Record<string, IViewerPlugin> = {}
-    private _needsResize = false
-
-    /**
-     * If the viewer is enabled. Set this `false` to disable RAF loop.
-     * @type {boolean}
-     */
-    enabled = true
-
-
-    /**
-     * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
-     */
-    @onChange(ThreeViewer.prototype._renderEnabledChanged)
-        renderEnabled = true
-
-    private _isRenderingFrame = false
-
-    /**
-     * Specifies how many frames to render in a single request animation frame. Keep to 1 for realtime rendering.
-     * Note: should be max (screen refresh rate / animation frame rate) like 60Hz / 30fps
-     * @type {number}
-     */
-    public maxFramePerLoop = 1
-
-    get scene(): RootScene {
-        return this._scene
-    }
 
     /**
      * The ResizeObserver observing the canvas element. Add more elements to this observer to resize viewer on their size change.
@@ -228,13 +234,34 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      */
     readonly resizeObserver = window?.ResizeObserver ? new window.ResizeObserver(_ => this.resize()) : undefined
 
+    private readonly _canvas: HTMLCanvasElement
+    // this can be used by other plugins to add ui elements alongside the canvas
+    private readonly _container: HTMLElement // todo: add a way to move the canvas to a new container... and dispatch event...
+    /**
+     * The Scene attached to the viewer, this cannot be changed.
+     * @type {RootScene}
+     */
+    @uiConfig() @serialize('scene')
+    private readonly _scene: RootScene
+    private _needsResize = false
+    private _isRenderingFrame = false
+    private _objectProcessor: IObjectProcessor = {
+        processObject: (object: IObject3D)=>{
+            if (object.material) {
+                if (Array.isArray(object.material)) this.assetManager.materials.registerMaterials(object.material)
+                else this.assetManager.materials.registerMaterial(object.material)
+            }
+        },
+    }
+    private _needsReset = true // renderer needs reset
+
+    // Helpers for tracking main camera change and setting dirty automatically
     private _lastCameraPosition: Vector3 = new Vector3()
     private _lastCameraQuat: Quaternion = new Quaternion()
     private _lastCameraTarget: Vector3 = new Vector3()
     private _tempVec: Vector3 = new Vector3()
     private _tempQuat: Quaternion = new Quaternion()
 
-    readonly debug: boolean
     /**
      * Create a viewer instance for using the webgi viewer SDK.
      * @param options - {@link ThreeViewerOptions}
@@ -324,6 +351,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             zPrepass: options.zPrepass ?? options.useGBufferDepth ?? false,
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
             screenShader: options.screenShader,
+            renderScale: options.renderScale,
         })
         this.renderManager.addEventListener('animationLoop', this._animationLoop as any)
         this.renderManager.addEventListener('resize', ()=> this._scene.mainCamera.refreshAspect())
@@ -356,61 +384,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     }
 
-    private _objectProcessor: IObjectProcessor = {
-        processObject: (object: IObject3D)=>{
-            if (object.material) {
-                if (Array.isArray(object.material)) this.assetManager.materials.registerMaterials(object.material)
-                else this.assetManager.materials.registerMaterial(object.material)
-            }
-        },
-    }
-
-    // todo: find a better fix for context loss and restore?
-    private _lastSize = new Vector2()
-    private _onContextRestore = (_: Event) => {
-        this.enabled = true
-        this._canvas.width = this._lastSize.width
-        this._canvas.height = this._lastSize.height
-        this.resize()
-        this._scene.setDirty({refreshScene: true, frameFade: false})
-    }
-    private _onContextLost = (_: Event) => {
-        this._lastSize.set(this._canvas.width, this._canvas.height)
-        this._canvas.width = 2
-        this._canvas.height = 2
-        this.resize()
-        this.enabled = false
-    }
-
-    /**
-     * Mark that the canvas is resized. If the size is changed, the renderer and all render targets are resized. This happens before the render of the next frame.
-     */
-    resize = () => {
-        this._needsResize = true
-        this.setDirty()
-    }
-
-    private _needsReset = true // renderer reset
-    /**
-     * Set the viewer to dirty and trigger render of the next frame.
-     * @param source - The source of the dirty event. like plugin or 3d object
-     * @param event - The event that triggered the dirty event.
-     */
-    setDirty(source?: any, event?: Event): void {
-        this._needsReset = true
-        source = source ?? this
-        this.dispatchEvent({...event ?? {}, type: 'update', source})
-    }
-
-    /**
-     * The renderer for the viewer that's attached to the canvas. This is wrapper around WebGLRenderer and EffectComposer and manages post-processing passes and rendering logic
-     * @deprecated - use {@link renderManager} instead
-     */
-    get renderer(): ViewerRenderManager {
-        this.console.error('renderer is deprecated, use renderManager instead')
-        return this.renderManager
-    }
-
     /**
      * Add an object/model/material/viewer-config/plugin-preset/... to the viewer scene from url or an {@link IAsset} object.
      * Same as {@link AssetManager.addAssetSingle}
@@ -431,19 +404,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     async import<T extends ImportResult = ImportResult>(obj: string | IAsset | null, options?: ImportAddOptions) {
         if (!obj) return
         return await this.assetManager.importer.importSingle<T>(obj, options)
-    }
-
-    /**
-     * Exports an object/mesh/material/texture/render-target/plugin-preset/viewer to a blob.
-     * If no object is given, a glb is exported with the current viewer state.
-     * @param obj
-     * @param options
-     */
-    async export(obj?: IObject3D|IMaterial|ITexture|IRenderTarget|IViewerPlugin|(typeof this), options?: ExportFileOptions) {
-        if (!obj) obj = this._scene // this will export the glb with the scene and viewer config
-        if ((<typeof this>obj).type === this.type) return jsonToBlob((<typeof this>obj).exportConfig())
-        if ((<IViewerPlugin>obj).constructor?.PluginType) return jsonToBlob(this.exportPluginConfig(<IViewerPlugin>obj))
-        return await this.assetManager.exporter.exportObject(<IObject3D|IMaterial|ITexture|IRenderTarget>obj, options)
     }
 
     /**
@@ -468,6 +428,47 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this._scene.background = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
         if (setEnvironment) return this.setEnvironmentMap(this._scene.background)
         return this._scene.background
+    }
+
+    /**
+     * Exports an object/mesh/material/texture/render-target/plugin-preset/viewer to a blob.
+     * If no object is given, a glb is exported with the current viewer state.
+     * @param obj
+     * @param options
+     */
+    async export(obj?: IObject3D|IMaterial|ITexture|IRenderTarget|IViewerPlugin|(typeof this), options?: ExportFileOptions) {
+        if (!obj) obj = this._scene // this will export the glb with the scene and viewer config
+        if ((<typeof this>obj).type === this.type) return jsonToBlob((<typeof this>obj).exportConfig())
+        if ((<IViewerPlugin>obj).constructor?.PluginType) return jsonToBlob(this.exportPluginConfig(<IViewerPlugin>obj))
+        return await this.assetManager.exporter.exportObject(<IObject3D|IMaterial|ITexture|IRenderTarget>obj, options)
+    }
+
+    /**
+     * Export the scene to a file (default: glb with viewer config) and return a blob
+     * @param options
+     */
+    async exportScene(options?: ExportFileOptions): Promise<BlobExt | undefined> {
+        return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
+    }
+
+    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null> {
+        const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
+            this._canvas.toBlob((blob) => {
+                resolve(blob)
+            }, mimeType, quality)
+        })
+        if (!this.renderEnabled) return blobPromise()
+        return await this.doOnce('postFrame', async() => {
+            this.renderEnabled = false
+            const blob = await blobPromise()
+            this.renderEnabled = true
+            return blob
+        })
+    }
+
+    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null> {
+        if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
+        return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
 
     /**
@@ -496,7 +497,26 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.dispatchEvent({type: 'dispose'})
     }
 
-    private _animationLoop(event: IAnimationLoopEvent): void {
+    /**
+     * Mark that the canvas is resized. If the size is changed, the renderer and all render targets are resized. This happens before the render of the next frame.
+     */
+    resize = () => {
+        this._needsResize = true
+        this.setDirty()
+    }
+
+    /**
+     * Set the viewer to dirty and trigger render of the next frame.
+     * @param source - The source of the dirty event. like plugin or 3d object
+     * @param event - The event that triggered the dirty event.
+     */
+    setDirty(source?: any, event?: Event): void {
+        this._needsReset = true
+        source = source ?? this
+        this.dispatchEvent({...event ?? {}, type: 'update', source})
+    }
+
+    protected _animationLoop(event: IAnimationLoopEvent): void {
         if (!this.enabled || !this.renderEnabled) return
         if (this._isRenderingFrame) {
             this.console.warn('animation loop: frame skip') // not possible actually, since this is not async
@@ -581,23 +601,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     }
 
-
-    /**
-     * Get the HTML Element containing the canvas
-     * @returns {HTMLElement}
-     */
-    get container(): HTMLElement {
-        return this._container
-    }
-
-    /**
-     * Get the HTML Canvas Element where the viewer is rendering
-     * @returns {HTMLCanvasElement}
-     */
-    get canvas(): HTMLCanvasElement {
-        return this._canvas
-    }
-
     /**
      * Get the Plugin by a constructor type or by the string type.
      * Use string type if the plugin is not a dependency and you don't want to bundle the plugin.
@@ -609,21 +612,21 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
 
     /**
-     * Get the Plugin by the string type.
-     * @deprecated - Use {@link getPlugin} instead.
+     * Get the Plugin by a constructor type or add a new plugin of the specified type if it doesn't exist.
      * @param type
-     * @returns {T | undefined}
+     * @param args - arguments for the constructor of the plugin, used when a new plugin is created.
      */
-    getPluginByType<T extends IViewerPlugin>(type: string): T | undefined {
-        return this.plugins[type] as T | undefined
-    }
-
     async getOrAddPlugin<T extends IViewerPlugin>(type: Class<T>, ...args: ConstructorParameters<Class<T>>): Promise<T> {
         const plugin = this.getPlugin(type)
         if (plugin) return plugin
         return this.addPlugin(type, ...args)
     }
 
+    /**
+     * Get the Plugin by a constructor type or add a new plugin to the viewer of the specified type if it doesn't exist(sync).
+     * @param type
+     * @param args - arguments for the constructor of the plugin, used when a new plugin is created.
+     */
     getOrAddPluginSync<T extends IViewerPluginSync>(type: Class<T>, ...args: ConstructorParameters<Class<T>>): T {
         const plugin = this.getPlugin(type)
         if (plugin) return plugin
@@ -686,10 +689,18 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return p
     }
 
+    /**
+     * Add multiple plugins to the viewer.
+     * @param plugins - List of plugin instances or classes
+     */
     async addPlugins(plugins: (IViewerPlugin | Class<IViewerPlugin>)[]): Promise<void> {
         for (const p of plugins) await this.addPlugin(p)
     }
 
+    /**
+     * Add multiple plugins to the viewer(sync).
+     * @param plugins - List of plugin instances or classes
+     */
     async addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): Promise<void> {
         for (const p of plugins) this.addPluginSync(p)
     }
@@ -709,6 +720,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.setDirty(p)
     }
 
+    /**
+     * Remove a plugin instance or a plugin class(sync). Works similar to {@link ThreeViewer.addPluginSync}
+     * @param p
+     * @param dispose
+     */
     removePluginSync(p: IViewerPluginSync, dispose = true): void {
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
@@ -731,32 +747,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.resize()
     }
 
-    // private _addSceneObject = (e: IEvent<any>) => {
-    //     if (!e || !e.object) return
-    //     const config = e.object.__importedViewerConfig // this is set in gltf.ts when gltf file is imported. This is done here so that scene settings are applied whenever the imported object is added to scene.
-    //     if (!config) return
-    //     this.fromJSON(config, config.resources)
-    // }
-
-
-    /**
-     * @deprecated use {@link assetManager} instead.
-     * Gets the Asset manager, contains useful functions for managing, loading and inserting assets.
-     */
-    getManager(): AssetManager|undefined {
-        return this.assetManager
-    }
-
-    // todo
-    // public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
-    //     const camViews = this.getPluginByType<CameraViewPlugin>('CameraViews')
-    //     if (!camViews) {
-    //         this.console.error('CameraViews plugin is required for fitToView to work')
-    //         return
-    //     }
-    //     await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: (this.scene.activeCamera.getControls<OrbitControls3>()?.minDistance ?? 0.5) + 0.5, max: 1000.0})
-    // }
-
     /**
      * Traverse all objects in scene model root.
      * @param callback
@@ -765,7 +755,23 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this._scene.modelRoot.traverse(callback)
     }
 
-    // todo: create/load texture utils
+    /**
+     * Add an object to the scene model root.
+     * If an imported scene model root is passed, it will be loaded with viewer configuration, unless importConfig is false
+     * @param imported
+     * @param options
+     */
+    async addSceneObject<T extends IObject3D|Object3D|RootSceneImportResult = RootSceneImportResult>(imported: T, options?: AddObjectOptions): Promise<T> {
+        if (imported.userData?.rootSceneModelRoot) {
+            const obj = <RootSceneImportResult>imported
+            if (obj.importedViewerConfig && options?.importConfig !== false) await this.importConfig(obj.importedViewerConfig)
+            this._scene.loadModelRoot(obj, options)
+            return this._scene.modelRoot as T
+        }
+        this._scene.addObject(imported, options)
+        return imported
+    }
+
 
     /**
      * Serialize all the plugins and their settings to save or create presets. Used in {@link toJSON}.
@@ -904,7 +910,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return data
     }
 
-
     /**
      * Deserialize all the viewer and plugin settings.
      * @note use async {@link ThreeViewer.importConfig} to import a json/config exported with {@link ThreeViewer.exportConfig} or {@link ThreeViewer.toJSON}.
@@ -995,15 +1000,14 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return await MetaImporter.ImportMeta(meta, extraResources)
     }
 
-    async addSceneObject<T extends IObject3D|Object3D|RootSceneImportResult = RootSceneImportResult>(imported: T, options?: AddObjectOptions): Promise<T> {
-        if (imported.userData?.rootSceneModelRoot) {
-            const obj = <RootSceneImportResult>imported
-            if (obj.importedViewerConfig && options?.importConfig !== false) await this.importConfig(obj.importedViewerConfig)
-            this._scene.loadModelRoot(obj, options)
-            return this._scene.modelRoot as T
-        }
-        this._scene.addObject(imported, options)
-        return imported
+    async doOnce<TRet>(event: IViewerEventTypes, func: (...args: any[]) => TRet): Promise<TRet> {
+        return new Promise((resolve) => {
+            const listener = async(...args: any[]) => {
+                this.removeEventListener(event, listener)
+                resolve(await func(...args))
+            }
+            this.addEventListener(event, listener)
+        })
     }
 
     private _setActiveCameraView(event: any = {}): void {
@@ -1039,45 +1043,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return p
     }
 
-    async doOnce<TRet>(event: IViewerEventTypes, func: (...args: any[]) => TRet): Promise<TRet> {
-        return new Promise((resolve) => {
-            const listener = async(...args: any[]) => {
-                this.removeEventListener(event, listener)
-                resolve(await func(...args))
-            }
-            this.addEventListener(event, listener)
-        })
-    }
-
-    /**
-     * Export the scene to a file (default: glb with viewer config) and return a blob
-     * @param options
-     */
-    async exportScene(options?: ExportFileOptions): Promise<BlobExt | undefined> {
-        return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
-    }
-
-    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null> {
-        const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
-            this._canvas.toBlob((blob) => {
-                resolve(blob)
-            }, mimeType, quality)
-        })
-        if (!this.renderEnabled) return blobPromise()
-        return await this.doOnce('postFrame', async() => {
-            this.renderEnabled = false
-            const blob = await blobPromise()
-            this.renderEnabled = true
-            return blob
-        })
-    }
-
-    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null> {
-        if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
-        return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
-    }
-
-
     private _renderEnabledChanged(): void {
         this.dispatchEvent({type: this.renderEnabled ? 'renderEnabled' : 'renderDisabled'})
     }
@@ -1092,6 +1057,42 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         },
         plugins: [],
     }
+
+    // todo: find a better fix for context loss and restore?
+    private _lastSize = new Vector2()
+    private _onContextRestore = (_: Event) => {
+        this.enabled = true
+        this._canvas.width = this._lastSize.width
+        this._canvas.height = this._lastSize.height
+        this.resize()
+        this._scene.setDirty({refreshScene: true, frameFade: false})
+    }
+    private _onContextLost = (_: Event) => {
+        this._lastSize.set(this._canvas.width, this._canvas.height)
+        this._canvas.width = 2
+        this._canvas.height = 2
+        this.resize()
+        this.enabled = false
+    }
+
+    // private _addSceneObject = (e: IEvent<any>) => {
+    //     if (!e || !e.object) return
+    //     const config = e.object.__importedViewerConfig // this is set in gltf.ts when gltf file is imported. This is done here so that scene settings are applied whenever the imported object is added to scene.
+    //     if (!config) return
+    //     this.fromJSON(config, config.resources)
+    // }
+
+    // todo
+    // public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
+    //     const camViews = this.getPluginByType<CameraViewPlugin>('CameraViews')
+    //     if (!camViews) {
+    //         this.console.error('CameraViews plugin is required for fitToView to work')
+    //         return
+    //     }
+    //     await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: (this.scene.activeCamera.getControls<OrbitControls3>()?.minDistance ?? 0.5) + 0.5, max: 1000.0})
+    // }
+
+    // todo: create/load texture utils
 
     // region legacy creation functions
 
@@ -1144,5 +1145,32 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     // }
 
     // endregion
+
+    /**
+     * The renderer for the viewer that's attached to the canvas. This is wrapper around WebGLRenderer and EffectComposer and manages post-processing passes and rendering logic
+     * @deprecated - use {@link renderManager} instead
+     */
+    get renderer(): ViewerRenderManager {
+        this.console.error('renderer is deprecated, use renderManager instead')
+        return this.renderManager
+    }
+
+    /**
+     * @deprecated use {@link assetManager} instead.
+     * Gets the Asset manager, contains useful functions for managing, loading and inserting assets.
+     */
+    getManager(): AssetManager|undefined {
+        return this.assetManager
+    }
+
+    /**
+     * Get the Plugin by the string type.
+     * @deprecated - Use {@link getPlugin} instead.
+     * @param type
+     * @returns {T | undefined}
+     */
+    getPluginByType<T extends IViewerPlugin>(type: string): T | undefined {
+        return this.plugins[type] as T | undefined
+    }
 
 }

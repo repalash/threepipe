@@ -74,7 +74,6 @@ export type AddRawOptions = ProcessRawOptions & AddAssetOptions
  * @category Asset Manager
  */
 export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}, 'loadAsset'> {
-    static readonly PluginType = 'AssetManager'
     readonly viewer: ThreeViewer
     readonly importer: AssetImporter
     readonly exporter: AssetExporter
@@ -497,5 +496,9 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         return this.viewer?.loadConfigResources(json, extraResources)
     }
 
+    /**
+     * @deprecated not a plugin anymore
+     */
+    static readonly PluginType = 'AssetManager'
     // endregion
 }
