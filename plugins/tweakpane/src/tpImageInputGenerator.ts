@@ -1,5 +1,6 @@
 import {
     CustomContextMenu,
+    DataTexture,
     EXRExporter2,
     FloatType,
     generateUUID,
@@ -20,7 +21,6 @@ import {
 } from 'threepipe'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
-import {DataTexture} from 'three'
 
 const staticData = {
     placeholderVal: 'placeholder',

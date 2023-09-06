@@ -104,6 +104,7 @@ To make changes and run the example, click on the CodePen button on the top righ
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
+  - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading even more file types.
 
 ## Getting Started
 
@@ -221,6 +222,9 @@ Plugins can add additional formats:
   * stl - Using [STLLoadPlugin](#STLLoadPlugin)
   * ktx - Using [KTXLoadPlugin](#KTXLoadPlugin)
   * ktx2 - Using [KTX2LoadPlugin](#KTX2LoadPlugin)
+
+Plugins to support more model formats are available in the package [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) including .3ds,
+.3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz
 
 ## Loading files
 
@@ -1938,7 +1942,7 @@ ThreePipe has a simple plugin system that allows you to easily add new features 
 
 ## TonemapPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#tonemap-plugin/
 
@@ -1956,7 +1960,7 @@ TonemapPlugin is added by default in ThreeViewer unless `tonemap` is set to `fal
 
 ## DropzonePlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#dropzone-plugin/
 
@@ -2002,7 +2006,7 @@ const viewer = new ThreeViewer({
 
 ## ProgressivePlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#progressive-plugin/
 
@@ -2016,7 +2020,7 @@ This is used as a dependency in other plugins for progressive rendering effect w
 
 ## DepthBufferPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#depth-buffer-plugin/
 
@@ -2042,7 +2046,7 @@ The depth values are based on camera near far values, which are controlled autom
 
 ## NormalBufferPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#normal-buffer-plugin/
 
@@ -2074,7 +2078,7 @@ todo
 
 ## GLTFAnimationPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#gltf-animation-plugin/
 
@@ -2095,7 +2099,7 @@ To play individual animations, with custom choreography, use the {@link GLTFAnim
 
 ## PopmotionPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#popmotion-plugin/
 
@@ -2151,7 +2155,7 @@ Note: The animation is started when the animate or animateAsync function is call
 
 ## RenderTargetPreviewPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#render-target-preview/
 
@@ -2176,7 +2180,7 @@ previewPlugin.addTarget(()=>normalPlugin.target, 'normal', false, false)
 
 ## GeometryUVPreviewPlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#geometry-uv-preview/
 
@@ -2201,7 +2205,7 @@ previewPlugin.addGeometry(geometry, 'sphere')
 
 ## FrameFadePlugin
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#frame-fade-plugin/
 
@@ -2344,7 +2348,7 @@ These add support for integrating with other libraries, adding new features, and
 ## @threepipe/plugin-tweakpane
 Tewakpane UI plugin for ThreePipe
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#viewer-uiconfig/
 
@@ -2381,7 +2385,7 @@ plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
 
 Tweakpane Editor Plugin for ThreePipe
 
-todo: image
+[//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#tweakpane-editor/
 
@@ -2422,3 +2426,51 @@ editor.loadPlugins({
     ['Debug']: [RenderTargetPreviewPlugin],
 })
 ```
+
+## @threepipe/plugin-extra-importers
+
+Exports several plugins to add support for various file types.
+
+Example: https://threepipe.org/examples/#extra-importer-plugins/
+
+Source Code: [plugins/extra-importers/src/index.ts](plugins/extra-importers/src/index.ts)
+
+API Reference: [@threepipe/plugin-extra-importers](https://threepipe.org/plugins/extra-importers/docs)
+
+NPM: `npm install @threepipe/plugin-extra-importers`
+
+CDN: https://threepipe.org/plugins/extra-importers/dist/index.mjs
+
+This package exports several plugins to add support for several file types using the following plugins
+
+- [TDSLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/TDSLoadPlugin.html) - Load 3DS Max (.3ds) files
+- [ThreeMFLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/ThreeMFLoadPlugin.html) - Load 3MF (.3mf) files
+- [ColladaLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/ColladaLoadPlugin.html) - Load Collada (.dae) files
+- [AMFLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/AMFLoadPlugin.html) - Load AMF (.amf) files
+- [BVHLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/BVHLoadPlugin.html) - Load BVH (.bvh) files
+- [VOXLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VOXLoadPlugin.html) - Load MagicaVoxel (.vox) files
+- [GCodeLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/GCodeLoadPlugin.html) - Load GCode (.gcode) files
+- [MDDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/MDDLoadPlugin.html) - Load MDD (.mdd) files
+- [PCDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/PCDLoadPlugin.html) - Load Point cloud data (.pcd) files
+- [TiltLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/TiltLoadPlugin.html) - Load Tilt Brush (.tilt) files
+- [VRMLLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VRMLLoadPlugin.html) - Load VRML (.wrl) files
+- [MPDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/MPDLoadPlugin.html) - Load LDraw (.mpd) files
+- [VTKLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VTKLoadPlugin.html) - Load VTK (.vtk) files
+- [XYZLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/XYZLoadPlugin.html) - Load XYZ (.xyz) files
+
+To add all the plugins at once use `extraImporters`. This adds support for loading all the above file types.
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {extraImporters} from '@threepipe/plugin-extra-importers'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginsSync(extraImporters)
+
+// Now load any file as is.
+const model = await viewer.load<IObject3D>('file.3mf')
+
+// To load the file as a data url, use the correct mimetype
+const model1 = await viewer.load<IObject3D>('data:model/3mf;base64,...')
+```
+
+Remove the `<IObject3D>` if using javascript and not typescript.

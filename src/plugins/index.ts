@@ -1,5 +1,6 @@
 // base
 export {PipelinePassPlugin} from './base/PipelinePassPlugin'
+export {BaseImporterPlugin} from './base/BaseImporterPlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'

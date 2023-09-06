@@ -17,10 +17,12 @@ import {
     STLLoadPlugin,
     ThreeViewer,
     TonemapPlugin,
+    USDZLoadPlugin,
     ViewerUiConfigPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
 
 async function init() {
 
@@ -49,11 +51,13 @@ async function init() {
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
-        new KTX2LoadPlugin(),
-        new KTXLoadPlugin(),
-        new PLYLoadPlugin(),
-        new Rhino3dmLoadPlugin(),
-        new STLLoadPlugin(),
+        KTX2LoadPlugin,
+        KTXLoadPlugin,
+        PLYLoadPlugin,
+        Rhino3dmLoadPlugin,
+        STLLoadPlugin,
+        USDZLoadPlugin,
+        ...extraImportPlugins,
     ])
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
