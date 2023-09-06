@@ -46,6 +46,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
     // }
     if (cc.isTexture) {
         // console.warn('here')
+        // todo: use textureToCanvas for data texture
         if (cc.image && !cc.image.tp_src) {
             if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) { // todo: support playback in video
                 cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
@@ -220,6 +221,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
     // data texture
     if (!src && tex.isDataTexture) {
         if (tex.type !== HalfFloatType && tex.type !== FloatType) {
+            // todo: use textureToCanvas for data texture
             console.error('Only Float and HalfFloat Data texture export is supported', vcv, tex, config)
             return
         }

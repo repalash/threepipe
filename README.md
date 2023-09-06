@@ -513,6 +513,23 @@ read about [Exporting Render Targets](#exporting-render-targets) below.
 
 TODO: add examples for texture export
 
+Textures and Uint8 Data Textures can be exported as a data url or copied to a new canvas
+```typescript
+// get a base64 data url
+const dataUrl = textureToDataUrl(texture, 4096, false, 'image/png') // texture or data texture, max-size, flipY, mimeType
+// or copy to a new canvas
+const canvas = textureToCanvas(texture, 4096) // texture or data texture, max-size
+```
+
+Data Textures of type Half float and Float can be exported with `viewer.export`
+```typescript
+const dataTex = await viewer.load('https://example.com/file.hdr')
+const blob = await viewer.export(dataTexture, {exportExt: 'exr'})
+```
+Check the example [hdr-to-exr](https://threepipe.org/examples/#hdr-to-exr/) to see a demo of HDR to EXR conversion.
+
+TODO: add support to export unsigned byte textures as png, jpeg, webp
+
 ### Exporting Images
 
 Exporting Textures as Images with image of types ImageBitmap, HTMLImageElement,
@@ -525,14 +542,6 @@ const texture = await viewer.load('https://example.com/file.jpeg')
 const dataUrl = await imageBitmapToBase64(texture.image, 'image/png', 0.85);
 ```
 
-Data Textures of type Half float and Float can be exported with `viewer.export`
-```typescript
-const dataTex = await viewer.load('https://example.com/file.hdr')
-const blob = await viewer.export(dataTexture, {exportExt: 'exr'})
-```
-Check the example [hdr-to-exr](https://threepipe.org/examples/#hdr-to-exr/) to see a demo of HDR to EXR conversion.
-
-TODO: add support to export unsigned byte textures as png, jpeg, webp
 TODO: add support for texture export as images in AssetExporter
 
 ### Exporting Render Targets
