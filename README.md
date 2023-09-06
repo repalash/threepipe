@@ -217,6 +217,7 @@ Plugins can add additional formats:
 * Models
   * 3dm - Using [Rhino3dmLoadPlugin](#Rhino3dmLoadPlugin)
   * ply - Using [PLYLoadPlugin](#PLYLoadPlugin)
+  * usdz - Using [USDZLoadPlugin](#USDZLoadPlugin)
   * stl - Using [STLLoadPlugin](#STLLoadPlugin)
   * ktx - Using [KTXLoadPlugin](#KTXLoadPlugin)
   * ktx2 - Using [KTX2LoadPlugin](#KTX2LoadPlugin)
@@ -2260,6 +2261,24 @@ import {PLYLoadPlugin} from 'threepipe'
 viewer.addPluginSync(new PLYLoadPlugin())
 
 const mesh = await viewer.load('file.ply')
+```
+
+## USDZLoadPlugin
+
+Example: https://threepipe.org/examples/#usdz-load/
+
+Source Code: [src/plugins/import/USDZLoadPlugin.ts](./src/plugins/import/USDZLoadPlugin.ts)
+
+API Reference: [USDZLoadPlugin](https://threepipe.org/docs/classes/USDZLoadPlugin.html)
+
+Adds support for loading .usdz and .usda ([Universal Scene Description](https://graphics.pixar.com/usd/docs/index.html)) files.
+
+```typescript
+import {USDZLoadPlugin} from 'threepipe'
+viewer.addPluginSync(new USDZLoadPlugin())
+
+const mesh = await viewer.load('file.usdz')
+const mesh2 = await viewer.load('file.usda')
 ```
 
 ## STLLoadPlugin

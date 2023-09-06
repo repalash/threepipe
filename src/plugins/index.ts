@@ -22,6 +22,7 @@ export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'
+export {USDZLoadPlugin} from './import/USDZLoadPlugin'
 export {PLYLoadPlugin} from './import/PLYLoadPlugin'
 export {STLLoadPlugin} from './import/STLLoadPlugin'
 export {KTXLoadPlugin} from './import/KTXLoadPlugin'
