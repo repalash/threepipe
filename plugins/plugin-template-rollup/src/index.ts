@@ -1,0 +1,1 @@
+export {SamplePlugin} from './SamplePlugin'

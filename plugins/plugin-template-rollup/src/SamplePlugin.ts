@@ -1,0 +1,19 @@
+import {AViewerPluginSync, createStyles, ThreeViewer,} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import styles from './SamplePlugin.css'
+
+console.log(TweakpaneUiPlugin)
+
+export class SamplePlugin extends AViewerPluginSync<string> {
+    public static readonly PluginType: string = 'SamplePlugin'
+    enabled = true
+    dependencies = []
+
+    constructor() {
+        super()
+    }
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        createStyles(styles)
+    }
+}
