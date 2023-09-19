@@ -206,6 +206,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
     // materials: IMaterial[] = []
     // textures: ITexture[] = []
 
+    // todo move this function to viewer
     async loadImported<T extends ValOrArr<ImportResult|undefined> = ImportResult>(imported: T, {autoSetEnvironment = true, autoSetBackground = false, ...options}: AddAssetOptions = {}): Promise<T | never[]> {
         const arr: (ImportResult|undefined)[] = Array.isArray(imported) ? imported : [imported]
         let ret: T = Array.isArray(imported) ? [] : undefined as any

@@ -39,7 +39,7 @@ module.exports = {
         'comma-dangle': ['error', 'always-multiline'],
         'indent': ['error', 4],
         'quotes': ['error', 'single'],
-        'linebreak-style': ['error', 'unix'],
+        // 'linebreak-style': ['error', 'unix'],
         'no-loss-of-precision': 'error',
     },
     'overrides': [

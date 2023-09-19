@@ -19,7 +19,7 @@ import {
     IObjectProcessor,
     ITexture,
     PerspectiveCamera2,
-    RootScene,
+    RootScene, TCameraControlsMode,
 } from '../core'
 import {ViewerRenderManager} from './ViewerRenderManager'
 import {
@@ -52,6 +52,7 @@ import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
+import type {ProgressivePlugin} from '../plugins'
 import {TonemapPlugin} from '../plugins'
 import {VERSION} from './version'
 
@@ -119,6 +120,13 @@ export interface ThreeViewerOptions {
      * @default true
      */
     tonemap?: boolean
+
+    camera?: {
+        controlsMode?: TCameraControlsMode,
+        position?: Vector3,
+        target?: Vector3,
+
+    }
 
     /**
      * Options for the asset manager.
@@ -260,20 +268,21 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
         // camera
 
-        const camera = new PerspectiveCamera2('orbit', this._canvas)
+        const camera = new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
         camera.name = 'Default Camera'
-        camera.position.set(0, 0, 5)
+        options.camera?.position ? camera.position.copy(options.camera.position) : camera.position.set(0, 0, 5)
+        options.camera?.target ? camera.target.copy(options.camera.target) : camera.target.set(0, 0, 0)
+        camera.setDirty()
         camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
 
         // Update camera controls postFrame if allowed to interact
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
             if (cam && cam.canUserInteract) {
-                // todo
-                // const d = this.getPluginByType<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-                // // if (d && d > 0) delta = d
-                // if (d !== undefined && d === 0) return // not converged yet.
-                // // if d < 0 or undefined: not recording, do nothing
+                const d = this.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
+                // if (d && d > 0) delta = d
+                if (d !== undefined && d === 0) return // not converged yet.
+                // if d < 0 or undefined: not recording, do nothing
 
                 cam.controls?.update()
             }
