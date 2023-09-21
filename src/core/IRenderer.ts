@@ -81,6 +81,7 @@ export interface IRenderManagerOptions {
     rgbm?: boolean,
     msaa?: boolean,
     depthBuffer?: boolean,
+    renderScale?: number,
 }
 
 export interface IWebGLRenderer<TManager extends IRenderManager=IRenderManager> extends WebGLRenderer {

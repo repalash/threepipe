@@ -107,11 +107,12 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         this.dispatchEvent({type: 'animationLoop', deltaTime, time, renderer: this._renderer, xrFrame: frame})
     }
 
-    constructor({canvas, alpha = true, targetOptions}:IRenderManagerOptions) {
+    constructor({canvas, alpha = true, renderScale = 1, targetOptions}:IRenderManagerOptions) {
         super()
         this._animationLoop = this._animationLoop.bind(this)
         // this._xrPreAnimationLoop = this._xrPreAnimationLoop.bind(this)
         this._renderSize = new Vector2(canvas.clientWidth, canvas.clientHeight)
+        this._renderScale = renderScale
         this._renderer = this._initWebGLRenderer(canvas, alpha)
         this._context = this._renderer.getContext()
         this._isWebGL2 = this._renderer.capabilities.isWebGL2
@@ -346,6 +347,9 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         return this._context
     }
 
+    /**
+     * Same as {@link renderer}
+     */
     get webglRenderer(): WebGLRenderer {
         return this._renderer
     }
@@ -369,7 +373,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     // region Utils
 
     /**
-     *
+     * blit - blits a texture to the screen or another render target.
      * @param destination - destination target, or screen if undefined or null
      * @param source - source Texture
      * @param viewport - viewport and scissor
@@ -518,6 +522,10 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         return string
     }
 
+    /**
+     * Rend pixels from a render target into a new Uint8Array|Uint16Array|Float32Array buffer
+     * @param target
+     */
     renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array|Float32Array {
         const buffer =
             target.texture.type === HalfFloatType ?
@@ -529,6 +537,12 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         return buffer
     }
 
+    /**
+     * Exports a render target to a blob. The type is automatically picked from exr to png based on the render target.
+     * @param target - render target to export
+     * @param mimeType - mime type to use.
+     * If auto (default), then it will be picked based on the render target type.
+     */
     exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto'): BlobExt {
         const hdrFormats = ['image/x-exr']
         let hdr = target.texture.type === HalfFloatType || target.texture.type === FloatType

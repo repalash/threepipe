@@ -11,13 +11,14 @@ export function loopPluginDirs(callback){
         const pluginDir = path.join(pluginsDir, pluginFolder)
         const packageJsonPath = path.join(pluginDir, 'package.json')
         if (!fs.existsSync(packageJsonPath)) continue;
-        callback(pluginDir)
+        callback(pluginDir, pluginFolder)
     }
 
 }
 
-export function execEachPlugin(command){
-    loopPluginDirs((pluginDir) => {
+export function execEachPlugin(command, templates = false){
+    loopPluginDirs((pluginDir, pluginFolder) => {
+        if(!templates && pluginFolder.startsWith('plugin-template-')) return;
         console.log(`Executing ${command} in ${pluginDir}`)
         execSync(command, {cwd: pluginDir, stdio: 'inherit'})
     })

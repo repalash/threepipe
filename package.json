@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",
@@ -102,7 +102,7 @@
     "popmotion": "^11.0.5"
   },
   "dependencies": {
-    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1012/package.tgz",
+    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1014/package.tgz",
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "ts-browser-helpers": "^0.8.0"
@@ -113,8 +113,8 @@
       "ts-browser-helpers": "^0.8.0",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2012/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2012.tar.gz",
-      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1012/package.tgz",
-      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.1012.tar.gz",
+      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.152.1014/package.tgz",
+      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.152.1014.tar.gz",
       "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three"
     },
     "local_dependencies": {

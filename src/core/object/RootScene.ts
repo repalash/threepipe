@@ -36,12 +36,12 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     readonly modelRoot: IObject3D
 
     @uiColor<RootScene>('Background Color', (s)=>({
-        onChange: ()=>s?._onBackgroundChange(),
+        onChange: ()=>s?.onBackgroundChange(),
     }))
-    @serialize() @onChange2(RootScene.prototype._onBackgroundChange)
+    @serialize() @onChange2(RootScene.prototype.onBackgroundChange)
         backgroundColor: Color | null = null // read in three.js WebGLBackground
 
-    @onChange2(RootScene.prototype._onBackgroundChange)
+    @onChange2(RootScene.prototype.onBackgroundChange)
     @serialize() @uiImage('Background Image')
         background: null | Color | ITexture | 'environment' = null
     /**
@@ -266,7 +266,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.refreshUi?.()
     }
 
-    private _onBackgroundChange() {
+    onBackgroundChange() {
         this.dispatchEvent({type: 'backgroundChanged', background: this.background, backgroundColor: this.backgroundColor})
         this.setDirty({refreshScene: true, geometryChanged: false})
         this.refreshUi?.()
@@ -359,20 +359,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     * Find objects by name exact match in the complete hierarchy.
-     * @param name - name
-     * @param parent - optional root node to start search from
-     * @returns Array of found objects
-     */
-    public findObjectsByName(name: string, parent?: IObject3D): IObject3D[] {
-        const o: IObject3D[] = [];
-        (parent ?? this).traverse(object => {
-            if (object.name === name) o.push(object)
-        })
-        return o
-    }
-
-    /**
      * Returns the bounding box of the scene model root.
      * @param precise
      * @param ignoreInvisible
@@ -415,36 +401,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     * @deprecated
-     * Sets the camera pointing towards the object at a specific distance.
-     * @param rootObject - The object to point at.
-     * @param centerOffset - The distance offset from the object to point at.
-     * @param targetOffset - The distance offset for the target from the center of object to point at.
-     * @param options - Not used yet.
-     */
-    resetCamera(rootObject:Object3D|undefined = undefined, centerOffset = new Vector3(1, 1, 1), targetOffset = new Vector3(0, 0, 0)): void {
-        if (this._mainCamera) {
-            this.matrixWorldNeedsUpdate = true
-            this.updateMatrixWorld(true)
-            const bounds = rootObject ? new Box3B().expandByObject(rootObject, true, true) : this.getBounds(true)
-            const center = bounds.getCenter(new Vector3())
-            const radius = bounds.getSize(new Vector3()).length() * 0.5
-
-            center.add(targetOffset.clone().multiplyScalar(radius))
-
-            this._mainCamera.position = new Vector3( // todo: for nested cameras?
-                center.x + centerOffset.x * radius,
-                center.y + centerOffset.y * radius,
-                center.z + centerOffset.z * radius,
-            )
-            this._mainCamera.target = center
-            // this.scene.mainCamera.controls?.targetOffset.set(0, 0, 0)
-            this.setDirty()
-        }
-
-    }
-
-    /**
      * Serialize the scene properties
      * @param meta
      * @returns {any}
@@ -479,49 +435,6 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (type === 'update') console.error('update is deprecated. Use sceneUpdate instead.')
         super.addEventListener(type, listener)
     }
-
-    /**
-     * Minimum Camera near plane
-     * @deprecated - use camera.userData.minNearPlane instead
-     */
-    get minNearDistance(): number {
-        console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
-        return this.mainCamera.userData.minNearPlane ?? 0.02
-    }
-    /**
-     * @deprecated - use camera.userData.minNearPlane instead
-     */
-    set minNearDistance(value: number) {
-        console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
-        if (this.mainCamera)
-            this.mainCamera.userData.minNearPlane = value
-    }
-
-
-    /**
-     * @deprecated
-     */
-    get activeCamera(): ICamera {
-        console.error('activeCamera is deprecated. Use mainCamera instead.')
-        return this.mainCamera
-    }
-
-    /**
-     * @deprecated
-     */
-    set activeCamera(camera: ICamera | undefined) {
-        console.error('activeCamera is deprecated. Use mainCamera instead.')
-        this.mainCamera = camera
-    }
-
-    /**
-     * Get the threejs scene object
-     * @deprecated
-     */
-    get modelObject(): this {
-        return this as any
-    }
-
 
 
     // region inherited type fixes
@@ -580,6 +493,108 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     //     return this.environment || null
     // }
 
+
+    /**
+     * Find objects by name exact match in the complete hierarchy.
+     * @deprecated Use {@link getObjectByName} instead.
+     * @param name - name
+     * @param parent - optional root node to start search from
+     * @returns Array of found objects
+     */
+    public findObjectsByName(name: string, parent?: IObject3D): IObject3D[] {
+        const o: IObject3D[] = [];
+        (parent ?? this).traverse(object => {
+            if (object.name === name) o.push(object)
+        })
+        return o
+    }
+
+    /**
+     * @deprecated
+     * Sets the camera pointing towards the object at a specific distance.
+     * @param rootObject - The object to point at.
+     * @param centerOffset - The distance offset from the object to point at.
+     * @param targetOffset - The distance offset for the target from the center of object to point at.
+     * @param options - Not used yet.
+     */
+    resetCamera(rootObject:Object3D|undefined = undefined, centerOffset = new Vector3(1, 1, 1), targetOffset = new Vector3(0, 0, 0)): void {
+        if (this._mainCamera) {
+            this.matrixWorldNeedsUpdate = true
+            this.updateMatrixWorld(true)
+            const bounds = rootObject ? new Box3B().expandByObject(rootObject, true, true) : this.getBounds(true)
+            const center = bounds.getCenter(new Vector3())
+            const radius = bounds.getSize(new Vector3()).length() * 0.5
+
+            center.add(targetOffset.clone().multiplyScalar(radius))
+
+            this._mainCamera.position = new Vector3( // todo: for nested cameras?
+                center.x + centerOffset.x * radius,
+                center.y + centerOffset.y * radius,
+                center.z + centerOffset.z * radius,
+            )
+            this._mainCamera.target = center
+            // this.scene.mainCamera.controls?.targetOffset.set(0, 0, 0)
+            this.setDirty()
+        }
+
+    }
+
+
+    /**
+     * Minimum Camera near plane
+     * @deprecated - use camera.userData.minNearPlane instead
+     */
+    get minNearDistance(): number {
+        console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
+        return this.mainCamera.userData.minNearPlane ?? 0.02
+    }
+    /**
+     * @deprecated - use camera.userData.minNearPlane instead
+     */
+    set minNearDistance(value: number) {
+        console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
+        if (this.mainCamera)
+            this.mainCamera.userData.minNearPlane = value
+    }
+
+
+    /**
+     * @deprecated
+     */
+    get activeCamera(): ICamera {
+        console.error('activeCamera is deprecated. Use mainCamera instead.')
+        return this.mainCamera
+    }
+
+    /**
+     * @deprecated
+     */
+    set activeCamera(camera: ICamera | undefined) {
+        console.error('activeCamera is deprecated. Use mainCamera instead.')
+        this.mainCamera = camera
+    }
+
+    /**
+     * Get the threejs scene object
+     * @deprecated
+     */
+    get modelObject(): this {
+        return this as any
+    }
+
+    /**
+     * @deprecated use {@link envMapIntensity} instead
+     */
+    get environmentIntensity(): number {
+        return this.envMapIntensity
+    }
+
+    /**
+     * @deprecated use {@link envMapIntensity} instead
+     */
+    set environmentIntensity(value: number) {
+        this.envMapIntensity = value
+    }
 
     /**
      * Add any processed scene object to the scene.

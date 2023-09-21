@@ -107,7 +107,7 @@ export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEv
     // region deprecated
 
     /**
-     * @deprecated use {@link IObject3D.getObjectByName} instead
+     @deprecated use {@link getObjectByName} instead
      * @param name
      * @param parent
      */

@@ -1,19 +1,18 @@
-import {IViewerPluginSync, ThreeViewer} from '../../viewer'
+import {ThreeViewer} from '../../viewer'
 import {GLTFWriter2, ILoader, Importer, ImportResultExtras} from '../../assetmanager'
 import {KTX2Loader} from 'three/examples/jsm/loaders/KTX2Loader.js'
 import {CompressedTexture} from 'three'
 import {serializeTextureInExtras} from '../../utils'
 import {ITexture} from '../../core'
+import {BaseImporterPlugin} from '../base/BaseImporterPlugin'
 
 /**
  * Adds support for loading Compressed Textures of format `.ktx2`, `image/ktx2` files and data uris.
  * @category Plugins
  */
-export class KTX2LoadPlugin implements IViewerPluginSync {
-    declare ['constructor']: typeof KTX2LoadPlugin
-
+export class KTX2LoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'KTX2LoadPlugin'
-    private _importer = new Importer(KTX2Loader2, ['ktx2'], ['image/ktx2'], false)
+    protected _importer = new Importer(KTX2Loader2, ['ktx2'], ['image/ktx2'], false)
 
     public static TRANSCODER_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/BinomialLLC/basis_universal@1.16.4/webgl/transcoder/build/'
 
@@ -21,20 +20,17 @@ export class KTX2LoadPlugin implements IViewerPluginSync {
         this._importer.onCtor = (l: KTX2Loader2) => l
             .setTranscoderPath(KTX2LoadPlugin.TRANSCODER_LIBRARY_PATH)
             .detectSupport(viewer.renderManager.renderer)
-        viewer.assetManager.importer.addImporter(this._importer)
+        super.onAdded(viewer)
         viewer.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(glTFTextureBasisUExtensionExport)
     }
 
     onRemove(viewer: ThreeViewer) {
-        viewer.assetManager.importer.removeImporter(this._importer)
+        super.onRemove(viewer)
         const exporter = viewer.assetManager.exporter.getExporter('gltf', 'glb')
         const index = exporter?.extensions?.indexOf(glTFTextureBasisUExtensionExport)
         if (index !== undefined && index !== -1) exporter?.extensions?.splice(index, 1)
     }
 
-    dispose() {
-        return
-    }
 
 }
 

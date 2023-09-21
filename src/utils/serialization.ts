@@ -759,6 +759,7 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
     if (res._context) delete res._context
     return res
 }
+
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {
     return {
         ...resources,

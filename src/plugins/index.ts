@@ -1,5 +1,6 @@
 // base
 export {PipelinePassPlugin} from './base/PipelinePassPlugin'
+export {BaseImporterPlugin} from './base/BaseImporterPlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
@@ -12,6 +13,7 @@ export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferP
 
 // ui
 export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'
+export {GeometryUVPreviewPlugin} from './ui/GeometryUVPreviewPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
@@ -21,6 +23,7 @@ export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'
+export {USDZLoadPlugin} from './import/USDZLoadPlugin'
 export {PLYLoadPlugin} from './import/PLYLoadPlugin'
 export {STLLoadPlugin} from './import/STLLoadPlugin'
 export {KTXLoadPlugin} from './import/KTXLoadPlugin'
