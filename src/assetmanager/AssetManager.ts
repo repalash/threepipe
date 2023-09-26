@@ -357,7 +357,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
             }, ['exr'], ['image/x-exr'], false),
 
             new Importer(FBXLoader, ['fbx'], ['model/fbx'], true),
-            new Importer(ZipLoader, ['zip'], ['application/zip'], true),
+            new Importer(ZipLoader, ['zip', 'glbz', 'gltfz'], ['application/zip', 'data:model/gltf+zip'], true), // gltfz and glbz are invented zip files with gltf/glb inside along with resources
 
             new Importer(OBJLoader2 as any as Class<ILoader>, ['obj'], ['model/obj'], true),
             new Importer(MTLLoader2 as any as Class<ILoader>, ['mtl'], ['model/mtl'], false),

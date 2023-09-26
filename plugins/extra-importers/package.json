@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugins-extra-importers",
     "description": "Extra Threepipe plugins for importing several file types.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "devDependencies": {
     },
     "dependencies": {
@@ -17,12 +17,12 @@
         ],
         "replace": {
             "dependencies": {
-                "threepipe": "^0.0.14"
+                "threepipe": "^0.0.13"
             }
         }
     },
     "type": "module",
-    "main": "dist/index.js",
+    "main": "dist/index.mjs",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
     "files": [

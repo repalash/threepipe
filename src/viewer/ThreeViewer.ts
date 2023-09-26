@@ -701,7 +701,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Add multiple plugins to the viewer(sync).
      * @param plugins - List of plugin instances or classes
      */
-    async addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): Promise<void> {
+    addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): void {
         for (const p of plugins) this.addPluginSync(p)
     }
 

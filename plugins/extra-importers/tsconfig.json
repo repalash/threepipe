@@ -28,7 +28,10 @@
             "es2020",
             "esnext",
             "dom"
-        ]
+        ],
+        "paths": {
+            "three": ["threepipe"]
+        }
     },
     "include": [
         "src/**/*"

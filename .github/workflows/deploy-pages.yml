@@ -42,6 +42,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
     - run: npm ci # this will also run `npm run prepare` which will build
     - run: npm run docs
     - run: mkdir _site
