@@ -19,6 +19,7 @@ export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends 
     oldMaterial?: IMaterial|undefined|IMaterial[] // from materialChanged
     geometry?: IGeometry|undefined // from geometryUpdate, geometryChanged
     oldGeometry?: IGeometry|undefined // from geometryChanged
+    source?: any
 }
 
 export interface ISetDirtyCommonOptions {
@@ -90,6 +91,11 @@ export interface IObject3DUserData extends IImportResultUserData {
 
     license?: string
 
+    /**
+     * When false, this object will not be selectable when clicking on it.
+     */
+    userSelectable?: boolean
+
     // region root scene model root
 
     /**
@@ -136,7 +142,7 @@ export interface IObject3DUserData extends IImportResultUserData {
 }
 
 export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEventTypes> extends Object3D<E, ET>, IUiConfigContainer, IDisposable {
-    assetType: 'model' | 'light' | 'camera'
+    assetType: 'model' | 'light' | 'camera' | 'widget'
     isLight?: boolean
     isCamera?: boolean
     isMesh?: boolean
@@ -144,6 +150,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     // isGroup?: boolean
     isScene?: boolean
     // isHelper?: boolean
+    isWidget?: boolean
     readonly isObject3D: true
 
     material?: IMaterial | IMaterial[]

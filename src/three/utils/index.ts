@@ -6,5 +6,7 @@ export {getEncodingComponents, getTexelEncoding, getTexelDecoding, getTexelDecod
 export {generateUUID, toIndexedGeometry, isInScene} from './misc'
 export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, texImageToCanvas} from './texture'
 export {threeConstMappings} from './const-mappings'
+export {ObjectPicker} from './ObjectPicker'
+export {SelectionWidget, BoxSelectionWidget} from './SelectionWidget'
 
 // export {} from './constants'

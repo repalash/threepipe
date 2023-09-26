@@ -68,7 +68,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Pick/Focus',
                 value: ()=>{
                     // todo instead of dispatching, make a IObject3D.select function
-                    this.dispatchEvent({type: 'select', ui: true, value: this, bubbleToParent: true, focusCamera: true})
+                    this.dispatchEvent({type: 'select', ui: true, object: this, bubbleToParent: true, focusCamera: true})
                 },
             },
             {
@@ -78,7 +78,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 value: ()=>{
                     const parent = this.parent
                     if (parent) {
-                        parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, value: parent})
+                        parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, object: parent})
                     }
                 },
             },

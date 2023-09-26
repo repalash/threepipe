@@ -343,6 +343,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (this.isLight) this.assetType = 'light'
     else if (this.isCamera) this.assetType = 'camera'
+    else if (this.isWidget) this.assetType = 'widget'
     else this.assetType = 'model'
 
     if (parent) this.parentRoot = parent

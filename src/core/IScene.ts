@@ -60,6 +60,8 @@ export type ISceneEventTypes = IObject3DEventTypes | 'sceneUpdate' | 'addSceneOb
 
 export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObject3DEvent<T> {
     scene?: IScene | null
+
+    hierarchyChanged?: boolean // for 'sceneUpdate' event
     // change?: string
 }
 export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
@@ -67,7 +69,12 @@ export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
 
 export type ISceneUserData = IObject3DUserData
 
-export type IWidget = IObject3D // todo
+// todo improve
+export interface IWidget {
+    attach(object: any): this;
+    detach(): this;
+    isWidget: true;
+}
 
 export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEventTypes = ISceneEventTypes>
     extends Scene<E, ET>, IObject3D<E, ET>, IShaderPropertiesUpdater {
