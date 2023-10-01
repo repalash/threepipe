@@ -106,6 +106,7 @@ export const iMaterialUI = {
                 {
                     type: 'slider',
                     bounds: [0, 1],
+                    stepSize: 0.001,
                     property: [material, 'alphaTest'],
                 },
                 {

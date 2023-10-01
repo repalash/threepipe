@@ -227,7 +227,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
     copy(source: this, recursive?: boolean, ...args: any[]): this
     clone(recursive?: boolean): this
-    add(...object: IObject3D[]): this
+    add(...object: Object3D[]): this
     remove(...object: IObject3D[]): this
     parent: IObject3D | null
     children: IObject3D[]

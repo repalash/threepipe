@@ -213,8 +213,8 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         return !uuid ? undefined : this._materials.find(v=>v.uuid === uuid)
     }
 
-    public findMaterialsByName(name: string): IMaterial[] {
-        return this._materials.filter(v=>v.name === name)
+    public findMaterialsByName(name: string|RegExp, regex = false): IMaterial[] {
+        return this._materials.filter(v=>typeof name !== 'string' || regex ? v.name.match(name) !== null : v.name === name)
     }
 
     public getMaterialsOfType<TM extends IMaterial = IMaterial>(typeSlug: string | undefined): TM[] {

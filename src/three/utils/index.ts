@@ -8,5 +8,6 @@ export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDa
 export {threeConstMappings} from './const-mappings'
 export {ObjectPicker} from './ObjectPicker'
 export {SelectionWidget, BoxSelectionWidget} from './SelectionWidget'
+export {autoGPUInstanceMeshes} from './gpu-instancing'
 
 // export {} from './constants'

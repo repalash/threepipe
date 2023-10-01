@@ -1,7 +1,7 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
-import {isInScene, toIndexedGeometry} from '../../three'
-import {BufferGeometry} from 'three'
+import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three'
+import {BufferGeometry, Vector3} from 'three'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -38,6 +38,19 @@ export const iGeometryCommons = {
                     value: () => {
                         this.center()
                         this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Center Geometry (keep position)',
+                    value: () => {
+                        const offset = new Vector3()
+                        this.center(offset)
+                        const meshes = this.appliedMeshes
+                        meshes.forEach(m=>{
+                            m.position.sub(offset)
+                            m.setDirty && m.setDirty()
+                        })
                     },
                 },
                 {
@@ -110,6 +123,15 @@ export const iGeometryCommons = {
                         if (!confirm('Remove color attribute?')) return
                         this.deleteAttribute('color')
                         this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Auto GPU Instances',
+                    hidden: ()=> !this.appliedMeshes || this.appliedMeshes.size < 2,
+                    value: ()=>{
+                        if (!confirm('This action is irreversible, do you want to continue?')) return
+                        autoGPUInstanceMeshes(this)
                     },
                 },
                 {

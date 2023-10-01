@@ -1,4 +1,4 @@
-import {Event, EventDispatcher, FileLoader, LoaderUtils, LoadingManager} from 'three'
+import {Event, EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
 import {
     IAssetImporter,
     IAssetImporterEventTypes,
@@ -541,6 +541,15 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         this._loaderCache.push({loader, ext: importer.ext, mime: importer.mime})
         this.dispatchEvent({type: 'loaderCreate', loader})
         return loader
+    }
+
+    addEventListener<T extends IAssetImporterEvent['type'] & IAssetImporterEventTypes>(type: T, listener: EventListener<IAssetImporterEvent, T, this>) {
+        super.addEventListener(type, listener)
+        if (type === 'loaderCreate') {
+            for (const loaderCacheElement of this._loaderCache) {
+                this.dispatchEvent({type: 'loaderCreate', loader: loaderCacheElement.loader})
+            }
+        }
     }
 
     // endregion

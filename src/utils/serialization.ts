@@ -719,12 +719,12 @@ export class MetaImporter {
     }
 
 
-    static async LoadRootPathTextures({textures, images}: Pick<SerializationMetaType, 'textures'|'images'>, importer: IAssetImporter) {
+    static async LoadRootPathTextures({textures, images}: Pick<SerializationMetaType, 'textures'|'images'>, importer: IAssetImporter, usePreviewImages = true) {
         const pms = []
 
         for (const inpTexture of Array.isArray(textures) ? textures : Object.values(textures ?? {} as any) as any as any[]) {
             const path = inpTexture?.userData?.rootPath
-            const hasImage = inpTexture.image && images[inpTexture.image] // its possible to have both image and rootPath, then the image will be preview image.
+            const hasImage = usePreviewImages && inpTexture.image && images[inpTexture.image] // its possible to have both image and rootPath, then the image will be preview image.
             if (!path) continue
             // console.warn(path, inpTexture, images)
             const promise = importer.importSingle<ITexture>(path, {processRaw: false}).then((texture) => {

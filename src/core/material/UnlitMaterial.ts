@@ -118,7 +118,8 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
         if (clearCurrentUserData) this.userData = {}
         iMaterialCommons.setValues(super.setValues).call(this, parameters)
-        this.userData.uuid = this.uuid // just in case
+
+        this.userData.uuid = this.uuid
         return this
     }
     copy(source: Material|any): this {

@@ -171,7 +171,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
 
-        this.userData.uuid = this.uuid // just in case
+        this.userData.uuid = this.uuid
         return this
     }
 
