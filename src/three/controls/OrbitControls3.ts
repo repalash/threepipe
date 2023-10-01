@@ -1,7 +1,8 @@
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
-import {IUiConfigContainer, uiInput, UiObjectConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
+import {IUiConfigContainer, uiInput, UiObjectConfig, uiPanelContainer, uiToggle, uiVector} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {ICameraControls} from '../../core'
+import {Vector3} from 'three'
 
 export type TOrbitControlsEvents = 'change' | 'end' | 'start'
 @uiPanelContainer('Orbit Controls')
@@ -41,7 +42,10 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiInput() @serialize() maxPolarAngle = Math.PI
 
     @uiInput() @serialize() minAzimuthAngle = -10000 // should be -Infinity but this breaks the UI
-    @uiInput() @serialize() maxAzimuthAngle = 10000
+    @uiInput() @serialize() maxAzimuthAngle = 10000 // should be Infinity but this breaks the UI
+
+    @uiVector() @serialize() clampMin = new Vector3(-10000, -10000, -10000) // should be -Infinity but this breaks the UI
+    @uiVector() @serialize() clampMax = new Vector3(10000, 10000, 10000) // should be Infinity but this breaks the UI
 
     // @uiToggle()
     @serialize() screenSpacePanning = true

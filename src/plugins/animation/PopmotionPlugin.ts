@@ -131,16 +131,26 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
             },
         }
         this.animations[uuid] = a
-        a.promise = new Promise<void>((resolve) => {
+        a.promise = new Promise<void>((resolve, reject) => {
             const opts: AnimationOptions<V> = {
                 driver: this.defaultDriver,
                 ...options,
                 onComplete: ()=>{
-                    options.onComplete?.()
+                    try {
+                        options.onComplete && options.onComplete()
+                    } catch (e: any) {
+                        reject(e)
+                        return
+                    }
                     resolve()
                 },
                 onStop: ()=>{
-                    options.onStop?.()
+                    try {
+                        options.onStop && options.onStop()
+                    } catch (e: any) {
+                        reject(e)
+                        return
+                    }
                     resolve()
                 },
             }

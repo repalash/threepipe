@@ -2201,10 +2201,13 @@ const anim = popmotion.animate({
     cube.setDirty()
   },
   onComplete: () => isMovedUp = !isMovedUp,
+  onStop: () => throw(new Error('Animation stopped')),
 })
 
-// await for animation
-await anim.promise;
+// await for animation. This promise will reject only if an exception is thrown in onStop
+await anim.promise.catch((e)=>{
+  console.log(e, 'animation stopped before completion')
+});
 
 // or stop the animation
 // anim.stop()
@@ -2213,7 +2216,7 @@ await anim.promise;
 await popmotion.animateAsync({ // Also await for the animation.
   from: '#' + cube.material.color.getHexString(),
   to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
-  duration: 500,
+  duration: 1000, // 1s
   onUpdate: (v) => {
     cube.material.color.set(v)
     cube.material.setDirty()

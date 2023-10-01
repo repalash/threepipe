@@ -386,10 +386,22 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         const pos = camera.getWorldPosition(new Vector3()).sub(bbox.getCenter(new Vector3()))
         const radius = 1.5 * bbox.getSize(new Vector3()).length() / 2.
         const dist = pos.length()
-        const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
-        const far = Math.min(Math.max(near + 1, dist + radius), camera.cameraObject.userData.maxFarPlane ?? 1000)
+
+        // new way
+        // todo there is still some clipping when you are inside the model like a room.
+        const dist1 = -pos.clone().normalize().dot(camera.getWorldDirection(new Vector3()))
+        const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist1 * (dist - radius))
+        const far = Math.min(Math.max(near + 1, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
+
+        // old way, has issues when panning very far from the camera target
+        // const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
+        // const far = Math.min(Math.max(near + 1, dist + radius), camera.userData.maxFarPlane ?? 1000)
+
         camera.near = near
         camera.far = far
+
+        // todo try using minimum of all 6 endpoints of bbox.
+
         // camera.near = 3
         // camera.far = 20
     }
