@@ -214,7 +214,11 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     }
 
     public findMaterialsByName(name: string|RegExp, regex = false): IMaterial[] {
-        return this._materials.filter(v=>typeof name !== 'string' || regex ? v.name.match(name) !== null : v.name === name)
+        return this._materials.filter(v=>
+            typeof name !== 'string' || regex ?
+                v.name.match(typeof name === 'string' ? '^' + name + '$' : name) !== null :
+                v.name === name
+        )
     }
 
     public getMaterialsOfType<TM extends IMaterial = IMaterial>(typeSlug: string | undefined): TM[] {
@@ -294,7 +298,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
 
     applyMaterial(material: IMaterial, nameOrUuid: string): boolean {
         const mType = Object.getPrototypeOf(material).constructor.TYPE
-        let currentMats = this.findMaterialsByName(nameOrUuid)
+        let currentMats = this.findMaterialsByName(nameOrUuid, true)
         if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameOrUuid) as any]
         let applied = false
         for (const c of currentMats) {

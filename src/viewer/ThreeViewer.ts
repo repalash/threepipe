@@ -189,6 +189,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     readonly assetManager: AssetManager
     @uiConfig() @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
+    get materialManager() {
+        return this.assetManager.materials
+    }
     public readonly plugins: Record<string, IViewerPlugin> = {}
     /**
      * Scene with object hierarchy used for rendering
@@ -412,7 +415,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param setBackground - Set the background image of the scene from the same map.
      * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setEnvironmentMap(map: string | IAsset | null | ITexture, {setBackground = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
+    async setEnvironmentMap(map: string | IAsset | null | ITexture | undefined, {setBackground = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
         this._scene.environment = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
         if (setBackground) return this.setBackgroundMap(this._scene.environment)
         return this._scene.environment
@@ -424,7 +427,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param setEnvironment - Set the environment map of the scene from the same map.
      * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setBackgroundMap(map: string | IAsset | null | ITexture, {setEnvironment = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
+    async setBackgroundMap(map: string | IAsset | null | ITexture | undefined, {setEnvironment = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
         this._scene.background = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
         if (setEnvironment) return this.setEnvironmentMap(this._scene.background)
         return this._scene.background

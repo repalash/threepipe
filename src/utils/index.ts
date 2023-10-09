@@ -6,4 +6,6 @@ export {Dropzone, type DropFile, type ListenerCallback, type DropEventType} from
 export {ThreeSerialization, type SerializationMetaType, type SerializationResourcesType, MetaImporter, metaToResources, getEmptyMeta, metaFromResources, convertArrayBufferToStringsInMeta, convertStringsToArrayBuffersInMeta, copyMaterialUserData, copyObject3DUserData, copyUserData, copyTextureUserData, jsonToBlob, serializeTextureInExtras} from './serialization'
 export {shaderReplaceString} from './shader-helpers'
 export {makeGLBFile} from './gltf'
+export {animateAsync, animateTarget, EasingFunctions, makeSetterFor, animate} from './animation'
+export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
 

@@ -1,4 +1,4 @@
-import {_testFinish, BoxGeometry, Color, Mesh, PhysicalMaterial, PopmotionPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, BoxGeometry, Color, Mesh, PhysicalMaterial, PopmotionPlugin, ThreeViewer, Vector3} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 async function init() {
@@ -20,16 +20,11 @@ async function init() {
     createSimpleButtons({
         ['Move Up/Down']: async(btn) => {
             btn.disabled = true
-            await popmotion.animateAsync({
-                from: cube.position.y,
-                to: cube.position.y + (isMovedUp ? -1 : 1),
+            await popmotion.animateTargetAsync(cube, 'position', {
+                to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
                 duration: 500, // ms
-                onUpdate: (v) => {
-                    cube.position.setY(v)
-                    cube.setDirty()
-                },
                 onComplete: () => isMovedUp = !isMovedUp,
-            })
+            }) // setDirty is automatically called on the cube since it's the target
             btn.disabled = false
         },
         ['Rotate +90deg']: async(btn) => {

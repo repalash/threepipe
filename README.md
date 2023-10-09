@@ -2192,7 +2192,15 @@ const cube = viewer.scene.getObjectByName('cube');
 const popmotion = viewer.addPluginSync(new PopmotionPlugin())
 
 // Move the object cube 1 unit up.
-const anim = popmotion.animate({
+const anim = popmotion.animateTarget(cube, 'position', {
+  to: cube.position.clone().add(new Vector3(0,1,0)),
+  duration: 500, // ms
+  onComplete: () => isMovedUp = true,
+  onStop: () => throw(new Error('Animation stopped')),
+})
+
+// Alternatively, set the property directly in onUpdate.
+const anim1 = popmotion.animate({
   from: cube.position.y,
   to: cube.position.y + 1,
   duration: 500, // ms
@@ -2200,7 +2208,7 @@ const anim = popmotion.animate({
     cube.position.setY(v)
     cube.setDirty()
   },
-  onComplete: () => isMovedUp = !isMovedUp,
+  onComplete: () => isMovedUp = true,
   onStop: () => throw(new Error('Animation stopped')),
 })
 

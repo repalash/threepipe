@@ -5,6 +5,7 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {generateUUID} from '../../three'
+import {makeSetterFor} from '../../utils'
 
 export interface AnimationResult{
     id: string
@@ -13,6 +14,8 @@ export interface AnimationResult{
     stop: () => void
     // eslint-disable-next-line @typescript-eslint/naming-convention
     _stop?: () => void
+
+    targetRef?: {target: any, key: string}
 }
 
 /**
@@ -20,7 +23,7 @@ export interface AnimationResult{
  *
  * Provides animation capabilities to the viewer using the popmotion library: https://popmotion.io/
  *
- * Overrides the driver in popmotion to sync with the viewer and provide ways to store and stop animations.
+ * Overrides the driver in popmotion to sync with the viewer and provide ways to keep track and stop animations.
  *
  * @category Plugin
  */
@@ -120,15 +123,42 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
 
     readonly animations: Record<string, AnimationResult> = {}
 
-    animate<V>(options: AnimationOptions<V>): AnimationResult {
+    animateTarget<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>): AnimationResult {
+        return this.animate({...options, target, key: key as string})
+    }
+
+    animate<V>(options1: AnimationOptions<V> & {target?: any, key?: string}): AnimationResult {
+        let targetRef = undefined
+        const options = {...options1} as ((typeof options1) & {lastOnUpdate?: (a:V)=>void})
+        if (options.target !== undefined) {
+            if (options.key === undefined) throw new Error('key must be defined')
+            if (!(options.key in options.target)) {
+                console.warn('key not present in target, creating', options.key, options.target)
+                options.target[options.key] = options.from || 0
+            }
+            const setter = makeSetterFor(options.target, options.key)
+            const fromVal = options.target[options.key]
+            options.lastOnUpdate = options.onUpdate
+            options.onUpdate = (val: V)=>{
+                setter(val)
+                options.lastOnUpdate && options.lastOnUpdate(val)
+            }
+            targetRef = {target: options.target, key: options.key}
+            if (options.from === undefined) options.from = fromVal
+            delete options.target
+            delete options.key
+        }
+
         const uuid = generateUUID()
-        const a: any = {
+        const a: AnimationResult = {
             id: uuid,
             options,
             stop: ()=>{
                 if (!this.animations[uuid]?._stop) console.warn('Animation not started')
                 else this.animations[uuid]?._stop?.()
             },
+            promise: undefined as any,
+            targetRef,
         }
         this.animations[uuid] = a
         a.promise = new Promise<void>((resolve, reject) => {
@@ -154,6 +184,7 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
                     resolve()
                 },
             }
+            // todo: support boolean using timeout.
             const anim = animate(opts)
             this.animations[uuid]._stop = anim.stop
             this.animations[uuid].options = opts
@@ -165,8 +196,12 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
         return this.animations[uuid]
     }
 
-    async animateAsync<V>(options: AnimationOptions<V>): Promise<string> {
+    async animateAsync<V>(options: AnimationOptions<V>& {target?: any, key?: string}): Promise<string> {
         return this.animate(options).promise
+    }
+
+    async animateTargetAsync<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>): Promise<string> {
+        return this.animate({...options, target, key: key as string}).promise
     }
 
     // todo : animateObject/animateTarget
