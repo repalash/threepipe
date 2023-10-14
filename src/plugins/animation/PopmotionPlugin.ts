@@ -5,7 +5,8 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {generateUUID} from '../../three'
-import {makeSetterFor} from '../../utils'
+import {animateCameraToViewLinear, animateCameraToViewSpherical, EasingFunctions, makeSetterFor} from '../../utils'
+import {ICamera, ICameraView} from '../../core'
 
 export interface AnimationResult{
     id: string
@@ -47,6 +48,7 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
     dependencies = []
 
     private _fadeDisabled = false
+
     /**
      * Disable the frame fade plugin while animation is running
      */
@@ -196,13 +198,31 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
         return this.animations[uuid]
     }
 
-    async animateAsync<V>(options: AnimationOptions<V>& {target?: any, key?: string}): Promise<string> {
-        return this.animate(options).promise
+    async animateAsync<V>(options: AnimationOptions<V>& {target?: any, key?: string}, animations?: AnimationResult[]): Promise<string> {
+        const anim = this.animate(options)
+        if (animations) animations.push(anim)
+        return anim.promise
     }
 
-    async animateTargetAsync<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>): Promise<string> {
-        return this.animate({...options, target, key: key as string}).promise
+    async animateTargetAsync<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>, animations?: AnimationResult[]): Promise<string> {
+        const anim = this.animate({...options, target, key: key as string})
+        if (animations) animations.push(anim)
+        return anim.promise
     }
 
-    // todo : animateObject/animateTarget
+    animateCamera(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>) {
+        const anim = spherical ?
+            animateCameraToViewSpherical(camera, view) :
+            animateCameraToViewLinear(camera, view)
+        return this.animate({
+            ease: EasingFunctions.linear,
+            duration: 1000,
+            ...anim, ...options,
+        })
+    }
+    async animateCameraAsync(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>, animations?: AnimationResult[]) {
+        const anim = this.animateCamera(camera, view, spherical, options)
+        if (animations) animations.push(anim)
+        return anim.promise
+    }
 }

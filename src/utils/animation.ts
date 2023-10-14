@@ -19,6 +19,7 @@ import {
     linear,
 } from 'popmotion'
 import {timeout} from 'ts-browser-helpers'
+import {MathUtils} from 'three'
 
 export {animate}
 export type {AnimationOptions, KeyframeOptions, Easing}
@@ -124,3 +125,15 @@ export async function animateAsync<V=number>(options: AnimationOptions<V>, anima
     })
 }
 
+export function lerpAngle(a: number, b: number, t: number) {
+    const d = b - a
+    if (d >= Math.PI) {
+        return a + (d - Math.PI * 2) * t
+    } else if (d <= -Math.PI) {
+        return a + (d + Math.PI * 2) * t
+    } else {
+        return a + d * t
+    }
+}
+
+export const lerp = MathUtils.lerp

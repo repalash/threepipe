@@ -339,7 +339,6 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (!this.userData.__autoBubbleToParentEvents) this.userData.__autoBubbleToParentEvents = ['select']
     // Event bubbling. todo: set bubbleToParent in these events when dispatched from child and remove from here?
-    if (this.isCamera) this.userData.__autoBubbleToParentEvents.push('activateMain', 'setView')
 
     if (this.isLight) this.assetType = 'light'
     else if (this.isCamera) this.assetType = 'camera'

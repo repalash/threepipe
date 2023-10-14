@@ -19,11 +19,14 @@ export const iCameraCommons = {
         iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})
     },
     activateMain: function(this: ICamera, options: Partial<ICameraEvent> = {}, _internal = false, _refresh = true): void {
-        if (!_internal) return this.dispatchEvent({
-            type: 'activateMain', ...options,
-            camera: this,
-            bubbleToParent: true,
-        }) // this will be used by RootScene to deactivate other cameras and activate this one
+        if (!_internal) {
+            if (options.camera === null) return this.deactivateMain(options, _internal, _refresh)
+            return this.dispatchEvent({
+                type: 'activateMain', ...options,
+                camera: this,
+                bubbleToParent: true,
+            })
+        } // this will be used by RootScene to deactivate other cameras and activate this one
         if (this.userData.__isMainCamera) return
         this.userData.__isMainCamera = true
         this.userData.__lastScale = this.scale.clone()
@@ -71,7 +74,7 @@ export const iCameraCommons = {
     upgradeCamera: upgradeCamera,
 
     copy: (superCopy: ICamera['copy']): ICamera['copy'] =>
-        function(this: ICamera, camera: ICamera | Camera, recursive?, distanceFromTarget?, ...args): ICamera {
+        function(this: ICamera, camera: ICamera | Camera, recursive?, distanceFromTarget?, worldSpace?, ...args): ICamera {
             if (!camera.isCamera) {
                 console.error('ICamera.copy: camera is not a Camera', camera)
                 return this
@@ -89,9 +92,22 @@ export const iCameraCommons = {
                 const minDistance = (this.controls as any)?.minDistance ?? distanceFromTarget ?? 4
                 camera.getWorldDirection(this.target).multiplyScalar(minDistance).add(this.getWorldPosition(new Vector3()))
             }
+
+
+            if (worldSpace) { // default = false
+                const worldPos = camera.getWorldPosition(this.position)
+                // this.getWorldQuaternion(this.quaternion) // todo: do if autoLookAtTarget is false
+                // todo up vector
+                if (this.parent) {
+                    this.position.copy(this.parent.worldToLocal(worldPos))
+                    //     this.quaternion.premultiply(this.parent.quaternion.clone().invert())
+                }
+            }
+
             this.updateMatrixWorld(true)
             this.updateProjectionMatrix()
-            this.refreshAspect(true)
+            this.refreshAspect(false)
+            this.setDirty()
             return this
         },
 

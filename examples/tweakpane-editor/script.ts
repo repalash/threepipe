@@ -1,5 +1,6 @@
 import {
     _testFinish,
+    CameraViewPlugin,
     DepthBufferPlugin,
     DropzonePlugin,
     FrameFadePlugin,
@@ -45,6 +46,7 @@ async function init() {
     await viewer.addPlugins([
         new ProgressivePlugin(),
         new GLTFAnimationPlugin(),
+        new CameraViewPlugin(),
         new ViewerUiConfigPlugin(),
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new DepthBufferPlugin(HalfFloatType, true, true),
@@ -68,10 +70,11 @@ async function init() {
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin],
-        ['Animation']: [GLTFAnimationPlugin],
+        ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 
+    viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5))
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
     // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {

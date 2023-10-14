@@ -1,4 +1,5 @@
 export {PerspectiveCamera2} from './camera/PerspectiveCamera2'
+export {CameraView, type ICameraView} from './camera/CameraView'
 export {ExtendedShaderMaterial} from './material/ExtendedShaderMaterial'
 export {PhysicalMaterial, type PhysicalMaterialEventTypes, MeshStandardMaterial2} from './material/PhysicalMaterial'
 export {ShaderMaterial2} from './material/ShaderMaterial2'

@@ -1,4 +1,4 @@
-import {BufferGeometry, MathUtils} from 'three'
+import {BufferGeometry, MathUtils, Object3D, Quaternion} from 'three'
 import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import {IGeometry, IMaterial, IObject3D, IScene, ITexture} from '../../core'
 
@@ -32,4 +32,26 @@ export function isInScene(...sceneObj: (IGeometry|IMaterial|IObject3D|ITexture)[
         if (inScene) return true
     }
     return false
+}
+
+/**
+ * Convert a world-space quaternion to local-space quaternion.
+ * https://github.com/mrdoob/three.js/pull/20243
+ * @param object
+ * @param quaternion
+ * @param _q
+ */
+export function worldToLocalQuaternion(object: Object3D, quaternion: Quaternion, _q = new Quaternion()) {
+    return quaternion.premultiply(object.getWorldQuaternion(_q).invert())
+}
+
+/**
+ * Convert a local-space quaternion to world-space quaternion.
+ * https://github.com/mrdoob/three.js/pull/20243
+ * @param object
+ * @param quaternion
+ * @param _q
+ */
+export function localToWorldQuaternion(object: Object3D, quaternion: Quaternion, _q = new Quaternion()) {
+    return quaternion.premultiply(object.getWorldQuaternion(_q))
 }

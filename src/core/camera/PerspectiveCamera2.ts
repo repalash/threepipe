@@ -10,6 +10,7 @@ import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig} from '../object/IObjectUi'
+import {CameraView, ICameraView} from './CameraView'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
@@ -45,7 +46,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize() focus: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    // @uiSlider('Zoom', [0.001, 20], 0.001)
+    @uiSlider('FoV Zoom', [0.001, 10], 0.001)
     @serialize() zoom: number
 
     @uiVector('Position')
@@ -162,7 +163,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     setDirty(options?: ICameraSetDirtyOptions|Event): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (options?.key === 'fov') this.updateProjectionMatrix()
+        if (options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
 
         this.getWorldPosition(this._positionWorld)
 
@@ -316,6 +317,57 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     // endregion
 
+    // region camera views
+
+    getView<T extends ICameraView = CameraView>(worldSpace = true, _view?: T) {
+        const up = new Vector3()
+        this.updateWorldMatrix(true, false)
+        const matrix = this.matrixWorld
+        up.x = matrix.elements[4]
+        up.y = matrix.elements[5]
+        up.z = matrix.elements[6]
+        up.normalize()
+        const view = _view || new CameraView()
+        view.name = this.name
+        view.position.copy(this.position)
+        view.target.copy(this.target)
+        view.quaternion.copy(this.quaternion)
+        view.zoom = this.zoom
+        // view.up.copy(up)
+        const parent = this.parent
+        if (parent) {
+            if (worldSpace) {
+                view.position.applyMatrix4(parent.matrixWorld)
+                this.getWorldQuaternion(view.quaternion)
+                // target, up is already in world space
+            } else {
+                up.transformDirection(parent.matrixWorld.clone().invert())
+                // pos is already in local space
+                // target should always be in world space
+            }
+        }
+        return view as T
+    }
+
+    setView(view: ICameraView) {
+        this.position.copy(view.position)
+        this.target.copy(view.target)
+        // this.up.copy(view.up)
+        this.quaternion.copy(view.quaternion)
+        this.zoom = view.zoom
+        this.setDirty()
+    }
+
+    setViewFromCamera(camera: Camera|ICamera, distanceFromTarget?: number, worldSpace = true) {
+        // todo: getView, setView can also be used, do we need copy? as that will copy all the properties
+        this.copy(camera, undefined, distanceFromTarget, worldSpace)
+    }
+
+    setViewToMain(eventOptions: Partial<ICameraEvent>) {
+        this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
+    }
+
+    // endregion
     // region utils/others
 
     // for shader prop updater
@@ -420,13 +472,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     }
 
     /**
-     * @deprecated
+     * @deprecated - use setDirty directly
      * @param setDirty
      */
     targetUpdated(setDirty = true): void {
         if (setDirty) this.setDirty()
     }
-
 
     // setCameraOptions<T extends Partial<IPerspectiveCameraOptions | IOrthographicCameraOptions>>(value: T, setDirty = true): void {
     //     const ops: any = {...value}
@@ -502,7 +553,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
     getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
     getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number) => this
+    copy: (source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this

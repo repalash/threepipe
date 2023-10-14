@@ -3,44 +3,40 @@ import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
 import {Vector3} from 'three'
 
-export function makeICameraCommonUiConfig(this: IObject3D, config: UiObjectConfig): UiObjectConfig[] {
+export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
         {
             type: 'button',
             label: 'Set View',
             value: ()=>{
-                // todo: call setView on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'setView', ui: true, camera: this as ICamera})
-                config.uiRefresh?.(true, 'postFrame')
-                console.log('set view', this)
+                this.setViewToMain({ui: true})
+                config.uiRefresh?.(true, 'postFrame') // config is parent config
             },
         },
         {
             type: 'button',
             label: 'Activate main',
-            hidden: ()=>(this as ICamera)?.isMainCamera,
+            hidden: ()=>this?.isMainCamera,
             value: ()=>{
-                // todo: call activateMain on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: this as ICamera})
+                this.activateMain({ui: true})
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
         {
             type: 'button',
             label: 'Deactivate main',
-            hidden: ()=>!(this as ICamera)?.isMainCamera,
+            hidden: ()=>!this?.isMainCamera,
             value: ()=>{
-                // todo: call activateMain on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: undefined})
+                this.deactivateMain({ui: true})
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
         {
             type: 'checkbox',
             label: 'Auto LookAt Target',
-            getValue: ()=>(this as ICamera).userData.autoLookAtTarget ?? false,
+            getValue: ()=>this.userData.autoLookAtTarget ?? false,
             setValue: (v)=>{
-                (this as ICamera).userData.autoLookAtTarget = v
+                this.userData.autoLookAtTarget = v
                 config.uiRefresh?.(true, 'postFrame')
             },
         },

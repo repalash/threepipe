@@ -52,6 +52,7 @@ import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
+import type {ProgressivePlugin} from '../plugins'
 import {TonemapPlugin} from '../plugins'
 import {VERSION} from './version'
 
@@ -299,11 +300,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
             if (cam && cam.canUserInteract) {
-                // todo
-                // const d = this.getPluginByType<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-                // // if (d && d > 0) delta = d
-                // if (d !== undefined && d === 0) return // not converged yet.
-                // // if d < 0 or undefined: not recording, do nothing
+                const d = this.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
+                // if (d && d > 0) delta = d
+                if (d !== undefined && d === 0) return // not converged yet.
+                // if d < 0 or undefined: not recording, do nothing
 
                 cam.controls?.update()
             }
@@ -1019,14 +1019,8 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
                 this.console.warn('Cannot find camera', event)
                 return
             }
-            this._scene.mainCamera.copy(event.camera)
-            const worldPos = event.camera.getWorldPosition(this._scene.mainCamera.position)
-            // camera.getWorldQuaternion(this.quaternion) // todo: do if autoLookAtTarget is false
-            if (this._scene.mainCamera.parent) {
-                this._scene.mainCamera.position.copy(this._scene.mainCamera.parent.worldToLocal(worldPos))
-            //     this.quaternion.premultiply(this.parent.quaternion.clone().invert())
-            }
-            this._scene.mainCamera.setDirty()
+            const camera = this._scene.mainCamera
+            camera.setViewFromCamera(event.camera) // default is worldSpace
         } else if (event.type === 'activateMain')
             this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
     }
