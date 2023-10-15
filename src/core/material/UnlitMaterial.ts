@@ -48,6 +48,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     constructor({customMaterialExtensions, ...parameters}: MeshBasicMaterialParameters & IMaterialParameters = {}) {
         super(parameters)
+        !this.defines && (this.defines = {})
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)

@@ -7,6 +7,7 @@ import {
     FullScreenPlugin,
     GLTFAnimationPlugin,
     HalfFloatType,
+    HemisphereLight,
     KTX2LoadPlugin,
     KTXLoadPlugin,
     NormalBufferPlugin,

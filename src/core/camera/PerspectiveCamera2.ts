@@ -87,14 +87,14 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      * Automatically manage near and far clipping planes based on scene size.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        autoNearFar = true
+        autoNearFar = true // bound to userData so that it's saved in the glb.
 
     /**
      * Minimum near clipping plane allowed. (Distance from camera)
      * @default 0.2
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        minNearPlane = 0.2
+        minNearPlane = 0.5
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
      */

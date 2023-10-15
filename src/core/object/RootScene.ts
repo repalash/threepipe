@@ -371,7 +371,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     private _v1 = new Vector3()
     private _v2 = new Vector3()
-    
+
     /**
      * Refreshes the scene active camera near far values, based on the scene bounding box.
      * This is called automatically every time the camera is updated.
@@ -380,7 +380,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         const camera = this.mainCamera as ICamera
         if (!camera) return
         if (camera.userData.autoNearFar === false) {
-            camera.near = camera.userData.minNearPlane ?? 0.2
+            camera.near = camera.userData.minNearPlane ?? 0.5
             camera.far = camera.userData.maxFarPlane ?? 1000
             return
         }
@@ -393,7 +393,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
         // new way
         const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
-        const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist1 * (dist - radius))
+        const near = Math.max(camera.userData.minNearPlane ?? 0.5, dist1 * (dist - radius))
         const far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
 
         // old way, has issues when panning very far from the camera target
@@ -557,14 +557,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     /**
      * Minimum Camera near plane
-     * @deprecated - use camera.userData.minNearPlane instead
+     * @deprecated - use camera.minNearPlane instead
      */
     get minNearDistance(): number {
         console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
         return this.mainCamera.userData.minNearPlane ?? 0.02
     }
     /**
-     * @deprecated - use camera.userData.minNearPlane instead
+     * @deprecated - use camera.minNearPlane instead
      */
     set minNearDistance(value: number) {
         console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')

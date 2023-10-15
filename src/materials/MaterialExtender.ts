@@ -97,9 +97,8 @@ export class MaterialExtender {
 }
 
 function updateMaterialDefines(defines: MaterialExtension['extraDefines'], material: IMaterial) {
-    if (!defines) return
-    if (!material.defines) {
-        console.warn('Material does not have defines', material) // todo: check when material.defines is undefined
+    if (!defines || !material) return
+    if (material.defines === undefined || material.defines === null) { // required for some three.js materials
         material.defines = {}
     }
     let flag = false
