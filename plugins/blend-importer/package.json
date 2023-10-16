@@ -1,0 +1,57 @@
+{
+    "name": "@threepipe/plugin-blend-importer",
+    "description": "Basic importer for .blend file",
+    "version": "0.0.1",
+    "devDependencies": {
+    },
+    "dependencies": {
+        "threepipe": "file:./../../src/"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "//",
+            "markdown-to-html"
+        ],
+        "replace": {
+            "dependencies": {
+                "threepipe": "^0.0.13"
+            }
+        }
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
+        "new:publish": "npm run prepare && clean-package && npm publish --access public && clean-package restore",
+        "prepare": "npm run build",
+        "build": "rimraf dist && NODE_ENV=production rollup -c",
+        "dev": "rollup -c -w",
+        "docs": "rimraf docs && npx typedoc"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "three.js",
+        "threepipe",
+        "editor",
+        "plugin"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://github.com/repalash/threepipe#readme",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git"
+    }
+}

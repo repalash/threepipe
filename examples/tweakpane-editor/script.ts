@@ -11,6 +11,7 @@ import {
     KTX2LoadPlugin,
     KTXLoadPlugin,
     NormalBufferPlugin,
+    PickingPlugin,
     PLYLoadPlugin,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
@@ -24,6 +25,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
 
 async function init() {
@@ -46,9 +48,10 @@ async function init() {
 
     await viewer.addPlugins([
         new ProgressivePlugin(),
-        new GLTFAnimationPlugin(),
-        new CameraViewPlugin(),
-        new ViewerUiConfigPlugin(),
+        GLTFAnimationPlugin,
+        PickingPlugin,
+        CameraViewPlugin,
+        ViewerUiConfigPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
@@ -60,6 +63,7 @@ async function init() {
         Rhino3dmLoadPlugin,
         STLLoadPlugin,
         USDZLoadPlugin,
+        BlendLoadPlugin,
         ...extraImportPlugins,
     ])
 
@@ -69,6 +73,7 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
+        ['Interaction']: [PickingPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],

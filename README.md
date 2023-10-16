@@ -106,7 +106,8 @@ To make changes and run the example, click on the CodePen button on the top righ
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
-  - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading even more file types.
+  - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading more file types supported by loaders in three.js
+  - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
 
 ## Getting Started
 
@@ -2626,3 +2627,39 @@ const model1 = await viewer.load<IObject3D>('data:model/3mf;base64,...')
 ```
 
 Remove the `<IObject3D>` if using javascript and not typescript.
+
+## @threepipe/plugin-blend-importer
+
+Exports [BlendImporterPlugin](https://threepipe.org/plugins/blend-importer/docs/classes/BlendLoadPlugin.html) which adds support for loading .blend files. 
+
+It uses [js.blend](https://github.com/acweathersby/js.blend) for parsing blend file structure.
+
+Note: This is still a WIP.
+Currently working: `Mesh`, `BufferGeometry` and basic `PointLight`.
+To be added: `PhysicalMaterial`, `UnlitMaterial` (similar to blender-gltf-io plugin)
+
+Example: https://threepipe.org/examples/#blend-load/
+
+Source Code: [plugins/blend-importer/src/index.ts](plugins/blend-importer/src/index.ts)
+
+API Reference: [@threepipe/plugin-blend-importer](https://threepipe.org/plugins/blend-importer/docs)
+
+NPM: `npm install @threepipe/plugin-blend-importer`
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(BlendLoadPlugin)
+
+// Now load any .blend file.
+const model = await viewer.load<IObject3D>('path/to/file.blend')
+
+// To load the file as a data url, use the correct mimetype
+const model1 = await viewer.load<IObject3D>('data:application/x-blender;base64,...')
+
+```
+
+[//]: # ( TODO: The plugin should parse and references to other assets and find them relative to the .blend file or the current location.)
+
