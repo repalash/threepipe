@@ -108,7 +108,10 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         } else {
             v1.needsUpdate = true
         }
-        if (!staticData.textureMap[v1.image?.id]) staticData.textureMap[v1.image?.id] = v1
+        if (v1.image) {
+            if (!v1.image.id?.length) v1.image.id = generateUUID()
+            if (!staticData.textureMap[v1.image.id]) staticData.textureMap[v1.image.id] = v1
+        }
     }
     config.__proxy.value_ = v1
     renderer.methods.setValue(config, v1, {last: true}, false)
@@ -294,7 +297,9 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* Fo
             get: () => {
                 config.__proxy.value_ = renderer.methods.getValue(config)
                 const ret = proxyGetValue(config.__proxy.value_, viewer)
-                if (!staticData.textureMap[ret.id ?? ret]) staticData.textureMap[ret.id ?? ret] = config.__proxy.value_
+                if (typeof ret !== 'string' && !ret.id?.length) ret.id = generateUUID()
+                const id = typeof ret === 'string' ? ret : ret.id ?? ret
+                if (!staticData.textureMap[id]) staticData.textureMap[id] = config.__proxy.value_
                 return ret
             },
             set: (v: any) => {
