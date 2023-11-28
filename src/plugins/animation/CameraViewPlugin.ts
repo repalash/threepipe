@@ -8,6 +8,8 @@ import {EasingFunctions, EasingFunctionType} from '../../utils'
 import {CameraView, ICamera, ICameraView, PerspectiveCamera2} from '../../core'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 
+export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
+
 /**
  * Camera View Plugin
  *
@@ -23,7 +25,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     //     return this._animating
     // }
 
-    constructor() {
+    constructor(options: CameraViewPluginOptions = {}) {
         super()
         this.addCurrentView = this.addCurrentView.bind(this)
         this.resetToFirstView = this.resetToFirstView.bind(this)
@@ -32,7 +34,13 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         // this._wheel = this._wheel.bind(this)
         // this._pointerMove = this._pointerMove.bind(this)
         // this._postFrame = this._postFrame.bind(this)
+
+        this.animDuration = options.duration ?? this.animDuration
+        this.animEase = options.ease ?? this.animEase
+        this.interpolateMode = options.interpolateMode ?? this.interpolateMode
     }
+
+
 
     @serialize('cameraViews')
     private _cameraViews: CameraView[] = []
@@ -58,9 +66,14 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
      */
     @serialize() @uiDropdown('Ease', Object.keys(EasingFunctions).map((label:string)=>({label}))) animEase: EasingFunctionType = 'easeInOutSine' // ms
     @serialize() @uiSlider('Duration', [10, 10000], 10) animDuration = 1000 // ms
-    @serialize() @uiSlider('RotationOffset', [0.2, 0.75], 0.01) rotationOffset = 0.25
     @serialize() @uiDropdown('Interpolation', ['spherical', 'linear'].map((label:string)=>({label})))
         interpolateMode: 'spherical'|'linear' = 'spherical'
+
+
+    // not used
+    @serialize()
+    // @uiSlider('RotationOffset', [0.2, 0.75], 0.01)
+        rotationOffset = 0.25
 
     private _animating = false
     get animating(): boolean {

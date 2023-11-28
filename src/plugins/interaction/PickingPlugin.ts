@@ -1,10 +1,9 @@
 import {Object3D} from 'three'
 import {Class, serialize} from 'ts-browser-helpers'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {ObjectPicker} from '../../three/utils/ObjectPicker'
+import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
 import {IObject3D, IObject3DEvent, ISceneEvent} from '../../core'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
-import {BoxSelectionWidget, SelectionWidget} from '../../three/utils/SelectionWidget'
 
 export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'hoverObjectChanged'|'hitObject'> {
     @serialize() enabled = true
@@ -192,10 +191,8 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         this.dispatchEvent(e)
     }
 
-    // @ts-expect-error temporary
     public async focusObject(selected?: Object3D) {
-        // const camViews = this._viewer?.getPluginByType<CameraViewPlugin>('CameraViews')
-        // await camViews?.animateToFitObject(selected, 1.25, 1000, 'easeOut', {min: (this._viewer?.scene.activeCamera.getControls<OrbitControls3>()?.minDistance ?? 0.5) + 0.5, max: 50.0})
+        this._viewer?.fitToView(selected, 1.25, 1000, 'easeOut')
     }
 
     public enableWidget(enable: boolean): void {

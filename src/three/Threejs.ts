@@ -1,3 +1,4 @@
+
 export {WebGLArrayRenderTarget} from 'three'
 export {WebGL3DRenderTarget} from 'three'
 export {WebGLMultipleRenderTargets} from 'three'
@@ -221,3 +222,9 @@ export type {Shader} from 'three'
 export * from 'three/examples/jsm/libs/fflate.module.js'
 
 export {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
+export {Pass, FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js'
+export {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
+export {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
+export {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js'
+
+export {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'

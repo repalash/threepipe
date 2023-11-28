@@ -9,7 +9,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {Class, createCanvasElement, onChange, serialize} from 'ts-browser-helpers'
+import {Class, createCanvasElement, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -24,6 +24,7 @@ import {
 import {ViewerRenderManager} from './ViewerRenderManager'
 import {
     convertArrayBufferToStringsInMeta,
+    EasingFunctionType,
     getEmptyMeta,
     GLStatsJS,
     IDialogWrapper,
@@ -50,12 +51,14 @@ import {
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
-import type {ProgressivePlugin} from '../plugins'
+import type {CameraViewPlugin, ProgressivePlugin} from '../plugins'
 // noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 // noinspection ES6PreferShortImport
 import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
+import {Easing} from 'popmotion'
+import {OrbitControls3} from '../three'
 
 export type IViewerEvent = BaseEvent & {
     type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
@@ -125,6 +128,31 @@ export interface ThreeViewerOptions {
     renderScale?: number
 
     debug?: boolean
+
+    /**
+     * Add initial plugins.
+     */
+    plugins?: (IViewerPluginSync | Class<IViewerPluginSync>)[]
+
+    load?: {
+        /**
+         * Load one or more source files
+         */
+        src?: ValOrArr<string | IAsset | null>
+
+        /**
+         * Load environment map
+         */
+        environment?: string | IAsset | ITexture | undefined | null
+
+        /**
+         * Load background map
+         */
+        background?: string | IAsset | ITexture | undefined | null
+
+    }
+    onLoad?: (results: any) => void
+
 
     /**
      * TonemapPlugin is added to the viewer if this is true.
@@ -382,10 +410,17 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (options.tonemap !== false) {
             this.addPluginSync(new TonemapPlugin())
         }
+        for (const p of options.plugins ?? []) this.addPluginSync(p)
 
         this.console.log('ThreePipe Viewer instance initialized, version: ', ThreeViewer.VERSION)
 
-
+        if (options.load) {
+            const sources = [options.load.src].flat().filter(s=> s)
+            const promises: Promise<any>[] = sources.map(async s=> s && this.load(s))
+            if (options.load.environment) promises.push(this.setEnvironmentMap(options.load.environment))
+            if (options.load.background) promises.push(this.setBackgroundMap(options.load.background))
+            Promise.all(promises).then(options.onLoad)
+        }
     }
 
     /**
@@ -1080,15 +1115,14 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     //     this.fromJSON(config, config.resources)
     // }
 
-    // todo
-    // public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
-    //     const camViews = this.getPluginByType<CameraViewPlugin>('CameraViews')
-    //     if (!camViews) {
-    //         this.console.error('CameraViews plugin is required for fitToView to work')
-    //         return
-    //     }
-    //     await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: (this.scene.activeCamera.getControls<OrbitControls3>()?.minDistance ?? 0.5) + 0.5, max: 1000.0})
-    // }
+    public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
+        const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
+        if (!camViews) {
+            this.console.error('CameraViewPlugin (CameraViews) is required for fitToView to work')
+            return
+        }
+        await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: ((<OrbitControls3> this.scene.mainCamera.controls)?.minDistance ?? 0.5) + 0.5, max: 1000.0})
+    }
 
     // todo: create/load texture utils
 

@@ -98,6 +98,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](#geometryuvpreviewplugin) - Preview UVs of any geometry in a UI panel over the canvas
   - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -1042,8 +1043,9 @@ More options can be passed in the constructor to configure various built-in plug
 ### Constructor
 
 ```typescript
-import {ThreeViewer} from 'threepipe'
+import {ThreeViewer, CameraViewPlugin} from 'threepipe'
 
+// Create a viewer. All options except canvas/container are optional
 const viewer = new ThreeViewer({
   canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
   // or a container like: 
@@ -1080,11 +1082,24 @@ const viewer = new ThreeViewer({
     // domElement: document.body,
     // addOptions: { ... }
     // importOptions: { ... }
-  }
+  },
   // By default its false
   // dropzone: false,
   // To Enable without options
   // dropzone: true
+  
+  // Add some plugins after viewer creation.
+  plugins: [CameraViewPlugin, new CustomPlugin()],
+  
+  // Shorthand to load files immediately after viewer initialization
+  load: {
+      src: 'https://example.com/file.glb',
+      environment: 'https://example.com/file.hdr',
+      background: 'https://example.com/file.png',
+  },
+  onLoad: (viewer) => {
+      // Called when all the files are loaded
+  },
 })
 ```
 
@@ -1104,7 +1119,7 @@ const viewer = new ThreeViewer({...})
 // Add a plugin
 const plugin = viewer.addPluginSync(new TonemapPlugin())
 // plugins can be added with just the class also
-const plugin = viewer.addPluginSync(TonemapPlugin)
+const plugin2 = viewer.addPluginSync(TonemapPlugin)
 
 // Add multiple plugins at once
 viewer.addPluginsSync([
@@ -1115,10 +1130,10 @@ viewer.addPluginsSync([
 ])
 
 // Get a plugin
-const plugin = viewer.getPlugin(TonemapPlugin)
+const plugin3 = viewer.getPlugin(TonemapPlugin)
         
 // Get or add a plugin, when not sure if the plugin is already added
-const plugin = viewer.getOrAddPluginSync(TonemapPlugin)
+const plugin4 = viewer.getOrAddPluginSync(TonemapPlugin)
 
 // Remove a plugin
 viewer.removePluginSync(TonemapPlugin)
@@ -2385,6 +2400,43 @@ await fadePlugin.startTransition(400) // duration in ms
 To stop a transition, call `fadePlugin.stopTransition()`. This will immediately set the current frame to the last frame and stop the transition. The transition is also automatically stopped when the camera is moved or some pointer event occurs on the canvas.
 
 The plugin automatically tracks `setDirty()` function calls in objects, materials and the scene. It can be triggerred by calling `setDirty` on any material or object in the scene. Check the [example](https://threepipe.org/examples/#frame-fade-plugin/) for a demo. This can be disabled by options in the plugin.
+
+## HDRiGroundPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#hdri-ground-plugin/
+
+Source Code: [src/plugins/pipeline/HDRiGroundPlugin.ts](./src/plugins/extras/HDRiGroundPlugin.ts)
+
+API Reference: [FrameFadePlugin](https://threepipe.org/docs/classes/HDRiGroundPlugin.html)
+
+HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environemnt and enabling the plugin.
+
+The world radius, tripod height, and origin position(center offset) can be set in the plugin.
+
+The plugin is disabled by default when added. Set `.enabled` to enable it or pass `true` in the constructor.
+If the background is not the same as the environment when enabled, the user will be prompted for this, unless `promptOnBackgroundMismatch` is set to `false` in the plugin.
+
+```typescript
+import {ThreeViewer, FrameFadePlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const hdriGround = viewer.addPluginSync(new HDRiGrounPlugin())
+
+// Load an hdr environment map
+await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+// set background to environment
+viewer.scene.background = 'environment'
+// or 
+// viewer.scene.background = viewer.scene.environemnt
+
+// enable the plugin
+hdriGround.enabled = true
+```
+
+Check the [example](https://threepipe.org/examples/#hdri-ground-plugin/) for a demo. 
 
 ## Rhino3dmLoadPlugin
 

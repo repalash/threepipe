@@ -36,4 +36,7 @@ export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
 export {PopmotionPlugin} from './animation/PopmotionPlugin'
-export {CameraViewPlugin} from './animation/CameraViewPlugin'
+export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
+
+// extras
+export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
