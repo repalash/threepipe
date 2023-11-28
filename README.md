@@ -675,7 +675,7 @@ when the extension is registered or when the material is added to the scene.
 Threepipe includes several built-in materials like
 [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial.html),
 [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial.html),
-[ExtendedShaderMaterial](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html)
+[ExtendedShaderMaterial](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html), [LegacyPhongMaterial](https://threepipe.org/docs/classes/LegacyPhongMaterial.html),
 that include support for extending the material. 
 Any three.js material can be made extendable,
 check the `ShaderPass2` class for a simple example that adds support for material extension to three.js ShaderPass.
@@ -2244,7 +2244,7 @@ Note: The animation is started when the animate or animateAsync function is call
 
 Example: https://threepipe.org/examples/#camera-view-plugin/
 
-Source Code: [src/plugins/animation/CameraViewPlugin.ts](./src/plugins/ui/RenderTargetPreviewPlugin.ts)
+Source Code: [src/plugins/animation/CameraViewPlugin.ts](./src/plugins/animation/CameraViewPlugin.ts)
 
 API Reference: [CameraViewPlugin](https://threepipe.org/docs/classes/CameraViewPlugin.html)
 

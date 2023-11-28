@@ -134,7 +134,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // renderer.autoClearDepth = false
 
                 ud.transmissionRenderTarget = writeBuffer
-                ud.blurTransmissionTarget = this.blurTransmissionTarget
+                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -227,7 +227,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // renderer.autoClearDepth = false
 
                 ud.transmissionRenderTarget = needsSwap ? writeBuffer : readBuffer
-                ud.blurTransmissionTarget = this.blurTransmissionTarget
+                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
 
                 renderer.renderWithModes({
                     shadowMapRender: false,

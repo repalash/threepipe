@@ -211,6 +211,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
     // endregion
 
+    // used for serialization
     static readonly MaterialProperties = {
         // keep updated with properties in MeshStandardMaterial.js
         ...threeMaterialPropList,

@@ -1,4 +1,4 @@
-import {ISerializedConfig, ThreeViewer} from './ThreeViewer'
+import type {ISerializedConfig, ThreeViewer} from './ThreeViewer'
 import {Event, EventDispatcher} from 'three'
 import {SerializationMetaType, ThreeSerialization} from '../utils'
 import {IViewerPlugin, IViewerPluginAsync} from './IViewerPlugin'

@@ -1,6 +1,7 @@
 import {IGeometry, IMaterial, IObject3D} from '../../core'
 import {BufferAttribute, InstancedMesh} from 'three'
-import {copyObject3DUserData} from '../../utils'
+// noinspection ES6PreferShortImport
+import {copyObject3DUserData} from '../../utils/serialization'
 
 export function autoGPUInstanceMeshes(matOrGeom: IMaterial|IGeometry) {
     if (!(<IMaterial>matOrGeom).isMaterial && !(<IGeometry>matOrGeom).isBufferGeometry) return

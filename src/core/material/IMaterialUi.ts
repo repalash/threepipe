@@ -28,6 +28,7 @@ import {
 import {downloadBlob, uploadFile} from 'ts-browser-helpers'
 import {PhysicalMaterial} from './PhysicalMaterial'
 import {getEmptyMeta} from '../../utils/serialization'
+import {LegacyPhongMaterial} from './LegacyPhongMaterial'
 
 export const iMaterialUI = {
     base: (material: IMaterial): UiObjectConfig[] => [
@@ -279,7 +280,7 @@ export const iMaterialUI = {
             ],
         }
     ),
-    bumpNormal: (material: PhysicalMaterial): UiObjectConfig => (
+    bumpNormal: (material: PhysicalMaterial|LegacyPhongMaterial): UiObjectConfig => (
         {
             type: 'folder',
             label: 'Bump/Normal',
@@ -331,7 +332,7 @@ export const iMaterialUI = {
             ],
         }
     ),
-    emission: (material: PhysicalMaterial): UiObjectConfig => (
+    emission: (material: PhysicalMaterial|LegacyPhongMaterial): UiObjectConfig => (
         {
             type: 'folder',
             label: 'Emission',

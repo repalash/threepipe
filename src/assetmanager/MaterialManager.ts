@@ -13,6 +13,7 @@ import {
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID, isInScene} from '../three'
+import {LegacyPhongMaterial} from '../core/material/LegacyPhongMaterial'
 
 /**
  * Material Manager
@@ -25,6 +26,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     readonly templates: IMaterialTemplate[] = [
         PhysicalMaterial.MaterialTemplate,
         UnlitMaterial.MaterialTemplate,
+        LegacyPhongMaterial.MaterialTemplate,
     ]
 
     private _materials: IMaterial[] = []
@@ -54,7 +56,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         while (!template.generator) { // looping so that we can inherit templates, not fully implemented yet
             const t2 = this.findTemplate(template.materialType) // todo add a baseTemplate property to the template?
             if (!t2) {
-                console.error('Template has no generator or materialType', template, nameOrType)
+                console.warn('Template has no generator or materialType', template, nameOrType)
                 return undefined
             }
             template = {...template, ...t2}

@@ -79,7 +79,7 @@ export interface IRenderManagerOptions {
     alpha?: boolean, // default = true
     targetOptions?: CreateRenderTargetOptions
     rgbm?: boolean,
-    msaa?: boolean,
+    msaa?: boolean | number,
     depthBuffer?: boolean,
     renderScale?: number,
 }

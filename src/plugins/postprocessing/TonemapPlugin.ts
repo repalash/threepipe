@@ -1,4 +1,6 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+// noinspection ES6PreferShortImport
+import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
+import type {ThreeViewer} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {

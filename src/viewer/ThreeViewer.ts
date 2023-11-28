@@ -48,12 +48,13 @@ import {
     RootSceneImportResult,
 } from '../assetmanager'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
-// noinspection ES6PreferShortImport
-import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
 import type {ProgressivePlugin} from '../plugins'
-import {TonemapPlugin} from '../plugins'
+// noinspection ES6PreferShortImport
+import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
+// noinspection ES6PreferShortImport
+import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
 
 export type IViewerEvent = BaseEvent & {
@@ -270,7 +271,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Create a viewer instance for using the webgi viewer SDK.
      * @param options - {@link ThreeViewerOptions}
      */
-    constructor({debug = true, ...options}: ThreeViewerOptions) {
+    constructor({debug = false, ...options}: ThreeViewerOptions) {
         super()
         this.debug = debug
         this._canvas = options.canvas || createCanvasElement()
