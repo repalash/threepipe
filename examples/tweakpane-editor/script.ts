@@ -7,6 +7,7 @@ import {
     FullScreenPlugin,
     GLTFAnimationPlugin,
     HalfFloatType,
+    HDRiGroundPlugin,
     HemisphereLight,
     KTX2LoadPlugin,
     KTXLoadPlugin,
@@ -22,6 +23,7 @@ import {
     TonemapPlugin,
     USDZLoadPlugin,
     ViewerUiConfigPlugin,
+    VignettePlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
@@ -57,6 +59,8 @@ async function init() {
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
+        new VignettePlugin(),
+        new HDRiGroundPlugin(false, true),
         KTX2LoadPlugin,
         KTXLoadPlugin,
         PLYLoadPlugin,
@@ -75,8 +79,9 @@ async function init() {
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
         ['Interaction']: [PickingPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 

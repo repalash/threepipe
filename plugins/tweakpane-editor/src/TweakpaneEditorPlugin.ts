@@ -1,10 +1,10 @@
 import {
-    AViewerPlugin,
     AViewerPluginSync,
     Class,
     createDiv,
     createStyles,
     FullScreenPlugin,
+    IViewerPlugin,
     safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
@@ -42,12 +42,12 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<string> {
 
     private _selectedMode = 0
     modeKeys: string[] = []
-    modePlugins: Class<AViewerPlugin>[][] = []
+    modePlugins: Class<IViewerPlugin>[][] = []
     modeDivs: (HTMLDivElement | undefined)[] = []
     // picking?: PickingPlugin
     uiPlugin?: TweakpaneUiPlugin
 
-    loadPlugins(plugins: Record<string, Class<AViewerPlugin<any>>[]> = {}) {
+    loadPlugins(plugins: Record<string, Class<IViewerPlugin<any>>[]> = {}) {
         if (!this._viewer) throw new Error('Plugin not added to viewer.')
         setupUtilButtonsBar(this._viewer, Object.values(plugins).flat())
 

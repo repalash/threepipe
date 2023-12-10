@@ -1,16 +1,16 @@
 import {
-    AViewerPlugin,
     Class,
     createDiv,
     downloadBlob,
     FullScreenPlugin,
     GLTFAnimationPlugin,
+    IViewerPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {autoRotateCC, collapse, download, expand, playIcon, resetSettings, snapshot, trash} from './icons'
 import tippy, {createSingleton} from 'tippy.js'
 
-export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<AViewerPlugin>[]) {
+export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewerPlugin>[]) {
     return [
         {
             id: 'reset-settings',
@@ -132,7 +132,7 @@ export function setupFullscreenButton(viewer: ThreeViewer) {
     })
 }
 
-export function setupUtilButtonsBar(viewer: ThreeViewer, allPlugins: Class<AViewerPlugin>[]) {
+export function setupUtilButtonsBar(viewer: ThreeViewer, allPlugins: Class<IViewerPlugin>[]) {
     const utilButtonsContainer = createDiv({
         classList: ['button-bar', 'util-buttons-container'],
         addToBody: false,
