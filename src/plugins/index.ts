@@ -31,7 +31,9 @@ export {KTXLoadPlugin} from './import/KTXLoadPlugin'
 export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
 
 // postprocessing
+export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'
 export {TonemapPlugin} from './postprocessing/TonemapPlugin'
+export {VignettePlugin} from './postprocessing/VignettePlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
