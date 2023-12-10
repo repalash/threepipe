@@ -1,5 +1,17 @@
 import {Rhino3dmLoader} from 'three/examples/jsm/loaders/3DMLoader.js'
-import {Color, DoubleSide, InstancedMesh, LoadingManager, Material, Mesh, MeshStandardMaterial, Object3D} from 'three'
+import {
+    Color,
+    DoubleSide,
+    InstancedMesh,
+    Line,
+    LineSegments,
+    LoadingManager,
+    Material,
+    Mesh,
+    MeshStandardMaterial,
+    Object3D,
+    Points,
+} from 'three'
 
 export class Rhino3dmLoader2 extends Rhino3dmLoader {
     public static LIBRARY_PATH = 'https://cdn.jsdelivr.net/npm/rhino3dm@7.15.0/'
@@ -9,10 +21,14 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
         this.setLibraryPath(Rhino3dmLoader2.LIBRARY_PATH)
     }
     public static ImportMaterials = true
+    public static ForceLayerMaterials = false
+    public static ReplaceWithInstancedMesh = false
+    public static HideLineMesh = false
 
     materials: Material[] = []
 
-    protected _createMaterial(material: any): Material {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    _createMaterial(material: any): Material {
         if (!Rhino3dmLoader2.ImportMaterials) return this.materials[0] || new MeshStandardMaterial({
             color: new Color(1, 1, 1),
             metalness: 0.8,
@@ -43,6 +59,7 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
 
             // console.log(obj.userData.attributes)
             // instancing
+            this._hideLineMesh(obj)
             this._useInstancedMesh(obj)
             this._useMaterialSource(obj, layer)
         })
@@ -53,15 +70,17 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
     private _useMaterialSource(obj: Object3D, layer: any) {
         if (!Rhino3dmLoader2.ImportMaterials) return
         const mesh = obj as Mesh
-        if ((mesh.material as any)?.name === 'default') {
+        if ((mesh.material as any)?.name === 'default' || Rhino3dmLoader2.ForceLayerMaterials) {
 
             // https://developer.rhino3d.com/api/rhinoscript/object_methods/objectmaterialsource.htm
             const materialSource = mesh.userData.attributes?.materialSource || mesh.userData.defAttributes?.materialSource
             const colorSource = mesh.userData.attributes?.colorSource || mesh.userData.defAttributes?.colorSource
             // const materialSource = mesh.userData.defAttributes?.materialSource
             // console.log(materialSource, mesh.userData.attributes, mesh.userData.defAttributes)
-            if (!materialSource && !colorSource) return
-            if (materialSource?.value === 0 || materialSource?.value === 1 && colorSource?.value === 0) { // material from layer
+            if (!Rhino3dmLoader2.ForceLayerMaterials && !materialSource && !colorSource) return
+            if (Rhino3dmLoader2.ForceLayerMaterials ||
+                (materialSource?.value === 0 || materialSource?.value === 1 && colorSource?.value === 0)
+            ) { // material from layer
                 if (layer) {
                     mesh.material = this._compareMaterials(this._createMaterial({
                         diffuseColor: layer.color,
@@ -80,7 +99,6 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
         }
     }
 
-    static ReplaceWithInstancedMesh = false
     private _useInstancedMesh(obj: Object3D) {
         if (!Rhino3dmLoader2.ReplaceWithInstancedMesh) return
         if (obj.children.length <= 0) return
@@ -104,6 +122,23 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
                 })
                 obj.add(instanced)
             }
+        })
+    }
+
+    private _hideLineMesh(obj: Object3D) {
+        if (!Rhino3dmLoader2.HideLineMesh) return
+        if (obj.children.length <= 0) return
+        const toHide: any[] = []
+        obj.traverse((c) => {
+            if (c && (
+                (c as Line).isLine ||
+                (c as LineSegments).isLineSegments ||
+                (c as Points).isPoints
+            )) toHide.push(c)
+        })
+        toHide.forEach((c) => {
+            c.userData.visible_3dm = c.visible
+            c.visible = false
         })
     }
 }
