@@ -2,6 +2,7 @@ import {GLTFExporter, GLTFExporterOptions} from 'three/examples/jsm/exporters/GL
 import {BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, Texture} from 'three'
 import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
+import {ThreeSerialization} from '../../utils'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
@@ -32,12 +33,17 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
             }
         })
 
-        super.serializeUserData(object, objectDef)
-
+        const ud2 = ThreeSerialization.Serialize(userData)
         Object.entries(temp).forEach(([key, value]) => {
             userData[key] = value
             delete temp[key]
         })
+        object.userData = ud2
+        super.serializeUserData(object, objectDef)
+        object.userData = userData
+
+        super.serializeUserData(object, objectDef)
+
     }
 
     processObjects(objects: Object3D[]) {

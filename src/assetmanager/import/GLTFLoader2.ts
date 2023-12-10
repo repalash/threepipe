@@ -16,6 +16,7 @@ import {
 } from '../gltf'
 import {RootSceneImportResult} from '../IAssetImporter'
 import {ILoader} from '../IImporter'
+import {ThreeSerialization} from '../../utils'
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
@@ -96,6 +97,17 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     // loads the viewer config and handles loading the draco loader for extension
     gltfViewerParser = (viewer: ThreeViewer): (p: GLTFParser)=>GLTFLoaderPlugin => {
         return (parser: GLTFParser) => {
+            const getDependency = parser.getDependency
+            parser.getDependency = async(type: string, index: number) => {
+                const res = await getDependency.call(parser, type, index)
+                if (res.userData) {
+                    const gltfExtensions = res.userData.gltfExtensions
+                    delete res.userData.gltfExtensions
+                    res.userData = ThreeSerialization.Deserialize(res.userData, {})
+                    res.userData.gltfExtensions = gltfExtensions
+                }
+                return res
+            }
             const tempPathDrc = generateUUID() + '.drc'
             const tempPathKtx2 = generateUUID() + '.ktx2'
             const needsDrc = parser.json?.extensionsRequired?.includes?.('KHR_draco_mesh_compression')
