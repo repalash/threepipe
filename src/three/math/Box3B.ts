@@ -5,9 +5,10 @@ export class Box3B extends Box3 {
     private static _box = new Box3B()
     private _vector = new Vector3()
 
-    expandByObject(object: Object3D|IObject3D, precise = false, ignoreInvisible = false): this {
+    expandByObject(object: Object3D|IObject3D, precise = false, ignoreInvisible = false, ignoreObject?: (obj: Object3D)=>boolean): this {
         if (object.userData?.bboxVisible === false) return this
         if (!object.visible && ignoreInvisible) return this
+        if (ignoreObject && ignoreObject(object)) return this
 
         // copied the whole function from three.js to pass in ignoreInvisible
 

@@ -21,7 +21,7 @@ export class CustomContextMenu {
     private static _initialize(): void {
         this._inited = true
         document.addEventListener('pointerdown', (e) => {
-            if (this.Element && !this.Element.contains(e.target as any)) {
+            if (this.Element && !this.Element.contains(e.target as any) && e.button === 0) {
                 this.Remove()
             }
         })

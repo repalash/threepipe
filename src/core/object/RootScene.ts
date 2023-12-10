@@ -15,7 +15,7 @@ import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
-import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions} from '../IScene'
+import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
@@ -362,11 +362,16 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * Returns the bounding box of the scene model root.
      * @param precise
      * @param ignoreInvisible
+     * @param ignoreWidgets
+     * @param ignoreObject
      * @returns {Box3B}
      */
-    getBounds(precise = false, ignoreInvisible = true): Box3B {
+    getBounds(precise = false, ignoreInvisible = true, ignoreWidgets = true, ignoreObject?: (obj: Object3D)=>boolean): Box3B {
         // See bboxVisible in userdata in Box3B
-        return new Box3B().expandByObject(this, precise, ignoreInvisible)
+        return new Box3B().expandByObject(this, precise, ignoreInvisible, (o: any)=>{
+            if (ignoreWidgets && ((o as IWidget).isWidget || o.assetType === 'widget')) return true
+            return ignoreObject?.(o) ?? false
+        })
     }
 
     private _v1 = new Vector3()

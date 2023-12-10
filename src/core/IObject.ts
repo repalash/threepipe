@@ -96,6 +96,12 @@ export interface IObject3DUserData extends IImportResultUserData {
      */
     userSelectable?: boolean
 
+    /**
+     * see {@link GLTFAnimationPlugin}
+     */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    gltfAnim_SyncMaxDuration?: boolean
+
     // region root scene model root
 
     /**

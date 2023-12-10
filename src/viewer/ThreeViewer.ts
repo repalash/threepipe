@@ -490,7 +490,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
     }
 
-    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null> {
+    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
         const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
             this._canvas.toBlob((blob) => {
                 resolve(blob)
@@ -505,7 +505,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         })
     }
 
-    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null> {
+    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
         return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
@@ -1039,11 +1039,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return await MetaImporter.ImportMeta(meta, extraResources)
     }
 
-    async doOnce<TRet>(event: IViewerEventTypes, func: (...args: any[]) => TRet): Promise<TRet> {
+    async doOnce<TRet>(event: IViewerEventTypes, func?: (...args: any[]) => TRet): Promise<TRet|undefined> {
         return new Promise((resolve) => {
             const listener = async(...args: any[]) => {
                 this.removeEventListener(event, listener)
-                resolve(await func(...args))
+                resolve(await func?.(...args))
             }
             this.addEventListener(event, listener)
         })
@@ -1063,8 +1063,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     private _resolvePluginOrClass<T extends IViewerPlugin>(plugin: T | Class<T>, ...args: ConstructorParameters<Class<T>>): T {
         let p: T
-        if ((plugin as Class<IViewerPlugin>).prototype) p = new (plugin as Class<T>)(...args)
-        else p = plugin as T
         if ((plugin as Class<IViewerPlugin>).prototype) {
             const p1 = this.getPlugin(plugin as Class<T>)
             if (p1) {

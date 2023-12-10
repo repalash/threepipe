@@ -164,7 +164,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
             this.renderToScreen = false // for super RenderPass.render
 
-            if (!renderer.info.autoReset) throw 'renderer.info.autoReset must be true'
+            if (renderer.info && !renderer.info.autoReset) throw 'renderer.info.autoReset must be true'
 
             // Opaque
             {
@@ -210,7 +210,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 renderer.autoClearDepth = curClearDepth
             }
 
-            if (renderer.info.render.calls > 0) {
+            if (!renderer.info || renderer.info.render.calls > 0) {
 
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture
                 this._blendPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
@@ -246,7 +246,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
 
             // console.log(renderer.info.render.calls)
-            if (renderer.info.render.calls > 0) {
+            if (!renderer.info || renderer.info.render.calls > 0) {
 
                 // console.log('missive blit', renderer.info.render.frame)
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture
