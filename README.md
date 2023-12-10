@@ -98,6 +98,9 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](#geometryuvpreviewplugin) - Preview UVs of any geometry in a UI panel over the canvas
   - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [VignettePlugin](#vignetteplugin) - Add Vignette effect  by patching the final screen pass
+  - [ChromaticAberrationPlugin](#chromaticaberrationplugin) - Add Chromatic Aberration effect  by patching the final screen pass
+  - [FilmicGrainPlugin](#filmicgrainplugin) - Add Filmic Grain effect  by patching the final screen pass
   - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
@@ -2427,6 +2430,55 @@ vignettePlugin.color = new Color(0.5, 0, 0)
 
 // or 
 // vignettePlugin.color.set('#ff0000'); vignettePlugin.setDirty() // Call setDirty to tell the plugin that color has changed
+```
+
+## ChromaticAberrationPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#chromatic-aberration-plugin/
+
+Source Code: [src/plugins/postprocessing/ChromaticAberrationPlugin.ts](./src/plugins/postprocessing/ChromaticAberrationPlugin.ts)
+
+API Reference: [ChromaticAberrationPlugin](https://threepipe.org/docs/classes/ChromaticAberrationPlugin.html)
+
+ChromaticAberrationPlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a chromatic-aberration effect to the final render. The parameter `intensity` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, ChromaticAberrationPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const chromaticAberrationPlugin = viewer.addPluginSync(ChromaticAberrationPlugin)
+
+// Change the chromaticAberration color
+chromaticAberrationPlugin.intensity = 0.5
+```
+
+## FilmicGrainPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#filmic-grain-plugin/
+
+Source Code: [src/plugins/postprocessing/FilmicGrainPlugin.ts](./src/plugins/postprocessing/FilmicGrainPlugin.ts)
+
+API Reference: [FilmicGrainPlugin](https://threepipe.org/docs/classes/FilmicGrainPlugin.html)
+
+FilmicGrainPlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a filmic-grain effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, FilmicGrainPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const filmicGrainPlugin = viewer.addPluginSync(FilmicGrainPlugin)
+
+// Change the filmicGrain color
+filmicGrainPlugin.intensity = 10
+filmicGrainPlugin.multiply = false
 ```
 
 ## HDRiGroundPlugin

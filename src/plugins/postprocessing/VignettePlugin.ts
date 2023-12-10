@@ -26,7 +26,7 @@ export class VignettePlugin extends AScreenPassExtensionPlugin<''> {
 
     @onChange(VignettePlugin.prototype.setDirty)
     @uiToggle('Enable')
-    @serialize() enabled = false
+    @serialize() enabled: boolean
 
     @uiSlider('Power', [0.1, 4], 0.01)
     @uniform({propKey: 'power'})
@@ -62,4 +62,10 @@ export class VignettePlugin extends AScreenPassExtensionPlugin<''> {
         console.warn('VignettePlugin.bgcolor is deprecated, use VignettePlugin.color instead')
         this.color = v
     }
+
+    constructor(enabled = true) {
+        super()
+        this.enabled = enabled
+    }
+
 }

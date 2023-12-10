@@ -34,6 +34,8 @@ export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
 export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'
 export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 export {VignettePlugin} from './postprocessing/VignettePlugin'
+export {ChromaticAberrationPlugin} from './postprocessing/ChromaticAberrationPlugin'
+export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
