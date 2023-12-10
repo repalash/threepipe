@@ -346,6 +346,8 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
                 // target should always be in world space
             }
         }
+        view.isWorldSpace = worldSpace
+        view.uiConfig?.uiRefresh?.(true, 'postFrame')
         return view as T
     }
 

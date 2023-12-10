@@ -153,13 +153,15 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     addView(view: CameraView) {
         this._cameraViews.push(view)
-        view.addEventListener('setView', this._viewSetView)
-        view.addEventListener('animateView', this._viewAnimateView)
+        view.addEventListener('setView', this._viewSetView as any)
+        view.addEventListener('updateView', this._viewUpdateView as any)
+        view.addEventListener('deleteView', this._viewDeleteView as any)
+        view.addEventListener('animateView', this._viewAnimateView as any)
         this.uiConfig.uiRefresh?.()
         this.dispatchEvent({type: 'viewAdd', view})
     }
 
-    protected _viewSetView = ({view, camera}: {view: CameraView, camera?: ICamera}&any) => {
+    protected _viewSetView = ({view, camera}: {view?: CameraView, camera?: ICamera}) => {
         if (!view) {
             this._viewer?.console.warn('Invalid view', view)
             return
@@ -167,7 +169,25 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         this.setView(view, camera)
     }
 
-    protected _viewAnimateView = async({view, camera, duration, easing, throwOnStop}: {view: CameraView, camera?: ICamera, duration?: number, easing?: Easing|EasingFunctionType, throwOnStop?: boolean}&any) => {
+    protected _viewUpdateView = ({view, camera}: {view: CameraView, camera?: ICamera}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        const name = view.name
+        this.getView(camera, view.isWorldSpace ?? true, view)
+        view.name = name
+    }
+
+    protected _viewDeleteView = ({view}: {view: CameraView}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        this.deleteView(view)
+    }
+
+    protected _viewAnimateView = async({view, camera, duration, easing, throwOnStop}: {view: CameraView, camera?: ICamera, duration?: number, easing?: Easing|EasingFunctionType, throwOnStop?: boolean}) => {
         if (!view) {
             this._viewer?.console.warn('Invalid view', view)
             return
@@ -183,10 +203,10 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         this.dispatchEvent({type: 'viewDelete', view})
     }
 
-    getView(camera?: ICamera, worldSpace = true) {
+    getView(camera?: ICamera, worldSpace = true, view?: CameraView) {
         camera = camera || this._viewer?.scene.mainCamera
-        if (!camera) return new CameraView()
-        return camera.getView(worldSpace)
+        if (!camera) return view ?? new CameraView()
+        return camera.getView(worldSpace, view)
     }
 
     setView(view: ICameraView, camera?: ICamera) {
