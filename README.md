@@ -2401,6 +2401,34 @@ To stop a transition, call `fadePlugin.stopTransition()`. This will immediately 
 
 The plugin automatically tracks `setDirty()` function calls in objects, materials and the scene. It can be triggerred by calling `setDirty` on any material or object in the scene. Check the [example](https://threepipe.org/examples/#frame-fade-plugin/) for a demo. This can be disabled by options in the plugin.
 
+## VignettePlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#vignette-plugin/
+
+Source Code: [src/plugins/postprocessing/VignettePlugin.ts](./src/plugins/postprocessing/VignettePlugin.ts)
+
+API Reference: [VignettePlugin](https://threepipe.org/docs/classes/VignettePlugin.html)
+
+VignettePlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a vignette effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, VignettePlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const vignettePlugin = viewer.addPluginSync(VignettePlugin)
+
+// Change the vignette color
+vignettePlugin.power = 1
+vignettePlugin.color = new Color(0.5, 0, 0)
+
+// or 
+// vignettePlugin.color.set('#ff0000'); vignettePlugin.setDirty() // Call setDirty to tell the plugin that color has changed
+```
+
 ## HDRiGroundPlugin
 
 [//]: # (todo: image)
