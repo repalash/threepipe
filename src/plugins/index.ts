@@ -42,5 +42,11 @@ export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
 export {PopmotionPlugin} from './animation/PopmotionPlugin'
 export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
 
+// material
+export {ClearcoatTintPlugin} from './material/ClearcoatTintPlugin'
+export {NoiseBumpMaterialPlugin} from './material/NoiseBumpMaterialPlugin'
+export {CustomBumpMapPlugin} from './material/CustomBumpMapPlugin'
+export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
+
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
