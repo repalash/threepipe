@@ -153,6 +153,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     isCamera?: boolean
     isMesh?: boolean
     isLine?: boolean
+    isLineSegments?: boolean
     // isGroup?: boolean
     isScene?: boolean
     // isHelper?: boolean

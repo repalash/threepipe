@@ -174,7 +174,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             } : {},
         ],
     }
-    if (this.isMesh && isMesh !== false) {
+    if ((this.isLine || this.isMesh) && isMesh !== false) {
         // todo: move to make mesh ui function?
         const ui = [
             // morph targets

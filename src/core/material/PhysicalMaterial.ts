@@ -14,7 +14,7 @@ import {
     Vector2,
     WebGLRenderer,
 } from 'three'
-import {shaderReplaceString} from '../../utils/shader-helpers'
+import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
     IMaterial,
     IMaterialEvent,
@@ -22,8 +22,8 @@ import {
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
+    IMaterialUserData,
 } from '../IMaterial'
-import {SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
@@ -37,6 +37,8 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     public static readonly TypeSlug = 'pmat'
     public static readonly TYPE = 'PhysicalMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
+
+    userData: IMaterialUserData
 
     public readonly isPhysicalMaterial = true
 

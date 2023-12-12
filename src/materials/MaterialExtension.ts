@@ -15,8 +15,9 @@ export interface MaterialExtension{
 
     /**
      * Extra defines to copy to material
+     * Note: boolean are converted to 0 and 1
      */
-    extraDefines?: Record<string, ValOrFunc<number|string|undefined>>;
+    extraDefines?: Record<string, ValOrFunc<number|string|undefined|boolean>>;
 
     /**
      * Custom callback to extend/modify/replace shader code and other shader properties
@@ -85,7 +86,7 @@ export interface MaterialExtension{
      * This is called once when the material extension is registered.
      * @param material
      */
-    getUiConfig?: (material: IMaterial, refreshUi: UiObjectConfig['uiRefresh']) => UiObjectConfig | undefined
+    getUiConfig?: (material: IMaterial, refreshUi?: UiObjectConfig['uiRefresh']) => UiObjectConfig | undefined
 
     /**
      * Higher priority extensions are applied first.

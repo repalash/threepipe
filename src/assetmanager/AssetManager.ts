@@ -303,7 +303,6 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
             if (!data.metadata) {
                 console.warn('Invalid data(no metadata)', data)
             }
-            console.log(data, event)
             if (event.material) {
                 if (data.metadata?.type !== 'Material') {
                     console.warn('Invalid material data', data)

@@ -1,10 +1,10 @@
 import {Group, Sphere, Vector2} from 'three'
-import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js'
 import {AnyOptions} from 'ts-browser-helpers'
 import {Box3B} from '../math/Box3B'
 import {IObject3D, IWidget} from '../../core'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
+import {LineMaterial2} from '../../core/material/LineMaterial2'
 
 export class SelectionWidget extends Group implements IWidget {
     isWidget = true as const
@@ -79,7 +79,7 @@ export class SelectionWidget extends Group implements IWidget {
 export class BoxSelectionWidget extends SelectionWidget {
     constructor() {
         super()
-        const matLine = new LineMaterial({
+        const matLine = new LineMaterial2({
             color: '#ff2222' as any, transparent: true, opacity: 0.9,
             linewidth: 5, // in pixels
             resolution: new Vector2(1024, 1024), // to be set by renderer, eventually
@@ -90,7 +90,7 @@ export class BoxSelectionWidget extends SelectionWidget {
         const ls = new LineSegmentsGeometry()
         ls.setPositions([1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1].map(v=>v - 0.5))
 
-        const wireframe = new LineSegments2(ls, matLine)
+        const wireframe = new LineSegments2(ls, matLine as any)
         wireframe.computeLineDistances()
         wireframe.scale.set(1, 1, 1)
         wireframe.visible = true

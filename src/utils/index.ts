@@ -1,4 +1,5 @@
 export * from './browser-helpers'
+export * from './shaders'
 export {windowDialogWrapper, type IDialogWrapper} from './DialogWrapper'
 export {GLStatsJS} from './GLStatsJS'
 export {CustomContextMenu} from './CustomContextMenu'

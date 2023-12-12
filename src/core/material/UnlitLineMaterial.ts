@@ -1,14 +1,4 @@
-import {
-    Color,
-    IUniform,
-    Material,
-    MeshPhongMaterial,
-    MeshPhongMaterialParameters,
-    MultiplyOperation,
-    Shader,
-    Vector2,
-    WebGLRenderer,
-} from 'three'
+import {Color, IUniform, LineBasicMaterial, LineBasicMaterialParameters, Material, Shader, WebGLRenderer} from 'three'
 import {UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
@@ -21,24 +11,23 @@ import {
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
-import {ITexture} from '../ITexture'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
-import {iMaterialUI} from './IMaterialUi'
 import {makeSamplerUi} from '../../ui/image-ui'
+import {iMaterialUI} from './IMaterialUi'
 
-export type PhongMaterialEventTypes = IMaterialEventTypes | ''
+export type UnlitLineMaterialEventTypes = IMaterialEventTypes | ''
 
-export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, PhongMaterialEventTypes> implements IMaterial<IMaterialEvent, PhongMaterialEventTypes> {
-    declare ['constructor']: typeof LegacyPhongMaterial
+export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> {
+    declare ['constructor']: typeof UnlitLineMaterial
 
-    public static readonly TypeSlug = 'phongmat'
-    public static readonly TYPE = 'LegacyPhongMaterial' // not using .type because it is used by three.js
+    public static readonly TypeSlug = 'blmat'
+    public static readonly TYPE = 'UnlitLineMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
 
     userData: IMaterialUserData
 
-    public readonly isLegacyPhongMaterial = true
+    public readonly isUnlitLineMaterial = true
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
@@ -48,9 +37,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
 
     generator?: IMaterialGenerator
 
-    envMap: ITexture | null = null
-
-    constructor({customMaterialExtensions, ...parameters}: MeshPhongMaterialParameters & IMaterialParameters = {}) {
+    constructor({customMaterialExtensions, ...parameters}: LineBasicMaterialParameters & IMaterialParameters = {}) {
         super(parameters)
         !this.defines && (this.defines = {})
         this.fog = false
@@ -85,21 +72,10 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
         for (const vElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
 
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
-        // ;(shader as any).defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0 // todo
 
         super.onBeforeCompile(shader, renderer)
     }
 
-    // onBeforeRender(...args: Parameters<IMaterial['onBeforeRender']>): void {
-    //     super.onBeforeRender(...args)
-    //     iMaterialCommons.onBeforeRender.call(this, ...args)
-    //
-    //     // const t = this.userData.inverseAlphaMap ? 1 : 0 // todo
-    //     // if (t !== this.defines.INVERSE_ALPHAMAP) {
-    //     //     this.defines.INVERSE_ALPHAMAP = t
-    //     //     this.needsUpdate = true
-    //     // }
-    // }
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
@@ -114,9 +90,9 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(MeshPhongMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(LineBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['MeshPhongMaterial', 'MeshPhongMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['LineBasicMaterial', 'LineBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -168,70 +144,47 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
     // todo dispose ui config
     uiConfig: UiObjectConfig = {
         type: 'folder',
-        label: 'Phong Material',
-        uuid: 'MBM2_' + this.uuid,
+        label: 'Unlit Line Material',
+        uuid: 'MBLM2_' + this.uuid,
         expanded: true,
         children: [
-            ...iMaterialUI.base(this),
+            {
+                type: 'input',
+                property: [this, 'name'],
+            },
+            // {
+            //     type: 'monitor',
+            //     property: [this, 'uuid'],
+            // },
+            {
+                type: 'checkbox',
+                property: [this, 'vertexColors'],
+            },
+            {
+                type: 'color',
+                property: [this, 'color'],
+            },
+            makeSamplerUi(this, 'map'),
+            {
+                type: 'number',
+                property: [this, 'linewidth'],
+            },
+            {
+                type: 'dropdown',
+                property: [this, 'linecap'],
+                children: ['butt', 'round', 'square'].map(label => ({label})),
+            },
+            {
+                type: 'dropdown',
+                property: [this, 'linejoin'],
+                children: ['bevel', 'round', 'miter'].map(label => ({label})),
+            },
+            // {
+            //     type: 'checkbox',
+            //     property: [this, 'fog'],
+            // },
             iMaterialUI.blending(this),
             iMaterialUI.polygonOffset(this),
-            iMaterialUI.aoLightMap(this),
-            {
-                type: 'folder',
-                label: 'Specular',
-                children: [
-                    {
-                        type: 'color',
-                        property: [this, 'specular'],
-                    },
-                    {
-                        type: 'image',
-                        property: [this, 'specularMap'],
-                    },
-                    makeSamplerUi(this, 'specularMap'),
-                    {
-                        type: 'slider',
-                        label: 'Shininess',
-                        property: [this, 'shininess'],
-                        bounds: [0, 100],
-                        stepSize: 0.1,
-                    },
-                    {
-                        type: 'slider',
-                        label: 'Reflectivity',
-                        property: [this, 'reflectivity'],
-                        bounds: [0, 1],
-                        stepSize: 0.01,
-                    },
-                    {
-                        type: 'slider',
-                        label: 'Refraction Ratio',
-                        property: [this, 'refractionRatio'],
-                        bounds: [0, 3],
-                        stepSize: 0.01,
-                    },
-                ],
-            },
-            iMaterialUI.bumpNormal(this),
-            iMaterialUI.emission(this),
-            {
-                type: 'folder',
-                label: 'Env Map',
-                children: [
-                    {
-                        type: 'image',
-                        property: [this, 'envMap'],
-                    },
-                    makeSamplerUi(this, 'envMap'),
-                    {
-                        type: 'slider',
-                        label: 'Env Map Intensity',
-                        property: [this, 'envMapIntensity'],
-                        bounds: [0, 5],
-                        stepSize: 0.01,
-                    },
-                ],
-            },
             ...iMaterialUI.misc(this),
         ],
     }
@@ -245,50 +198,30 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
         ...threeMaterialPropList,
 
         color: new Color(0xffffff),
-        specular: new Color(0x111111),
-        shininess: 30,
         map: null,
-        lightMap: null,
-        lightMapIntensity: 1,
-        aoMap: null,
-        aoMapIntensity: 1,
-        emissive: new Color(0x000000),
-        emissiveIntensity: 1,
-        emissiveMap: null,
-        bumpMap: null,
-        bumpScale: 1,
-        normalMap: null,
-        normalMapType: 'TangentSpaceNormalMap',
-        normalScale: new Vector2(1, 1),
-        displacementMap: null,
-        displacementScale: 1,
-        displacementBias: 0,
-        specularMap: null,
-        alphaMap: null,
-        envMap: null,
-        combine: MultiplyOperation,
-        envMapIntensity: 1,
-        reflectivity: 1,
-        refractionRatio: 0.98,
-        wireframe: false,
-        wireframeLinewidth: 1,
-        wireframeLinecap: 'round',
-        wireframeLinejoin: 'round',
-        skinning: false,
+        linewidth: 1,
+        linecap: 'round',
+        linejoin: 'round',
         fog: true,
-        flatShading: false,
     }
 
-    static MaterialTemplate: IMaterialTemplate<LegacyPhongMaterial, Partial<typeof LegacyPhongMaterial.MaterialProperties>> = {
-        materialType: LegacyPhongMaterial.TYPE,
-        name: 'phong',
-        typeSlug: LegacyPhongMaterial.TypeSlug,
-        alias: ['phong', 'legacy-phong', LegacyPhongMaterial.TYPE, LegacyPhongMaterial.TypeSlug, 'MeshPhongMaterial', 'MeshPhongMaterial2', 'PhongMaterial'],
+    static MaterialTemplate: IMaterialTemplate<UnlitLineMaterial, Partial<typeof UnlitLineMaterial.MaterialProperties>> = {
+        materialType: UnlitLineMaterial.TYPE,
+        name: 'unlit_line',
+        typeSlug: UnlitLineMaterial.TypeSlug,
+        alias: ['line_basic', 'unlit_line', UnlitLineMaterial.TYPE, UnlitLineMaterial.TypeSlug, 'LineBasicMaterial', 'LineBasicMaterial2'],
         params: {
             color: new Color(1, 1, 1),
         },
         generator: (params) => {
-            return new LegacyPhongMaterial(params)
+            return new UnlitLineMaterial(params)
         },
+    }
+}
+
+export class LineBasicMaterial2 extends UnlitLineMaterial {
+    constructor(parameters?: LineBasicMaterialParameters) {
+        super(parameters)
+        console.error('LineBasicMaterial2 is deprecated, use UnlitLineMaterial instead')
     }
 }

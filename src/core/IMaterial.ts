@@ -58,7 +58,7 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     inverseAlphaMap?: boolean // only for physical material right now
 
-    [key: string]: any // commented for noe
+    [key: string]: any
 
 
     // legacy, to be removed

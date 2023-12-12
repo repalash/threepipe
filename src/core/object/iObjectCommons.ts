@@ -117,9 +117,9 @@ export const iObjectCommons = {
         })
         // this is called initially in Material manager from process model below, not required here...
         // todo: shouldnt be called from there. maybe check if material is upgraded before
-        if (currentMaterial && !Array.isArray(currentMaterial) && !currentMaterial.assetType) {
-            console.error('todo: initMaterial: material not upgraded')
-        }
+        // if (currentMaterial && !Array.isArray(currentMaterial) && !currentMaterial.assetType) {
+        //     console.error('todo: initMaterial: material not upgraded')
+        // }
         this.material = currentMaterial
 
         // Legacy
@@ -168,7 +168,7 @@ export const iObjectCommons = {
             // const mat = material?.materialObject
             if (!mat) continue
             if (!mat.assetType) {
-                console.error('Material not upgraded')
+                console.warn('Upgrading Material', mat)
                 iMaterialCommons.upgradeMaterial.call(mat)
             }
             materials.push(mat)

@@ -75,7 +75,7 @@ export const threeMaterialPropList = {
 export const iMaterialCommons = {
     threeMaterialPropList,
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
-        this.needsUpdate = true
+        if (options?.needsUpdate !== false) this.needsUpdate = true
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },

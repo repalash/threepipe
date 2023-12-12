@@ -1,14 +1,6 @@
-import {
-    Color,
-    IUniform,
-    Material,
-    MeshBasicMaterial,
-    MeshBasicMaterialParameters,
-    MultiplyOperation,
-    Shader,
-    WebGLRenderer,
-} from 'three'
-import {UiObjectConfig} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
+import {Color, IUniform, Material, Shader, Vector2, WebGLRenderer} from 'three'
+import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
     IMaterial,
     IMaterialEvent,
@@ -16,27 +8,22 @@ import {
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
-    IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
-import {ITexture} from '../ITexture'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
+import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/lines/LineMaterial.js'
 
-export type UnlitMaterialEventTypes = IMaterialEventTypes | ''
+export type LineMaterial2EventTypes = IMaterialEventTypes | ''
 
-export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitMaterialEventTypes> {
-    declare ['constructor']: typeof UnlitMaterial
-
-    public static readonly TypeSlug = 'bmat'
-    public static readonly TYPE = 'UnlitMaterial' // not using .type because it is used by three.js
+export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2EventTypes> implements IMaterial<IMaterialEvent, LineMaterial2EventTypes> {
+    declare ['constructor']: typeof LineMaterial2
+    public static readonly TypeSlug = 'lmat'
+    public static readonly TYPE = 'LineMaterial2' // not using .type because it is used by three.js
     assetType = 'material' as const
 
-    userData: IMaterialUserData
-
-    public readonly isUnlitMaterial = true
+    public readonly isLineMaterial2 = true
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
@@ -46,11 +33,8 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     generator?: IMaterialGenerator
 
-    envMap: ITexture | null = null
-
-    constructor({customMaterialExtensions, ...parameters}: MeshBasicMaterialParameters & IMaterialParameters = {}) {
+    constructor({customMaterialExtensions, ...parameters}: LineMaterialParameters & IMaterialParameters = {}) {
         super(parameters)
-        !this.defines && (this.defines = {})
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
@@ -70,38 +54,61 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         const f = [
-            ['vec3 outgoingLight = ', 'afterModulation'], // added markers before found substring
-            ['#include <aomap_fragment>', 'beforeModulation'],
-            ['ReflectedLight reflectedLight = ', 'beforeAccumulation'],
+            ['vec4 diffuseColor = ', 'beforeAccumulation'],
             ['#include <clipping_planes_fragment>', 'mainStart'],
         ]
         const v = [
-            ['#include <uv_vertex>', 'mainStart'],
+            ['#ifdef USE_COLOR', 'mainStart'],
         ]
-
         for (const vElement of v) shader.vertexShader = shaderReplaceString(shader.vertexShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
-        for (const vElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
+        for (const fElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, fElement[0], '#glMarker ' + fElement[1] + '\n' + fElement[0])
 
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
-        // ;(shader as any).defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0 // todo
 
         super.onBeforeCompile(shader, renderer)
     }
 
-    // onBeforeRender(...args: Parameters<IMaterial['onBeforeRender']>): void {
-    //     super.onBeforeRender(...args)
-    //     iMaterialCommons.onBeforeRender.call(this, ...args)
-    //
-    //     // const t = this.userData.inverseAlphaMap ? 1 : 0 // todo
-    //     // if (t !== this.defines.INVERSE_ALPHAMAP) {
-    //     //     this.defines.INVERSE_ALPHAMAP = t
-    //     //     this.needsUpdate = true
-    //     // }
-    // }
-    onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion
+
+
+    // region UI Config
+
+    @uiInput() name: string
+    @uiColor() color: Color
+    @uiToggle() dashed: boolean
+    @uiNumber() dashScale: number
+    @uiNumber() dashSize: number
+    @uiNumber() dashOffset: number
+    @uiNumber() gapSize: number
+    @uiNumber() linewidth: number
+    @uiVector() resolution: Vector2
+    @uiToggle() alphaToCoverage: boolean
+    @uiToggle() worldUnits: boolean
+    // @uiToggle() fog = true
+
+
+    // todo dispose ui config
+    uiConfig: UiObjectConfig = {
+        type: 'folder',
+        label: 'Line Material',
+        uuid: 'MPM2_' + this.uuid,
+        expanded: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+        },
+        children: [
+            ...generateUiConfig(this),
+            iMaterialUI.blending(this),
+            iMaterialUI.polygonOffset(this),
+            ...iMaterialUI.misc(this),
+        ],
+    }
+
+    // endregion UI Config
+
 
     // region Serialization
 
@@ -112,9 +119,9 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(MeshBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(LineMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['MeshBasicMaterial', 'MeshBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -125,6 +132,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         this.userData.uuid = this.uuid
         return this
     }
+
     copy(source: Material|any): this {
         return this.setValues(source, false)
     }
@@ -144,8 +152,8 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     /**
      * Deserializes the material from JSON.
-     * Textures should be loaded and in meta.textures before calling this method.
-     * todo - needs to be tested
+     * Note: some properties that are not serialized in Material.toJSON when they are default values (like side, alphaTest, blending, maps), they wont be reverted back if not present in JSON
+     * If _internal = true, Textures should be loaded and in meta.textures before calling this method.
      * @param data
      * @param meta
      * @param _internal
@@ -153,7 +161,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     fromJSON(data: any, meta?: SerializationMetaType, _internal = false): this | null {
         if (_internal) {
             ThreeSerialization.Deserialize(data, this, meta, true)
-            return this.setValues(data)
+            return this.setValues(data) // todo remove this and add @serialize decorator to properties
         }
         this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true})
         return this
@@ -161,70 +169,42 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
     // endregion
 
-    // region UI Config
-
-    // todo dispose ui config
-    uiConfig: UiObjectConfig = {
-        type: 'folder',
-        label: 'Unlit Material',
-        uuid: 'MBM2_' + this.uuid,
-        expanded: true,
-        children: [
-            ...iMaterialUI.base(this),
-            iMaterialUI.blending(this),
-            iMaterialUI.polygonOffset(this),
-            iMaterialUI.aoLightMap(this),
-            ...iMaterialUI.misc(this),
-        ],
-    }
-
-    // endregion UI Config
-
-
-    // Class properties can also be listed with annotations like @serialize or @property
-    // used for serialization
+    // used for serialization and used in setValues
     static readonly MaterialProperties = {
+        // keep updated with properties in LineMaterial.js
         ...threeMaterialPropList,
 
         color: new Color(0xffffff),
-        map: null,
-        lightMap: null,
-        lightMapIntensity: 1,
-        aoMap: null,
-        aoMapIntensity: 1,
-        specularMap: null,
-        alphaMap: null,
-        envMap: null,
-        combine: MultiplyOperation,
-        envMapIntensity: 1,
-        reflectivity: 1,
-        refractionRatio: 0.98,
-        wireframe: false,
-        wireframeLinewidth: 1,
-        wireframeLinecap: 'round',
-        wireframeLinejoin: 'round',
-        skinning: false,
+        dashed: false,
+        dashScale: 1,
+        dashSize: 1,
+        dashOffset: 0,
+        gapSize: 1,
+        linewidth: 1,
+        resolution: new Vector2(1, 1),
+        alphaToCoverage: false,
+        worldUnits: false,
+
+        uniforms: {},
+        defines: {},
+        extensions: {},
+        clipping: false,
         fog: true,
-        flatShading: false,
+        fragmentShader: '',
+        vertexShader: '',
+
     }
 
-    static MaterialTemplate: IMaterialTemplate<UnlitMaterial, Partial<typeof UnlitMaterial.MaterialProperties>> = {
-        materialType: UnlitMaterial.TYPE,
-        name: 'unlit',
-        typeSlug: UnlitMaterial.TypeSlug,
-        alias: ['basic', 'unlit', UnlitMaterial.TYPE, UnlitMaterial.TypeSlug, 'MeshBasicMaterial', 'MeshBasicMaterial2'],
+    static MaterialTemplate: IMaterialTemplate<LineMaterial2, Partial<typeof LineMaterial2.MaterialProperties>> = {
+        materialType: LineMaterial2.TYPE,
+        name: 'line',
+        typeSlug: LineMaterial2.TypeSlug,
+        alias: ['line', 'line_physical', LineMaterial2.TYPE, LineMaterial2.TypeSlug, 'LineMaterial'],
         params: {
             color: new Color(1, 1, 1),
         },
         generator: (params) => {
-            return new UnlitMaterial(params)
+            return new LineMaterial2(params)
         },
-    }
-}
-
-export class MeshBasicMaterial2 extends UnlitMaterial {
-    constructor(parameters?: MeshBasicMaterialParameters) {
-        super(parameters)
-        console.error('MeshBasicMaterial2 is deprecated, use UnlitMaterial instead')
     }
 }

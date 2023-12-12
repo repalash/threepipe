@@ -7,13 +7,15 @@ import {
     IMaterialTemplate,
     ITexture,
     ITextureEvent,
+    LegacyPhongMaterial,
+    LineMaterial2,
     PhysicalMaterial,
+    UnlitLineMaterial,
     UnlitMaterial,
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID, isInScene} from '../three'
-import {LegacyPhongMaterial} from '../core/material/LegacyPhongMaterial'
 
 /**
  * Material Manager
@@ -26,6 +28,8 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     readonly templates: IMaterialTemplate[] = [
         PhysicalMaterial.MaterialTemplate,
         UnlitMaterial.MaterialTemplate,
+        UnlitLineMaterial.MaterialTemplate,
+        LineMaterial2.MaterialTemplate,
         LegacyPhongMaterial.MaterialTemplate,
     ]
 
@@ -334,5 +338,6 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         }
         return applied
     }
+
 }
 
