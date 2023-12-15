@@ -51,7 +51,7 @@ export interface AddObjectOptions {
 
 // | string
 export type ISceneEventTypes = IObject3DEventTypes | 'sceneUpdate' | 'addSceneObject' |
-    'mainCameraChange' | 'mainCameraUpdate' | 'environmentChanged' | 'backgroundChanged' |
+    'mainCameraChange' | 'mainCameraUpdate' | 'environmentChanged' | 'backgroundChanged' | 'renderCameraChange' |
     'update' | // todo: deprecate, use 'sceneUpdate' instead
     'textureAdded' | // todo remove
     'activeCameraChange' | 'activeCameraUpdate' | // todo: deprecate
@@ -80,7 +80,14 @@ export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEv
     extends Scene<E, ET>, IObject3D<E, ET>, IShaderPropertiesUpdater {
     readonly visible: boolean;
     readonly isScene: true;
+    /**
+     * Main camera that the user controls
+     */
     mainCamera: ICamera;
+    /**
+     * Camera that in currently being rendered.
+     */
+    renderCamera: ICamera;
     type: 'Scene';
 
     toJSON(): any; // todo

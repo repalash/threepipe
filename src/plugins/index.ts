@@ -49,4 +49,7 @@ export {CustomBumpMapPlugin} from './material/CustomBumpMapPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
 
 // extras
+export {VirtualCamerasPlugin} from './rendering/VirtualCamerasPlugin'
+
+// extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'

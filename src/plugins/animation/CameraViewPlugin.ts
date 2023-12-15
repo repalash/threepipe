@@ -280,6 +280,9 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
             })
 
         this._animating = false
+
+        this._viewer?.setDirty()
+
         this.dispatchEvent({type: 'viewChange', view})
 
         await timeout(10)

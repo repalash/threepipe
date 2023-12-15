@@ -35,6 +35,10 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         this.material.addEventListener('materialUpdate', this.setDirty)
     }
 
+    /**
+     * Output Color Space
+     * Note: this is ignored when renderToScreen is false (it will take the color space of the render target)
+     */
     @uiDropdown('Output Color Space', threeConstMappings.ColorSpace.uiConfig, (t: ScreenPass)=>({onChange: t.setDirty}))
         outputColorSpace: ColorSpace = SRGBColorSpace
 
@@ -43,7 +47,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, readBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         const colorSpace = renderer.outputColorSpace
         if (!writeBuffer || this.renderToScreen) renderer.outputColorSpace = this.outputColorSpace
-        else console.warn('ScreenPass: outputColorSpace is ignored when renderToScreen is false')
+        // else console.warn('ScreenPass: outputColorSpace is ignored when renderToScreen is false')
         super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
         this._lastReadBuffer = readBuffer
         renderer.outputColorSpace = colorSpace

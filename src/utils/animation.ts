@@ -22,6 +22,14 @@ import {timeout} from 'ts-browser-helpers'
 import {MathUtils} from 'three'
 
 export {animate}
+
+declare module 'popmotion'{
+    interface PlaybackOptions<V> {
+        // throwOnStop?: boolean; // instead of this, user can simply throw an error in onStop.
+        onEnd?: () => void;
+    }
+}
+
 export type {AnimationOptions, KeyframeOptions, Easing}
 
 function easeInOutSine(x: number): number {
@@ -100,24 +108,38 @@ export async function animateTarget<V>(target: any, key: string, options: Animat
 export async function animateAsync<V=number>(options: AnimationOptions<V>, animations?: AnimateResult[]) {
     const complete = options.onComplete
     const stop = options.onStop
+    const end = options.onEnd
     options = {...options}
     return new Promise<void>((resolve, reject) => {
+        const end2 = ()=>{
+            try {
+                end?.()
+            } catch (e: any) {
+                reject(e)
+                return false
+            }
+            return true
+        }
         options.onComplete = ()=>{
             try {
                 complete?.()
             } catch (e: any) {
+                if (!end2()) return
                 reject(e)
                 return
             }
+            if (!end2()) return
             resolve()
         }
         options.onStop = ()=>{
             try {
                 stop?.()
             } catch (e: any) {
+                if (!end2()) return
                 reject(e)
                 return
             }
+            if (!end2()) return
             resolve()
         }
         const an = animate(options)

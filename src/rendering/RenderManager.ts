@@ -192,17 +192,21 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     //     // todo gizmos
     // }
 
-    render(scene: IScene): void {
+    render(scene: IScene, renderToScreen = true): void {
         if (this._passesNeedsUpdate) {
             this._refreshPipeline()
             this.refreshPasses()
         }
         for (const pass of this._passes) {
-            if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.mainCamera, this)
+            if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.renderCamera, this)
         }
+        this._composer.renderToScreen = renderToScreen
         this._composer.render()
-        this._frameCount += 1
-        this._totalFrameCount += 1
+        this._composer.renderToScreen = true
+        if (renderToScreen) {
+            this._frameCount += 1
+            this._totalFrameCount += 1
+        }
         this._dirty = false
     }
 

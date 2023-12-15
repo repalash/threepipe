@@ -153,7 +153,10 @@ export class FrameFadePlugin
     }
 
     get canFrameFade() {
-        return this._target && this._pointerEnabled && this.enabled && this.dirty && this._pass && this._pass.fadeTimeState > 0.001
+        return this._target && this._pointerEnabled &&
+            this.enabled && this.dirty && this._pass &&
+            this._pass.fadeTimeState > 0.001 &&
+            this._viewer && this._viewer.scene.renderCamera === this._viewer.scene.mainCamera
     }
 
     get lastFrame() {

@@ -5,7 +5,7 @@ import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage, uiInput} from 'uiconfig.js'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer} from '../../core'
 import {AddBlendTexturePass} from '../../postprocessing/AddBlendTexturePass'
-import {serialize, ValOrFunc} from 'ts-browser-helpers'
+import {getOrCall, serialize, ValOrFunc} from 'ts-browser-helpers'
 
 export type ProgressivePluginEventTypes = ''
 export type ProgressivePluginTarget = WebGLRenderTarget
@@ -24,12 +24,33 @@ export class ProgressivePlugin
     readonly passId = 'progressive'
     public static readonly PluginType = 'ProgressivePlugin'
 
-    target?: ProgressivePluginTarget
+    protected _targets = new Map<string, ProgressivePluginTarget>()
 
     @serialize() @uiInput('Frame count') maxFrameCount: number
     // todo: deserialize jitter
 
-    @uiImage('Last Texture' /* {readOnly: true}*/) texture?: Texture
+    // @uiImage('Last Texture' /* {readOnly: true}*/) texture?: Texture
+
+    get texture(): Texture | undefined {
+        return this.target?.texture
+    }
+
+    get target(): ProgressivePluginTarget | undefined {
+        return this._viewer ? this._targets.get(this._viewer.scene.renderCamera.uuid) : undefined
+    }
+
+    getTarget(camera?: ICamera) {
+        return this._viewer ? this._targets.get((camera ? camera : this._viewer.scene.renderCamera).uuid) : undefined
+    }
+
+    get textures() {
+        return this._viewer ? Array.from(this._targets.values()).map(t => t.texture) : []
+    }
+
+    @uiImage('Last Texture' /* {readOnly: true}*/)
+    get mainTexture() {
+        return this._viewer ? this.getTarget(this._viewer.scene.mainCamera)?.texture : undefined
+    }
 
     // @onChange2(ProgressivePlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
@@ -46,30 +67,36 @@ export class ProgressivePlugin
         this.bufferType = bufferType
     }
 
-    protected _createTarget(recreate = true) {
+    protected _createTarget(camera?: ICamera, recreate = false) {
         if (!this._viewer) return
-        if (recreate) this._disposeTarget()
-        if (!this.target) this.target = this._viewer.renderManager.composerTarget.clone(true) as WebGLRenderTarget
-
-        this.texture = this.target.texture
-        this.texture.name = 'progressiveLastBuffer'
-
-        if (this._pass) this._pass.target = this.target
+        camera = camera ?? this._viewer.scene.renderCamera
+        if (recreate) this._disposeTarget(camera)
+        if (this._targets.has(camera.uuid)) return this._targets.get(camera.uuid)
+        const target = this._viewer.renderManager.composerTarget.clone(true) as WebGLRenderTarget
+        target.texture.name = 'progressiveLastBuffer_' + camera.uuid
+        // target.texture.type = this.bufferType
+        this._targets.set(camera.uuid, target)
+        // if (this._pass) this._pass.target = this.target
+        return target
     }
 
-    protected _disposeTarget() {
+    protected _disposeTarget(camera?: ICamera) {
         if (!this._viewer) return
-        if (this.target) {
-            this._viewer.renderManager.disposeTarget(this.target)
-            this.target = undefined
+        if (!camera) {
+            this._targets.forEach((t) => this._viewer!.renderManager.disposeTarget(t))
+            this._targets.clear()
+        } else {
+            const t = this._targets.get(camera.uuid)
+            if (t) {
+                this._viewer!.renderManager.disposeTarget(t)
+                this._targets.delete(camera.uuid)
+            }
         }
-        this.texture = undefined
     }
 
     protected _createPass() {
-        this._createTarget(true)
-        if (!this.target) throw new Error('ProgressivePlugin: target not created')
-        const pass = new ProgressiveBlendPass(this.passId, this.target)
+        // this._createTarget(true)
+        const pass = new ProgressiveBlendPass(this.passId, ()=>this.target ?? this._createTarget()) // todo: disposeTarget somewhere
         pass.dirty = () => (this._viewer?.renderManager.frameCount || 0) < this.maxFrameCount // todo use isConverged function
         return pass
     }
@@ -109,14 +136,20 @@ class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass 
     after = ['render']
     required = ['render']
     dirty: ValOrFunc<boolean> = () => false
-    constructor(public readonly passId: IPassID, public target: WebGLRenderTarget) {
+    constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>) {
         super()
     }
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
+        if (!this.enabled) return
+        const target = getOrCall(this.target)
+        if (!target) {
+            console.warn('ProgressiveBlendPass: target not defined')
+            return
+        }
         if (renderer.renderManager.frameCount < 1) {
             this.needsSwap = false
             if (readBuffer?.texture)
-                renderer.renderManager.blit(this.target, {
+                renderer.renderManager.blit(target, {
                     source: readBuffer.texture,
                     respectColorSpace: false,
                 })
@@ -124,7 +157,7 @@ class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass 
         }
         this.needsSwap = true
         super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
-        renderer.renderManager.blit(this.target, {
+        renderer.renderManager.blit(target, {
             source: writeBuffer.texture,
             respectColorSpace: false,
         })
@@ -140,7 +173,7 @@ class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass 
         this.uniforms.weight.value.set(f, f, f, f)
         f = 1. - f
         this.uniforms.weight2.value.set(f, f, f, f)
-        this.uniforms.tDiffuse2.value = this.target.texture
+        this.uniforms.tDiffuse2.value = getOrCall(this.target)?.texture
         this.material.uniformsNeedUpdate = true
     }
 

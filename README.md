@@ -40,7 +40,7 @@ To make changes and run the example, click on the CodePen button on the top righ
 ## Table of Contents
 
 - [ThreePipe](#threepipe)
-  - [Examples](#examples)
+  - [Examples](https://threepipe.org/examples/)
   - [Table of Contents](#table-of-contents)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
@@ -101,7 +101,12 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [VignettePlugin](#vignetteplugin) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](#chromaticaberrationplugin) - Add Chromatic Aberration effect  by patching the final screen pass
   - [FilmicGrainPlugin](#filmicgrainplugin) - Add Filmic Grain effect  by patching the final screen pass
+  - [NoiseBumpMaterialPlugin](#noisebumpmaterialplugin) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
+  - [CustomBumpMapPlugin](#custombumpmapplugin) - Custom Bump Map material extension for PhysicalMaterial
+  - [ClearcoatTintPlugin](#clearcoattintplugin) - Clearcoat Tint material extension for PhysicalMaterial
+  - [FragmentClippingExtensionPlugin](#fragmentclippingextensionplugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
   - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
+  - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -2232,9 +2237,10 @@ const anim1 = popmotion.animate({
   },
   onComplete: () => isMovedUp = true,
   onStop: () => throw(new Error('Animation stopped')),
+  onEnd: () => console.log('Animation ended'), // This runs after both onComplete and onStop
 })
 
-// await for animation. This promise will reject only if an exception is thrown in onStop
+// await for animation. This promise will reject only if an exception is thrown in onStop or onComplete. onStop rejects if throwOnStop is true
 await anim.promise.catch((e)=>{
   console.log(e, 'animation stopped before completion')
 });
@@ -2481,15 +2487,163 @@ filmicGrainPlugin.intensity = 10
 filmicGrainPlugin.multiply = false
 ```
 
+## NoiseBumpMaterialPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#noise-bump-material-plugin/
+
+Source Code: [src/plugins/material/NoiseBumpMaterialPlugin.ts](./src/plugins/material/NoiseBumpMaterialPlugin.ts)
+
+API Reference: [NoiseBumpMaterialPlugin](https://threepipe.org/docs/classes/NoiseBumpMaterialPlugin.html)
+
+NoiseBumpMaterialPlugin adds a material extension to PhysicalMaterial to add support for sparkle bump / noise bump by creating procedural bump map from noise to simulate sparkle flakes.
+It uses voronoise function from blender along with several additions to generate the noise for the generation.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_noise_bump` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, NoiseBumpMaterialPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const noiseBump = viewer.addPluginSync(NoiseBumpMaterialPlugin)
+
+// Add noise bump to a material
+NoiseBumpMaterialPlugin.AddNoiseBumpMaterial(material, {
+  flakeScale: 300,
+})
+
+// Change properties with code or use the UI
+material.userData._noiseBumpMat!.bumpNoiseParams = [1, 1]
+material.setDirty()
+
+// Disable
+material.userData._noiseBumpMat!.hasBump = false
+material.setDirty()
+```
+
+## CustomBumpMapPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#custom-bump-map-plugin/
+
+Source Code: [src/plugins/material/CustomBumpMapPlugin.ts](./src/plugins/material/CustomBumpMapPlugin.ts)
+
+API Reference: [CustomBumpMapPlugin](https://threepipe.org/docs/classes/CustomBumpMapPlugin.html)
+
+CustomBumpMapPlugin adds a material extension to PhysicalMaterial to support custom bump maps.
+A Custom bump map is similar to the built-in bump map, but allows using an extra bump map and scale to give a combined effect.
+This plugin also has support for bicubic filtering of the custom bump map and is enabled by default.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_custom_bump_map` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, CustomBumpMapPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const customBump = viewer.addPluginSync(CustomBumpMapPlugin)
+
+// Add noise bump to a material
+customBump.enableCustomBump(material, bumpMap, 0.2)
+
+// Change properties with code or use the UI
+material.userData._customBumpMat = texture
+material.setDirty()
+
+// Disable
+material.userData._hasCustomBump = false
+// or 
+material.userData._customBumpMat = null
+material.setDirty()
+```
+
+## ClearcoatTintPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#clearcoat-tint-plugin/
+
+Source Code: [src/plugins/material/ClearcoatTintPlugin.ts](./src/plugins/material/ClearcoatTintPlugin.ts)
+
+API Reference: [ClearcoatTintPlugin](https://threepipe.org/docs/classes/ClearcoatTintPlugin.html)
+
+ClearcoatTintPlugin adds a material extension to PhysicalMaterial which adds tint and thickness to the built-in clearcoat properties.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_clearcoat_tint` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, ClearcoatTintPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const clearcoatTint = viewer.addPluginSync(ClearcoatTintPlugin)
+
+material.clearcoat = 1
+// add initial properties
+ClearcoatTintPlugin.AddClearcoatTint(material, {
+  tintColor: '#ff0000',
+  thickness: 1,
+})
+
+// Change properties with code or use the UI
+material.userData._clearcoatTint!.tintColor = '#ff0000'
+material.setDirty()
+
+// Disable
+material.userData._clearcoatTint.enableTint = false
+material.setDirty()
+```
+
+## FragmentClippingExtensionPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#fragment-clipping-extension-plugin/
+
+Source Code: [src/plugins/materials/FragmentClippingExtensionPlugin.ts](./src/plugins/material/FragmentClippingExtensionPlugin.ts)
+
+API Reference: [FragmentClippingExtensionPlugin](https://threepipe.org/docs/classes/FragmentClippingExtensionPlugin.html)
+
+FragmentClippingExtensionPlugin adds a material extension to PhysicalMaterial to add support for fragment clipping.
+Fragment clipping allows to clip fragments of the material in screen space or world space based on a circle, rectangle, plane, sphere, etc.
+It uses fixed SDFs with params defined by the user for clipping.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_fragment_clipping_extension` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, FragmentClippingExtensionPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const fragmentClipping = viewer.addPluginSync(FragmentClippingExtensionPlugin)
+
+// add initial properties
+FragmentClippingExtensionPlugin.AddFragmentClipping(material, {
+  clipPosition: new Vector4(0.5, 0.5, 0, 0),
+  clipParams: new Vector4(0.1, 0.05, 0, 1),
+})
+
+// Change properties with code or use the UI
+material.userData._fragmentClipping!.clipPosition.set(0, 0, 0, 0)
+material.setDirty()
+
+// Disable
+material.userData._clearcoatTint.clipEnabled = false
+material.setDirty()
+```
+
 ## HDRiGroundPlugin
 
 [//]: # (todo: image)
 
 Example: https://threepipe.org/examples/#hdri-ground-plugin/
 
-Source Code: [src/plugins/pipeline/HDRiGroundPlugin.ts](./src/plugins/extras/HDRiGroundPlugin.ts)
+Source Code: [src/plugins/extras/HDRiGroundPlugin.ts](./src/plugins/extras/HDRiGroundPlugin.ts)
 
-API Reference: [FrameFadePlugin](https://threepipe.org/docs/classes/HDRiGroundPlugin.html)
+API Reference: [HDRiGroundPlugin](https://threepipe.org/docs/classes/HDRiGroundPlugin.html)
 
 HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environemnt and enabling the plugin.
 
@@ -2499,7 +2653,7 @@ The plugin is disabled by default when added. Set `.enabled` to enable it or pas
 If the background is not the same as the environment when enabled, the user will be prompted for this, unless `promptOnBackgroundMismatch` is set to `false` in the plugin.
 
 ```typescript
-import {ThreeViewer, FrameFadePlugin} from 'threepipe'
+import {ThreeViewer, HDRiGrounPlugin} from 'threepipe'
 
 const viewer = new ThreeViewer({...})
 
@@ -2517,6 +2671,43 @@ hdriGround.enabled = true
 ```
 
 Check the [example](https://threepipe.org/examples/#hdri-ground-plugin/) for a demo. 
+
+## VirtualCamerasPlugin
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#virtual-cameras-plugin/
+
+Source Code: [src/plugins/rendering/VirtualCamerasPlugin.ts](./src/plugins/rendering/VirtualCamerasPlugin.ts)
+
+API Reference: [VirtualCamerasPlugin](https://threepipe.org/docs/classes/VirtualCamerasPlugin.html)
+
+VirtualCamerasPlugin adds support for rendering to multiple virtual cameras in the viewer. These cameras are rendered in preRender callback just before the main camera is rendered. The virtual cameras can be added to the plugin and removed from it.
+
+The feed to the virtual camera is rendered to a Render Target texture which can be accessed and re-rendered in the scene or used in other plugins.
+
+```typescript
+import {ThreeViewer, VirtualCamerasPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const hdriGround = viewer.addPluginSync(new VirtualCamerasPlugin())
+
+const camera = new PerspectiveCamera2('orbit', viewer.canvas, false, 45, 1)
+camera.name = name
+camera.position.set(0, 5, 0)
+camera.target.set(0, 0.25, 0)
+camera.userData.autoLookAtTarget = true // automatically look at the target (in setDirty)
+camera.setDirty()
+camera.addEventListener('update', ()=>{
+  viewer.setDirty() // if the camera is not added to the scene it wont update automatically when camera.setDirty is called(like from the UI)
+})
+
+const vCam = virtualCameras.addCamera(camera)
+console.log(vCam.target) // target is a WebGLRenderTarget/IRenderTarget
+```
+
+Check the [virtual camera](https://threepipe.org/examples/#hdri-ground-plugin/) example for using the texture in the scene. 
 
 ## Rhino3dmLoadPlugin
 

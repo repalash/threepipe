@@ -2,9 +2,12 @@ import {
     _testFinish,
     CameraViewPlugin,
     ChromaticAberrationPlugin,
+    ClearcoatTintPlugin,
+    CustomBumpMapPlugin,
     DepthBufferPlugin,
     DropzonePlugin,
     FilmicGrainPlugin,
+    FragmentClippingExtensionPlugin,
     FrameFadePlugin,
     FullScreenPlugin,
     GLTFAnimationPlugin,
@@ -13,6 +16,7 @@ import {
     HemisphereLight,
     KTX2LoadPlugin,
     KTXLoadPlugin,
+    NoiseBumpMaterialPlugin,
     NormalBufferPlugin,
     PickingPlugin,
     PLYLoadPlugin,
@@ -26,9 +30,10 @@ import {
     USDZLoadPlugin,
     ViewerUiConfigPlugin,
     VignettePlugin,
+    VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
 
@@ -56,6 +61,11 @@ async function init() {
         PickingPlugin,
         CameraViewPlugin,
         ViewerUiConfigPlugin,
+        ClearcoatTintPlugin,
+        FragmentClippingExtensionPlugin,
+        NoiseBumpMaterialPlugin,
+        CustomBumpMapPlugin,
+        VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new DepthBufferPlugin(HalfFloatType, true, true),
         new NormalBufferPlugin(HalfFloatType, false),
@@ -72,6 +82,7 @@ async function init() {
         STLLoadPlugin,
         USDZLoadPlugin,
         BlendLoadPlugin,
+        HierarchyUiPlugin,
         ...extraImportPlugins,
     ])
 
@@ -81,11 +92,11 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
-        ['Interaction']: [PickingPlugin],
+        ['Interaction']: [HierarchyUiPlugin, PickingPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 

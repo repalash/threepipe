@@ -104,7 +104,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
         super(fov, aspect)
         this._canvas = domElement
-        this.autoAspect = autoAspect || !!domElement
+        this.autoAspect = autoAspect ?? !!domElement
 
         iCameraCommons.upgradeCamera.call(this) // todo: test if autoUpgrade = false works as expected if we call upgradeObject3D externally after constructor, because we have setDirty, refreshTarget below.
 

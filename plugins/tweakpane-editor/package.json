@@ -7,7 +7,8 @@
     },
     "dependencies": {
         "threepipe": "file:./../../src/",
-        "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
+        "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/",
+        "treejs": "git://github.com/repalash/treejs.git#d303016bb74e75725d13e97291ac1d4727985918"
     },
     "clean-package": {
         "remove": [

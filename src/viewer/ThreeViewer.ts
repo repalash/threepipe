@@ -61,7 +61,9 @@ import {Easing} from 'popmotion'
 import {OrbitControls3} from '../three'
 
 export type IViewerEvent = BaseEvent & {
-    type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
 export interface ISerializedConfig {
@@ -612,14 +614,13 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
                 this.dispatchEvent({type: 'preRender', target: this})
 
-                if (this.debug) this.renderManager.render(this._scene)
-                else {
-                    try {
-                        this.renderManager.render(this._scene)
-                    } catch (e) {
-                        this.console.error(e)
-                        // this.enabled = false
-                    }
+                try {
+                    this._scene.renderCamera = this._scene.mainCamera
+                    this.renderManager.render(this._scene)
+                } catch (e) {
+                    this.console.error(e)
+                    if (this.debug) throw e
+                    // this.enabled = false
                 }
 
                 this.dispatchEvent({type: 'postRender', target: this})
@@ -1047,6 +1048,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             }
             this.addEventListener(event, listener)
         })
+    }
+
+    dispatchEvent(event: IViewerEvent) {
+        super.dispatchEvent(event)
+        super.dispatchEvent({...event, type: '*', eType: event.type})
     }
 
     private _setActiveCameraView(event: any = {}): void {

@@ -1,6 +1,7 @@
-import type {ISerializedConfig, ThreeViewer} from './ThreeViewer'
+import type {ISerializedConfig, IViewerEvent, ThreeViewer} from './ThreeViewer'
+import {IViewerEventTypes} from './ThreeViewer'
 import {Event, EventDispatcher} from 'three'
-import {SerializationMetaType, ThreeSerialization} from '../utils'
+import {PartialRecord, SerializationMetaType, ThreeSerialization} from '../utils'
 import {IViewerPlugin, IViewerPluginAsync} from './IViewerPlugin'
 import {UiObjectConfig} from 'uiconfig.js'
 
@@ -56,6 +57,14 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
         if (this._viewer) await this._viewer.importPluginConfig(state, this)
         else this.fromJSON?.(state)
     }
+
+    protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: Event)=>void> = {}
+    protected _onViewerEvent = (e: IViewerEvent)=> {
+        const et = e.eType
+        et && this._viewerListeners[et]?.(e)
+        return e
+    }
+
 
     // todo: move to ThreeViewer
     // storeState(prefix?: string, storage?: Storage, data?: any): void {
@@ -114,9 +123,11 @@ export abstract class AViewerPluginSync<T extends string, TViewer extends ThreeV
 
     onAdded(viewer: TViewer): void {
         this._viewer = viewer
+        this._viewer.addEventListener('*', this._onViewerEvent)
     }
     onRemove(viewer: TViewer): void {
         if (this._viewer !== viewer) viewer.console.error('Wrong viewer')
+        this._viewer?.removeEventListener('*', this._onViewerEvent)
         this._viewer = undefined
     }
 
@@ -131,9 +142,11 @@ export abstract class AViewerPluginAsync<T extends string, TViewer extends Three
 
     async onAdded(viewer: TViewer): Promise<void> {
         this._viewer = viewer
+        this._viewer.addEventListener('*', this._onViewerEvent)
     }
     async onRemove(viewer: TViewer): Promise<void> {
         if (this._viewer !== viewer) viewer.console.error('Wrong viewer')
+        this._viewer?.removeEventListener('*', this._onViewerEvent)
         this._viewer = undefined
     }
 }

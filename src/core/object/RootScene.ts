@@ -101,6 +101,16 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty()
     }
 
+    private _renderCamera: ICamera | undefined
+    get renderCamera() {
+        return this._renderCamera ?? this.mainCamera
+    }
+    set renderCamera(camera: ICamera) {
+        const cam = this._renderCamera
+        this._renderCamera = camera
+        this.dispatchEvent({type: 'renderCameraChange', lastCamera: cam, camera})
+    }
+
     /**
      * Create a scene instance. This is done automatically in the {@link ThreeViewer} and must not be created separately.
      * @param camera
