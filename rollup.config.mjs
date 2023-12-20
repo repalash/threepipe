@@ -10,6 +10,7 @@ import {fileURLToPath} from 'url';
 import postcss from 'rollup-plugin-postcss'
 import glsl from "rollup-plugin-glsl"
 import replace from "@rollup/plugin-replace";
+import terser from "@rollup/plugin-terser";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,15 +45,15 @@ export default {
             // preserveModulesRoot: 'src', // optional but useful to create a more plain folder structure
             format: 'es'
         },
-        // {
-        //     file: browser,
-        //     ...settings,
-        //     name: name,
-        //     format: 'umd',
-        //     plugins: [
-        //         isProduction && terser()
-        //     ]
-        // }
+        {
+            file: browser,
+            ...settings,
+            name: name,
+            format: 'umd',
+            plugins: [
+                isProduction && terser()
+            ]
+        }
     ],
     external: [],
     plugins: [

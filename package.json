@@ -6,6 +6,7 @@
   "module": "dist/index.mjs",
   "types": "src/index.ts",
   "sources": "src/index.ts",
+  "browser": "dist/index.js",
   "type": "module",
   "scripts": {
     "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
@@ -97,7 +98,7 @@
     "typedoc": "^0.24.7",
     "typescript": "^5.0.4",
     "typescript-plugin-css-modules": "^5.0.1",
-    "uiconfig.js": "^0.0.7",
+    "uiconfig.js": "^0.0.8",
     "@rollup/plugin-replace": "^5.0.2",
     "popmotion": "^11.0.5"
   },
@@ -109,7 +110,7 @@
   },
   "//": {
     "dependencies": {
-      "uiconfig.js": "^0.0.7",
+      "uiconfig.js": "^0.0.8",
       "ts-browser-helpers": "^0.8.0",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2018/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2018.tar.gz",

@@ -385,7 +385,6 @@ export const iMaterialUI = {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'transmission'],
-                    limitedUi: true,
                 },
                 {
                     type: 'slider',

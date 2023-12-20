@@ -192,7 +192,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
 
     }
 
-    async addAsset<T extends ImportResult = ImportResult>(assetOrPath?: string | IAsset | IAsset[], options?: ImportAddOptions): Promise<(T|undefined)[]> {
+    async addAsset<T extends ImportResult = ImportResult>(assetOrPath?: string | IAsset | IAsset[] | File | File[], options?: ImportAddOptions): Promise<(T|undefined)[]> {
         if (!this.importer || !this.viewer) return []
         const imported = await this.importer.import<T>(assetOrPath, options)
         if (!imported) {
@@ -261,7 +261,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         return this.loadImported(imported, options)
     }
 
-    async addAssetSingle<T extends ImportResult = ImportResult>(asset?: IAsset | string, options?: ImportAssetOptions): Promise<T|undefined> {
+    async addAssetSingle<T extends ImportResult = ImportResult>(asset?: string | IAsset | File, options?: ImportAssetOptions): Promise<T|undefined> {
         return !asset ? undefined : (await this.addAsset<T>(asset, options))?.[0]
     }
 

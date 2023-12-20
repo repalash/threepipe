@@ -145,7 +145,6 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
 
     @uiButton('Play/Pause', (that: GLTFAnimationPlugin)=>({
         label:()=> that.animationState === 'playing' ? 'Pause' : 'Play',
-        limitedUi: true,
     }))
     playPauseAnimation() {
         this._animationState === 'playing' ? this.pauseAnimation() : this.playAnimation()

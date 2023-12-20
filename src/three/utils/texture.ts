@@ -107,3 +107,12 @@ export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY 
 export function textureToDataUrl(texture: Texture|DataTexture, maxWidth: number, flipY: boolean, mimeType?: string, quality?: number) {
     return textureToCanvas(texture, maxWidth, flipY).toDataURL(mimeType, quality)
 }
+export async function textureToBlob(texture: Texture|DataTexture, maxWidth: number, flipY: boolean, mimeType?: string, quality?: number) {
+    const canvas = textureToCanvas(texture, maxWidth, flipY)
+    return new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(blob => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create blob'))
+        }, mimeType, quality)
+    })
+}

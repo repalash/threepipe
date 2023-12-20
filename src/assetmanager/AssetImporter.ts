@@ -89,9 +89,10 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
     // region import functions
 
-    async import<T extends ImportResult|undefined = ImportResult>(assetOrPath?: string | IAsset | IAsset[], options?: ImportAssetOptions): Promise<(T|undefined)[]> {
+    async import<T extends ImportResult|undefined = ImportResult>(assetOrPath?: string | IAsset | IAsset[] | File | File[], options?: ImportAssetOptions): Promise<(T|undefined)[]> {
         if (!assetOrPath) return []
         if (Array.isArray(assetOrPath)) return (await Promise.all(assetOrPath.map(async a => this.import<T>(a, options)))).flat(1)
+        if (assetOrPath instanceof File) return await this.importFile<T>(assetOrPath, options)
         if (typeof assetOrPath === 'object') return await this.importAsset<T>(assetOrPath, options)
         if (typeof assetOrPath === 'string') return await this.importPath<T>(assetOrPath, options)
         console.error('AssetImporter: Invalid asset or path', assetOrPath)
@@ -183,6 +184,17 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         }
 
         return result
+    }
+
+    async importFile<T extends ImportResult|undefined = ImportResult|undefined>(file?: File, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
+        if (!file) return []
+        if (!(file instanceof File)) {
+            console.error('AssetImporter: Invalid file', file)
+            return []
+        }
+        return this.importAsset(this._cachedAssets.find(a=>a.file === file) ?? {
+            path: file.name || file.webkitRelativePath, file,
+        }, options, onDownloadProgress)
     }
 
     /**

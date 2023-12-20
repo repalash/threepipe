@@ -44,6 +44,9 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [Table of Contents](#table-of-contents)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
+    - [React](#react)
+    - [Vue.js](#vuejs)
+    - [Svelte](#svelte)
     - [NPM/YARN Package](#npmyarn)
       - [Installation](#installation)
       - [Loading a 3D Model](#loading-a-3d-model)
@@ -145,9 +148,95 @@ To make changes and run the example, click on the CodePen button on the top righ
   })
 </script>
 ```
-Check it in action: https://threepipe.org/examples/#html-sample/
+Check it in action: https://threepipe.org/examples/#html-js-sample/
 
 Check out the details about the [ThreeViewer API](#viewer-api) and more [plugins](#threepipe-plugins) below.
+
+### React
+
+A sample [react](https://react.dev) component in tsx to render a model with an environment map.
+
+```tsx
+import React from 'react'
+function ThreeViewerComponent({src, env}: {src: string, env: string}) {
+  const canvasRef = React.useRef(null)
+  React.useEffect(() => {
+    const viewer = new ThreeViewer({canvas: canvasRef.current})
+
+    const envPromise = viewer.setEnvironmentMap(env)
+    const modelPromise = viewer.load(src)
+    Promise.all([envPromise, modelPromise])
+    return () => {
+      viewer.dispose()
+    }
+  }, [])
+  return (
+     <canvas id="three-canvas" style={{width: 800, height: 600}} ref={canvasRef} />
+  )
+}
+```
+
+Check it in action: https://threepipe.org/examples/#react-tsx-sample/
+
+Other examples in js: https://threepipe.org/examples/#react-js-sample/ and jsx: https://threepipe.org/examples/#react-jsx-sample/
+
+### Vue.js
+
+A sample [vue.js](https://vuejs.org/) component in js to render a model with an environment map.
+
+```js
+const ThreeViewerComponent = {
+  setup() {
+    const canvasRef = ref(null);
+
+    onMounted(() => {
+      const viewer = new ThreeViewer({ canvas: canvasRef.value });
+
+      const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+      const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
+
+      Promise.all([envPromise, modelPromise])
+
+      onBeforeUnmount(() => {
+        viewer.dispose();
+      });
+    });
+
+    return { canvasRef };
+  },
+};
+```
+
+Check it in action: https://threepipe.org/examples/#vue-html-sample/
+
+Another example with Vue SFC(Single file component): https://threepipe.org/examples/#vue-sfc-sample/ 
+
+### Svelte
+
+A sample [svelte](https://svelte.dev/) component in js to render a model with an environment map.
+
+```html
+<script>
+    import {onDestroy, onMount} from 'svelte';
+    import {ThreeViewer} from 'threepipe'; 
+
+    let canvasRef;
+    let viewer;
+    onMount(() => {
+        viewer = new ThreeViewer({canvas: canvasRef});
+
+        const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+        const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
+
+        Promise.all([envPromise, modelPromise])
+    });
+    onDestroy(() => viewer.dispose())
+</script>
+
+<canvas bind:this={canvasRef} id="three-canvas" style="width: 800px; height: 600px"></canvas>
+```
+
+Check it in action: https://threepipe.org/examples/#svelte-sample/
 
 ### NPM/YARN
 

@@ -51,25 +51,26 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         type: 'folder',
         label: ()=>this.name || 'unnamed',
         expanded: true,
-        limitedUi: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+        },
         children: [
             {
                 type: 'checkbox',
                 label: 'Visible',
                 property: [this, 'visible'],
-                limitedUi: true,
             },
             {
                 type: 'button',
-                label: 'Pick/Focus',
+                label: 'Pick/Focus', // todo: move to the plugin that does the picking
                 value: ()=>{
-                    // todo instead of dispatching, make a IObject3D.select function
                     this.dispatchEvent({type: 'select', ui: true, object: this, bubbleToParent: true, focusCamera: true})
                 },
             },
             {
                 type: 'button',
-                label: 'Pick Parent',
+                label: 'Pick Parent', // todo: move to the plugin that does the picking
                 hidden: ()=>!this.parent,
                 value: ()=>{
                     const parent = this.parent
@@ -91,32 +92,27 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Casts Shadow',
                 hidden: () => !(this as any).isMesh,
                 property: [this, 'castShadow'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'checkbox',
                 label: 'Receive Shadow',
                 hidden: () => !(this as any).isMesh,
                 property: [this, 'receiveShadow'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'checkbox',
                 label: 'Frustum culled',
                 property: [this, 'frustumCulled'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'vec3',
                 label: 'Position',
                 property: [this, 'position'],
-                limitedUi: true,
             },
             {
                 type: 'vec3',
                 label: 'Rotation',
                 property: [this, 'rotation'],
-                limitedUi: true,
             },
             {
                 type: 'vec3',
@@ -170,7 +166,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 label: 'License/Credits',
                 property: [this.userData, 'license'],
-                limitedUi: true,
             } : {},
         ],
     }
@@ -226,13 +221,11 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
 //     if (object.children.length === 0) return {
 //         type: 'button',
 //         label: 'Select ' + (object.name || 'unnamed'),
-//         // limitedUi: true,
 //         value: dispatch,
 //     }
 //     return {
 //         type: 'folder',
 //         label: 'Select ' + (object.name || 'unnamed'),
-//         // limitedUi: true,
 //         children: object.children.map((child)=>makeHierarchyUi(child, root || object)),
 //         value: dispatch,
 //         onExpand: dispatch,

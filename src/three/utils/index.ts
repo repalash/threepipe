@@ -4,7 +4,7 @@ export {dataTextureFromColor, dataTextureFromVec4, halfFloatToRgbe} from './conv
 export {uniform, matDefine} from './decorators'
 export {getEncodingComponents, getTexelEncoding, getTexelDecoding, getTexelDecoding2, getTexelDecodingFunction, getTexelEncodingFunction, getTextureColorSpaceFromMap} from './encoding'
 export {generateUUID, toIndexedGeometry, isInScene, localToWorldQuaternion, worldToLocalQuaternion} from './misc'
-export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, texImageToCanvas} from './texture'
+export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, textureToBlob, texImageToCanvas} from './texture'
 export {threeConstMappings} from './const-mappings'
 export {ObjectPicker} from './ObjectPicker'
 export {SelectionWidget, BoxSelectionWidget} from './SelectionWidget'

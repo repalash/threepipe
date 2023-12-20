@@ -308,7 +308,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         let container = options.container
         if (container && !options.canvas) container.appendChild(this._canvas)
         if (!container) container = this._canvas.parentElement ?? undefined
-        if (!container) throw new Error('No container.')
+        if (!container) throw new Error('No container(or canvas).')
         this._container = container
         this.setDirty = this.setDirty.bind(this)
         this._animationLoop = this._animationLoop.bind(this)
@@ -431,7 +431,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param obj
      * @param options
      */
-    async load<T extends ImportResult = ImportResult>(obj: string | IAsset | null, options?: ImportAddOptions) {
+    async load<T extends ImportResult = ImportResult>(obj: string | IAsset | File | null, options?: ImportAddOptions) {
         if (!obj) return
         return await this.assetManager.addAssetSingle<T>(obj, options)
     }
