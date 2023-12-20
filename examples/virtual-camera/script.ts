@@ -28,16 +28,16 @@ async function init() {
         autoScale: true,
     })
 
-    const ground = new Mesh(
+    const plane = new Mesh(
         new PlaneGeometry(5, 5)
             .translate(0, 0, -4),
         new PhysicalMaterial({
             color: '#ffffff',
         })
     )
-    ground.castShadow = false
-    ground.receiveShadow = true
-    viewer.scene.addObject(ground)
+    plane.castShadow = false
+    plane.receiveShadow = true
+    viewer.scene.addObject(plane)
 
     const camera = new PerspectiveCamera2('', viewer.canvas, false, 45, 1)
     camera.position.set(0, 0, 5)
@@ -47,7 +47,7 @@ async function init() {
     camera.far = 10
     camera.setDirty()
     const vCam = virtualCameras.addCamera(camera)
-    ground.material.map = vCam.target.texture as Texture
+    plane.material.map = vCam.target.texture as Texture
 
     popmotion.animate({
         from: 0,

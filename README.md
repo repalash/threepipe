@@ -117,6 +117,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
+  - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
   - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
@@ -830,7 +831,7 @@ In some classes, the ui configs are also generated using typescript decorators.
 
 The `uiConfig` is also added to all three.js objects and materials when they are added to the scene.
 
-The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](#threepipeplugin-tweakpane).
+The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](#threepipeplugin-tweakpane), [BlueprintJsUiPlugin](#threepipeplugin-blueprintjs)
 
 An example showing how to create a UI for a material
 
@@ -1101,7 +1102,7 @@ Notes:
 * `plugin.toJSON()` and `plugin.fromJSON()` or `ThreeSerialization` can be used to serialize and deserialize plugins. `viewer.exportPluginConfig` and `viewer.importPluginConfig` also exist for this.
 * @serialize('label') decorator can be used to mark any public/private variable as serializable. label (optional) corresponds to the key in JSON.
 * @serialize supports instances of ITexture, IMaterial, all primitive types, simple JS objects, three.js math classes(Vector2, Vector3, Matrix3...), and some more.
-* uiDecorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when TweakpaneUiPlugin is added to the viewer. Plugins have special features in the UI for download preset and saving state.
+* uiDecorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when TweakpaneUiPlugin/BlueprintJsUiPlugin is added to the viewer. Plugins have special features in the UI for download preset and saving state.
 
 Check various plugins in the source code for more examples.
 
@@ -2918,11 +2919,11 @@ Additional plugins can be found in the [plugins](plugins/) directory.
 These add support for integrating with other libraries, adding new features, and other functionality with different licenses.
 
 ## @threepipe/plugin-tweakpane
-Tewakpane UI plugin for ThreePipe
+[Tweakpane](https://tweakpane.github.io/docs/) UI plugin for ThreePipe
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#viewer-uiconfig/
+Example: https://threepipe.org/examples/#tweakpane-ui-plugin/
 
 Source Code: [plugins/tweakpane/src/TweakpaneUiPlugin.ts](plugins/tweakpane/src/TweakpaneUiPlugin.ts)
 
@@ -2933,7 +2934,7 @@ NPM: `npm install @threepipe/plugin-tweakpane`
 CDN: https://threepipe.org/plugins/tweakpane/dist/index.mjs
 
 TweakpaneUiPlugin adds support for using [uiconfig-tweakpane](https://github.com/repalash/uiconfig-tweakpane)
-to create a configuration UI in applications using the [Tweakpane](https://cocopon.github.io/tweakpane/) library.
+to create a configuration UI in applications using the [Tweakpane](https://tweakpane.github.io/docs/) library.
 
 The plugin takes the [uiconfig](https://github.com/repalash/uiconfig.js)
 that's defined in the viewer and all the objects to automatically render a UI in the browser.
@@ -2946,6 +2947,42 @@ const viewer = new ThreeViewer({...})
 
 // Add the plugin
 const plugin = viewer.addPluginSync(new TweakpaneUiPlugin(true)) // true to show expanded the UI by default
+
+// Add the UI for the viewer
+plugin.appendChild(viewer.uiConfig)
+// Add UI for some plugins
+plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
+```
+
+## @threepipe/plugin-blueprintjs
+[Blueprint.js](https://blueprintjs.com/) UI plugin for ThreePipe
+
+[//]: # (todo: image)
+
+Example: https://threepipe.org/examples/#blueprintjs-ui-plugin/
+
+Source Code: [plugins/blueprintjs/src/BlueprintJsUiPlugin.ts](plugins/blueprintjs/src/BlueprintJsUiPlugin.ts)
+
+API Reference: [BlueprintJsUiPlugin](https://threepipe.org/plugins/blueprintjs/docs/classes/BlueprintJsUiPlugin.html)
+
+NPM: `npm install @threepipe/plugin-blueprintjs`
+
+CDN: https://threepipe.org/plugins/blueprintjs/dist/index.mjs
+
+BlueprintJsUiPlugin adds support for using [uiconfig-blueprint](https://github.com/repalash/uiconfig-blueprint)
+to create a configuration UI in applications using the [BlueprintJs](https://blueprintjs.com/) library.
+
+The plugin takes the [uiconfig](https://github.com/repalash/uiconfig.js)
+that's defined in the viewer and all the objects to automatically render a UI in the browser.
+ 
+```typescript
+import {IObject3D, ThreeViewer, TonemapPlugin} from 'threepipe'
+import {BlueprintJsUiPlugin} from '@threepipe/plugin-blueprintjs'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin
+const plugin = viewer.addPluginSync(new BlueprintJsUiPlugin(true)) // true to show expanded the UI by default
 
 // Add the UI for the viewer
 plugin.appendChild(viewer.uiConfig)
