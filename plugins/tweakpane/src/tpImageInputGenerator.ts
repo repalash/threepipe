@@ -228,6 +228,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
             console.error('Only Float and HalfFloat Data texture export is supported', vcv, tex, config)
             return
         }
+        // todo: use viewer.export directly (check threepipe Readme)
         const buffer = new EXRExporter2().parse(undefined as any, tex as DataTexture&ITexture)
         const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
         if (!val) {
