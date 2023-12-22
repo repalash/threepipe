@@ -1,14 +1,17 @@
 import {
     _testFinish,
     IObject3D,
+    LinearToneMapping,
     Mesh,
     PerspectiveCamera2,
-    PhysicalMaterial,
     PlaneGeometry,
     PopmotionPlugin,
     ProgressivePlugin,
     Texture,
     ThreeViewer,
+    ToneMapping,
+    TonemapPlugin,
+    UnlitMaterial,
     VirtualCamerasPlugin,
 } from 'threepipe'
 
@@ -28,10 +31,11 @@ async function init() {
         autoScale: true,
     })
 
+    const aspect = 2
     const plane = new Mesh(
-        new PlaneGeometry(5, 5)
-            .translate(0, 0, -4),
-        new PhysicalMaterial({
+        new PlaneGeometry(5 * aspect, 5)
+            .translate(0, 0, -3),
+        new UnlitMaterial({
             color: '#ffffff',
         })
     )
@@ -39,7 +43,7 @@ async function init() {
     plane.receiveShadow = true
     viewer.scene.addObject(plane)
 
-    const camera = new PerspectiveCamera2('', viewer.canvas, false, 45, 1)
+    const camera = new PerspectiveCamera2('', viewer.canvas, false, 45, aspect)
     camera.position.set(0, 0, 5)
     camera.target.set(0, 0.25, 0)
     camera.userData.autoLookAtTarget = true
@@ -62,6 +66,18 @@ async function init() {
             camera.setDirty()
             viewer.setDirty() // since camera is not in the scene
         },
+    })
+
+    // We need to disable tonemapping when rendering the virtual camera, otherwise the tonemapping will be applied multiple times.
+    let lastTonemapping: ToneMapping = LinearToneMapping
+    const tonemap = viewer.getPlugin(TonemapPlugin)!
+    virtualCameras.addEventListener('preRenderCamera', ()=>{
+        lastTonemapping = tonemap.toneMapping
+        // Comment this and see what happens to the color in the plane
+        tonemap.toneMapping = LinearToneMapping
+    })
+    virtualCameras.addEventListener('postRenderCamera', ()=>{
+        tonemap.toneMapping = lastTonemapping
     })
 
 }

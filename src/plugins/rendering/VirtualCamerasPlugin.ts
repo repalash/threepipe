@@ -9,7 +9,7 @@ export interface VirtualCamera {
     enabled: boolean
 }
 @uiFolderContainer('Virtual Cameras')
-export class VirtualCamerasPlugin extends AViewerPluginSync<''> {
+export class VirtualCamerasPlugin extends AViewerPluginSync<'preRenderCamera' | 'preBlitCamera' | 'postRenderCamera'> {
     public static readonly PluginType = 'VirtualCamerasPlugin'
 
     @uiToggle()
@@ -32,10 +32,13 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<''> {
                 if (!v.enabled) continue
                 const camera = v.camera
                 try {
+                    this.dispatchEvent({type: 'preRenderCamera', camera: v})
                     viewer.scene.renderCamera = camera
                     viewer.renderManager.render(viewer.scene, false)
                     const source = viewer.renderManager.composer.readBuffer.texture
+                    this.dispatchEvent({type: 'preBlitCamera', camera: v, readBuffer: source})
                     viewer.renderManager.blit(v.target, {source})
+                    this.dispatchEvent({type: 'postRenderCamera', camera: v})
                 } catch (e: any) {
                     viewer.console.error(e)
                     v.enabled = false
