@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "src/index.ts",
   "module": "dist/index.mjs",
@@ -98,7 +98,7 @@
     "typedoc": "^0.24.7",
     "typescript": "^5.0.4",
     "typescript-plugin-css-modules": "^5.0.1",
-    "uiconfig.js": "^0.0.8",
+    "uiconfig.js": "^0.0.9",
     "@rollup/plugin-replace": "^5.0.2",
     "popmotion": "^11.0.5"
   },
@@ -110,7 +110,7 @@
   },
   "//": {
     "dependencies": {
-      "uiconfig.js": "^0.0.8",
+      "uiconfig.js": "^0.0.9",
       "ts-browser-helpers": "^0.8.0",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2018/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.152.2018.tar.gz",
