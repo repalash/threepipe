@@ -15,6 +15,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
     static readonly PluginType = 'Picking'
     private _picker?: ObjectPicker
     private _widget?: SelectionWidget
+    private _hoverWidget?: SelectionWidget
     private _pickUi: boolean
 
     get hoverEnabled() {
@@ -27,7 +28,10 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
     }
 
     @serialize()
-        autoFocus = false
+        autoFocus
+
+    // @serialize()  // todo
+    autoFocusHover = false
 
     public setDirty() {
         this._viewer?.setDirty()
@@ -36,6 +40,11 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         super()
         if (selection) {
             this._widget = new selection()
+            this._hoverWidget = new selection()
+            if (this._hoverWidget.lineMaterial) {
+                this._hoverWidget.lineMaterial.linewidth! /= 2
+                this._hoverWidget.lineMaterial.color!.set('#aa2222')
+            }
         }
         this._pickUi = pickUi
         this.autoFocus = autoFocus
@@ -75,9 +84,10 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             return ret
         })
         if (this._widget) viewer.scene.addObject(this._widget, {addToRoot: true})
+        if (this._hoverWidget) viewer.scene.addObject(this._hoverWidget, {addToRoot: true})
 
         this._picker.addEventListener('selectedObjectChanged', this._selectedObjectChanged)
-        this._picker.addEventListener('hoverObjectChanged', this.dispatchEvent)
+        this._picker.addEventListener('hoverObjectChanged', this._hoverObjectChanged)
         this._picker.addEventListener('hitObject', this._onObjectHit)
 
         // on material drop on selected object
@@ -116,10 +126,11 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
 
         this._widget?.removeFromParent()
+        this._hoverWidget?.removeFromParent()
 
         if (this._picker) {
             this._picker.removeEventListener('selectedObjectChanged', this._selectedObjectChanged)
-            this._picker.removeEventListener('hoverObjectChanged', this.dispatchEvent)
+            this._picker.removeEventListener('hoverObjectChanged', this._hoverObjectChanged)
             this._picker.removeEventListener('hitObject', this._onObjectHit)
             this._picker.dispose()
             this._picker = undefined
@@ -130,6 +141,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
     dispose() {
         super.dispose()
         this._widget?.dispose()
+        this._hoverWidget?.dispose()
     }
 
     private _mainCameraChange = ()=>{
@@ -182,6 +194,28 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     }
 
+    private _hoverObjectChanged = (e: any) => {
+        this.dispatchEvent(e)
+        const selected = this._picker?.hoverObject || undefined
+
+        const widget = this._hoverWidget
+        if (widget && this._enableWidget) {
+            if (selected) widget.attach(selected)
+            else widget.detach()
+        }
+
+        // if (selected) selected.dispatchEvent({type: 'selected', source: PickingPlugin.PluginType, object: selected})
+
+        this._viewer?.setDirty()
+
+        if (this.autoFocusHover) {
+            // this._viewer?.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
+            this.focusObject(selected)
+        }
+
+
+    }
+
     private _onObjectHit = (e: any)=>{
         if (!this._viewer) return
         if (!this.enabled) {
@@ -216,15 +250,22 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             label: 'Hover Enabled',
             type: 'checkbox',
             property: [this, 'hoverEnabled'],
+            onChange: ()=>this.uiConfig.uiRefresh?.(true), // for autoFocusHover
         },
         {
-            label: 'AutoFocus',
+            label: 'Auto Focus',
             type: 'checkbox',
             property: [this, 'autoFocus'],
             onChange: ()=>{
                 const o = this.getSelectedObject()
                 if (this.autoFocus && o) this.setSelectedObject(o, true)
             },
+        },
+        {
+            label: 'Auto Focus on Hover',
+            type: 'checkbox',
+            hidden: ()=>!this.hoverEnabled,
+            property: [this, 'autoFocusHover'],
         },
     ]
 

@@ -1,10 +1,9 @@
 import {Group, Sphere, Vector2} from 'three'
 import {AnyOptions} from 'ts-browser-helpers'
 import {Box3B} from '../math/Box3B'
-import {IObject3D, IWidget} from '../../core'
+import {IMaterial, IObject3D, IWidget, LineMaterial2} from '../../core'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
-import {LineMaterial2} from '../../core/material/LineMaterial2'
 
 export class SelectionWidget extends Group implements IWidget {
     isWidget = true as const
@@ -12,6 +11,8 @@ export class SelectionWidget extends Group implements IWidget {
     private _object: IObject3D | null = null
     boundingScaleMultiplier = 1.
     setDirty?: (options?: AnyOptions) => void
+
+    lineMaterial?: IMaterial
 
     protected _updater() {
         const selected: IObject3D | null | undefined = this._object
@@ -54,6 +55,7 @@ export class SelectionWidget extends Group implements IWidget {
         if (!object) return this
         this._object = object
         this._object.addEventListener('objectUpdate', this._updater)
+        this._object.addEventListener('geometryUpdate', this._updater)
         this._updater()
         return this
     }
@@ -61,6 +63,7 @@ export class SelectionWidget extends Group implements IWidget {
     detach(): this {
         if (!this._object) return this
         this._object?.removeEventListener('objectUpdate', this._updater)
+        this._object?.removeEventListener('geometryUpdate', this._updater)
         this._object = null
         this._updater()
         return this
@@ -86,6 +89,7 @@ export class BoxSelectionWidget extends SelectionWidget {
             dashed: false,
             toneMapped: false,
         })
+        this.lineMaterial = matLine
 
         const ls = new LineSegmentsGeometry()
         ls.setPositions([1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1].map(v=>v - 0.5))

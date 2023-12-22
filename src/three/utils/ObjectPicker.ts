@@ -88,7 +88,7 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
         this.dispatchEvent({type: 'selectedObjectChanged', object: this.selectedObject})
     }
 
-    get hoverObject() {
+    get hoverObject(): IObject3D | null {
         return this._hovering.length > 0 ? this._hovering[0] : null
     }
 
