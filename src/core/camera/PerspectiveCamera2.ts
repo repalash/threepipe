@@ -49,11 +49,13 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @uiSlider('FoV Zoom', [0.001, 10], 0.001)
     @serialize() zoom: number
 
-    @uiVector('Position')
+    @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly position: Vector3
 
-    @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiVector('Target')
+    /**
+     * Note: this is always in world-space
+     */
+    @uiVector('Target', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
     /**
@@ -566,5 +568,3 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     // endregion
 
 }
-
-
