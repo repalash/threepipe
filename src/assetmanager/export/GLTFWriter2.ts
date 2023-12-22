@@ -24,9 +24,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
                 value.isTexture ||
                 value.isMaterial ||
                 value.assetType != null ||
-                key.startsWith('_') || // private data
-
-                key !== 'uuid' // always save uuid, even if its ignored
+                key.startsWith('_') // private data
             ) {
                 temp[key] = value
                 delete userData[key]
@@ -41,9 +39,6 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         object.userData = ud2
         super.serializeUserData(object, objectDef)
         object.userData = userData
-
-        super.serializeUserData(object, objectDef)
-
     }
 
     processObjects(objects: Object3D[]) {
