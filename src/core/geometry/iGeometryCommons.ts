@@ -148,7 +148,7 @@ export const iGeometryCommons = {
 function upgradeGeometry(this: IGeometry) {
     if (this.assetType === 'geometry') return // already upgraded
     if (!this.isBufferGeometry) {
-        console.error('Geometry is not a this', this)
+        console.error('Geometry is not a BufferGeometry', this)
         return
     }
     this.assetType = 'geometry'

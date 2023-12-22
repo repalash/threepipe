@@ -7,6 +7,7 @@ export {UnlitMaterial, type UnlitMaterialEventTypes, MeshBasicMaterial2} from '.
 export {UnlitLineMaterial, type UnlitLineMaterialEventTypes, LineBasicMaterial2} from './material/UnlitLineMaterial'
 export {LineMaterial2, type LineMaterial2EventTypes} from './material/LineMaterial2'
 export {LegacyPhongMaterial, type PhongMaterialEventTypes} from './material/LegacyPhongMaterial'
+export {BufferGeometry2} from './geometry/BufferGeometry2'
 export {iObjectCommons} from './object/iObjectCommons'
 export {iCameraCommons} from './object/iCameraCommons'
 export {iGeometryCommons} from './geometry/iGeometryCommons'

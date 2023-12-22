@@ -166,7 +166,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     // }
 
     /**
-     * Add any processed object to the scene.
+     * Add any object to the scene.
      * @param imported
      * @param options
      */
@@ -223,7 +223,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
                 this.modelRoot.animations.push(animation)
             }
         }
-        return obj.children.map(c=>this.addObject(c, options))
+        return [...obj.children] // need to clone
+            .map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }
 
     private _addObject3D(model: IObject3D|null, {autoCenter = false, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
@@ -408,7 +409,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
         // new way
         const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
-        const near = Math.max(camera.userData.minNearPlane ?? 0.5, dist1 * (dist - radius))
+        const near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
         const far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
 
         // old way, has issues when panning very far from the camera target

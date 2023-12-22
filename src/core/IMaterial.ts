@@ -137,6 +137,7 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     color?: Color
     wireframe?: boolean
 
+    linewidth?: number
 
     isRawShaderMaterial?: boolean
     isPhysicalMaterial?: boolean
