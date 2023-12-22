@@ -36,6 +36,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
+import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 
 async function init() {
 
@@ -83,6 +84,7 @@ async function init() {
         USDZLoadPlugin,
         BlendLoadPlugin,
         HierarchyUiPlugin,
+        GeometryGeneratorPlugin,
         ...extraImportPlugins,
     ])
 
@@ -92,7 +94,7 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, PickingPlugin],
+        ['Interaction']: [HierarchyUiPlugin, PickingPlugin, GeometryGeneratorPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],

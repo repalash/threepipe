@@ -1,0 +1,10 @@
+{
+    "extends": [
+        "../../typedoc.json"
+    ],
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "name": "Threepipe Geometry Generator Plugin",
+    "readme": "none"
+}

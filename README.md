@@ -121,6 +121,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
   - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
+  - [@threepipe/plugin-geometry-generator](#threepipeplugin-extra-importers) - Generate parametric geometry types that can be re-generated from UI/API.
 
 ## Getting Started
 
@@ -2062,11 +2063,9 @@ ThreePipe has a simple plugin system that allows you to easily add new features 
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#tonemap-plugin/
-
-Source Code: [src/plugins/postprocessing/TonemapPlugin.ts](./src/plugins/postprocessing/TonemapPlugin.ts)
-
-API Reference: [TonemapPlugin](https://threepipe.org/docs/classes/TonemapPlugin.html)
+[Example](https://threepipe.org/examples/#tonemap-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/TonemapPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/TonemapPlugin.html) 
 
 TonemapPlugin adds a post-processing material extension to the ScreenPass in render manager
 that applies tonemapping to the color. The tonemapping operator can be changed
@@ -2080,11 +2079,9 @@ TonemapPlugin is added by default in ThreeViewer unless `tonemap` is set to `fal
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#dropzone-plugin/
-
-Source Code: [src/plugins/interaction/DropzonePlugin.ts](./src/plugins/interaction/DropzonePlugin.ts)
-
-API Reference: [DropzonePlugin](https://threepipe.org/docs/classes/DropzonePlugin.html)
+[Example](https://threepipe.org/examples/#dropzone-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/DropzonePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DropzonePlugin.html) 
 
 DropzonePlugin adds support for drag and drop of local files to automatically import, process and load them into the viewer. 
 
@@ -2126,11 +2123,9 @@ const viewer = new ThreeViewer({
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#progressive-plugin/
-
-Source Code: [src/plugins/postprocessing/ProgressivePlugin.ts](./src/plugins/pipeline/ProgressivePlugin.ts)
-
-API Reference: [ProgressivePlugin](https://threepipe.org/docs/classes/ProgressivePlugin.html)
+[Example](https://threepipe.org/examples/#progressive-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/ProgressivePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ProgressivePlugin.html) 
 
 Progressive Plugin adds a post-render pass to blend the last frame with the current frame.
 
@@ -2140,11 +2135,9 @@ This is used as a dependency in other plugins for progressive rendering effect w
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#depth-buffer-plugin/
-
-Source Code: [src/plugins/pipeline/DepthBufferPlugin.ts](./src/plugins/pipeline/DepthBufferPlugin.ts)
-
-API Reference: [DepthBufferPlugin](https://threepipe.org/docs/classes/DepthBufferPlugin.html)
+[Example](https://threepipe.org/examples/#depth-buffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/DepthBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DepthBufferPlugin.html) 
 
 Depth Buffer Plugin adds a pre-render pass to the render manager and renders a depth buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like depth of field, SSAO, SSR, etc. 
 
@@ -2166,11 +2159,9 @@ The depth values are based on camera near far values, which are controlled autom
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#normal-buffer-plugin/
-
-Source Code: [src/plugins/pipeline/NormalBufferPlugin.ts](./src/plugins/pipeline/NormalBufferPlugin.ts)
-
-API Reference: [NormalBufferPlugin](https://threepipe.org/docs/classes/NormalBufferPlugin.html)
+[Example](https://threepipe.org/examples/#normal-buffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/NormalBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/NormalBufferPlugin.html) 
 
 Normal Buffer Plugin adds a pre-render pass to the render manager and renders a normal buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc. 
 
@@ -2197,11 +2188,9 @@ todo
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#picking-plugin/
-
-Source Code: [src/plugins/pipeline/PickingPlugin.ts](./src/plugins/interaction/PickingPlugin.ts)
-
-API Reference: [PickingPlugin](https://threepipe.org/docs/classes/PickingPlugin.html)
+[Example](https://threepipe.org/examples/#picking-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/PickingPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PickingPlugin.html) 
 
 Picking Plugin adds support for selecting and hovering over objects in the viewer with user interactions and selection widgets.
 
@@ -2268,11 +2257,9 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#gltf-animation-plugin/
-
-Source Code: [src/plugins/animation/GLTFAnimationPlugin.ts](./src/plugins/animation/GLTFAnimationPlugin.ts)
-
-API Reference: [GLTFAnimationPlugin](https://threepipe.org/docs/classes/GLTFAnimationPlugin.html)
+[Example](https://threepipe.org/examples/#gltf-animation-plugin/) &mdash;
+[Source Code](./src/plugins/animation/GLTFAnimationPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GLTFAnimationPlugin.html) 
 
 Manages playback of GLTF animations.
 
@@ -2289,11 +2276,9 @@ To play individual animations, with custom choreography, use the {@link GLTFAnim
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#popmotion-plugin/
-
-Source Code: [src/plugins/animation/PopmotionPlugin.ts](./src/plugins/animation/PopmotionPlugin.ts)
-
-API Reference: [PopmotionPlugin](https://threepipe.org/docs/classes/PopmotionPlugin.html)
+[Example](https://threepipe.org/examples/#popmotion-plugin/) &mdash;
+[Source Code](./src/plugins/animation/PopmotionPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PopmotionPlugin.html) 
 
 Provides animation/tweening capabilities to the viewer using the [popmotion.io](https://popmotion.io/) library.
 
@@ -2356,11 +2341,9 @@ Note: The animation is started when the animate or animateAsync function is call
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#camera-view-plugin/
-
-Source Code: [src/plugins/animation/CameraViewPlugin.ts](./src/plugins/animation/CameraViewPlugin.ts)
-
-API Reference: [CameraViewPlugin](https://threepipe.org/docs/classes/CameraViewPlugin.html)
+[Example](https://threepipe.org/examples/#camera-view-plugin/) &mdash;
+[Source Code](./src/plugins/animation/CameraViewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CameraViewPlugin.html) 
 
 CameraViewPlugin adds support to save and load camera views, which can then be animated to.
 It uses PopmotionPlugin internally to animate any camera to a saved view or to loop through all the saved views.
@@ -2424,11 +2407,9 @@ cameraViewPlugin.viewLooping = false
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#render-target-preview/
-
-Source Code: [src/plugins/ui/RenderTargetPreviewPlugin.ts](./src/plugins/ui/RenderTargetPreviewPlugin.ts)
-
-API Reference: [RenderTargetPreviewPlugin](https://threepipe.org/docs/classes/RenderTargetPreviewPlugin.html)
+[Example](https://threepipe.org/examples/#render-target-preview/) &mdash;
+[Source Code](./src/plugins/ui/RenderTargetPreviewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/RenderTargetPreviewPlugin.html) 
 
 RenderTargetPreviewPlugin is a useful development and debugging plugin that renders any registered render-target to the screen in small collapsable panels.
 
@@ -2449,11 +2430,9 @@ previewPlugin.addTarget(()=>normalPlugin.target, 'normal', false, false)
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#geometry-uv-preview/
-
-Source Code: [src/plugins/ui/GeometryUVPreviewPlugin.ts](./src/plugins/ui/GeometryUVPreviewPlugin.ts)
-
-API Reference: [GeometryUVPreviewPlugin](https://threepipe.org/docs/classes/GeometryUVPreviewPlugin.html)
+[Example](https://threepipe.org/examples/#geometry-uv-preview/) &mdash;
+[Source Code](./src/plugins/ui/GeometryUVPreviewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GeometryUVPreviewPlugin.html) 
 
 GeometryUVPreviewPlugin is a useful development and debugging plugin
 that adds a panel to the viewer to show the UVs of a geometry.
@@ -2474,11 +2453,9 @@ previewPlugin.addGeometry(geometry, 'sphere')
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#frame-fade-plugin/
-
-Source Code: [src/plugins/pipeline/FrameFadePlugin.ts](./src/plugins/pipeline/FrameFadePlugin.ts)
-
-API Reference: [FrameFadePlugin](https://threepipe.org/docs/classes/FrameFadePlugin.html)
+[Example](https://threepipe.org/examples/#frame-fade-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/FrameFadePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FrameFadePlugin.html) 
 
 FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc to avoid a sudden jump.
 
@@ -2504,11 +2481,9 @@ The plugin automatically tracks `setDirty()` function calls in objects, material
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#vignette-plugin/
-
-Source Code: [src/plugins/postprocessing/VignettePlugin.ts](./src/plugins/postprocessing/VignettePlugin.ts)
-
-API Reference: [VignettePlugin](https://threepipe.org/docs/classes/VignettePlugin.html)
+[Example](https://threepipe.org/examples/#vignette-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/VignettePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/VignettePlugin.html) 
 
 VignettePlugin adds a post-processing material extension to the ScreenPass in render manager
 that applies a vignette effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
@@ -2532,11 +2507,9 @@ vignettePlugin.color = new Color(0.5, 0, 0)
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#chromatic-aberration-plugin/
-
-Source Code: [src/plugins/postprocessing/ChromaticAberrationPlugin.ts](./src/plugins/postprocessing/ChromaticAberrationPlugin.ts)
-
-API Reference: [ChromaticAberrationPlugin](https://threepipe.org/docs/classes/ChromaticAberrationPlugin.html)
+[Example](https://threepipe.org/examples/#chromatic-aberration-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/ChromaticAberrationPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ChromaticAberrationPlugin.html) 
 
 ChromaticAberrationPlugin adds a post-processing material extension to the ScreenPass in render manager
 that applies a chromatic-aberration effect to the final render. The parameter `intensity` can be changed to customize the effect.
@@ -2556,11 +2529,9 @@ chromaticAberrationPlugin.intensity = 0.5
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#filmic-grain-plugin/
-
-Source Code: [src/plugins/postprocessing/FilmicGrainPlugin.ts](./src/plugins/postprocessing/FilmicGrainPlugin.ts)
-
-API Reference: [FilmicGrainPlugin](https://threepipe.org/docs/classes/FilmicGrainPlugin.html)
+[Example](https://threepipe.org/examples/#filmic-grain-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/FilmicGrainPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FilmicGrainPlugin.html) 
 
 FilmicGrainPlugin adds a post-processing material extension to the ScreenPass in render manager
 that applies a filmic-grain effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
@@ -2581,11 +2552,9 @@ filmicGrainPlugin.multiply = false
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#noise-bump-material-plugin/
-
-Source Code: [src/plugins/material/NoiseBumpMaterialPlugin.ts](./src/plugins/material/NoiseBumpMaterialPlugin.ts)
-
-API Reference: [NoiseBumpMaterialPlugin](https://threepipe.org/docs/classes/NoiseBumpMaterialPlugin.html)
+[Example](https://threepipe.org/examples/#noise-bump-material-plugin/) &mdash;
+[Source Code](./src/plugins/material/NoiseBumpMaterialPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/NoiseBumpMaterialPlugin.html) 
 
 NoiseBumpMaterialPlugin adds a material extension to PhysicalMaterial to add support for sparkle bump / noise bump by creating procedural bump map from noise to simulate sparkle flakes.
 It uses voronoise function from blender along with several additions to generate the noise for the generation.
@@ -2617,11 +2586,9 @@ material.setDirty()
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#custom-bump-map-plugin/
-
-Source Code: [src/plugins/material/CustomBumpMapPlugin.ts](./src/plugins/material/CustomBumpMapPlugin.ts)
-
-API Reference: [CustomBumpMapPlugin](https://threepipe.org/docs/classes/CustomBumpMapPlugin.html)
+[Example](https://threepipe.org/examples/#custom-bump-map-plugin/) &mdash;
+[Source Code](./src/plugins/material/CustomBumpMapPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CustomBumpMapPlugin.html) 
 
 CustomBumpMapPlugin adds a material extension to PhysicalMaterial to support custom bump maps.
 A Custom bump map is similar to the built-in bump map, but allows using an extra bump map and scale to give a combined effect.
@@ -2654,11 +2621,9 @@ material.setDirty()
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#clearcoat-tint-plugin/
-
-Source Code: [src/plugins/material/ClearcoatTintPlugin.ts](./src/plugins/material/ClearcoatTintPlugin.ts)
-
-API Reference: [ClearcoatTintPlugin](https://threepipe.org/docs/classes/ClearcoatTintPlugin.html)
+[Example](https://threepipe.org/examples/#clearcoat-tint-plugin/) &mdash;
+[Source Code](./src/plugins/material/ClearcoatTintPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ClearcoatTintPlugin.html) 
 
 ClearcoatTintPlugin adds a material extension to PhysicalMaterial which adds tint and thickness to the built-in clearcoat properties.
 It also adds a UI to the material to edit the settings.
@@ -2691,11 +2656,9 @@ material.setDirty()
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#fragment-clipping-extension-plugin/
-
-Source Code: [src/plugins/materials/FragmentClippingExtensionPlugin.ts](./src/plugins/material/FragmentClippingExtensionPlugin.ts)
-
-API Reference: [FragmentClippingExtensionPlugin](https://threepipe.org/docs/classes/FragmentClippingExtensionPlugin.html)
+[Example](https://threepipe.org/examples/#fragment-clipping-extension-plugin/) &mdash;
+[Source Code](./src/plugins/material/FragmentClippingExtensionPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FragmentClippingExtensionPlugin.html) 
 
 FragmentClippingExtensionPlugin adds a material extension to PhysicalMaterial to add support for fragment clipping.
 Fragment clipping allows to clip fragments of the material in screen space or world space based on a circle, rectangle, plane, sphere, etc.
@@ -2729,11 +2692,9 @@ material.setDirty()
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#hdri-ground-plugin/
-
-Source Code: [src/plugins/extras/HDRiGroundPlugin.ts](./src/plugins/extras/HDRiGroundPlugin.ts)
-
-API Reference: [HDRiGroundPlugin](https://threepipe.org/docs/classes/HDRiGroundPlugin.html)
+[Example](https://threepipe.org/examples/#hdri-ground-plugin/) &mdash;
+[Source Code](./src/plugins/extras/HDRiGroundPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/HDRiGroundPlugin.html) 
 
 HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environemnt and enabling the plugin.
 
@@ -2766,11 +2727,9 @@ Check the [example](https://threepipe.org/examples/#hdri-ground-plugin/) for a d
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#virtual-cameras-plugin/
-
-Source Code: [src/plugins/rendering/VirtualCamerasPlugin.ts](./src/plugins/rendering/VirtualCamerasPlugin.ts)
-
-API Reference: [VirtualCamerasPlugin](https://threepipe.org/docs/classes/VirtualCamerasPlugin.html)
+[Example](https://threepipe.org/examples/#virtual-cameras-plugin/) &mdash;
+[Source Code](./src/plugins/rendering/VirtualCamerasPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/VirtualCamerasPlugin.html) 
 
 VirtualCamerasPlugin adds support for rendering to multiple virtual cameras in the viewer. These cameras are rendered in preRender callback just before the main camera is rendered. The virtual cameras can be added to the plugin and removed from it.
 
@@ -2801,11 +2760,9 @@ Check the [virtual camera](https://threepipe.org/examples/#hdri-ground-plugin/) 
 
 ## Rhino3dmLoadPlugin
 
-Example: https://threepipe.org/examples/#rhino3dm-load/
-
-Source Code: [src/plugins/import/Rhino3dmLoadPlugin.ts](./src/plugins/import/Rhino3dmLoadPlugin.ts)
-
-API Reference: [Rhino3dmLoadPlugin](https://threepipe.org/docs/classes/Rhino3dmLoadPlugin.html)
+[Example](https://threepipe.org/examples/#rhino3dm-load/) &mdash;
+[Source Code](./src/plugins/import/Rhino3dmLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Rhino3dmLoadPlugin.html) 
 
 Adds support for loading .3dm files generated by [Rhino 3D](https://www.rhino3d.com/). This plugin includes some changes with how 3dm files are loaded in three.js. The changes are around loading layer and primitive properties when set as reference in the 3dm files.
 
@@ -2825,11 +2782,9 @@ const mesh = await viewer.load('file.3dm')
 
 ## PLYLoadPlugin
 
-Example: https://threepipe.org/examples/#ply-load/
-
-Source Code: [src/plugins/import/PLYLoadPlugin.ts](./src/plugins/import/PLYLoadPlugin.ts)
-
-API Reference: [PLYLoadPlugin](https://threepipe.org/docs/classes/PLYLoadPlugin.html)
+[Example](https://threepipe.org/examples/#ply-load/) &mdash;
+[Source Code](./src/plugins/import/PLYLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PLYLoadPlugin.html) 
 
 Adds support for loading .ply ([Polygon file format](https://en.wikipedia.org/wiki/PLY_(file_format))) files.
 
@@ -2842,11 +2797,9 @@ const mesh = await viewer.load('file.ply')
 
 ## USDZLoadPlugin
 
-Example: https://threepipe.org/examples/#usdz-load/
-
-Source Code: [src/plugins/import/USDZLoadPlugin.ts](./src/plugins/import/USDZLoadPlugin.ts)
-
-API Reference: [USDZLoadPlugin](https://threepipe.org/docs/classes/USDZLoadPlugin.html)
+[Example](https://threepipe.org/examples/#usdz-load/) &mdash;
+[Source Code](./src/plugins/import/USDZLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/USDZLoadPlugin.html) 
 
 Adds support for loading .usdz and .usda ([Universal Scene Description](https://graphics.pixar.com/usd/docs/index.html)) files.
 
@@ -2860,11 +2813,9 @@ const mesh2 = await viewer.load('file.usda')
 
 ## STLLoadPlugin
 
-Example: https://threepipe.org/examples/#stl-load/
-
-Source Code: [src/plugins/import/STLLoadPlugin.ts](./src/plugins/import/STLLoadPlugin.ts)
-
-API Reference: [STLLoadPlugin](https://threepipe.org/docs/classes/STLLoadPlugin.html)
+[Example](https://threepipe.org/examples/#stl-load/) &mdash;
+[Source Code](./src/plugins/import/STLLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/STLLoadPlugin.html) 
 
 Adds support for loading .stl ([Stereolithography](https://en.wikipedia.org/wiki/STL_(file_format))) files.
 
@@ -2877,11 +2828,9 @@ const mesh = await viewer.load('file.stl')
 
 ## KTX2LoadPlugin
 
-Example: https://threepipe.org/examples/#ktx2-load/
-
-Source Code: [src/plugins/import/KTX2LoadPlugin.ts](./src/plugins/import/KTX2LoadPlugin.ts)
-
-API Reference: [KTX2LoadPlugin](https://threepipe.org/docs/classes/KTX2LoadPlugin.html)
+[Example](https://threepipe.org/examples/#ktx2-load/) &mdash;
+[Source Code](./src/plugins/import/KTX2LoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/KTX2LoadPlugin.html) 
 
 Adds support for loading .ktx2 ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
 
@@ -2896,11 +2845,9 @@ const texture = await viewer.load('file.ktx2')
 
 ## KTXLoadPlugin
 
-Example: https://threepipe.org/examples/#ktx-load/
-
-Source Code: [src/plugins/import/KTXLoadPlugin.ts](./src/plugins/import/KTXLoadPlugin.ts)
-
-API Reference: [KTXLoadPlugin](https://threepipe.org/docs/classes/KTXLoadPlugin.html)
+[Example](https://threepipe.org/examples/#ktx-load/) &mdash;
+[Source Code](./src/plugins/import/KTXLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/KTXLoadPlugin.html) 
 
 Adds support for loading .ktx ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
 
@@ -2923,11 +2870,9 @@ These add support for integrating with other libraries, adding new features, and
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#tweakpane-ui-plugin/
-
-Source Code: [plugins/tweakpane/src/TweakpaneUiPlugin.ts](plugins/tweakpane/src/TweakpaneUiPlugin.ts)
-
-API Reference: [TweakpaneUiPlugin](https://threepipe.org/plugins/tweakpane/docs/classes/TweakpaneUiPlugin.html)
+[Example](https://threepipe.org/examples/#tweakpane-ui-plugin/) &mdash;
+[Source Code](./plugins/tweakpane/src/TweakpaneUiPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane/docs/classes/TweakpaneUiPlugin.html) 
 
 NPM: `npm install @threepipe/plugin-tweakpane`
 
@@ -2959,11 +2904,9 @@ plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#blueprintjs-ui-plugin/
-
-Source Code: [plugins/blueprintjs/src/BlueprintJsUiPlugin.ts](plugins/blueprintjs/src/BlueprintJsUiPlugin.ts)
-
-API Reference: [BlueprintJsUiPlugin](https://threepipe.org/plugins/blueprintjs/docs/classes/BlueprintJsUiPlugin.html)
+[Example](https://threepipe.org/examples/#blueprintjs-ui-plugin/) &mdash;
+[Source Code](./plugins/blueprintjs/src/BlueprintJsUiPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/blueprintjs/docs/classes/BlueprintJsUiPlugin.html) 
 
 NPM: `npm install @threepipe/plugin-blueprintjs`
 
@@ -2996,11 +2939,9 @@ Tweakpane Editor Plugin for ThreePipe
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#tweakpane-editor/
-
-Source Code: [plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts](plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts)
-
-API Reference: [TweakpaneEditorPlugin](https://threepipe.org/plugins/tweakpane-editor/docs/classes/TweakpaneEditorPlugin.html)
+[Example](https://threepipe.org/examples/#tweakpane-editor/) &mdash;
+[Source Code](./plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/TweakpaneEditorPlugi &mdash;
 
 NPM: `npm install @threepipe/plugin-tweakpane-editor`
 
@@ -3040,11 +2981,9 @@ editor.loadPlugins({
 
 Exports several plugins to add support for various file types.
 
-Example: https://threepipe.org/examples/#extra-importer-plugins/
-
-Source Code: [plugins/extra-importers/src/index.ts](plugins/extra-importers/src/index.ts)
-
-API Reference: [@threepipe/plugin-extra-importers](https://threepipe.org/plugins/extra-importers/docs)
+[Example](https://threepipe.org/examples/#extra-importer-plugins/) &mdash;
+[Source Code](./plugins/extra-importers/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/extra-importers/docs) 
 
 NPM: `npm install @threepipe/plugin-extra-importers`
 
@@ -3094,11 +3033,9 @@ Note: This is still a WIP.
 Currently working: `Mesh`, `BufferGeometry` and basic `PointLight`.
 To be added: `PhysicalMaterial`, `UnlitMaterial` (similar to blender-gltf-io plugin)
 
-Example: https://threepipe.org/examples/#blend-load/
-
-Source Code: [plugins/blend-importer/src/index.ts](plugins/blend-importer/src/index.ts)
-
-API Reference: [@threepipe/plugin-blend-importer](https://threepipe.org/plugins/blend-importer/docs)
+[Example](https://threepipe.org/examples/#blend-load/) &mdash;
+[Source Code](./plugins/blend-importer/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/blend-importer/docs) 
 
 NPM: `npm install @threepipe/plugin-blend-importer`
 
@@ -3118,4 +3055,45 @@ const model1 = await viewer.load<IObject3D>('data:application/x-blender;base64,.
 ```
 
 [//]: # ( TODO: The plugin should parse and references to other assets and find them relative to the .blend file or the current location.)
+
+## @threepipe/plugin-geometry-generator
+
+Exports [GeometryGeneratorPlugin](https://threepipe.org/plugins/geometry-generator/docs/classes/BlendLoadPlugin.html) with several Geometry generators to create parametric and updatable geometries like plane, circle, sphere, box, torus, cylinder, cone etc.
+
+[Example](https://threepipe.org/examples/#geometry-generator-plugin/) &mdash;
+[Source Code](./plugins/geometry-generator/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/geometry-generator/docs) 
+
+NPM: `npm install @threepipe/plugin-geometry-generator`
+
+The generated geometries/meshes include the parameters in the userData and can be re-generated by changing the parameters from the UI or the plugin API.
+
+Includes the following generator which inherit from [AGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/AGeometryGenerator.html):
+- **plane**: [PlaneGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/PlaneGeometryGenerator),
+- **sphere**: [SphereGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/SphereGeometryGenerator),
+- **box**: [BoxGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/BoxGeometryGenerator),
+- **circle**: [CircleGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/CircleGeometryGenerator),
+- **torus**: [TorusGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/TorusGeometryGenerator),
+- **cylinder**: [CylinderGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/CylinderGeometryGenerator),
+
+
+Sample Usage: 
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+
+const viewer = new ThreeViewer({...})
+const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
+
+const sphere = generator.generateObject('sphere', {radius: 3})
+viewer.scene.addObject(sphere)
+
+// to update the geometry
+generator.updateGeometry(sphere.geometry, {radius: 4, widthSegments: 100})
+
+// to add a custom generator
+generator.generators.custom = new CustomGenerator('custom') // Extend from AGeometryGenerator or implement GeometryGenerator
+generator.uiConfig.uiRefresh?.()
+```
 
