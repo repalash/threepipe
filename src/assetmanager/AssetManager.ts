@@ -52,7 +52,7 @@ export interface AssetManagerOptions{
     storage?: Cache | Storage | boolean
 }
 
-export type AddAssetOptions = AddObjectOptions & {
+export interface AddAssetOptions extends AddObjectOptions{
     /**
      * Automatically set any loaded HDR, EXR file as the scene environment map
      * @default true

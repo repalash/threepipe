@@ -185,7 +185,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
+     * Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
      * @param obj
      * @param options
      */
@@ -227,7 +227,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             .map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }
 
-    private _addObject3D(model: IObject3D|null, {autoCenter = false, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
+    private _addObject3D(model: IObject3D|null, {autoCenter = false, centerGeometries = false, centerGeometriesKeepPosition = true, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
         const obj = model
         if (!obj) {
             console.error('Invalid object, cannot add to scene.')
@@ -246,6 +246,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             obj.autoScale?.(obj.userData.autoScaleRadius || autoScaleRadius)
         } else {
             obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
+        }
+        if (centerGeometries && !obj.userData.geometriesCentered) {
+            obj.traverse((o)=>{
+                if (o.geometry) o.geometry.center(undefined, centerGeometriesKeepPosition)
+            })
+            obj.userData.geometriesCentered = true
+        } else {
+            obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
         }
 
         if (license) obj.userData.license = [obj.userData.license, license].filter(v=>v).join(', ')
@@ -389,13 +397,21 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     private _v2 = new Vector3()
 
     /**
+     * For Programmatically toggling autoNearFar. This property is not supposed to be in the UI or serialized.
+     * Use camera.userData.autoNearFar for UI and serialization
+     * This is used in PickingPlugin
+     * autoNearFar will still be disabled if this is true and camera.userData.autoNearFar is false
+     */
+    autoNearFarEnabled = true
+
+    /**
      * Refreshes the scene active camera near far values, based on the scene bounding box.
      * This is called automatically every time the camera is updated.
      */
     refreshActiveCameraNearFar(): void {
         const camera = this.mainCamera as ICamera
         if (!camera) return
-        if (camera.userData.autoNearFar === false) {
+        if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
             camera.near = camera.userData.minNearPlane ?? 0.5
             camera.far = camera.userData.maxFarPlane ?? 1000
             return

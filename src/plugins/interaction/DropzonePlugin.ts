@@ -38,7 +38,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     @serialize() autoImport = true
     /**
      * Automatically add dropped and imported assets to the scene.
-     Works only if {@link autoImport} is true.
+     * Works only if {@link autoImport} is true.
      */
     @uiToggle() @serialize() autoAdd = true
 
@@ -58,6 +58,8 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
         importConfig: true,
         autoScale: true,
         autoScaleRadius: 2,
+        centerGeometries: false, // in the whole hierarchy
+        centerGeometriesKeepPosition: true, // this centers while keeping world position
         license: '',
         clearSceneObjects: false,
         disposeSceneObjects: false,

@@ -54,13 +54,13 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
      */
     position: Vector3,
 
-    // todo: make disable/enable functions with key like in FrameFadePlugin
-    interactionsEnabled: boolean;
+    readonly interactionsEnabled: boolean;
+    setInteractions(enabled: boolean, by: string): void;
 
     /**
      * Check whether user can interact with this camera.
      * Interactions can be enabled/disabled in a variety of ways,
-     * like {@link interactionsEnabled}, {@link controlsMode}, {@link isMainCamera} property
+     * like {@link setInteractions}, {@link controlsMode}, {@link isMainCamera} property
      */
     readonly canUserInteract: boolean;
 

@@ -17,6 +17,17 @@ export interface AddObjectOptions {
      */
     autoCenter?: boolean,
     /**
+     * Automatically center the geometries(pivots) in the object hierarchy before adding.
+     * @default false
+     */
+    centerGeometries?: boolean,
+    /**
+     * This centers the geometry while keeping the world position, i.e the mesh(Object3D) positions will change.
+     * {@link centerGeometries} must be true for this to work.
+     * @default true
+     */
+    centerGeometriesKeepPosition?: boolean,
+    /**
      * Add a license to the object
      */
     license?: string,
@@ -27,6 +38,7 @@ export interface AddObjectOptions {
     autoScale?: boolean
     /**
      * Radius to use for {@link autoScale}
+     * {@link autoScale} must be true for this to work.
      * @default 2
      */
     autoScaleRadius?: number

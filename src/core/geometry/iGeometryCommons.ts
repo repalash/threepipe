@@ -17,6 +17,24 @@ export const iGeometryCommons = {
             superDispose.call(this)
         },
     upgradeGeometry: upgradeGeometry,
+    center: (superCenter: BufferGeometry['center']): IGeometry['center'] =>
+        function(this: IGeometry, offset?: Vector3, keepWorldPosition = false): IGeometry {
+            if (keepWorldPosition) {
+                offset = offset ? offset.clone() : new Vector3()
+                superCenter.call(this, offset)
+                offset.negate()
+                const meshes = this.appliedMeshes
+                for (const m of meshes) {
+                    m.updateMatrix()
+                    m.position.copy(offset).applyMatrix4(m.matrix)
+                    m.setDirty()
+                }
+            } else {
+                superCenter.call(this, offset)
+            }
+            this.setDirty()
+            return this
+        },
     makeUiConfig: function(this: IGeometry): UiObjectConfig {
         if (this.uiConfig) return this.uiConfig
         return {
@@ -37,20 +55,13 @@ export const iGeometryCommons = {
                     label: 'Center Geometry',
                     value: () => {
                         this.center()
-                        this.setDirty()
                     },
                 },
                 {
                     type: 'button',
                     label: 'Center Geometry (keep position)',
                     value: () => {
-                        const offset = new Vector3()
-                        this.center(offset)
-                        const meshes = this.appliedMeshes
-                        meshes.forEach(m=>{
-                            m.position.sub(offset)
-                            m.setDirty && m.setDirty()
-                        })
+                        this.center(undefined, true)
                     },
                 },
                 {
@@ -154,6 +165,7 @@ function upgradeGeometry(this: IGeometry) {
     this.assetType = 'geometry'
 
     this.dispose = iGeometryCommons.dispose(this.dispose)
+    this.center = iGeometryCommons.center(this.center)
 
     if (!this.setDirty) this.setDirty = iGeometryCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iGeometryCommons.refreshUi

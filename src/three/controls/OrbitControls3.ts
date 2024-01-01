@@ -54,4 +54,6 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
 
     throttleUpdate = 60 // throttle to 60 updates per second (implemented in OrbitControls.js.update() method)
 
+    // todo add to three-ts-types
+    stopDamping!: () => void
 }

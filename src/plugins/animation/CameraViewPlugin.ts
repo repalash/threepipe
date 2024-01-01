@@ -88,23 +88,9 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
 
-        let interactionsDisabled = false // we need this because interactionsEnabled is also set in PickingPlugin
-
         // todo: move to PopmotionPlugin
         // todo: remove event listener
         viewer.addEventListener('preFrame', (_: any)=>{
-            if (/* this.seekOnScroll || */ this._animating) {
-                if (this._viewer!.scene.mainCamera.interactionsEnabled) {
-                    this._viewer!.scene.mainCamera.interactionsEnabled = false
-                    interactionsDisabled = true
-                    // console.log(interactionsDisabled)
-                }
-            } else if (interactionsDisabled) {
-                this._viewer!.scene.mainCamera.interactionsEnabled = true
-                interactionsDisabled = false
-                // console.log(interactionsDisabled)
-            }
-
             // console.log(ev.deltaTime)
 
             // this._updaters.forEach(u=>{
@@ -263,6 +249,9 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
         this._currentView = view
         this._animating = true
+
+        this._viewer?.scene.mainCamera.setInteractions(false, CameraViewPlugin.PluginType) // todo: also for seekOnScroll
+
         this.dispatchEvent({type: 'startViewChange', view})
 
         const popmotion = this._viewer?.getPlugin(PopmotionPlugin)
@@ -279,6 +268,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
                 if (throwOnStop) throw e
             })
 
+        this._viewer?.scene.mainCamera.setInteractions(true, CameraViewPlugin.PluginType)
         this._animating = false
 
         this._viewer?.setDirty()

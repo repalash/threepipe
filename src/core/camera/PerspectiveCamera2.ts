@@ -124,7 +124,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
 
         // const ae = this._canvas.addEventListener
-        // todo: this breaks UI.
+        // todo: this breaks tweakpane UI.
         // this._canvas.addEventListener = (type: string, listener: any, options1: any) => { // see https://github.com/mrdoob/three.js/pull/19782
         //     ae(type, listener, type === 'wheel' && typeof options1 !== 'boolean' ? {
         //         ...typeof options1 === 'object' ? options1 : {},
@@ -141,21 +141,38 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     // @serialize('camOptions') //todo handle deserialization of this
 
     // region interactionsEnabled
-    private _interactionsEnabled = true
 
-    get canUserInteract() {
-        return this._interactionsEnabled && this.isMainCamera && this.controlsMode !== ''
-    }
+    // private _interactionsEnabled = true
+    //
+    // get interactionsEnabled(): boolean {
+    //     return this._interactionsEnabled
+    // }
+    //
+    // set interactionsEnabled(value: boolean) {
+    //     if (this._interactionsEnabled !== value) {
+    //         this._interactionsEnabled = value
+    //         this.refreshCameraControls(true)
+    //     }
+    // }
+
+    private _interactionsDisabledBy = new Set<string>()
 
     get interactionsEnabled(): boolean {
-        return this._interactionsEnabled
+        return this._interactionsDisabledBy.size === 0
     }
 
-    set interactionsEnabled(value: boolean) {
-        if (this._interactionsEnabled !== value) {
-            this._interactionsEnabled = value
-            this.refreshCameraControls(true)
+    setInteractions(enabled: boolean, by: string): void {
+        const size = this._interactionsDisabledBy.size
+        if (enabled) {
+            this._interactionsDisabledBy.delete(by)
+        } else {
+            this._interactionsDisabledBy.add(by)
         }
+        if (size !== this._interactionsDisabledBy.size) this.refreshCameraControls(true)
+    }
+
+    get canUserInteract() {
+        return this.interactionsEnabled && this.isMainCamera && this.controlsMode !== ''
     }
 
     // endregion

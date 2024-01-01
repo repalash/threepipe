@@ -22,7 +22,6 @@ export class SelectionWidget extends Group implements IWidget {
             const scale = bbox.getBoundingSphere(new Sphere()).radius
             this.scale.setScalar(scale * this.boundingScaleMultiplier)
             this.setVisible(true)
-
         } else {
             this.setVisible(false)
         }

@@ -1,6 +1,6 @@
 import {IPassID, IPipelinePass} from '../../postprocessing'
 import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
-import {AnyFunction, serialize} from 'ts-browser-helpers'
+import {serialize, wrapThisFunction} from 'ts-browser-helpers'
 import {SerializationMetaType} from '../../utils'
 import {uiConfig, uiToggle} from 'uiconfig.js'
 
@@ -70,11 +70,4 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 100) // adding delay for a few frames, so render target(if any can update)
     }
 
-}
-
-function wrapThisFunction<T extends AnyFunction, T2>(f1: ()=>void, f2?: T): T {
-    return function(this: T2, ...args: Parameters<T>) {
-        f1()
-        return f2 && f2.call(this, ...args)
-    } as T
 }

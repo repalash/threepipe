@@ -19,7 +19,7 @@ function replaceImports(code) {
         .replaceAll(` from '../`, ` from '${rootPath+examplePath}`)
 }
 setupCodePreview(
-    document.getElementById('canvas-container') || document.querySelector('.code-preview-container') || document.body,
+    document.querySelector('.code-preview-container') || document.getElementById('canvas-container') || document.body,
     scripts,
     scripts.map(s=>s.textContent ? 'js' : s.split('.').pop()), // title
     scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : (codePath+examplePath+window.location.pathname.split('/examples/').pop().replace('index.html', '')+(s.textContent ? 'index.html' : s))), // todo: github link

@@ -78,6 +78,8 @@ export interface IObject3DUserData extends IImportResultUserData {
 
     autoScaleRadius?: number
     autoScaled?: boolean
+    
+    geometriesCentered?: boolean
 
     /**
      * should this object be taken into account when calculating bounding box, default true
@@ -238,7 +240,6 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     remove(...object: IObject3D[]): this
     parent: IObject3D | null
     children: IObject3D[]
-
 
     // endregion
 

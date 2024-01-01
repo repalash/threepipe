@@ -1,5 +1,5 @@
 import {BaseEvent, EventDispatcher, LoadingManager, Object3D} from 'three'
-import {AnyOptions, IDisposable} from 'ts-browser-helpers'
+import {IDisposable} from 'ts-browser-helpers'
 import {IAsset, IFile} from './IAsset'
 import {ILoader} from './IImporter'
 import {ICamera, IMaterial, IObject3D, ITexture} from '../core'
@@ -59,7 +59,7 @@ export interface IImportResultUserData{
     __sourceBlob?: IFile
 }
 
-export type ProcessRawOptions = {
+export interface ProcessRawOptions {
     /**
      * default = true, toggle to control the processing of the raw objects in the proecssRaw method
      */
@@ -94,7 +94,9 @@ export type ProcessRawOptions = {
      * @deprecated use processRaw instead
      */
     processImported?: boolean, // same  as processRaw
-} & AnyOptions
+
+    [key: string]: any
+}
 
 export interface LoadFileOptions {
     fileHandler?: any, // custom {@link ILoader} for the file
@@ -105,9 +107,9 @@ export interface LoadFileOptions {
     rootPath?: string, // internal use
 }
 
-export type ImportFilesOptions = ProcessRawOptions & LoadFileOptions & {allowedExtensions?: string[]}
+export interface ImportFilesOptions extends ProcessRawOptions, LoadFileOptions {allowedExtensions?: string[]}
 
-export type ImportAssetOptions = {
+export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
     /**
      * Default = false. If true, the asset will be imported again on subsequent calls, even if it is already imported.
      */
@@ -129,7 +131,7 @@ export type ImportAssetOptions = {
      * Pass a custom file to use for the import. This will be used in the importer, and nothing will be fetched from the path
      */
     importedFile?: IFile,
-} & ProcessRawOptions & LoadFileOptions & AnyOptions
+}
 
 export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
 export interface IAssetImporter extends EventDispatcher<BaseEvent, IAssetImporterEventTypes>, IDisposable {

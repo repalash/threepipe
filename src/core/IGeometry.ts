@@ -1,4 +1,4 @@
-import {BufferGeometry, Event, NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
+import {BufferGeometry, Event, NormalBufferAttributes, NormalOrGLBufferAttributes, Vector3} from 'three'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {AnyOptions} from 'ts-browser-helpers'
 import {IObject3D} from './IObject'
@@ -18,6 +18,7 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
     refreshUi(): void;
     uiConfig?: UiObjectConfig
     appliedMeshes: Set<IObject3D>
+    center(offset?: Vector3, keepWorldPosition?: boolean): this
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IGeometryUserData

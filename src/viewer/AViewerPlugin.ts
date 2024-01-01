@@ -58,7 +58,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
         else this.fromJSON?.(state)
     }
 
-    protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: Event)=>void> = {}
+    protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: IViewerEvent)=>void> = {}
     protected _onViewerEvent = (e: IViewerEvent)=> {
         const et = e.eType
         et && this._viewerListeners[et]?.(e)

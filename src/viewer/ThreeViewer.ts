@@ -60,7 +60,7 @@ import {VERSION} from './version'
 import {Easing} from 'popmotion'
 import {OrbitControls3} from '../three'
 
-export type IViewerEvent = BaseEvent & {
+export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
     type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
     eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
     [p: string]: any
