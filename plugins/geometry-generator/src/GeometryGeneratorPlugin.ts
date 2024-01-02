@@ -58,7 +58,6 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
     protected _sceneUpdate = (e: any)=>{
         if (e.hierarchyChanged) {
             const obj = e.object || this._viewer?.scene.modelRoot
-            console.log(obj)
             if (obj) {
                 obj.traverse((o: any)=>{
                     const type = o.geometry?.userData?.generationParams?.type
