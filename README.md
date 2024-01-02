@@ -95,6 +95,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
   - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
   - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [TransformControlsPlugin](#transformcontrolsplugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
   - [PopmotionPlugin](#popmotionplugin) - Integrates with popmotion.io library for animation/tweening
   - [CameraViewPlugin](#cameraviewplugin) - Add support for saving, loading, animating, looping between camera views
@@ -110,6 +111,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [FragmentClippingExtensionPlugin](#fragmentclippingextensionplugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
   - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
   - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
+  - [EditorViewWidgetPlugin](#editorviewwidgetplugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -2255,6 +2257,34 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 
 ```
 
+## TransformControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#transform-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/TransformControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/TransformControlsPlugin.html) 
+
+Transform Controls Plugin adds support for moving, rotating and scaling objects in the viewer with interactive widgets.
+
+Under the hood, TransformControlsPlugin uses [TransformControls2](https://threepipe.org/docs/classes/TransformControls2) to provide the interactive controls, it is a extended version of three.js [TransformControls](https://threejs.org/docs/#examples/en/controls/TransformControls).
+
+When the plugin is added to the viewer, it interfaces with the [PickingPlugin](#pickingplugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
+
+If the PickingPlugin is not added to the viewer before the TransformControlsPlugin, it is added automatically with the plugin.
+
+```typescript
+import {ThreeViewer, TransformControlsPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const transfromControlsPlugin = viewer.addPluginSync(new TransformControlsPlugin())
+
+// Get the underlying transform controls
+console.log(transfromControlsPlugin.transformControls)
+```
+
+
 ## GLTFAnimationPlugin
 
 [//]: # (todo: image)
@@ -2742,7 +2772,7 @@ import {ThreeViewer, VirtualCamerasPlugin} from 'threepipe'
 
 const viewer = new ThreeViewer({...})
 
-const hdriGround = viewer.addPluginSync(new VirtualCamerasPlugin())
+const virtualCameras = viewer.addPluginSync(new VirtualCamerasPlugin())
 
 const camera = new PerspectiveCamera2('orbit', viewer.canvas, false, 45, 1)
 camera.name = name
@@ -2758,7 +2788,31 @@ const vCam = virtualCameras.addCamera(camera)
 console.log(vCam.target) // target is a WebGLRenderTarget/IRenderTarget
 ```
 
-Check the [virtual camera](https://threepipe.org/examples/#hdri-ground-plugin/) example for using the texture in the scene. 
+Check the [virtual camera](https://threepipe.org/examples/#virtual-camera/) example for using the texture in the scene. 
+
+## EditorViewWidgetPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#editor-view-widget-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/EditorViewWidgetPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/EditorViewWidgetPlugin.html) 
+
+EditorViewWidgetPlugin adds a ViewHelper in the parent of the viewer canvas to show the current camera view and allow the user to change the camera view to one of the primary world axes.
+
+Simply add the plugin to the viewer to see the widget.
+
+```typescript
+import {ThreeViewer, EditorViewWidgetPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const plugin = viewer.addPluginSync(new EditorViewWidgetPlugin())
+
+// to hide the widget
+plugin.enabled = false
+```
+
 
 ## Rhino3dmLoadPlugin
 

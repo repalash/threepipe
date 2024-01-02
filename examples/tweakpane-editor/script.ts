@@ -6,6 +6,7 @@ import {
     CustomBumpMapPlugin,
     DepthBufferPlugin,
     DropzonePlugin,
+    EditorViewWidgetPlugin,
     FilmicGrainPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
@@ -27,6 +28,7 @@ import {
     STLLoadPlugin,
     ThreeViewer,
     TonemapPlugin,
+    TransformControlsPlugin,
     USDZLoadPlugin,
     ViewerUiConfigPlugin,
     VignettePlugin,
@@ -60,6 +62,8 @@ async function init() {
         new ProgressivePlugin(),
         GLTFAnimationPlugin,
         PickingPlugin,
+        TransformControlsPlugin,
+        EditorViewWidgetPlugin,
         CameraViewPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
@@ -94,15 +98,17 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, PickingPlugin, GeometryGeneratorPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 
-    viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5))
+    const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5))
+    hemiLight.name = 'Hemisphere Light'
+
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
     // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {

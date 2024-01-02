@@ -51,6 +51,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             this._widget?.attach(this._picker.selectedObject)
         else
             this._widget?.detach()
+        this.uiConfig?.uiRefresh?.(true)
     }
 
     public setDirty() {

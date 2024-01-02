@@ -21,6 +21,8 @@ export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 export {DropzonePlugin, type DropzonePluginOptions} from './interaction/DropzonePlugin'
 export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {PickingPlugin} from './interaction/PickingPlugin'
+export {TransformControlsPlugin} from './interaction/TransformControlsPlugin'
+export {EditorViewWidgetPlugin} from './interaction/EditorViewWidgetPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'
