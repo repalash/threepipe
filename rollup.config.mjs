@@ -1,9 +1,7 @@
 // rollup.config.js
-import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
-import license from 'rollup-plugin-license'
 import packageJson from './package.json' assert {type: 'json'};
 import path from 'path'
 import {fileURLToPath} from 'url';
@@ -11,6 +9,8 @@ import postcss from 'rollup-plugin-postcss'
 import glsl from "rollup-plugin-glsl"
 import replace from "@rollup/plugin-replace";
 import terser from "@rollup/plugin-terser";
+import commonjs from "@rollup/plugin-commonjs";
+import license from "rollup-plugin-license";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,13 +21,13 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 const settings = {
     globals: {},
-    sourcemap: true
+    sourcemap: isProduction
 }
 
 export default {
     input: './src/index.ts',
     output: [
-        //     {
+        // {
         //   file: main,
         //   name: main,
         //   ...settings,
@@ -45,7 +45,7 @@ export default {
             // preserveModulesRoot: 'src', // optional but useful to create a more plain folder structure
             format: 'es'
         },
-        {
+        isProduction ? {
             file: browser,
             ...settings,
             name: name,
@@ -53,7 +53,7 @@ export default {
             plugins: [
                 isProduction && terser()
             ]
-        }
+        } : null,
     ],
     external: [],
     plugins: [

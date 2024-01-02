@@ -119,9 +119,9 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
   - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
-  - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading more file types supported by loaders in three.js
+  - [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
-  - [@threepipe/plugin-geometry-generator](#threepipeplugin-extra-importers) - Generate parametric geometry types that can be re-generated from UI/API.
+  - [@threepipe/plugin-geometry-generator](#threepipeplugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
 
 ## Getting Started
 
@@ -326,7 +326,7 @@ Plugins can add additional formats:
   * ktx - Using [KTXLoadPlugin](#KTXLoadPlugin)
   * ktx2 - Using [KTX2LoadPlugin](#KTX2LoadPlugin)
 
-Plugins to support more model formats are available in the package [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) including .3ds,
+Plugins to support more model formats are available in the package [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) including .3ds,
 .3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz
 
 ## Loading files
@@ -1824,7 +1824,9 @@ camera.setControlsCtor('customOrbit', (camera, domElement) => new CustomOrbitCon
 camera.controlsMode = 'customOrbit' // this will initialize the controls with the customOrbit constructor and set it on the camera
 
 // Disable interactions to the camera. (eg when animating)
-camera.interactionsEnabled = false
+camera.setInteractions(false, 'animation')
+// Enable interactions back 
+camera.setInteractions(true, 'animation') // this will enable interactions when all the keys have been set to true(which were set to false earlier)
 
 // Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer)
 camera.refreshAspect()
@@ -1857,7 +1859,7 @@ camera.deactivateMain()
 
 [`camera.setControlsCtor`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setControlsCtor) - Register a custom camera controls constructor. The controls can be set by setting `controlsMode` to the key/name of the controls.
 
-[`camera.interactionsEnabled`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#interactionsEnabled) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer.
+[`camera.setInteractions`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setInteractions) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer. Using this multiple plugins can disable interactions and it will be enabled again when all of them enable it back.
 
 [`camera.refreshAspect`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#refreshAspect) - Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer or when `viewer.resize()` is called)
 
@@ -2977,7 +2979,7 @@ editor.loadPlugins({
 })
 ```
 
-## @threepipe/plugin-extra-importers
+## @threepipe/plugins-extra-importers
 
 Exports several plugins to add support for various file types.
 
@@ -2985,7 +2987,7 @@ Exports several plugins to add support for various file types.
 [Source Code](./plugins/extra-importers/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/extra-importers/docs) 
 
-NPM: `npm install @threepipe/plugin-extra-importers`
+NPM: `npm install @threepipe/plugins-extra-importers`
 
 CDN: https://threepipe.org/plugins/extra-importers/dist/index.mjs
 
@@ -3009,7 +3011,7 @@ This package exports several plugins to add support for several file types using
 To add all the plugins at once use `extraImporters`. This adds support for loading all the above file types.
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {extraImporters} from '@threepipe/plugin-extra-importers'
+import {extraImporters} from '@threepipe/plugins-extra-importers'
 
 const viewer = new ThreeViewer({...})
 viewer.addPluginsSync(extraImporters)

@@ -1,13 +1,20 @@
 import {Object3D} from 'three'
-import {Class, serialize} from 'ts-browser-helpers'
+import {Class, onChange, serialize} from 'ts-browser-helpers'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
 import {IObject3D, IObject3DEvent, ISceneEvent} from '../../core'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
+import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 
 export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'hoverObjectChanged'|'hitObject'> {
-    @serialize() enabled = true
-    private _enableWidget = true
+    @serialize()
+    @onChange(PickingPlugin.prototype._enableChange)
+        enabled = true
+
+    private _enableChange() {
+        if (!this._viewer) return
+        if (!this.enabled) this.setSelectedObject(undefined) // todo
+    }
 
     get picker(): ObjectPicker|undefined {
         return this._picker
@@ -32,6 +39,19 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     // @serialize()  // todo
     autoFocusHover = false
+
+    /**
+     * Note: this is for runtime use only, not serialized
+     */
+    @onChange(PickingPlugin.prototype._widgetEnabledChange)
+        widgetEnabled = true
+
+    protected _widgetEnabledChange() {
+        if (this.widgetEnabled && this._picker?.selectedObject)
+            this._widget?.attach(this._picker.selectedObject)
+        else
+            this._widget?.detach()
+    }
 
     public setDirty() {
         this._viewer?.setDirty()
@@ -68,6 +88,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
+        this._enableChange()
         this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, (obj)=>{
             const hasMat = obj.material
             if (!hasMat) return false
@@ -161,12 +182,22 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
     private _onObjectSelectEvent = (e: IObject3DEvent)=>{
         if (e.source === PickingPlugin.PluginType) return
         if (e.object === undefined && e.value === undefined) console.error('e.object or e.value must be set for picking, can be null to unselect')
-        else this.setSelectedObject(e.value, this.autoFocus || e.focusCamera)
+        else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera)
     }
 
     private _selectedObjectChanged = (e: any) => {
+        if (!this._viewer) return
         this.dispatchEvent(e)
-        const selected = this._picker?.selectedObject || undefined
+
+        const selected = this._picker?.selectedObject || undefined // or use e.object. doing this so that listeners can change the selected object in dispatch above
+
+        const frameFade = this._viewer.getPlugin(FrameFadePlugin)
+        if (frameFade) {
+            if (selected) frameFade.disable(PickingPlugin.PluginType)
+            else frameFade.enable(PickingPlugin.PluginType)
+        }
+
+        this._viewer.scene.autoNearFarEnabled = !selected // for widgets etc, this can be removed when they are rendered in a separate pass
 
         if (this._pickUi) {
             const sUiConfig = (selected as IUiConfigContainer)?.uiConfig
@@ -177,17 +208,17 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         }
 
         const widget = this._widget
-        if (widget && this._enableWidget) {
+        if (widget && this.widgetEnabled) {
             if (selected) widget.attach(selected)
             else widget.detach()
         }
 
         // if (selected) selected.dispatchEvent({type: 'selected', source: PickingPlugin.PluginType, object: selected})
 
-        this._viewer?.setDirty()
+        this._viewer.setDirty()
 
         if (this.autoFocus) {
-            // this._viewer?.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
+            // this._viewer.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
             this.focusObject(selected)
         }
 
@@ -199,7 +230,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         const selected = this._picker?.hoverObject || undefined
 
         const widget = this._hoverWidget
-        if (widget && this._enableWidget) {
+        if (widget && this.widgetEnabled) {
             if (selected) widget.attach(selected)
             else widget.detach()
         }
@@ -229,17 +260,6 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         this._viewer?.fitToView(selected, 1.25, 1000, 'easeOut')
     }
 
-    public enableWidget(enable: boolean): void {
-        this._enableWidget = enable
-        if (enable) {
-            const selected = this._picker?.selectedObject || undefined
-            if (selected)
-                this._widget?.attach(selected)
-        } else {
-            this._widget?.detach()
-        }
-    }
-
     private _uiConfigChildren: UiObjectConfig[] = [
         {
             label: 'Enabled',
@@ -266,6 +286,11 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             type: 'checkbox',
             hidden: ()=>!this.hoverEnabled,
             property: [this, 'autoFocusHover'],
+        },
+        {
+            label: 'Widget Enabled',
+            type: 'checkbox',
+            property: [this, 'widgetEnabled'],
         },
     ]
 
