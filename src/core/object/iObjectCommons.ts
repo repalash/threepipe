@@ -2,12 +2,13 @@ import {Event, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEvent, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
-import {copyObject3DUserData} from '../../utils'
+import {copyObject3DUserData} from '../../utils/serialization'
 import {IGeometry, IGeometryEvent} from '../IGeometry'
-import {Box3B} from '../../three'
+import {Box3B} from '../../three/math/Box3B'
 import {makeIObject3DUiConfig} from './IObjectUi'
 import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
+import {ILight} from '../light/ILight'
 
 export const iObjectCommons = {
     setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions): void {
@@ -37,35 +38,35 @@ export const iObjectCommons = {
         }
         const scale = autoScaleRadius / radius
         // this.scale.multiplyScalar(20 / radius)
-        if (isFinite(scale)) { // NaN when radius is 0
-            if (this.userData.pseudoCentered) {
-                this.children.forEach(child => {
-                    child.scale.multiplyScalar(scale)
-                })
-            } else
-                this.scale.multiplyScalar(scale)
-            if (isCentered || this.userData.isCentered) this.position.multiplyScalar(scale)
-            this.traverse((obj)=>{
-                const l = obj as any
-                if (l.isLight && l.shadow?.camera?.right) {
-                    l.shadow.camera.right *= scale
-                    l.shadow.camera.left *= scale
-                    l.shadow.camera.top *= scale
-                    l.shadow.camera.bottom *= scale
-                    obj.setDirty()
-                }
-                if (l.isCamera && l.right) {
-                    l.right *= scale
-                    l.left *= scale
-                    l.top *= scale
-                    l.bottom *= scale
-                    obj.setDirty()
-                }
+        if (!isFinite(scale)) return this // NaN when radius is 0
+
+        if (this.userData.pseudoCentered) {
+            this.children.forEach(child => {
+                child.scale.multiplyScalar(scale)
             })
-            this.userData.autoScaled = true
-            this.userData.autoScaleRadius = autoScaleRadius
-            if (setDirty) this.setDirty({change: 'autoScale'})
-        }
+        } else
+            this.scale.multiplyScalar(scale)
+        if (isCentered || this.userData.isCentered) this.position.multiplyScalar(scale)
+        this.traverse((obj) => {
+            const l = obj as any
+            if (l.isLight && l.shadow?.camera?.right) {
+                l.shadow.camera.right *= scale
+                l.shadow.camera.left *= scale
+                l.shadow.camera.top *= scale
+                l.shadow.camera.bottom *= scale
+                obj.setDirty()
+            }
+            if (l.isCamera && l.right) {
+                l.right *= scale
+                l.left *= scale
+                l.top *= scale
+                l.bottom *= scale
+                obj.setDirty()
+            }
+        })
+        this.userData.autoScaled = true
+        this.userData.autoScaleRadius = autoScaleRadius
+        if (setDirty) this.setDirty({change: 'autoScale'})
         return this
     },
 
@@ -272,7 +273,9 @@ export const iObjectCommons = {
             return clone
         },
     copy: (superCopy: IObject3D['copy']): IObject3D['copy'] =>
-        function(this: IObject3D, source: IObject3D, ...args): IObject3D {
+        function(this: IObject3D|ILight, source: IObject3D, ...args): IObject3D {
+            const lightTarget = this.isLight ? (this as ILight).target : null
+
             const userData = source.userData
             source.userData = {}
 
@@ -282,6 +285,13 @@ export const iObjectCommons = {
 
             source.userData = userData
             copyObject3DUserData(this.userData, source.userData) // todo: do same for object.toJSON()
+
+            if (lightTarget && (this as ILight).target) { // For eg DirectionalLight2
+                lightTarget.position.copy((this as ILight).target!.position)
+                lightTarget.updateMatrixWorld()
+                ;(this as ILight).target = lightTarget // because t is a child and because of UI.
+            }
+
             return this
         },
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
@@ -320,7 +330,7 @@ export const iObjectCommons = {
  * @param parent
  * @param objectProcessor
  */
-function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): void { // parent is the root Object3DModel.
+function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): void {
     if (!this) return
     // console.log('upgradeObject3D', this, parent, objectProcessor)
     // if (this.__disposed) {
@@ -332,6 +342,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return
+
     if (this.userData.__objectSetup) return
     this.userData.__objectSetup = true
 
@@ -453,4 +464,3 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     this.objectProcessor?.processObject(this)
 
 }
-
