@@ -1,4 +1,12 @@
-import {AViewerPluginSync, BufferGeometry2, IGeometry, Mesh, PhysicalMaterial, ThreeViewer} from 'threepipe'
+import {
+    AViewerPluginSync,
+    BufferGeometry2,
+    IGeometry,
+    Mesh2,
+    type Object3DGeneratorPlugin,
+    PhysicalMaterial,
+    ThreeViewer,
+} from 'threepipe'
 import {TorusGeometryGenerator} from './primitives/TorusGeometryGenerator'
 import {CircleGeometryGenerator} from './primitives/CircleGeometryGenerator'
 import {BoxGeometryGenerator} from './primitives/BoxGeometryGenerator'
@@ -30,7 +38,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
     generateObject(type: string, params?: any) {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
-        const obj = new Mesh(new BufferGeometry2(), new PhysicalMaterial())
+        const obj = new Mesh2(params.geometry ?? new BufferGeometry2(), params.material ?? new PhysicalMaterial())
         generator.generate(obj.geometry, params)
         obj.name = type
         obj.geometry.name = 'Generated ' + type
@@ -53,6 +61,34 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
     onAdded(v: ThreeViewer) {
         super.onAdded(v)
         v.scene.addEventListener('sceneUpdate', this._sceneUpdate)
+        this.refreshObject3DGenerator()
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        this._removeObject3DGenerators()
+        super.onRemove(viewer)
+    }
+
+    protected _removeObject3DGenerators(refresh = true) {
+        const object3DGenerator = this._viewer?.getPlugin<Object3DGeneratorPlugin>('Object3DGeneratorPlugin')
+        if (!object3DGenerator) return
+        object3DGenerator.generators = Object.fromEntries(Object.entries(object3DGenerator.generators)
+            .filter(([k, _]) => !k.startsWith('geometry-'))) as any
+        refresh && object3DGenerator.uiConfig?.uiRefresh?.(true)
+        return object3DGenerator
+    }
+
+    refreshObject3DGenerator() {
+        const object3DGenerator = this._removeObject3DGenerators(false)
+        if (!object3DGenerator) return
+        Object.keys(this.generators).forEach(key=>{
+            object3DGenerator.generators['geometry-' + key] = (params: any)=>{
+                const obj = this.generateObject(key, params)
+                obj.name = key
+                return obj
+            }
+        })
+        object3DGenerator.uiConfig?.uiRefresh?.(true)
     }
 
     protected _sceneUpdate = (e: any)=>{
@@ -77,6 +113,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
         children:
             [()=>Object.keys(this.generators).map((v) => ({
                 type: 'button',
+                uuid: 'generate_' + v,
                 label: 'Generate ' + v,
                 value: async() => {
                     const obj = this.generateObject(v)
