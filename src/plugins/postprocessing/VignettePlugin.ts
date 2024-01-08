@@ -43,7 +43,7 @@ export class VignettePlugin extends AScreenPassExtensionPlugin<''> {
     priority = -50
 
     parsFragmentSnippet = () => {
-        if (!this.enabled) return ''
+        if (this.isDisabled()) return ''
 
         return glsl`
             uniform float power;

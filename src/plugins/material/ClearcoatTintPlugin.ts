@@ -49,7 +49,7 @@ export class ClearcoatTintPlugin extends AViewerPluginSync<''> {
     // private _multiplyPass?: MultiplyPass
     readonly materialExtension: MaterialExtension = {
         parsFragmentSnippet: (_, material: PhysicalMaterial)=>{
-            if (!this.enabled || !material?.userData._clearcoatTint?.enableTint || !(material.clearcoat > 0)) return ''
+            if (this.isDisabled() || !material?.userData._clearcoatTint?.enableTint || !(material.clearcoat > 0)) return ''
             return glsl`
 uniform vec3 ccTintColor;
 uniform float ccThickness;
@@ -62,7 +62,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
         `
         },
         shaderExtender: (shader, material: PhysicalMaterial) => {
-            if (!this.enabled || !material?.userData._clearcoatTint?.enableTint || !(material.clearcoat > 0)) return
+            if (this.isDisabled() || !material?.userData._clearcoatTint?.enableTint || !(material.clearcoat > 0)) return
 
             // Note: clearcoat only considers specular, not diffuse
 
@@ -88,14 +88,14 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
 
             updateMaterialDefines({
                 // ...this._defines,
-                ['CLEARCOAT_TINT_ENABLED']: +this.enabled,
+                ['CLEARCOAT_TINT_ENABLED']: +!this.isDisabled(),
             }, material)
         },
         extraUniforms: {
             ...this._uniforms,
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
-            return (this.enabled ? '1' : '0') + (material1.userData._clearcoatTint?.enableTint ? '1' : '0') + (material1.clearcoat > 0 ? '1' : '0')
+            return (this.isDisabled() ? '0' : '1') + (material1.userData._clearcoatTint?.enableTint ? '1' : '0') + (material1.clearcoat > 0 ? '1' : '0')
         },
         isCompatible: (material1: PhysicalMaterial) => {
             return material1.isPhysicalMaterial

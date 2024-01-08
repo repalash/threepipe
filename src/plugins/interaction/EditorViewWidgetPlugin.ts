@@ -8,12 +8,12 @@ export class EditorViewWidgetPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'EditorViewWidgetPlugin'
 
     @uiToggle()
-    @onChange(EditorViewWidgetPlugin.prototype._enableChange)
+    @onChange(EditorViewWidgetPlugin.prototype.setDirty)
         enabled = true
 
-    protected _enableChange() {
+    setDirty() {
         if (!this._viewer || !this.widget) return
-        this.widget.domContainer.style.display = this.enabled ? 'block' : 'none'
+        this.widget.domContainer.style.display = !this.isDisabled() ? 'block' : 'none'
     }
 
     constructor(public readonly placement: DomPlacement = 'top-left', public readonly size = 128) {
@@ -56,11 +56,11 @@ export class EditorViewWidgetPlugin extends AViewerPluginSync<''> {
     protected _needsRender = false
     protected _viewerListeners = {
         postRender: (_: IViewerEvent)=>{
-            if (!this._viewer || !this.widget || !this.enabled) return
+            if (!this._viewer || !this.widget || this.isDisabled()) return
             this._needsRender = true
         },
         postFrame: (_: IViewerEvent)=>{
-            if (!this._viewer || !this.widget || !this.enabled || !this._needsRender) return
+            if (!this._viewer || !this.widget || this.isDisabled() || !this._needsRender) return
             this.widget.update()
             this.widget.render()
             if (this.widget.animating) this._viewer.scene.mainCamera.setDirty()

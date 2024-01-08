@@ -89,7 +89,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
     priority = -100
 
     parsFragmentSnippet = () => {
-        if (!this.enabled) return ''
+        if (this.isDisabled()) return ''
 
         return glsl`
             uniform float toneMappingContrast;
@@ -103,7 +103,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
     private _rendererState: any = {}
 
     onObjectRender(_: Object3D, material: IMaterial, renderer: WebGLRenderer): void {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         const {toneMapping, toneMappingExposure} = renderer
         this._rendererState.toneMapping = toneMapping
         this._rendererState.toneMappingExposure = toneMappingExposure

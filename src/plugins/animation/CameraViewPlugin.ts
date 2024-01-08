@@ -120,7 +120,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     @uiButton('Reset To First View')
     public async resetToFirstView(duration = 100) {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         this._currentView = undefined
         await this.animateToView(0, duration)
         await timeout(2)
@@ -128,7 +128,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     @uiButton('Add Current View')
     async addCurrentView() {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         const camera = this._viewer?.scene.mainCamera
         if (!camera) return
         const view = this.getView(camera)
@@ -280,7 +280,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     @uiButton('Animate All Views')
     async animateAllViews() {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         if (this.viewLooping || this._cameraViews.length < 2) return
         while (this._viewQueue.length > 0) this._viewQueue.pop()
         this._viewQueue.push(...this._cameraViews)
@@ -374,7 +374,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         if (this._animationLooping) return
         this._animationLooping = true
         while (this.viewLooping || !this._infiniteLooping) {
-            if (!this.enabled) break
+            if (this.isDisabled()) break
             if (this._cameraViews.length < 1) break
             if (this._viewQueue.length === 0) {
                 if (this._infiniteLooping) this._viewQueue.push(...this._cameraViews)
@@ -422,7 +422,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     //  * For slight rotation of camera when seekOnScroll is enabled
     //  */
     // private _pointerMove(ev: PointerEvent) {
-    //     if (!this.enabled) return
+    //     if (this.isDisabled()) return
     //     if (!this._animating && this.seekOnScroll) {
     //         const cam = this._viewer?.scene.mainCamera
     //         if (!cam) return
@@ -453,7 +453,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     // private _scrollAnimationState = 0
     // scrollAnimationDamping = 0.1
     // private _wheel(ev: any | WheelEvent) {
-    //     if (!this.enabled) return
+    //     if (this.isDisabled()) return
     //     if (this.seekOnScroll && !this._animating) {
     //         // if (ev.deltaY > 0) this.focusNext(false)
     //         // else this.focusPrevious(false)
@@ -475,7 +475,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     // todo: same code used in PopmotionPlugin, merge somehow
     // private _postFrame() {
     //     if (!this._viewer) return
-    //     if (!this.enabled || !this._animating) {
+    //     if (this.isDisabled() || !this._animating) {
     //         this._lastFrameTime = 0
     //         if (this._fadeDisabled) {
     //             this._viewer.getPluginByType<FrameFadePlugin>('FrameFade')?.enable(CameraViewPlugin.PluginType)
@@ -526,7 +526,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     // @uiButton('Record All Views')
     // public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
-    //     if (!this.enabled) return
+    //     if (this.isDisabled()) return
     //     const recorder = this._viewer?.getPluginByType<CanvasRecorderPlugin>('CanvasRecorder')
     //     if (!recorder || !recorder.enabled) return
     //     if (this._cameraViews.length < 1) return

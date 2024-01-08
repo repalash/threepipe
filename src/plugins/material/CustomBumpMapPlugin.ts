@@ -68,11 +68,11 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
 
     readonly materialExtension: MaterialExtension = {
         parsFragmentSnippet: (_, material: PhysicalMaterial)=>{
-            if (!this.enabled || !material?.userData._hasCustomBump) return ''
+            if (this.isDisabled() || !material?.userData._hasCustomBump) return ''
             return CustomBumpMapPluginShader
         },
         shaderExtender: (shader, material: PhysicalMaterial) => {
-            if (!this.enabled || !material?.userData._hasCustomBump) return
+            if (this.isDisabled() || !material?.userData._hasCustomBump) return
             const customBumpMap = material.userData._customBumpMap
             if (!customBumpMap) return
 

@@ -1,6 +1,6 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
-import styles from './GeometryUVPreviewPlugin.css'
+import styles from './GeometryUVPreviewPlugin.css?inline'
 import {CustomContextMenu} from '../../utils'
 import {uiFolderContainer, uiToggle} from 'uiconfig.js'
 import {IGeometry} from '../../core'
@@ -151,9 +151,13 @@ export class GeometryUVPreviewPlugin<TEvent extends string> extends AViewerPlugi
             return
         }
         if (!this.mainDiv.parentElement) this._viewer.container?.appendChild(this.mainDiv)
-        this.mainDiv.style.display = this.enabled ? 'flex' : 'none'
+        this.mainDiv.style.display = !this.isDisabled() ? 'flex' : 'none'
         this.mainDiv.style.zIndex = parseInt(this._viewer.canvas.style.zIndex || '0') + 1 + ''
         this._viewer?.setDirty()
+    }
+
+    setDirty() { // for enable/disable functions
+        this.refreshUi()
     }
 
     dispose() {

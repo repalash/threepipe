@@ -84,7 +84,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
      */
     @uiButton('Select files')
     public promptForFile(): void {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         this.allowedExtensions = this._allowedExtensions
         this._inputEl?.click()
     }
@@ -121,7 +121,7 @@ export class DropzonePlugin extends AViewerPluginSync<'drop'> {
 
     private async _onFileDrop({files, nativeEvent}: {files: Map<string, File>, nativeEvent: DragEvent}) {
         if (!files) return
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         const viewer = this._viewer
         if (!viewer) return
         if (this._allowedExtensions !== undefined) {

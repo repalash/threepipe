@@ -237,7 +237,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
      * @param animations - play specific animations, otherwise play all animations. Note: the promise returned (if this is set) from this will resolve before time if the animations was ever paused, or converged mode is on in recorder.
      */
     async playAnimation(resetOnEnd = false, animations?: AnimationAction[]): Promise<void> {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         let wasPlaying = false
         if (this._animationState === 'playing') {
             this.stopAnimation(false) // stop and play again. reset is done below.
@@ -349,7 +349,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         this._lastAnimId = ''
 
         if (this._viewer && this._fadeDisabled) {
-            this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(GLTFAnimationPlugin.PluginType)
+            this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(this)
             this._fadeDisabled = false
         }
 
@@ -378,11 +378,11 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         const pageScrollAnimate = this.animateOnPageScroll //  && this._animationState === 'paused'
         const dragAnimate = this.animateOnDrag //  && this._animationState === 'paused'
 
-        if (!this.enabled || this.animations.length < 1 || this._animationState !== 'playing' && !scrollAnimate && !dragAnimate && !pageScrollAnimate) {
+        if (this.isDisabled() || this.animations.length < 1 || this._animationState !== 'playing' && !scrollAnimate && !dragAnimate && !pageScrollAnimate) {
             this._lastFrameTime = 0
             // console.log('not anim')
             if (this._fadeDisabled) {
-                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(GLTFAnimationPlugin.PluginType)
+                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(this)
                 this._fadeDisabled = false
             }
             return
@@ -520,18 +520,18 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
     }
 
     private _scroll() {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         this._pageScrollAnimationState = this.pageScrollTime - this.animationTime
     }
 
     private _wheel({deltaY}: any | WheelEvent) {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         if (Math.abs(deltaY) > 0.001)
             this._scrollAnimationState = -1. * Math.sign(deltaY)
     }
 
     private _drag(ev: any) {
-        if (!this.enabled || !this._viewer) return
+        if (this.isDisabled() || !this._viewer) return
         this._dragAnimationState = this.dragAxis === 'x' ?
             ev.delta.x * this._viewer.canvas.width / 4 :
             ev.delta.y * this._viewer.canvas.height / 4

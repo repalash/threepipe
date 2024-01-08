@@ -61,11 +61,11 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
 
     readonly materialExtension: MaterialExtension = {
         parsFragmentSnippet: (_, material: PhysicalMaterial)=>{
-            if (!this.enabled || !material?.userData._noiseBumpMat?.hasBump) return ''
+            if (this.isDisabled() || !material?.userData._noiseBumpMat?.hasBump) return ''
             return NoiseBumpMaterialPluginPars
         },
         shaderExtender: (shader, material: PhysicalMaterial) => {
-            if (!this.enabled || !material?.userData._noiseBumpMat?.hasBump) return
+            if (this.isDisabled() || !material?.userData._noiseBumpMat?.hasBump) return
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#glMarker beforeAccumulation', NoiseBumpMaterialPluginPatch, {prepend: true})
             ;(shader as any).defines.USE_UV = ''
             ;(shader as any).extensionDerivatives = true
@@ -88,14 +88,14 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
 
             updateMaterialDefines({
                 // ...this._defines,
-                ['NOISE_BUMP_MATERIAL_ENABLED']: +this.enabled,
+                ['NOISE_BUMP_MATERIAL_ENABLED']: +!this.isDisabled(),
             }, material)
         },
         extraUniforms: {
             ...this._uniforms,
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
-            return (this.enabled ? '1' : '0') + (material1.userData._noiseBumpMat?.hasBump ? '1' : '0')
+            return (this.isDisabled() ? '0' : '1') + (material1.userData._noiseBumpMat?.hasBump ? '1' : '0')
         },
         isCompatible: (material1: PhysicalMaterial) => material1.isPhysicalMaterial,
         getUiConfig: material => {

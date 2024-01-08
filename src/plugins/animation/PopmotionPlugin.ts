@@ -57,11 +57,11 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
     // Same code used in CameraViewPlugin
     private _postFrame = ()=>{
         if (!this._viewer) return
-        if (!this.enabled || Object.keys(this.animations).length < 1) {
+        if (this.isDisabled() || Object.keys(this.animations).length < 1) {
             this._lastFrameTime = 0
             // console.log('not anim')
             if (this._fadeDisabled) {
-                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(PopmotionPlugin.PluginType)
+                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(this)
                 this._fadeDisabled = false
             }
             return
@@ -96,7 +96,7 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
         if (!this._fadeDisabled && this.disableFrameFade) {
             const ff = this._viewer.getPlugin<FrameFadePlugin>('FrameFade')
             if (ff) {
-                ff.disable(PopmotionPlugin.PluginType)
+                ff.disable(this)
                 this._fadeDisabled = true
             }
         }

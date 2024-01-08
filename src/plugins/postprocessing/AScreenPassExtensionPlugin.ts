@@ -1,4 +1,5 @@
-import {AViewerPlugin, AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {type AViewerPlugin, AViewerPluginSync} from '../../viewer/AViewerPlugin'
+import type {ThreeViewer} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {Shader, Vector4, WebGLRenderer} from 'three'
 import {IMaterial} from '../../core'
@@ -41,7 +42,7 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
     protected _shaderPatch = ''
 
     shaderExtender(shader: Shader, _: IMaterial, _1: WebGLRenderer): void {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
 
         shader.fragmentShader = shaderReplaceString(
             shader.fragmentShader,
@@ -54,7 +55,7 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
         return this.uiConfig
     }
 
-    computeCacheKey = (_: IMaterial) => this.enabled ? '1' : '0'
+    computeCacheKey = (_: IMaterial) => this.isDisabled() ? '0' : '1'
 
     isCompatible(_: IMaterial): boolean {
         return true // (material as MeshStandardMaterial2).isMeshStandardMaterial2

@@ -65,6 +65,22 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
         return e
     }
 
+    private _disabledBy = new Set<any>()
+    disable = (key: any) => {
+        const size = this._disabledBy.size
+        this._disabledBy.add(key)
+        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+    }
+    enable = (key: any) => {
+        const size = this._disabledBy.size
+        this._disabledBy.delete(key)
+        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+    }
+    isDisabled = () => {
+        return this._disabledBy.size > 0 || !this.enabled
+    }
+
+    setDirty?(...args: any[]): any
 
     // todo: move to ThreeViewer
     // storeState(prefix?: string, storage?: Storage, data?: any): void {

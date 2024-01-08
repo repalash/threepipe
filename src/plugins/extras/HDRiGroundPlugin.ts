@@ -10,29 +10,29 @@ export class HDRiGroundPlugin extends AViewerPluginSync<'', ThreeViewer> {
     static readonly PluginType = 'HDRiGroundPlugin'
 
     @serialize()
-    @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    @onChange(HDRiGroundPlugin.prototype.setDirty)
     @uiToggle('Enabled')
         enabled = false
 
     @serialize()
-    @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    @onChange(HDRiGroundPlugin.prototype.setDirty)
     @uiSlider('World Radius', [1, 1000], 0.01)
         worldRadius = 100
 
     @serialize()
-    @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    @onChange(HDRiGroundPlugin.prototype.setDirty)
     @uiSlider('Tripod height', [0, 50], 0.01)
         tripodHeight = 10
 
     @serialize()
-    @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    @onChange(HDRiGroundPlugin.prototype.setDirty)
     @uiVector('Origin Position', undefined, 0.001, (t: HDRiGroundPlugin)=>({
-        onChange: t._paramsChanged, // this is for x, y, z values.
+        onChange: t.setDirty, // this is for x, y, z values.
     }))
         originPosition = new Vector3(0, 0, 0)
 
     @serialize()
-    @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    @onChange(HDRiGroundPlugin.prototype.setDirty)
         promptOnBackgroundMismatch = true
 
     // todo
@@ -40,20 +40,20 @@ export class HDRiGroundPlugin extends AViewerPluginSync<'', ThreeViewer> {
     //  * Automatically set the origin position based on the ground position in GroundPlugin
     //  */
     // @serialize()
-    // @onChange(HDRiGroundPlugin.prototype._paramsChanged)
+    // @onChange(HDRiGroundPlugin.prototype.setDirty)
     // @uiToggle('Auto Ground Position')
     // autoGroundPosition = false
 
     constructor(enabled = false, promptOnBackgroundMismatch = true) {
         super()
-        this._paramsChanged = this._paramsChanged.bind(this)
+        this.setDirty = this.setDirty.bind(this)
         this.enabled = enabled
         this.promptOnBackgroundMismatch = promptOnBackgroundMismatch
 
-        this.addEventListener('deserialize', this._paramsChanged)
+        this.addEventListener('deserialize', this.setDirty)
     }
 
-    private _paramsChanged() {
+    setDirty() {
         if (!this._viewer) return
         const bg = this._viewer.scene.background
         if (this.enabled && bg !== this._viewer.scene.environment && bg !== 'environment') {
@@ -80,9 +80,9 @@ export class HDRiGroundPlugin extends AViewerPluginSync<'', ThreeViewer> {
         unif.worldRadius.value = this.worldRadius
         unif.originPosition.value.copy(this.originPosition)
         if (cubeMat) {
-            if (!this.enabled && cubeMat.defines.HDRi_GROUND_PROJ)
+            if (this.isDisabled() && cubeMat.defines.HDRi_GROUND_PROJ)
                 delete cubeMat.defines.HDRi_GROUND_PROJ
-            else if (this.enabled)
+            else if (!this.isDisabled())
                 cubeMat.defines.HDRi_GROUND_PROJ = '1'
             cubeMat.needsUpdate = true
         }
@@ -111,7 +111,8 @@ vWorldDirection
 `)
         }
 
-        viewer.scene.addEventListener('environmentChanged', this._paramsChanged)
+        viewer.scene.addEventListener('environmentChanged', this.setDirty)
     }
+
 
 }

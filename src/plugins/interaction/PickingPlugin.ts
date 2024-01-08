@@ -8,13 +8,8 @@ import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 
 export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'hoverObjectChanged'|'hitObject'> {
     @serialize()
-    @onChange(PickingPlugin.prototype._enableChange)
+    @onChange(PickingPlugin.prototype.setDirty)
         enabled = true
-
-    private _enableChange() {
-        if (!this._viewer) return
-        if (!this.enabled) this.setSelectedObject(undefined) // todo
-    }
 
     get picker(): ObjectPicker|undefined {
         return this._picker
@@ -54,8 +49,10 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         this.uiConfig?.uiRefresh?.(true)
     }
 
-    public setDirty() {
-        this._viewer?.setDirty()
+    setDirty() {
+        if (!this._viewer) return
+        if (this.isDisabled()) this.setSelectedObject(undefined) // todo
+        this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
         super()
@@ -73,12 +70,12 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
     }
 
     getSelectedObject<T extends IObject3D = IObject3D>(): T|undefined {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         return this._picker?.selectedObject as T || undefined
     }
 
     setSelectedObject(object: IObject3D|undefined, focusCamera = false) { // todo: listen to object dispose
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         if (!this._picker) return
         const t = this.autoFocus
         this.autoFocus = false
@@ -89,7 +86,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        this._enableChange()
+        this.setDirty()
         this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, (obj)=>{
             const hasMat = obj.material
             if (!hasMat) return false
@@ -194,8 +191,8 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
         const frameFade = this._viewer.getPlugin(FrameFadePlugin)
         if (frameFade) {
-            if (selected) frameFade.disable(PickingPlugin.PluginType)
-            else frameFade.enable(PickingPlugin.PluginType)
+            if (selected) frameFade.disable(this)
+            else frameFade.enable(this)
         }
 
         this._viewer.scene.autoNearFarEnabled = !selected // for widgets etc, this can be removed when they are rendered in a separate pass
@@ -250,7 +247,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     private _onObjectHit = (e: any)=>{
         if (!this._viewer) return
-        if (!this.enabled) {
+        if (this.isDisabled()) {
             e.intersects.selectedObject = null
             return
         }

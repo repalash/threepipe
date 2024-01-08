@@ -3,30 +3,40 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {OrbitControls3, TransformControls2} from '../../three'
 import {PickingPlugin} from './PickingPlugin'
 import {onChange} from 'ts-browser-helpers'
+import {TransformControls} from '../../three/controls/TransformControls'
+import {UnlitLineMaterial, UnlitMaterial} from '../../core'
 
 @uiPanelContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'TransformControlsPlugin'
 
     @uiToggle()
-    @onChange(TransformControlsPlugin.prototype._enableChange)
+    @onChange(TransformControlsPlugin.prototype.setDirty)
         enabled = true
 
     private _pickingWidgetDisabled = false
-    private _enableChange() {
+    setDirty() {
         if (!this._viewer) return
         const picking = this._viewer.getPlugin(PickingPlugin)!
-        if (this.enabled && picking.widgetEnabled) {
+        const enabled = !this.isDisabled()
+        if (enabled && picking.widgetEnabled) {
             picking.widgetEnabled = false
             this._pickingWidgetDisabled = true
-        } else if (!this.enabled && this._pickingWidgetDisabled) {
+        } else if (!enabled && this._pickingWidgetDisabled) {
             picking.widgetEnabled = true
             this._pickingWidgetDisabled = false
         }
         if (this.transformControls) {
-            if (this.enabled && picking.getSelectedObject()) this.transformControls.attach(picking.getSelectedObject()!)
+            if (enabled && picking.getSelectedObject()) this.transformControls.attach(picking.getSelectedObject()!)
             else this.transformControls.detach()
         }
+        this._viewer.setDirty()
+    }
+
+    constructor() {
+        super()
+        TransformControls.ObjectConstructors.MeshBasicMaterial = UnlitMaterial as any
+        TransformControls.ObjectConstructors.LineBasicMaterial = UnlitLineMaterial as any
     }
 
     toJSON: any = undefined
@@ -46,7 +56,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        this._enableChange()
+        this.setDirty()
         this.transformControls = new TransformControls2(viewer.scene.mainCamera, viewer.canvas)
         this._mainCameraChange = this._mainCameraChange.bind(this)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
@@ -68,7 +78,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         const picking = viewer.getPlugin(PickingPlugin)!
         picking.addEventListener('selectedObjectChanged', (event) => {
             if (!this.transformControls) return
-            if (!this.enabled) {
+            if (this.isDisabled()) {
                 if (this.transformControls.object) this.transformControls.detach()
                 return
             }

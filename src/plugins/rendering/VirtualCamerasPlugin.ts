@@ -26,7 +26,7 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<'preRenderCamera' | 
 
     protected _viewerListeners = {
         preRender: () => {
-            if (!this.enabled || !this._viewer) return
+            if (this.isDisabled() || !this._viewer) return
             const viewer = this._viewer
             for (const v of this.cameras) {
                 if (!v.enabled) continue
