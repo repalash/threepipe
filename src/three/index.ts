@@ -1,3 +1,6 @@
 export {OrbitControls3, type TOrbitControlsEvents} from './controls/OrbitControls3'
+export {TransformControls2} from './controls/TransformControls2'
+export {TransformControls, TransformControlsGizmo, TransformControlsPlane} from './controls/TransformControls'
 export {Box3B} from './math/Box3B'
 export * from './utils/index'
+export * from './widgets/index'

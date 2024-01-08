@@ -662,6 +662,11 @@ class TransformControls extends Object3D {
 
 }
 
+TransformControls.ObjectConstructors = {
+    'MeshBasicMaterial': MeshBasicMaterial,
+    'LineBasicMaterial': LineBasicMaterial,
+};
+
 // mouse / touch event handlers
 
 function getPointer( event ) {
@@ -793,7 +798,7 @@ class TransformControlsGizmo extends Object3D {
 
         // shared materials
 
-        const gizmoMaterial = new MeshBasicMaterial( {
+        const gizmoMaterial = new TransformControls.ObjectConstructors.MeshBasicMaterial( {
             depthTest: false,
             depthWrite: false,
             fog: false,
@@ -801,7 +806,7 @@ class TransformControlsGizmo extends Object3D {
             transparent: true
         } );
 
-        const gizmoLineMaterial = new LineBasicMaterial( {
+        const gizmoLineMaterial = new TransformControls.ObjectConstructors.LineBasicMaterial( {
             depthTest: false,
             depthWrite: false,
             fog: false,
@@ -1519,7 +1524,7 @@ class TransformControlsPlane extends Mesh {
 
         super(
             new PlaneGeometry( 100000, 100000, 2, 2 ),
-            new MeshBasicMaterial( { visible: false, wireframe: true, side: DoubleSide, transparent: true, opacity: 0.1, toneMapped: false } )
+            new TransformControls.ObjectConstructors.MeshBasicMaterial( { visible: false, wireframe: true, side: DoubleSide, transparent: true, opacity: 0.1, toneMapped: false } )
         );
 
         this.isTransformControlsPlane = true;

@@ -1,6 +1,7 @@
 import {TransformControls} from './TransformControls.js'
 import {MathUtils} from 'three'
-import {ICamera, IObject3D, iObjectCommons, ISceneEvent, IWidget} from '../../core'
+import type {ICamera, IObject3D, ISceneEvent, IWidget} from '../../core'
+import {iObjectCommons} from '../../core'
 import {uiDropdown, uiNumber, uiPanelContainer, uiToggle} from 'uiconfig.js'
 
 @uiPanelContainer('Transform Controls')

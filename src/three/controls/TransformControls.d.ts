@@ -1,5 +1,15 @@
 /* eslint-disable */
-import {Camera, Mesh, MOUSE, Object3D, Quaternion, Raycaster, Vector3} from 'three';
+import {
+    Camera,
+    LineBasicMaterial,
+    Mesh,
+    MeshBasicMaterial,
+    MOUSE,
+    Object3D,
+    Quaternion,
+    Raycaster,
+    Vector3
+} from 'three';
 
 export class TransformControls extends Object3D {
     constructor(object: Camera, domElement?: HTMLElement);
@@ -36,6 +46,12 @@ export class TransformControls extends Object3D {
     setSpace(space: 'world' | 'local'): void;
     reset(): void;
     dispose(): void;
+
+
+    static ObjectConstructors: {
+        MeshBasicMaterial: typeof MeshBasicMaterial;
+        LineBasicMaterial: typeof LineBasicMaterial;
+    }
 }
 
 export class TransformControlsGizmo extends Object3D {

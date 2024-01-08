@@ -7,10 +7,7 @@ export {generateUUID, toIndexedGeometry, isInScene, localToWorldQuaternion, worl
 export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, textureToBlob, texImageToCanvas} from './texture'
 export {threeConstMappings} from './const-mappings'
 export {ObjectPicker} from './ObjectPicker'
-export {SelectionWidget, BoxSelectionWidget} from './SelectionWidget'
 export {autoGPUInstanceMeshes} from './gpu-instancing'
 export {ViewHelper2, type GizmoOrientation, type DomPlacement} from './ViewHelper2'
-export {TransformControls2} from './TransformControls2'
-export {TransformControls, TransformControlsGizmo, TransformControlsPlane} from './TransformControls'
 
 // export {} from './constants'
