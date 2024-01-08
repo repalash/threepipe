@@ -28,6 +28,11 @@ declare module '*.css' {
     const content: string
     export default content
 }
+declare module '*.css?inline' { // for vite
+    const content: string
+    export default content
+}
+
 
 // export {}
 

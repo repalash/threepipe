@@ -17,7 +17,7 @@ async function init() {
     const model = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf')
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    ui.setupPluginUi(TransformControlsPlugin)
+    ui.setupPluginUi(TransformControlsPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
 
     // Get the underlying transform controls (instance of TransformControls2)
