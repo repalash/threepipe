@@ -44,14 +44,12 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
             depthWrite: false,
         })
 
-        // @ts-expect-error update three-ts-types
         this.lightPlane = new Line2(geometry, this.material)
         this.add(this.lightPlane)
 
         geometry = new LineGeometry()
         geometry.setPositions([0, 0, 0, 0, 0, 1])
 
-        // @ts-expect-error update three-ts-types
         this.targetLine = new Line2(geometry, this.material)
         this.add(this.targetLine)
 
@@ -93,9 +91,7 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
             -this.size, this.size, 0,
         ])
         this.lightPlane.lookAt(this._v2)
-        // @ts-expect-error update three-ts-types
         this.lightPlane.material = this.material
-        // @ts-expect-error update three-ts-types
         this.targetLine.material = this.material
         this.material.color.set(this.color ?? this.light.color)
         this.material.linewidth = this.lineWidth * 0.001

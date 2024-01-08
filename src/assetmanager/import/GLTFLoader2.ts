@@ -1,5 +1,6 @@
-import {GLTF, GLTFLoader, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {LoadingManager, Object3D} from 'three'
+import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {LoadingManager, Object3D, OrthographicCamera} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
@@ -17,12 +18,32 @@ import {
 import {RootSceneImportResult} from '../IAssetImporter'
 import {ILoader} from '../IImporter'
 import {ThreeSerialization} from '../../utils'
+import {
+    DirectionalLight2,
+    PerspectiveCamera0,
+    PhysicalMaterial,
+    PointLight2,
+    SpotLight2,
+    UnlitLineMaterial,
+    UnlitMaterial,
+} from '../../core'
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
     constructor(manager: LoadingManager) {
         super(manager)
         this.preparsers.push(glbEncryptionPreparser)
+
+        GLTFLoader.ObjectConstructors.DirectionalLight = DirectionalLight2 as any
+        GLTFLoader.ObjectConstructors.PointLight = PointLight2 as any
+        GLTFLoader.ObjectConstructors.SpotLight = SpotLight2 as any
+        GLTFLoader.ObjectConstructors.MeshStandardMaterial = PhysicalMaterial as any
+        GLTFLoader.ObjectConstructors.MeshBasicMaterial = UnlitMaterial as any
+        GLTFLoader.ObjectConstructors.MeshPhysicalMaterial = PhysicalMaterial as any
+        GLTFLoader.ObjectConstructors.LineBasicMaterial = UnlitLineMaterial as any
+        // GLTFLoader.ObjectConstructors.PointsMaterial = PointsMaterial2
+        GLTFLoader.ObjectConstructors.PerspectiveCamera = PerspectiveCamera0 // todo set domElement in the AssetManager during process
+        GLTFLoader.ObjectConstructors.OrthographicCamera = OrthographicCamera // todo
     }
 
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [
@@ -71,6 +92,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 delete node.userData.gltfUUID // have issue with cloning if we don't dispose.
             }
         })
+        // todo: replacing lights and camera, todo: remove and change constructors in GLTFLoader.js
         if (!scene.userData) scene.userData = {}
         if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
         if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))

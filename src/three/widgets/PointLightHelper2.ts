@@ -42,7 +42,6 @@ export class PointLightHelper2 extends ALightHelperWidget {
             depthWrite: false,
         })
 
-        // @ts-expect-error update three-ts-types
         this.lightSphere = new Wireframe(geometry, this.material)
         this.lightSphere.computeLineDistances()
         this.add(this.lightSphere)

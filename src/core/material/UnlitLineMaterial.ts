@@ -38,12 +38,13 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     generator?: IMaterialGenerator
 
     constructor({customMaterialExtensions, ...parameters}: LineBasicMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
         !this.defines && (this.defines = {})
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

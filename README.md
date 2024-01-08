@@ -87,6 +87,7 @@ To make changes and run the example, click on the CodePen button on the top righ
     - [AssetImporter](#assetimporter)
     - [AssetExporter](#assetexporter)
     - [MaterialManager](#materialmanager)
+  - [Other classes and interfaces](#other-classes-and-interfaces)
 - [Plugins](#threepipe-plugins)
   - [TonemapPlugin](#tonemapplugin) - Add tonemap to the final screen pass
   - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
@@ -112,6 +113,8 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
   - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
   - [EditorViewWidgetPlugin](#editorviewwidgetplugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
+  - [Object3DWidgetsPlugin](#object3dwidgetsplugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
+  - [Object3DGeneratorPlugin](#object3dwidgetsplugin) - Provides UI and API to create scene objecs like lights, cameras, meshes, etc.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -1871,6 +1874,9 @@ camera.deactivateMain()
 
 See also [CameraViewPlugin](#cameraviewplugin) for camera focus animation.
 
+Note: The constructor signature of `PerspectiveCamera2` is different `PerspectiveCamera`(from three.js), since it requires the canvas and the controlsMode during creation. 
+Because of this `PerspectiveCamera0` is provided with the same signature as `PerspectiveCamera` for compatibility, in case the controls functionality is not required.
+
 ## AssetManager
 
 Source Code: [src/assetmanager/AssetManager.ts](./src/assetmanager/AssetManager.ts)
@@ -2058,6 +2064,43 @@ materialManager.dispose()
 [`materialManager.exportMaterial`](https://threepipe.org/docs/classes/MaterialManager.html#exportMaterial) - Export a material as JSON. Note: use `viewer.export` or `AssetExporter` instead to export all the embedded assets properly.
 
 [`materialManager.dispose`](https://threepipe.org/docs/classes/MaterialManager.html#dispose) - Dispose manager and all materials.
+
+## Other classes and interfaces
+
+Threepipe provides various interfaces and classes for for three.js objects with upgraded features like UI events, serialization, etc. 
+These can be used while developing new apps to get better developer experience and features.
+When standard three.js instances are added to the scene, they are automatically upgraded automatically at runtime to make them work with the rest of the framework.
+
+Some important interfaces:
+
+* [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html) - Interface for an extended version of three.js [Object3D](https://threejs.org/docs/#api/en/core/Object3D).
+* [ILight](https://threepipe.org/docs/interfaces/ILight.html) - Interface for an extended version of three.js [Light](https://threejs.org/docs/#api/en/lights/Light).
+* [ICamera](https://threepipe.org/docs/interfaces/ICamera.html) - Interface for an extended version of three.js [Camera](https://threejs.org/docs/#api/en/cameras/Camera).
+* [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html) - Interface for an extended version of three.js [Material](https://threejs.org/docs/#api/en/materials/Material).
+* [ITexture](https://threepipe.org/docs/interfaces/ITexture.html) - Interface for an extended version of three.js [Texture](https://threejs.org/docs/#api/en/textures/Texture).
+* [IRenderTarget](https://threepipe.org/docs/interfaces/IRenderTarget.html) - Interface for an extended version of three.js [WebGLRenderTarget](https://threejs.org/docs/#api/en/renderers/WebGLRenderTarget).
+* [IGeometry](https://threepipe.org/docs/interfaces/IGeometry.html) - Interface for an extended version of three.js [BufferGeometry](https://threejs.org/docs/#api/en/core/BufferGeometry).
+* [IScene](https://threepipe.org/docs/interfaces/IScene.html) - Interface for an extended version of three.js [Scene](https://threejs.org/docs/#api/en/scenes/Scene).
+* [IRenderManager](https://threepipe.org/docs/interfaces/IRenderManager.html) - Interface for rendering and render target manager.
+
+Some important classes
+
+* [Mesh2](https://threepipe.org/docs/classes/Mesh2.html) - Extends three.js [Mesh](https://threejs.org/docs/#api/en/objects/Mesh) and implements [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html).
+* [PerspectiveCamera2](https://threepipe.org/docs/classes/PerspectiveCamera2.html) - Extends three.js [PerspectiveCamera](https://threejs.org/docs/#api/en/cameras/PerspectiveCamera) and implements [ICamera](https://threepipe.org/docs/interfaces/ICamera.html). (different constructor than PerspectiveCamera)
+* [PerspectiveCamera0](https://threepipe.org/docs/classes/PerspectiveCamera0.html) - Extends three.js [PerspectiveCamera](https://threejs.org/docs/#api/en/cameras/PerspectiveCamera) and implements [ICamera](https://threepipe.org/docs/interfaces/ICamera.html). (same constructor than PerspectiveCamera)
+* [BufferGeometry2](https://threepipe.org/docs/classes/BufferGeometry2.html) - Extends three.js [BufferGeometry](https://threejs.org/docs/#api/en/core/BufferGeometry) and implements [IGeometry](https://threepipe.org/docs/interfaces/IGeometry.html).
+* [RootScene](https://threepipe.org/docs/classes/RootScene.html) - Extends three.js [Scene](https://threejs.org/docs/#api/en/scenes/Scene) and implements [IScene](https://threepipe.org/docs/interfaces/IScene.html).
+* [RenderManager](https://threepipe.org/docs/classes/RenderManager.html) - Implements [IRenderManager](https://threepipe.org/docs/interfaces/IRenderManager.html).
+* [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial.html) - Extends three.js [MeshPhysicalMaterial](https://threejs.org/docs/#api/en/materials/MeshPhysicalMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial.html) - Extends three.js [MeshBasicMaterial](https://threejs.org/docs/#api/en/materials/MeshBasicMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [LineMaterial2](https://threepipe.org/docs/classes/LineMaterial2.html) - Extends three.js [LineMaterial](https://threejs.org/docs/#api/en/materials/LineMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [UnlitLineMaterial](https://threepipe.org/docs/classes/UnlitLineMaterial.html) - Extends three.js [LineBasicMaterial](https://threejs.org/docs/#api/en/materials/LineBasicMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [DirectionalLight2](https://threepipe.org/docs/classes/DirectionalLight2.html) - Extends three.js [DirectionalLight](https://threejs.org/docs/#api/en/lights/DirectionalLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [SpotLight2](https://threepipe.org/docs/classes/SpotLight2.html) - Extends three.js [SpotLight](https://threejs.org/docs/#api/en/lights/SpotLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [PointLight2](https://threepipe.org/docs/classes/PointLight2.html) - Extends three.js [PointLight](https://threejs.org/docs/#api/en/lights/PointLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [HemisphereLight2](https://threepipe.org/docs/classes/HemisphereLight2.html) - Extends three.js [HemisphereLight](https://threejs.org/docs/#api/en/lights/HemisphereLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [AmbientLight2](https://threepipe.org/docs/classes/AmbientLight2.html) - Extends three.js [AmbientLight](https://threejs.org/docs/#api/en/lights/AmbientLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [RectAreaLight2](https://threepipe.org/docs/classes/RectAreaLight2.html) - Extends three.js [RectAreaLight](https://threejs.org/docs/#api/en/lights/RectAreaLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
 
 # Threepipe Plugins
 
@@ -2811,6 +2854,102 @@ const plugin = viewer.addPluginSync(new EditorViewWidgetPlugin())
 
 // to hide the widget
 plugin.enabled = false
+```
+
+## Object3DGeneratorPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#object3d-generator-plugin/) &mdash;
+[Source Code](./src/plugins/extras/Object3DGeneratorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Object3DGeneratorPlugin.html) 
+
+Object3DGeneratorPlugin adds support for creating different types of lights and camera objects in the viewer.
+Call the `generate` method with any type to generate a type of object(like lights, cameras, mesh etc).
+
+Support for the following types of generators is included in the plugin:
+* camera-perspective - Creates instance of `PerspectiveCamera2`
+* light-directional - Creates instance of `DirectionalLight2`
+* light-ambient - Creates instance of `AmbientLight2`
+* light-point - Creates instance of `PointLight2`
+* light-spot - Creates instance of `SpotLight2`
+* light-hemisphere - Creates instance of `HemisphereLight2`
+* light-rect-area - Creates instance of `RectAreaLight2`
+
+Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](#threepipeplugin-geometry-generator) to add various type of primitive objects like plane, sphere, etc
+A custom generator can take in any kind object as parameters and should return an `IObject3D`.
+
+Sample Usage
+```typescript
+import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const generator = viewer.addPluginSync(Object3DGeneratorPlugin)
+generator.generate('camera-perspective', {
+  position: new Vector3(5, 5, 0),
+  name: 'My Camera'
+})
+const light = generator.generate('light-spot', {
+  position: new Vector3(5, 0, 0),
+})
+
+// to add support for a custom helper
+plugin.generators['custom-object'] = (params)=>{
+  const object = new Mesh2(new PlaneGeometry(1,1), new PhysicalMaterial())
+  object.name = params.name ?? 'Custom Mesh'
+  if(params.position) object.position.copy(params.position)
+  return object
+}
+const obj = generator.generate('custom-object', {
+  position: new Vector3(5, 0, 0),
+})
+
+// Add Object3DWidgetsPlugin to see the added lights and cameras.
+viewer.addPluginSync(new Object3DWidgetsPlugin())
+```
+
+Check the [example](https://threepipe.org/examples/#object3d-generator-plugin/) for the UI.
+
+## Object3DWidgetsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#object3d-widgets-plugin/) &mdash;
+[Source Code](./src/plugins/extras/Object3DWidgetsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Object3DWidgetsPlugin.html) 
+
+Object3DWidgetsPlugin adds support for light and camera helpers/gizmos in the viewer.
+A helper is automatically created when any supported light or camera is added to the scene.
+Simply add the plugin to the viewer to see the widget.
+
+Support for additional types of helpers can be added dynamically or by other plugins by pushing a helper constructor to the `Object3DWidgetsPlugin.helpers` array, and calling `Object3DWidgetsPlugin.refresh()`.
+
+The helper class prototype should implement the `IObject3DHelper` interface. Check `DirectionalLightHelper2` for an example.
+
+```typescript
+import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin to add support
+const plugin = viewer.addPluginSync(new Object3DWidgetsPlugin())
+
+// Add some lights or cameras to the scene. (This can be done before adding the plugin as well)
+// Using Object3DGeneratorPlugin to create a camera and add it to the scene.
+const generator = viewer.getOrAddPluginSync(Object3DGeneratorPlugin)
+generator.generate('camera-perspective', {
+  position: new Vector3(5, 5, 0),
+  name: 'My Camera'
+})
+
+// to hide the widgets
+plugin.enabled = false
+
+// to add support for a custom helper
+plugin.helpers.push(MyCustomHelper)
+plugin.refresh()
+
 ```
 
 

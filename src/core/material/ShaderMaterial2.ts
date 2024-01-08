@@ -54,13 +54,14 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
     type: 'ShaderMaterial' | 'RawShaderMaterial' = 'ShaderMaterial'
 
     constructor({customMaterialExtensions, ...parameters}: ShaderMaterialParameters & IMaterialParameters = {}, isRawShaderMaterial = false) {
-        super(parameters)
+        super()
         this.isRawShaderMaterial = isRawShaderMaterial
         if (isRawShaderMaterial) {
             this.type = 'RawShaderMaterial'
         }
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

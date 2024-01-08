@@ -34,11 +34,12 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
     generator?: IMaterialGenerator
 
     constructor({customMaterialExtensions, ...parameters}: LineMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

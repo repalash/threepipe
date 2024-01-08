@@ -14,7 +14,6 @@ import {LineMaterial2} from '../../core'
  */
 export class CameraHelper2 extends ACameraHelperWidget {
     protected _vector = new Vector3()
-    // @ts-expect-error update three-ts-types remove abstract
     protected _camera = new Camera()
 
     line: LineSegments2
@@ -43,7 +42,6 @@ export class CameraHelper2 extends ACameraHelperWidget {
         geometry.setPositions(vertices)
         geometry.setColors(colors)
 
-        // @ts-expect-error update three-ts-types
         this.line = new LineSegments2(geometry, material)
         this.line.frustumCulled = false
         this.add(this.line)

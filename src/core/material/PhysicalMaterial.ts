@@ -60,12 +60,13 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
 
     constructor({customMaterialExtensions, ...parameters}: MeshPhysicalMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
         this.fog = false
         this.attenuationDistance = 0 // infinite distance (for Ui)
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

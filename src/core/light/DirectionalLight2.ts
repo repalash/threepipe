@@ -1,5 +1,5 @@
 import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Euler, Vector3} from 'three'
-import {ILight, ILightEvent} from './ILight'
+import {ILight, ILightEvent, ILightEventTypes} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
 import {uiColor, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
@@ -8,7 +8,10 @@ import {onChange3} from 'ts-browser-helpers'
 // todo: add LightShadow uiconfig
 // todo: add Light section in the readme detailing these ...2 lights
 @uiPanelContainer('Directional Light')
-export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow> {
+export class DirectionalLight2<
+    E extends ILightEvent = ILightEvent,
+    ET extends ILightEventTypes = ILightEventTypes
+> extends DirectionalLight<E, ET> implements ILight<DirectionalLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi

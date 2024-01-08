@@ -169,7 +169,6 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                     }
                 }
                 for (const light of lights) {
-                    // @ts-expect-error update three-ts-types
                     if ((light as ILight).assetType === 'light') continue
                     if (!light.parent || options.replaceLights === false) {
                         iLightCommons.upgradeLight.call(light)
@@ -182,7 +181,6 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                                         (light as any).isHemisphereLight ? new HemisphereLight2() :
                                             (light as any).isRectAreaLight ? new RectAreaLight2() :
                                                 undefined
-                        // @ts-expect-error update three-ts-types
                         if (light === newLight || !newLight) continue
                         light.parent.children.splice(light.parent.children.indexOf(light), 1, newLight)
                         newLight.parent = light.parent as any

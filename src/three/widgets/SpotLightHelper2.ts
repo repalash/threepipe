@@ -60,7 +60,6 @@ export class SpotLightHelper2 extends ALightHelperWidget {
             depthWrite: false,
         })
 
-        // @ts-expect-error update three-ts-types
         this.cone = new LineSegments2(geometry, this.material)
         this.add(this.cone)
 

@@ -49,12 +49,13 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     envMap: ITexture | null = null
 
     constructor({customMaterialExtensions, ...parameters}: MeshBasicMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
         !this.defines && (this.defines = {})
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

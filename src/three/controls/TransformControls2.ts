@@ -3,6 +3,7 @@ import {MathUtils} from 'three'
 import type {ICamera, IObject3D, ISceneEvent, IWidget} from '../../core'
 import {iObjectCommons} from '../../core'
 import {uiDropdown, uiNumber, uiPanelContainer, uiToggle} from 'uiconfig.js'
+import {onChange2} from 'ts-browser-helpers'
 
 @uiPanelContainer('Transform Controls')
 export class TransformControls2 extends TransformControls implements IWidget, IObject3D {
@@ -134,6 +135,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     // axis: 'X' | 'Y' | 'Z' | 'E' | 'XY' | 'YZ' | 'XZ' | 'XYZ' | 'XYZE' | null
 
     @uiDropdown('Mode', ['translate', 'rotate', 'scale'].map(label=>({label})))
+    @onChange2('setDirty')
         mode: 'translate' | 'rotate' | 'scale'
 
     translationSnap: number | null
@@ -141,14 +143,19 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     scaleSnap: number | null
 
     @uiDropdown('Space', ['world', 'local'].map(label=>({label})))
+    @onChange2('setDirty')
         space: 'world' | 'local'
     @uiNumber('Size')
+    @onChange2('setDirty')
         size: number
     @uiToggle('Show X')
+    @onChange2('setDirty')
         showX: boolean
     @uiToggle('Show Y')
+    @onChange2('setDirty')
         showY: boolean
     @uiToggle('Show Z')
+    @onChange2('setDirty')
         showZ: boolean
 
     // dragging: boolean

@@ -5,7 +5,6 @@ export interface ILight<
     TShadowSupport extends LightShadow | undefined = LightShadow | undefined,
     E extends ILightEvent = ILightEvent,
     ET extends ILightEventTypes = ILightEventTypes
-// @ts-expect-error update three-ts-types
 > extends Light<TShadowSupport, E, ET>, IObject3D<E, ET> {
     assetType: 'light'
     readonly isLight: true
