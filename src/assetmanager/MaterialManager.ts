@@ -241,17 +241,27 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     //     return object
     // }
     // protected abstract _processModel(object: any, options: AnyOptions): any
-    convertToIMaterial(material: Material&{assetType?:'material', iMaterial?: IMaterial}, options: {useSourceMaterial?:boolean, materialTemplate?: string} = {}): IMaterial|undefined {
+    /**
+     * Creates a new material if a compatible template is found or apply minimal upgrades and returns the original material.
+     * Also checks from the registered materials, if one with the same uuid is found, it is returned instead with the new parameters.
+     * Also caches the response.
+     * Returns the same material if its already upgraded.
+     * @param material - the material to upgrade/check
+     * @param useSourceMaterial - if false, will not use the source material parameters in the new material. default = true
+     * @param materialTemplate - any specific material template to use instead of detecting from the material type.
+     * @param createFromTemplate - if false, will not create a new material from the template, but will apply minimal upgrades to the material instead. default = true
+     */
+    convertToIMaterial(material: Material&{assetType?:'material', iMaterial?: IMaterial}, {useSourceMaterial = true, materialTemplate, createFromTemplate = true}: {useSourceMaterial?:boolean, materialTemplate?: string, createFromTemplate?: boolean} = {}): IMaterial|undefined {
         if (!material) return
         if (material.assetType) return <IMaterial>material
         if (material.iMaterial?.assetType) return material.iMaterial
         const uuid = material.userData?.uuid || material.uuid
         let mat = this.findMaterial(uuid)
-        if (!mat) {
-            const ignoreSource = options.useSourceMaterial === false || !material.isMaterial
-            const template = options.materialTemplate || (!ignoreSource && material.type ? material.type || 'physical' : 'physical')
+        if (!mat && createFromTemplate !== false) {
+            const ignoreSource = useSourceMaterial === false || !material.isMaterial
+            const template = materialTemplate || (!ignoreSource && material.type ? material.type || 'physical' : 'physical')
             mat = this.create(template, ignoreSource ? undefined : material)
-        } else {
+        } else if (mat) {
             // if ((mat as any).iMaterial) mat = (mat as any).iMaterial
             console.warn('Material with the same uuid already exists, copying properties')
             if (material.type !== mat!.type) console.error('Material type mismatch, delete previous material first?', material, mat)
@@ -262,7 +272,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             mat.userData.uuid = uuid
             material.iMaterial = mat
         } else {
-            console.warn('Failed to convert material to IMaterial, just upgrading', material, options)
+            console.warn('Failed to convert material to IMaterial, just upgrading', material, useSourceMaterial, materialTemplate)
             mat = iMaterialCommons.upgradeMaterial.call(material)
         }
         return mat

@@ -78,7 +78,7 @@ export interface IObject3DUserData extends IImportResultUserData {
 
     autoScaleRadius?: number
     autoScaled?: boolean
-    
+
     geometriesCentered?: boolean
 
     /**
@@ -200,13 +200,13 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
      * @param isCentered - optional (taken from userData.isCentered by default)
      * @param setDirty - true by default
      */
-    autoScale?<T extends IObject3D>(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean): T
+    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean): this
 
     /**
      *
      * @param setDirty - calls {@link setDirty} @default true
      */
-    autoCenter?<T extends IObject3D>(setDirty?: boolean): T
+    autoCenter?(setDirty?: boolean): this
 
     /**
      * @deprecated use object directly
@@ -221,7 +221,6 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
     // __disposed?: boolean
     /**
-     *
      * @param removeFromParent - remove from parent. Default true
      */
     dispose(removeFromParent?: boolean): void;

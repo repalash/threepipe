@@ -3,7 +3,7 @@ import {getOrCall, objectMap} from 'ts-browser-helpers'
 import {shaderReplaceString, shaderUtils} from '../utils'
 import {Object3D, Shader, ShaderChunk, WebGLRenderer} from 'three'
 import {MaterialExtension} from './MaterialExtension'
-import {generateUUID} from '../three'
+import {generateUUID} from '../three/utils'
 
 export class MaterialExtender {
 

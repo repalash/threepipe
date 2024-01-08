@@ -1,6 +1,6 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
-import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three'
+import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three/utils'
 import {BufferGeometry, Vector3} from 'three'
 
 export const iGeometryCommons = {

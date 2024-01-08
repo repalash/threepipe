@@ -325,6 +325,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const camera = new PerspectiveCamera2('orbit', this._canvas)
         camera.name = 'Default Camera'
         camera.position.set(0, 0, 5)
+        camera.target.set(0, 0, 0)
         camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
 
         // Update camera controls postFrame if allowed to interact

@@ -29,7 +29,7 @@ import {downloadBlob, uploadFile} from 'ts-browser-helpers'
 import {PhysicalMaterial} from './PhysicalMaterial'
 import {getEmptyMeta} from '../../utils'
 import {LegacyPhongMaterial} from './LegacyPhongMaterial'
-import {generateUUID} from '../../three'
+import {generateUUID} from '../../three/utils'
 
 declare module '../IMaterial' {
     interface IMaterial {

@@ -86,6 +86,11 @@ export interface IWidget {
     attach(object: any): this;
     detach(): this;
     isWidget: true;
+
+    object: any
+    update?(): void
+
+    dispose?(): void
 }
 
 export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEventTypes = ISceneEventTypes>
@@ -133,7 +138,7 @@ export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEv
     // region deprecated
 
     /**
-     @deprecated use {@link getObjectByName} instead
+     * @deprecated use {@link getObjectByName} instead
      * @param name
      * @param parent
      */

@@ -209,25 +209,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
 
     // todo: lights?
 
-    // todo: issue when selected object is moved to picking from SceneUI
-    // (config.children as UiObjectConfig[]).push(makeHierarchyUi(object))
     this.uiConfig = config
     return config
 
 }
-
-// function makeHierarchyUi(object: Object3D, root?: Object3D): UiObjectConfig {
-//     const dispatch = ()=>(root || object).dispatchEvent({type: 'select', ui: true, value: object})
-//     if (object.children.length === 0) return {
-//         type: 'button',
-//         label: 'Select ' + (object.name || 'unnamed'),
-//         value: dispatch,
-//     }
-//     return {
-//         type: 'folder',
-//         label: 'Select ' + (object.name || 'unnamed'),
-//         children: object.children.map((child)=>makeHierarchyUi(child, root || object)),
-//         value: dispatch,
-//         onExpand: dispatch,
-//     }
-// }

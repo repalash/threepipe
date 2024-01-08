@@ -1,5 +1,5 @@
 import {Quaternion, Spherical, Vector3} from 'three'
-import {worldToLocalQuaternion} from '../three'
+import {worldToLocalQuaternion} from '../three/utils'
 import {CameraView, ICamera, ICameraView} from '../core'
 import {AnimationOptions} from 'popmotion'
 import {lerp, lerpAngle} from './animation'

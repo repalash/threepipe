@@ -207,4 +207,5 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
             return new LineMaterial2(params)
         },
     }
+
 }

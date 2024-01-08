@@ -484,7 +484,7 @@ class OBJLoader2 extends Loader implements ILoader{
 
     }
 
-    declare loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any>
+    loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any>
 
     setMaterials( materials ) {
 

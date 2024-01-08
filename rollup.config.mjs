@@ -3,14 +3,14 @@ import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 import packageJson from './package.json' assert {type: 'json'};
-import path from 'path'
-import {fileURLToPath} from 'url';
+import path from 'node:path'
+import {fileURLToPath} from 'node:url';
 import postcss from 'rollup-plugin-postcss'
 import glsl from "rollup-plugin-glsl"
 import replace from "@rollup/plugin-replace";
-import terser from "@rollup/plugin-terser";
 import commonjs from "@rollup/plugin-commonjs";
 import license from "rollup-plugin-license";
+import terser from "@rollup/plugin-terser";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +59,8 @@ export default {
     plugins: [
         replace({
             'process.env.NODE_ENV': JSON.stringify( 'production' ),
+            '.css?inline': '.css',
+            preventAssignment: true,
         }),
         // replace({
         //     exclude: 'src/**',
@@ -71,6 +73,7 @@ export default {
             include: "src/**/*.glsl"
         }),
         postcss({
+            extensions: ['.css', '.css?inline'],
             modules: false,
             autoModules: true,  // todo; issues with typescript import css, because inject is false
             inject: false,

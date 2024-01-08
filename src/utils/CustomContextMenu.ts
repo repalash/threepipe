@@ -1,4 +1,4 @@
-import styles from './CustomContextMenu.css'
+import styles from './CustomContextMenu.css?inline'
 
 /**
  * Represents a custom context menu that can be created and managed dynamically.

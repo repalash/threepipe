@@ -19,7 +19,7 @@ import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
 import {IMaterial, IMaterialEvent, IMaterialSetDirtyOptions} from '../IMaterial'
-import {isInScene} from '../../three'
+import {isInScene} from '../../three/utils'
 
 /**
  * Map of all material properties and their default values in three.js - Material.js

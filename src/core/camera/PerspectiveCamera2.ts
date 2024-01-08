@@ -4,7 +4,7 @@ import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
-import {OrbitControls3} from '../../three'
+import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
 import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
@@ -53,7 +53,9 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize() readonly position: Vector3
 
     /**
+     * The target position of the camera (where the camera looks at). Also syncs with the controls.target, so it's not required to set that separately.
      * Note: this is always in world-space
+     * Note: {@link autoLookAtTarget} must be set to trye to make the camera look at the target when no controls are enabled
      */
     @uiVector('Target', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
@@ -86,6 +88,13 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         far = 50
 
     /**
+     * Automatically make the camera look at the {@link target} on {@link setDirty} call
+     * Defaults to false. Note that this must be set to true to make the camera look at the target without any controls
+     */
+    @bindToValue({obj: 'userData', onChange: 'setDirty'})
+        autoLookAtTarget = false // bound to userData so that it's saved in the glb.
+
+    /**
      * Automatically manage near and far clipping planes based on scene size.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
@@ -93,12 +102,14 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     /**
      * Minimum near clipping plane allowed. (Distance from camera)
+     * Used in RootScene when {@link autoNearFar} is true.
      * @default 0.2
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         minNearPlane = 0.5
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
+     * Used in RootScene when {@link autoNearFar} is true.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         maxFarPlane = 1000
@@ -157,6 +168,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     private _interactionsDisabledBy = new Set<string>()
 
+    /**
+     * If interactions are enabled for this camera. It can be disabled by some code or plugin.
+     * see also {@link setInteractions}
+     * @deprecated use {@link canUserInteract} to check if the user can interact with this camera
+     * @readonly
+     */
     get interactionsEnabled(): boolean {
         return this._interactionsDisabledBy.size === 0
     }
@@ -172,7 +189,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     }
 
     get canUserInteract() {
-        return this.interactionsEnabled && this.isMainCamera && this.controlsMode !== ''
+        return this._interactionsDisabledBy.size === 0 && this.isMainCamera && this.controlsMode !== ''
     }
 
     // endregion
@@ -279,7 +296,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
         // todo: only for orbit control like controls?
         if (this._controls) {
-            const ce = this.interactionsEnabled
+            const ce = this.canUserInteract
             this._controls.enabled = ce
             if (ce) this.up.copy(Object3D.DEFAULT_UP)
         }
@@ -574,7 +591,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
     getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
     getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
+    copy: (source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this
@@ -584,4 +601,25 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     // endregion
 
+}
+
+/**
+ * Empty class with the constructor same as PerspectiveCamera in three.js.
+ * This can be used to remain compatible with three.js construct signature.
+ */
+export class PerspectiveCamera0 extends PerspectiveCamera2 {
+    constructor(fov?: number, aspect?: number, near?: number, far?: number) {
+        super(undefined, undefined, undefined, fov, aspect || 1)
+        if (near || far) {
+            this.autoNearFar = false
+            if (near) {
+                this.near = near
+                this.minNearPlane = near
+            }
+            if (far) {
+                this.far = far
+                this.maxFarPlane = far
+            }
+        }
+    }
 }
