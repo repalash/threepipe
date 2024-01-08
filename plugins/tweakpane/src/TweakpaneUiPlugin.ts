@@ -59,7 +59,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         plugins.forEach(plugin => this.setupPluginUi(plugin))
     }
 
-    setupPluginUi<T extends IViewerPlugin>(plugin: T|Class<T>): UiObjectConfig | undefined {
+    setupPluginUi<T extends IViewerPlugin>(plugin: T|Class<T>, params?: Partial<UiObjectConfig>): UiObjectConfig | undefined {
         const p = (<Class<IViewerPlugin>>plugin).prototype ? this._viewer?.getPlugin<T>(<Class<T>>plugin) : <T>plugin
         if (!p) {
             console.warn('plugin not found:', plugin)
@@ -68,7 +68,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         this._plugins.push(p)
         if (p.uiConfig && p.uiConfig.hidden === undefined) p.uiConfig.hidden = false // todo; this is a hack for now
         const ui = p.uiConfig
-        this.appendChild(ui)
+        this.appendChild(ui, params)
         this._setupPluginSerializationContext(ui, p)
         return ui
     }

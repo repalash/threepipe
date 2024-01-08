@@ -121,6 +121,7 @@
     position: relative;
     width: auto;
     height: 1.2rem;
+    aspect-ratio: 1;
 }
 
 .mode-buttons-container{
