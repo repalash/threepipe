@@ -80,6 +80,23 @@ export interface ProcessRawOptions {
     generateMipmaps?: boolean|undefined,
 
     /**
+     * If true, the importer will replace any three.js light instances with upgraded lights
+     * default = true
+     */
+    replaceLights?: boolean, // default = true
+    /**
+     * If true, the importer will replace any three.js camera instances with upgraded cameras
+     * default = true
+     */
+    replaceCameras?: boolean, // default = true
+    /**
+     * If true, the importer will replace any three.js material instances with upgraded materials
+     * default = true
+     */
+    replaceMaterials?: boolean, // default = true
+
+
+    /**
      * default = true, if true, the importer will automatically import the contents of zip files, if zip importer is registered.
      */
     autoImportZipContents?: boolean,

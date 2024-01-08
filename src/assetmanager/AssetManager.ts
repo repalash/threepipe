@@ -4,6 +4,7 @@ import {
     Cache as threeCache,
     Camera,
     EventDispatcher,
+    Light,
     LinearFilter,
     LinearMipmapLinearFilter,
     LoadingManager,
@@ -16,8 +17,13 @@ import {generateUUID, getTextureDataType, overrideThreeCache} from '../three'
 import {IAsset} from './IAsset'
 import {
     AddObjectOptions,
+    AmbientLight2,
+    DirectionalLight2,
+    HemisphereLight2,
     ICamera,
     iCameraCommons,
+    ILight,
+    iLightCommons,
     IMaterial,
     iMaterialCommons,
     IObject3D,
@@ -25,6 +31,9 @@ import {
     ISceneEvent,
     ITexture,
     PerspectiveCamera2,
+    PointLight2,
+    RectAreaLight2,
+    SpotLight2,
     upgradeTexture,
 } from '../core'
 import {Importer} from './Importer'
@@ -113,6 +122,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
         this.importer.addEventListener('processRawStart', (event)=>{
             // console.log('preprocess mat', mat)
             const res = event.data!
+            const options = event.options! as ProcessRawOptions
             // if (!res.assetType) {
             //     if (res.isBufferGeometry) { // for eg stl todo
             //         res = new Mesh(res, new MeshStandardMaterial())
@@ -121,27 +131,14 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
             //     }
             // }
             if (res.isObject3D) {
-                // todo replace lights
-                // if (res.isLight) {
-                //     res = upgradeThreejsLight(res)
-                // } else {
-                //     const lights: any[] = []
-                //     res.traverse((rr: any)=>{
-                //         if (rr !== res && rr.isLight) lights.push(rr)
-                //     })
-                //     for (const light of lights) {
-                //         upgradeThreejsLight(light)
-                //     }
-                //     res = new Object3DModel(res, options as any)
-                // }
-
                 const cameras: Camera[] = []
+                const lights: Light[] = []
                 res.traverse((obj: any) => {
                     if (obj.material) {
                         const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
                         const newMaterials = []
                         for (const material of materials) {
-                            const mat = this.materials.convertToIMaterial(material) || material
+                            const mat = this.materials.convertToIMaterial(material, {createFromTemplate: options.replaceMaterials !== false}) || material
                             mat.uuid = material.uuid
                             mat.userData.uuid = material.uuid
                             newMaterials.push(mat)
@@ -150,13 +147,16 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                         else obj.material = newMaterials[0]
                     }
                     if (obj.isCamera) cameras.push(obj)
+                    if (obj.isLight) lights.push(obj)
                 })
                 for (const camera of cameras) {
+                    if ((camera as PerspectiveCamera2).assetType === 'camera') continue
                     // todo: OrthographicCamera
-                    if (!(camera as PerspectiveCamera).isPerspectiveCamera || !camera.parent) {
+                    if (!(camera as PerspectiveCamera).isPerspectiveCamera || !camera.parent || options.replaceCameras === false) {
                         iCameraCommons.upgradeCamera.call(camera)
                     } else {
-                        const newCamera: ICamera = (camera as any).iCamera ?? new PerspectiveCamera2('', this.viewer.canvas)
+                        const newCamera: ICamera = (camera as any).iCamera ??
+                            new PerspectiveCamera2('', this.viewer.canvas)
                         if (camera === newCamera) continue
                         camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
                         newCamera.parent = camera.parent as any
@@ -166,6 +166,31 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data: ImportResult}
                         newCamera.userData.uuid = camera.uuid
                         ;(camera as any).iCamera = newCamera
                         // console.log('replacing camera', camera, newCamera)
+                    }
+                }
+                for (const light of lights) {
+                    // @ts-expect-error update three-ts-types
+                    if ((light as ILight).assetType === 'light') continue
+                    if (!light.parent || options.replaceLights === false) {
+                        iLightCommons.upgradeLight.call(light)
+                    } else {
+                        const newLight: ILight|undefined = (light as any).iLight ??
+                        (light as any).isDirectionalLight ? new DirectionalLight2() :
+                            (light as any).isPointLight ? new PointLight2() :
+                                (light as any).isSpotLight ? new SpotLight2() :
+                                    (light as any).isAmbientLight ? new AmbientLight2() :
+                                        (light as any).isHemisphereLight ? new HemisphereLight2() :
+                                            (light as any).isRectAreaLight ? new RectAreaLight2() :
+                                                undefined
+                        // @ts-expect-error update three-ts-types
+                        if (light === newLight || !newLight) continue
+                        light.parent.children.splice(light.parent.children.indexOf(light), 1, newLight)
+                        newLight.parent = light.parent as any
+                        newLight.copy(light as any)
+                        light.parent = null
+                        ;(newLight as any).uuid = light.uuid
+                        newLight.userData.uuid = light.uuid
+                        ;(light as any).iLight = newLight
                     }
                 }
 
