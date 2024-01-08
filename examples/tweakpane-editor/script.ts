@@ -19,6 +19,8 @@ import {
     KTXLoadPlugin,
     NoiseBumpMaterialPlugin,
     NormalBufferPlugin,
+    Object3DGeneratorPlugin,
+    Object3DWidgetsPlugin,
     PickingPlugin,
     PLYLoadPlugin,
     ProgressivePlugin,
@@ -89,6 +91,8 @@ async function init() {
         BlendLoadPlugin,
         HierarchyUiPlugin,
         GeometryGeneratorPlugin,
+        Object3DWidgetsPlugin,
+        Object3DGeneratorPlugin,
         ...extraImportPlugins,
     ])
 
@@ -98,7 +102,7 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin],
         ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],

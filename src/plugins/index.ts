@@ -50,8 +50,10 @@ export {NoiseBumpMaterialPlugin} from './material/NoiseBumpMaterialPlugin'
 export {CustomBumpMapPlugin} from './material/CustomBumpMapPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
 
-// extras
+// rendering
 export {VirtualCamerasPlugin} from './rendering/VirtualCamerasPlugin'
 
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
+export {Object3DWidgetsPlugin} from './extras/Object3DWidgetsPlugin'
+export {Object3DGeneratorPlugin} from './extras/Object3DGeneratorPlugin'
