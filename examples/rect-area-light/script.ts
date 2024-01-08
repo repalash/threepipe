@@ -1,14 +1,12 @@
 import {
     _testFinish,
     Box3B,
-    DirectionalLight2,
     IObject3D,
     Mesh,
     Object3DWidgetsPlugin,
-    PCFSoftShadowMap,
     PhysicalMaterial,
     PlaneGeometry,
-    RenderTargetPreviewPlugin,
+    RectAreaLight2,
     ThreeViewer,
     Vector3,
 } from 'threepipe'
@@ -30,7 +28,7 @@ async function init() {
     })
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))
-    const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/fbx/Samba Dancing.fbx', {
+    const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/ShadowmappableMesh.glb', {
         autoCenter: true,
         autoScale: true,
     })
@@ -43,26 +41,13 @@ async function init() {
             color: '#ffffff',
         })
     )
-    ground.castShadow = false
-    ground.receiveShadow = true
     viewer.scene.addObject(ground)
 
-    const light = viewer.scene.addObject(new DirectionalLight2(0xffffff, 4))
-    light.position.set(2, 2, 2)
-    light.lookAt(0, 0, 0)
-    light.castShadow = true
-    light.shadow.mapSize.setScalar(1024)
-    light.shadow.camera.near = 0.1
-    light.shadow.camera.far = 10
-    light.shadow.camera.top = 2
-    light.shadow.camera.bottom = -2
-    light.shadow.camera.left = -2
-    light.shadow.camera.right = 2
-
-    viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
-
-    const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
+    const light = viewer.scene.addObject(new RectAreaLight2(0xffffff, 4))
+    light.position.set(2, 4, 0)
+    light.lookAt(0, 4, 0)
+    light.width = 2
+    light.height = 10
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
     ui.appendChild(light.uiConfig, {expanded: true})

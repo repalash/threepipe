@@ -1,7 +1,6 @@
 import {
     _testFinish,
     Box3B,
-    DirectionalLight2,
     IObject3D,
     Mesh,
     Object3DWidgetsPlugin,
@@ -9,6 +8,7 @@ import {
     PhysicalMaterial,
     PlaneGeometry,
     RenderTargetPreviewPlugin,
+    SpotLight2,
     ThreeViewer,
     Vector3,
 } from 'threepipe'
@@ -47,17 +47,19 @@ async function init() {
     ground.receiveShadow = true
     viewer.scene.addObject(ground)
 
-    const light = viewer.scene.addObject(new DirectionalLight2(0xffffff, 4))
+    const light = viewer.scene.addObject(new SpotLight2(0xffffff, 10))
     light.position.set(2, 2, 2)
     light.lookAt(0, 0, 0)
+    light.angle = 0.5
+    light.penumbra = 0.2
+    light.distance = 5
+    light.decay = 0.5
     light.castShadow = true
     light.shadow.mapSize.setScalar(1024)
     light.shadow.camera.near = 0.1
     light.shadow.camera.far = 10
-    light.shadow.camera.top = 2
-    light.shadow.camera.bottom = -2
-    light.shadow.camera.left = -2
-    light.shadow.camera.right = 2
+    light.shadow.camera.aspect = 1
+    light.shadow.camera.fov = 45
 
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
 

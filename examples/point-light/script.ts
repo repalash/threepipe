@@ -1,13 +1,13 @@
 import {
     _testFinish,
     Box3B,
-    DirectionalLight2,
     IObject3D,
     Mesh,
     Object3DWidgetsPlugin,
     PCFSoftShadowMap,
     PhysicalMaterial,
     PlaneGeometry,
+    PointLight2,
     RenderTargetPreviewPlugin,
     ThreeViewer,
     Vector3,
@@ -47,17 +47,15 @@ async function init() {
     ground.receiveShadow = true
     viewer.scene.addObject(ground)
 
-    const light = viewer.scene.addObject(new DirectionalLight2(0xffffff, 4))
-    light.position.set(2, 2, 2)
+    const light = viewer.scene.addObject(new PointLight2(0xffffff, 8))
+    light.position.set(0, 4, 1)
     light.lookAt(0, 0, 0)
+    light.distance = 10
+    light.decay = 1
     light.castShadow = true
     light.shadow.mapSize.setScalar(1024)
     light.shadow.camera.near = 0.1
     light.shadow.camera.far = 10
-    light.shadow.camera.top = 2
-    light.shadow.camera.bottom = -2
-    light.shadow.camera.left = -2
-    light.shadow.camera.right = 2
 
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
 
