@@ -107,8 +107,8 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             throw 'Not a temp target'
         }
         if (this._releasedTempTargets[key].length > this.maxTempPerKey) {
+            this.removeTrackedTarget(target)
             target.dispose()
-            this._trackedTempTargets.splice(this._trackedTempTargets.indexOf(target), 1)
         } else this._releasedTempTargets[key].push(target)
     }
 

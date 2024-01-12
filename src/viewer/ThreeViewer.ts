@@ -49,7 +49,7 @@ import {
     RootSceneImportResult,
 } from '../assetmanager'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
-import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
+import {uiConfig, UiObjectConfig, uiPanelContainer} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
 import type {CameraViewPlugin, ProgressivePlugin} from '../plugins'
 // noinspection ES6PreferShortImport
@@ -194,7 +194,7 @@ export interface ThreeViewerOptions {
  * The ThreeViewer is the main class in the framework to manage a scene, render and add plugins to it.
  * @category Viewer
  */
-@uiFolderContainer('Viewer')
+@uiPanelContainer('Viewer')
 export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes> {
     public static readonly VERSION = VERSION
     public static readonly ConfigTypeSlug = 'vjson'

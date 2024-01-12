@@ -19,7 +19,7 @@ import FragmentClippingExtensionPluginPatch from './shaders/FragmentClippingExte
  * It uses WEBGI_materials_fragment_clipping_extension glTF extension to save the settings in glTF files.
  * @category Plugins
  */
-@uiFolderContainer('FragmentClipping Materials')
+@uiFolderContainer('Fragment Clipping (MatExt)')
 export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
     static readonly PluginType = 'FragmentClippingExtensionPlugin1'
 

@@ -15,7 +15,7 @@ import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTF
  * It uses WEBGI_materials_clearcoat_tint glTF extension to save the settings in glTF files.
  * @category Plugins
  */
-@uiFolderContainer('ClearcoatTint Materials')
+@uiFolderContainer('Clearcoat Tint (MatExt)')
 export class ClearcoatTintPlugin extends AViewerPluginSync<''> {
     static readonly PluginType = 'ClearcoatTintPlugin'
 

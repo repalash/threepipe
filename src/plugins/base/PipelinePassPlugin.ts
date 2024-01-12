@@ -2,7 +2,7 @@ import {IPassID, IPipelinePass} from '../../postprocessing'
 import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
 import {onChange, serialize, wrapThisFunction} from 'ts-browser-helpers'
 import {SerializationMetaType} from '../../utils'
-import {uiConfig, uiToggle} from 'uiconfig.js'
+import {uiToggle} from 'uiconfig.js'
 
 export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId
@@ -12,7 +12,7 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     @onChange(PipelinePassPlugin.prototype.setDirty)
         enabled = true
 
-    @uiConfig()
+    // @uiConfig()
     @serialize('pass')
     protected _pass?: T
     protected abstract _createPass():T

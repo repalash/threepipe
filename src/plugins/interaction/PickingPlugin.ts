@@ -51,7 +51,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
 
     setDirty() {
         if (!this._viewer) return
-        if (this.isDisabled()) this.setSelectedObject(undefined) // todo
+        if (this.isDisabled()) this.setSelectedObject(undefined)
         this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
@@ -74,14 +74,15 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         return this._picker?.selectedObject as T || undefined
     }
 
-    setSelectedObject(object: IObject3D|undefined, focusCamera = false) { // todo: listen to object dispose
-        if (this.isDisabled()) return
+    setSelectedObject(object: IObject3D|undefined, focusCamera = false) { // todo: listen to object disposed
+        const disabled = this.isDisabled()
+        if (disabled && !object) return
         if (!this._picker) return
         const t = this.autoFocus
         this.autoFocus = false
         this._picker.selectedObject = object || null
         this.autoFocus = t
-        if (t || focusCamera) this.focusObject(object)
+        if (!disabled && object && (t || focusCamera)) this.focusObject(object)
     }
 
     onAdded(viewer: ThreeViewer): void {
@@ -219,7 +220,6 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             // this._viewer.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
             this.focusObject(selected)
         }
-
 
     }
 

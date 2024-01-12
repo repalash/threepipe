@@ -18,7 +18,7 @@ import NoiseBumpMaterialPluginPatch from './shaders/NoiseBumpMaterialPlugin.patc
  * It uses WEBGI_materials_noise_bump glTF extension to save the settings in glTF files.
  * @category Plugins
  */
-@uiFolderContainer('NoiseBump Materials')
+@uiFolderContainer('Noise/Sparkle Bump (MatExt)')
 export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
     static readonly PluginType = 'NoiseBumpMaterialPlugin'
 

@@ -20,7 +20,7 @@ import {makeSamplerUi} from '../../ui/image-ui'
  * It uses WEBGI_materials_custom_bump_map glTF extension to save the settings in glTF files.
  * @category Plugins
  */
-@uiFolderContainer('CustomBumpMap Materials')
+@uiFolderContainer('Custom BumpMap (MatExt)')
 export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
     static readonly PluginType = 'CustomBumpMapPlugin'
 

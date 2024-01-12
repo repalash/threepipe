@@ -54,6 +54,17 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     private readonly _renderSize = new Vector2(512, 512) // this is updated automatically.
     protected readonly _renderer: IWebGLRenderer<this>
     private _renderScale = 1.
+    @uiSlider('Render Scale', [0.1, 8], 0.05) // keep here in code so its at the top in the UI
+    get renderScale(): number {
+        return this._renderScale
+    }
+    set renderScale(value: number) {
+        if (value !== this._renderScale) {
+            this._renderScale = value
+            this.setSize(undefined, undefined, true)
+        }
+    }
+
     @uiConfig(undefined, {label: 'Passes'})
     private _passes: IPipelinePass[] = []
     private _pipeline: IPassID[] = []
@@ -335,16 +346,6 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     }
     get renderSize(): Vector2 {
         return this._renderSize
-    }
-    @uiSlider('Render Scale', [0.1, 8], 0.05)
-    get renderScale(): number {
-        return this._renderScale
-    }
-    set renderScale(value: number) {
-        if (value !== this._renderScale) {
-            this._renderScale = value
-            this.setSize(undefined, undefined, true)
-        }
     }
 
     get context(): WebGLRenderingContext {
