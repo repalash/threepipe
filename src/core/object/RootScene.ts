@@ -18,7 +18,7 @@ import {ITexture} from '../ITexture'
 import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
-import {uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {IGeometry} from '../IGeometry'
 
 @uiFolderContainer('Root Scene')
@@ -249,9 +249,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
         }
         if (centerGeometries && !obj.userData.geometriesCentered) {
-            const geoms = new Set<IGeometry>()
-            obj.traverse((o)=> o.geometry && geoms.add(o.geometry))
-            geoms.forEach(g=>g.center(undefined, centerGeometriesKeepPosition))
+            this.centerAllGeometries(centerGeometriesKeepPosition, obj)
             obj.userData.geometriesCentered = true
         } else {
             obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
@@ -260,6 +258,13 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (license) obj.userData.license = [obj.userData.license, license].filter(v=>v).join(', ')
 
         this.setDirty({refreshScene: true})
+    }
+
+    @uiButton()
+    centerAllGeometries(keepPosition = true, obj?: IObject3D) {
+        const geoms = new Set<IGeometry>()
+        ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
+        geoms.forEach(g => g.center(undefined, keepPosition))
     }
 
     clearSceneModels(dispose = false, setDirty = true): void {

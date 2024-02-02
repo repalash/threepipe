@@ -4,10 +4,12 @@ export {BaseImporterPlugin} from './base/BaseImporterPlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
+export {GBufferPlugin, GBufferMaterial, DepthNormalMaterial} from './pipeline/GBufferPlugin'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
 export {FrameFadePlugin, type FrameFadePluginEventTypes} from './pipeline/FrameFadePlugin'
 export type {ProgressivePluginEventTypes, ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
+export type {GBufferPluginEventTypes, GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext} from './pipeline/GBufferPlugin'
 export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
 export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
 

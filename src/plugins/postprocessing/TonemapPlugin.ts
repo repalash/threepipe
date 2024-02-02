@@ -20,6 +20,7 @@ import Uncharted2ToneMappingShader from './shaders/Uncharted2ToneMapping.glsl'
 import TonemapShader from './shaders/TonemapPlugin.pars.glsl'
 import TonemapShaderPatch from './shaders/TonemapPlugin.patch.glsl'
 import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
+import {GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
@@ -131,10 +132,11 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
         return super.fromJSON(data, meta)
     }
 
-    updateGBufferFlags(material: IMaterial, data: Vector4): void {
-        const x = material?.userData.postTonemap === false ? 0 : 1
+    // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension
+    updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
+        const x = (c.material.userData.gBufferData?.tonemapEnabled ?? c.material?.userData.postTonemap) === false ? 0 : 1
         data.w = updateBit(data.w, 1, x) // 2nd Bit
-        super.updateGBufferFlags(material, data)
+        super.updateGBufferFlags(data, c)
     }
 
     static {

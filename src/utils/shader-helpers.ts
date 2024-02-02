@@ -15,7 +15,7 @@ export function shaderReplaceString(shader: string, str: string, newStr: string,
     append = false,
 } = {}) {
     // todo: use safeReplaceString from ts-browser-helpers
-    if (warnEnabled) {
+    if (warnEnabled /* && ThreeViewer.ViewerDebugging */) {
         if (!shader.includes(str)) {
             console.error(`${str} not found in shader`)
             return shader

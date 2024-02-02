@@ -94,7 +94,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [ProgressivePlugin](#progressiveplugin) - Post-render pass to blend the last frame with the current frame
   - [DepthBufferPlugin](#depthbufferplugin) - Pre-rendering of depth buffer
   - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
-  - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
+  - [GBufferPlugin](#gbufferplugin) - Pre-rendering of depth-normal and flags buffers in a single pass
   - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
   - [TransformControlsPlugin](#transformcontrolsplugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
@@ -2212,7 +2212,7 @@ The depth values are based on camera near far values, which are controlled autom
 
 Normal Buffer Plugin adds a pre-render pass to the render manager and renders a normal buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc. 
 
-Note: Use [`DepthNormalBufferPlugin`](#DepthNormalBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
+Note: Use [`GBufferPlugin`](#GBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
 
 ```typescript
 import {ThreeViewer, NormalBufferPlugin} from 'threepipe'
@@ -2229,7 +2229,25 @@ const normalTarget = normalPlugin.target;
 
 ## GBufferPlugin
 
-todo
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#gbuffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/GBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GBufferPlugin.html)
+
+GBuffer Plugin adds a pre-render pass to the render manager and renders depth+normals to a target and some customizable flags to another. The multiple render target and textures can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc.
+
+```typescript
+import {ThreeViewer, GBufferPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const gBufferPlugin = viewer.addPluginSync(new GBufferPlugin())
+
+const gBuffer = gBufferPlugin.target;
+const normalDepth = gBufferPlugin.normalDepthTexture;
+const gBufferFlags = gBufferPlugin.flagsTexture;
+```
 
 ## PickingPlugin
 

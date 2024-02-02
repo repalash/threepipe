@@ -52,7 +52,7 @@ export class ViewerRenderManager extends RenderManager {
     }
 
     /**
-     * Reference to the gbuffer target, if it exists. This can be set by plugins like {@link DepthBufferPlugin}
+     * Reference to the gbuffer target, if it exists. This can be set by plugins like {@link DepthBufferPlugin}, {@link GBufferPlugin}
      */
     gbufferTarget: IRenderTarget | undefined
 

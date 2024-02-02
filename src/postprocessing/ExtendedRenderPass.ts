@@ -52,7 +52,6 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         this._transparentTarget = undefined
     }
 
-
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager

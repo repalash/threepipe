@@ -10,7 +10,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
     public static readonly DEFAULT_TEX_ID = 'tDiffuse'
 
     material!: ShaderMaterial2
-    overrideReadBuffer: WebGLRenderTarget|null = null
+    overrideReadBuffer: {texture?: WebGLRenderTarget['texture']}|null = null
 
     readonly isExtendedShaderPass = true
     // private _textureIDs: string[]
@@ -29,7 +29,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
         renderer.renderWithModes({
             backgroundRender: false,
         }, ()=>{
-            super.render(renderer, writeBuffer || null, this.overrideReadBuffer || readBuffer, deltaTime, maskActive)
+            super.render(renderer, writeBuffer || null, (this.overrideReadBuffer as WebGLRenderTarget) || readBuffer, deltaTime, maskActive)
         })
     }
 

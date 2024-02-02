@@ -101,7 +101,7 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
             this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
         },
         children: [
-            ...generateUiConfig(this),
+            ...generateUiConfig(this) || [],
             iMaterialUI.blending(this),
             iMaterialUI.polygonOffset(this),
             ...iMaterialUI.misc(this),

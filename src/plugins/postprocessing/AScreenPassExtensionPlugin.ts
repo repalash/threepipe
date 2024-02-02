@@ -4,11 +4,7 @@ import {MaterialExtension} from '../../materials'
 import {Shader, Vector4, WebGLRenderer} from 'three'
 import {IMaterial} from '../../core'
 import {shaderReplaceString} from '../../utils'
-
-// todo move
-export interface GBufferUpdater {
-    updateGBufferFlags: (material: IMaterial, data: Vector4) => void
-}
+import {GBufferPlugin, GBufferUpdater, GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
 
 /**
  * Base Screen Pass Extension Plugin
@@ -84,26 +80,21 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        // viewer.getPlugin(GBufferPlugin)?.registerGBufferUpdater(this.updateGBufferFlags) // todo
+        viewer.getPlugin(GBufferPlugin)?.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags)
         viewer.renderManager.screenPass.material.registerMaterialExtensions([this])
     }
 
     onRemove(viewer: ThreeViewer) {
-        // viewer.getPlugin(GBufferPlugin)?.unregisterGBufferUpdater(this.updateGBufferFlags)
+        viewer.getPlugin(GBufferPlugin)?.unregisterGBufferUpdater(this.constructor.PluginType)
         viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this])
         super.onRemove(viewer)
     }
-
-    // updateGBufferFlags(material: IMaterial, data: Vector4): void {
-    //     const x = material?.userData.postTonemap === false ? 0 : 1
-    //     data.w = updateBit(data.w, 1, x) // 2nd Bit
-    // }
 
     // for typescript
     // eslint-disable-next-line @typescript-eslint/naming-convention
     __setDirty?: () => void
 
-    updateGBufferFlags(_: IMaterial, _1: Vector4): void {
+    updateGBufferFlags(_: Vector4, _1: GBufferUpdaterContext): void {
         return
     }
 

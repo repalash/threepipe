@@ -11,6 +11,7 @@ import {
     Texture,
     Vector2,
     Vector4,
+    WebGLMultipleRenderTargets,
     WebGLRenderer,
     WebGLRenderTarget,
     WebGLRenderTargetOptions,
@@ -504,41 +505,45 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
      * @param target
      * @param mimeType
      * @param quality
+     * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToDataUrl(target: WebGLRenderTarget, mimeType = 'image/png', quality = 90): string {
+    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
         const canvas = document.createElement('canvas')
         canvas.width = target.width
         canvas.height = target.height
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('Unable to get 2d context')
-        const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(target.texture.colorSpace) ? <PredefinedColorSpace>target.texture.colorSpace : undefined})
-        if (target.texture.type === HalfFloatType || target.texture.type === FloatType) {
-            const buffer = this.renderTargetToBuffer(target)
-            textureDataToImageData({data: buffer, width: target.width, height: target.height}, target.texture.colorSpace, imageData) // this handles converting to srgb
+        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+        const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
+        if (texture.type === HalfFloatType || texture.type === FloatType) {
+            const buffer = this.renderTargetToBuffer(target, textureIndex)
+            textureDataToImageData({data: buffer, width: target.width, height: target.height}, texture.colorSpace, imageData) // this handles converting to srgb
         } else {
             // todo: handle rgbm to srgb conversion?
-            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data)
+            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data, undefined, textureIndex)
         }
 
         ctx.putImageData(imageData, 0, 0)
 
-        const string = (target.texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
+        const string = (texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
         canvas.remove()
         return string
     }
 
     /**
      * Rend pixels from a render target into a new Uint8Array|Uint16Array|Float32Array buffer
-     * @param target
+     * @param target - render target to read from
+     * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array|Float32Array {
+    renderTargetToBuffer(target: WebGLMultipleRenderTargets|WebGLRenderTarget, textureIndex = 0): Uint8Array|Uint16Array|Float32Array {
+        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
         const buffer =
-            target.texture.type === HalfFloatType ?
+            texture.type === HalfFloatType ?
                 new Uint16Array(target.width * target.height * 4) :
-                target.texture.type === FloatType ?
+                texture.type === FloatType ?
                     new Float32Array(target.width * target.height * 4) :
                     new Uint8Array(target.width * target.height * 4)
-        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer)
+        this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, buffer, undefined, textureIndex)
         return buffer
     }
 
@@ -547,17 +552,19 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
      * @param target - render target to export
      * @param mimeType - mime type to use.
      * If auto (default), then it will be picked based on the render target type.
+     * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto'): BlobExt {
+    exportRenderTarget(target: WebGLMultipleRenderTargets|WebGLRenderTarget, mimeType = 'auto', textureIndex = 0): BlobExt {
         const hdrFormats = ['image/x-exr']
-        let hdr = target.texture.type === HalfFloatType || target.texture.type === FloatType
+        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+        let hdr = texture.type === HalfFloatType || texture.type === FloatType
         if (mimeType === 'auto') {
             mimeType = hdr ? 'image/x-exr' : 'image/png'
         }
         if (!hdrFormats.includes(mimeType)) hdr = false
         let buffer: ArrayBufferLike
         if (!hdr) {
-            const url = this.renderTargetToDataUrl(target, mimeType === 'auto' ? undefined : mimeType)
+            const url = this.renderTargetToDataUrl(target, mimeType === 'auto' ? undefined : mimeType, 90, textureIndex)
             buffer = base64ToArrayBuffer(url.split(',')[1])
             mimeType = url.split(';')[0].split(':')[1]
         } else {
@@ -566,7 +573,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
                 mimeType = 'image/x-exr'
             }
             const exporter = new EXRExporter2()
-            buffer = exporter.parse(this._renderer, target)
+            buffer = exporter.parse(this._renderer, target, {textureIndex})
         }
         const b = new Blob([buffer], {type: mimeType}) as BlobExt
         b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]

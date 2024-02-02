@@ -52,14 +52,15 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
                 cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
             } else if (cc.isRenderTargetTexture) {
                 if (cc._target) {
-                    cc.image.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target)
-                    setTimeout(()=>cc.image.tp_src && delete cc.image.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                    // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
+                    cc.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
+                    setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
                 }
             } else {
                 cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
             }
 
-            if (!cc.image.tp_src) {
+            if (!cc.image.tp_src && !cc.tp_src) {
                 if (cc.isRenderTargetTexture) cc.image.tp_src = staticData.renderTarImage
                 else if (cc.isDataTexture) cc.image.tp_src = staticData.dataTexImage
             }
@@ -69,6 +70,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
             ret = ret ? staticData.imageMap[ret] : undefined
             if (!ret) ret = cc.image.tp_src || cc.image.src
         }
+        if (cc.tp_src) ret = cc.tp_src
     } else if (typeof cc === 'string') {
         ret = cc
     } else if (cc.domainMin) { // for lut CUBE files.
@@ -90,7 +92,6 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
         cc.image.tp_src_uuid = uuid
         staticData.tempMap[ret] = uuid
     }
-    // console.log(ret, cc, tar, key)
     if (typeof ret === 'string')
         ret = staticData.imageMap[ret] ?? ret // Note: this will be a bottleneck if the length of src is too long.
     return ret

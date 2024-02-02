@@ -11,6 +11,7 @@ import {
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
     FullScreenPlugin,
+    GBufferPlugin,
     GLTFAnimationPlugin,
     HalfFloatType,
     HDRiGroundPlugin,
@@ -64,7 +65,7 @@ async function init() {
         new ProgressivePlugin(),
         GLTFAnimationPlugin,
         PickingPlugin,
-        TransformControlsPlugin,
+        new TransformControlsPlugin(false),
         EditorViewWidgetPlugin,
         CameraViewPlugin,
         ViewerUiConfigPlugin,
@@ -74,7 +75,8 @@ async function init() {
         CustomBumpMapPlugin,
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
-        new DepthBufferPlugin(HalfFloatType, true, true),
+        new GBufferPlugin(HalfFloatType, true, true, true),
+        new DepthBufferPlugin(HalfFloatType, false, false),
         new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
@@ -97,13 +99,15 @@ async function init() {
     ])
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
+    rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')
+    rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.flagsTexture}, 'gBufferFlags')
     rt.addTarget(viewer.getPlugin(DepthBufferPlugin)?.target, 'depth', false, false, false)
     rt.addTarget(viewer.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin],
-        ['GBuffer']: [DepthBufferPlugin, NormalBufferPlugin],
+        ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],

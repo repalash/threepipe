@@ -31,7 +31,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         super(
             (<any>shader)?.fragmentShader || (<ShaderMaterial2>shader)?.isShaderMaterial ? <ShaderMaterialParameters|ShaderMaterial2>shader :
                 makeScreenShader(shader),
-            ...textureID.length ? textureID : ['tDiffuse', 'tTransparent', 'tGBuffer'])
+            ...textureID.length ? textureID : ['tDiffuse', 'tTransparent'])
         this.material.addEventListener('materialUpdate', this.setDirty)
     }
 

@@ -6,6 +6,7 @@ import {uiFolderContainer, uiImage, uiInput} from 'uiconfig.js'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer} from '../../core'
 import {AddBlendTexturePass} from '../../postprocessing/AddBlendTexturePass'
 import {getOrCall, serialize, ValOrFunc} from 'ts-browser-helpers'
+import {IShaderPropertiesUpdater} from '../../materials'
 
 export type ProgressivePluginEventTypes = ''
 export type ProgressivePluginTarget = WebGLRenderTarget
@@ -19,7 +20,7 @@ export type ProgressivePluginTarget = WebGLRenderTarget
  */
 @uiFolderContainer('Progressive Plugin')
 export class ProgressivePlugin
-    extends PipelinePassPlugin<ProgressiveBlendPass, 'progressive', ProgressivePluginEventTypes> {
+    extends PipelinePassPlugin<ProgressiveBlendPass, 'progressive', ProgressivePluginEventTypes> implements IShaderPropertiesUpdater {
 
     readonly passId = 'progressive'
     public static readonly PluginType = 'ProgressivePlugin'

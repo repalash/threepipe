@@ -31,7 +31,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
 
     toJSON(meta?: SerializationMetaType): ISerializedConfig {
         const data: any = ThreeSerialization.Serialize(this, meta, true)
-        data.type = (this as any).constructor.PluginType
+        data.type = this.constructor.PluginType
         data.assetType = 'config'
         this.dispatchEvent({type: 'serialize', data})
         return data

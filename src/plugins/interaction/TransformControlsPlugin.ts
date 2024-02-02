@@ -1,4 +1,4 @@
-import {uiConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
+import {uiButton, uiConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {OrbitControls3, TransformControls2} from '../../three'
 import {PickingPlugin} from './PickingPlugin'
@@ -33,10 +33,11 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         this._viewer.setDirty()
     }
 
-    constructor() {
+    constructor(enabled: boolean) {
         super()
         TransformControls.ObjectConstructors.MeshBasicMaterial = UnlitMaterial as any
         TransformControls.ObjectConstructors.LineBasicMaterial = UnlitLineMaterial as any
+        this.enabled = enabled
     }
 
     toJSON: any = undefined
@@ -103,5 +104,9 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         this.transformControls.camera = this._viewer.scene.mainCamera
     }
 
+    @uiButton('Center All Meshes')
+    centerAllMeshes() {
+        this._viewer?.scene.centerAllGeometries(true)
+    }
 
 }

@@ -142,9 +142,9 @@ export class DepthBufferPlugin
         this._createTarget(true)
         if (!this.target) throw new Error('DepthBufferPlugin: target not created')
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass('depth', this.target, this.material, new Color(0, 0, 0), 1)
+        const pass = new GBufferRenderPass(this.passId, this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
-        pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth)
+        pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth) // if renderToDepth is undefined then renderToGbuffer is taken internally
         pass.before = ['render']
         pass.after = []
         pass.required = ['render']

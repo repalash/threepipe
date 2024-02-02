@@ -58,11 +58,30 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     inverseAlphaMap?: boolean // only for physical material right now
 
+    /**
+     * See {@link GBufferPlugin}
+     */
+    gBufferData?: {
+        materialId?: number
+        /**
+         * @default true
+         */
+        tonemapEnabled?: boolean
+    }
+
+
     [key: string]: any
 
 
     // legacy, to be removed
+    /**
+     * @deprecated
+     */
     setDirty?: (options?: IMaterialSetDirtyOptions) => void
+    /**
+     * @deprecated
+     */
+    postTonemap?: boolean
 }
 
 export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMaterialEventTypes> extends Material<E, ET>, IJSONSerializable, IDisposable, IUiConfigContainer {
@@ -125,6 +144,7 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     lightMap?: ITexture | null
     normalMap?: ITexture | null
     bumpMap?: ITexture | null
+    displacementMap?: ITexture | null
     aoMapIntensity?: number
     lightMapIntensity?: number
     roughnessMap?: ITexture | null

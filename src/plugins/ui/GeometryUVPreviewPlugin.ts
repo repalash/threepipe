@@ -64,24 +64,6 @@ export class GeometryUVPreviewPlugin<TEvent extends string> extends AViewerPlugi
                 target.uvCanvas.style.height = '100%'
             }
             if (target.uvCanvas && target.uvCanvas.parentElement !== target.div) target.div.appendChild(target.uvCanvas)
-            // const rect = target.div.getBoundingClientRect()
-            // const canvasRect = this._viewer.canvas.getBoundingClientRect()
-            // rect.x = rect.x - canvasRect.x
-            // rect.y = canvasRect.height + canvasRect.y - rect.y - rect.height
-            // if (Array.isArray(tex)) {
-            //     // todo support multi target
-            //     this._viewer.console.warn('Multi target preview not supported yet')
-            //     continue
-            // }
-            // const outputColorSpace = this._viewer.renderManager.webglRenderer.outputColorSpace
-            // if (!target.originalColorSpace) this._viewer.renderManager.webglRenderer.outputColorSpace = SRGBColorSpace
-            // this._viewer.renderManager.blit(null, {
-            //     source: tex,
-            //     clear: !target.transparent,
-            //     respectColorSpace: !target.originalColorSpace,
-            //     viewport: new Vector4(rect.x, rect.y, rect.width, rect.height),
-            // })
-            // this._viewer.renderManager.webglRenderer.outputColorSpace = outputColorSpace
         }
     }
 

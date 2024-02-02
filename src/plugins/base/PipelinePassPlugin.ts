@@ -1,8 +1,9 @@
 import {IPassID, IPipelinePass} from '../../postprocessing'
 import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
-import {onChange, serialize, wrapThisFunction} from 'ts-browser-helpers'
-import {SerializationMetaType} from '../../utils'
+import {onChange, serialize} from 'ts-browser-helpers'
+import {SerializationMetaType, wrapThisFunction2} from '../../utils'
 import {uiToggle} from 'uiconfig.js'
+import {ICamera, IRenderManager, IScene} from '../../core'
 
 export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId
@@ -20,8 +21,10 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     /**
      * This function is called every frame before composer render, if this pass is being used in the pipeline
      * @param _
+     * @param _1
+     * @param _2
      */
-    protected _beforeRender(): boolean {
+    protected _beforeRender(_?: IScene, _1?: ICamera, _2?: IRenderManager): boolean {
         if (!this._pass) return false
         this._pass.enabled = !this.isDisabled()
         return this._pass.enabled
@@ -36,7 +39,7 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
 
         this._pass = this._createPass()
         this._pass.onDirty?.push(viewer.setDirty)
-        this._pass.beforeRender = wrapThisFunction(this._beforeRender, this._pass.beforeRender)
+        this._pass.beforeRender = wrapThisFunction2(this._beforeRender, this._pass.beforeRender)
         viewer.renderManager.registerPass(this._pass)
     }
 

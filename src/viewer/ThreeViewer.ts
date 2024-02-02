@@ -298,12 +298,19 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     private _tempQuat: Quaternion = new Quaternion()
 
     /**
+     * If any of the viewers are in debug mode, this will be true.
+     * This is required for debugging/logging in some cases.
+     */
+    public static ViewerDebugging = false // todo use in shaderReplaceString
+
+    /**
      * Create a viewer instance for using the webgi viewer SDK.
      * @param options - {@link ThreeViewerOptions}
      */
     constructor({debug = false, ...options}: ThreeViewerOptions) {
         super()
         this.debug = debug
+        if (debug) ThreeViewer.ViewerDebugging = true
         this._canvas = options.canvas || createCanvasElement()
         let container = options.container
         if (container && !options.canvas) container.appendChild(this._canvas)
