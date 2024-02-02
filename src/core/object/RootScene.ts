@@ -19,6 +19,7 @@ import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyO
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {IGeometry} from '../IGeometry'
 
 @uiFolderContainer('Root Scene')
 export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements IScene<ISceneEvent, ISceneEventTypes> {
@@ -248,9 +249,9 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
         }
         if (centerGeometries && !obj.userData.geometriesCentered) {
-            obj.traverse((o)=>{
-                if (o.geometry) o.geometry.center(undefined, centerGeometriesKeepPosition)
-            })
+            const geoms = new Set<IGeometry>()
+            obj.traverse((o)=> o.geometry && geoms.add(o.geometry))
+            geoms.forEach(g=>g.center(undefined, centerGeometriesKeepPosition))
             obj.userData.geometriesCentered = true
         } else {
             obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
