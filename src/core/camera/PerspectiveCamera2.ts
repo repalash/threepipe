@@ -430,7 +430,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     // region ui
 
     private _camUi: UiObjectConfig[] = [
-        ...generateUiConfig(this),
+        ...generateUiConfig(this) || [],
         {
             type: 'input',
             label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',

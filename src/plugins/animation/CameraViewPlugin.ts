@@ -360,7 +360,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         // expanded: true,
         children: [
             ()=>[...this._cameraViews.map(view => view.uiConfig)],
-            ...generateUiConfig(this),
+            ...generateUiConfig(this) || [],
         ],
     }
 
