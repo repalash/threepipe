@@ -25,11 +25,14 @@ export class HierarchyUiPlugin extends AViewerPluginSync<''> {
         this.uiConfig.domChildren = [this.hierarchyDiv]
         createStyles(css`
 #tpHierarchyContainer{
-  width: 100%;
-  height: auto;
-  background-color: transparent;
-  color: #e9e9ed;
-  margin-top: 0;
+    width: 100%;
+    height: auto;
+    background-color: transparent;
+    color: var(--tp-container-foreground-color, hsl(230, 7%, 75%));
+    margin-top: 0;
+}
+.treejs .treejs-switcher:before {
+    border-top: 6px solid var(--tp-container-foreground-color, hsl(230, 7%, 75%)) !important;
 }
 `)
 
