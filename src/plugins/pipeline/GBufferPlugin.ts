@@ -2,7 +2,9 @@ import {
     BufferGeometry,
     Camera,
     Color,
+    DepthTexture,
     DoubleSide,
+    FloatType,
     GLSL1,
     GLSL3,
     IUniform,
@@ -17,6 +19,8 @@ import {
     UniformsLib,
     UniformsUtils,
     UnsignedByteType,
+    UnsignedIntType,
+    UnsignedShortType,
     Vector2,
     Vector4,
     WebGLMultipleRenderTargets,
@@ -82,6 +86,12 @@ export class GBufferPlugin
     get flagsTexture(): ITexture|undefined {
         return this.textures[1]
     }
+
+    @uiImage(/* {readOnly: true}*/)
+    get depthTexture(): (ITexture&DepthTexture)|undefined {
+        return this.target?.depthTexture
+    }
+
     // @uiConfig() // not supported in this material yet
     material?: GBufferMaterial
 
@@ -115,12 +125,14 @@ export class GBufferPlugin
         extraUniforms: {
             tNormalDepth: ()=>({value: this.normalDepthTexture}),
             tGBufferFlags: ()=>({value: this.flagsTexture}),
+            tGBufferDepthTexture: ()=>({value: this.depthTexture}),
         },
         extraDefines: {
             // ['GBUFFER_PACKING']: BasicDepthPacking,
             ['HAS_NORMAL_DEPTH_BUFFER']: ()=>this.normalDepthTexture ? 1 : undefined,
-            // ['HAS_FLAGS_BUFFER']: ()=>this.flagsTexture ? 1 : undefined,
+            ['GBUFFER_HAS_DEPTH_TEXTURE']: ()=>this.depthTexture ? 1 : undefined,
             ['GBUFFER_HAS_FLAGS']: ()=>this.flagsTexture ? 1 : undefined,
+            // ['HAS_FLAGS_BUFFER']: ()=>this.flagsTexture ? 1 : undefined,
             ['HAS_GBUFFER']: ()=>this.isPrimaryGBuffer && this.normalDepthTexture ? 1 : undefined,
         },
         priority: 100,
@@ -139,6 +151,8 @@ export class GBufferPlugin
                     samples: this._viewer.renderManager.composerTarget.samples || 0,
                     type: this.bufferType,
                     textureCount: useMultiple ? 2 : 1,
+                    depthTexture: this.renderDepthTexture,
+                    depthTextureType: this.depthTextureType,
                     // magFilter: NearestFilter,
                     // minFilter: NearestFilter,
                     // generateMipmaps: false,
@@ -208,7 +222,9 @@ export class GBufferPlugin
         bufferType: TextureDataType = UnsignedByteType,
         isPrimaryGBuffer = true,
         enabled = true,
-        public renderFlagsBuffer: boolean = true
+        public renderFlagsBuffer: boolean = true,
+        public renderDepthTexture: boolean = false,
+        public depthTextureType: typeof UnsignedShortType | typeof UnsignedIntType | typeof FloatType /* | typeof UnsignedInt248Type*/ = UnsignedIntType,
         // packing: DepthPackingStrategies = BasicDepthPacking,
     ) {
         super()

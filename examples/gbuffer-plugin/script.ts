@@ -1,6 +1,7 @@
 import {
     _testFinish,
     downloadBlob,
+    FloatType,
     GBufferPlugin,
     HalfFloatType,
     IObject3D,
@@ -12,11 +13,18 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
+    zPrepass: true,
 })
 
 async function init() {
 
-    const gbufferPlugin = viewer.addPluginSync(new GBufferPlugin(HalfFloatType))
+    const gbufferPlugin = viewer.addPluginSync(new GBufferPlugin(
+        HalfFloatType,
+        true, // isPrimaryGBuffer (used for zprepass etc)
+        true, // enabled by default
+        true, // render the flags buffer (used for eg selective tonemapping)
+        true, // render depth texture
+        FloatType)) // render depth texture as Float type. available - UnsignedShort(16 bits), UnsignedInt(24 bits) or Float(32 bits)
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/kira.glb', {
@@ -48,10 +56,12 @@ async function init() {
 
     const getNormalDepth = ()=>({texture: gbufferPlugin.normalDepthTexture})
     const getFlags = ()=>({texture: gbufferPlugin.flagsTexture})
+    const getDepthTexture = ()=>({texture: gbufferPlugin.depthTexture})
 
     const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
     targetPreview.addTarget(getNormalDepth, 'normalDepth')
     targetPreview.addTarget(getFlags, 'gBufferFlags')
+    targetPreview.addTarget(getDepthTexture, 'depthTexture')
 
     const screenPass = viewer.renderManager.screenPass
 
@@ -63,6 +73,11 @@ async function init() {
         },
         ['Toggle Gbuffer Flags']: () => {
             const rt = getFlags()
+            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt.texture ? null : rt
+            viewer.setDirty()
+        },
+        ['Toggle Depth Texture']: () => {
+            const rt = getDepthTexture()
             screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt.texture ? null : rt
             viewer.setDirty()
         },

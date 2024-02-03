@@ -48,6 +48,18 @@ ivec4 getGBufferFlags(const in vec2 uv){
     return ivec4(1);
     #endif
 }
+
+#if defined(GBUFFER_HAS_DEPTH_TEXTURE) && GBUFFER_HAS_DEPTH_TEXTURE == 1
+// NOT TESTED
+uniform sampler2D tGBufferDepthTexture;
+// needs <packing>. Its made sure that its included in the unpackExtension
+float getDepthTexture( vec2 coord, float cameraNear, float cameraFar ) {
+    float fragCoordZ = texture2D( tGBufferDepthTexture, coord ).x;
+    float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );
+    return viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
+}
+#endif
+
 //#if DEPTH_NORMAL_TEXTURE == 1
 //uniform sampler2D tNormalDepth;
 //#else

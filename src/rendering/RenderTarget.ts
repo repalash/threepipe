@@ -1,10 +1,16 @@
 import {
     ColorSpace,
+    DepthFormat,
+    DepthStencilFormat,
     EventDispatcher,
+    FloatType,
     MagnificationTextureFilter,
     MinificationTextureFilter,
     Texture,
     TextureDataType,
+    UnsignedInt248Type,
+    UnsignedIntType,
+    UnsignedShortType,
     Wrapping,
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
@@ -75,6 +81,8 @@ export interface CreateRenderTargetOptions {
     format?: number
     depthBuffer?: boolean
     depthTexture?: boolean
+    depthTextureType?: typeof UnsignedShortType | typeof UnsignedInt248Type | typeof UnsignedIntType | typeof FloatType
+    depthTextureFormat?: typeof DepthFormat | typeof DepthStencilFormat
     textureCount?: number
     wrapS?: Wrapping
     wrapT?: Wrapping
