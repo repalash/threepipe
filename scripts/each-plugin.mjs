@@ -5,4 +5,4 @@ if(!command) throw new Error('Command is required')
 console.log(`Executing '${command}' in all plugins`)
 
 // Each plugin should have "prepare" that will also build the plugin
-execEachPlugin(`npm ${command}}`) // install dependencies
+execEachPlugin(`npm ${command}`) // install dependencies
