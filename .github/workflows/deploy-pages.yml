@@ -37,14 +37,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+    - uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+#        cache: 'npm'
+#        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
     - run: npm ci # this will also run `npm run prepare` which will build
-    - run: npm run docs
+    - run: npm run docs-all
     - run: mkdir _site
     - run: mv -t _site src docs dist examples README.md LICENSE index.html
     - run: mkdir -p _site/plugins
