@@ -25,7 +25,7 @@
     "docs": "npx typedoc && markdown-to-html",
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
-    "build-plugins": "node scripts/each-plugin.mjs ci",
+    "build-plugins": "node scripts/each-plugin.mjs install",
     "prepare": "npm run build && npm run compile && npm run build-plugins && npm run build-examples",
     "update-version": "echo \"export const VERSION = '$npm_package_version'\" > src/viewer/version.ts"
   },
@@ -104,10 +104,10 @@
     "rollup-plugin-postcss": "^4.0.2",
     "three": "https://github.com/repalash/three.js-modded/releases/download/v0.152.2020/package.tgz",
     "tslib": "^2.5.0",
-    "typedoc": "^0.25.6",
+    "typedoc": "^0.25.7",
     "typescript": "^5.3.3",
     "typescript-plugin-css-modules": "^5.0.1",
-    "vite": "^5.0.11",
+    "vite": "^5.0.12",
     "vite-plugin-dts": "^3.7.0"
   },
   "dependencies": {

@@ -40,9 +40,9 @@ jobs:
     - uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-#        cache: 'npm'
-#        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
-    - run: npm ci # this will also run `npm run prepare` which will build
+        cache: 'npm'
+        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+    - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
     - run: npm run docs-all
     - run: mkdir _site
     - run: mv -t _site src docs dist examples README.md LICENSE index.html
