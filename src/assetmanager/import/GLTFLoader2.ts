@@ -122,7 +122,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             const getDependency = parser.getDependency
             parser.getDependency = async(type: string, index: number) => {
                 const res = await getDependency.call(parser, type, index)
-                if (res.userData) {
+                if (res && res.userData) {
                     const gltfExtensions = res.userData.gltfExtensions
                     delete res.userData.gltfExtensions
                     res.userData = ThreeSerialization.Deserialize(res.userData, {})

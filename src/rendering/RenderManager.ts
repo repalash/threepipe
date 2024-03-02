@@ -204,7 +204,12 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
     //     // todo gizmos
     // }
 
-    render(scene: IScene, renderToScreen = true): void {
+    /**
+     * Default value for renderToScreen in {@link render}
+     */
+    defaultRenderToScreen = true
+
+    render(scene: IScene, renderToScreen?: boolean): void {
         if (this._passesNeedsUpdate) {
             this._refreshPipeline()
             this.refreshPasses()
@@ -212,7 +217,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         for (const pass of this._passes) {
             if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.renderCamera, this)
         }
-        this._composer.renderToScreen = renderToScreen
+        this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
         this._composer.render()
         this._composer.renderToScreen = true
         if (renderToScreen) {

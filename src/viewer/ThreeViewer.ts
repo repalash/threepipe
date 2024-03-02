@@ -1,5 +1,6 @@
 import {
     BaseEvent,
+    CanvasTexture,
     Color,
     Event,
     EventDispatcher,
@@ -120,6 +121,10 @@ export interface ThreeViewerOptions {
      * Use rendered gbuffer as depth-prepass / z-prepass.
      */
     zPrepass?: boolean
+    /**
+     * Force z-prepass even if there are transparent/transmissive objects with render to depth buffer enabled.
+     */
+    forceZPrepass?: boolean // todo
 
     /*
      * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
@@ -238,6 +243,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      */
     public maxFramePerLoop = 1
     readonly debug: boolean
+
+    /**
+     * Number of times to run composer render. If set to more than 1, preRender and postRender events will also be called multiple times.
+     */
+    rendersPerFrame = 1
 
     /**
      * Get the HTML Element containing the canvas
@@ -619,19 +629,20 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             // Check if the renderManger is dirty, which happens when it's reset above or if any pass in the composer is dirty
             const needsRender = this.renderManager.needsRender
             if (needsRender) {
+                for (let j = 0; j < this.rendersPerFrame; j++) {
+                    this.dispatchEvent({type: 'preRender', target: this})
 
-                this.dispatchEvent({type: 'preRender', target: this})
+                    try {
+                        this._scene.renderCamera = this._scene.mainCamera
+                        this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
+                    } catch (e) {
+                        this.console.error(e)
+                        if (this.debug) throw e
+                        // this.enabled = false
+                    }
 
-                try {
-                    this._scene.renderCamera = this._scene.mainCamera
-                    this.renderManager.render(this._scene)
-                } catch (e) {
-                    this.console.error(e)
-                    if (this.debug) throw e
-                    // this.enabled = false
+                    this.dispatchEvent({type: 'postRender', target: this})
                 }
-
-                this.dispatchEvent({type: 'postRender', target: this})
 
             }
 
@@ -1134,6 +1145,21 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             return
         }
         await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: ((<OrbitControls3> this.scene.mainCamera.controls)?.minDistance ?? 0.5) + 0.5, max: 1000.0})
+    }
+
+    private _canvasTexture?: CanvasTexture&ITexture
+
+    /**
+     * Create and get a three.js CanvasTexture from the viewer's canvas.
+     */
+    get canvasTexture(): CanvasTexture {
+        if (!this._canvas) throw new Error('Canvas not found')
+        if (!this._canvasTexture) {
+            this._canvasTexture = new CanvasTexture(this._canvas)
+            this._canvasTexture.flipY = false
+            this._canvasTexture.needsUpdate = true
+        }
+        return this._canvasTexture
     }
 
     // todo: create/load texture utils

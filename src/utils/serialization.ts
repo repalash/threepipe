@@ -54,28 +54,34 @@ export class ThreeSerialization {
                 if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
                 const imgData = obj.source.data
                 const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath
-                if (hasRootPath) {
-                    if (obj.source.data) {
-                        if (!obj.userData.embedUrlImagePreviews) // todo make sure its only Texture, check for svg etc
-                            obj.source.data = null // handled in GLTFWriter2.processImage
-                        else {
-                            obj.source.data = textureToCanvas(obj, 16, obj.flipY) // todo: check flipY
+                let res = {} as any
+                const ud = obj.userData
+                try { // need try catch here because of hasRootPath
+                    if (hasRootPath) {
+                        if (obj.source.data) {
+                            if (!obj.userData.embedUrlImagePreviews) // todo make sure its only Texture, check for svg etc
+                                obj.source.data = null // handled in GLTFWriter2.processImage
+                            else {
+                                obj.source.data = textureToCanvas(obj, 16, obj.flipY) // todo: check flipY
+                            }
                         }
                     }
+                    obj.userData = {} // toJSON will call JSON.stringify, which will serialize userData
+                    const meta2 = {images: {} as any} // in-case meta is undefined
+                    res = obj.toJSON(meta || meta2)
+                    if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
+                    res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
+                } catch (e) {
+                    console.error('Threepipe Serialization: Unable to serialize texture')
+                    console.error(e)
                 }
-                const ud = obj.userData
-                obj.userData = {} // toJSON will call JSON.stringify, which will serialize userData
-                const meta2 = {images: {} as any} // in-case meta is undefined
-                let res = obj.toJSON(meta || meta2)
-                if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
-                obj.userData = ud
-                res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
+                obj.userData = ud // should be outside try catch
                 if (hasRootPath) {
                     if (meta && !obj.userData.embedUrlImagePreviews) delete meta.images[obj.source.uuid] // because its empty. uuid still stored in the texture.image
                     obj.source.data = imgData
                 }
 
-                if (meta?.textures && !res.resource) {
+                if (meta?.textures && res && !res.resource) {
                     if (!meta.textures[res.uuid])
                         meta.textures[res.uuid] = res
                     res = {uuid: res.uuid, resource: 'textures'}
@@ -155,18 +161,20 @@ export class ThreeSerialization {
                 // Serialize without userData because three.js tries to convert it to string. We are serializing it separately
                 const userData = obj.userData
                 obj.userData = {}
-                let res = obj.toJSON(meta, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
+                let res = {} as any
+                try {
+                    res = obj.toJSON(meta, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
+                    serializeMaterialUserData(res, userData, meta)
+                    res.userData.uuid = userData.uuid
+                    // todo: override generator to mention that this is a custom serializer?
+                    if (obj.constructor.TYPE) res.type = obj.constructor.TYPE // override type if specified as static property in the class
+                    // Remove undefined values. Note that null values are kept.
+                    for (const key of Object.keys(res)) if (res[key] === undefined) delete res[key]
+                } catch (e) {
+                    console.error('Threepipe Serialization: Unable to serialize material')
+                    console.error(e)
+                }
                 obj.userData = userData
-                serializeMaterialUserData(res, userData, meta)
-
-                // todo: override generator to mention that this is a custom serializer?
-
-                res.userData.uuid = obj.userData.uuid
-                if (obj.constructor.TYPE) res.type = obj.constructor.TYPE // override type if specified as static property in the class
-
-                // Remove undefined values. Note that null values are kept.
-                for (const key of Object.keys(res)) if (res[key] === undefined) delete res[key]
-
                 // Restore textures
                 for (const [k, v] of Object.entries(tempTextures)) {
                     obj[k] = v
@@ -174,21 +182,23 @@ export class ThreeSerialization {
                 }
                 // Add material, textures, images to meta
                 // serialize textures are already added to meta by the texture serializer
-                if (meta) {
-                    for (const [k, v] of Object.entries(objTextures)) {
-                        if (v) res[k] = v // can be undefined because of RenderTargetTexture...
+                if (res) {
+                    if (meta) {
+                        for (const [k, v] of Object.entries(objTextures)) {
+                            if (v) res[k] = v // can be undefined because of RenderTargetTexture...
+                        }
+                        if (meta.materials) {
+                            if (!meta.materials[res.uuid])
+                                meta.materials[res.uuid] = res
+                            res = {uuid: res.uuid, resource: 'materials'}
+                        }
+                    } else {
+                        for (const [k, v] of Object.entries(objTextures)) {
+                            if (v) res[k] = (v as any).uuid // to remain compatible with how three.js saves
+                        }
+                        res.textures = Object.values(meta2.textures)
+                        res.images = Object.values(meta2.images)
                     }
-                    if (meta.materials) {
-                        if (!meta.materials[res.uuid])
-                            meta.materials[res.uuid] = res
-                        res = {uuid: res.uuid, resource: 'materials'}
-                    }
-                } else {
-                    for (const [k, v] of Object.entries(objTextures)) {
-                        if (v) res[k] = (v as any).uuid // to remain compatible with how three.js saves
-                    }
-                    res.textures = Object.values(meta2.textures)
-                    res.images = Object.values(meta2.images)
                 }
                 return res
             },
