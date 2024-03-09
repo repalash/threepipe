@@ -9,5 +9,7 @@ export {shaderReplaceString} from './shader-helpers'
 export {makeGLBFile} from './gltf'
 export {animateCameraToViewLinear, animateCameraToViewSpherical, sphericalFromCameraView} from './camera-anim'
 export {animateAsync, animateTarget, EasingFunctions, makeSetterFor, animate, lerp, lerpAngle} from './animation'
+export {cLinearToRGBM, vLinearToRGBM, cRGBMToLinear, vRGBMToLinear} from './color-encodings'
+export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} from './canvas-snapshot'
 export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
 
