@@ -42,6 +42,7 @@ import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakp
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
 import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 
 async function init() {
 
@@ -95,6 +96,7 @@ async function init() {
         GeometryGeneratorPlugin,
         Object3DWidgetsPlugin,
         Object3DGeneratorPlugin,
+        GaussianSplattingPlugin,
         ...extraImportPlugins,
     ])
 
