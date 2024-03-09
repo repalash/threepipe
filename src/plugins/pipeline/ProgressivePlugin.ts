@@ -111,7 +111,7 @@ export class ProgressivePlugin
      * @param postRender - if called after rendering frame.
      */
     public isConverged(postRender = false): boolean {
-        return (this._viewer?.renderer.frameCount || 0) >= this.maxFrameCount - 1 + (postRender ? 1 : 0)
+        return (this._viewer?.renderManager.frameCount || 0) >= this.maxFrameCount - 1 + (postRender ? 1 : 0)
     }
 
     updateShaderProperties(material: {defines: Record<string, string | number | undefined>; uniforms: {[p: string]: IUniform}}): this {

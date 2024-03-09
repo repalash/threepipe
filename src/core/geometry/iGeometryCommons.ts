@@ -177,4 +177,6 @@ function upgradeGeometry(this: IGeometry) {
     // todo: dispose uiconfig on geometry dispose
 
     // todo: add serialization?
+
+    return this
 }

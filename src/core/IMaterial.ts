@@ -59,6 +59,11 @@ export interface IMaterialUserData extends IImportResultUserData{
     inverseAlphaMap?: boolean // only for physical material right now
 
     /**
+     * See {@link MaterialManager.dispose} as {@link BaseGroundPlugin._refreshMaterial}
+     */
+    runtimeMaterial?: boolean
+
+    /**
      * See {@link GBufferPlugin}
      */
     gBufferData?: {
@@ -67,8 +72,29 @@ export interface IMaterialUserData extends IImportResultUserData{
          * @default true
          */
         tonemapEnabled?: boolean
+
+        [key: string]: any
     }
 
+
+    // todo: move these to respective plugins
+
+    /**
+     * For SSAOPlugin
+     */
+    ssaoDisabled?: boolean
+    /**
+     * For SSCSPlugin
+     */
+    sscsDisabled?: boolean
+    /**
+     * For SSRPlugin
+     */
+    ssreflDisabled?: boolean
+    /**
+     * For SSRPlugin
+     */
+    ssreflNonPhysical?: boolean
 
     [key: string]: any
 
@@ -79,7 +105,7 @@ export interface IMaterialUserData extends IImportResultUserData{
      */
     setDirty?: (options?: IMaterialSetDirtyOptions) => void
     /**
-     * @deprecated
+     * @deprecated Use {@link postTonemap.tonemapEnabled} instead. This is kept because used in old files.
      */
     postTonemap?: boolean
 }

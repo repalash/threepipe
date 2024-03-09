@@ -99,6 +99,11 @@ export interface IObject3DUserData extends IImportResultUserData {
     userSelectable?: boolean
 
     /**
+     * For Physics plugins
+     */
+    physicsMass?: number
+
+    /**
      * see {@link GLTFAnimationPlugin}
      */
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -147,6 +152,8 @@ export interface IObject3DUserData extends IImportResultUserData {
      * todo: remove support for this
      */
     __autoBubbleToParentEvents?: string[]
+
+    [key: string]: any
 }
 
 export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEventTypes> extends Object3D<E, ET>, IUiConfigContainer, IDisposable {

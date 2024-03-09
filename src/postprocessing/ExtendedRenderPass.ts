@@ -163,7 +163,9 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
             this.renderToScreen = false // for super RenderPass.render
 
-            if (renderer.info && !renderer.info.autoReset) throw 'renderer.info.autoReset must be true'
+            if (renderer.info && !renderer.info.autoReset)
+                throw 'renderer.info.autoReset must be true' // it is required to check if any object is rendered in the scene, also frame count is maintained separately in the render manager, use that.
+
 
             // Opaque
             {

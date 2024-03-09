@@ -184,16 +184,16 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
     }
 
 
-    async onAdded(viewer: ThreeViewer): Promise<void> {
+    onAdded(viewer: ThreeViewer): void {
+        super.onAdded(viewer)
         viewer.scene.addEventListener('addSceneObject', this._objectAdded)
         viewer.addEventListener('postFrame', this._postFrame)
         window.addEventListener('wheel', this._wheel)
         window.addEventListener('scroll', this._scroll)
         this._pointerDragHelper.element = viewer.canvas
-        return super.onAdded(viewer)
     }
 
-    async onRemove(viewer: ThreeViewer): Promise<void> {
+    onRemove(viewer: ThreeViewer): void {
         while (this.animations.length) this.animations.pop()
         viewer.scene.removeEventListener('addSceneObject', this._objectAdded)
         viewer.removeEventListener('postFrame', this._postFrame)

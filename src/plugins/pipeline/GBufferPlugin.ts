@@ -392,7 +392,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         this.uniformsNeedUpdate = true
 
         updateMaterialDefines({
-            ['USE_ALPHAMAP']: this.uniforms.alphaMap.value ? 1 : undefined,
+            // ['USE_ALPHAMAP']: this.uniforms.alphaMap.value ? 1 : undefined,
             ['ALPHAMAP_UV']: this.uniforms.alphaMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
             ['USE_DISPLACEMENTMAP']: this.uniforms.displacementMap.value ? 1 : undefined,
             ['DISPLACEMENTMAP_UV']: this.uniforms.displacementMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js

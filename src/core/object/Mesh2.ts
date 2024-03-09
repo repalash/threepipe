@@ -1,5 +1,5 @@
 import {Mesh} from 'three'
-import {IObject3D} from '../IObject'
+import {IObject3D, IObject3DUserData} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
 import {IGeometry} from '../IGeometry'
@@ -28,6 +28,8 @@ export class Mesh2<
         super(geometry, material)
         iObjectCommons.upgradeObject3D.call(this)
     }
+
+    userData: IObject3DUserData
 
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936

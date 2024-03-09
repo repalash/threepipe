@@ -207,11 +207,16 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         if (i >= 0) this.templates.splice(i, 1)
     }
 
-    dispose() {
-        for (const material of this._materials) {
+    dispose(disposeRuntimeMaterials = true) {
+        const mats = this._materials
+        this._materials = []
+        for (const material of mats) {
+            if (!disposeRuntimeMaterials && material.userData.runtimeMaterial) {
+                this._materials.push(material)
+                continue
+            }
             material.dispose()
         }
-        this._materials = []
         return
     }
 
