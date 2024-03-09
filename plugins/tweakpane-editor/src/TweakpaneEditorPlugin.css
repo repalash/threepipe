@@ -136,7 +136,25 @@
     min-width: 6rem;
     border-radius: 0 0 0.5rem 0.5rem;
     gap: 8px;
+    flex-wrap: nowrap !important;
+    overflow-x: scroll;
+    pointer-events: auto;
+    max-width: 100%;
+    align-content: center;
+    justify-content: flex-start;
+    align-items: center;
+    box-sizing: border-box;
 }
+/* Hide scrollbar for Chrome, Safari and Opera */
+.mode-buttons-container::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.mode-buttons-container {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
 
 .mode-button {
     font-weight: 500;
@@ -236,13 +254,14 @@
 
 
 #tweakpaneUiContainer {
-    margin-top: 7.5rem;
+    margin-top: 3.5rem;
 }
-@media only screen and (min-width: 480px) {
-    #tweakpaneUiContainer {
-        margin-top: 5.5rem;
-    }
-}
+/*@media only screen and (min-width: 480px) {*/
+/*    #tweakpaneUiContainer {*/
+/*        margin-top: 5.5rem;*/
+/*    }*/
+/*}*/
+
 @media only screen and (max-width: 920px) {
     #tweakpaneUiContainer {
         height: calc(100% - 12.5rem) !important;
