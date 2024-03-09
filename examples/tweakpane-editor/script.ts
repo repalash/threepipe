@@ -1,8 +1,10 @@
 import {
     _testFinish,
     CameraViewPlugin,
+    CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
     ClearcoatTintPlugin,
+    ContactShadowGroundPlugin,
     CustomBumpMapPlugin,
     DepthBufferPlugin,
     DropzonePlugin,
@@ -48,6 +50,7 @@ async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
         msaa: true,
         rgbm: true,
         zPrepass: false, // set it to true if you only have opaque objects in the scene to get better performance.
@@ -97,6 +100,8 @@ async function init() {
         Object3DWidgetsPlugin,
         Object3DGeneratorPlugin,
         GaussianSplattingPlugin,
+        ContactShadowGroundPlugin,
+        CanvasSnapshotPlugin,
         ...extraImportPlugins,
     ])
 
@@ -108,9 +113,11 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin],
+        ['Scene']: [ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
+        ['Export']: [CanvasSnapshotPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],

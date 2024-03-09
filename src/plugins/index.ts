@@ -1,6 +1,7 @@
 // base
 export {PipelinePassPlugin} from './base/PipelinePassPlugin'
 export {BaseImporterPlugin} from './base/BaseImporterPlugin'
+export {BaseGroundPlugin} from './base/BaseGroundPlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
@@ -34,6 +35,10 @@ export {STLLoadPlugin} from './import/STLLoadPlugin'
 export {KTXLoadPlugin} from './import/KTXLoadPlugin'
 export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
 
+// export
+export {CanvasSnapshotPlugin, CanvasSnipperPlugin} from './export/CanvasSnapshotPlugin'
+export {FileTransferPlugin} from './export/FileTransferPlugin'
+
 // postprocessing
 export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'
 export {TonemapPlugin} from './postprocessing/TonemapPlugin'
@@ -59,3 +64,4 @@ export {VirtualCamerasPlugin} from './rendering/VirtualCamerasPlugin'
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
 export {Object3DWidgetsPlugin} from './extras/Object3DWidgetsPlugin'
 export {Object3DGeneratorPlugin} from './extras/Object3DGeneratorPlugin'
+export {ContactShadowGroundPlugin} from './extras/ContactShadowGroundPlugin'

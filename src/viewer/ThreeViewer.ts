@@ -10,7 +10,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {Class, createCanvasElement, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
+import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -52,7 +52,8 @@ import {
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {uiConfig, UiObjectConfig, uiPanelContainer} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
-import type {CameraViewPlugin, ProgressivePlugin} from '../plugins'
+import type {CanvasSnapshotPlugin, FileTransferPlugin} from '../plugins'
+import {CameraViewPlugin, ProgressivePlugin} from '../plugins'
 // noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 // noinspection ES6PreferShortImport
@@ -131,9 +132,9 @@ export interface ThreeViewerOptions {
      * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
      * Same as pixelRatio in three.js
      * Can be set to `window.devicePixelRatio` to render at device resolution in browsers.
-     * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile.
+     * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile. This is set when 'auto' is passed.
      */
-    renderScale?: number
+    renderScale?: number | 'auto'
 
     debug?: boolean
 
@@ -408,7 +409,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             zPrepass: options.zPrepass ?? options.useGBufferDepth ?? false,
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
             screenShader: options.screenShader,
-            renderScale: options.renderScale,
+            renderScale: typeof options.renderScale === 'string' ? options.renderScale === 'auto' ?
+                Math.min(2, window.devicePixelRatio) : parseFloat(options.renderScale) :
+                options.renderScale,
         })
         this.renderManager.addEventListener('animationLoop', this._animationLoop as any)
         this.renderManager.addEventListener('resize', ()=> this._scene.mainCamera.refreshAspect())
@@ -516,6 +519,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
 
     async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
+        const plugin = this.getPlugin<CanvasSnapshotPlugin>('CanvasSnapshotPlugin')
+        if (plugin) {
+            return plugin.getFile('snapshot.' + mimeType.split('/')[1], {mimeType, quality, waitForProgressive: true})
+        }
         const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
             this._canvas.toBlob((blob) => {
                 resolve(blob)
@@ -530,7 +537,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         })
     }
 
-    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null | undefined> {
+    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
         return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
@@ -1077,6 +1084,22 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     dispatchEvent(event: IViewerEvent) {
         super.dispatchEvent(event)
         super.dispatchEvent({...event, type: '*', eType: event.type})
+    }
+
+    /**
+     * Uses the {@link FileTransferPlugin} to export a blob. If the plugin is not available, it will download the blob.
+     * FileTransferPlugin can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
+     * @param blob - The blob or file to export/download
+     * @param name
+     */
+    async exportBlob(blob: Blob|File, name?: string) {
+        const tr = this.getPlugin<FileTransferPlugin>('FileTransferPlugin')
+        name = name ?? (blob as File).name ?? 'file'
+        if (!tr) {
+            downloadBlob(blob, name)
+            return
+        }
+        await tr.exportFile(blob, name)
     }
 
     private _setActiveCameraView(event: any = {}): void {
