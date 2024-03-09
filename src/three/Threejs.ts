@@ -218,6 +218,7 @@ export {WebGLUtils} from 'three'
 export * from 'three/src/constants.js'
 
 export type {Shader} from 'three'
+export type {IUniform} from 'three'
 
 export * from 'three/examples/jsm/libs/fflate.module.js'
 

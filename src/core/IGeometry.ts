@@ -39,7 +39,7 @@ export type IGeometryEventTypes = 'dispose' | 'geometryUpdate' // | string
 export type IGeometryEvent<T extends string = IGeometryEventTypes> = Event & {
     type: T
     bubbleToObject?: boolean // bubble event to parent root
-    geometry: IGeometry
+    geometry?: IGeometry
     // change?: string
 }
 export type IGeometrySetDirtyOptions = AnyOptions & {bubbleToObject?: boolean}

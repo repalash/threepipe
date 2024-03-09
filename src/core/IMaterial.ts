@@ -43,7 +43,7 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     renderToGBuffer?: boolean
     /**
-     * Same as {@link renderToGBuffer} for now
+     * Same as {@link renderToGBuffer} but for depth only, not normal or flags etc
      */
     renderToDepth?: boolean
 
@@ -162,6 +162,7 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     isRawShaderMaterial?: boolean
     isPhysicalMaterial?: boolean
     isUnlitMaterial?: boolean
+    isGBufferMaterial?: boolean
 
     // [key: string]: any
 }

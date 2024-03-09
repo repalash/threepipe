@@ -146,6 +146,8 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
             preserveDrawingBuffer: true,
             powerPreference: RenderManager.POWER_PREFERENCE,
         })
+        renderer.info.autoReset = false
+
         renderer.useLegacyLights = false
         renderer.setAnimationLoop(this._animationLoop)
         renderer.onContextLost = (event: WebGLContextEvent) => {
@@ -223,6 +225,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
         if (renderToScreen) {
             this._frameCount += 1
             this._totalFrameCount += 1
+            this._renderer.info.reset()
         }
         this._dirty = false
     }

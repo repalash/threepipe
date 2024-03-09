@@ -400,6 +400,12 @@ export class GBufferMaterial extends ShaderMaterial2 {
             ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined,
         }, material)
 
+        // todo: do the same in DepthBufferPlugin and NormalBufferPlugin
+        // what about the material extension settings in the userData of the source materials?
+        if (material.materialExtensions?.length) {
+            this.registerMaterialExtensions(material.materialExtensions)
+        }
+
         // this.transparent = true
         this.needsUpdate = true
 
@@ -407,6 +413,16 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         super.onAfterRender(renderer, scene, camera, geometry, object)
+
+        let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
+        if (Array.isArray(material)) { // todo: add support for multi materials.
+            material = material[0]
+        }
+        if (!material) return
+
+        if (material.materialExtensions?.length) {
+            this.unregisterMaterialExtensions(material.materialExtensions)
+        }
 
         this.reset()
     }

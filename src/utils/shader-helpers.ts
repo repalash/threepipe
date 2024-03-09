@@ -9,14 +9,14 @@ const warnEnabled = true
  * @param prepend - prepend new string to old string
  * @param append - append new string to old string
  */
-export function shaderReplaceString(shader: string, str: string, newStr: string, {
+export function shaderReplaceString(shader: string, str: string|RegExp, newStr: string, {
     replaceAll = false,
     prepend = false,
     append = false,
 } = {}) {
     // todo: use safeReplaceString from ts-browser-helpers
     if (warnEnabled /* && ThreeViewer.ViewerDebugging */) {
-        if (!shader.includes(str)) {
+        if (typeof str === 'string' ? !shader.includes(str) : !str.test(shader)) {
             console.error(`${str} not found in shader`)
             return shader
         }

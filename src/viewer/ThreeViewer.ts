@@ -118,7 +118,8 @@ export interface ThreeViewerOptions {
      */
     rgbm?: boolean
     /**
-     * Use rendered gbuffer as depth-prepass / z-prepass.
+     * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin)
+     * todo: It will be disabled when there are any transparent/transmissive objects with render to depth buffer enabled.
      */
     zPrepass?: boolean
     /**
@@ -254,6 +255,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @returns {HTMLElement}
      */
     get container(): HTMLElement {
+        // todo console.warn('container is deprecated, NOTE: subscribe to events when the canvas is moved to another container')
+        if (this._canvas.parentElement !== this._container) {
+            this.console.error('ThreeViewer: Canvas is not in the container, this might cause issues with some plugins.')
+        }
         return this._container
     }
 
