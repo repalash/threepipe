@@ -181,7 +181,7 @@ export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRen
 
         if (width) this._renderSize.width = width
         if (height) this._renderSize.height = height
-        if (!this.webglRenderer.xr.enabled) {
+        if (!(this.webglRenderer.xr.enabled && this.webglRenderer.xr.isPresenting)) {
             this._renderer.setSize(this._renderSize.width, this._renderSize.height, false)
             this._renderer.setPixelRatio(this._renderScale)
         }

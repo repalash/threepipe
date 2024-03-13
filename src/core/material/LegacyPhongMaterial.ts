@@ -172,6 +172,11 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
         label: 'Phong Material',
         uuid: 'MBM2_' + this.uuid,
         expanded: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            // todo set needsUpdate true only for properties that require it like maps.
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
+        },
         children: [
             ...iMaterialUI.base(this),
             iMaterialUI.blending(this),

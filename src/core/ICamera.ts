@@ -8,7 +8,7 @@ import {CameraView, ICameraView} from './camera/CameraView'
  * Available modes for {@link ICamera.controlsMode} property.
  * This is defined just for autocomplete, these and any other control type can be added by plugins
  */
-export type TCameraControlsMode = '' | 'orbit' | 'deviceOrientation' | 'firstPerson' | 'pointerLock' | string
+export type TCameraControlsMode = '' | 'orbit' | 'deviceOrientation' | 'threeFirstPerson' | 'pointerLock' | string
 
 export interface ICameraUserData extends IObject3DUserData {
     autoNearFar?: boolean // default = true

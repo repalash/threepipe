@@ -2,6 +2,8 @@ module.exports = {
     'root': true,
     'extends': [
         'eslint:recommended',
+        'plugin:@typescript-eslint/eslint-recommended' ,
+        'plugin:@typescript-eslint/recommended', // Uses the recommended rules from the @typescript-eslint/eslint-plugin
     ],
     'parserOptions': {
         'ecmaVersion': 2018,
@@ -45,7 +47,6 @@ module.exports = {
     'overrides': [
         {
             'files': ['**/*.ts', '**/*.tsx'],
-
             'parser': '@typescript-eslint/parser', // Specifies the ESLint parser
             'parserOptions': {
                 'ecmaVersion': 2021, // Allows for the parsing of modern ECMAScript features

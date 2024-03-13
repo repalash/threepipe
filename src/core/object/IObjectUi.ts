@@ -53,7 +53,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
-            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+            this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: true})
         },
         children: [
             {

@@ -2,7 +2,7 @@
     "compilerOptions": {
         "baseUrl": "./src",
         "rootDir": "./src",
-        "allowJs": false,
+        "allowJs": true,
         "checkJs": false,
         "skipLibCheck": true,
         "allowSyntheticDefaultImports": true,

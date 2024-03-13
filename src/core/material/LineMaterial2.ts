@@ -98,7 +98,8 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
-            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+            // todo set needsUpdate true only for properties that require it like maps.
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
         },
         children: [
             ...generateUiConfig(this) || [],

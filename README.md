@@ -116,7 +116,10 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
   - [EditorViewWidgetPlugin](#editorviewwidgetplugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
   - [Object3DWidgetsPlugin](#object3dwidgetsplugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
-  - [Object3DGeneratorPlugin](#object3dwidgetsplugin) - Provides UI and API to create scene objecs like lights, cameras, meshes, etc.
+  - [Object3DGeneratorPlugin](#object3dwidgetsplugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
+  - [DeviceOrientationControlsPlugin](#deviceorientationcontrolsplugin) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
+  - [PointerLockControlsPlugin](#pointerlockcontrolsplugin) - Adds a controlsMode to the mainCamera for pointer lock controls.
+  - [ThreeFirstPersonControlsPlugin](#threefirstpersoncontrolsplugin) - Adds a controlsMode to the mainCamera for first person controls from threejs.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -2942,13 +2945,54 @@ const plugin = viewer.addPluginSync(new EditorViewWidgetPlugin())
 plugin.enabled = false
 ```
 
+## Object3DWidgetsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#object3d-widgets-plugin/) &mdash;
+[Source Code](./src/plugins/extras/Object3DWidgetsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Object3DWidgetsPlugin.html) 
+
+Object3DWidgetsPlugin adds support for light and camera helpers/gizmos in the viewer.
+A helper is automatically created when any supported light or camera is added to the scene.
+Simply add the plugin to the viewer to see the widget.
+
+Support for additional types of helpers can be added dynamically or by other plugins by pushing a helper constructor to the `Object3DWidgetsPlugin.helpers` array, and calling `Object3DWidgetsPlugin.refresh()`.
+
+The helper class prototype should implement the `IObject3DHelper` interface. Check `DirectionalLightHelper2` for an example.
+
+```typescript
+import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin to add support
+const plugin = viewer.addPluginSync(new Object3DWidgetsPlugin())
+
+// Add some lights or cameras to the scene. (This can be done before adding the plugin as well)
+// Using Object3DGeneratorPlugin to create a camera and add it to the scene.
+const generator = viewer.getOrAddPluginSync(Object3DGeneratorPlugin)
+generator.generate('camera-perspective', {
+  position: new Vector3(5, 5, 0),
+  name: 'My Camera'
+})
+
+// to hide the widgets
+plugin.enabled = false
+
+// to add support for a custom helper
+plugin.helpers.push(MyCustomHelper)
+plugin.refresh()
+
+```
+
 ## Object3DGeneratorPlugin
 
 [//]: # (todo: image)
 
 [Example](https://threepipe.org/examples/#object3d-generator-plugin/) &mdash;
 [Source Code](./src/plugins/extras/Object3DGeneratorPlugin.ts) &mdash;
-[API Reference](https://threepipe.org/docs/classes/Object3DGeneratorPlugin.html) 
+[API Reference](https://threepipe.org/docs/classes/Object3DGeneratorPlugin.html)
 
 Object3DGeneratorPlugin adds support for creating different types of lights and camera objects in the viewer.
 Call the `generate` method with any type to generate a type of object(like lights, cameras, mesh etc).
@@ -2997,47 +3041,94 @@ viewer.addPluginSync(new Object3DWidgetsPlugin())
 
 Check the [example](https://threepipe.org/examples/#object3d-generator-plugin/) for the UI.
 
-## Object3DWidgetsPlugin
+## DeviceOrientationControlsPlugin
 
 [//]: # (todo: image)
 
-[Example](https://threepipe.org/examples/#object3d-widgets-plugin/) &mdash;
-[Source Code](./src/plugins/extras/Object3DWidgetsPlugin.ts) &mdash;
-[API Reference](https://threepipe.org/docs/classes/Object3DWidgetsPlugin.html) 
+[Example](https://threepipe.org/examples/#device-orientation-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/DeviceOrientationControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DeviceOrientationControlsPlugin.html)
 
-Object3DWidgetsPlugin adds support for light and camera helpers/gizmos in the viewer.
-A helper is automatically created when any supported light or camera is added to the scene.
-Simply add the plugin to the viewer to see the widget.
+DeviceOrientationControlsPlugin enables controlling the main camera rotation in the scene with device orientation. This only works on devices which have a gyroscope(but can also be emulated in devtools in chrome).
+After the plugin is added, it adds support for setting `deviceOrientation` as the key in `scene.mainCamera.controlMode`. 
 
-Support for additional types of helpers can be added dynamically or by other plugins by pushing a helper constructor to the `Object3DWidgetsPlugin.helpers` array, and calling `Object3DWidgetsPlugin.refresh()`.
+When the controls is started (for the first time), the current camera rotation is and the device orientation is saved and used as reference. To reset the saved device orientation, call `resetView` in the controls.
 
-The helper class prototype should implement the `IObject3DHelper` interface. Check `DirectionalLightHelper2` for an example.
-
+Sample Usage
 ```typescript
-import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin} from 'threepipe'
+import {ThreeViewer, DeviceOrientationControlsPlugin, Mesh2} from 'threepipe'
 
 const viewer = new ThreeViewer({...})
 
-// Add the plugin to add support
-const plugin = viewer.addPluginSync(new Object3DWidgetsPlugin())
+viewer.addPluginSync(DeviceOrientationControlsPlugin)
 
-// Add some lights or cameras to the scene. (This can be done before adding the plugin as well)
-// Using Object3DGeneratorPlugin to create a camera and add it to the scene.
-const generator = viewer.getOrAddPluginSync(Object3DGeneratorPlugin)
-generator.generate('camera-perspective', {
-  position: new Vector3(5, 5, 0),
-  name: 'My Camera'
-})
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'deviceOrientation'
 
-// to hide the widgets
-plugin.enabled = false
+// to reset the saved device orientation
+viewer.scene.mainCamera.controls.resetView()
 
-// to add support for a custom helper
-plugin.helpers.push(MyCustomHelper)
-plugin.refresh()
-
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
 ```
 
+## PointerLockControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#pointer-lock-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/PointerLockControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PointerLockControlsPlugin.html)
+
+PointerLockControlsPlugin adds support for using PointerLockControls from three.js. It works similar to controls in first person shooter, captures the mouse pointer and uses it to look around with the camera.
+
+After the plugin is added, it adds support for setting `pointerLock` as the key in `scene.mainCamera.controlMode`. 
+
+Sample Usage
+```typescript
+import {ThreeViewer, PointerLockControlsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(PointerLockControlsPlugin)
+
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'pointerLock'
+
+// listen to lock/unlock events 
+viewer.scene.mainCamera.controls?.addEventListener('lock', ()=> console.log('pointer locked'))
+viewer.scene.mainCamera.controls?.addEventListener('unlock', ()=> console.log('pointer unlocked'))
+
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
+```
+
+## ThreeFirstPersonControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#three-first-person-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/ThreeFirstPersonControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ThreeFirstPersonControlsPlugin.html)
+
+ThreeFirstPersonControlsPlugin adds support for using FirstPersonControls from three.js. It works similar to idle look around in first person games, it does not captures the mouse pointer.
+
+After the plugin is added, it adds support for setting `threeFirstPerson` as the key in `scene.mainCamera.controlMode`. 
+
+Sample Usage
+```typescript
+import {ThreeViewer, ThreeFirstPersonControlsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(ThreeFirstPersonControlsPlugin)
+
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'threeFirstPerson'
+
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
+```
 
 ## Rhino3dmLoadPlugin
 
