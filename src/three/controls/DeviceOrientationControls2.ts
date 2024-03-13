@@ -1,6 +1,6 @@
 import {Euler, EulerOrder, EventDispatcher, MathUtils, Object3D, Quaternion, Vector3} from 'three'
 import {IEvent, now, serialize} from 'ts-browser-helpers'
-import {uiPanelContainer, uiSlider} from 'uiconfig.js'
+import {uiButton, uiPanelContainer, uiSlider} from 'uiconfig.js'
 import {ICameraControls} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -63,7 +63,15 @@ export class DeviceOrientationControls2 extends EventDispatcher implements ICame
     private _initQuaternion = new Quaternion()
     private _initQuaternionInvert = new Quaternion()
     private _initQuaternionDest = new Quaternion()
+
+    @uiButton('Reset View')
+    resetView() {
+        (this._initQuaternionDest as any).__init = false
+    }
+
+    @uiButton()
     connect() {
+        if (this.enabled) return
 
         this.onScreenOrientationChangeEvent() // run once on load
 
@@ -99,7 +107,9 @@ export class DeviceOrientationControls2 extends EventDispatcher implements ICame
 
     }
 
+    @uiButton()
     disconnect() {
+        if (!this.enabled) return
 
         window.removeEventListener('orientationchange', this.onScreenOrientationChangeEvent)
         window.removeEventListener('deviceorientation', this.onDeviceOrientationChangeEvent)
@@ -163,6 +173,7 @@ export class DeviceOrientationControls2 extends EventDispatcher implements ICame
 
         _q2.multiply(_q0.setFromAxisAngle(_zee, -orient)) // adjust for screen orientation
 
+        // debugger
         if (!(this._initQuaternionDest as any).__init) {
             this._initQuaternionDest.copy(_q2).invert()
             ;(this._initQuaternionDest as any).__init = true
@@ -171,9 +182,9 @@ export class DeviceOrientationControls2 extends EventDispatcher implements ICame
         _q2.premultiply(this._initQuaternionDest)
 
         const mTime = 1 / 60
-        // this.object.quaternion.multiply(this._initQuaternionInvert)
+        this.object.quaternion.multiply(this._initQuaternionInvert)
         this.object.quaternion.slerp(_q2, this.dampingFactor / (Math.min(1, time - this._lastTime) / mTime))
-        // this.object.quaternion.multiply(this._initQuaternion)
+        this.object.quaternion.multiply(this._initQuaternion)
         // console.log(time - this._lastTime, mTime)
 
         this._lastTime = time

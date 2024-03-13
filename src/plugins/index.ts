@@ -2,6 +2,7 @@
 export {PipelinePassPlugin} from './base/PipelinePassPlugin'
 export {BaseImporterPlugin} from './base/BaseImporterPlugin'
 export {BaseGroundPlugin} from './base/BaseGroundPlugin'
+export {ACameraControlsPlugin} from './base/ACameraControlsPlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
@@ -26,6 +27,9 @@ export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {PickingPlugin} from './interaction/PickingPlugin'
 export {TransformControlsPlugin} from './interaction/TransformControlsPlugin'
 export {EditorViewWidgetPlugin} from './interaction/EditorViewWidgetPlugin'
+export {DeviceOrientationControlsPlugin} from './interaction/DeviceOrientationControlsPlugin'
+export {PointerLockControlsPlugin} from './interaction/PointerLockControlsPlugin'
+export {ThreeFirstPersonControlsPlugin} from './interaction/ThreeFirstPersonControlsPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'

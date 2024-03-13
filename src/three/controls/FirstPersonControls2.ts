@@ -1,6 +1,7 @@
-import {MathUtils, Object3D, Spherical, Vector3} from 'three'
-import {IEvent, now, serialize, SimpleEventDispatcher} from 'ts-browser-helpers'
+import {EventDispatcher, MathUtils, Object3D, Spherical, Vector3} from 'three'
+import {IEvent, now, serialize} from 'ts-browser-helpers'
 import {uiFolderContainer, uiInput, uiToggle} from 'uiconfig.js'
+import {ICameraControls} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _lookDirection = new Vector3()
@@ -13,7 +14,7 @@ const _target = new Vector3()
 const _changeEvent: IEvent<'change'> = {type: 'change'}
 
 @uiFolderContainer('First Person Controls')
-export class FirstPersonControls2 extends SimpleEventDispatcher<'change'> {
+export class FirstPersonControls2 extends EventDispatcher implements ICameraControls<'change'> {
     readonly object: Object3D
     readonly domElement: HTMLElement | Document
 
