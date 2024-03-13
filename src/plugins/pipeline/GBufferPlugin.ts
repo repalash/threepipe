@@ -1,6 +1,7 @@
 import {
     BufferGeometry,
     Camera,
+    ClampToEdgeWrapping,
     Color,
     DepthTexture,
     DoubleSide,
@@ -148,7 +149,8 @@ export class GBufferPlugin
             this.target = this._viewer.renderManager.createTarget<GBufferPluginTarget>(
                 {
                     depthBuffer: true,
-                    samples: this._viewer.renderManager.composerTarget.samples || 0,
+                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer ? // requirement for zPrepass
+                        this._viewer.renderManager.composerTarget.samples || 0 : 0,
                     type: this.bufferType,
                     textureCount: useMultiple ? 2 : 1,
                     depthTexture: this.renderDepthTexture,
@@ -157,6 +159,8 @@ export class GBufferPlugin
                     // minFilter: NearestFilter,
                     // generateMipmaps: false,
                     // encoding: LinearEncoding,
+                    wrapS: ClampToEdgeWrapping,
+                    wrapT: ClampToEdgeWrapping,
                 })
             if (Array.isArray(this.target.texture)) {
                 this.target.texture[0].name = 'gbufferDepthNormal'

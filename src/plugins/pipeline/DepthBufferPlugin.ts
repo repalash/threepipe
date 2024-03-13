@@ -104,7 +104,8 @@ export class DepthBufferPlugin
             this.target = this._viewer.renderManager.createTarget<DepthBufferPluginTarget>(
                 {
                     depthBuffer: true,
-                    samples: this._viewer.renderManager.composerTarget.samples || 0,
+                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer ? // requirement for zPrepass
+                        this._viewer.renderManager.composerTarget.samples || 0 : 0,
                     type: this.bufferType,
                     // magFilter: NearestFilter,
                     // minFilter: NearestFilter,
