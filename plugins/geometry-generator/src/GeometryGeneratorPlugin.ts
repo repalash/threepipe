@@ -38,7 +38,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
     generateObject(type: string, params?: any) {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
-        const obj = new Mesh2(params.geometry ?? new BufferGeometry2(), params.material ?? new PhysicalMaterial())
+        const obj = new Mesh2(params?.geometry ?? new BufferGeometry2(), params?.material ?? new PhysicalMaterial())
         generator.generate(obj.geometry, params)
         obj.name = type
         obj.geometry.name = 'Generated ' + type

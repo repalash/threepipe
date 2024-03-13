@@ -16,6 +16,6 @@ export function setupWebGiLogo(viewer: ThreeViewer) {
     viewer.container.appendChild(webgiLogo)
     tippy(webgiLogo, {
         placement: 'right',
-        content: 'Powered by WebGi SDK',
+        content: 'Powered by Threepipe SDK',
     })
 }
