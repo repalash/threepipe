@@ -1,6 +1,5 @@
 import {expose, transfer} from 'comlink'
 import type {MainModule} from './ISort'
-// @ts-expect-error no types
 import workerPromise from './sort'
 // import sharedArrayBufferWorkerPromise from './sort'
 import {BufferPool} from './BufferPool'
