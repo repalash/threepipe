@@ -1,6 +1,6 @@
 import {EventDispatcher, MathUtils, Object3D, Spherical, Vector3} from 'three'
 import {IEvent, now, serialize} from 'ts-browser-helpers'
-import {uiFolderContainer, uiInput, uiToggle} from 'uiconfig.js'
+import {uiInput, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {ICameraControls} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -13,7 +13,8 @@ const _target = new Vector3()
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _changeEvent: IEvent<'change'> = {type: 'change'}
 
-@uiFolderContainer('First Person Controls')
+// todo bug - this is not showing in the UI. To test, switch to threeFirstPerson controlsMode for Default Camera in the tweakpane editor
+@uiPanelContainer('First Person Controls')
 export class FirstPersonControls2 extends EventDispatcher implements ICameraControls<'change'> {
     readonly object: Object3D
     readonly domElement: HTMLElement | Document
@@ -23,7 +24,7 @@ export class FirstPersonControls2 extends EventDispatcher implements ICameraCont
     @serialize() @uiToggle() enableKeys = true
 
     @serialize() @uiInput() movementSpeed = 1.0
-    @serialize() @uiInput()lookSpeed = 0.005
+    @serialize() @uiInput() lookSpeed = 0.005
 
     @serialize() @uiToggle() lookVertical = true
     @serialize() @uiToggle() autoForward = false
@@ -31,9 +32,9 @@ export class FirstPersonControls2 extends EventDispatcher implements ICameraCont
     @serialize() @uiToggle() activeLook = true
 
     @serialize() @uiToggle() heightSpeed = false
-    @serialize() @uiInput()heightCoef = 1.0
-    @serialize() @uiInput()heightMin = 0.0
-    @serialize() @uiInput()heightMax = 1.0
+    @serialize() @uiInput() heightCoef = 1.0
+    @serialize() @uiInput() heightMin = 0.0
+    @serialize() @uiInput() heightMax = 1.0
 
     @serialize() @uiToggle() constrainVertical = false
     @serialize() @uiInput() verticalMin = 0
