@@ -5,6 +5,8 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {generateUUID} from '../../three'
+import {animateCameraToViewLinear, animateCameraToViewSpherical, EasingFunctions, makeSetterFor} from '../../utils'
+import {ICamera, ICameraView} from '../../core'
 
 export interface AnimationResult{
     id: string
@@ -13,6 +15,8 @@ export interface AnimationResult{
     stop: () => void
     // eslint-disable-next-line @typescript-eslint/naming-convention
     _stop?: () => void
+
+    targetRef?: {target: any, key: string}
 }
 
 /**
@@ -20,7 +24,7 @@ export interface AnimationResult{
  *
  * Provides animation capabilities to the viewer using the popmotion library: https://popmotion.io/
  *
- * Overrides the driver in popmotion to sync with the viewer and provide ways to store and stop animations.
+ * Overrides the driver in popmotion to sync with the viewer and provide ways to keep track and stop animations.
  *
  * @category Plugin
  */
@@ -44,6 +48,7 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
     dependencies = []
 
     private _fadeDisabled = false
+
     /**
      * Disable the frame fade plugin while animation is running
      */
@@ -52,11 +57,11 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
     // Same code used in CameraViewPlugin
     private _postFrame = ()=>{
         if (!this._viewer) return
-        if (!this.enabled || Object.keys(this.animations).length < 1) {
+        if (this.isDisabled() || Object.keys(this.animations).length < 1) {
             this._lastFrameTime = 0
             // console.log('not anim')
             if (this._fadeDisabled) {
-                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(PopmotionPlugin.PluginType)
+                this._viewer.getPlugin<FrameFadePlugin>('FrameFade')?.enable(this)
                 this._fadeDisabled = false
             }
             return
@@ -91,7 +96,7 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
         if (!this._fadeDisabled && this.disableFrameFade) {
             const ff = this._viewer.getPlugin<FrameFadePlugin>('FrameFade')
             if (ff) {
-                ff.disable(PopmotionPlugin.PluginType)
+                ff.disable(this)
                 this._fadeDisabled = true
             }
         }
@@ -120,30 +125,80 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
 
     readonly animations: Record<string, AnimationResult> = {}
 
-    animate<V>(options: AnimationOptions<V>): AnimationResult {
+    animateTarget<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>): AnimationResult {
+        return this.animate({...options, target, key: key as string})
+    }
+
+    animate<V>(options1: AnimationOptions<V> & {target?: any, key?: string}): AnimationResult {
+        let targetRef = undefined
+        const options = {...options1} as ((typeof options1) & {lastOnUpdate?: (a:V)=>void})
+        if (options.target !== undefined) {
+            if (options.key === undefined) throw new Error('key must be defined')
+            if (!(options.key in options.target)) {
+                console.warn('key not present in target, creating', options.key, options.target)
+                options.target[options.key] = options.from || 0
+            }
+            const setter = makeSetterFor(options.target, options.key)
+            const fromVal = options.target[options.key]
+            options.lastOnUpdate = options.onUpdate
+            options.onUpdate = (val: V)=>{
+                setter(val)
+                options.lastOnUpdate && options.lastOnUpdate(val)
+            }
+            targetRef = {target: options.target, key: options.key}
+            if (options.from === undefined) options.from = fromVal
+            delete options.target
+            delete options.key
+        }
+
         const uuid = generateUUID()
-        const a: any = {
+        const a: AnimationResult = {
             id: uuid,
             options,
             stop: ()=>{
                 if (!this.animations[uuid]?._stop) console.warn('Animation not started')
                 else this.animations[uuid]?._stop?.()
             },
+            promise: undefined as any,
+            targetRef,
         }
         this.animations[uuid] = a
-        a.promise = new Promise<void>((resolve) => {
+        a.promise = new Promise<void>((resolve, reject) => {
+            const end2 = ()=>{
+                try {
+                    options.onEnd && options.onEnd()
+                } catch (e: any) {
+                    reject(e)
+                    return false
+                }
+                return true
+            }
             const opts: AnimationOptions<V> = {
                 driver: this.defaultDriver,
                 ...options,
                 onComplete: ()=>{
-                    options.onComplete?.()
+                    try {
+                        options.onComplete && options.onComplete()
+                    } catch (e: any) {
+                        if (!end2()) return
+                        reject(e)
+                        return
+                    }
+                    if (!end2()) return
                     resolve()
                 },
                 onStop: ()=>{
-                    options.onStop?.()
+                    try {
+                        options.onStop && options.onStop()
+                    } catch (e: any) {
+                        if (!end2()) return
+                        reject(e)
+                        return
+                    }
                     resolve()
                 },
             }
+            // todo: support boolean using timeout.
             const anim = animate(opts)
             this.animations[uuid]._stop = anim.stop
             this.animations[uuid].options = opts
@@ -155,9 +210,31 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
         return this.animations[uuid]
     }
 
-    async animateAsync<V>(options: AnimationOptions<V>): Promise<string> {
-        return this.animate(options).promise
+    async animateAsync<V>(options: AnimationOptions<V>& {target?: any, key?: string}, animations?: AnimationResult[]): Promise<string> {
+        const anim = this.animate(options)
+        if (animations) animations.push(anim)
+        return anim.promise
     }
 
-    // todo : animateObject/animateTarget
+    async animateTargetAsync<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>, animations?: AnimationResult[]): Promise<string> {
+        const anim = this.animate({...options, target, key: key as string})
+        if (animations) animations.push(anim)
+        return anim.promise
+    }
+
+    animateCamera(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>) {
+        const anim = spherical ?
+            animateCameraToViewSpherical(camera, view) :
+            animateCameraToViewLinear(camera, view)
+        return this.animate({
+            ease: EasingFunctions.linear,
+            duration: 1000,
+            ...anim, ...options,
+        })
+    }
+    async animateCameraAsync(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>, animations?: AnimationResult[]) {
+        const anim = this.animateCamera(camera, view, spherical, options)
+        if (animations) animations.push(anim)
+        return anim.promise
+    }
 }

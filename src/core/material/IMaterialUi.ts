@@ -27,7 +27,15 @@ import {
 } from 'three'
 import {downloadBlob, uploadFile} from 'ts-browser-helpers'
 import {PhysicalMaterial} from './PhysicalMaterial'
-import {getEmptyMeta} from '../../utils/serialization'
+import {getEmptyMeta} from '../../utils'
+import {LegacyPhongMaterial} from './LegacyPhongMaterial'
+import {generateUUID} from '../../three/utils'
+
+declare module '../IMaterial' {
+    interface IMaterial {
+        __matExtUiConfigs?: Record<string, UiObjectConfig|undefined>
+    }
+}
 
 export const iMaterialUI = {
     base: (material: IMaterial): UiObjectConfig[] => [
@@ -106,6 +114,7 @@ export const iMaterialUI = {
                 {
                     type: 'slider',
                     bounds: [0, 1],
+                    stepSize: 0.001,
                     property: [material, 'alphaTest'],
                 },
                 {
@@ -127,11 +136,11 @@ export const iMaterialUI = {
                         value: value[1],
                     })),
                 },
-                {
+                material.alphaMap !== undefined ? {
                     type: 'image',
                     property: [material, 'alphaMap'],
-                },
-                makeSamplerUi(material, 'alphaMap'),
+                } : {},
+                material.alphaMap !== undefined ? makeSamplerUi(material, 'alphaMap') : {},
                 {
                     type: 'checkbox',
                     label: 'Render to Gbuffer',
@@ -209,6 +218,12 @@ export const iMaterialUI = {
         }
     ),
     misc: (material: IMaterial): UiObjectConfig[] => [
+        ()=>material.materialExtensions?.map(v=>{
+            v.uuid = v.uuid || generateUUID()
+            material.__matExtUiConfigs = material.__matExtUiConfigs || {}
+            if (!material.__matExtUiConfigs[v.uuid]) material.__matExtUiConfigs[v.uuid] = v.getUiConfig?.(material, material.uiConfig?.uiRefresh)
+            return material.__matExtUiConfigs[v.uuid]
+        }).filter(v=>v),
         {
             type: 'dropdown',
             label: 'Side',
@@ -248,7 +263,6 @@ export const iMaterialUI = {
                 })
             },
         },
-        ()=>material.materialExtensions?.map(v=>v.getUiConfig?.(material, material.uiConfig?.uiRefresh)).filter(v=>v),
     ],
     roughMetal: (material: PhysicalMaterial): UiObjectConfig => (
         {
@@ -278,14 +292,14 @@ export const iMaterialUI = {
             ],
         }
     ),
-    bumpNormal: (material: PhysicalMaterial): UiObjectConfig => (
+    bumpNormal: (material: PhysicalMaterial|LegacyPhongMaterial): UiObjectConfig => (
         {
             type: 'folder',
             label: 'Bump/Normal',
             children: [
                 {
                     type: 'slider',
-                    bounds: [0, 0.2],
+                    bounds: [-0.2, 0.2],
                     stepSize: 0.001,
                     property: [material, 'bumpScale'],
                     hidden: ()=>!material.bumpMap,
@@ -330,7 +344,7 @@ export const iMaterialUI = {
             ],
         }
     ),
-    emission: (material: PhysicalMaterial): UiObjectConfig => (
+    emission: (material: PhysicalMaterial|LegacyPhongMaterial): UiObjectConfig => (
         {
             type: 'folder',
             label: 'Emission',
@@ -371,7 +385,6 @@ export const iMaterialUI = {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'transmission'],
-                    limitedUi: true,
                 },
                 {
                     type: 'slider',

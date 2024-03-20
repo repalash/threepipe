@@ -455,7 +455,7 @@ class OBJLoader2 extends Loader implements ILoader{
         loader.setPath( this.path );
         loader.setRequestHeader( this.requestHeader );
         loader.setWithCredentials( this.withCredentials );
-        this.currentUrl = url;
+        scope.currentUrl = url;
         loader.load( url, async function ( text ) {
 
             try {
@@ -478,13 +478,13 @@ class OBJLoader2 extends Loader implements ILoader{
 
             }
 
-            this.currentUrl = undefined;
+            scope.currentUrl = undefined;
 
         }, onProgress, onError );
 
     }
 
-    declare loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any>
+    loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any>
 
     setMaterials( materials ) {
 

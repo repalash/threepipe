@@ -5,35 +5,54 @@ export class Box3B extends Box3 {
     private static _box = new Box3B()
     private _vector = new Vector3()
 
-    expandByObject(object: Object3D|IObject3D, precise = false, ignoreInvisible = false): this {
+    expandByObject(object: Object3D|IObject3D, precise = false, ignoreInvisible = false, ignoreObject?: (obj: Object3D)=>boolean): this {
         if (object.userData?.bboxVisible === false) return this
         if (!object.visible && ignoreInvisible) return this
+        if (ignoreObject && ignoreObject(object)) return this
+
+        // copied the whole function from three.js to pass in ignoreInvisible
 
         // Computes the world-axis-aligned bounding box of an object (including its children),
         // accounting for both the object's, and children's, world transforms
 
         object.updateWorldMatrix(false, false)
 
-        const geometry = (object as Mesh).geometry
+        // InstancedMesh has boundingBox = null, so it can be computed
+        if ((object as any).boundingBox !== undefined) {
 
-        if (geometry !== undefined) {
-            if (precise && geometry.attributes != undefined && geometry.attributes.position !== undefined) {
-                const position = geometry.attributes.position as any as BufferAttribute | InterleavedBufferAttribute
-                for (let i = 0, l = position.count; i < l; i++) {
-                    this._vector.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld)
-                    this.expandByPoint(this._vector)
-                }
-            } else {
-                if (geometry.boundingBox === null)
-                    geometry.computeBoundingBox()
-                Box3B._box.copy(geometry.boundingBox!)
-                Box3B._box.applyMatrix4(object.matrixWorld)
+            if ((object as any).boundingBox === null) {
 
-                this.union(Box3B._box)
+                (object as any).computeBoundingBox()
 
             }
-        }
 
+            Box3B._box.copy((object as any).boundingBox)
+            Box3B._box.applyMatrix4(object.matrixWorld)
+
+            this.union(Box3B._box)
+
+        } else {
+
+            const geometry = (object as Mesh).geometry
+
+            if (geometry !== undefined) {
+                if (precise && geometry.attributes != undefined && geometry.attributes.position !== undefined) {
+                    const position = geometry.attributes.position as any as BufferAttribute | InterleavedBufferAttribute
+                    for (let i = 0, l = position.count; i < l; i++) {
+                        this._vector.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld)
+                        this.expandByPoint(this._vector)
+                    }
+                } else {
+                    if (geometry.boundingBox === null)
+                        geometry.computeBoundingBox()
+                    Box3B._box.copy(geometry.boundingBox!)
+                    Box3B._box.applyMatrix4(object.matrixWorld)
+
+                    this.union(Box3B._box)
+
+                }
+            }
+        }
         const children = object.children
 
         for (let i = 0, l = children.length; i < l; i++) {

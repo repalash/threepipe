@@ -1,5 +1,4 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {MaterialExtension} from '../../materials'
+// noinspection ES6PreferShortImport
 import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {
     ACESFilmicToneMapping,
@@ -8,7 +7,6 @@ import {
     LinearToneMapping,
     Object3D,
     ReinhardToneMapping,
-    Shader,
     ShaderChunk,
     ToneMapping,
     Vector4,
@@ -16,16 +14,13 @@ import {
 } from 'three'
 import {glsl, onChange, serialize} from 'ts-browser-helpers'
 import {IMaterial} from '../../core'
-import {shaderReplaceString, updateBit} from '../../utils'
+import {updateBit} from '../../utils'
 import {matDefine, uniform} from '../../three'
-import Uncharted2ToneMapping from './shaders/Uncharted2ToneMapping.glsl'
+import Uncharted2ToneMappingShader from './shaders/Uncharted2ToneMapping.glsl'
 import TonemapShader from './shaders/TonemapPlugin.pars.glsl'
 import TonemapShaderPatch from './shaders/TonemapPlugin.patch.glsl'
-
-// todo move
-export interface GBufferUpdater {
-    updateGBufferFlags: (material: IMaterial, data: Vector4) => void
-}
+import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
+import {GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
@@ -40,8 +35,17 @@ export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
  * @category Plugins
  */
 @uiFolderContainer('Tonemapping')
-export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExtension, GBufferUpdater {
+export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
     static readonly PluginType = 'Tonemap'
+
+    readonly extraUniforms = {
+        toneMappingContrast: {value: 1},
+        toneMappingSaturation: {value: 1},
+    } as const
+
+    readonly extraDefines = {
+        ['TONEMAP_BACKGROUND']: '1',
+    } as const
 
     @serialize() @uiToggle('Enabled') enabled = true
 
@@ -55,7 +59,6 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
         label: value[0],
         value: value[1],
     })))
-
     @onChange(TonemapPlugin.prototype.setDirty)
     @serialize() toneMapping: ToneMapping = ACESFilmicToneMapping
 
@@ -80,17 +83,14 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
     @uniform({propKey: 'toneMappingContrast'})
     @serialize() contrast: number
 
-    readonly extraUniforms = {
-        toneMappingContrast: {value: 1},
-        toneMappingSaturation: {value: 1},
-    } as const
+    /**
+     * The priority of the material extension when applied to the material in ScreenPass
+     * set to very low priority, so applied at the end
+     */
+    priority = -100
 
-    set uniformsNeedUpdate(v: boolean) { // for @uniform decorator
-        if (v) this.setDirty()
-    }
-
-    parsFragmentSnippet: any = (_: WebGLRenderer, _1: IMaterial) => {
-        if (!this.enabled) return ''
+    parsFragmentSnippet = () => {
+        if (this.isDisabled()) return ''
 
         return glsl`
             uniform float toneMappingContrast;
@@ -99,35 +99,12 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
         `
     }
 
-    constructor() {
-        super()
-        this.setDirty = this.setDirty.bind(this)
-    }
-
-    /**
-     * The priority of the material extension when applied to the material in ScreenPass
-     * set to very low priority, so applied at the end
-     */
-    readonly priority = -100
-
-    shaderExtender(shader: Shader, _: IMaterial, _1: WebGLRenderer): void {
-        if (!this.enabled) return
-
-        shader.fragmentShader = shaderReplaceString(
-            shader.fragmentShader,
-            '#glMarker', '\n' + TonemapShaderPatch + '\n',
-            {prepend: true}
-        )
-    }
-
-    readonly extraDefines = {
-        ['TONEMAP_BACKGROUND']: '1',
-    } as const
+    protected _shaderPatch = TonemapShaderPatch
 
     private _rendererState: any = {}
 
     onObjectRender(_: Object3D, material: IMaterial, renderer: WebGLRenderer): void {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         const {toneMapping, toneMappingExposure} = renderer
         this._rendererState.toneMapping = toneMapping
         this._rendererState.toneMappingExposure = toneMappingExposure
@@ -143,33 +120,9 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
         renderer.toneMappingExposure = this._rendererState.toneMappingExposure
     }
 
-    getUiConfig(): any {
-        return this.uiConfig
-    }
-
-    computeCacheKey = (_: IMaterial) => this.enabled ? '1' : '0'
-
-    isCompatible(_: IMaterial): boolean {
-        return true // (material as MeshStandardMaterial2).isMeshStandardMaterial2
-    }
-
-    setDirty() {
-        this.__setDirty?.() // this will update version which will set needsUpdate on material
-        this._viewer?.renderManager.screenPass.setDirty()
-    }
-
     fromJSON(data: any, meta?: any): this|null|Promise<this|null> {
-        // really pld legacy
-        if (data.pass) {
-            data = {...data}
-            data.extension = {...data.pass}
-            delete data.extension.enabled
-            delete data.pass
-        }
         // legacy
         if (data.extension) {
-            data = {...data, ...data.extension}
-            delete data.extension
             if (data.clipBackground !== undefined) {
                 if (this._viewer) this._viewer.renderManager.screenPass.clipBackground = data.clipBackground
                 else console.warn('TonemapPlugin: no viewer attached, clipBackground ignored')
@@ -179,30 +132,16 @@ export class TonemapPlugin extends AViewerPluginSync<''> implements MaterialExte
         return super.fromJSON(data, meta)
     }
 
-    onAdded(viewer: ThreeViewer) {
-        super.onAdded(viewer)
-        // viewer.getPlugin(GBufferPlugin)?.registerGBufferUpdater(this.updateGBufferFlags) // todo
-        viewer.renderManager.screenPass.material.registerMaterialExtensions([this])
-    }
-
-    onRemove(viewer: ThreeViewer) {
-        // viewer.getPlugin(GBufferPlugin)?.unregisterGBufferUpdater(this.updateGBufferFlags)
-        viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this])
-        super.onRemove(viewer)
-    }
-
-    updateGBufferFlags(material: IMaterial, data: Vector4): void {
-        const x = material?.userData.postTonemap === false ? 0 : 1
+    // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension
+    updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
+        const x = (c.material.userData.gBufferData?.tonemapEnabled ?? c.material?.userData.postTonemap) === false ? 0 : 1
         data.w = updateBit(data.w, 1, x) // 2nd Bit
+        super.updateGBufferFlags(data, c)
     }
 
     static {
         // Add support for Uncharted2 tone mapping
-        ShaderChunk.tonemapping_pars_fragment = ShaderChunk.tonemapping_pars_fragment.replace('vec3 CustomToneMapping( vec3 color ) { return color; }', Uncharted2ToneMapping)
+        ShaderChunk.tonemapping_pars_fragment = ShaderChunk.tonemapping_pars_fragment.replace('vec3 CustomToneMapping( vec3 color ) { return color; }', Uncharted2ToneMappingShader)
     }
-
-    // for typescript
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    __setDirty?: () => void
 
 }

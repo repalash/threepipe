@@ -1,4 +1,5 @@
 export * from './browser-helpers'
+export * from './shaders'
 export {windowDialogWrapper, type IDialogWrapper} from './DialogWrapper'
 export {GLStatsJS} from './GLStatsJS'
 export {CustomContextMenu} from './CustomContextMenu'
@@ -6,4 +7,9 @@ export {Dropzone, type DropFile, type ListenerCallback, type DropEventType} from
 export {ThreeSerialization, type SerializationMetaType, type SerializationResourcesType, MetaImporter, metaToResources, getEmptyMeta, metaFromResources, convertArrayBufferToStringsInMeta, convertStringsToArrayBuffersInMeta, copyMaterialUserData, copyObject3DUserData, copyUserData, copyTextureUserData, jsonToBlob, serializeTextureInExtras} from './serialization'
 export {shaderReplaceString} from './shader-helpers'
 export {makeGLBFile} from './gltf'
+export {animateCameraToViewLinear, animateCameraToViewSpherical, sphericalFromCameraView} from './camera-anim'
+export {animateAsync, animateTarget, EasingFunctions, makeSetterFor, animate, lerp, lerpAngle} from './animation'
+export {cLinearToRGBM, vLinearToRGBM, cRGBMToLinear, vRGBMToLinear} from './color-encodings'
+export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} from './canvas-snapshot'
+export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
 

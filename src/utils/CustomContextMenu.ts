@@ -1,4 +1,4 @@
-import styles from './CustomContextMenu.css'
+import styles from './CustomContextMenu.css?inline'
 
 /**
  * Represents a custom context menu that can be created and managed dynamically.
@@ -21,7 +21,7 @@ export class CustomContextMenu {
     private static _initialize(): void {
         this._inited = true
         document.addEventListener('pointerdown', (e) => {
-            if (this.Element && !this.Element.contains(e.target as any)) {
+            if (this.Element && !this.Element.contains(e.target as any) && e.button === 0) {
                 this.Remove()
             }
         })

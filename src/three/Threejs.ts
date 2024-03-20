@@ -1,3 +1,4 @@
+
 export {WebGLArrayRenderTarget} from 'three'
 export {WebGL3DRenderTarget} from 'three'
 export {WebGLMultipleRenderTargets} from 'three'
@@ -173,9 +174,9 @@ export {Box3} from 'three'
 export {Box2} from 'three'
 export {Line3} from 'three'
 export {Euler} from 'three'
-export {Vector4} from 'three'
-export {Vector3} from 'three'
-export {Vector2} from 'three'
+export {Vector4, type Vector4Tuple} from 'three'
+export {Vector3, type Vector3Tuple} from 'three'
+export {Vector2, type Vector2Tuple} from 'three'
 export {Quaternion} from 'three'
 export {Color} from 'three'
 export {ColorManagement} from 'three'
@@ -217,7 +218,14 @@ export {WebGLUtils} from 'three'
 export * from 'three/src/constants.js'
 
 export type {Shader} from 'three'
+export type {IUniform} from 'three'
 
 export * from 'three/examples/jsm/libs/fflate.module.js'
 
 export {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
+export {Pass, FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js'
+export {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
+export {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
+export {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js'
+
+export {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'

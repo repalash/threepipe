@@ -52,7 +52,6 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         this._transparentTarget = undefined
     }
 
-
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager
@@ -134,7 +133,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // renderer.autoClearDepth = false
 
                 ud.transmissionRenderTarget = writeBuffer
-                ud.blurTransmissionTarget = this.blurTransmissionTarget
+                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -164,7 +163,9 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
             this.renderToScreen = false // for super RenderPass.render
 
-            if (!renderer.info.autoReset) throw 'renderer.info.autoReset must be true'
+            if (renderer.info && !renderer.info.autoReset)
+                throw 'renderer.info.autoReset must be true' // it is required to check if any object is rendered in the scene, also frame count is maintained separately in the render manager, use that.
+
 
             // Opaque
             {
@@ -210,7 +211,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 renderer.autoClearDepth = curClearDepth
             }
 
-            if (renderer.info.render.calls > 0) {
+            if (!renderer.info || renderer.info.render.calls > 0) {
 
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture
                 this._blendPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
@@ -227,7 +228,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // renderer.autoClearDepth = false
 
                 ud.transmissionRenderTarget = needsSwap ? writeBuffer : readBuffer
-                ud.blurTransmissionTarget = this.blurTransmissionTarget
+                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -246,7 +247,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
 
             // console.log(renderer.info.render.calls)
-            if (renderer.info.render.calls > 0) {
+            if (!renderer.info || renderer.info.render.calls > 0) {
 
                 // console.log('missive blit', renderer.info.render.frame)
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture

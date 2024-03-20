@@ -52,14 +52,15 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
                 cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
             } else if (cc.isRenderTargetTexture) {
                 if (cc._target) {
-                    cc.image.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target)
-                    setTimeout(()=>cc.image.tp_src && delete cc.image.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                    // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
+                    cc.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
+                    setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
                 }
             } else {
                 cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
             }
 
-            if (!cc.image.tp_src) {
+            if (!cc.image.tp_src && !cc.tp_src) {
                 if (cc.isRenderTargetTexture) cc.image.tp_src = staticData.renderTarImage
                 else if (cc.isDataTexture) cc.image.tp_src = staticData.dataTexImage
             }
@@ -69,6 +70,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
             ret = ret ? staticData.imageMap[ret] : undefined
             if (!ret) ret = cc.image.tp_src || cc.image.src
         }
+        if (cc.tp_src) ret = cc.tp_src
     } else if (typeof cc === 'string') {
         ret = cc
     } else if (cc.domainMin) { // for lut CUBE files.
@@ -90,7 +92,6 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
         cc.image.tp_src_uuid = uuid
         staticData.tempMap[ret] = uuid
     }
-    // console.log(ret, cc, tar, key)
     if (typeof ret === 'string')
         ret = staticData.imageMap[ret] ?? ret // Note: this will be a bottleneck if the length of src is too long.
     return ret
@@ -108,7 +109,10 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         } else {
             v1.needsUpdate = true
         }
-        if (!staticData.textureMap[v1.image?.id]) staticData.textureMap[v1.image?.id] = v1
+        if (v1.image) {
+            if (!v1.image.id?.length) v1.image.id = generateUUID()
+            if (!staticData.textureMap[v1.image.id]) staticData.textureMap[v1.image.id] = v1
+        }
     }
     config.__proxy.value_ = v1
     renderer.methods.setValue(config, v1, {last: true}, false)
@@ -225,6 +229,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
             console.error('Only Float and HalfFloat Data texture export is supported', vcv, tex, config)
             return
         }
+        // todo: use viewer.export directly (check threepipe Readme)
         const buffer = new EXRExporter2().parse(undefined as any, tex as DataTexture&ITexture)
         const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
         if (!val) {
@@ -294,7 +299,9 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* Fo
             get: () => {
                 config.__proxy.value_ = renderer.methods.getValue(config)
                 const ret = proxyGetValue(config.__proxy.value_, viewer)
-                if (!staticData.textureMap[ret.id ?? ret]) staticData.textureMap[ret.id ?? ret] = config.__proxy.value_
+                if (typeof ret !== 'string' && !ret.id?.length) ret.id = generateUUID()
+                const id = typeof ret === 'string' ? ret : ret.id ?? ret
+                if (!staticData.textureMap[id]) staticData.textureMap[id] = config.__proxy.value_
                 return ret
             },
             set: (v: any) => {

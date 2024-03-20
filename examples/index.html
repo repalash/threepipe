@@ -220,19 +220,32 @@
         <h2 class="category">Post-Processing</h2>
         <ul>
             <li><a href="./tonemap-plugin/">Tonemap Plugin </a></li>
+            <li><a href="./vignette-plugin/">Vignette Plugin </a></li>
+            <li><a href="./chromatic-aberration-plugin/">Chromatic Aberration Plugin </a></li>
+            <li><a href="./filmic-grain-plugin/">Filmic Grain Plugin </a></li>
             <li><a href="./frame-fade-plugin/">Frame Fade Plugin </a></li>
         </ul>
         <h2 class="category">Rendering</h2>
         <ul>
             <li><a href="./progressive-plugin/">Progressive Plugin </a></li>
+            <li><a href="./custom-pipeline/">Custom Pipeline specification </a></li>
             <li><a href="./depth-buffer-plugin/">Depth Buffer Plugin </a></li>
             <li><a href="./normal-buffer-plugin/">Normal Buffer Plugin </a></li>
-            <li><a href="./custom-pipeline/">Custom Pipeline specification </a></li>
+            <li><a href="./gbuffer-plugin/">GBuffer Plugin <br/>(NormalDepth+Flags) </a></li>
+            <li><a href="./virtual-cameras-plugin/">Virtual Cameras Plugin </a></li>
+            <li><a href="./virtual-camera/">Virtual Camera (Animated) </a></li>
         </ul>
         <h2 class="category">Interaction</h2>
         <ul>
+            <li><a href="./picking-plugin/">Picking (Selection) Plugin </a></li>
+            <li><a href="./camera-view-plugin/">Camera View (Animation) Plugin </a></li>
             <li><a href="./dropzone-plugin/">Dropzone (Drag & Drop) Plugin </a></li>
+            <li><a href="./transform-controls-plugin/">Transform Controls Plugin </a></li>
+            <li><a href="./editor-view-widget-plugin/">Editor View Widget Plugin </a></li>
             <li><a href="./fullscreen-plugin/">FullScreen Plugin </a></li>
+            <li><a href="./device-orientation-controls-plugin/">Device Orientation Controls Plugin (Gyroscope) </a></li>
+            <li><a href="./pointer-lock-controls-plugin/">Pointer Lock(FPS) Controls Plugin </a></li>
+            <li><a href="./three-first-person-controls-plugin/">Three First Person(look around) Controls Plugin </a></li>
         </ul>
         <h2 class="category">Import</h2>
         <ul>
@@ -249,10 +262,13 @@
             <li><a href="./stl-load/">STL Load </a></li>
             <li><a href="./ktx2-load/">KTX2 Load </a></li>
             <li><a href="./ktx-load/">KTX Load </a></li>
+            <li><a href="./blend-load/">BLEND Load </a></li>
+            <li><a href="./splat-load/">SPLAT Load<br/>(Gaussian Splatting) </a></li>
             <li><a href="./extra-importer-plugins/">Extra(3ds, 3mf, collada, amf, bvh, vox, gcode, mdd, pcd, tilt, wrl, ldraw, vtk, xyz) Load </a></li>
         </ul>
         <h2 class="category">Export</h2>
         <ul>
+            <li><a href="./canvas-snapshot-plugin/">Canvas Snapshot Plugin<br/>(Image Snapshot) </a></li>
             <li><a href="./image-snapshot-export/">PNG, JPEG, WEBP Export<br/>(Image Snapshot) </a></li>
             <li><a href="./render-target-export/">EXR, PNG, JPEG, WEBP Export<br/>(Render Target Export) </a></li>
             <li><a href="./glb-export/">GLB Export </a></li>
@@ -266,6 +282,11 @@
             <li><a href="./scene-uiconfig/">Scene UI </a></li>
             <li><a href="./viewer-uiconfig/">Viewer UI </a></li>
         </ul>
+        <h2 class="category">UI Plugins</h2>
+        <ul>
+            <li><a href="./tweakpane-ui-plugin/">Tweakpane UI Plugin </a></li>
+            <li><a href="./blueprintjs-ui-plugin/">Blueprint.js UI Plugin </a></li>
+        </ul>
         <h2 class="category">Animation</h2>
         <ul>
             <li><a href="./gltf-animation-plugin/">glTF Animation Plugin </a></li>
@@ -273,9 +294,21 @@
             <li><a href="./gltf-camera-animation/">glTF Camera Animation </a></li>
             <li><a href="./gltf-animation-page-scroll/">glTF Animation Page Scroll </a></li>
         </ul>
+        <h2 class="category">Materials</h2>
+        <ul>
+            <li><a href="./clearcoat-tint-plugin/">Clearcoat Tint Plugin</a></li>
+            <li><a href="./fragment-clipping-extension-plugin/">Fragment Clipping Extension Plugin </a></li>
+            <li><a href="./noise-bump-material-plugin/">SparkleBump(NoiseBump) Material Plugin </a></li>
+            <li><a href="./custom-bump-map-plugin/">Custom Bump Map Plugin </a></li>
+        </ul>
         <h2 class="category">Utils</h2>
         <ul>
+            <li><a href="./contact-shadow-ground-plugin/">Contact Shadow Ground Plugin</a></li>
+            <li><a href="./hdri-ground-plugin/">HDRi Ground Plugin <br/>(Projected Skybox)</a></li>
             <li><a href="./render-target-preview/">Render Target Preview Plugin </a></li>
+            <li><a href="./object3d-generator-plugin/">Object3D Generator Plugin <br/>(Lights, Cameras)</a></li>
+            <li><a href="./geometry-generator-plugin/">Geometry Generator Plugin </a></li>
+            <li><a href="./object3d-widgets-plugin/">Object3D Widgets Plugin <br/>(Lights, Cameras)</a></li>
             <li><a href="./geometry-uv-preview/">Geometry UV Preview Plugin </a></li>
             <li><a href="./parallel-asset-import/">Parallel Asset Import </a></li>
             <li><a href="./obj-to-glb/">Convert OBJ to GLB </a></li>
@@ -284,15 +317,28 @@
         </ul>
         <h2 class="category">Samples</h2>
         <ul>
-            <li><a href="./html-sample/">HTML/JS Sample </a></li>
+            <li><a href="./html-js-sample/">HTML/JS Sample </a></li>
+            <li><a href="./react-js-sample/">React/JS Sample </a></li>
+            <li><a href="./react-jsx-sample/">React/JSX Sample </a></li>
+            <li><a href="./react-tsx-sample/">React/TSX Sample </a></li>
+            <li><a href="./vue-html-sample/">Vue/HTML Sample </a></li>
+            <li><a href="./vue-sfc-sample/">Vue/SFC Sample </a></li>
+            <li><a href="./svelte-sample/">Svelte Sample </a></li>
         </ul>
         <h2 class="category">Lights</h2>
         <ul>
             <li><a href="./directional-light/">Directional Light </a></li>
+            <li><a href="./spot-light/">Spot Light </a></li>
+            <li><a href="./point-light/">Point Light </a></li>
+            <li><a href="./ambient-light/">Ambient Light </a></li>
+            <li><a href="./hemisphere-light/">Hemisphere Light </a></li>
+            <li><a href="./rect-area-light/">Rect Area Light </a></li>
         </ul>
         <h2 class="category">Tests</h2>
         <ul>
+            <li><a href="./multi-viewer-test/">Multiple Viewers Test </a></li>
             <li><a href="./gltf-transmission-test/">glTF Transmission Test </a></li>
+            <li><a href="./gltf-transmission-test-msaa/">glTF Transmission Test + MSAA </a></li>
             <li><a href="./uint8-rgbm-hdr-test/">Uint8 RGBM HDR Test </a></li>
             <li><a href="./half-float-hdr-test/">Half-float HDR Test </a></li>
             <li><a href="./sphere-rgbm-test/">RGBM Test </a></li>

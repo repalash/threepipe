@@ -1,4 +1,4 @@
-import {Event, EventDispatcher, FileLoader, LoaderUtils, LoadingManager} from 'three'
+import {Event, EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
 import {
     IAssetImporter,
     IAssetImporterEventTypes,
@@ -89,9 +89,10 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
     // region import functions
 
-    async import<T extends ImportResult|undefined = ImportResult>(assetOrPath?: string | IAsset | IAsset[], options?: ImportAssetOptions): Promise<(T|undefined)[]> {
+    async import<T extends ImportResult|undefined = ImportResult>(assetOrPath?: string | IAsset | IAsset[] | File | File[], options?: ImportAssetOptions): Promise<(T|undefined)[]> {
         if (!assetOrPath) return []
         if (Array.isArray(assetOrPath)) return (await Promise.all(assetOrPath.map(async a => this.import<T>(a, options)))).flat(1)
+        if (assetOrPath instanceof File) return await this.importFile<T>(assetOrPath, options)
         if (typeof assetOrPath === 'object') return await this.importAsset<T>(assetOrPath, options)
         if (typeof assetOrPath === 'string') return await this.importPath<T>(assetOrPath, options)
         console.error('AssetImporter: Invalid asset or path', assetOrPath)
@@ -140,9 +141,11 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         if (!result && asset?.preImportedRaw) {
             result = await asset.preImportedRaw
         }
+
+        const path = options.pathOverride || asset.path
         // console.log(result)
         if (!options.forceImport && result) {
-            const results = await this.processRaw<T>(result, options) // just in case its not processed. Internal check is done to ensure it's not processed twice
+            const results = await this.processRaw<T>(result, options, path) // just in case its not processed. Internal check is done to ensure it's not processed twice
             // let isDisposed = false // if any of the objects is disposed
             // for (const r of results) {
             //     // todo: check if this is still required.
@@ -162,10 +165,10 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         }
 
         // todo: add support to get cloned asset? if we want to import multiple times and everytime return a cloned asset
-        asset.preImportedRaw = this._loadFile(options.pathOverride || asset.path, typeof asset.file?.arrayBuffer === 'function' ? asset.file : undefined, options, onDownloadProgress)
+        asset.preImportedRaw = this._loadFile(path, typeof asset.file?.arrayBuffer === 'function' ? asset.file : undefined, options, onDownloadProgress)
         result = await asset.preImportedRaw
 
-        if (result) result = await this.processRaw(result, options)
+        if (result) result = await this.processRaw(result, options, path)
         if (result) {
             if (options.processRaw !== false) asset.preImported = result
 
@@ -183,6 +186,17 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         }
 
         return result
+    }
+
+    async importFile<T extends ImportResult|undefined = ImportResult|undefined>(file?: File, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
+        if (!file) return []
+        if (!(file instanceof File)) {
+            console.error('AssetImporter: Invalid file', file)
+            return []
+        }
+        return this.importAsset(this._cachedAssets.find(a=>a.file === file) ?? {
+            path: file.name || file.webkitRelativePath, file,
+        }, options, onDownloadProgress)
     }
 
     /**
@@ -217,13 +231,13 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         if (baseFiles.length > 0) {
             for (const value of baseFiles) {
                 let res = await this._loadFile(value, undefined, options)
-                if (res) res = await this.processRaw(res, options)
+                if (res) res = await this.processRaw(res, options, value)
                 loaded.set(value, res)
             }
         } else {
             for (const value of altFiles) {
                 let res = await this._loadFile(value, undefined, options)
-                if (res) res = await this.processRaw(res, options)
+                if (res) res = await this.processRaw(res, options, value)
                 loaded.set(value, res)
             }
 
@@ -367,7 +381,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
     // region processRaw
 
-    public async processRaw<T extends (ImportResult|undefined) = ImportResult>(res: T|T[], options: ProcessRawOptions): Promise<T[]> {
+    public async processRaw<T extends (ImportResult|undefined) = ImportResult>(res: T|T[], options: ProcessRawOptions, path?: string): Promise<T[]> {
         if (!res) return []
 
         // legacy
@@ -379,7 +393,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         if (Array.isArray(res)) {
             const r: any[] = []
             for (const re of res) { // todo: can we parallelize?
-                r.push(...await this.processRaw(re, options))
+                r.push(...await this.processRaw(re, options, path))
             }
             return r
         }
@@ -388,7 +402,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
         if (res.assetImporterProcessed && !options.forceImporterReprocess) return [res]
 
-        this.dispatchEvent({type: 'processRawStart', data: res, options})
+        this.dispatchEvent({type: 'processRawStart', data: res, options, path})
 
         // for testing only
         if (res.isTexture && options._testDataTextureComplete) {
@@ -414,7 +428,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         // if (res.assetType) // todo: why if?
         res.assetImporterProcessed = true // this should not be put in userData
 
-        this.dispatchEvent({type: 'processRaw', data: res, options})
+        this.dispatchEvent({type: 'processRaw', data: res, options, path})
 
         // special for zip files. ZipLoader gives this
         if ((<any>res) instanceof Map && options.autoImportZipContents !== false) {
@@ -426,8 +440,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
 
     }
 
-    public async processRawSingle<T extends (ImportResult|undefined) = ImportResult>(res: T, options: ProcessRawOptions): Promise<T> {
-        return (await this.processRaw(res, options))[0]
+    public async processRawSingle<T extends (ImportResult|undefined) = ImportResult>(res: T, options: ProcessRawOptions, path?: string): Promise<T> {
+        return (await this.processRaw(res, options, path))[0]
     }
 
     // endregion
@@ -543,6 +557,15 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         return loader
     }
 
+    addEventListener<T extends IAssetImporterEvent['type'] & IAssetImporterEventTypes>(type: T, listener: EventListener<IAssetImporterEvent, T, this>) {
+        super.addEventListener(type, listener)
+        if (type === 'loaderCreate') {
+            for (const loaderCacheElement of this._loaderCache) {
+                this.dispatchEvent({type: 'loaderCreate', loader: loaderCacheElement.loader})
+            }
+        }
+    }
+
     // endregion
 
     // region Loader Event Dispatchers
@@ -570,9 +593,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
      * @param res
      * @param options
      */
-    public async processImported(res: any, options: ProcessRawOptions): Promise<any[]> {
+    public async processImported(res: any, options: ProcessRawOptions, path?: string): Promise<any[]> {
         console.error('processImported is deprecated. Use processRaw instead.')
-        return await this.processRaw(res, options)
+        return await this.processRaw(res, options, path)
     }
 
     // endregion

@@ -7,7 +7,10 @@ import {
     IMaterialTemplate,
     ITexture,
     ITextureEvent,
+    LegacyPhongMaterial,
+    LineMaterial2,
     PhysicalMaterial,
+    UnlitLineMaterial,
     UnlitMaterial,
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
@@ -25,6 +28,9 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     readonly templates: IMaterialTemplate[] = [
         PhysicalMaterial.MaterialTemplate,
         UnlitMaterial.MaterialTemplate,
+        UnlitLineMaterial.MaterialTemplate,
+        LineMaterial2.MaterialTemplate,
+        LegacyPhongMaterial.MaterialTemplate,
     ]
 
     private _materials: IMaterial[] = []
@@ -54,7 +60,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         while (!template.generator) { // looping so that we can inherit templates, not fully implemented yet
             const t2 = this.findTemplate(template.materialType) // todo add a baseTemplate property to the template?
             if (!t2) {
-                console.error('Template has no generator or materialType', template, nameOrType)
+                console.warn('Template has no generator or materialType', template, nameOrType)
                 return undefined
             }
             template = {...template, ...t2}
@@ -201,11 +207,16 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         if (i >= 0) this.templates.splice(i, 1)
     }
 
-    dispose() {
-        for (const material of this._materials) {
+    dispose(disposeRuntimeMaterials = true) {
+        const mats = this._materials
+        this._materials = []
+        for (const material of mats) {
+            if (!disposeRuntimeMaterials && material.userData.runtimeMaterial) {
+                this._materials.push(material)
+                continue
+            }
             material.dispose()
         }
-        this._materials = []
         return
     }
 
@@ -213,8 +224,12 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         return !uuid ? undefined : this._materials.find(v=>v.uuid === uuid)
     }
 
-    public findMaterialsByName(name: string): IMaterial[] {
-        return this._materials.filter(v=>v.name === name)
+    public findMaterialsByName(name: string|RegExp, regex = false): IMaterial[] {
+        return this._materials.filter(v=>
+            typeof name !== 'string' || regex ?
+                v.name.match(typeof name === 'string' ? '^' + name + '$' : name) !== null :
+                v.name === name
+        )
     }
 
     public getMaterialsOfType<TM extends IMaterial = IMaterial>(typeSlug: string | undefined): TM[] {
@@ -231,17 +246,27 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     //     return object
     // }
     // protected abstract _processModel(object: any, options: AnyOptions): any
-    convertToIMaterial(material: Material&{assetType?:'material', iMaterial?: IMaterial}, options: {useSourceMaterial?:boolean, materialTemplate?: string} = {}): IMaterial|undefined {
+    /**
+     * Creates a new material if a compatible template is found or apply minimal upgrades and returns the original material.
+     * Also checks from the registered materials, if one with the same uuid is found, it is returned instead with the new parameters.
+     * Also caches the response.
+     * Returns the same material if its already upgraded.
+     * @param material - the material to upgrade/check
+     * @param useSourceMaterial - if false, will not use the source material parameters in the new material. default = true
+     * @param materialTemplate - any specific material template to use instead of detecting from the material type.
+     * @param createFromTemplate - if false, will not create a new material from the template, but will apply minimal upgrades to the material instead. default = true
+     */
+    convertToIMaterial(material: Material&{assetType?:'material', iMaterial?: IMaterial}, {useSourceMaterial = true, materialTemplate, createFromTemplate = true}: {useSourceMaterial?:boolean, materialTemplate?: string, createFromTemplate?: boolean} = {}): IMaterial|undefined {
         if (!material) return
         if (material.assetType) return <IMaterial>material
         if (material.iMaterial?.assetType) return material.iMaterial
         const uuid = material.userData?.uuid || material.uuid
         let mat = this.findMaterial(uuid)
-        if (!mat) {
-            const ignoreSource = options.useSourceMaterial === false || !material.isMaterial
-            const template = options.materialTemplate || (!ignoreSource && material.type ? material.type || 'physical' : 'physical')
+        if (!mat && createFromTemplate !== false) {
+            const ignoreSource = useSourceMaterial === false || !material.isMaterial
+            const template = materialTemplate || (!ignoreSource && material.type ? material.type || 'physical' : 'physical')
             mat = this.create(template, ignoreSource ? undefined : material)
-        } else {
+        } else if (mat) {
             // if ((mat as any).iMaterial) mat = (mat as any).iMaterial
             console.warn('Material with the same uuid already exists, copying properties')
             if (material.type !== mat!.type) console.error('Material type mismatch, delete previous material first?', material, mat)
@@ -252,7 +277,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             mat.userData.uuid = uuid
             material.iMaterial = mat
         } else {
-            console.warn('Failed to convert material to IMaterial, just upgrading', material, options)
+            console.warn('Failed to convert material to IMaterial, just upgrading', material, useSourceMaterial, materialTemplate)
             mat = iMaterialCommons.upgradeMaterial.call(material)
         }
         return mat
@@ -294,7 +319,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
 
     applyMaterial(material: IMaterial, nameOrUuid: string): boolean {
         const mType = Object.getPrototypeOf(material).constructor.TYPE
-        let currentMats = this.findMaterialsByName(nameOrUuid)
+        let currentMats = this.findMaterialsByName(nameOrUuid, true)
         if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameOrUuid) as any]
         let applied = false
         for (const c of currentMats) {
@@ -328,5 +353,6 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         }
         return applied
     }
+
 }
 

@@ -17,6 +17,17 @@ export interface AddObjectOptions {
      */
     autoCenter?: boolean,
     /**
+     * Automatically center the geometries(pivots) in the object hierarchy before adding.
+     * @default false
+     */
+    centerGeometries?: boolean,
+    /**
+     * This centers the geometry while keeping the world position, i.e the mesh(Object3D) positions will change.
+     * {@link centerGeometries} must be true for this to work.
+     * @default true
+     */
+    centerGeometriesKeepPosition?: boolean,
+    /**
      * Add a license to the object
      */
     license?: string,
@@ -27,6 +38,7 @@ export interface AddObjectOptions {
     autoScale?: boolean
     /**
      * Radius to use for {@link autoScale}
+     * {@link autoScale} must be true for this to work.
      * @default 2
      */
     autoScaleRadius?: number
@@ -51,7 +63,7 @@ export interface AddObjectOptions {
 
 // | string
 export type ISceneEventTypes = IObject3DEventTypes | 'sceneUpdate' | 'addSceneObject' |
-    'mainCameraChange' | 'mainCameraUpdate' | 'environmentChanged' | 'backgroundChanged' |
+    'mainCameraChange' | 'mainCameraUpdate' | 'environmentChanged' | 'backgroundChanged' | 'renderCameraChange' |
     'update' | // todo: deprecate, use 'sceneUpdate' instead
     'textureAdded' | // todo remove
     'activeCameraChange' | 'activeCameraUpdate' | // todo: deprecate
@@ -60,6 +72,8 @@ export type ISceneEventTypes = IObject3DEventTypes | 'sceneUpdate' | 'addSceneOb
 
 export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObject3DEvent<T> {
     scene?: IScene | null
+
+    hierarchyChanged?: boolean // for 'sceneUpdate' event
     // change?: string
 }
 export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
@@ -67,13 +81,30 @@ export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
 
 export type ISceneUserData = IObject3DUserData
 
-export type IWidget = IObject3D // todo
+// todo improve
+export interface IWidget {
+    attach(object: any): this;
+    detach(): this;
+    isWidget: true;
+
+    object: any
+    update?(): void
+
+    dispose?(): void
+}
 
 export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEventTypes = ISceneEventTypes>
     extends Scene<E, ET>, IObject3D<E, ET>, IShaderPropertiesUpdater {
     readonly visible: boolean;
     readonly isScene: true;
+    /**
+     * Main camera that the user controls
+     */
     mainCamera: ICamera;
+    /**
+     * Camera that in currently being rendered.
+     */
+    renderCamera: ICamera;
     type: 'Scene';
 
     toJSON(): any; // todo
@@ -107,7 +138,7 @@ export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEv
     // region deprecated
 
     /**
-     @deprecated use {@link getObjectByName} instead
+     * @deprecated use {@link getObjectByName} instead
      * @param name
      * @param parent
      */

@@ -2,7 +2,7 @@
     background: var(--tp-base-background-color);
     /*background: #2c2c2e99;*/
     /*backdrop-filter: blur(8px);*/
-    border: 1px solid #8F949C;
+    /*border: 1px solid var(--tp-button-background-color-active, #8F949C);*/
     width: fit-content;
     width: -moz-fit-content;
     height: auto;
@@ -30,28 +30,29 @@
     /*border-radius: 0.25rem;*/
     width: auto;
     height: auto;
-    font-weight: 400;
+    font-weight: 500;
     /*overflow: hidden;*/
     padding: 0.35rem 0.5rem;
     position: relative;
     user-select: none;
-    color: #cccccc;
+    color: var(--tp-input-foreground-color, #cccccc);
     transition: color 0.25s;
 }
 
 .button-bar-button:hover {
     /*background-color: var(--tp-container-background-color-hover);*/
-    color: #eeeeee;
+    color: var(--tp-label-foreground-color, #eeeeee);
 }
 
 .button-bar-selected {
-    color: white;
+    color: var(--tp-label-foreground-color, #eeeeee);
     /*background-color: #2c2c2eaa;*/
     /*outline: 1px solid #ccccccaa;*/
 }
 
 .button-bar-selected-box {
-    color: white;
+    color: var(--tp-label-foreground-color, #eeeeee);
+    /*color: white;*/
 }
 
 /*Divider*/
@@ -64,7 +65,7 @@
     height: 60%;
     border-radius: 1px;
     /*background-color: #555555;*/
-    background-color: #413762;
+    background-color: var(--tp-container-background-color-active, #413762);
 }
 
 .button-bar-selected {
@@ -84,7 +85,7 @@
     bottom: 0;
     height: 2px;
     border-radius: 1px;
-    background-color: #cccccc;
+    background-color: var(--tp-container-foreground-color, #cccccc);
     transition: width 0.25s, left 0.25s;
     /*background-color: #2c2c2eaa;*/
     /*outline: 1px solid #ccccccaa;*/
@@ -121,6 +122,7 @@
     position: relative;
     width: auto;
     height: 1.2rem;
+    aspect-ratio: 1;
 }
 
 .mode-buttons-container{
@@ -134,10 +136,28 @@
     min-width: 6rem;
     border-radius: 0 0 0.5rem 0.5rem;
     gap: 8px;
+    flex-wrap: nowrap !important;
+    overflow-x: scroll;
+    pointer-events: auto;
+    max-width: 100%;
+    align-content: center;
+    justify-content: flex-start;
+    align-items: center;
+    box-sizing: border-box;
+}
+/* Hide scrollbar for Chrome, Safari and Opera */
+.mode-buttons-container::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.mode-buttons-container {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
 
+
 .mode-button {
-    font-weight: 400;
+    font-weight: 500;
 }
 .mode-button:hover {
     /*background-color: var(--tp-container-background-color-hover);*/
@@ -151,7 +171,7 @@
     bottom: 1.25rem;
     left: 1rem;
     z-index: 100;
-    width: 8rem;
+    width: 7.5rem;
     height: 2.5rem;
     position: absolute;
     cursor: pointer;
@@ -166,6 +186,7 @@
     position: absolute;
     right: 1.25rem;
     top: 1.25rem;
+    color: var(--tp-container-foreground-color, #dddddd);
 }
 /*#modesToggle{*/
 /*    top: 0;*/
@@ -227,19 +248,20 @@
 .tippy-box[data-theme~='editor']{
     margin: 0.25rem !important;
     background-color: var(--tp-base-background-color) !important;
-    font-size: 0.8rem !important;
-    color: #dddddd !important;
+    font-size: 0.9rem !important;
+    color: var(--tp-container-foreground-color, #dddddd) !important;
 }
 
 
 #tweakpaneUiContainer {
-    margin-top: 7.5rem;
+    margin-top: 3.5rem;
 }
-@media only screen and (min-width: 480px) {
-    #tweakpaneUiContainer {
-        margin-top: 5.5rem;
-    }
-}
+/*@media only screen and (min-width: 480px) {*/
+/*    #tweakpaneUiContainer {*/
+/*        margin-top: 5.5rem;*/
+/*    }*/
+/*}*/
+
 @media only screen and (max-width: 920px) {
     #tweakpaneUiContainer {
         height: calc(100% - 12.5rem) !important;
@@ -283,9 +305,21 @@
         margin-top: 2.5rem !important;
     }
 }
+
 body {
+    transition: background-color 0.5s ease;
     background-color: #D1D4E7;
 }
+body .tpTheme-blue{
+    background-color: #D1D4E7;
+}
+body.tpTheme-white{
+    background-color: #Dcdcdc;
+}
+body.tpTheme-black{
+    background-color: #48495d;
+}
+
 
 html, body {
     overflow: hidden;

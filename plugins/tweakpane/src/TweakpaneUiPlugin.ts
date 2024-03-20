@@ -11,28 +11,37 @@ import {
     IEvent,
     IViewerPlugin,
     IViewerPluginSync,
+    onChange,
     ThreeViewer,
+    uiDropdown,
+    uiFolderContainer,
+    UiObjectConfig,
     uploadFile,
     Vector2,
     Vector3,
     Vector4,
 } from 'threepipe'
 import styles from './tpTheme.css'
-import {UiObjectConfig} from 'uiconfig.js'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
 
+@uiFolderContainer('Tweakpane UI')
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
     declare ['constructor']: typeof TweakpaneUiPlugin
     static readonly PluginType = 'TweakpaneUi'
     enabled = true
 
-    constructor(expanded = false, bigTheme = true, container: HTMLElement = document.body) {
+    @onChange(TweakpaneUiPlugin.prototype._colorModeChanged)
+    @uiDropdown('Color Mode', ['black', 'white', 'blue'].map(label=>({label})))
+        colorMode: 'black'|'white'|'blue'
+
+    constructor(expanded = false, bigTheme = true, container: HTMLElement = document.body, colorMode?: 'black'|'white'|'blue') {
         super(container, {
             expanded, autoPostFrame: false,
         })
         this.THREE = {Color, Vector4, Vector3, Vector2} as any
         this._root!.registerPlugin(TweakpaneImagePlugin)
         if (bigTheme) createStyles(styles, container)
+        this.colorMode = colorMode ?? (localStorage ? localStorage.getItem('tpTheme') as any : 'blue') ?? 'blue'
     }
 
     protected _viewer?: ThreeViewer
@@ -59,7 +68,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         plugins.forEach(plugin => this.setupPluginUi(plugin))
     }
 
-    setupPluginUi<T extends IViewerPlugin>(plugin: T|Class<T>): UiObjectConfig | undefined {
+    setupPluginUi<T extends IViewerPlugin>(plugin: T|Class<T>, params?: Partial<UiObjectConfig>): UiObjectConfig | undefined {
         const p = (<Class<IViewerPlugin>>plugin).prototype ? this._viewer?.getPlugin<T>(<Class<T>>plugin) : <T>plugin
         if (!p) {
             console.warn('plugin not found:', plugin)
@@ -68,7 +77,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         this._plugins.push(p)
         if (p.uiConfig && p.uiConfig.hidden === undefined) p.uiConfig.hidden = false // todo; this is a hack for now
         const ui = p.uiConfig
-        this.appendChild(ui)
+        this.appendChild(ui, params)
         this._setupPluginSerializationContext(ui, p)
         return ui
     }
@@ -145,5 +154,12 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     alert = async(message?: string): Promise<void> =>this._viewer ? this._viewer.dialog.alert(message) : window?.alert(message)
     confirm = async(message?: string): Promise<boolean> =>this._viewer ? this._viewer.dialog.confirm(message) : window?.confirm(message)
     prompt = async(message?: string, _default?: string, cancel = true): Promise<string | null> =>this._viewer ? this._viewer.dialog.prompt(message, _default, cancel) : window?.prompt(message, _default)
+
+    protected _colorModeChanged() {
+        document.body.classList.remove('tpTheme-black', 'tpTheme-white', 'tpTheme-blue')
+        document.body.classList.add('tpTheme-' + this.colorMode)
+        if (!localStorage) return
+        localStorage.setItem('tpTheme', this.colorMode)
+    }
 
 }

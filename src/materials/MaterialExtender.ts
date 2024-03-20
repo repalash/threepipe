@@ -1,11 +1,16 @@
 import {IMaterial, IMaterialUserData} from '../core'
 import {getOrCall, objectMap} from 'ts-browser-helpers'
-import {shaderReplaceString} from '../utils/shader-helpers'
-import {Object3D, Shader, WebGLRenderer} from 'three'
+import {shaderReplaceString, shaderUtils} from '../utils'
+import {Object3D, Shader, ShaderChunk, WebGLRenderer} from 'three'
 import {MaterialExtension} from './MaterialExtension'
-import {generateUUID} from '../three/utils/misc'
+import {generateUUID} from '../three/utils'
 
 export class MaterialExtender {
+
+    static {
+        Object.assign(ShaderChunk, shaderUtils) // for #include in the shaders
+    }
+
     static VoidMain = 'void main()'
 
     static ApplyMaterialExtensions(material: IMaterial, shader: Shader, materialExtensions: MaterialExtension[], renderer: WebGLRenderer) {
@@ -96,10 +101,9 @@ export class MaterialExtender {
     }
 }
 
-function updateMaterialDefines(defines: MaterialExtension['extraDefines'], material: IMaterial) {
-    if (!defines) return
-    if (!material.defines) {
-        console.warn('Material does not have defines', material) // todo: check when material.defines is undefined
+export function updateMaterialDefines(defines: MaterialExtension['extraDefines'], material: IMaterial) {
+    if (!defines || !material) return
+    if (material.defines === undefined || material.defines === null) { // required for some three.js materials
         material.defines = {}
     }
     let flag = false
@@ -112,7 +116,7 @@ function updateMaterialDefines(defines: MaterialExtension['extraDefines'], mater
                 flag = true
             }
         } else if (material.defines[key] !== val) {
-            material.defines[key] = val
+            material.defines[key] = typeof val === 'boolean' ? +val : val
             flag = true
         }
     }

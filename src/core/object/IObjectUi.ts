@@ -3,44 +3,40 @@ import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
 import {Vector3} from 'three'
 
-export function makeICameraCommonUiConfig(this: IObject3D, config: UiObjectConfig): UiObjectConfig[] {
+export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
         {
             type: 'button',
             label: 'Set View',
             value: ()=>{
-                // todo: call setView on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'setView', ui: true, camera: this as ICamera})
-                config.uiRefresh?.(true, 'postFrame')
-                console.log('set view', this)
+                this.setViewToMain({ui: true})
+                config.uiRefresh?.(true, 'postFrame') // config is parent config
             },
         },
         {
             type: 'button',
             label: 'Activate main',
-            hidden: ()=>(this as ICamera)?.isMainCamera,
+            hidden: ()=>this?.isMainCamera,
             value: ()=>{
-                // todo: call activateMain on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: this as ICamera})
+                this.activateMain({ui: true})
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
         {
             type: 'button',
             label: 'Deactivate main',
-            hidden: ()=>!(this as ICamera)?.isMainCamera,
+            hidden: ()=>!this?.isMainCamera,
             value: ()=>{
-                // todo: call activateMain on the camera, which will dispatch the event
-                (this as ICamera).dispatchEvent({type: 'activateMain', ui: true, camera: undefined})
+                this.deactivateMain({ui: true})
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
         {
             type: 'checkbox',
             label: 'Auto LookAt Target',
-            getValue: ()=>(this as ICamera).userData.autoLookAtTarget ?? false,
+            getValue: ()=>this.userData.autoLookAtTarget ?? false,
             setValue: (v)=>{
-                (this as ICamera).userData.autoLookAtTarget = v
+                this.userData.autoLookAtTarget = v
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
@@ -55,30 +51,31 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         type: 'folder',
         label: ()=>this.name || 'unnamed',
         expanded: true,
-        limitedUi: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: true})
+        },
         children: [
             {
                 type: 'checkbox',
                 label: 'Visible',
                 property: [this, 'visible'],
-                limitedUi: true,
             },
             {
                 type: 'button',
-                label: 'Pick/Focus',
+                label: 'Pick/Focus', // todo: move to the plugin that does the picking
                 value: ()=>{
-                    // todo instead of dispatching, make a IObject3D.select function
-                    this.dispatchEvent({type: 'select', ui: true, value: this, bubbleToParent: true, focusCamera: true})
+                    this.dispatchEvent({type: 'select', ui: true, object: this, bubbleToParent: true, focusCamera: true})
                 },
             },
             {
                 type: 'button',
-                label: 'Pick Parent',
+                label: 'Pick Parent', // todo: move to the plugin that does the picking
                 hidden: ()=>!this.parent,
                 value: ()=>{
                     const parent = this.parent
                     if (parent) {
-                        parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, value: parent})
+                        parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, object: parent})
                     }
                 },
             },
@@ -95,32 +92,27 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Casts Shadow',
                 hidden: () => !(this as any).isMesh,
                 property: [this, 'castShadow'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'checkbox',
                 label: 'Receive Shadow',
                 hidden: () => !(this as any).isMesh,
                 property: [this, 'receiveShadow'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'checkbox',
                 label: 'Frustum culled',
                 property: [this, 'frustumCulled'],
-                // onChange: this.setDirty,
             },
             {
                 type: 'vec3',
                 label: 'Position',
                 property: [this, 'position'],
-                limitedUi: true,
             },
             {
                 type: 'vec3',
                 label: 'Rotation',
                 property: [this, 'rotation'],
-                limitedUi: true,
             },
             {
                 type: 'vec3',
@@ -174,11 +166,10 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 label: 'License/Credits',
                 property: [this.userData, 'license'],
-                limitedUi: true,
             } : {},
         ],
     }
-    if (this.isMesh && isMesh !== false) {
+    if ((this.isLine || this.isMesh) && isMesh !== false) {
         // todo: move to make mesh ui function?
         const ui = [
             // morph targets
@@ -218,27 +209,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
 
     // todo: lights?
 
-    // todo: issue when selected object is moved to picking from SceneUI
-    // (config.children as UiObjectConfig[]).push(makeHierarchyUi(object))
     this.uiConfig = config
     return config
 
 }
-
-// function makeHierarchyUi(object: Object3D, root?: Object3D): UiObjectConfig {
-//     const dispatch = ()=>(root || object).dispatchEvent({type: 'select', ui: true, value: object})
-//     if (object.children.length === 0) return {
-//         type: 'button',
-//         label: 'Select ' + (object.name || 'unnamed'),
-//         // limitedUi: true,
-//         value: dispatch,
-//     }
-//     return {
-//         type: 'folder',
-//         label: 'Select ' + (object.name || 'unnamed'),
-//         // limitedUi: true,
-//         children: object.children.map((child)=>makeHierarchyUi(child, root || object)),
-//         value: dispatch,
-//         onExpand: dispatch,
-//     }
-// }

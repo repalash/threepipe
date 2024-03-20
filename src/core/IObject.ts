@@ -19,6 +19,7 @@ export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends 
     oldMaterial?: IMaterial|undefined|IMaterial[] // from materialChanged
     geometry?: IGeometry|undefined // from geometryUpdate, geometryChanged
     oldGeometry?: IGeometry|undefined // from geometryChanged
+    source?: any
 }
 
 export interface ISetDirtyCommonOptions {
@@ -78,6 +79,8 @@ export interface IObject3DUserData extends IImportResultUserData {
     autoScaleRadius?: number
     autoScaled?: boolean
 
+    geometriesCentered?: boolean
+
     /**
      * should this object be taken into account when calculating bounding box, default true
      */
@@ -89,6 +92,22 @@ export interface IObject3DUserData extends IImportResultUserData {
     pseudoCentered?: boolean
 
     license?: string
+
+    /**
+     * When false, this object will not be selectable when clicking on it.
+     */
+    userSelectable?: boolean
+
+    /**
+     * For Physics plugins
+     */
+    physicsMass?: number
+
+    /**
+     * see {@link GLTFAnimationPlugin}
+     */
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    gltfAnim_SyncMaxDuration?: boolean
 
     // region root scene model root
 
@@ -133,17 +152,21 @@ export interface IObject3DUserData extends IImportResultUserData {
      * todo: remove support for this
      */
     __autoBubbleToParentEvents?: string[]
+
+    [key: string]: any
 }
 
 export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEventTypes> extends Object3D<E, ET>, IUiConfigContainer, IDisposable {
-    assetType: 'model' | 'light' | 'camera'
+    assetType: 'model' | 'light' | 'camera' | 'widget'
     isLight?: boolean
     isCamera?: boolean
     isMesh?: boolean
     isLine?: boolean
+    isLineSegments?: boolean
     // isGroup?: boolean
     isScene?: boolean
     // isHelper?: boolean
+    isWidget?: boolean
     readonly isObject3D: true
 
     material?: IMaterial | IMaterial[]
@@ -184,13 +207,13 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
      * @param isCentered - optional (taken from userData.isCentered by default)
      * @param setDirty - true by default
      */
-    autoScale?<T extends IObject3D>(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean): T
+    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean): this
 
     /**
      *
      * @param setDirty - calls {@link setDirty} @default true
      */
-    autoCenter?<T extends IObject3D>(setDirty?: boolean): T
+    autoCenter?(setDirty?: boolean): this
 
     /**
      * @deprecated use object directly
@@ -205,7 +228,6 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
     // __disposed?: boolean
     /**
-     *
      * @param removeFromParent - remove from parent. Default true
      */
     dispose(removeFromParent?: boolean): void;
@@ -220,11 +242,10 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
     copy(source: this, recursive?: boolean, ...args: any[]): this
     clone(recursive?: boolean): this
-    add(...object: IObject3D[]): this
+    add(...object: Object3D[]): this
     remove(...object: IObject3D[]): this
     parent: IObject3D | null
     children: IObject3D[]
-
 
     // endregion
 

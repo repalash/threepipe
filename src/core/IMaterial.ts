@@ -43,7 +43,7 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     renderToGBuffer?: boolean
     /**
-     * Same as {@link renderToGBuffer} for now
+     * Same as {@link renderToGBuffer} but for depth only, not normal or flags etc
      */
     renderToDepth?: boolean
 
@@ -58,11 +58,56 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     inverseAlphaMap?: boolean // only for physical material right now
 
-    [key: string]: any // commented for noe
+    /**
+     * See {@link MaterialManager.dispose} as {@link BaseGroundPlugin._refreshMaterial}
+     */
+    runtimeMaterial?: boolean
+
+    /**
+     * See {@link GBufferPlugin}
+     */
+    gBufferData?: {
+        materialId?: number
+        /**
+         * @default true
+         */
+        tonemapEnabled?: boolean
+
+        [key: string]: any
+    }
+
+
+    // todo: move these to respective plugins
+
+    /**
+     * For SSAOPlugin
+     */
+    ssaoDisabled?: boolean
+    /**
+     * For SSCSPlugin
+     */
+    sscsDisabled?: boolean
+    /**
+     * For SSRPlugin
+     */
+    ssreflDisabled?: boolean
+    /**
+     * For SSRPlugin
+     */
+    ssreflNonPhysical?: boolean
+
+    [key: string]: any
 
 
     // legacy, to be removed
+    /**
+     * @deprecated
+     */
     setDirty?: (options?: IMaterialSetDirtyOptions) => void
+    /**
+     * @deprecated Use {@link postTonemap.tonemapEnabled} instead. This is kept because used in old files.
+     */
+    postTonemap?: boolean
 }
 
 export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMaterialEventTypes> extends Material<E, ET>, IJSONSerializable, IDisposable, IUiConfigContainer {
@@ -125,6 +170,7 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     lightMap?: ITexture | null
     normalMap?: ITexture | null
     bumpMap?: ITexture | null
+    displacementMap?: ITexture | null
     aoMapIntensity?: number
     lightMapIntensity?: number
     roughnessMap?: ITexture | null
@@ -137,10 +183,12 @@ export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMate
     color?: Color
     wireframe?: boolean
 
+    linewidth?: number
 
     isRawShaderMaterial?: boolean
     isPhysicalMaterial?: boolean
     isUnlitMaterial?: boolean
+    isGBufferMaterial?: boolean
 
     // [key: string]: any
 }

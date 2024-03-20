@@ -16,10 +16,10 @@ import {
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
+    IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {shaderReplaceString} from '../../utils/shader-helpers'
-import {SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
+import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
@@ -34,6 +34,8 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     public static readonly TYPE = 'UnlitMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
 
+    userData: IMaterialUserData
+
     public readonly isUnlitMaterial = true
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
@@ -47,11 +49,13 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     envMap: ITexture | null = null
 
     constructor({customMaterialExtensions, ...parameters}: MeshBasicMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
+        !this.defines && (this.defines = {})
         this.fog = false
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension
@@ -118,7 +122,8 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
         if (clearCurrentUserData) this.userData = {}
         iMaterialCommons.setValues(super.setValues).call(this, parameters)
-        this.userData.uuid = this.uuid // just in case
+
+        this.userData.uuid = this.uuid
         return this
     }
     copy(source: Material|any): this {
@@ -165,6 +170,11 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         label: 'Unlit Material',
         uuid: 'MBM2_' + this.uuid,
         expanded: true,
+        onChange: (ev)=>{
+            if (!ev.config || ev.config.onChange) return
+            // todo set needsUpdate true only for properties that require it like maps.
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
+        },
         children: [
             ...iMaterialUI.base(this),
             iMaterialUI.blending(this),
@@ -178,6 +188,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
 
 
     // Class properties can also be listed with annotations like @serialize or @property
+    // used for serialization
     static readonly MaterialProperties = {
         ...threeMaterialPropList,
 
@@ -200,7 +211,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         wireframeLinejoin: 'round',
         skinning: false,
         fog: true,
-
+        flatShading: false,
     }
 
     static MaterialTemplate: IMaterialTemplate<UnlitMaterial, Partial<typeof UnlitMaterial.MaterialProperties>> = {

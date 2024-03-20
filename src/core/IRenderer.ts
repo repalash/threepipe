@@ -64,7 +64,7 @@ export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEv
     clock: Clock
 
     blit(destination: IRenderTarget|undefined|null, options?: RendererBlitOptions): void
-    clearColor({r, g, b, a, target, depth = true, stencil = true, viewport}:
+    clearColor({r, g, b, a, target, depth, stencil, viewport}:
                    {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void
 
     renderTargetToDataUrl(target: WebGLRenderTarget, mimeType?: string, quality?: number): string
@@ -79,7 +79,7 @@ export interface IRenderManagerOptions {
     alpha?: boolean, // default = true
     targetOptions?: CreateRenderTargetOptions
     rgbm?: boolean,
-    msaa?: boolean,
+    msaa?: boolean | number,
     depthBuffer?: boolean,
     renderScale?: number,
 }

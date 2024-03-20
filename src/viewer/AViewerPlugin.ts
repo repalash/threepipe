@@ -1,6 +1,7 @@
-import {ISerializedConfig, ThreeViewer} from './ThreeViewer'
+import type {ISerializedConfig, IViewerEvent, ThreeViewer} from './ThreeViewer'
+import {IViewerEventTypes} from './ThreeViewer'
 import {Event, EventDispatcher} from 'three'
-import {SerializationMetaType, ThreeSerialization} from '../utils'
+import {PartialRecord, SerializationMetaType, ThreeSerialization} from '../utils'
 import {IViewerPlugin, IViewerPluginAsync} from './IViewerPlugin'
 import {UiObjectConfig} from 'uiconfig.js'
 
@@ -30,7 +31,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
 
     toJSON(meta?: SerializationMetaType): ISerializedConfig {
         const data: any = ThreeSerialization.Serialize(this, meta, true)
-        data.type = (this as any).constructor.PluginType
+        data.type = this.constructor.PluginType
         data.assetType = 'config'
         this.dispatchEvent({type: 'serialize', data})
         return data
@@ -56,6 +57,30 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
         if (this._viewer) await this._viewer.importPluginConfig(state, this)
         else this.fromJSON?.(state)
     }
+
+    protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: IViewerEvent)=>void> = {}
+    protected _onViewerEvent = (e: IViewerEvent)=> {
+        const et = e.eType
+        et && this._viewerListeners[et]?.(e)
+        return e
+    }
+
+    private _disabledBy = new Set<any>()
+    disable = (key: any) => {
+        const size = this._disabledBy.size
+        this._disabledBy.add(key)
+        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+    }
+    enable = (key: any) => {
+        const size = this._disabledBy.size
+        this._disabledBy.delete(key)
+        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+    }
+    isDisabled = () => {
+        return this._disabledBy.size > 0 || !this.enabled
+    }
+
+    setDirty?(...args: any[]): any
 
     // todo: move to ThreeViewer
     // storeState(prefix?: string, storage?: Storage, data?: any): void {
@@ -114,9 +139,11 @@ export abstract class AViewerPluginSync<T extends string, TViewer extends ThreeV
 
     onAdded(viewer: TViewer): void {
         this._viewer = viewer
+        this._viewer.addEventListener('*', this._onViewerEvent)
     }
     onRemove(viewer: TViewer): void {
         if (this._viewer !== viewer) viewer.console.error('Wrong viewer')
+        this._viewer?.removeEventListener('*', this._onViewerEvent)
         this._viewer = undefined
     }
 
@@ -131,9 +158,11 @@ export abstract class AViewerPluginAsync<T extends string, TViewer extends Three
 
     async onAdded(viewer: TViewer): Promise<void> {
         this._viewer = viewer
+        this._viewer.addEventListener('*', this._onViewerEvent)
     }
     async onRemove(viewer: TViewer): Promise<void> {
         if (this._viewer !== viewer) viewer.console.error('Wrong viewer')
+        this._viewer?.removeEventListener('*', this._onViewerEvent)
         this._viewer = undefined
     }
 }

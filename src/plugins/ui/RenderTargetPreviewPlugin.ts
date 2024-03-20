@@ -1,11 +1,20 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
-import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
+import {createDiv, createStyles, getOrCall, onChange, ValOrArr, ValOrFunc} from 'ts-browser-helpers'
 import {SRGBColorSpace, Vector4, WebGLRenderTarget} from 'three'
-import styles from './RenderTargetPreviewPlugin.css'
+import styles from './RenderTargetPreviewPlugin.css?inline'
 import {CustomContextMenu} from '../../utils'
 import {uiFolderContainer, uiToggle} from 'uiconfig.js'
+import {ITexture} from '../../core'
 
+export interface RenderTargetBlock {
+    target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>}|undefined>
+    name: string
+    visible: boolean
+    transparent: boolean
+    originalColorSpace: boolean
+    div: HTMLDivElement
+}
 @uiFolderContainer('Render Target Preview Plugin')
 export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
@@ -22,14 +31,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
         this.enabled = enabled
     }
 
-    targetBlocks: {
-        target: ValOrFunc<IRenderTarget|undefined>
-        name: string
-        visible: boolean
-        transparent: boolean
-        originalColorSpace: boolean
-        div: HTMLDivElement
-    }[] = []
+    targetBlocks: RenderTargetBlock[] = []
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
@@ -50,36 +52,36 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
     private _postRender = () => {
         if (!this._viewer) return
 
-        for (const target of this.targetBlocks) {
-            if (!target.visible) continue
-            const rt = getOrCall(target.target)
+        for (const targetBlock of this.targetBlocks) {
+            if (!targetBlock.visible) continue
+            const rt = getOrCall(targetBlock.target)
             if (!rt) {
                 // todo draw white or pink
                 continue
             }
-            const rect = target.div.getBoundingClientRect()
-            const tex = rt.texture
+            const rect = targetBlock.div.getBoundingClientRect()
+            let tex = rt.texture
             const canvasRect = this._viewer.canvas.getBoundingClientRect()
             rect.x = rect.x - canvasRect.x
             rect.y = canvasRect.height + canvasRect.y - rect.y - rect.height
             if (Array.isArray(tex)) {
                 // todo support multi target
-                this._viewer.console.warn('Multi target preview not supported yet')
-                continue
+                this._viewer.console.warn('Multi target preview not supported yet, rendering just the first one')
+                tex = tex[0]
             }
             const outputColorSpace = this._viewer.renderManager.webglRenderer.outputColorSpace
-            if (!target.originalColorSpace) this._viewer.renderManager.webglRenderer.outputColorSpace = SRGBColorSpace
+            if (!targetBlock.originalColorSpace) this._viewer.renderManager.webglRenderer.outputColorSpace = SRGBColorSpace
             this._viewer.renderManager.blit(null, {
                 source: tex,
-                clear: !target.transparent,
-                respectColorSpace: !target.originalColorSpace,
+                clear: !targetBlock.transparent,
+                respectColorSpace: !targetBlock.originalColorSpace,
                 viewport: new Vector4(rect.x, rect.y, rect.width, rect.height),
             })
             this._viewer.renderManager.webglRenderer.outputColorSpace = outputColorSpace
         }
     }
 
-    addTarget(target: ValOrFunc<IRenderTarget|undefined>, name: string, transparent = false, originalColorSpace = false, visible = true): this {
+    addTarget(target: RenderTargetBlock['target'], name: string, transparent = false, originalColorSpace = false, visible = true): this {
         if (!target) return this
         const div = document.createElement('div')
         const targetDef = {target, name, transparent, div, originalColorSpace, visible}
@@ -109,7 +111,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
         return this
     }
 
-    removeTarget(target: ValOrFunc<IRenderTarget|undefined>): this {
+    removeTarget(target: RenderTargetBlock['target']): this {
         const index = this.targetBlocks.findIndex(t => t.target === target)
         if (index >= 0) {
             const t = this.targetBlocks[index]
@@ -119,7 +121,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
         this.refreshUi()
         return this
     }
-    downloadTarget(target1: ValOrFunc<IRenderTarget|undefined>): this {
+    downloadTarget(target1: RenderTargetBlock['target']): this {
         if (!this._viewer) return this
         const target = getOrCall(target1)
         if (!target) return this
@@ -154,9 +156,13 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
             return
         }
         if (!this.mainDiv.parentElement) this._viewer.container?.appendChild(this.mainDiv)
-        this.mainDiv.style.display = this.enabled ? 'flex' : 'none'
+        this.mainDiv.style.display = !this.isDisabled() ? 'flex' : 'none'
         this.mainDiv.style.zIndex = parseInt(this._viewer.canvas.style.zIndex || '0') + 1 + ''
         this._viewer?.setDirty()
+    }
+
+    setDirty() { // for enable/disable functions
+        this.refreshUi()
     }
 
     dispose() {

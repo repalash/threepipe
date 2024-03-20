@@ -14,11 +14,14 @@ import {
     WebGLRenderer,
 } from 'three'
 import {shaderReplaceString} from '../../utils'
+import {IMaterialUserData} from '../IMaterial'
 
 export class ExtendedShaderMaterial extends ShaderMaterial2 {
     declare ['constructor']: (typeof ExtendedShaderMaterial) & (typeof ShaderMaterial2)
 
     textures: {colorSpace: ColorSpace, id: string}[] = []
+
+    userData: IMaterialUserData
 
     constructor(parameters: ShaderMaterialParameters, textureIds: string[], isRawShaderMaterial = false) {
         super(parameters, isRawShaderMaterial)

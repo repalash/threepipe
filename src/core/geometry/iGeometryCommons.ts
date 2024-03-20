@@ -1,7 +1,7 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
-import {isInScene, toIndexedGeometry} from '../../three'
-import {BufferGeometry} from 'three'
+import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three/utils'
+import {BufferGeometry, Vector3} from 'three'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -17,6 +17,24 @@ export const iGeometryCommons = {
             superDispose.call(this)
         },
     upgradeGeometry: upgradeGeometry,
+    center: (superCenter: BufferGeometry['center']): IGeometry['center'] =>
+        function(this: IGeometry, offset?: Vector3, keepWorldPosition = false): IGeometry {
+            if (keepWorldPosition) {
+                offset = offset ? offset.clone() : new Vector3()
+                superCenter.call(this, offset)
+                offset.negate()
+                const meshes = this.appliedMeshes
+                for (const m of meshes) {
+                    m.updateMatrix()
+                    m.position.copy(offset).applyMatrix4(m.matrix)
+                    m.setDirty()
+                }
+            } else {
+                superCenter.call(this, offset)
+            }
+            this.setDirty()
+            return this
+        },
     makeUiConfig: function(this: IGeometry): UiObjectConfig {
         if (this.uiConfig) return this.uiConfig
         return {
@@ -37,7 +55,13 @@ export const iGeometryCommons = {
                     label: 'Center Geometry',
                     value: () => {
                         this.center()
-                        this.setDirty()
+                    },
+                },
+                {
+                    type: 'button',
+                    label: 'Center Geometry (keep position)',
+                    value: () => {
+                        this.center(undefined, true)
                     },
                 },
                 {
@@ -113,6 +137,15 @@ export const iGeometryCommons = {
                     },
                 },
                 {
+                    type: 'button',
+                    label: 'Auto GPU Instances',
+                    hidden: ()=> !this.appliedMeshes || this.appliedMeshes.size < 2,
+                    value: ()=>{
+                        if (!confirm('This action is irreversible, do you want to continue?')) return
+                        autoGPUInstanceMeshes(this)
+                    },
+                },
+                {
                     type: 'input',
                     label: 'Mesh count',
                     getValue: () => this.appliedMeshes?.size ?? 0,
@@ -126,12 +159,13 @@ export const iGeometryCommons = {
 function upgradeGeometry(this: IGeometry) {
     if (this.assetType === 'geometry') return // already upgraded
     if (!this.isBufferGeometry) {
-        console.error('Geometry is not a this', this)
+        console.error('Geometry is not a BufferGeometry', this)
         return
     }
     this.assetType = 'geometry'
 
     this.dispose = iGeometryCommons.dispose(this.dispose)
+    this.center = iGeometryCommons.center(this.center)
 
     if (!this.setDirty) this.setDirty = iGeometryCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iGeometryCommons.refreshUi
@@ -143,4 +177,6 @@ function upgradeGeometry(this: IGeometry) {
     // todo: dispose uiconfig on geometry dispose
 
     // todo: add serialization?
+
+    return this
 }

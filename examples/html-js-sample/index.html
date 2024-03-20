@@ -17,7 +17,8 @@
 <body>
 <canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
 <script id="example-script" type="module" data-scripts="./index.html">
-    import {ThreeViewer} from 'https://threepipe.org/dist/index.mjs'
+    // import {ThreeViewer} from 'https://threepipe.org/dist/index.mjs'
+    import {ThreeViewer} from './../../dist/index.mjs'
     const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
 
     // Load an environment map
@@ -32,3 +33,4 @@
     })
 </script>
 </body>
+</html>

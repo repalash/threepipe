@@ -15,10 +15,11 @@ import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
-import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions} from '../IScene'
+import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
-import {uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {IGeometry} from '../IGeometry'
 
 @uiFolderContainer('Root Scene')
 export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements IScene<ISceneEvent, ISceneEventTypes> {
@@ -101,6 +102,16 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty()
     }
 
+    private _renderCamera: ICamera | undefined
+    get renderCamera() {
+        return this._renderCamera ?? this.mainCamera
+    }
+    set renderCamera(camera: ICamera) {
+        const cam = this._renderCamera
+        this._renderCamera = camera
+        this.dispatchEvent({type: 'renderCameraChange', lastCamera: cam, camera})
+    }
+
     /**
      * Create a scene instance. This is done automatically in the {@link ThreeViewer} and must not be created separately.
      * @param camera
@@ -156,7 +167,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     // }
 
     /**
-     * Add any processed object to the scene.
+     * Add any object to the scene.
      * @param imported
      * @param options
      */
@@ -175,7 +186,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
+     * Load model root scene exported to GLTF format. Used internally by {@link ThreeViewer.addSceneObject}.
      * @param obj
      * @param options
      */
@@ -213,10 +224,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
                 this.modelRoot.animations.push(animation)
             }
         }
-        return obj.children.map(c=>this.addObject(c, options))
+        return [...obj.children] // need to clone
+            .map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }
 
-    private _addObject3D(model: IObject3D|null, {autoCenter = false, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
+    private _addObject3D(model: IObject3D|null, {autoCenter = false, centerGeometries = false, centerGeometriesKeepPosition = true, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
         const obj = model
         if (!obj) {
             console.error('Invalid object, cannot add to scene.')
@@ -236,10 +248,23 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         } else {
             obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
         }
+        if (centerGeometries && !obj.userData.geometriesCentered) {
+            this.centerAllGeometries(centerGeometriesKeepPosition, obj)
+            obj.userData.geometriesCentered = true
+        } else {
+            obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
+        }
 
         if (license) obj.userData.license = [obj.userData.license, license].filter(v=>v).join(', ')
 
         this.setDirty({refreshScene: true})
+    }
+
+    @uiButton()
+    centerAllGeometries(keepPosition = true, obj?: IObject3D) {
+        const geoms = new Set<IGeometry>()
+        ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
+        geoms.forEach(g => g.center(undefined, keepPosition))
     }
 
     clearSceneModels(dispose = false, setDirty = true): void {
@@ -362,12 +387,28 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * Returns the bounding box of the scene model root.
      * @param precise
      * @param ignoreInvisible
+     * @param ignoreWidgets
+     * @param ignoreObject
      * @returns {Box3B}
      */
-    getBounds(precise = false, ignoreInvisible = true): Box3B {
+    getBounds(precise = false, ignoreInvisible = true, ignoreWidgets = true, ignoreObject?: (obj: Object3D)=>boolean): Box3B {
         // See bboxVisible in userdata in Box3B
-        return new Box3B().expandByObject(this, precise, ignoreInvisible)
+        return new Box3B().expandByObject(this, precise, ignoreInvisible, (o: any)=>{
+            if (ignoreWidgets && ((o as IWidget).isWidget || o.assetType === 'widget')) return true
+            return ignoreObject?.(o) ?? false
+        })
     }
+
+    private _v1 = new Vector3()
+    private _v2 = new Vector3()
+
+    /**
+     * For Programmatically toggling autoNearFar. This property is not supposed to be in the UI or serialized.
+     * Use camera.userData.autoNearFar for UI and serialization
+     * This is used in PickingPlugin
+     * autoNearFar will still be disabled if this is true and camera.userData.autoNearFar is false
+     */
+    autoNearFarEnabled = true
 
     /**
      * Refreshes the scene active camera near far values, based on the scene bounding box.
@@ -376,20 +417,32 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     refreshActiveCameraNearFar(): void {
         const camera = this.mainCamera as ICamera
         if (!camera) return
-        if (camera.userData.autoNearFar === false) {
-            camera.near = camera.userData.minNearPlane ?? 0.2
+        if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
+            camera.near = camera.userData.minNearPlane ?? 0.5
             camera.far = camera.userData.maxFarPlane ?? 1000
             return
         }
+
         // todo check if this takes too much time with large scenes(when moving the camera and not animating), but we also need to support animations
         const bbox = this.getBounds(false) // todo: can we use this._sceneBounds or will it have some issue with animation?
-        const pos = camera.getWorldPosition(new Vector3()).sub(bbox.getCenter(new Vector3()))
-        const radius = 1.5 * bbox.getSize(new Vector3()).length() / 2.
-        const dist = pos.length()
-        const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
-        const far = Math.min(Math.max(near + 1, dist + radius), camera.cameraObject.userData.maxFarPlane ?? 1000)
+        camera.getWorldPosition(this._v1).sub(bbox.getCenter(this._v2))
+        const radius = 1.5 * bbox.getSize(this._v2).length() / 2.
+        const dist = this._v1.length()
+
+        // new way
+        const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
+        const near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
+        const far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
+
+        // old way, has issues when panning very far from the camera target
+        // const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
+        // const far = Math.min(Math.max(near + 1, dist + radius), camera.userData.maxFarPlane ?? 1000)
+
         camera.near = near
         camera.far = far
+
+        // todo try using minimum of all 6 endpoints of bbox.
+
         // camera.near = 3
         // camera.far = 20
     }
@@ -542,14 +595,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     /**
      * Minimum Camera near plane
-     * @deprecated - use camera.userData.minNearPlane instead
+     * @deprecated - use camera.minNearPlane instead
      */
     get minNearDistance(): number {
         console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')
         return this.mainCamera.userData.minNearPlane ?? 0.02
     }
     /**
-     * @deprecated - use camera.userData.minNearPlane instead
+     * @deprecated - use camera.minNearPlane instead
      */
     set minNearDistance(value: number) {
         console.error('minNearDistance is deprecated. Use camera.userData.minNearPlane instead')

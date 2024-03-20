@@ -40,10 +40,13 @@ To make changes and run the example, click on the CodePen button on the top righ
 ## Table of Contents
 
 - [ThreePipe](#threepipe)
-  - [Examples](#examples)
+  - [Examples](https://threepipe.org/examples/)
   - [Table of Contents](#table-of-contents)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
+    - [React](#react)
+    - [Vue.js](#vuejs)
+    - [Svelte](#svelte)
     - [NPM/YARN Package](#npmyarn)
       - [Installation](#installation)
       - [Loading a 3D Model](#loading-a-3d-model)
@@ -84,18 +87,39 @@ To make changes and run the example, click on the CodePen button on the top righ
     - [AssetImporter](#assetimporter)
     - [AssetExporter](#assetexporter)
     - [MaterialManager](#materialmanager)
+  - [Other classes and interfaces](#other-classes-and-interfaces)
 - [Plugins](#threepipe-plugins)
   - [TonemapPlugin](#tonemapplugin) - Add tonemap to the final screen pass
   - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
   - [ProgressivePlugin](#progressiveplugin) - Post-render pass to blend the last frame with the current frame
   - [DepthBufferPlugin](#depthbufferplugin) - Pre-rendering of depth buffer
   - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
-  - [GBufferPlugin](#depthnormalbufferplugin) - Pre-rendering of depth and normal buffers in a single pass buffer
+  - [GBufferPlugin](#gbufferplugin) - Pre-rendering of depth-normal and flags buffers in a single pass
+  - [CanvasSnapshotPlugin](#canvassnapshotplugin) - Add support for taking snapshots of the canvas
+  - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [TransformControlsPlugin](#transformcontrolsplugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
+  - [ContactShadowGroundPlugin](#contactshadowgroundplugin) - Adds a ground plane at runtime with contact shadows
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
   - [PopmotionPlugin](#popmotionplugin) - Integrates with popmotion.io library for animation/tweening
+  - [CameraViewPlugin](#cameraviewplugin) - Add support for saving, loading, animating, looping between camera views
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](#geometryuvpreviewplugin) - Preview UVs of any geometry in a UI panel over the canvas
   - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [VignettePlugin](#vignetteplugin) - Add Vignette effect  by patching the final screen pass
+  - [ChromaticAberrationPlugin](#chromaticaberrationplugin) - Add Chromatic Aberration effect  by patching the final screen pass
+  - [FilmicGrainPlugin](#filmicgrainplugin) - Add Filmic Grain effect  by patching the final screen pass
+  - [NoiseBumpMaterialPlugin](#noisebumpmaterialplugin) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
+  - [CustomBumpMapPlugin](#custombumpmapplugin) - Custom Bump Map material extension for PhysicalMaterial
+  - [ClearcoatTintPlugin](#clearcoattintplugin) - Clearcoat Tint material extension for PhysicalMaterial
+  - [FragmentClippingExtensionPlugin](#fragmentclippingextensionplugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
+  - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
+  - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
+  - [EditorViewWidgetPlugin](#editorviewwidgetplugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
+  - [Object3DWidgetsPlugin](#object3dwidgetsplugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
+  - [Object3DGeneratorPlugin](#object3dwidgetsplugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
+  - [DeviceOrientationControlsPlugin](#deviceorientationcontrolsplugin) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
+  - [PointerLockControlsPlugin](#pointerlockcontrolsplugin) - Adds a controlsMode to the mainCamera for pointer lock controls.
+  - [ThreeFirstPersonControlsPlugin](#threefirstpersoncontrolsplugin) - Adds a controlsMode to the mainCamera for first person controls from threejs.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -103,8 +127,12 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
+  - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
-  - [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) - Plugin for loading even more file types.
+  - [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) - Plugin for loading more file types supported by loaders in three.js
+  - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
+  - [@threepipe/plugin-geometry-generator](#threepipeplugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
+  - [@threepipe/plugin-gaussian-splatting](#threepipeplugin-gaussian-splatting) - Gaussian Splatting plugin for loading and rendering splat files
 
 ## Getting Started
 
@@ -133,9 +161,95 @@ To make changes and run the example, click on the CodePen button on the top righ
   })
 </script>
 ```
-Check it in action: https://threepipe.org/examples/#html-sample/
+Check it in action: https://threepipe.org/examples/#html-js-sample/
 
 Check out the details about the [ThreeViewer API](#viewer-api) and more [plugins](#threepipe-plugins) below.
+
+### React
+
+A sample [react](https://react.dev) component in tsx to render a model with an environment map.
+
+```tsx
+import React from 'react'
+function ThreeViewerComponent({src, env}: {src: string, env: string}) {
+  const canvasRef = React.useRef(null)
+  React.useEffect(() => {
+    const viewer = new ThreeViewer({canvas: canvasRef.current})
+
+    const envPromise = viewer.setEnvironmentMap(env)
+    const modelPromise = viewer.load(src)
+    Promise.all([envPromise, modelPromise])
+    return () => {
+      viewer.dispose()
+    }
+  }, [])
+  return (
+     <canvas id="three-canvas" style={{width: 800, height: 600}} ref={canvasRef} />
+  )
+}
+```
+
+Check it in action: https://threepipe.org/examples/#react-tsx-sample/
+
+Other examples in js: https://threepipe.org/examples/#react-js-sample/ and jsx: https://threepipe.org/examples/#react-jsx-sample/
+
+### Vue.js
+
+A sample [vue.js](https://vuejs.org/) component in js to render a model with an environment map.
+
+```js
+const ThreeViewerComponent = {
+  setup() {
+    const canvasRef = ref(null);
+
+    onMounted(() => {
+      const viewer = new ThreeViewer({ canvas: canvasRef.value });
+
+      const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+      const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
+
+      Promise.all([envPromise, modelPromise])
+
+      onBeforeUnmount(() => {
+        viewer.dispose();
+      });
+    });
+
+    return { canvasRef };
+  },
+};
+```
+
+Check it in action: https://threepipe.org/examples/#vue-html-sample/
+
+Another example with Vue SFC(Single file component): https://threepipe.org/examples/#vue-sfc-sample/ 
+
+### Svelte
+
+A sample [svelte](https://svelte.dev/) component in js to render a model with an environment map.
+
+```html
+<script>
+    import {onDestroy, onMount} from 'svelte';
+    import {ThreeViewer} from 'threepipe'; 
+
+    let canvasRef;
+    let viewer;
+    onMount(() => {
+        viewer = new ThreeViewer({canvas: canvasRef});
+
+        const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+        const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
+
+        Promise.all([envPromise, modelPromise])
+    });
+    onDestroy(() => viewer.dispose())
+</script>
+
+<canvas bind:this={canvasRef} id="three-canvas" style="width: 800px; height: 600px"></canvas>
+```
+
+Check it in action: https://threepipe.org/examples/#svelte-sample/
 
 ### NPM/YARN
 
@@ -223,7 +337,7 @@ Plugins can add additional formats:
   * ktx - Using [KTXLoadPlugin](#KTXLoadPlugin)
   * ktx2 - Using [KTX2LoadPlugin](#KTX2LoadPlugin)
 
-Plugins to support more model formats are available in the package [@threepipe/plugin-extra-importers](#threepipeplugin-extra-importers) including .3ds,
+Plugins to support more model formats are available in the package [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) including .3ds,
 .3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz
 
 ## Loading files
@@ -672,7 +786,7 @@ when the extension is registered or when the material is added to the scene.
 Threepipe includes several built-in materials like
 [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial.html),
 [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial.html),
-[ExtendedShaderMaterial](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html)
+[ExtendedShaderMaterial](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html), [LegacyPhongMaterial](https://threepipe.org/docs/classes/LegacyPhongMaterial.html),
 that include support for extending the material. 
 Any three.js material can be made extendable,
 check the `ShaderPass2` class for a simple example that adds support for material extension to three.js ShaderPass.
@@ -729,7 +843,7 @@ In some classes, the ui configs are also generated using typescript decorators.
 
 The `uiConfig` is also added to all three.js objects and materials when they are added to the scene.
 
-The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](#threepipeplugin-tweakpane).
+The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](#threepipeplugin-tweakpane), [BlueprintJsUiPlugin](#threepipeplugin-blueprintjs)
 
 An example showing how to create a UI for a material
 
@@ -995,12 +1109,12 @@ Notes:
 * All plugins that are present in the dependencies array when the plugin is added to the viewer, are created and attached to the viewer in `super.onAdded`
 * Custom events can be dispatched with `this.dispatchEvent`, and subscribed to with `plugin.addEventListener`. The event type must be described in the class signature for typescript autocomplete to work.
 * Event listeners and other hooks can be added and removed in `onAdded` and `onRemove` functions for the viewer and other plugins.
-* To the viewer render the next frame, viewer.setDirty() can be called, or set this.dirty = true in preFrame and reset in postFrame to stop the rendering. (Note that rendering may continue if some other plugin sets the viewer dirty)
-* All Plugins which inherit from AViewerPlugin support serialisation. Create property `serializeWithViewer = false` to disable serialization with the viewer in config and glb or `toJSON: any = undefined` to disable serialisation entirely
-* plugin.toJSON() and plugin.fromJSON() or ThreeSerialization can be used to serialize and deserialize plugins. viewer.exportPluginConfig and viewer.importPluginConfig also exist for this.
-* @serialize('label') decorator can be used to mark any public/private variable as serialisable. label (optional) corresponds to the key in JSON.
+* To the viewer render the next frame, `viewer.setDirty()` can be called, or set `this.dirty = true` in preFrame and reset in postFrame to stop the rendering. (Note that rendering may continue if some other plugin sets the viewer dirty like `ProgressivePlugin` or any of the animation plugins). Check `isConverged` in `ProgressivePlugin` to check if its the final frame.
+* All Plugins which inherit from AViewerPlugin support serialisation. Create property `serializeWithViewer = false` to disable serialisation with the viewer in config and glb or `toJSON: any = undefined` to disable serialisation entirely
+* `plugin.toJSON()` and `plugin.fromJSON()` or `ThreeSerialization` can be used to serialize and deserialize plugins. `viewer.exportPluginConfig` and `viewer.importPluginConfig` also exist for this.
+* @serialize('label') decorator can be used to mark any public/private variable as serializable. label (optional) corresponds to the key in JSON.
 * @serialize supports instances of ITexture, IMaterial, all primitive types, simple JS objects, three.js math classes(Vector2, Vector3, Matrix3...), and some more.
-* uiDecorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when TweakpaneUiPlugin is added to the viewer. Plugins have special features in the UI for download preset and saving state.
+* uiDecorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when TweakpaneUiPlugin/BlueprintJsUiPlugin is added to the viewer. Plugins have special features in the UI for download preset and saving state.
 
 Check various plugins in the source code for more examples.
 
@@ -1039,8 +1153,9 @@ More options can be passed in the constructor to configure various built-in plug
 ### Constructor
 
 ```typescript
-import {ThreeViewer} from 'threepipe'
+import {ThreeViewer, CameraViewPlugin} from 'threepipe'
 
+// Create a viewer. All options except canvas/container are optional
 const viewer = new ThreeViewer({
   canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
   // or a container like: 
@@ -1077,11 +1192,24 @@ const viewer = new ThreeViewer({
     // domElement: document.body,
     // addOptions: { ... }
     // importOptions: { ... }
-  }
+  },
   // By default its false
   // dropzone: false,
   // To Enable without options
   // dropzone: true
+  
+  // Add some plugins after viewer creation.
+  plugins: [CameraViewPlugin, new CustomPlugin()],
+  
+  // Shorthand to load files immediately after viewer initialization
+  load: {
+      src: 'https://example.com/file.glb',
+      environment: 'https://example.com/file.hdr',
+      background: 'https://example.com/file.png',
+  },
+  onLoad: (viewer) => {
+      // Called when all the files are loaded
+  },
 })
 ```
 
@@ -1101,7 +1229,7 @@ const viewer = new ThreeViewer({...})
 // Add a plugin
 const plugin = viewer.addPluginSync(new TonemapPlugin())
 // plugins can be added with just the class also
-const plugin = viewer.addPluginSync(TonemapPlugin)
+const plugin2 = viewer.addPluginSync(TonemapPlugin)
 
 // Add multiple plugins at once
 viewer.addPluginsSync([
@@ -1112,10 +1240,10 @@ viewer.addPluginsSync([
 ])
 
 // Get a plugin
-const plugin = viewer.getPlugin(TonemapPlugin)
+const plugin3 = viewer.getPlugin(TonemapPlugin)
         
 // Get or add a plugin, when not sure if the plugin is already added
-const plugin = viewer.getOrAddPluginSync(TonemapPlugin)
+const plugin4 = viewer.getOrAddPluginSync(TonemapPlugin)
 
 // Remove a plugin
 viewer.removePluginSync(TonemapPlugin)
@@ -1707,7 +1835,9 @@ camera.setControlsCtor('customOrbit', (camera, domElement) => new CustomOrbitCon
 camera.controlsMode = 'customOrbit' // this will initialize the controls with the customOrbit constructor and set it on the camera
 
 // Disable interactions to the camera. (eg when animating)
-camera.interactionsEnabled = false
+camera.setInteractions(false, 'animation')
+// Enable interactions back 
+camera.setInteractions(true, 'animation') // this will enable interactions when all the keys have been set to true(which were set to false earlier)
 
 // Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer)
 camera.refreshAspect()
@@ -1740,13 +1870,18 @@ camera.deactivateMain()
 
 [`camera.setControlsCtor`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setControlsCtor) - Register a custom camera controls constructor. The controls can be set by setting `controlsMode` to the key/name of the controls.
 
-[`camera.interactionsEnabled`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#interactionsEnabled) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer.
+[`camera.setInteractions`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setInteractions) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer. Using this multiple plugins can disable interactions and it will be enabled again when all of them enable it back.
 
 [`camera.refreshAspect`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#refreshAspect) - Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer or when `viewer.resize()` is called)
 
 [`camera.activateMain`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#activateMain) - Set the camera as the main camera. This is the same as doing `scene.mainCamera = camera`. The camera needs to be in the scene hierarchy for this to work.
 
 [`camera.deactivateMain`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#deactivateMain) - Deactivate the camera as the main camera.
+
+See also [CameraViewPlugin](#cameraviewplugin) for camera focus animation.
+
+Note: The constructor signature of `PerspectiveCamera2` is different `PerspectiveCamera`(from three.js), since it requires the canvas and the controlsMode during creation. 
+Because of this `PerspectiveCamera0` is provided with the same signature as `PerspectiveCamera` for compatibility, in case the controls functionality is not required.
 
 ## AssetManager
 
@@ -1936,6 +2071,43 @@ materialManager.dispose()
 
 [`materialManager.dispose`](https://threepipe.org/docs/classes/MaterialManager.html#dispose) - Dispose manager and all materials.
 
+## Other classes and interfaces
+
+Threepipe provides various interfaces and classes for for three.js objects with upgraded features like UI events, serialization, etc. 
+These can be used while developing new apps to get better developer experience and features.
+When standard three.js instances are added to the scene, they are automatically upgraded automatically at runtime to make them work with the rest of the framework.
+
+Some important interfaces:
+
+* [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html) - Interface for an extended version of three.js [Object3D](https://threejs.org/docs/#api/en/core/Object3D).
+* [ILight](https://threepipe.org/docs/interfaces/ILight.html) - Interface for an extended version of three.js [Light](https://threejs.org/docs/#api/en/lights/Light).
+* [ICamera](https://threepipe.org/docs/interfaces/ICamera.html) - Interface for an extended version of three.js [Camera](https://threejs.org/docs/#api/en/cameras/Camera).
+* [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html) - Interface for an extended version of three.js [Material](https://threejs.org/docs/#api/en/materials/Material).
+* [ITexture](https://threepipe.org/docs/interfaces/ITexture.html) - Interface for an extended version of three.js [Texture](https://threejs.org/docs/#api/en/textures/Texture).
+* [IRenderTarget](https://threepipe.org/docs/interfaces/IRenderTarget.html) - Interface for an extended version of three.js [WebGLRenderTarget](https://threejs.org/docs/#api/en/renderers/WebGLRenderTarget).
+* [IGeometry](https://threepipe.org/docs/interfaces/IGeometry.html) - Interface for an extended version of three.js [BufferGeometry](https://threejs.org/docs/#api/en/core/BufferGeometry).
+* [IScene](https://threepipe.org/docs/interfaces/IScene.html) - Interface for an extended version of three.js [Scene](https://threejs.org/docs/#api/en/scenes/Scene).
+* [IRenderManager](https://threepipe.org/docs/interfaces/IRenderManager.html) - Interface for rendering and render target manager.
+
+Some important classes
+
+* [Mesh2](https://threepipe.org/docs/classes/Mesh2.html) - Extends three.js [Mesh](https://threejs.org/docs/#api/en/objects/Mesh) and implements [IObject3D](https://threepipe.org/docs/interfaces/IObject3D.html).
+* [PerspectiveCamera2](https://threepipe.org/docs/classes/PerspectiveCamera2.html) - Extends three.js [PerspectiveCamera](https://threejs.org/docs/#api/en/cameras/PerspectiveCamera) and implements [ICamera](https://threepipe.org/docs/interfaces/ICamera.html). (different constructor than PerspectiveCamera)
+* [PerspectiveCamera0](https://threepipe.org/docs/classes/PerspectiveCamera0.html) - Extends three.js [PerspectiveCamera](https://threejs.org/docs/#api/en/cameras/PerspectiveCamera) and implements [ICamera](https://threepipe.org/docs/interfaces/ICamera.html). (same constructor than PerspectiveCamera)
+* [BufferGeometry2](https://threepipe.org/docs/classes/BufferGeometry2.html) - Extends three.js [BufferGeometry](https://threejs.org/docs/#api/en/core/BufferGeometry) and implements [IGeometry](https://threepipe.org/docs/interfaces/IGeometry.html).
+* [RootScene](https://threepipe.org/docs/classes/RootScene.html) - Extends three.js [Scene](https://threejs.org/docs/#api/en/scenes/Scene) and implements [IScene](https://threepipe.org/docs/interfaces/IScene.html).
+* [RenderManager](https://threepipe.org/docs/classes/RenderManager.html) - Implements [IRenderManager](https://threepipe.org/docs/interfaces/IRenderManager.html).
+* [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial.html) - Extends three.js [MeshPhysicalMaterial](https://threejs.org/docs/#api/en/materials/MeshPhysicalMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial.html) - Extends three.js [MeshBasicMaterial](https://threejs.org/docs/#api/en/materials/MeshBasicMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [LineMaterial2](https://threepipe.org/docs/classes/LineMaterial2.html) - Extends three.js [LineMaterial](https://threejs.org/docs/#api/en/materials/LineMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [UnlitLineMaterial](https://threepipe.org/docs/classes/UnlitLineMaterial.html) - Extends three.js [LineBasicMaterial](https://threejs.org/docs/#api/en/materials/LineBasicMaterial) and implements [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
+* [DirectionalLight2](https://threepipe.org/docs/classes/DirectionalLight2.html) - Extends three.js [DirectionalLight](https://threejs.org/docs/#api/en/lights/DirectionalLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [SpotLight2](https://threepipe.org/docs/classes/SpotLight2.html) - Extends three.js [SpotLight](https://threejs.org/docs/#api/en/lights/SpotLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [PointLight2](https://threepipe.org/docs/classes/PointLight2.html) - Extends three.js [PointLight](https://threejs.org/docs/#api/en/lights/PointLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [HemisphereLight2](https://threepipe.org/docs/classes/HemisphereLight2.html) - Extends three.js [HemisphereLight](https://threejs.org/docs/#api/en/lights/HemisphereLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [AmbientLight2](https://threepipe.org/docs/classes/AmbientLight2.html) - Extends three.js [AmbientLight](https://threejs.org/docs/#api/en/lights/AmbientLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+* [RectAreaLight2](https://threepipe.org/docs/classes/RectAreaLight2.html) - Extends three.js [RectAreaLight](https://threejs.org/docs/#api/en/lights/RectAreaLight) and implements [ILight](https://threepipe.org/docs/interfaces/ILight.html).
+
 # Threepipe Plugins
 
 ThreePipe has a simple plugin system that allows you to easily add new features to the viewer. Plugins can be added to the viewer using the `addPlugin` and `addPluginSync` methods. The plugin system is designed to be modular and extensible. Plugins can be added to the viewer at any time and can be removed using the `removePlugin` and `removePluginSync` methods.
@@ -1944,11 +2116,9 @@ ThreePipe has a simple plugin system that allows you to easily add new features 
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#tonemap-plugin/
-
-Source Code: [src/plugins/postprocessing/TonemapPlugin.ts](./src/plugins/postprocessing/TonemapPlugin.ts)
-
-API Reference: [TonemapPlugin](https://threepipe.org/docs/classes/TonemapPlugin.html)
+[Example](https://threepipe.org/examples/#tonemap-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/TonemapPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/TonemapPlugin.html) 
 
 TonemapPlugin adds a post-processing material extension to the ScreenPass in render manager
 that applies tonemapping to the color. The tonemapping operator can be changed
@@ -1962,11 +2132,9 @@ TonemapPlugin is added by default in ThreeViewer unless `tonemap` is set to `fal
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#dropzone-plugin/
-
-Source Code: [src/plugins/interaction/DropzonePlugin.ts](./src/plugins/interaction/DropzonePlugin.ts)
-
-API Reference: [DropzonePlugin](https://threepipe.org/docs/classes/DropzonePlugin.html)
+[Example](https://threepipe.org/examples/#dropzone-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/DropzonePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DropzonePlugin.html) 
 
 DropzonePlugin adds support for drag and drop of local files to automatically import, process and load them into the viewer. 
 
@@ -2008,11 +2176,9 @@ const viewer = new ThreeViewer({
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#progressive-plugin/
-
-Source Code: [src/plugins/postprocessing/ProgressivePlugin.ts](./src/plugins/pipeline/ProgressivePlugin.ts)
-
-API Reference: [ProgressivePlugin](https://threepipe.org/docs/classes/ProgressivePlugin.html)
+[Example](https://threepipe.org/examples/#progressive-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/ProgressivePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ProgressivePlugin.html) 
 
 Progressive Plugin adds a post-render pass to blend the last frame with the current frame.
 
@@ -2022,11 +2188,9 @@ This is used as a dependency in other plugins for progressive rendering effect w
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#depth-buffer-plugin/
-
-Source Code: [src/plugins/pipeline/DepthBufferPlugin.ts](./src/plugins/pipeline/DepthBufferPlugin.ts)
-
-API Reference: [DepthBufferPlugin](https://threepipe.org/docs/classes/DepthBufferPlugin.html)
+[Example](https://threepipe.org/examples/#depth-buffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/DepthBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DepthBufferPlugin.html) 
 
 Depth Buffer Plugin adds a pre-render pass to the render manager and renders a depth buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like depth of field, SSAO, SSR, etc. 
 
@@ -2048,15 +2212,13 @@ The depth values are based on camera near far values, which are controlled autom
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#normal-buffer-plugin/
-
-Source Code: [src/plugins/pipeline/NormalBufferPlugin.ts](./src/plugins/pipeline/NormalBufferPlugin.ts)
-
-API Reference: [NormalBufferPlugin](https://threepipe.org/docs/classes/NormalBufferPlugin.html)
+[Example](https://threepipe.org/examples/#normal-buffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/NormalBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/NormalBufferPlugin.html) 
 
 Normal Buffer Plugin adds a pre-render pass to the render manager and renders a normal buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc. 
 
-Note: Use [`DepthNormalBufferPlugin`](#DepthNormalBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
+Note: Use [`GBufferPlugin`](#GBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
 
 ```typescript
 import {ThreeViewer, NormalBufferPlugin} from 'threepipe'
@@ -2070,21 +2232,198 @@ const normalTarget = normalPlugin.target;
 // Use the normal target by accessing `normalTarget.texture`.
 ```
 
-
 ## GBufferPlugin
 
-todo
+[//]: # (todo: image)
 
+[Example](https://threepipe.org/examples/#gbuffer-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/GBufferPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GBufferPlugin.html)
+
+GBuffer Plugin adds a pre-render pass to the render manager and renders depth+normals to a target and some customizable flags to another. The multiple render target and textures can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc.
+
+```typescript
+import {ThreeViewer, GBufferPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const gBufferPlugin = viewer.addPluginSync(new GBufferPlugin())
+
+const gBuffer = gBufferPlugin.target;
+const normalDepth = gBufferPlugin.normalDepthTexture;
+const gBufferFlags = gBufferPlugin.flagsTexture;
+```
+
+## CanvasSnapshotPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#canvas-snapshot-plugin/) &mdash;
+[Source Code](./src/plugins/export/CanvasSnapshotPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CanvasSnapshotPlugin.html) 
+
+Canvas Snapshot Plugin adds support for taking snapshots of the canvas and exporting them as images and data urls. It includes options to take snapshot of a region, mime type, quality render scale and scaling the output image. Check out the interface [CanvasSnapshotOptions](https://threepipe.org/docs/interfaces/CanvasSnapshotOptions.html) for more details.
+
+```typescript
+import {ThreeViewer, CanvasSnapshotPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const snapshotPlugin = viewer.addPluginSync(new CanvasSnapshotPlugin())
+
+// download a snapshot.
+await snapshotPlugin.downloadSnapshot('image.webp', { // all parameters are optional
+  scale: 1, // scale the final image
+  timeout: 0, // wait before taking the snapshot, in ms
+  quality: 0.9, // quality of the image (0-1) only for jpeg and webp
+  displayPixelRatio: 2, // render scale 
+  mimeType: 'image/webp', // mime type of the image
+  waitForProgressive: true, // wait for progressive rendering to finish (ProgressivePlugin). true by default
+  rect: { // region to take snapshot. eg. crop center of the canvas
+    height: viewer.canvas.clientHeight / 2,
+    width: viewer.canvas.clientWidth / 2,
+    x: viewer.canvas.clientWidth / 4,
+    y: viewer.canvas.clientHeight / 4,
+  },
+})
+
+// get data url (string)
+const dataUrl = await snapshotPlugin.getDataUrl({ // all parameters are optional
+  displayPixelRatio: 2, // render scale 
+  mimeType: 'image/webp', // mime type of the image
+})
+
+// get File
+const file = await snapshotPlugin.getFile('file.jpeg', { // all parameters are optional
+  mimeType: 'image/jpeg', // mime type of the image
+})
+```
+
+## PickingPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#picking-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/PickingPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PickingPlugin.html) 
+
+Picking Plugin adds support for selecting and hovering over objects in the viewer with user interactions and selection widgets.
+
+When the plugin is added to the viewer, it starts listening to the mouse move and click events over the canvas.
+When an object is clicked, it is selected,
+and if a UI plugin is added, the uiconfig for the selected object is populated in the interface.
+The events `selectedObjectChanged`, `hoverObjectChanged`, and `hitObject` can be listened to on the plugin.
+
+Picking plugin internally uses [ObjectPicker](https://threepipe.org/docs/classes/ObjectPicker.html),
+check out the documentation or source code for more information.
+
+```typescript
+import {ThreeViewer, PickingPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const pickingPlugin = viewer.addPluginSync(new PickingPlugin())
+
+// Hovering events are also supported, but since its computationally expensive for large scenes it is disabled by default.
+pickingPlugin.hoverEnabled = true
+
+pickingPlugin.addEventListener('hitObject', (e)=>{
+  // This is fired when the user clicks on the canvas.
+  // The selected object hasn't been changed yet, and we have the option to change it or disable selection at this point.
+    
+  // e.intersects.selectedObject contains the object that the user clicked on.
+  console.log('Hit: ', e.intersects.selectedObject)
+  // It can be changed here 
+  // e.intersects.selectedObject = e.intersects.selectedObject.parent // select the parent
+  // e.intersects.selectedObject = null // unselect
+  
+  // Check other properties on the event like intersects, mouse position, normal etc.
+  console.log(e)
+})
+
+pickingPlugin.addEventListener('selectedObjectChanged', (e)=>{
+  // This is fired when the selected object is changed.
+  // e.object contains the new selected object. It can be null if nothing is selected.
+  console.log('Selected: ', e.object)
+})
+
+// Objects can be programmatically selected and unselected
+
+// to select
+pickingPlugin.setSelectedObject(object)
+
+// get the selected object
+console.log(pickingPlugin.getSelectedObject())
+// to unselect
+pickingPlugin.setSelectedObject(null)
+
+// Select object with camera animation to the object
+pickingPlugin.setSelectedObject(object, true)
+
+pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
+  // This is fired when the hovered object is changed.
+  // e.object contains the new hovered object.
+  console.log('Hovering: ', e.object)
+})
+
+```
+
+## TransformControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#transform-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/TransformControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/TransformControlsPlugin.html)
+
+Transform Controls Plugin adds support for moving, rotating and scaling objects in the viewer with interactive widgets.
+
+Under the hood, TransformControlsPlugin uses [TransformControls2](https://threepipe.org/docs/classes/TransformControls2) to provide the interactive controls, it is a extended version of three.js [TransformControls](https://threejs.org/docs/#examples/en/controls/TransformControls).
+
+When the plugin is added to the viewer, it interfaces with the [PickingPlugin](#pickingplugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
+
+If the PickingPlugin is not added to the viewer before the TransformControlsPlugin, it is added automatically with the plugin.
+
+```typescript
+import {ThreeViewer, TransformControlsPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const transfromControlsPlugin = viewer.addPluginSync(new TransformControlsPlugin())
+
+// Get the underlying transform controls
+console.log(transfromControlsPlugin.transformControls)
+```
+
+## ContactShadowGroundPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#contact-shadow-ground-plugin/) &mdash;
+[Source Code](./src/plugins/extras/ContactShadowGroundPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ContactShadowGroundPlugin.html)
+
+Contact Shadow Ground Plugin adds a ground plane with three.js contact shadows to the viewer scene.
+
+The plane is added to the scene root at runtime and not saved with scene export. Instead the plugin settings are saved with the scene.
+
+It inherits from the base class [BaseGroundPlugin](https://threepipe.org/docs/classes/BaseGroundPlugin.html) which provides generic ground plane functionality. Check the source code for more details. With the property `autoAdjustTransform`, the ground plane is automatically adjusted based on the bounding box of the scene.
+
+```typescript
+import {ThreeViewer, ContactShadowGroundPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(new ContactShadowGroundPlugin())
+```
 
 ## GLTFAnimationPlugin
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#gltf-animation-plugin/
-
-Source Code: [src/plugins/animation/GLTFAnimationPlugin.ts](./src/plugins/animation/GLTFAnimationPlugin.ts)
-
-API Reference: [GLTFAnimationPlugin](https://threepipe.org/docs/classes/GLTFAnimationPlugin.html)
+[Example](https://threepipe.org/examples/#gltf-animation-plugin/) &mdash;
+[Source Code](./src/plugins/animation/GLTFAnimationPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GLTFAnimationPlugin.html) 
 
 Manages playback of GLTF animations.
 
@@ -2101,11 +2440,9 @@ To play individual animations, with custom choreography, use the {@link GLTFAnim
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#popmotion-plugin/
-
-Source Code: [src/plugins/animation/PopmotionPlugin.ts](./src/plugins/animation/PopmotionPlugin.ts)
-
-API Reference: [PopmotionPlugin](https://threepipe.org/docs/classes/PopmotionPlugin.html)
+[Example](https://threepipe.org/examples/#popmotion-plugin/) &mdash;
+[Source Code](./src/plugins/animation/PopmotionPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PopmotionPlugin.html) 
 
 Provides animation/tweening capabilities to the viewer using the [popmotion.io](https://popmotion.io/) library.
 
@@ -2121,7 +2458,15 @@ const cube = viewer.scene.getObjectByName('cube');
 const popmotion = viewer.addPluginSync(new PopmotionPlugin())
 
 // Move the object cube 1 unit up.
-const anim = popmotion.animate({
+const anim = popmotion.animateTarget(cube, 'position', {
+  to: cube.position.clone().add(new Vector3(0,1,0)),
+  duration: 500, // ms
+  onComplete: () => isMovedUp = true,
+  onStop: () => throw(new Error('Animation stopped')),
+})
+
+// Alternatively, set the property directly in onUpdate.
+const anim1 = popmotion.animate({
   from: cube.position.y,
   to: cube.position.y + 1,
   duration: 500, // ms
@@ -2129,11 +2474,15 @@ const anim = popmotion.animate({
     cube.position.setY(v)
     cube.setDirty()
   },
-  onComplete: () => isMovedUp = !isMovedUp,
+  onComplete: () => isMovedUp = true,
+  onStop: () => throw(new Error('Animation stopped')),
+  onEnd: () => console.log('Animation ended'), // This runs after both onComplete and onStop
 })
 
-// await for animation
-await anim.promise;
+// await for animation. This promise will reject only if an exception is thrown in onStop or onComplete. onStop rejects if throwOnStop is true
+await anim.promise.catch((e)=>{
+  console.log(e, 'animation stopped before completion')
+});
 
 // or stop the animation
 // anim.stop()
@@ -2142,7 +2491,7 @@ await anim.promise;
 await popmotion.animateAsync({ // Also await for the animation.
   from: '#' + cube.material.color.getHexString(),
   to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
-  duration: 500,
+  duration: 1000, // 1s
   onUpdate: (v) => {
     cube.material.color.set(v)
     cube.material.setDirty()
@@ -2152,16 +2501,79 @@ await popmotion.animateAsync({ // Also await for the animation.
 
 Note: The animation is started when the animate or animateAsync function is called.
 
+## CameraViewPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#camera-view-plugin/) &mdash;
+[Source Code](./src/plugins/animation/CameraViewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CameraViewPlugin.html) 
+
+CameraViewPlugin adds support to save and load camera views, which can then be animated to.
+It uses PopmotionPlugin internally to animate any camera to a saved view or to loop through all the saved views.
+
+It also provides a UI to manage the views.
+
+```typescript
+import {CameraViewPlugin, ThreeViewer, CameraView, Vector3, Quaternion, EasingFunctions, timeout} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const cameraViewPlugin = viewer.addPluginSync(new CameraViewPlugin())
+
+const intialView = cameraViewPlugin.getView()
+// or = viewer.scene.mainCamera.getView()
+
+// create a new view
+const view = new CameraView(
+    'My View', // name
+    new Vector3(0, 0, 10), // position
+    new Vector3(0, 0, 0), // target
+    new Quaternion(0, 0, 0, 1), // quaternion rotation
+    1 // zoom
+)
+
+// or clone a view
+const view2 = intialView.clone()
+view2.position.add(new Vector3(0, 5, 0)) // move up 5 units
+
+// animate the main camera to a view
+await cameraViewPlugin.animateToView(
+    view,
+    2000, // in ms, = 2sec
+    EasingFunctions.easeInOut,
+).catch(()=>console.log('Animation stopped'))
+
+// stop any/all animations
+cameraViewPlugin.stopAllAnimations()
+
+// add views to the plugin
+cameraViewPlugin.addView(view)
+cameraViewPlugin.addView(view2)
+cameraViewPlugin.addView(intialView)
+cameraViewPlugin.addCurrentView() // adds the current view of the main camera
+
+// loop through all the views once
+cameraViewPlugin.animDuration = 2000 // default duration
+cameraViewPlugin.animEase = EasingFunctions.easeInOutSine // default easing
+await cameraViewPlugin.animateAllViews()
+
+// loop through all the views forever
+cameraViewPlugin.viewLooping = true
+await timeout(10000) // wait for some time
+// stop looping
+cameraViewPlugin.viewLooping = false
+
+```
+
 
 ## RenderTargetPreviewPlugin
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#render-target-preview/
-
-Source Code: [src/plugins/ui/RenderTargetPreviewPlugin.ts](./src/plugins/ui/RenderTargetPreviewPlugin.ts)
-
-API Reference: [RenderTargetPreviewPlugin](https://threepipe.org/docs/classes/RenderTargetPreviewPlugin.html)
+[Example](https://threepipe.org/examples/#render-target-preview/) &mdash;
+[Source Code](./src/plugins/ui/RenderTargetPreviewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/RenderTargetPreviewPlugin.html) 
 
 RenderTargetPreviewPlugin is a useful development and debugging plugin that renders any registered render-target to the screen in small collapsable panels.
 
@@ -2182,11 +2594,9 @@ previewPlugin.addTarget(()=>normalPlugin.target, 'normal', false, false)
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#geometry-uv-preview/
-
-Source Code: [src/plugins/ui/GeometryUVPreviewPlugin.ts](./src/plugins/ui/GeometryUVPreviewPlugin.ts)
-
-API Reference: [GeometryUVPreviewPlugin](https://threepipe.org/docs/classes/GeometryUVPreviewPlugin.html)
+[Example](https://threepipe.org/examples/#geometry-uv-preview/) &mdash;
+[Source Code](./src/plugins/ui/GeometryUVPreviewPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GeometryUVPreviewPlugin.html) 
 
 GeometryUVPreviewPlugin is a useful development and debugging plugin
 that adds a panel to the viewer to show the UVs of a geometry.
@@ -2207,11 +2617,9 @@ previewPlugin.addGeometry(geometry, 'sphere')
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#frame-fade-plugin/
-
-Source Code: [src/plugins/pipeline/FrameFadePlugin.ts](./src/plugins/pipeline/FrameFadePlugin.ts)
-
-API Reference: [FrameFadePlugin](https://threepipe.org/docs/classes/FrameFadePlugin.html)
+[Example](https://threepipe.org/examples/#frame-fade-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/FrameFadePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FrameFadePlugin.html) 
 
 FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc to avoid a sudden jump.
 
@@ -2233,30 +2641,522 @@ To stop a transition, call `fadePlugin.stopTransition()`. This will immediately 
 
 The plugin automatically tracks `setDirty()` function calls in objects, materials and the scene. It can be triggerred by calling `setDirty` on any material or object in the scene. Check the [example](https://threepipe.org/examples/#frame-fade-plugin/) for a demo. This can be disabled by options in the plugin.
 
+## VignettePlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#vignette-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/VignettePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/VignettePlugin.html) 
+
+VignettePlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a vignette effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, VignettePlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const vignettePlugin = viewer.addPluginSync(VignettePlugin)
+
+// Change the vignette color
+vignettePlugin.power = 1
+vignettePlugin.color = new Color(0.5, 0, 0)
+
+// or 
+// vignettePlugin.color.set('#ff0000'); vignettePlugin.setDirty() // Call setDirty to tell the plugin that color has changed
+```
+
+## ChromaticAberrationPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#chromatic-aberration-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/ChromaticAberrationPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ChromaticAberrationPlugin.html) 
+
+ChromaticAberrationPlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a chromatic-aberration effect to the final render. The parameter `intensity` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, ChromaticAberrationPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const chromaticAberrationPlugin = viewer.addPluginSync(ChromaticAberrationPlugin)
+
+// Change the chromaticAberration color
+chromaticAberrationPlugin.intensity = 0.5
+```
+
+## FilmicGrainPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#filmic-grain-plugin/) &mdash;
+[Source Code](./src/plugins/postprocessing/FilmicGrainPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FilmicGrainPlugin.html) 
+
+FilmicGrainPlugin adds a post-processing material extension to the ScreenPass in render manager
+that applies a filmic-grain effect to the final render. The parameters `power` and `color` can be changed to customize the effect.
+
+```typescript
+import {ThreeViewer, FilmicGrainPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const filmicGrainPlugin = viewer.addPluginSync(FilmicGrainPlugin)
+
+// Change the filmicGrain color
+filmicGrainPlugin.intensity = 10
+filmicGrainPlugin.multiply = false
+```
+
+## NoiseBumpMaterialPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#noise-bump-material-plugin/) &mdash;
+[Source Code](./src/plugins/material/NoiseBumpMaterialPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/NoiseBumpMaterialPlugin.html) 
+
+NoiseBumpMaterialPlugin adds a material extension to PhysicalMaterial to add support for sparkle bump / noise bump by creating procedural bump map from noise to simulate sparkle flakes.
+It uses voronoise function from blender along with several additions to generate the noise for the generation.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_noise_bump` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, NoiseBumpMaterialPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const noiseBump = viewer.addPluginSync(NoiseBumpMaterialPlugin)
+
+// Add noise bump to a material
+NoiseBumpMaterialPlugin.AddNoiseBumpMaterial(material, {
+  flakeScale: 300,
+})
+
+// Change properties with code or use the UI
+material.userData._noiseBumpMat!.bumpNoiseParams = [1, 1]
+material.setDirty()
+
+// Disable
+material.userData._noiseBumpMat!.hasBump = false
+material.setDirty()
+```
+
+## CustomBumpMapPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#custom-bump-map-plugin/) &mdash;
+[Source Code](./src/plugins/material/CustomBumpMapPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CustomBumpMapPlugin.html) 
+
+CustomBumpMapPlugin adds a material extension to PhysicalMaterial to support custom bump maps.
+A Custom bump map is similar to the built-in bump map, but allows using an extra bump map and scale to give a combined effect.
+This plugin also has support for bicubic filtering of the custom bump map and is enabled by default.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_custom_bump_map` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, CustomBumpMapPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const customBump = viewer.addPluginSync(CustomBumpMapPlugin)
+
+// Add noise bump to a material
+customBump.enableCustomBump(material, bumpMap, 0.2)
+
+// Change properties with code or use the UI
+material.userData._customBumpMat = texture
+material.setDirty()
+
+// Disable
+material.userData._hasCustomBump = false
+// or 
+material.userData._customBumpMat = null
+material.setDirty()
+```
+
+## ClearcoatTintPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#clearcoat-tint-plugin/) &mdash;
+[Source Code](./src/plugins/material/ClearcoatTintPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ClearcoatTintPlugin.html) 
+
+ClearcoatTintPlugin adds a material extension to PhysicalMaterial which adds tint and thickness to the built-in clearcoat properties.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_clearcoat_tint` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, ClearcoatTintPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const clearcoatTint = viewer.addPluginSync(ClearcoatTintPlugin)
+
+material.clearcoat = 1
+// add initial properties
+ClearcoatTintPlugin.AddClearcoatTint(material, {
+  tintColor: '#ff0000',
+  thickness: 1,
+})
+
+// Change properties with code or use the UI
+material.userData._clearcoatTint!.tintColor = '#ff0000'
+material.setDirty()
+
+// Disable
+material.userData._clearcoatTint.enableTint = false
+material.setDirty()
+```
+
+## FragmentClippingExtensionPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#fragment-clipping-extension-plugin/) &mdash;
+[Source Code](./src/plugins/material/FragmentClippingExtensionPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FragmentClippingExtensionPlugin.html) 
+
+FragmentClippingExtensionPlugin adds a material extension to PhysicalMaterial to add support for fragment clipping.
+Fragment clipping allows to clip fragments of the material in screen space or world space based on a circle, rectangle, plane, sphere, etc.
+It uses fixed SDFs with params defined by the user for clipping.
+It also adds a UI to the material to edit the settings.
+It uses `WEBGI_materials_fragment_clipping_extension` glTF extension to save the settings in glTF/glb files.
+
+```typescript
+import {ThreeViewer, FragmentClippingExtensionPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const fragmentClipping = viewer.addPluginSync(FragmentClippingExtensionPlugin)
+
+// add initial properties
+FragmentClippingExtensionPlugin.AddFragmentClipping(material, {
+  clipPosition: new Vector4(0.5, 0.5, 0, 0),
+  clipParams: new Vector4(0.1, 0.05, 0, 1),
+})
+
+// Change properties with code or use the UI
+material.userData._fragmentClipping!.clipPosition.set(0, 0, 0, 0)
+material.setDirty()
+
+// Disable
+material.userData._clearcoatTint.clipEnabled = false
+material.setDirty()
+```
+
+## HDRiGroundPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#hdri-ground-plugin/) &mdash;
+[Source Code](./src/plugins/extras/HDRiGroundPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/HDRiGroundPlugin.html) 
+
+HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environemnt and enabling the plugin.
+
+The world radius, tripod height, and origin position(center offset) can be set in the plugin.
+
+The plugin is disabled by default when added. Set `.enabled` to enable it or pass `true` in the constructor.
+If the background is not the same as the environment when enabled, the user will be prompted for this, unless `promptOnBackgroundMismatch` is set to `false` in the plugin.
+
+```typescript
+import {ThreeViewer, HDRiGrounPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const hdriGround = viewer.addPluginSync(new HDRiGrounPlugin())
+
+// Load an hdr environment map
+await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+// set background to environment
+viewer.scene.background = 'environment'
+// or 
+// viewer.scene.background = viewer.scene.environemnt
+
+// enable the plugin
+hdriGround.enabled = true
+```
+
+Check the [example](https://threepipe.org/examples/#hdri-ground-plugin/) for a demo. 
+
+## VirtualCamerasPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#virtual-cameras-plugin/) &mdash;
+[Source Code](./src/plugins/rendering/VirtualCamerasPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/VirtualCamerasPlugin.html) 
+
+VirtualCamerasPlugin adds support for rendering to multiple virtual cameras in the viewer. These cameras are rendered in preRender callback just before the main camera is rendered. The virtual cameras can be added to the plugin and removed from it.
+
+The feed to the virtual camera is rendered to a Render Target texture which can be accessed and re-rendered in the scene or used in other plugins.
+
+```typescript
+import {ThreeViewer, VirtualCamerasPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const virtualCameras = viewer.addPluginSync(new VirtualCamerasPlugin())
+
+const camera = new PerspectiveCamera2('orbit', viewer.canvas, false, 45, 1)
+camera.name = name
+camera.position.set(0, 5, 0)
+camera.target.set(0, 0.25, 0)
+camera.userData.autoLookAtTarget = true // automatically look at the target (in setDirty)
+camera.setDirty()
+camera.addEventListener('update', ()=>{
+  viewer.setDirty() // if the camera is not added to the scene it wont update automatically when camera.setDirty is called(like from the UI)
+})
+
+const vCam = virtualCameras.addCamera(camera)
+console.log(vCam.target) // target is a WebGLRenderTarget/IRenderTarget
+```
+
+Check the [virtual camera](https://threepipe.org/examples/#virtual-camera/) example for using the texture in the scene. 
+
+## EditorViewWidgetPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#editor-view-widget-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/EditorViewWidgetPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/EditorViewWidgetPlugin.html) 
+
+EditorViewWidgetPlugin adds a ViewHelper in the parent of the viewer canvas to show the current camera view and allow the user to change the camera view to one of the primary world axes.
+
+Simply add the plugin to the viewer to see the widget.
+
+```typescript
+import {ThreeViewer, EditorViewWidgetPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const plugin = viewer.addPluginSync(new EditorViewWidgetPlugin())
+
+// to hide the widget
+plugin.enabled = false
+```
+
+## Object3DWidgetsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#object3d-widgets-plugin/) &mdash;
+[Source Code](./src/plugins/extras/Object3DWidgetsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Object3DWidgetsPlugin.html) 
+
+Object3DWidgetsPlugin adds support for light and camera helpers/gizmos in the viewer.
+A helper is automatically created when any supported light or camera is added to the scene.
+Simply add the plugin to the viewer to see the widget.
+
+Support for additional types of helpers can be added dynamically or by other plugins by pushing a helper constructor to the `Object3DWidgetsPlugin.helpers` array, and calling `Object3DWidgetsPlugin.refresh()`.
+
+The helper class prototype should implement the `IObject3DHelper` interface. Check `DirectionalLightHelper2` for an example.
+
+```typescript
+import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin to add support
+const plugin = viewer.addPluginSync(new Object3DWidgetsPlugin())
+
+// Add some lights or cameras to the scene. (This can be done before adding the plugin as well)
+// Using Object3DGeneratorPlugin to create a camera and add it to the scene.
+const generator = viewer.getOrAddPluginSync(Object3DGeneratorPlugin)
+generator.generate('camera-perspective', {
+  position: new Vector3(5, 5, 0),
+  name: 'My Camera'
+})
+
+// to hide the widgets
+plugin.enabled = false
+
+// to add support for a custom helper
+plugin.helpers.push(MyCustomHelper)
+plugin.refresh()
+
+```
+
+## Object3DGeneratorPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#object3d-generator-plugin/) &mdash;
+[Source Code](./src/plugins/extras/Object3DGeneratorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Object3DGeneratorPlugin.html)
+
+Object3DGeneratorPlugin adds support for creating different types of lights and camera objects in the viewer.
+Call the `generate` method with any type to generate a type of object(like lights, cameras, mesh etc).
+
+Support for the following types of generators is included in the plugin:
+* camera-perspective - Creates instance of `PerspectiveCamera2`
+* light-directional - Creates instance of `DirectionalLight2`
+* light-ambient - Creates instance of `AmbientLight2`
+* light-point - Creates instance of `PointLight2`
+* light-spot - Creates instance of `SpotLight2`
+* light-hemisphere - Creates instance of `HemisphereLight2`
+* light-rect-area - Creates instance of `RectAreaLight2`
+
+Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](#threepipeplugin-geometry-generator) to add various type of primitive objects like plane, sphere, etc
+A custom generator can take in any kind object as parameters and should return an `IObject3D`.
+
+Sample Usage
+```typescript
+import {ThreeViewer, Object3DWidgetsPlugin, Object3DGeneratorPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const generator = viewer.addPluginSync(Object3DGeneratorPlugin)
+generator.generate('camera-perspective', {
+  position: new Vector3(5, 5, 0),
+  name: 'My Camera'
+})
+const light = generator.generate('light-spot', {
+  position: new Vector3(5, 0, 0),
+})
+
+// to add support for a custom helper
+plugin.generators['custom-object'] = (params)=>{
+  const object = new Mesh2(new PlaneGeometry(1,1), new PhysicalMaterial())
+  object.name = params.name ?? 'Custom Mesh'
+  if(params.position) object.position.copy(params.position)
+  return object
+}
+const obj = generator.generate('custom-object', {
+  position: new Vector3(5, 0, 0),
+})
+
+// Add Object3DWidgetsPlugin to see the added lights and cameras.
+viewer.addPluginSync(new Object3DWidgetsPlugin())
+```
+
+Check the [example](https://threepipe.org/examples/#object3d-generator-plugin/) for the UI.
+
+## DeviceOrientationControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#device-orientation-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/DeviceOrientationControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/DeviceOrientationControlsPlugin.html)
+
+DeviceOrientationControlsPlugin enables controlling the main camera rotation in the scene with device orientation. This only works on devices which have a gyroscope(but can also be emulated in devtools in chrome).
+After the plugin is added, it adds support for setting `deviceOrientation` as the key in `scene.mainCamera.controlMode`. 
+
+When the controls is started (for the first time), the current camera rotation is and the device orientation is saved and used as reference. To reset the saved device orientation, call `resetView` in the controls.
+
+Sample Usage
+```typescript
+import {ThreeViewer, DeviceOrientationControlsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(DeviceOrientationControlsPlugin)
+
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'deviceOrientation'
+
+// to reset the saved device orientation
+viewer.scene.mainCamera.controls.resetView()
+
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
+```
+
+## PointerLockControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#pointer-lock-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/PointerLockControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PointerLockControlsPlugin.html)
+
+PointerLockControlsPlugin adds support for using PointerLockControls from three.js. It works similar to controls in first person shooter, captures the mouse pointer and uses it to look around with the camera.
+
+After the plugin is added, it adds support for setting `pointerLock` as the key in `scene.mainCamera.controlMode`. 
+
+Sample Usage
+```typescript
+import {ThreeViewer, PointerLockControlsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(PointerLockControlsPlugin)
+
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'pointerLock'
+
+// listen to lock/unlock events 
+viewer.scene.mainCamera.controls?.addEventListener('lock', ()=> console.log('pointer locked'))
+viewer.scene.mainCamera.controls?.addEventListener('unlock', ()=> console.log('pointer unlocked'))
+
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
+```
+
+## ThreeFirstPersonControlsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#three-first-person-controls-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/ThreeFirstPersonControlsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ThreeFirstPersonControlsPlugin.html)
+
+ThreeFirstPersonControlsPlugin adds support for using FirstPersonControls from three.js. It works similar to idle look around in first person games, it does not captures the mouse pointer.
+
+After the plugin is added, it adds support for setting `threeFirstPerson` as the key in `scene.mainCamera.controlMode`. 
+
+Sample Usage
+```typescript
+import {ThreeViewer, ThreeFirstPersonControlsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+viewer.addPluginSync(ThreeFirstPersonControlsPlugin)
+
+// after some user action
+viewer.scene.mainCamera.controlsMode = 'threeFirstPerson'
+
+// switch back to default orbit controls
+viewer.scene.mainCamera.controlsMode = 'orbit'
+```
+
 ## Rhino3dmLoadPlugin
 
-Example: https://threepipe.org/examples/#rhino3dm-load/
-
-Source Code: [src/plugins/import/Rhino3dmLoadPlugin.ts](./src/plugins/import/Rhino3dmLoadPlugin.ts)
-
-API Reference: [Rhino3dmLoadPlugin](https://threepipe.org/docs/classes/Rhino3dmLoadPlugin.html)
+[Example](https://threepipe.org/examples/#rhino3dm-load/) &mdash;
+[Source Code](./src/plugins/import/Rhino3dmLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/Rhino3dmLoadPlugin.html) 
 
 Adds support for loading .3dm files generated by [Rhino 3D](https://www.rhino3d.com/). This plugin includes some changes with how 3dm files are loaded in three.js. The changes are around loading layer and primitive properties when set as reference in the 3dm files.
 
+It also adds some helpful options to process the model after load.
+
 ```typescript
 import {Rhino3dmLoadPlugin} from 'threepipe'
-viewer.addPluginSync(new Rhino3dmLoadPlugin())
+const rhino3dmPlugin = viewer.addPluginSync(new Rhino3dmLoadPlugin())
+
+rhino3dmPlugin.importMaterials = true // import materials source from 3dm file
+rhino3dmPlugin.forceLayerMaterials = true // force material source to be layer in 3dm file.
+rhino3dmPlugin.hideLineMesh = true // hide all lines and points in the model.
+rhino3dmPlugin.replaceWithInstancedMesh = true // replace meshes with the same parent, geometry and material with a single instance mesh.
 
 const mesh = await viewer.load('file.3dm')
 ```
 
 ## PLYLoadPlugin
 
-Example: https://threepipe.org/examples/#ply-load/
-
-Source Code: [src/plugins/import/PLYLoadPlugin.ts](./src/plugins/import/PLYLoadPlugin.ts)
-
-API Reference: [PLYLoadPlugin](https://threepipe.org/docs/classes/PLYLoadPlugin.html)
+[Example](https://threepipe.org/examples/#ply-load/) &mdash;
+[Source Code](./src/plugins/import/PLYLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/PLYLoadPlugin.html) 
 
 Adds support for loading .ply ([Polygon file format](https://en.wikipedia.org/wiki/PLY_(file_format))) files.
 
@@ -2269,11 +3169,9 @@ const mesh = await viewer.load('file.ply')
 
 ## USDZLoadPlugin
 
-Example: https://threepipe.org/examples/#usdz-load/
-
-Source Code: [src/plugins/import/USDZLoadPlugin.ts](./src/plugins/import/USDZLoadPlugin.ts)
-
-API Reference: [USDZLoadPlugin](https://threepipe.org/docs/classes/USDZLoadPlugin.html)
+[Example](https://threepipe.org/examples/#usdz-load/) &mdash;
+[Source Code](./src/plugins/import/USDZLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/USDZLoadPlugin.html) 
 
 Adds support for loading .usdz and .usda ([Universal Scene Description](https://graphics.pixar.com/usd/docs/index.html)) files.
 
@@ -2287,11 +3185,9 @@ const mesh2 = await viewer.load('file.usda')
 
 ## STLLoadPlugin
 
-Example: https://threepipe.org/examples/#stl-load/
-
-Source Code: [src/plugins/import/STLLoadPlugin.ts](./src/plugins/import/STLLoadPlugin.ts)
-
-API Reference: [STLLoadPlugin](https://threepipe.org/docs/classes/STLLoadPlugin.html)
+[Example](https://threepipe.org/examples/#stl-load/) &mdash;
+[Source Code](./src/plugins/import/STLLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/STLLoadPlugin.html) 
 
 Adds support for loading .stl ([Stereolithography](https://en.wikipedia.org/wiki/STL_(file_format))) files.
 
@@ -2304,11 +3200,9 @@ const mesh = await viewer.load('file.stl')
 
 ## KTX2LoadPlugin
 
-Example: https://threepipe.org/examples/#ktx2-load/
-
-Source Code: [src/plugins/import/KTX2LoadPlugin.ts](./src/plugins/import/KTX2LoadPlugin.ts)
-
-API Reference: [KTX2LoadPlugin](https://threepipe.org/docs/classes/KTX2LoadPlugin.html)
+[Example](https://threepipe.org/examples/#ktx2-load/) &mdash;
+[Source Code](./src/plugins/import/KTX2LoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/KTX2LoadPlugin.html) 
 
 Adds support for loading .ktx2 ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
 
@@ -2323,11 +3217,9 @@ const texture = await viewer.load('file.ktx2')
 
 ## KTXLoadPlugin
 
-Example: https://threepipe.org/examples/#ktx-load/
-
-Source Code: [src/plugins/import/KTXLoadPlugin.ts](./src/plugins/import/KTXLoadPlugin.ts)
-
-API Reference: [KTXLoadPlugin](https://threepipe.org/docs/classes/KTXLoadPlugin.html)
+[Example](https://threepipe.org/examples/#ktx-load/) &mdash;
+[Source Code](./src/plugins/import/KTXLoadPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/KTXLoadPlugin.html) 
 
 Adds support for loading .ktx ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
 
@@ -2346,22 +3238,20 @@ Additional plugins can be found in the [plugins](plugins/) directory.
 These add support for integrating with other libraries, adding new features, and other functionality with different licenses.
 
 ## @threepipe/plugin-tweakpane
-Tewakpane UI plugin for ThreePipe
+[Tweakpane](https://tweakpane.github.io/docs/) UI plugin for ThreePipe
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#viewer-uiconfig/
-
-Source Code: [plugins/tweakpane/src/TweakpaneUiPlugin.ts](plugins/tweakpane/src/TweakpaneUiPlugin.ts)
-
-API Reference: [TweakpaneUiPlugin](https://threepipe.org/plugins/tweakpane/docs/classes/TweakpaneUiPlugin.html)
+[Example](https://threepipe.org/examples/#tweakpane-ui-plugin/) &mdash;
+[Source Code](./plugins/tweakpane/src/TweakpaneUiPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane/docs/classes/TweakpaneUiPlugin.html) 
 
 NPM: `npm install @threepipe/plugin-tweakpane`
 
 CDN: https://threepipe.org/plugins/tweakpane/dist/index.mjs
 
 TweakpaneUiPlugin adds support for using [uiconfig-tweakpane](https://github.com/repalash/uiconfig-tweakpane)
-to create a configuration UI in applications using the [Tweakpane](https://cocopon.github.io/tweakpane/) library.
+to create a configuration UI in applications using the [Tweakpane](https://tweakpane.github.io/docs/) library.
 
 The plugin takes the [uiconfig](https://github.com/repalash/uiconfig.js)
 that's defined in the viewer and all the objects to automatically render a UI in the browser.
@@ -2381,17 +3271,49 @@ plugin.appendChild(viewer.uiConfig)
 plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
 ```
 
+## @threepipe/plugin-blueprintjs
+[Blueprint.js](https://blueprintjs.com/) UI plugin for ThreePipe
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#blueprintjs-ui-plugin/) &mdash;
+[Source Code](./plugins/blueprintjs/src/BlueprintJsUiPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/blueprintjs/docs/classes/BlueprintJsUiPlugin.html) 
+
+NPM: `npm install @threepipe/plugin-blueprintjs`
+
+CDN: https://threepipe.org/plugins/blueprintjs/dist/index.mjs
+
+BlueprintJsUiPlugin adds support for using [uiconfig-blueprint](https://github.com/repalash/uiconfig-blueprint)
+to create a configuration UI in applications using the [BlueprintJs](https://blueprintjs.com/) library.
+
+The plugin takes the [uiconfig](https://github.com/repalash/uiconfig.js)
+that's defined in the viewer and all the objects to automatically render a UI in the browser.
+ 
+```typescript
+import {IObject3D, ThreeViewer, TonemapPlugin} from 'threepipe'
+import {BlueprintJsUiPlugin} from '@threepipe/plugin-blueprintjs'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin
+const plugin = viewer.addPluginSync(new BlueprintJsUiPlugin(true)) // true to show expanded the UI by default
+
+// Add the UI for the viewer
+plugin.appendChild(viewer.uiConfig)
+// Add UI for some plugins
+plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
+```
+
 ## @threepipe/plugin-tweakpane-editor
 
 Tweakpane Editor Plugin for ThreePipe
 
 [//]: # (todo: image)
 
-Example: https://threepipe.org/examples/#tweakpane-editor/
-
-Source Code: [plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts](plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts)
-
-API Reference: [TweakpaneEditorPlugin](https://threepipe.org/plugins/tweakpane-editor/docs/classes/TweakpaneEditorPlugin.html)
+[Example](https://threepipe.org/examples/#tweakpane-editor/) &mdash;
+[Source Code](./plugins/tweakpane-editor/src/TweakpaneEditorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/TweakpaneEditorPlugi &mdash;
 
 NPM: `npm install @threepipe/plugin-tweakpane-editor`
 
@@ -2427,17 +3349,15 @@ editor.loadPlugins({
 })
 ```
 
-## @threepipe/plugin-extra-importers
+## @threepipe/plugins-extra-importers
 
 Exports several plugins to add support for various file types.
 
-Example: https://threepipe.org/examples/#extra-importer-plugins/
+[Example](https://threepipe.org/examples/#extra-importer-plugins/) &mdash;
+[Source Code](./plugins/extra-importers/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/extra-importers/docs) 
 
-Source Code: [plugins/extra-importers/src/index.ts](plugins/extra-importers/src/index.ts)
-
-API Reference: [@threepipe/plugin-extra-importers](https://threepipe.org/plugins/extra-importers/docs)
-
-NPM: `npm install @threepipe/plugin-extra-importers`
+NPM: `npm install @threepipe/plugins-extra-importers`
 
 CDN: https://threepipe.org/plugins/extra-importers/dist/index.mjs
 
@@ -2461,7 +3381,7 @@ This package exports several plugins to add support for several file types using
 To add all the plugins at once use `extraImporters`. This adds support for loading all the above file types.
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {extraImporters} from '@threepipe/plugin-extra-importers'
+import {extraImporters} from '@threepipe/plugins-extra-importers'
 
 const viewer = new ThreeViewer({...})
 viewer.addPluginsSync(extraImporters)
@@ -2474,3 +3394,119 @@ const model1 = await viewer.load<IObject3D>('data:model/3mf;base64,...')
 ```
 
 Remove the `<IObject3D>` if using javascript and not typescript.
+
+## @threepipe/plugin-blend-importer
+
+Exports [BlendImporterPlugin](https://threepipe.org/plugins/blend-importer/docs/classes/BlendLoadPlugin.html) which adds support for loading .blend files. 
+
+It uses [js.blend](https://github.com/acweathersby/js.blend) for parsing blend file structure.
+
+Note: This is still a WIP.
+Currently working: `Mesh`, `BufferGeometry` and basic `PointLight`.
+To be added: `PhysicalMaterial`, `UnlitMaterial` (similar to blender-gltf-io plugin)
+
+[Example](https://threepipe.org/examples/#blend-load/) &mdash;
+[Source Code](./plugins/blend-importer/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/blend-importer/docs) 
+
+NPM: `npm install @threepipe/plugin-blend-importer`
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(BlendLoadPlugin)
+
+// Now load any .blend file.
+const model = await viewer.load<IObject3D>('path/to/file.blend')
+
+// To load the file as a data url, use the correct mimetype
+const model1 = await viewer.load<IObject3D>('data:application/x-blender;base64,...')
+
+```
+
+[//]: # ( TODO: The plugin should parse and references to other assets and find them relative to the .blend file or the current location.)
+
+## @threepipe/plugin-geometry-generator
+
+Exports [GeometryGeneratorPlugin](https://threepipe.org/plugins/geometry-generator/docs/classes/BlendLoadPlugin.html) with several Geometry generators to create parametric and updatable geometries like plane, circle, sphere, box, torus, cylinder, cone etc.
+
+[Example](https://threepipe.org/examples/#geometry-generator-plugin/) &mdash;
+[Source Code](./plugins/geometry-generator/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/geometry-generator/docs) 
+
+NPM: `npm install @threepipe/plugin-geometry-generator`
+
+The generated geometries/meshes include the parameters in the userData and can be re-generated by changing the parameters from the UI or the plugin API.
+
+Includes the following generator which inherit from [AGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/AGeometryGenerator.html):
+- **plane**: [PlaneGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/PlaneGeometryGenerator),
+- **sphere**: [SphereGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/SphereGeometryGenerator),
+- **box**: [BoxGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/BoxGeometryGenerator),
+- **circle**: [CircleGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/CircleGeometryGenerator),
+- **torus**: [TorusGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/TorusGeometryGenerator),
+- **cylinder**: [CylinderGeometryGenerator](https://threepipe.org/plugins/geometry-generator/docs/classes/CylinderGeometryGenerator),
+
+
+Sample Usage: 
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+
+const viewer = new ThreeViewer({...})
+const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
+
+const sphere = generator.generateObject('sphere', {radius: 3})
+viewer.scene.addObject(sphere)
+
+// to update the geometry
+generator.updateGeometry(sphere.geometry, {radius: 4, widthSegments: 100})
+
+// to add a custom generator
+generator.generators.custom = new CustomGenerator('custom') // Extend from AGeometryGenerator or implement GeometryGenerator
+generator.uiConfig.uiRefresh?.()
+```
+
+## @threepipe/plugin-gaussian-splatting
+
+Exports [GaussianSplattingPlugin](https://threepipe.org/plugins/gaussian-splatting/docs/classes/GaussianSplattingPlugin.html) which adds support for loading .blend files.
+
+It uses [`three-gaussian-splat`](./plugins/gaussian-splatting/src/three-gaussian-splat), a rewrite of [@zappar/three-guassian-splat](https://github.com/zappar-xr/three-gaussian-splat) (and [gsplat.js](https://github.com/huggingface/gsplat.js) and [antimatter15/splat](https://github.com/antimatter15/splat)) for loading splat files and rendering gaussian splats.
+
+[Example](https://threepipe.org/examples/#splat-load/) &mdash;
+[Source Code](./plugins/gaussian-splatting/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/gaussian-splatting/docs)
+
+NPM: `npm install @threepipe/plugin-gaussian-splatting`
+
+Note: This is still a WIP.
+
+Currently working:
+* Importing .splat files (just array buffer of gaussian splat attributes)
+* ThreeGaussianSplatPlugin (Same as GaussianSplattingPlugin), add importer and update events to the viewer
+* GaussianSplatMaterialExtension for adding gaussian splat functionality to any material like Unlit, Physical
+* GaussianSplatMesh a subclass of Mesh2 for holding the gaussian splat geometry and a material with gaussian splat extension. also handles basic raycast in the splat geometry. (assuming simple points)
+* GaussianSplatGeometry holds the geometry data and and the sort worker. Computes correct bounding box and sphere.
+* SplatLoader for loading splat files and creating the geometry and material.
+* GaussianSplatMaterialUnlit, GaussianSplatMaterialRaw
+* GaussianSplatMaterialPhysical, working but normals are hardcoded to 0,1,0
+
+TBD: 
+* Exporting/embedding splat files into glb
+* Rendering to depth/gbuffer
+* Estimate normals/read from file
+* Lighting in GaussianSplatMaterialPhysical
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(GaussianSplattingPlugin)
+
+// Now load any .splat file.
+const model = await viewer.load<GaussianSplatMesh>('path/to/file.splat')
+
+```

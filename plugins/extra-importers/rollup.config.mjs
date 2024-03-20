@@ -5,10 +5,10 @@ import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 import license from 'rollup-plugin-license'
 import packageJson from './package.json' assert {type: 'json'};
-import path from 'path'
-import {fileURLToPath} from 'url';
+import path from 'node:path'
+import {fileURLToPath} from 'node:url';
 import postcss from 'rollup-plugin-postcss'
-import replace from 'rollup-plugin-replace'
+import replace from '@rollup/plugin-replace'
 import terser from "@rollup/plugin-terser";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,22 +47,24 @@ export default {
                 isProduction && terser()
             ]
         },
-        {
-            file: './dist/index.js',
-            ...settings,
-            name: name,
-            format: 'umd',
-            plugins: [
-                isProduction && terser()
-            ]
-        }
+        // {
+        //     file: './dist/index.js',
+        //     ...settings,
+        //     name: name,
+        //     format: 'umd',
+        //     plugins: [
+        //         isProduction && terser()
+        //     ]
+        // }
     ],
     external: Object.keys(settings.globals),
     plugins: [
         replace({
-            // If you would like DEV messages, specify 'development'
-            // Otherwise use 'production'
-            'process.env.NODE_ENV': JSON.stringify('production') // for tippy.js
+            'from \'three\'': 'from \'threepipe\'',
+            delimiters: ['', ''],
+        }),
+        replace({
+            'process.env.NODE_ENV': JSON.stringify('production'),
         }),
         postcss({
             modules: false,

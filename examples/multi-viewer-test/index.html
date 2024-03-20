@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Multiple Viewers Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, .mcanvas, .container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+        .canvas-container{
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            outline: 1px solid #464646;
+        }
+    </style>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div class="container">
+<div class="canvas-container">
+    <canvas id="mcanvas1" class="mcanvas"></canvas>
+</div>
+<div class="canvas-container">
+    <canvas id="mcanvas2" class="mcanvas"></canvas>
+</div>
+<div class="canvas-container">
+    <canvas id="mcanvas3" class="mcanvas"></canvas>
+</div>
+<div class="canvas-container">
+    <canvas id="mcanvas4" class="mcanvas"></canvas>
+</div>
+</div>
+</body>

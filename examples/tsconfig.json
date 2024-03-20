@@ -28,10 +28,12 @@
             "es2020",
             "esnext",
             "dom"
-        ]
+        ],
+        "jsx": "react"
     },
     "include": [
-        "./**/*.ts"
+        "./**/*.ts",
+        "./**/*.tsx"
     ],
     "exclude": [
         "node_modules",

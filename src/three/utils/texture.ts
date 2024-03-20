@@ -59,10 +59,20 @@ export function textureToCanvas(texture: Texture|DataTexture, maxWidth: number, 
 }
 
 export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY = false) {
+    let width, height
+    if (!window.VideoFrame) window.VideoFrame = HTMLVideoElement as any
+    if (image instanceof window.VideoFrame) {
+        width = image.displayWidth
+        height = image.displayHeight
+    } else {
+        width = image.width
+        height = image.height
+    }
+    if (window.VideoFrame as any === HTMLVideoElement) delete (window as any).VideoFrame
     const canvas = document.createElement('canvas')
     // resize it to the size of our image
-    canvas.width = Math.min(maxWidth, image.width as number)
-    canvas.height = Math.floor(1.0 + canvas.width * (image.height as number) / (image.width as number))
+    canvas.width = Math.min(maxWidth, width)
+    canvas.height = Math.floor(1.0 + canvas.width * height / width)
 
     const ctx = canvas.getContext('2d')
     if (!ctx) {
@@ -81,10 +91,10 @@ export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY 
     if ((image as ImageData).data !== undefined) { // THREE.DataTexture
         const imageData = image as ImageData
 
-        if (image.width !== canvas.width || image.height !== canvas.height) {
+        if (width !== canvas.width || height !== canvas.height) {
             const tempCanvas = document.createElement('canvas')
-            tempCanvas.width = image.width
-            tempCanvas.height = image.height
+            tempCanvas.width = width
+            tempCanvas.height = height
             const tempCtx = tempCanvas.getContext('2d')
             if (!tempCtx) {
                 console.error('textureToDataUrl: could not get temp canvas context')
@@ -106,4 +116,13 @@ export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY 
 
 export function textureToDataUrl(texture: Texture|DataTexture, maxWidth: number, flipY: boolean, mimeType?: string, quality?: number) {
     return textureToCanvas(texture, maxWidth, flipY).toDataURL(mimeType, quality)
+}
+export async function textureToBlob(texture: Texture|DataTexture, maxWidth: number, flipY: boolean, mimeType?: string, quality?: number) {
+    const canvas = textureToCanvas(texture, maxWidth, flipY)
+    return new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(blob => {
+            if (blob) resolve(blob)
+            else reject(new Error('Failed to create blob'))
+        }, mimeType, quality)
+    })
 }

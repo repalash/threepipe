@@ -8,7 +8,7 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
     public encoderPending: Promise<any>|null = null
     public encoderConfig: any = {type: 'js'}
 
-    public static DRACO_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/google/draco@1.4.1/javascript/' // https://github.com/google/draco
+    public static DRACO_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/' // https://github.com/google/draco
     // public static DRACO_LIBRARY_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/'
     // public static DRACO_LIBRARY_PATH = 'https://threejs.org/examples/jsm/libs/draco/'
 
@@ -69,6 +69,35 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
         })
         const eval2 = eval
         return eval2(jsContent + '\nDracoDecoderModule;')?.()
+    }
+
+    /**
+     * This is a hack to allow bundling the draco decoder js file with your app source
+     * See {@link DRACOLoader2.SetDecoderJsString} for example
+     */
+    static LibraryValueMap: Record<string, any> = {}
+
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    async _loadLibrary(url: string, responseType: string): Promise<any> {
+        if (DRACOLoader2.LibraryValueMap[url]) return DRACOLoader2.LibraryValueMap[url]
+        return DRACOLoader2.LibraryValueMap[url] = await super._loadLibrary(url, responseType)
+    }
+
+    /**
+     * Set the decoder js string
+     * Sample for how to set LibraryValueMap
+     * This is useful for bundling the draco decoder js file with your app source
+     * @example
+     * First put the draco_decoder.js file in your src folder, then import it in js/ts as a string
+     * ```js
+     * import draco_decoder from './libs/draco_decoder.1.5.6.js?raw' // vite will load this as a string
+     * // console.log(draco_decoder) // this should be a string with js content
+     * DRACOLoader2.SetDecoderJsString(draco_decoder)
+     * ```
+     * @param jsString - the contents of draco_decoder.js file
+     */
+    static SetDecoderJsString(jsString: string) {
+        this.LibraryValueMap['draco_decoder.js'] = jsString
     }
 
 }

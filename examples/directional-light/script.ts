@@ -1,9 +1,10 @@
 import {
     _testFinish,
     Box3B,
-    DirectionalLight,
+    DirectionalLight2,
     IObject3D,
     Mesh,
+    Object3DWidgetsPlugin,
     PCFSoftShadowMap,
     PhysicalMaterial,
     PlaneGeometry,
@@ -11,6 +12,7 @@ import {
     ThreeViewer,
     Vector3,
 } from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 
@@ -24,6 +26,7 @@ async function init() {
                 autoSetEnvironment: true, // when hdr/exr is dropped
             },
         },
+        plugins: [Object3DWidgetsPlugin],
     })
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))
@@ -44,23 +47,25 @@ async function init() {
     ground.receiveShadow = true
     viewer.scene.addObject(ground)
 
-    const directionalLight = viewer.scene.addObject(new DirectionalLight(0xffffff, 4))
-    directionalLight.position.set(2, 2, 2)
-    directionalLight.lookAt(0, 0, 0)
-    directionalLight.castShadow = true
-    directionalLight.shadow.mapSize.setScalar(1024)
-    directionalLight.shadow.camera.near = 0.1
-    directionalLight.shadow.camera.far = 10
-    directionalLight.shadow.camera.top = 2
-    directionalLight.shadow.camera.bottom = -2
-    directionalLight.shadow.camera.left = -2
-    directionalLight.shadow.camera.right = 2
+    const light = viewer.scene.addObject(new DirectionalLight2(0xffffff, 4))
+    light.position.set(2, 2, 2)
+    light.lookAt(0, 0, 0)
+    light.castShadow = true
+    light.shadow.mapSize.setScalar(1024)
+    light.shadow.camera.near = 0.1
+    light.shadow.camera.far = 10
+    light.shadow.camera.top = 2
+    light.shadow.camera.bottom = -2
+    light.shadow.camera.left = -2
+    light.shadow.camera.right = 2
 
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    rt.addTarget(()=>directionalLight.shadow.map || undefined, 'shadow', true, true, true)
+    rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
 
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    ui.appendChild(light.uiConfig, {expanded: true})
 }
 
 init().then(_testFinish)

@@ -1,5 +1,6 @@
 import {
     BaseEvent,
+    CanvasTexture,
     Color,
     Event,
     EventDispatcher,
@@ -9,7 +10,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {Class, createCanvasElement, onChange, serialize} from 'ts-browser-helpers'
+import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -24,6 +25,7 @@ import {
 import {ViewerRenderManager} from './ViewerRenderManager'
 import {
     convertArrayBufferToStringsInMeta,
+    EasingFunctionType,
     getEmptyMeta,
     GLStatsJS,
     IDialogWrapper,
@@ -48,16 +50,22 @@ import {
     RootSceneImportResult,
 } from '../assetmanager'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
+import {uiConfig, UiObjectConfig, uiPanelContainer} from 'uiconfig.js'
+import {IRenderTarget} from '../rendering'
+import type {CanvasSnapshotPlugin, FileTransferPlugin} from '../plugins'
+import {CameraViewPlugin, ProgressivePlugin} from '../plugins'
 // noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
-import {uiConfig, uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
-import {IRenderTarget} from '../rendering'
-import type {ProgressivePlugin} from '../plugins'
-import {TonemapPlugin} from '../plugins'
+// noinspection ES6PreferShortImport
+import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
+import {Easing} from 'popmotion'
+import {OrbitControls3} from '../three'
 
-export type IViewerEvent = BaseEvent & {
-    type: 'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
 export interface ISerializedConfig {
@@ -111,19 +119,49 @@ export interface ThreeViewerOptions {
      */
     rgbm?: boolean
     /**
-     * Use rendered gbuffer as depth-prepass / z-prepass.
+     * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin)
+     * todo: It will be disabled when there are any transparent/transmissive objects with render to depth buffer enabled.
      */
     zPrepass?: boolean
+    /**
+     * Force z-prepass even if there are transparent/transmissive objects with render to depth buffer enabled.
+     */
+    forceZPrepass?: boolean // todo
 
     /*
      * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
      * Same as pixelRatio in three.js
      * Can be set to `window.devicePixelRatio` to render at device resolution in browsers.
-     * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile.
+     * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile. This is set when 'auto' is passed.
      */
-    renderScale?: number
+    renderScale?: number | 'auto'
 
     debug?: boolean
+
+    /**
+     * Add initial plugins.
+     */
+    plugins?: (IViewerPluginSync | Class<IViewerPluginSync>)[]
+
+    load?: {
+        /**
+         * Load one or more source files
+         */
+        src?: ValOrArr<string | IAsset | null>
+
+        /**
+         * Load environment map
+         */
+        environment?: string | IAsset | ITexture | undefined | null
+
+        /**
+         * Load background map
+         */
+        background?: string | IAsset | ITexture | undefined | null
+
+    }
+    onLoad?: (results: any) => void
+
 
     /**
      * TonemapPlugin is added to the viewer if this is true.
@@ -170,7 +208,7 @@ export interface ThreeViewerOptions {
  * The ThreeViewer is the main class in the framework to manage a scene, render and add plugins to it.
  * @category Viewer
  */
-@uiFolderContainer('Viewer')
+@uiPanelContainer('Viewer')
 export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes> {
     public static readonly VERSION = VERSION
     public static readonly ConfigTypeSlug = 'vjson'
@@ -197,6 +235,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     readonly assetManager: AssetManager
     @uiConfig() @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
+    get materialManager() {
+        return this.assetManager.materials
+    }
     public readonly plugins: Record<string, IViewerPlugin> = {}
     /**
      * Scene with object hierarchy used for rendering
@@ -213,10 +254,19 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     readonly debug: boolean
 
     /**
+     * Number of times to run composer render. If set to more than 1, preRender and postRender events will also be called multiple times.
+     */
+    rendersPerFrame = 1
+
+    /**
      * Get the HTML Element containing the canvas
      * @returns {HTMLElement}
      */
     get container(): HTMLElement {
+        // todo console.warn('container is deprecated, NOTE: subscribe to events when the canvas is moved to another container')
+        if (this._canvas.parentElement !== this._container) {
+            this.console.error('ThreeViewer: Canvas is not in the container, this might cause issues with some plugins.')
+        }
         return this._container
     }
 
@@ -271,17 +321,24 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     private _tempQuat: Quaternion = new Quaternion()
 
     /**
+     * If any of the viewers are in debug mode, this will be true.
+     * This is required for debugging/logging in some cases.
+     */
+    public static ViewerDebugging = false // todo use in shaderReplaceString
+
+    /**
      * Create a viewer instance for using the webgi viewer SDK.
      * @param options - {@link ThreeViewerOptions}
      */
-    constructor({debug = true, ...options}: ThreeViewerOptions) {
+    constructor({debug = false, ...options}: ThreeViewerOptions) {
         super()
         this.debug = debug
+        if (debug) ThreeViewer.ViewerDebugging = true
         this._canvas = options.canvas || createCanvasElement()
         let container = options.container
         if (container && !options.canvas) container.appendChild(this._canvas)
         if (!container) container = this._canvas.parentElement ?? undefined
-        if (!container) throw new Error('No container.')
+        if (!container) throw new Error('No container(or canvas).')
         this._container = container
         this.setDirty = this.setDirty.bind(this)
         this._animationLoop = this._animationLoop.bind(this)
@@ -306,7 +363,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
             if (cam && cam.canUserInteract) {
-                const d = this.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
+                const d = this.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
                 // if (d && d > 0) delta = d
                 if (d !== undefined && d === 0) return // not converged yet.
                 // if d < 0 or undefined: not recording, do nothing
@@ -360,7 +417,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             zPrepass: options.zPrepass ?? options.useGBufferDepth ?? false,
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
             screenShader: options.screenShader,
-            renderScale: options.renderScale,
+            renderScale: typeof options.renderScale === 'string' ? options.renderScale === 'auto' ?
+                Math.min(2, window.devicePixelRatio) : parseFloat(options.renderScale) :
+                options.renderScale,
         })
         this.renderManager.addEventListener('animationLoop', this._animationLoop as any)
         this.renderManager.addEventListener('resize', ()=> this._scene.mainCamera.refreshAspect())
@@ -387,10 +446,17 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (options.tonemap !== false) {
             this.addPluginSync(new TonemapPlugin())
         }
+        for (const p of options.plugins ?? []) this.addPluginSync(p)
 
         this.console.log('ThreePipe Viewer instance initialized, version: ', ThreeViewer.VERSION)
 
-
+        if (options.load) {
+            const sources = [options.load.src].flat().filter(s=> s)
+            const promises: Promise<any>[] = sources.map(async s=> s && this.load(s))
+            if (options.load.environment) promises.push(this.setEnvironmentMap(options.load.environment))
+            if (options.load.background) promises.push(this.setBackgroundMap(options.load.background))
+            Promise.all(promises).then(options.onLoad)
+        }
     }
 
     /**
@@ -399,7 +465,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param obj
      * @param options
      */
-    async load<T extends ImportResult = ImportResult>(obj: string | IAsset | null, options?: ImportAddOptions) {
+    async load<T extends ImportResult = ImportResult>(obj: string | IAsset | File | null, options?: ImportAddOptions) {
         if (!obj) return
         return await this.assetManager.addAssetSingle<T>(obj, options)
     }
@@ -421,7 +487,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param setBackground - Set the background image of the scene from the same map.
      * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setEnvironmentMap(map: string | IAsset | null | ITexture, {setBackground = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
+    async setEnvironmentMap(map: string | IAsset | null | ITexture | undefined, {setBackground = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
         this._scene.environment = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
         if (setBackground) return this.setBackgroundMap(this._scene.environment)
         return this._scene.environment
@@ -433,7 +499,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param setEnvironment - Set the environment map of the scene from the same map.
      * @param options - Options for importing the asset. See {@link ImportAssetOptions}
      */
-    async setBackgroundMap(map: string | IAsset | null | ITexture, {setEnvironment = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
+    async setBackgroundMap(map: string | IAsset | null | ITexture | undefined, {setEnvironment = false, ...options}: ImportAssetOptions&{setBackground?: boolean} = {}): Promise<ITexture | null> {
         this._scene.background = map && !(<ITexture>map).isTexture ? await this.assetManager.importer.importSingle<ITexture>(map as string|IAsset, options) || null : <ITexture>map || null
         if (setEnvironment) return this.setEnvironmentMap(this._scene.background)
         return this._scene.background
@@ -460,7 +526,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
     }
 
-    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null> {
+    async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
+        const plugin = this.getPlugin<CanvasSnapshotPlugin>('CanvasSnapshotPlugin')
+        if (plugin) {
+            return plugin.getFile('snapshot.' + mimeType.split('/')[1], {mimeType, quality, waitForProgressive: true})
+        }
         const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
             this._canvas.toBlob((blob) => {
                 resolve(blob)
@@ -475,7 +545,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         })
     }
 
-    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 90} = {}): Promise<string | null> {
+    async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
         return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
@@ -579,20 +649,20 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             // Check if the renderManger is dirty, which happens when it's reset above or if any pass in the composer is dirty
             const needsRender = this.renderManager.needsRender
             if (needsRender) {
+                for (let j = 0; j < this.rendersPerFrame; j++) {
+                    this.dispatchEvent({type: 'preRender', target: this})
 
-                this.dispatchEvent({type: 'preRender', target: this})
-
-                if (this.debug) this.renderManager.render(this._scene)
-                else {
                     try {
-                        this.renderManager.render(this._scene)
+                        this._scene.renderCamera = this._scene.mainCamera
+                        this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
                     } catch (e) {
                         this.console.error(e)
+                        if (this.debug) throw e
                         // this.enabled = false
                     }
-                }
 
-                this.dispatchEvent({type: 'postRender', target: this})
+                    this.dispatchEvent({type: 'postRender', target: this})
+                }
 
             }
 
@@ -710,7 +780,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Add multiple plugins to the viewer(sync).
      * @param plugins - List of plugin instances or classes
      */
-    async addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): Promise<void> {
+    addPluginsSync(plugins: (IViewerPluginSync | Class<IViewerPluginSync>)[]): void {
         for (const p of plugins) this.addPluginSync(p)
     }
 
@@ -1009,14 +1079,35 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         return await MetaImporter.ImportMeta(meta, extraResources)
     }
 
-    async doOnce<TRet>(event: IViewerEventTypes, func: (...args: any[]) => TRet): Promise<TRet> {
+    async doOnce<TRet>(event: IViewerEventTypes, func?: (...args: any[]) => TRet): Promise<TRet|undefined> {
         return new Promise((resolve) => {
             const listener = async(...args: any[]) => {
                 this.removeEventListener(event, listener)
-                resolve(await func(...args))
+                resolve(await func?.(...args))
             }
             this.addEventListener(event, listener)
         })
+    }
+
+    dispatchEvent(event: IViewerEvent) {
+        super.dispatchEvent(event)
+        super.dispatchEvent({...event, type: '*', eType: event.type})
+    }
+
+    /**
+     * Uses the {@link FileTransferPlugin} to export a blob. If the plugin is not available, it will download the blob.
+     * FileTransferPlugin can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
+     * @param blob - The blob or file to export/download
+     * @param name
+     */
+    async exportBlob(blob: Blob|File, name?: string) {
+        const tr = this.getPlugin<FileTransferPlugin>('FileTransferPlugin')
+        name = name ?? (blob as File).name ?? 'file'
+        if (!tr) {
+            downloadBlob(blob, name)
+            return
+        }
+        await tr.exportFile(blob, name)
     }
 
     private _setActiveCameraView(event: any = {}): void {
@@ -1025,22 +1116,14 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
                 this.console.warn('Cannot find camera', event)
                 return
             }
-            this._scene.mainCamera.copy(event.camera)
-            const worldPos = event.camera.getWorldPosition(this._scene.mainCamera.position)
-            // camera.getWorldQuaternion(this.quaternion) // todo: do if autoLookAtTarget is false
-            if (this._scene.mainCamera.parent) {
-                this._scene.mainCamera.position.copy(this._scene.mainCamera.parent.worldToLocal(worldPos))
-            //     this.quaternion.premultiply(this.parent.quaternion.clone().invert())
-            }
-            this._scene.mainCamera.setDirty()
+            const camera = this._scene.mainCamera
+            camera.setViewFromCamera(event.camera) // default is worldSpace
         } else if (event.type === 'activateMain')
             this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
     }
 
     private _resolvePluginOrClass<T extends IViewerPlugin>(plugin: T | Class<T>, ...args: ConstructorParameters<Class<T>>): T {
         let p: T
-        if ((plugin as Class<IViewerPlugin>).prototype) p = new (plugin as Class<T>)(...args)
-        else p = plugin as T
         if ((plugin as Class<IViewerPlugin>).prototype) {
             const p1 = this.getPlugin(plugin as Class<T>)
             if (p1) {
@@ -1091,15 +1174,29 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     //     this.fromJSON(config, config.resources)
     // }
 
-    // todo
-    // public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
-    //     const camViews = this.getPluginByType<CameraViewPlugin>('CameraViews')
-    //     if (!camViews) {
-    //         this.console.error('CameraViews plugin is required for fitToView to work')
-    //         return
-    //     }
-    //     await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: (this.scene.activeCamera.getControls<OrbitControls3>()?.minDistance ?? 0.5) + 0.5, max: 1000.0})
-    // }
+    public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
+        const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
+        if (!camViews) {
+            this.console.error('CameraViewPlugin (CameraViews) is required for fitToView to work')
+            return
+        }
+        await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: ((<OrbitControls3> this.scene.mainCamera.controls)?.minDistance ?? 0.5) + 0.5, max: 1000.0})
+    }
+
+    private _canvasTexture?: CanvasTexture&ITexture
+
+    /**
+     * Create and get a three.js CanvasTexture from the viewer's canvas.
+     */
+    get canvasTexture(): CanvasTexture {
+        if (!this._canvas) throw new Error('Canvas not found')
+        if (!this._canvasTexture) {
+            this._canvasTexture = new CanvasTexture(this._canvas)
+            this._canvasTexture.flipY = false
+            this._canvasTexture.needsUpdate = true
+        }
+        return this._canvasTexture
+    }
 
     // todo: create/load texture utils
 

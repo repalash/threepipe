@@ -6,6 +6,8 @@ const viewer = new ThreeViewer({
     msaa: true,
 })
 
+// Note: see also: CanvasSnapshotPlugin
+
 async function init() {
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')

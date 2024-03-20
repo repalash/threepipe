@@ -14,7 +14,7 @@ import {
     Vector2,
     WebGLRenderer,
 } from 'three'
-import {shaderReplaceString} from '../../utils/shader-helpers'
+import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
     IMaterial,
     IMaterialEvent,
@@ -22,8 +22,8 @@ import {
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
+    IMaterialUserData,
 } from '../IMaterial'
-import {SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
@@ -37,6 +37,8 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     public static readonly TypeSlug = 'pmat'
     public static readonly TYPE = 'PhysicalMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
+
+    userData: IMaterialUserData
 
     public readonly isPhysicalMaterial = true
 
@@ -58,12 +60,13 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
 
     constructor({customMaterialExtensions, ...parameters}: MeshPhysicalMaterialParameters & IMaterialParameters = {}) {
-        super(parameters)
+        super()
         this.fog = false
         this.attenuationDistance = 0 // infinite distance (for Ui)
         this.setDirty = this.setDirty.bind(this)
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension
@@ -123,7 +126,8 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
-            this.setDirty({uiChangeEvent: ev, needsUpdate: false, refreshUi: true})
+            // todo set needsUpdate true only for properties that require it like maps.
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
         },
         children: [
             ...iMaterialUI.base(this),
@@ -171,7 +175,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
 
-        this.userData.uuid = this.uuid // just in case
+        this.userData.uuid = this.uuid
         return this
     }
 
@@ -211,6 +215,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
     // endregion
 
+    // used for serialization
     static readonly MaterialProperties = {
         // keep updated with properties in MeshStandardMaterial.js
         ...threeMaterialPropList,

@@ -19,7 +19,7 @@ import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
 import {IMaterial, IMaterialEvent, IMaterialSetDirtyOptions} from '../IMaterial'
-import {isInScene} from '../../three'
+import {isInScene} from '../../three/utils'
 
 /**
  * Map of all material properties and their default values in three.js - Material.js
@@ -75,7 +75,7 @@ export const threeMaterialPropList = {
 export const iMaterialCommons = {
     threeMaterialPropList,
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
-        this.needsUpdate = true
+        if (options?.needsUpdate !== false) this.needsUpdate = true
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },

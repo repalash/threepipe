@@ -16,6 +16,7 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
         {ctor: ()=>new SimpleJSONExporter(), ext: ['json']},
         {ctor: ()=>new SimpleTextExporter(), ext: ['txt', 'text']},
         {ctor: ()=>new EXRExporter2(), ext: ['exr']},
+        // {ctor: ()=>new EXRExporter2(), ext: ['png', 'jpeg', 'webp']}, // todo
         // {ctor: ()=>new GLTFDracoExporter(), ext: ['gltf', 'glb']},
     ]
 

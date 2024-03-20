@@ -5,6 +5,7 @@ export class GLStatsJS {
 
     constructor(private _container: HTMLElement) {
         this._stats.dom.id = 'stats-js'
+        this._stats.dom.style.position = 'absolute'
         this._stats.dom.style.left = 'unset'
         this._stats.dom.style.right = '0'
 

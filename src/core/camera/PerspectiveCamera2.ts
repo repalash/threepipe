@@ -4,12 +4,13 @@ import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
-import {OrbitControls3} from '../../three'
+import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
 import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig} from '../object/IObjectUi'
+import {CameraView, ICameraView} from './CameraView'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
@@ -45,14 +46,18 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize() focus: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    // @uiSlider('Zoom', [0.001, 20], 0.001)
+    @uiSlider('FoV Zoom', [0.001, 10], 0.001)
     @serialize() zoom: number
 
-    @uiVector('Position')
+    @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly position: Vector3
 
-    @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiVector('Target')
+    /**
+     * The target position of the camera (where the camera looks at). Also syncs with the controls.target, so it's not required to set that separately.
+     * Note: this is always in world-space
+     * Note: {@link autoLookAtTarget} must be set to trye to make the camera look at the target when no controls are enabled
+     */
+    @uiVector('Target', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
     /**
@@ -83,19 +88,28 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         far = 50
 
     /**
+     * Automatically make the camera look at the {@link target} on {@link setDirty} call
+     * Defaults to false. Note that this must be set to true to make the camera look at the target without any controls
+     */
+    @bindToValue({obj: 'userData', onChange: 'setDirty'})
+        autoLookAtTarget = false // bound to userData so that it's saved in the glb.
+
+    /**
      * Automatically manage near and far clipping planes based on scene size.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        autoNearFar = true
+        autoNearFar = true // bound to userData so that it's saved in the glb.
 
     /**
      * Minimum near clipping plane allowed. (Distance from camera)
+     * Used in RootScene when {@link autoNearFar} is true.
      * @default 0.2
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        minNearPlane = 0.2
+        minNearPlane = 0.5
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
+     * Used in RootScene when {@link autoNearFar} is true.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         maxFarPlane = 1000
@@ -103,7 +117,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
         super(fov, aspect)
         this._canvas = domElement
-        this.autoAspect = autoAspect || !!domElement
+        this.autoAspect = autoAspect ?? !!domElement
 
         iCameraCommons.upgradeCamera.call(this) // todo: test if autoUpgrade = false works as expected if we call upgradeObject3D externally after constructor, because we have setDirty, refreshTarget below.
 
@@ -121,7 +135,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
 
         // const ae = this._canvas.addEventListener
-        // todo: this breaks UI.
+        // todo: this breaks tweakpane UI.
         // this._canvas.addEventListener = (type: string, listener: any, options1: any) => { // see https://github.com/mrdoob/three.js/pull/19782
         //     ae(type, listener, type === 'wheel' && typeof options1 !== 'boolean' ? {
         //         ...typeof options1 === 'object' ? options1 : {},
@@ -138,21 +152,44 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     // @serialize('camOptions') //todo handle deserialization of this
 
     // region interactionsEnabled
-    private _interactionsEnabled = true
+
+    // private _interactionsEnabled = true
+    //
+    // get interactionsEnabled(): boolean {
+    //     return this._interactionsEnabled
+    // }
+    //
+    // set interactionsEnabled(value: boolean) {
+    //     if (this._interactionsEnabled !== value) {
+    //         this._interactionsEnabled = value
+    //         this.refreshCameraControls(true)
+    //     }
+    // }
+
+    private _interactionsDisabledBy = new Set<string>()
+
+    /**
+     * If interactions are enabled for this camera. It can be disabled by some code or plugin.
+     * see also {@link setInteractions}
+     * @deprecated use {@link canUserInteract} to check if the user can interact with this camera
+     * @readonly
+     */
+    get interactionsEnabled(): boolean {
+        return this._interactionsDisabledBy.size === 0
+    }
+
+    setInteractions(enabled: boolean, by: string): void {
+        const size = this._interactionsDisabledBy.size
+        if (enabled) {
+            this._interactionsDisabledBy.delete(by)
+        } else {
+            this._interactionsDisabledBy.add(by)
+        }
+        if (size !== this._interactionsDisabledBy.size) this.refreshCameraControls(true)
+    }
 
     get canUserInteract() {
-        return this._interactionsEnabled && this.isMainCamera && this.controlsMode !== ''
-    }
-
-    get interactionsEnabled(): boolean {
-        return this._interactionsEnabled
-    }
-
-    set interactionsEnabled(value: boolean) {
-        if (this._interactionsEnabled !== value) {
-            this._interactionsEnabled = value
-            this.refreshCameraControls(true)
-        }
+        return this._interactionsDisabledBy.size === 0 && this.isMainCamera && this.controlsMode !== ''
     }
 
     // endregion
@@ -162,7 +199,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     setDirty(options?: ICameraSetDirtyOptions|Event): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (options?.key === 'fov') this.updateProjectionMatrix()
+        if (options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
 
         this.getWorldPosition(this._positionWorld)
 
@@ -259,7 +296,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
         // todo: only for orbit control like controls?
         if (this._controls) {
-            const ce = this.interactionsEnabled
+            const ce = this.canUserInteract
             this._controls.enabled = ce
             if (ce) this.up.copy(Object3D.DEFAULT_UP)
         }
@@ -316,6 +353,59 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     // endregion
 
+    // region camera views
+
+    getView<T extends ICameraView = CameraView>(worldSpace = true, _view?: T) {
+        const up = new Vector3()
+        this.updateWorldMatrix(true, false)
+        const matrix = this.matrixWorld
+        up.x = matrix.elements[4]
+        up.y = matrix.elements[5]
+        up.z = matrix.elements[6]
+        up.normalize()
+        const view = _view || new CameraView()
+        view.name = this.name
+        view.position.copy(this.position)
+        view.target.copy(this.target)
+        view.quaternion.copy(this.quaternion)
+        view.zoom = this.zoom
+        // view.up.copy(up)
+        const parent = this.parent
+        if (parent) {
+            if (worldSpace) {
+                view.position.applyMatrix4(parent.matrixWorld)
+                this.getWorldQuaternion(view.quaternion)
+                // target, up is already in world space
+            } else {
+                up.transformDirection(parent.matrixWorld.clone().invert())
+                // pos is already in local space
+                // target should always be in world space
+            }
+        }
+        view.isWorldSpace = worldSpace
+        view.uiConfig?.uiRefresh?.(true, 'postFrame')
+        return view as T
+    }
+
+    setView(view: ICameraView) {
+        this.position.copy(view.position)
+        this.target.copy(view.target)
+        // this.up.copy(view.up)
+        this.quaternion.copy(view.quaternion)
+        this.zoom = view.zoom
+        this.setDirty()
+    }
+
+    setViewFromCamera(camera: Camera|ICamera, distanceFromTarget?: number, worldSpace = true) {
+        // todo: getView, setView can also be used, do we need copy? as that will copy all the properties
+        this.copy(camera, undefined, distanceFromTarget, worldSpace)
+    }
+
+    setViewToMain(eventOptions: Partial<ICameraEvent>) {
+        this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
+    }
+
+    // endregion
     // region utils/others
 
     // for shader prop updater
@@ -340,7 +430,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     // region ui
 
     private _camUi: UiObjectConfig[] = [
-        ...generateUiConfig(this),
+        ...generateUiConfig(this) || [],
         {
             type: 'input',
             label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',
@@ -420,13 +510,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     }
 
     /**
-     * @deprecated
+     * @deprecated - use setDirty directly
      * @param setDirty
      */
     targetUpdated(setDirty = true): void {
         if (setDirty) this.setDirty()
     }
-
 
     // setCameraOptions<T extends Partial<IPerspectiveCameraOptions | IOrthographicCameraOptions>>(value: T, setDirty = true): void {
     //     const ops: any = {...value}
@@ -502,7 +591,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
     getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
     getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number) => this
+    copy: (source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this
@@ -514,4 +603,23 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
 }
 
-
+/**
+ * Empty class with the constructor same as PerspectiveCamera in three.js.
+ * This can be used to remain compatible with three.js construct signature.
+ */
+export class PerspectiveCamera0 extends PerspectiveCamera2 {
+    constructor(fov?: number, aspect?: number, near?: number, far?: number) {
+        super(undefined, undefined, undefined, fov, aspect || 1)
+        if (near || far) {
+            this.autoNearFar = false
+            if (near) {
+                this.near = near
+                this.minNearPlane = near
+            }
+            if (far) {
+                this.far = far
+                this.maxFarPlane = far
+            }
+        }
+    }
+}

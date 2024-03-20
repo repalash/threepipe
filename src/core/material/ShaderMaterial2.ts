@@ -10,7 +10,7 @@ import {
     ShaderMaterialParameters,
     WebGLRenderer,
 } from 'three'
-import {IMaterial, IMaterialEvent, IMaterialEventTypes, IMaterialParameters} from '../IMaterial'
+import {IMaterial, IMaterialEvent, IMaterialEventTypes, IMaterialParameters, IMaterialUserData} from '../IMaterial'
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 
@@ -38,6 +38,9 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
     }
 
     assetType = 'material' as const
+
+    userData: IMaterialUserData
+
     public readonly isAShaderMaterial = true
 
     readonly appliedMeshes: Set<any> = new Set()
@@ -51,13 +54,14 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
     type: 'ShaderMaterial' | 'RawShaderMaterial' = 'ShaderMaterial'
 
     constructor({customMaterialExtensions, ...parameters}: ShaderMaterialParameters & IMaterialParameters = {}, isRawShaderMaterial = false) {
-        super(parameters)
+        super()
         this.isRawShaderMaterial = isRawShaderMaterial
         if (isRawShaderMaterial) {
             this.type = 'RawShaderMaterial'
         }
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
+        this.setValues(parameters)
     }
 
     // region Material Extension

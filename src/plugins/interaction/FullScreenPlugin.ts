@@ -95,11 +95,11 @@ export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {
         }
     }
     @uiButton('Toggle FullScreen')
-    async toggle(elem: HTMLElement): Promise<void> {
+    async toggle(element?: HTMLElement): Promise<void> {
         if (this.isFullScreen()) {
             return this.exit()
         } else {
-            return this.enter(elem)
+            return this.enter(element)
         }
     }
 

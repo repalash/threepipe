@@ -8,7 +8,7 @@ import packageJson from './package.json' assert {type: 'json'};
 import path from 'path'
 import {fileURLToPath} from 'url';
 import postcss from 'rollup-plugin-postcss'
-import replace from 'rollup-plugin-replace'
+import replace from '@rollup/plugin-replace'
 import terser from "@rollup/plugin-terser";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +20,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 const settings = {
     globals: {
+        "three": "threepipe", // just incase someone uses three
         "threepipe": "threepipe",
         "@threepipe/plugin-tweakpane": "@threepipe/plugin-tweakpane"
     },
@@ -60,9 +61,11 @@ export default {
     external: Object.keys(settings.globals),
     plugins: [
         replace({
-            // If you would like DEV messages, specify 'development'
-            // Otherwise use 'production'
-            'process.env.NODE_ENV': JSON.stringify('production') // for tippy.js
+            'from \'three\'': 'from \'threepipe\'',
+            delimiters: ['', ''],
+        }),
+        replace({
+            'process.env.NODE_ENV': JSON.stringify('production'),
         }),
         postcss({
             modules: false,

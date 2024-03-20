@@ -3,6 +3,7 @@ import {createRenderTargetKey, CreateRenderTargetOptions, IRenderTarget} from '.
 import {
     BaseEvent,
     ClampToEdgeWrapping,
+    DepthFormat,
     DepthTexture,
     EventDispatcher,
     LinearFilter,
@@ -11,6 +12,7 @@ import {
     RGBAFormat,
     Texture,
     UnsignedByteType,
+    UnsignedIntType,
     Vector2,
     WebGLCubeRenderTarget,
     WebGLMultipleRenderTargets,
@@ -58,6 +60,8 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         format = RGBAFormat,
         depthBuffer = true,
         depthTexture = false,
+        depthTextureType = UnsignedIntType,
+        depthTextureFormat = DepthFormat,
         size = undefined,
         textureCount = 1,
         ...op
@@ -68,7 +72,8 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         size = size || this.renderSize.clone().multiplyScalar(this.renderScale * (sizeMultiplier = sizeMultiplier || 1))
         size.width = Math.floor(size.width)
         size.height = Math.floor(size.height)
-        const depthTex = depthTexture ? new DepthTexture(size.width, size.height, UnsignedByteType) : undefined
+        const depthTex = depthTexture ? new DepthTexture(size.width, size.height, depthTextureType) : undefined
+        if (depthTex) depthTex.format = depthTextureFormat
         const target = this.createTargetCustom<T>(textureCount > 1 ? {
             width: size.width,
             height: size.height,
@@ -107,8 +112,8 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
             throw 'Not a temp target'
         }
         if (this._releasedTempTargets[key].length > this.maxTempPerKey) {
+            this.removeTrackedTarget(target)
             target.dispose()
-            this._trackedTempTargets.splice(this._trackedTempTargets.indexOf(target), 1)
         } else this._releasedTempTargets[key].push(target)
     }
 

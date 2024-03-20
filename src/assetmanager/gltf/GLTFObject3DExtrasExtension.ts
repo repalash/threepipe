@@ -15,7 +15,7 @@ export class GLTFObject3DExtrasExtension {
             const scenes = result.scenes || (result.scene ? [result.scene] : [])
             scenes.forEach(s=>{
                 s.traverse((o: any)=>{
-                    if (!o.isObject3D) return
+                    if (!o || !o.isObject3D) return
                     const ext = o.userData?.gltfExtensions?.[this.WebGiObject3DExtrasExtension]
                     if (!ext) {
                         if (o.isLight && !o.isAmbientLight) o.castShadow = true

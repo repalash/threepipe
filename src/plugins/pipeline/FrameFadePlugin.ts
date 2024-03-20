@@ -43,6 +43,7 @@ export class FrameFadePlugin
         this.stopTransition = this.stopTransition.bind(this)
         this._fadeCam = this._fadeCam.bind(this)
         this._fadeMat = this._fadeMat.bind(this)
+        this.isDisabled = ((sup)=>()=>!this._pointerEnabled || sup())(this.isDisabled)
     }
 
     public async startTransition(duration: number) { // duration in ms
@@ -117,31 +118,13 @@ export class FrameFadePlugin
 
     }
 
-
-    private _disabledBy: string[] = []
-
-    disable(name: string) {
-        if (!this._disabledBy.includes(name)) {
-            this._disabledBy.push(name)
-        }
-    }
-    enable(name: string) {
-        const i = this._disabledBy.indexOf(name)
-        if (i >= 0) {
-            this._disabledBy.splice(i, 1)
-        }
-    }
-    isDisabled() {
-        return !this._pointerEnabled || this._disabledBy.length > 0 || !this.enabled
-    }
-
     setDirty() {
-        if (!this.enabled) return
+        if (this.isDisabled()) return
         this._viewer?.setDirty()
     }
 
     get dirty() {
-        return this.enabled && !!this._pass && this._pass.fadeTimeState > 0
+        return !this.isDisabled() && !!this._pass && this._pass.fadeTimeState > 0
     }
 
     set dirty(_: boolean) {
@@ -153,7 +136,10 @@ export class FrameFadePlugin
     }
 
     get canFrameFade() {
-        return this._target && this._pointerEnabled && this.enabled && this.dirty && this._pass && this._pass.fadeTimeState > 0.001
+        return this._target && this._pointerEnabled &&
+            this.dirty && this._pass &&
+            this._pass.fadeTimeState > 0.001 &&
+            this._viewer && this._viewer.scene.renderCamera === this._viewer.scene.mainCamera
     }
 
     get lastFrame() {
