@@ -78,13 +78,12 @@ async function init() {
         autoScaleRadius: 0.5,
         clearSceneObjects: false,
     }
-    let i = 0
     const models = await Promise.allSettled(urls.map(async url =>
         viewer.load<IObject3D>(url, options).then(res => {
             if (!res) return
+            const i = urls.indexOf(url)
             res.position.set(i % 4 - 1.5, 0, Math.floor(i / 4) - 1.5).multiplyScalar(1)
             res.setDirty()
-            i++
             return res
         })))
 

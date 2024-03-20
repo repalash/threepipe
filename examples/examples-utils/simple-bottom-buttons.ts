@@ -1,4 +1,4 @@
-export function createSimpleButtons(buttons: Record<string, (btn: HTMLButtonElement) => void>) {
+export function createSimpleButtons(buttons: Record<string, (btn: HTMLButtonElement) => void>, container = document.body) {
     const entries = Object.entries(buttons)
     entries.forEach(([text, onclick], i) => {
         const btn = document.createElement('button')
@@ -8,6 +8,6 @@ export function createSimpleButtons(buttons: Record<string, (btn: HTMLButtonElem
         btn.style.right = '3rem'
         btn.style.zIndex = '10000'
         btn.onclick = async() => onclick(btn)
-        document.body.appendChild(btn)
+        container.appendChild(btn)
     })
 }

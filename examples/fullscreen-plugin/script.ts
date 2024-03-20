@@ -16,12 +16,12 @@ async function init() {
     createSimpleButtons({
         ['Enter/Exit fullscreen']: () => {
             if (fullScreenPlugin.isFullScreen()) fullScreenPlugin.exit()
-            else fullScreenPlugin.enter(document.body) // parameter is optional, if not specified, the viewer canvas will be used
+            else fullScreenPlugin.enter(viewer.container) // parameter is optional, if not specified, the viewer canvas will be used
 
             // or just use
             // fullScreenPlugin.toggle(document.body)
         },
-    })
+    }, viewer.container)
 
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
