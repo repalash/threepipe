@@ -10,7 +10,6 @@ import {
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
-    timeout,
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -61,7 +60,7 @@ async function init() {
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>directionalLight.shadow.map || undefined, 'shadow', true, true, true)
 
-    viewer.addPluginSync(new ProgressivePlugin(200))
+    viewer.addPluginSync(new ProgressivePlugin((window as any).TESTING ? 20 : 200))
     viewer.addEventListener('postFrame', ()=>{
         if (viewer.renderManager.frameCount < 1) return
 
@@ -77,8 +76,9 @@ async function init() {
 
     viewer.addPluginSync(TweakpaneUiPlugin).setupPlugins(ProgressivePlugin)
 
-    await timeout(3000) // for convergence
+    await viewer.getPlugin(ProgressivePlugin)?.convergedPromise
 
+    console.log('converged')
 }
 
 init().finally(_testFinish)

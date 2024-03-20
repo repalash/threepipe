@@ -102,6 +102,10 @@ export class ProgressivePlugin
         return pass
     }
 
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+    }
+
     onRemove(viewer: ThreeViewer): void {
         this._disposeTarget()
         return super.onRemove(viewer)
@@ -128,6 +132,21 @@ export class ProgressivePlugin
         // if (recorder && recorder.isRecording() && recorder.convergeMode)
         //     return this.isConverged(true) ? 1. / recorder.videoFrameRate : 0
         return -1
+    }
+
+    get convergedPromise() {
+        return new Promise<void>(resolve=>{
+            if (this.isConverged()) {
+                this._viewer?.doOnce('postFrame', ()=>resolve())
+            } else {
+                const l = ()=>{
+                    if (!this.isConverged(true)) return
+                    this._viewer?.removeEventListener('postRender', l)
+                    this._viewer?.doOnce('postFrame', ()=>resolve())
+                }
+                this._viewer?.addEventListener('postRender', l)
+            }
+        })
     }
 
 }

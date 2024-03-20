@@ -3,8 +3,9 @@ import fs from "node:fs";
 import {execSync} from "node:child_process";
 
 export function loopPluginDirs(callback){
-    const __dirname = path.dirname(new URL(import.meta.url).pathname);
-    const pluginsDir = path.join(__dirname, '../plugins')
+    const pathname = new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:\/)/, '$1')
+    const __dirname = path.dirname(pathname);
+    const pluginsDir = path.resolve(__dirname, '../plugins')
     const pluginFolders = fs.readdirSync(pluginsDir)
 
     for (const pluginFolder of pluginFolders) {

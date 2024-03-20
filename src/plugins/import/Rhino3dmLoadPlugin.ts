@@ -47,6 +47,7 @@ export class Rhino3dmLoadPlugin extends BaseImporterPlugin implements IUiConfigC
     }
 
     onAdded(viewer: ThreeViewer) {
+        if (!window.WebAssembly) throw new Error('Rhino3dmLoadPlugin requires WebAssembly support')
         super.onAdded(viewer)
         this._refresh()
     }
