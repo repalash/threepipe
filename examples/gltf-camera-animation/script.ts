@@ -33,10 +33,10 @@ async function init() {
     fileCamera.activateMain()
 
     gltfAnimation.loopAnimations = true
-    gltfAnimation.playAnimation()
+    gltfAnimation.playAnimation() // note no await here.
 
     console.log(gltfAnimation)
 
 }
 
-init().then(_testFinish)
+init().finally(_testFinish)

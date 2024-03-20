@@ -55,5 +55,5 @@ async function init() {
 
 }
 
-init().then(_testFinish)
+init().finally(_testFinish)
 

@@ -53,4 +53,4 @@ async function init() {
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 
-init().then(_testFinish)
+init().finally(_testFinish)

@@ -65,7 +65,7 @@ async function init() {
 
 }
 
-init().then(_testFinish)
+init().finally(_testFinish)
 
 /** Correct UVs to be compatible with `flipY=false` textures. */
 function flipY(geometry: BufferGeometry) {
