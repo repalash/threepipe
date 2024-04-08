@@ -6,10 +6,19 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
     private _firstHit: IObject3D | undefined
 
     hoverEnabled = false
+    /**
+     * Time threshold for a pointer click event
+     */
+    static PointerClickMaxTime = 200
+    /**
+     * Distance threshold for a pointer click event
+     */
+    static PointerClickMaxDistance = 0.1 // 1/20 of the canvas
 
     private _root: IObject3D
     private _camera: ICamera
     private _mouseDownTime: number
+    private _mouseDownPos: Vector2 = new Vector2()
     private _mouseUpTime: number
     private _time: number
     public selectionCondition: (o: IObject3D) => boolean
@@ -150,6 +159,7 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
         this.domElement.style.cursor = this.cursorStyles.down
 
         this._mouseDownTime = this.time
+        this._mouseDownPos.copy(this.mouse)
 
         return undefined
     }
@@ -160,7 +170,8 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
 
         this._mouseUpTime = this.time
         const delta = this.mouseDownDeltaTime
-        if (delta < 200) {
+        const dist = this._mouseDownPos.distanceTo(this.mouse)
+        if (delta < ObjectPicker.PointerClickMaxTime && dist < ObjectPicker.PointerClickMaxDistance) {
             // click
             this._onPointerClick(event)
         }
