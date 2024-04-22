@@ -145,6 +145,50 @@
             text-orientation: upright;
         }
 
+        .closed > .search-bar {
+            display: none;
+        }
+        .search-bar{
+            box-sizing: border-box;
+            margin-bottom: 1rem;
+            width: 90%;
+            background: transparent;
+            position: relative;
+        }
+        .search-bar input{
+            box-sizing: border-box;
+            width: 100%;
+            padding: 0.5rem;
+            color: #bbb;
+            background: #1e1e20;
+            border: none;
+            border-radius: 4px;
+            transition: all 0.3s ease-in-out;
+        }
+        .search-bar input:hover {
+            background: #2a2a2c;
+        }
+        .search-bar input:focus {
+            background: #2a2a2c;
+            color: #fff;
+            outline: none;
+        }
+        .search-bar input::placeholder {
+            color: #888;
+        }
+        .search-icon {
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            color: #888;
+            width: 15px;
+            height: 15px;
+        }
+
+        .search-bar input {
+            padding-left: 2rem;
+        }
 
         @media only screen and (max-width: 768px) {
             .root-container {
@@ -205,6 +249,49 @@
                 selectTarget(target || selected);
             }
             else selectTarget(selected);
+
+            let urlParams = new URLSearchParams(window.location.search);
+            let searchTerm = urlParams.get('q');
+
+            const filterInput = document.querySelector('#filterInput');
+
+            if (searchTerm) filterInput.value = searchTerm;
+
+            function updateSearch() {
+                const filterQuery = filterInput.value.toLowerCase();
+                urlParams.set('q', filterQuery);
+                if(searchTerm)
+                    window.history.replaceState({}, '', '?' + urlParams.toString());
+                else if(filterQuery !== '')
+                    window.history.pushState({}, '', '?' + urlParams.toString());
+
+                searchTerm = filterQuery;
+
+                const categories = Array.from(document.querySelectorAll('.category'));
+                const linksPerCategory = categories.map(category => {
+                    const links = Array.from(category.nextElementSibling.querySelectorAll('li'));
+                    links.forEach(li => {
+                        const link = li.querySelector('a');
+                        const key = link.textContent.toLowerCase() + category.textContent.toLowerCase();
+                        li.style.display = key.includes(searchTerm) ? '' : 'none';
+                    });
+                    return [category, links];
+                });
+                linksPerCategory.forEach(([category, links]) => {
+                    category.style.display = links.some(li => li.style.display !== 'none') ? '' : 'none';
+                    category.nextElementSibling.style.display = category.style.display;
+                });
+            }
+
+            window.addEventListener('popstate', function() {
+                urlParams = new URLSearchParams(window.location.search);
+                searchTerm = urlParams.get('q') || '';
+                document.querySelector('#filterInput').value = searchTerm;
+                updateSearch()
+            });
+
+            filterInput.addEventListener('keyup', updateSearch);
+            updateSearch()
         });
     </script>
 </head>
@@ -213,6 +300,13 @@
     <div class="sidebar" data-selected-example="Tweakpane Editor">
         <button class="hamburger"> &#9776;</button>
         <h1><a href="https://github.com/repalash/threepipe">ThreePipe</a> Examples</h1>
+        <div class="search-bar">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input id="filterInput" type="text" placeholder="Search" autocomplete="off" autofocus >
+        </div>
         <h2 class="category">Editors</h2>
         <ul>
             <li><a class="selected" href="./tweakpane-editor/">Tweakpane Editor </a></li>
