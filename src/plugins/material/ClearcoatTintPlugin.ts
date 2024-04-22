@@ -41,7 +41,7 @@ export class ClearcoatTintPlugin extends AViewerPluginSync<''> {
         if (tf.tintColor === undefined) tf.tintColor = '#ffffff'
         if (tf.thickness === undefined) tf.thickness = 0.1
         if (tf.ior === undefined) tf.ior = 1.5
-        Object.assign(tf, params)
+        params && Object.assign(tf, params)
         if (material.setDirty) material.setDirty()
         return tf
     }

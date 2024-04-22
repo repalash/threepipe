@@ -346,7 +346,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         const isData = path.startsWith('data:') || false
         if (!isData) path = path.replace(/\?.*$/, '') // remove query string
 
-        const ext = isData ? undefined : file?.ext ?? parseFileExtension(file?.name ?? path)?.toLowerCase()
+        const ext = isData ? undefined : file?.ext ?? parseFileExtension(file?.name ?? path.trim())?.toLowerCase()
         const mime = file?.mime ?? isData ? path.slice(0, path.indexOf(';')).split(':')[1] || undefined : undefined
 
         if (file) {
@@ -533,9 +533,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
     // get a loader that can load a file.
     private _getLoader(name?:string, ext?:string, mime?: string): ILoader | undefined {
         if (!ext && !mime && name) ext = parseFileExtension(name).toLowerCase()
-        mime = mime?.toLowerCase()
-        ext = ext?.toLowerCase()
-        return (name ? this._loadingManager.getHandler(name) as ILoader : undefined)
+        mime = mime?.toLowerCase().trim()
+        ext = ext?.toLowerCase().trim()
+        return (name ? this._loadingManager.getHandler(name.trim()) as ILoader : undefined)
             || this._loaderCache.find((lc)=> ext && lc.ext.includes(ext) || mime && lc.mime.includes(mime))?.loader
     }
 

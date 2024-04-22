@@ -181,7 +181,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             return imported as T&IObject3D
         }
         this._addObject3D(<IObject3D>imported, options)
-        this.dispatchEvent({type: 'addSceneObject', object: <IObject3D>imported})
+        this.dispatchEvent({type: 'addSceneObject', object: <IObject3D>imported, options})
         return imported as T&IObject3D
     }
 

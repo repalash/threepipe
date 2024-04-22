@@ -54,7 +54,7 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
         if (tf.useColorFlakes === undefined) tf.useColorFlakes = false
         if (tf.flakeParams === undefined) tf.flakeParams = new Vector4(0, 1, 3, 0)
         if (tf.flakeFallOffParams === undefined) tf.flakeFallOffParams = new Vector3(0, 1, 0)
-        Object.assign(tf, params)
+        params && Object.assign(tf, params)
         if (material.setDirty) material.setDirty()
         return true
     }

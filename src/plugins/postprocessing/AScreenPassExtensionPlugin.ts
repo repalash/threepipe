@@ -87,7 +87,7 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
     }
 
     private _onPluginAdd = (e: IViewerEvent)=>{
-        if (e.plugin?.constructor?.PluginType !== 'GBuffer') return
+        if (e.plugin?.constructor?.PluginType !== GBufferPlugin.PluginType) return
         const gbuffer = e.plugin as GBufferPlugin
         gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
         this._viewer?.removeEventListener('addPlugin', this._onPluginAdd)

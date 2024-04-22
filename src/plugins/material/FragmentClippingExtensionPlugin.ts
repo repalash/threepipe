@@ -47,7 +47,7 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
         if (tf.clipParams === undefined) tf.clipParams = [0, 0, 0, 0]
         if (tf.clipMode === undefined !== undefined) tf.clipMode = FragmentClippingMode.Circle
         if (tf.clipInvert === undefined !== undefined) tf.clipInvert = false
-        Object.assign(tf, params)
+        params && Object.assign(tf, params)
         if (material.setDirty) material.setDirty()
         return true
     }
