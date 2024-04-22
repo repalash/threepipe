@@ -15,6 +15,7 @@ import {
     FrameFadePlugin,
     FullScreenPlugin,
     GBufferPlugin,
+    getUrlQueryParam,
     GLTFAnimationPlugin,
     HalfFloatType,
     HDRiGroundPlugin,
@@ -120,7 +121,7 @@ async function init() {
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin],
         ['Scene']: [ContactShadowGroundPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, DeviceOrientationControlsPlugin, PointerLockControlsPlugin, ThreeFirstPersonControlsPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
         ['Export']: [CanvasSnapshotPlugin],
@@ -133,6 +134,11 @@ async function init() {
     hemiLight.name = 'Hemisphere Light'
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+
+    const model = getUrlQueryParam('m') || getUrlQueryParam('model')
+    if (model) {
+        await viewer.load(model)
+    }
 
     // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
     //     autoCenter: true,
