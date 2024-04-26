@@ -15,7 +15,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         enabled = true
 
     private _pickingWidgetDisabled = false
-    setDirty() {
+    setDirty() { // todo rename to refresh or setEnabledDirty?
         if (!this._viewer) return
         const picking = this._viewer.getPlugin(PickingPlugin)!
         const enabled = !this.isDisabled()
@@ -33,7 +33,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         this._viewer.setDirty()
     }
 
-    constructor(enabled: boolean) {
+    constructor(enabled = true) {
         super()
         TransformControls.ObjectConstructors.MeshBasicMaterial = UnlitMaterial as any
         TransformControls.ObjectConstructors.LineBasicMaterial = UnlitLineMaterial as any
