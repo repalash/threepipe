@@ -119,9 +119,11 @@ export class GBufferPlugin
 
     unpackExtension: MaterialExtension = {
         shaderExtender: (shader)=>{
+            const includes = ['gbuffer_unpack', 'packing'] as const
+            const include = includes.find(i=>shader.fragmentShader.includes(`#include <${i}>`))
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-                '#include <packing>',
-                '\n' + GBufferUnpack + '\n', {append: true})
+                `#include <${include}>`,
+                '\n' + GBufferUnpack + '\n', {append: include === 'packing'})
         },
         extraUniforms: {
             tNormalDepth: ()=>({value: this.normalDepthTexture}),
@@ -183,6 +185,7 @@ export class GBufferPlugin
 
         if (this.isPrimaryGBuffer) {
             this._viewer.renderManager.gbufferTarget = this.target
+            this._viewer.renderManager.gbufferUnpackExtension = this.unpackExtension
             this._viewer.renderManager.screenPass.material.registerMaterialExtensions([this.unpackExtension])
             this._isPrimaryGBufferSet = true
         }
@@ -197,6 +200,7 @@ export class GBufferPlugin
         this.textures = []
         if (this._isPrimaryGBufferSet) { // using a separate flag as when isPrimaryGBuffer is changed, we cannot check it.
             this._viewer.renderManager.gbufferTarget = undefined
+            this._viewer.renderManager.gbufferUnpackExtension = undefined
             // this._viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this.unpackExtension]) // todo
             this._isPrimaryGBufferSet = false
         }

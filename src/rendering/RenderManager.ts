@@ -1,4 +1,5 @@
 import {
+    BaseEvent,
     Color,
     FloatType,
     HalfFloatType,
@@ -47,7 +48,7 @@ import {RendererBlitOptions} from '../core/IRenderer'
 
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')
-export class RenderManager extends RenderTargetManager<IRenderManagerEvent, IRenderManagerEventTypes> implements IShaderPropertiesUpdater, IRenderManager {
+export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEventTypes extends string = IRenderManagerEventTypes> extends RenderTargetManager<IRenderManagerEvent|TEvent, IRenderManagerEventTypes|TEventTypes> implements IShaderPropertiesUpdater, IRenderManager {
     private readonly _isWebGL2: boolean
     private readonly _composer: EffectComposer2
     private readonly _context: WebGLRenderingContext

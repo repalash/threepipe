@@ -1,8 +1,10 @@
 import {IRenderTarget, RenderManager} from '../rendering'
 import {HalfFloatType, LinearMipMapLinearFilter, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
-import {IRenderManagerOptions} from '../core'
+import {IRenderManagerEvent, IRenderManagerOptions} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
 import {uiFolderContainer} from 'uiconfig.js'
+import {MaterialExtension} from '../materials'
+import {onChange3} from 'ts-browser-helpers'
 
 export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     rgbm?: boolean,
@@ -13,7 +15,7 @@ export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
 }
 
 @uiFolderContainer('Render Manager')
-export class ViewerRenderManager extends RenderManager {
+export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbufferUnpackExtensionChanged'> {
     readonly rgbm: boolean
     readonly msaa: boolean | number
     readonly depthBuffer: boolean
@@ -55,5 +57,15 @@ export class ViewerRenderManager extends RenderManager {
      * Reference to the gbuffer target, if it exists. This can be set by plugins like {@link DepthBufferPlugin}, {@link GBufferPlugin}
      */
     gbufferTarget: IRenderTarget | undefined
+    /**
+     * The extension that can be used to upload and unpack the values in gbuffer target(s), if it exists. This can be set by plugins like {@link DepthBufferPlugin}, {@link GBufferPlugin}
+     * Note: this should not be changed after set by some plugin.
+     */
+    @onChange3(ViewerRenderManager.prototype._gbufferUnpackExtensionChanged)
+        gbufferUnpackExtension: MaterialExtension | undefined
+
+    private _gbufferUnpackExtensionChanged(params: any) {
+        this.dispatchEvent({type: 'gbufferUnpackExtensionChanged', ...params})
+    }
 
 }

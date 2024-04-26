@@ -51,10 +51,14 @@ function callOnChange(this: any, onChange: (...args: any[]) => any, params: any[
 }
 
 /**
- *
- * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
+ * Decorator to create a three.js style define in this or this.material and bind to a property.
+ * see also - {@link matDefineBool}
  * @param key - define name
+ * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
  * @param thisMat - access this.defines instead of this.material.defines
+ * @param onChange - function to call when the value changes. The function is called with the following parameters: [key, newVal]. Note: needsUpdate is set to true for this/material if onChange is not provided.
+ * @param processVal - function that processes the value before setting it.
+ * @param invProcessVal - function that processes the value before returning it.
  */
 export function matDefine(key?: string|symbol, customDefines?: any, thisMat = false, onChange?: (...args: any[]) => any, processVal?: (newVal: any)=>any, invProcessVal?: (val:any)=>any): PropertyDecorator {
     // backing up properties as values are different when called again, no idea why.
@@ -77,6 +81,10 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
             set(newVal: any) {
                 const {t, p} = getTarget(thisMat ? this : this.material)
                 if (processVal) newVal = processVal(newVal)
+                else if (typeof newVal === 'boolean') { // just in case
+                    console.error('Boolean values are not supported for defines. Use @matDefineBool instead.')
+                    newVal = newVal ? '1' : '0'
+                }
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 if (onChange && typeof onChange === 'function') {
@@ -89,6 +97,18 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
             // enumerable: true,
         })
     }
+}
+
+/**
+ * Same as {@link matDefine} but for boolean values. It sets the value to '1' or '0'/undefined.
+ * @param key - define name
+ * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
+ * @param thisMat - access this.defines instead of this.material.defines
+ * @param onChange - function to call when the value changes. If a string, it is used as a property name in `this` and called. If a function, it is called. The function is called with the following parameters: key, newVal
+ * @param deleteOnFalse - sets to undefined instead of '0' when false
+ */
+export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat = false, onChange?: (...args: any[]) => any, deleteOnFalse = false): PropertyDecorator {
+    return matDefine(key, customDefines, thisMat, onChange, (v: any)=>v ? '1' : deleteOnFalse ? undefined : '0', (v: any)=>v && v !== '0')
 }
 
 /**

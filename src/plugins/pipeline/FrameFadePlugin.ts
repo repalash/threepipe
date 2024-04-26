@@ -57,7 +57,8 @@ export class FrameFadePlugin
             })
         this._pass.fadeTimeState = Math.max(duration, this._pass.fadeTimeState)
         this._pass.fadeTime = this._pass.fadeTimeState
-        this._pass.toSaveFrame = true
+        if (this._pass.fadeTimeState < 500) // only save if very near the end
+            this._pass.toSaveFrame = true
         // this._pass.passObject.enabled = true
         this.setDirty()
         await timeout(duration)

@@ -62,7 +62,7 @@ export class DepthBufferPlugin
 
     // @onChange2(DepthBufferPlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
-    readonly bufferType: TextureDataType // cannot be changed after creation (for now)
+    readonly bufferType: TextureDataType // cannot be changed after creation (for now) todo line 139: unregisterMaterialExtensions, maybe because the priority is not set so its added at the end?
 
     // @uiToggle()
     // @onChange2(DepthBufferPlugin.prototype._createTarget)
@@ -80,9 +80,11 @@ export class DepthBufferPlugin
 
     unpackExtension: MaterialExtension = {
         shaderExtender: (shader)=>{
+            const includes = ['depth_buffer_unpack', 'gbuffer_unpack', 'packing'] as const
+            const include = includes.find(i=>shader.fragmentShader.includes(`#include <${i}>`))
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-                '#include <packing>',
-                '\n' + DepthBufferUnpack + '\n', {append: true})
+                `#include <${include}>`,
+                '\n' + DepthBufferUnpack + '\n', {append: include === 'packing'})
         },
         extraUniforms: {
             tDepthBuffer: ()=>({value: this.target?.texture}),
@@ -120,6 +122,7 @@ export class DepthBufferPlugin
 
         if (this.isPrimaryGBuffer) {
             this._viewer.renderManager.gbufferTarget = this.target
+            this._viewer.renderManager.gbufferUnpackExtension = this.unpackExtension
             this._viewer.renderManager.screenPass.material.registerMaterialExtensions([this.unpackExtension])
             this._isPrimaryGBufferSet = true
         }
@@ -134,7 +137,8 @@ export class DepthBufferPlugin
         this.texture = undefined
         if (this._isPrimaryGBufferSet) { // using a separate flag as when isPrimaryGBuffer is changed, we cannot check it.
             this._viewer.renderManager.gbufferTarget = undefined
-            // this._viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this.unpackExtension]) // todo
+            this._viewer.renderManager.gbufferUnpackExtension = undefined
+            // this._viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this.unpackExtension]) // todo this has an issue
             this._isPrimaryGBufferSet = false
         }
     }

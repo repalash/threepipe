@@ -15,12 +15,13 @@ import {
 import {glsl, onChange, serialize} from 'ts-browser-helpers'
 import {IMaterial} from '../../core'
 import {updateBit} from '../../utils'
-import {matDefine, uniform} from '../../three'
+import {uniform} from '../../three'
 import Uncharted2ToneMappingShader from './shaders/Uncharted2ToneMapping.glsl'
 import TonemapShader from './shaders/TonemapPlugin.pars.glsl'
 import TonemapShaderPatch from './shaders/TonemapPlugin.patch.glsl'
 import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
 import {GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
+import {matDefineBool} from '../../three/utils/decorators'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
@@ -63,7 +64,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
     @serialize() toneMapping: ToneMapping = ACESFilmicToneMapping
 
     @uiToggle('Tonemap Background', (t: TonemapPlugin)=>({hidden: ()=>!t._viewer?.renderManager.gbufferTarget}))
-    @matDefine('TONEMAP_BACKGROUND', undefined, true, TonemapPlugin.prototype.setDirty, (v)=>v ? '1' : '0', (v) => v !== '0')
+    @matDefineBool('TONEMAP_BACKGROUND', undefined, true, TonemapPlugin.prototype.setDirty)
     @serialize() tonemapBackground = true
 
     // todo handle legacy deserialize
@@ -132,7 +133,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
         return super.fromJSON(data, meta)
     }
 
-    // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension
+    // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension like bloom
     updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
         const x = (c.material.userData.gBufferData?.tonemapEnabled ?? c.material?.userData.postTonemap) === false ? 0 : 1
         data.w = updateBit(data.w, 1, x) // 2nd Bit

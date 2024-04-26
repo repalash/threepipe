@@ -25,6 +25,11 @@ export class ProgressivePlugin
     readonly passId = 'progressive'
     public static readonly PluginType = 'ProgressivePlugin'
 
+    /**
+     * Different targets for different render cameras.
+     * Need to save them all here since we need them in the next frame.
+     * @protected
+     */
     protected _targets = new Map<string, ProgressivePluginTarget>()
 
     @serialize() @uiInput('Frame count') maxFrameCount: number
