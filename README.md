@@ -286,13 +286,13 @@ const result = await viewer.load<IObject3D>('https://threejs.org/examples/models
 
 That's it! You should now see a 3D model on your page.
 
-The 3D model can be opened in the [editor](TODO) to view and edit the scene settings, objects, materials, lights, cameras, post-processing, etc. and exported as a GLB file. All settings are automatically serialized and saved in the GLB file, which can be loaded into the viewer. Any plugins used in the editor can be added to the viewer to add the same functionality. The plugin data is automatically loaded(if the plugin is added) when the model is added to the scene.
+The 3D model can be opened in the [editor](https://threepipe.org/examples/tweakpane-editor/) to view and edit the scene settings, objects, materials, lights, cameras, post-processing, etc. and exported as a GLB file. All settings are automatically serialized and saved in the GLB file, which can be loaded into the viewer. Any plugins used in the editor can be added to the viewer to add the same functionality. The plugin data is automatically loaded(if the plugin is added) when the model is added to the scene.
 
 The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), several importers, exporters and a default rendering pipeline. Additional functionality can be added with plugins.
 
 Check out the GLTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#gltf-load/
 
-Check out the [Plugins](#plugins) section below to learn how to add additional functionality to the viewer.
+Check out the [Plugins](#plugin-system) section below to learn how to add additional functionality to the viewer.
 
 ## License
 The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the Free [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE).
@@ -649,7 +649,7 @@ Check the example [hdr-to-exr](https://threepipe.org/examples/#hdr-to-exr/) to s
 
 TODO: add support to export unsigned byte textures as png, jpeg, webp
 
-### Exporting Images
+### Exporting Images/Textures
 
 Exporting Textures as Images with image of types ImageBitmap, HTMLImageElement,
 HTMLOrSVGImageElement, CanvasImageSource, HTMLCanvasElement,
@@ -2382,7 +2382,7 @@ Under the hood, TransformControlsPlugin uses [TransformControls2](https://threep
 
 When the plugin is added to the viewer, it interfaces with the [PickingPlugin](#pickingplugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
 
-If the PickingPlugin is not added to the viewer before the TransformControlsPlugin, it is added automatically with the plugin.
+If the `PickingPlugin` is not added to the viewer before the `TransformControlsPlugin`, it is added automatically with the plugin.
 
 ```typescript
 import {ThreeViewer, TransformControlsPlugin} from 'threepipe'

@@ -2,14 +2,13 @@ import {TransformControls} from './TransformControls.js'
 import {MathUtils} from 'three'
 import type {ICamera, IObject3D, ISceneEvent, IWidget} from '../../core'
 import {iObjectCommons} from '../../core'
-import {uiDropdown, uiNumber, uiPanelContainer, uiToggle} from 'uiconfig.js'
-import {onChange2} from 'ts-browser-helpers'
+import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 
-@uiPanelContainer('Transform Controls')
+@uiFolderContainer('Transform Controls')
 export class TransformControls2 extends TransformControls implements IWidget, IObject3D {
     isWidget = true as const
     assetType = 'widget' as const
-    setDirty = iObjectCommons.setDirty
+    setDirty = iObjectCommons.setDirty.bind(this)
     refreshUi = iObjectCommons.refreshUi.bind(this)
 
     object: IObject3D | undefined
@@ -114,6 +113,9 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
             this?.object?.setDirty({fadeFrame: false})
             // todo: do this.setDirty?
         })
+        this.addEventListener('change', () => {
+            this.setDirty({fadeFrame: false})
+        })
 
         this._keyUpListener = this._keyUpListener.bind(this)
         this._keyDownListener = this._keyDownListener.bind(this)
@@ -134,8 +136,9 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     // axis: 'X' | 'Y' | 'Z' | 'E' | 'XY' | 'YZ' | 'XZ' | 'XYZ' | 'XYZE' | null
 
+    // onChange not required for before since they fire 'change' event on changed. see TransformControls.js
+
     @uiDropdown('Mode', ['translate', 'rotate', 'scale'].map(label=>({label})))
-    @onChange2('setDirty')
         mode: 'translate' | 'rotate' | 'scale'
 
     translationSnap: number | null
@@ -143,25 +146,19 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     scaleSnap: number | null
 
     @uiDropdown('Space', ['world', 'local'].map(label=>({label})))
-    @onChange2('setDirty')
         space: 'world' | 'local'
-    @uiNumber('Size')
-    @onChange2('setDirty')
+    @uiSlider('Size', [0.1, 10], 0.1)
         size: number
     @uiToggle('Show X')
-    @onChange2('setDirty')
         showX: boolean
     @uiToggle('Show Y')
-    @onChange2('setDirty')
         showY: boolean
     @uiToggle('Show Z')
-    @onChange2('setDirty')
         showZ: boolean
 
     // dragging: boolean
 
     // endregion
-
 
 
     /**

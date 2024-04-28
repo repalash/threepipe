@@ -44,7 +44,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
 
     dependencies = [PickingPlugin]
 
-    @uiConfig()
+    @uiConfig(undefined, {expanded: true})
         transformControls: TransformControls2 | undefined
 
     protected _isInteracting = false
