@@ -14,6 +14,7 @@ export type {ProgressivePluginEventTypes, ProgressivePluginTarget} from './pipel
 export type {GBufferPluginEventTypes, GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext} from './pipeline/GBufferPlugin'
 export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
 export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
+export {SSAOPlugin, SSAOPluginPass, type SSAOPluginEventTypes, type SSAOPluginTarget} from './pipeline/SSAOPlugin'
 
 // ui
 export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'

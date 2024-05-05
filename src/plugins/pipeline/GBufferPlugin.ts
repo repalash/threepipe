@@ -137,6 +137,7 @@ export class GBufferPlugin
             ['GBUFFER_HAS_FLAGS']: ()=>this.flagsTexture ? 1 : undefined,
             // ['HAS_FLAGS_BUFFER']: ()=>this.flagsTexture ? 1 : undefined,
             ['HAS_GBUFFER']: ()=>this.isPrimaryGBuffer && this.normalDepthTexture ? 1 : undefined,
+            // LINEAR_DEPTH: 1, // to tell that the depth is linear. todo; see SSAOPlugin. also add support in DepthBufferPlugin?
         },
         priority: 100,
         isCompatible: () => true,

@@ -80,10 +80,6 @@ export interface IMaterialUserData extends IImportResultUserData{
     // todo: move these to respective plugins
 
     /**
-     * For SSAOPlugin
-     */
-    ssaoDisabled?: boolean
-    /**
      * For SSCSPlugin
      */
     sscsDisabled?: boolean
