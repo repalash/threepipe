@@ -149,18 +149,28 @@ void main() {
 
     float aoValue = sum * saoData.y * INV_NUM_SAMPLES;
 
-//    bool disableAO = getSelectionBit(getGBufferFlags(vUv).a) > 0 ? true : false;
+    //    bool disableAO = getSelectionBit(getGBufferFlags(vUv).a) > 0 ? true : false;
 
     aoValue = 1. - clamp(aoValue, 0., 1.);
 
+    // todo why so many packing options?
+    #if SSAO_PACKING == 1 // (r: ssao, gba: depth)
     // so that depth can also be sampled with ssao if required?
     gl_FragColor.gba = packFloatToRGB(centerDepth);
+    gl_FragColor.r = aoValue;// + (lastAO.r) * frameCount)/(frameCount+1.);
+    #elif SSAO_PACKING == 2 // (rgb: ssao, a: 1)
+    gl_FragColor.rgb = vec3(aoValue);
+    gl_FragColor.a = 1.;
+    #elif SSAO_PACKING == 3 // (rgba: packed_ssao)
+    gl_FragColor.rgba = packDepthToRGBA(aoValue); // from packing
+    #elif SSAO_PACKING == 4 // (rgb: packed_ssao, a: 1)
+    gl_FragColor.rgb = packFloatToRGB(aoValue);
+    gl_FragColor.a = 1.;
+    #endif
 
     //    vec4 lastAO = texture2D( tLastThis, vUv );
-
-//    gl_FragColor.r = (vec4(aoValue)).r;// + (lastAO.r) * frameCount)/(frameCount+1.);
-    gl_FragColor.r = aoValue;// + (lastAO.r) * frameCount)/(frameCount+1.);
+    //    gl_FragColor.r = (vec4(aoValue)).r;// + (lastAO.r) * frameCount)/(frameCount+1.);
+    //    gl_FragColor.r = aoValue + (lastAO.r) * frameCount)/(frameCount+1.);
     //    gl_FragColor.r = aoValue;
-
     //    gl_FragColor = vec4(centerDepth);
 }

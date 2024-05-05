@@ -181,10 +181,11 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>) {
         super({
             defines: {
-                LINEAR_DEPTH: 1, // todo set from unpack extension
-                NUM_SAMPLES: 11,
-                NUM_SPIRAL_TURNS: 3,
-                PERSPECTIVE_CAMERA: 1, // set in PerspectiveCamera2
+                ['LINEAR_DEPTH']: 1, // todo set from unpack extension
+                ['NUM_SAMPLES']: 11,
+                ['NUM_SPIRAL_TURNS']: 3,
+                ['SSAO_PACKING']: 1, // 1 is (r: ssao, gba: depth), 2 is (rgb: ssao, a: 1), 3 is (rgba: packed_ssao), 4 is (rgb: packed_ssao, a: 1)
+                ['PERSPECTIVE_CAMERA']: 1, // set in PerspectiveCamera2
             },
             uniforms: {
                 tLastThis: {value: null},
@@ -258,6 +259,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         },
         shaderExtender: (shader, _material, _renderer) => {
             if (!shader.defines.SSAO_ENABLED) return
+            // todo: only SSAO_PACKING = 1 and 2 is supported. Not 3 and 4 right now.
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <aomap_fragment>', ssaoPatch)
         },
         onObjectRender: (_object, material, renderer: any) => {

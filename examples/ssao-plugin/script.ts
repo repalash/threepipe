@@ -12,6 +12,7 @@ const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     plugins: [ProgressivePlugin],
+    tonemap: false,
 })
 
 async function init() {
@@ -31,6 +32,9 @@ async function init() {
 
     // to render ssao buffer to screen, uncomment this line:
     // viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
+    // or set a custom pipeline
+    // viewer.renderManager.autoBuildPipeline = false
+    // viewer.renderManager.pipeline = ['gbuffer', 'ssao', 'screen']
 
     const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>ssaoTarget, 'ssao', false, true, true, (s)=>`${s} = vec4(${s}.r);`)
