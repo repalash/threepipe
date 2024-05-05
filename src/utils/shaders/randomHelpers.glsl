@@ -1,6 +1,5 @@
 #ifndef BASIC_RANDOM_HELPERS
 #define BASIC_RANDOM_HELPERS
-uniform float frameCount;
 
 float random(float n){return fract(sin(n) * 43758.5453123);}
 

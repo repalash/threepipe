@@ -100,7 +100,7 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
                 `, {prepend: true},
             )
 
-            ;(shader as any).defines.USE_UV = ''
+            shader.defines.USE_UV = ''
         },
         onObjectRender: (object: IObject3D, material) => {
             const userData = material.userData

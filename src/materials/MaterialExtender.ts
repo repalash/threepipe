@@ -39,7 +39,7 @@ export class MaterialExtender {
             updateMaterialDefines(materialExtension.extraDefines, material)
 
         // Call shaderExtender if defined
-        materialExtension.shaderExtender?.(shader, material, renderer)
+        materialExtension.shaderExtender?.(shader as any, material, renderer)
         // Save last shader so that it can be used to check if shader has changed in extensions
         material.lastShader = shader
     }
@@ -149,4 +149,28 @@ function materialAfterRender({target, object, renderer}:{object?: Object3D, rend
     for (const value of material.materialExtensions) {
         value.onAfterRender?.(object, material, renderer)
     }
+}
+
+
+/**
+ * Creates a {@link MaterialExtension} with getUiConfig that also caches the config for the material based on uuid
+ * @param getUiConfig - function that returns a ui config. make sure its static.
+ * @param uuid uuid to use.
+ */
+export function uiConfigMaterialExtension(getUiConfig: Required<MaterialExtension>['getUiConfig'], uuid?: string) {
+    const uuid1 = uuid || generateUUID()
+    return {
+        uuid: uuid1,
+
+        // todo clean code.
+        getUiConfig: material => {
+            if (!(material as any).__uiConfigs) (material as any).__uiConfigs = {} as any // todo remove reference sometime after plugin removed
+            if ((material as any).__uiConfigs[uuid1]) return (material as any).__uiConfigs[uuid1]
+            const config = getUiConfig(material);
+            (material as any).__uiConfigs[uuid1] = config
+            return config
+        },
+
+        isCompatible: () => true,
+    } as MaterialExtension
 }

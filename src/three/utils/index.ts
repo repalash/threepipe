@@ -1,7 +1,7 @@
 export {computeScreenSpaceBoundingBox} from './bbox'
 export {overrideThreeCache} from './cache'
 export {dataTextureFromColor, dataTextureFromVec4, halfFloatToRgbe} from './conversion'
-export {uniform, matDefine} from './decorators'
+export {uniform, matDefine, matDefineBool, bindToValue} from './decorators'
 export {getEncodingComponents, getTexelEncoding, getTexelDecoding, getTexelDecoding2, getTexelDecodingFunction, getTexelEncodingFunction, getTextureColorSpaceFromMap} from './encoding'
 export {generateUUID, toIndexedGeometry, isInScene, localToWorldQuaternion, worldToLocalQuaternion} from './misc'
 export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, textureToBlob, texImageToCanvas} from './texture'

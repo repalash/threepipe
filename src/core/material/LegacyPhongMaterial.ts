@@ -86,7 +86,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
         for (const vElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
 
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
-        // ;(shader as any).defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0 // todo
+        // shader.defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0 // todo
 
         super.onBeforeCompile(shader, renderer)
     }

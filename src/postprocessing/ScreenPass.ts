@@ -13,7 +13,7 @@ import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {uiDropdown, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {ViewerRenderManager} from '../viewer'
-import {matDefine, threeConstMappings} from '../three'
+import {matDefineBool, threeConstMappings} from '../three'
 import ScreenPassShader from './ScreenPass.glsl'
 import {shaderReplaceString} from '../utils'
 
@@ -68,8 +68,9 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         super.dispose()
     }
 
-    @matDefine('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty, (v)=>v ? '1' : undefined, (v)=>!!v)
-    @uiToggle() clipBackground = false
+    // todo test
+    @matDefineBool('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty, true)
+    @uiToggle() clipBackground = false // todo show warning that gbuffer is required
 
     beforeRender(_: IScene, _1: ICamera, renderManager: ViewerRenderManager) {
         this.material.uniforms.tTransparent.value = renderManager.renderPass.preserveTransparentTarget ? renderManager.renderPass.transparentTarget?.texture || null : null

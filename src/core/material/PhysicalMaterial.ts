@@ -80,7 +80,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
-    onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
+    onBeforeCompile(shader: Shader&{defines: any}, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         const f = [
             ['vec3 totalDiffuse = ', 'afterModulation'],
             ['#include <aomap_fragment>', 'beforeModulation'],
@@ -95,7 +95,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
 
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
 
-        ;(shader as any).defines && ((shader as any).defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0)
+        shader.defines && (shader.defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0)
 
         super.onBeforeCompile(shader, renderer)
     }

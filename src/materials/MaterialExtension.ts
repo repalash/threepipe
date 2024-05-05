@@ -25,7 +25,7 @@ export interface MaterialExtension{
      * @param material
      * @param renderer
      */
-    shaderExtender?: (shader: Shader, material: IMaterial, renderer: WebGLRenderer) => void,
+    shaderExtender?: (shader: Shader&{defines: any; extensionDerivatives?: boolean}, material: IMaterial, renderer: WebGLRenderer) => void,
     /**
      * Extra code to add to the top of the fragment shader
      * Value can be a string or a function that returns a string

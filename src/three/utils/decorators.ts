@@ -51,7 +51,7 @@ function callOnChange(this: any, onChange: (...args: any[]) => any, params: any[
 }
 
 /**
- * Decorator to create a three.js style define in this or this.material and bind to a property.
+ * Decorator to create a three.js style define in this.material or this and bind to a property.
  * see also - {@link matDefineBool}
  * @param key - define name
  * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
