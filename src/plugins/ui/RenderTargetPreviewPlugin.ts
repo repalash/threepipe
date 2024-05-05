@@ -1,11 +1,12 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
 import {createDiv, createStyles, getOrCall, onChange, ValOrArr, ValOrFunc} from 'ts-browser-helpers'
-import {SRGBColorSpace, Vector4, WebGLRenderTarget} from 'three'
+import {ShaderMaterial, SRGBColorSpace, Vector4, WebGLRenderTarget} from 'three'
 import styles from './RenderTargetPreviewPlugin.css?inline'
 import {CustomContextMenu} from '../../utils'
 import {uiFolderContainer, uiToggle} from 'uiconfig.js'
 import {ITexture} from '../../core'
+import {ExtendedCopyPass} from '../../postprocessing'
 
 export interface RenderTargetBlock {
     target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>}|undefined>
@@ -14,6 +15,7 @@ export interface RenderTargetBlock {
     transparent: boolean
     originalColorSpace: boolean
     div: HTMLDivElement
+    material?: ShaderMaterial // see ExtendedCopyPass
 }
 @uiFolderContainer('Render Target Preview Plugin')
 export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
@@ -76,15 +78,27 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
                 clear: !targetBlock.transparent,
                 respectColorSpace: !targetBlock.originalColorSpace,
                 viewport: new Vector4(rect.x, rect.y, rect.width, rect.height),
+                material: targetBlock.material,
             })
             this._viewer.renderManager.webglRenderer.outputColorSpace = outputColorSpace
         }
     }
 
-    addTarget(target: RenderTargetBlock['target'], name: string, transparent = false, originalColorSpace = false, visible = true): this {
+    /**
+     *
+     * @param target - render target or a function that returns a render target
+     * @param name - name of the target
+     * @param transparent - if true, the target will be rendered with transparency
+     * @param originalColorSpace - if true, the target will be rendered in its original color space
+     * @param visible - initial visibility
+     * @param material - snippet for {@link ExtendedCopyPass} or a custom {@link ExtendedShaderMaterial} or three.js ShaderMaterial. Example to read just the red channel `(s)=>s + ' = vec4(' + s + '.r);'`
+     */
+    addTarget(target: RenderTargetBlock['target'], name: string, transparent = false, originalColorSpace = false, visible = true, material?: ValOrFunc<string, [string]> | ShaderMaterial): this {
         if (!target) return this
         const div = document.createElement('div')
-        const targetDef = {target, name, transparent, div, originalColorSpace, visible}
+        const targetDef: RenderTargetBlock = {target, name, transparent, div, originalColorSpace, visible}
+        if (material) targetDef.material = (material as ShaderMaterial)?.isMaterial ? material as ShaderMaterial : new ExtendedCopyPass(material as any).material
+
         div.classList.add('RenderTargetPreviewPluginTarget')
         if (!targetDef.visible) div.classList.add('RenderTargetPreviewPluginCollapsed')
         const header = document.createElement('div')
@@ -136,6 +150,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
         if (!canvas) return this
         const blob = this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget)
         const url = URL.createObjectURL(blob)
+        // todo use file transfer or viewer downloadBlob
         const link = document.createElement('a')
         document.body.appendChild(link)
         link.style.display = 'none'

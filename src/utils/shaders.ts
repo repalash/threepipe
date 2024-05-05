@@ -1,7 +1,9 @@
 import simpleCameraHelpers from './shaders/simpleCameraHelpers.glsl'
+import cameraHelpers from './shaders/cameraHelpers.glsl'
 import randomHelpers from './shaders/randomHelpers.glsl'
+import defaultVertex from './shaders/defaultVertex.glsl'
 import voronoiNoise from './shaders/voronoiNoise.glsl'
 
 export const shaderUtils = {
-    simpleCameraHelpers, randomHelpers, voronoiNoise,
+    simpleCameraHelpers, cameraHelpers, randomHelpers, defaultVertex, voronoiNoise,
 }

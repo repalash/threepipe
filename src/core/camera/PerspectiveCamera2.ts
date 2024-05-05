@@ -410,6 +410,11 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     // for shader prop updater
     private _positionWorld = new Vector3()
+
+    /**
+     * See also cameraHelpers.glsl
+     * @param material
+     */
     updateShaderProperties(material: {defines: Record<string, string | number | undefined>; uniforms: {[p: string]: IUniform}}): this {
         material.uniforms.cameraPositionWorld?.value?.copy(this._positionWorld)
         material.uniforms.cameraNearFar?.value?.set(this.near, this.far)

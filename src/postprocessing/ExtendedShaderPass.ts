@@ -33,6 +33,10 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
         })
     }
 
+    /**
+     * to be called from beforeRender or onObjectRender or similar.
+     * @param updater
+     */
     updateShaderProperties(updater?: (IShaderPropertiesUpdater|undefined) | (IShaderPropertiesUpdater|undefined)[]) {
         if (!updater) return
         if (!Array.isArray(updater)) updater = [updater]
@@ -47,6 +51,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
     }
 
     setDirty() {
+        this.material.needsUpdate = true // do this when material defines etc are changed
         this.onDirty.forEach(v=>v())
     }
 
