@@ -68,6 +68,14 @@ export class Dropzone {
     }
 
     /**
+     * Use dataTransfer.items when available instead of dataTransfer.files (when files are dropped)
+     *
+     * Set to false to use dataTransfer.files only.
+     * This is useful for environments where files cannot be read from FileSystemEntry like in figma plugins/widgets.
+     */
+    static USE_DATA_TRANSFER_ITEMS = true
+
+    /**
      * References (and horror):
      * - https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer/items
      * - https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer/files
@@ -90,7 +98,7 @@ export class Dropzone {
         }
 
         // Prefer .items, which allow folder traversal if necessary.
-        if (items.length > 0) {
+        if (Dropzone.USE_DATA_TRANSFER_ITEMS && items.length > 0) {
             const entries = items.map((item) => item.webkitGetAsEntry())
 
             // if (entries[0].name.match(/\.zip$/)) {
@@ -155,7 +163,7 @@ export class Dropzone {
      * @param  {Array<FileSystemEntry>} entries
      * @param e
      */
-    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: any[], e: DragEvent) {
+    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: (FileSystemEntry|null)[], e: DragEvent) {
         const entry = entries.pop()
 
         if (!entry) {
@@ -164,18 +172,16 @@ export class Dropzone {
         }
 
         if (entry.isFile) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            entry.file((file: DropFile) => {
+            (entry as FileSystemFileEntry).file((file: DropFile) => {
                 file.filePath = entry.fullPath
                 fileMap.set(entry.fullPath, file)
                 this._loadNextEntry(fileMap, entries, e)
-            }, () => console.error('Could not load file: %s', entry.fullPath))
+            }, (err) => console.error('Could not load file: %s', entry.fullPath, err, 'Try setting Dropzone.USE_DATA_TRANSFER_ITEMS to false.'))
         } else if (entry.isDirectory) {
             // readEntries() must be called repeatedly until it stops returning results.
             // https://www.w3.org/TR/2012/WD-file-system-api-20120417/#the-directoryreader-interface
             // https://bugs.chromium.org/p/chromium/issues/detail?id=378883
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            const reader = entry.createReader()
+            const reader = (entry as FileSystemDirectoryEntry).createReader()
             const readerCallback = (newEntries: any[]) => {
                 if (newEntries.length) {
                     entries = entries.concat(newEntries)
