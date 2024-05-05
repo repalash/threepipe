@@ -20,7 +20,8 @@ import {
     IObjectProcessor,
     ITexture,
     PerspectiveCamera2,
-    RootScene, TCameraControlsMode,
+    RootScene,
+    TCameraControlsMode,
 } from '../core'
 import {ViewerRenderManager} from './ViewerRenderManager'
 import {
@@ -815,7 +816,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     /**
      * Set size of the canvas and update the renderer.
-     * If no width/height is passed, canvas is set to 100% of the container.
+     * If no size or width/height is passed, canvas is set to 100% of the container.
+     *
+     * See also {@link ThreeViewer.setRenderSize} to set the size of the render target by automatically calculating the renderScale and fitting in container.
+     *
+     * Note: Apps using this should ideally set `max-width: 100%` for the canvas in css.
      * @param size
      */
     setSize(size?: {width?: number, height?: number}) {
@@ -824,6 +829,98 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         // this._canvas.style.maxWidth = '100%' // this is upto the app to do.
         // this._canvas.style.maxHeight = '100%'
         this.resize()
+    }
+
+    // todo make an example for this.
+    // todo make a constructor parameter for renderSize
+    // todo make getRenderSize or get renderSize
+    /**
+     * Set the render size of the viewer to fit in the container according to the specified mode, maintaining aspect ratio.
+     * Changes the renderScale accordingly.
+     * Note: the canvas needs to be centered in the container to work properly, this can be done with the following css on the container:
+     * ```css
+     * display: flex;
+     * justify-content: center;
+     * align-items: center;
+     * ```
+     * or in js:
+     * ```js
+     * viewer.container.style.display = 'flex';
+     * viewer.container.style.justifyContent = 'center';
+     * viewer.container.style.alignItems = 'center';
+     * ```
+     * Modes:
+     * 'contain': The canvas is scaled to fit within the container while maintaining its aspect ratio. The canvas will be fully visible, but there may be empty space around it.
+     * 'cover': The canvas is scaled to fill the entire container while maintaining its aspect ratio. Part of the canvas may be clipped to fit the container.
+     * 'fill': The canvas is stretched to completely fill the container, ignoring its aspect ratio.
+     * 'scale-down': The canvas is scaled down to fit within the container while maintaining its aspect ratio, but it won't be scaled up if it's smaller than the container.
+     * 'none': container size is ignored, but devicePixelRatio is used
+     * @param size - The size to set the render to. The canvas will render to this size.
+     * @param mode - 'contain', 'cover', 'fill', 'scale-down' or 'none'. Default is 'contain'.
+     * @param devicePixelRatio - typically set to `window.devicePixelRatio`, or `Math.min(1.5, window.devicePixelRatio)` for performance. Use this only when size is derived from dom elements.
+     * @param containerSize - (optional) The size of the container, if not passed, the bounding client rect of the container is used.
+     */
+    setRenderSize(size: {width: number, height: number},
+        mode: 'contain' | 'cover' | 'fill' | 'scale-down' | 'none' = 'contain',
+        devicePixelRatio = 1,
+        containerSize?: {width: number, height: number}) {
+        // todo what about container resize?
+        const containerRect = containerSize || this.container.getBoundingClientRect()
+        const containerHeight = containerRect.height
+        const containerWidth = containerRect.width
+        const width = size.width
+        const height = size.height
+        const aspect = width / height
+        const containerAspect = containerWidth / containerHeight
+        const dpr = devicePixelRatio
+
+        let renderWidth, renderHeight
+
+        switch (mode) {
+        case 'contain':
+            if (containerAspect > aspect) {
+                renderWidth = containerHeight * aspect
+                renderHeight = containerHeight
+            } else {
+                renderWidth = containerWidth
+                renderHeight = containerWidth / aspect
+            }
+            break
+        case 'cover':
+            if (containerAspect > aspect) {
+                renderWidth = containerWidth
+                renderHeight = containerWidth / aspect
+            } else {
+                renderWidth = containerHeight * aspect
+                renderHeight = containerHeight
+            }
+            break
+        case 'fill':
+            renderWidth = containerWidth
+            renderHeight = containerHeight
+            break
+        case 'scale-down':
+            if (width < containerWidth && height < containerHeight) {
+                renderWidth = width
+                renderHeight = height
+            } else if (containerAspect > aspect) {
+                renderWidth = containerHeight * aspect
+                renderHeight = containerHeight
+            } else {
+                renderWidth = containerWidth
+                renderHeight = containerWidth / aspect
+            }
+            break
+        case 'none':
+            renderWidth = width
+            renderHeight = height
+            break
+        default:
+            throw new Error(`Invalid mode: ${mode}`)
+        }
+
+        this.setSize({width: renderWidth, height: renderHeight})
+        this.renderManager.renderScale = dpr * height / renderHeight
     }
 
     /**
@@ -850,7 +947,6 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this._scene.addObject(imported, options)
         return imported
     }
-
 
     /**
      * Serialize all the plugins and their settings to save or create presets. Used in {@link toJSON}.

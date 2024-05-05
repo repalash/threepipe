@@ -1162,10 +1162,13 @@ const viewer = new ThreeViewer({
   // container: document.getElementById('mcontainer'),
   // container: document.body,
 
-  // Set the render scale to render at device resolution
-  renderScale: window.devicePixelRatio,
+  // Set the render scale to render at device resolution and clamp to max 2.
+  renderScale: 'auto',
+  // or Set the render scale to render at device resolution
+  // renderScale: window.devicePixelRatio,
   // modify the screen shader: See ScreenPass and ScreenPass.glsl for more details
   screenShader: `diffuseColor = diffuseColor * 2.0;`,
+  
   // Add TonemapPlugin
   tonemap: true,
   // Use MSAA(anti-aliasing)
@@ -1390,8 +1393,14 @@ import {ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({...})
 
-// Set size
+// Set the final render size directly and fit in container based on mode.
+viewer.setRenderSize({width: 800, height: 600}, 'cover')
+
+// Set size of the canvas
 viewer.setSize({width: 800, height: 600})
+// Set the render scale
+viewer.renderManager.renderScale = Math.min(window.devicePixelRatio, 2)
+
 
 // Traverse scene objects
 viewer.traverseSceneObjects((object) => {
@@ -1417,7 +1426,9 @@ viewer.dispose()
 
 ```
 
-[`viewer.setSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setSize) - Sets the size of the canvas and updates the renderer and the camera. If no width/height is passed, canvas is set to 100% of the container.
+[`viewer.setRenderSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setRenderSize) - Sets the rendering resolution and fits the canvas in container based on the mode. The modes are `cover`, `contain`, `fill`, `scale-down` and `none`. The canvas size and render scale is calculated automatically to match the render render. 
+
+[`viewer.setSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setSize) - Sets the size of the canvas and updates the renderer and the camera. If no width/height is passed, canvas is set to 100% of the container. 
 
 [`viewer.traverseSceneObjects`](https://threepipe.org/docs/classes/ThreeViewer.html#traverseSceneObjects) - Loop through all the objects in the scene model root hierarchy and calls the callback function with each object.
 
