@@ -7,6 +7,7 @@ import {
     LinearSRGBColorSpace,
     Object3D,
     Quaternion,
+    Scene,
     Vector2,
     Vector3,
 } from 'three'
@@ -243,8 +244,8 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     /**
      * Scene with object hierarchy used for rendering
      */
-    get scene(): RootScene {
-        return this._scene
+    get scene(): RootScene&Scene {
+        return this._scene as RootScene&Scene
     }
     /**
      * Specifies how many frames to render in a single request animation frame. Keep to 1 for realtime rendering.
@@ -654,8 +655,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
                     this.dispatchEvent({type: 'preRender', target: this})
 
                     try {
-                        this._scene.renderCamera = this._scene.mainCamera
-                        this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
+                        const cam = this._scene.mainCamera
+                        this._scene.renderCamera = cam
+                        if (cam.visible) this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
                     } catch (e) {
                         this.console.error(e)
                         if (this.debug) throw e

@@ -207,6 +207,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         this.clear = true
         // this.bilateralPass = new BilateralFilterPass(this._target as any, gBufferUnpack, 'rrrr')
         // this._multiplyPass = new GenericBlendTexturePass(this._target.texture as any, 'c = vec4((1.0-b.r) * a.xyz, a.a);')
+        // this._getUiConfig = this._getUiConfig.bind(this)
     }
 
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
@@ -282,7 +283,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
             return this.enabled ? '1' : '0' + getOrCall(this.target)?.texture?.colorSpace
         },
         uuid: SSAOPlugin.PluginType,
-        ...uiConfigMaterialExtension(this._getUiConfig, SSAOPlugin.PluginType),
+        ...uiConfigMaterialExtension(this._getUiConfig.bind(this), SSAOPlugin.PluginType),
         isCompatible: material => {
             return (material as PhysicalMaterial).isPhysicalMaterial
         },

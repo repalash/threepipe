@@ -16,6 +16,10 @@ export const iGeometryCommons = {
             if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
             superDispose.call(this)
         },
+    clone: (superClone: BufferGeometry['clone']): IGeometry['clone'] =>
+        function(this: IGeometry): IGeometry {
+            return iGeometryCommons.upgradeGeometry.call(superClone.call(this))
+        },
     upgradeGeometry: upgradeGeometry,
     center: (superCenter: BufferGeometry['center']): IGeometry['center'] =>
         function(this: IGeometry, offset?: Vector3, keepWorldPosition = false): IGeometry {
@@ -157,15 +161,16 @@ export const iGeometryCommons = {
 }
 
 function upgradeGeometry(this: IGeometry) {
-    if (this.assetType === 'geometry') return // already upgraded
+    if (this.assetType === 'geometry') return this// already upgraded
     if (!this.isBufferGeometry) {
         console.error('Geometry is not a BufferGeometry', this)
-        return
+        return this
     }
     this.assetType = 'geometry'
 
     this.dispose = iGeometryCommons.dispose(this.dispose)
     this.center = iGeometryCommons.center(this.center)
+    this.clone = iGeometryCommons.clone(this.clone)
 
     if (!this.setDirty) this.setDirty = iGeometryCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iGeometryCommons.refreshUi
