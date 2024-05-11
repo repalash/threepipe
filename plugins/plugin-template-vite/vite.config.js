@@ -14,6 +14,7 @@ const {main, module, browser} = packageJson
 const globals = {
     'three': 'threepipe', // just incase someone uses three
     'threepipe': 'threepipe',
+    '@threepipe/plugin-tweakpane': '@threepipe/plugin-tweakpane',
 }
 
 export default defineConfig({

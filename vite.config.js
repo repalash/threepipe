@@ -66,6 +66,7 @@ export default defineConfig({
         ${name} v${version}
         Copyright 2022<%= moment().format('YYYY') > 2022 ? '-' + moment().format('YYYY') : null %> ${author}
         ${packageJson.license} License
+        See ./dependencies.txt for bundled third-party dependencies and licenses.
       `,
             thirdParty: {
                 output: path.join(__dirname, 'dist', 'dependencies.txt'),
