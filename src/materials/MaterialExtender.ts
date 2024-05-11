@@ -55,6 +55,7 @@ export class MaterialExtender {
     static CacheKeyForExtension(material: IMaterial, materialExtension: MaterialExtension): string {
         let r = ''
         if (materialExtension.computeCacheKey) r += getOrCall(materialExtension.computeCacheKey, material)
+        else r += materialExtension.uuid
         if (materialExtension.extraDefines) r += Object.values(materialExtension.extraDefines).map(v=>getOrCall(v) ?? '').join('')
         return r
     }
@@ -65,7 +66,7 @@ export class MaterialExtender {
         if (customMaterialExtensions)
             for (const ext of customMaterialExtensions) {
                 if (!ext.isCompatible || !ext.isCompatible(material) || material.materialExtensions.includes(ext)) continue
-                else exts.push(ext)
+                exts.push(ext)
                 if (!ext.uuid) ext.uuid = generateUUID()
                 if (!ext.__setDirty) ext.__setDirty = ()=>{
                     if (!ext.updateVersion) ext.updateVersion = 0
@@ -73,6 +74,8 @@ export class MaterialExtender {
                 }
                 if (!ext.setDirty) ext.setDirty = ext.__setDirty
             }
+
+        if (!exts.length) return []
 
         material.materialExtensions = [...material.materialExtensions || [], ...exts]
             .sort((a, b)=>(b.priority || 0) - (a.priority || 0))
@@ -85,6 +88,8 @@ export class MaterialExtender {
             (material as any).__ext_afterRenderListen = true
             material.addEventListener('afterRender', materialAfterRender)
         }
+
+        material.needsUpdate = true
         return exts
     }
 

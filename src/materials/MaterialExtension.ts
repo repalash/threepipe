@@ -45,6 +45,7 @@ export interface MaterialExtension{
      * Check three.js docs for more info.
      * Value can be a string or a function that returns a string
      * This will only be checked if `material.needsUpdate` is `true`, not on every render.
+     * Note: extension might never be registered if an empty string is returned.
      */
     computeCacheKey?: string | ((material: IMaterial) => string)
 

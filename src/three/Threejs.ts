@@ -229,3 +229,4 @@ export {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
 export {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js'
 
 export {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
+export * from 'three/examples/jsm/utils/BufferGeometryUtils.js'

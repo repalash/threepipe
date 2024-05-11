@@ -406,7 +406,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
             ['USE_DISPLACEMENTMAP']: this.uniforms.displacementMap.value ? 1 : undefined,
             ['DISPLACEMENTMAP_UV']: this.uniforms.displacementMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
             ['ALPHA_I_RGBA_PACKING']: material.userData.ALPHA_I_RGBA_PACKING ? 1 : undefined,
-            ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined,
+            ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined, // todo add to DepthBufferPlugin as well.
         }, material)
 
         // todo: do the same in DepthBufferPlugin and NormalBufferPlugin

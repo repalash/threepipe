@@ -112,6 +112,11 @@ export const iMaterialUI = {
                     onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
                 },
                 {
+                    type: 'checkbox',
+                    property: [material, 'colorWrite'],
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                },
+                {
                     type: 'slider',
                     bounds: [0, 1],
                     stepSize: 0.001,

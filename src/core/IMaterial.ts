@@ -76,6 +76,11 @@ export interface IMaterialUserData extends IImportResultUserData{
         [key: string]: any
     }
 
+    /**
+     * Force a depth value in GBuffer.
+     * This is useful to force center values like 0 to the depth.
+     */
+    forcedLinearDepth?: number
 
     // todo: move these to respective plugins
 
