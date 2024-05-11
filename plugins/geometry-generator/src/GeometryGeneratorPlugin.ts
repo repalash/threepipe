@@ -1,7 +1,9 @@
 import {
     AViewerPluginSync,
+    BufferGeometry,
     BufferGeometry2,
     IGeometry,
+    IMaterial,
     Mesh2,
     type Object3DGeneratorPlugin,
     PhysicalMaterial,
@@ -14,6 +16,7 @@ import {SphereGeometryGenerator} from './primitives/SphereGeometryGenerator'
 import {PlaneGeometryGenerator} from './primitives/PlaneGeometryGenerator'
 import {CylinderGeometryGenerator} from './primitives/CylinderGeometryGenerator'
 import {GeometryGenerator, updateUi} from './AGeometryGenerator'
+import {Class} from 'ts-browser-helpers'
 
 /**
  * GeometryGeneratorPlugin
@@ -35,10 +38,13 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
         cylinder: new CylinderGeometryGenerator('cylinder'),
     }
 
+    defaultMaterialClass: Class<IMaterial> = PhysicalMaterial
+    defaultGeometryClass: Class<BufferGeometry> = BufferGeometry2
+
     generateObject(type: string, params?: any) {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
-        const obj = new Mesh2(params?.geometry ?? new BufferGeometry2(), params?.material ?? new PhysicalMaterial())
+        const obj = new Mesh2(params?.geometry ?? new this.defaultGeometryClass(), params?.material ?? new this.defaultMaterialClass())
         generator.generate(obj.geometry, params)
         obj.name = type
         obj.geometry.name = 'Generated ' + type
