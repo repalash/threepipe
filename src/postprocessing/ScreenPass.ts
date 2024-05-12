@@ -61,6 +61,9 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         if (!this._needsReRender) return
         this._needsReRender = false
         this.reRender(renderManager.renderer)
+        if (this.clipBackground && !(renderManager as ViewerRenderManager).gbufferTarget) {
+            console.warn('ScreenPass: clipBackground set to true but no gbufferTarget set. Try adding GBufferPlugin.')
+        }
     }
 
     dispose() {
@@ -68,9 +71,9 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         super.dispose()
     }
 
-    // todo test
+    // todo: this is not serialized anymore?
     @matDefineBool('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty, true)
-    @uiToggle() clipBackground = false // todo show warning that gbuffer is required
+    @uiToggle() clipBackground = false
 
     beforeRender(_: IScene, _1: ICamera, renderManager: ViewerRenderManager) {
         this.material.uniforms.tTransparent.value = renderManager.renderPass.preserveTransparentTarget ? renderManager.renderPass.transparentTarget?.texture || null : null
