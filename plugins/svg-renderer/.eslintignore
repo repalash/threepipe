@@ -1,0 +1,11 @@
+node_modules
+dist
+public
+config
+libs
+docs
+examples/**/*.js
+examples/**/*.html
+
+src/three-svg-renderer/
+src/three-mesh-halfedge/

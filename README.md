@@ -3497,7 +3497,7 @@ Includes the following generator which inherit from [AGeometryGenerator](https:/
 Sample Usage:
 
 ```typescript
-import {ThreeViewer} from 'threepipe'
+import {ThreeViewer, UnlitMaterial} from 'threepipe'
 import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 
 const viewer = new ThreeViewer({...})
@@ -3510,8 +3510,14 @@ viewer.scene.addObject(sphere)
 generator.updateGeometry(sphere.geometry, {radius: 4, widthSegments: 100})
 
 // to add a custom generator
-generator.generators.custom = new CustomGenerator('custom') // Extend from AGeometryGenerator or implement GeometryGenerator
+generator.generators.custom = new CustomGenerator('custom') // Extend from AGeometryGenerator or implement GeometryGenerator interface
+// refresh the ui so the new generator is available to select.
 generator.uiConfig.uiRefresh?.()
+
+// change the material type for all objects
+generator.defaultMaterialClass = UnlitMaterial // by default its PhysicalMaterial
+viewer.scene.addObject(generator.generateObject('box', {width: 2, height: 2, depth: 2}))
+
 ```
 
 ## @threepipe/plugin-gaussian-splatting
@@ -3554,4 +3560,57 @@ viewer.addPluginSync(GaussianSplattingPlugin)
 // Now load any .splat file.
 const model = await viewer.load<GaussianSplatMesh>('path/to/file.splat')
 
+```
+
+## @threepipe/plugin-svg-renderer
+
+Exports [ThreeSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs/classes/ThreeSVGRendererPlugin.html) and [BasicSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs/classes/BasicSVGRendererPlugin.html) which provide support for rendering the 3d scene as [SVG(Scalable Vector Graphics)](https://developer.mozilla.org/en-US/docs/Web/SVG). The generated SVG is compatible with browser rendering and other software like figma, illustrator etc.
+
+[Example](https://threepipe.org/examples/#three-svg-renderer/) &mdash;
+[Source Code](./plugins/svg-renderer/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/svg-renderer/docs) &mdash;
+[GPLV3 License](./plugins/svg-renderer/LICENSE)
+
+NPM: `npm install @threepipe/plugin-svg-renderer`
+
+Note: This is still a WIP. API might change slightly
+
+`ThreeSVGRendererPlugin` uses [`three-svg-renderer`](./plugins/svg-renderer/src/three-svg-renderer), which is a modified version of [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer) (GPLV3 Licenced).
+The plugin renderers meshes in the viewer scene to svg objects by computing polygons and contours of the geometry in view space. Check [LokiResearch/three-svg-renderer](https://github.com/LokiResearch/three-svg-renderer?tab=readme-ov-file#references) for more details.
+In the modified version that is used here, support for some types of geometries is added and a rendered image in screen-space is used to create raster fill images for paths along with some other small changes. Check out the [Example](https://threepipe.org/examples/#three-svg-renderer/) for demo. See also [svg-geometry-playground example](https://threepipe.org/examples/#svg-geometry-playground/) for usage with other plugins `PickingPlugin`, `TransformControlsPlugin` and `GeometryGeneratorPlugin`.
+
+Note that this does not support all the features of three.js and may not work with all types of materials and geometries. Check the examples for a list of sample models that do and don't work.
+
+`BasicSVGRendererPlugin` is a sample plugin using [SVGRenderer](https://threejs.org/docs/index.html?q=svg#examples/en/renderers/SVGRenderer) from three.js addons. This renders all triangles in the scene to separate svg paths. Check the three.js docs for more details. Check out the [Example](https://threepipe.org/examples/#basic-svg-renderer/) for demo.
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {ThreeSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
+
+const viewer = new ThreeViewer({...})
+const svgRender = viewer.addPluginSync(ThreeSVGRendererPlugin)
+svgRender.autoRender = true // automatically render when camera or any object changes.
+svgRender.autoMakeSvgObjects = true // automatically create SVG objects for all meshes in the scene.
+// svgRender.makeSVGObject(object) // manually create SVG object for an object. (if autoMakeSvgObjects is false) 
+
+// Now load or generate any 3d model. Make sure its not very big. And the meshes are optimized.
+const model = await viewer.load<IOBject3D>('path/to/file.glb')
+
+// clear the background of the viewer 
+// this is only required if rgbm = false in the viewer
+viewer.scene.backgroundColor = null
+// this is only required if rgbm = true in the viewer
+viewer.renderManager.screenPass.clipBackground = true
+        
+// disable damping to get better experience.
+viewer.scene.mainCamera.controls!.enableDamping = false
+
+// hide the canvas to see the underlying svg node.
+// note: do not set the display to none or remove the canvas as OrbitControls and other plugins might still be tracking the canvas.
+viewer.canvas.style.opacity = '0'
+
+// 3d pipeline can also be disabled like this if `drawImageFills` is `false` to get better performance. Do this only after loading the model.
+// await viewer.doOnce('postFrame') // wait for the first frame to be rendered (for autoScale etc)
+// viewer.renderManager.autoBuildPipeline = false
+// viewer.renderManager.pipeline = [] // this will disable main viewer rendering
 ```
