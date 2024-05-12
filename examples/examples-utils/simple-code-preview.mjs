@@ -11,7 +11,9 @@ const exampleStyle = document.querySelector('#example-style')
 const css = exampleStyle ? exampleStyle.textContent : ''
 const importMap = document.querySelector('script[type="importmap"]')
 const imports = importMap ? JSON.parse(importMap.textContent||'{}').imports||{} : {}
+Object.keys(imports).forEach((k)=>(k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://esm.sh/'+k) : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
 Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\/\.\.\/\.\.\//, rootPath)) // ./../../ -> rootPath
+
 function replaceImports(code) {
     for (const [name, link] of Object.entries(imports)) code = code.replaceAll(` from '${name}'`, ` from '${link}'`)
     return code
