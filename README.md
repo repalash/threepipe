@@ -126,6 +126,8 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
   - [KTX2LoadPlugin](#ktx2loadplugin) - Add support for loading .ktx2 files
   - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
+  - [SimplifyModifierPlugin](#simplifymodifierplugin) - Boilerplate for plugin to simplify geometries
+  - [MeshOptSimplifyModifierPlugin](#meshoptsimplifymodifierplugin) - Simplify geometries using meshoptimizer library
 - [Packages](#threepipe-packages)
   - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
   - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
@@ -3275,6 +3277,47 @@ import {KTXLoadPlugin} from 'threepipe'
 viewer.addPluginSync(new KTXLoadPlugin())
 
 const texture = await viewer.load('file.ktx')
+```
+
+## SimplifyModifierPlugin
+
+[Example](https://threepipe.org/examples/#simplify-modifier-plugin/) &mdash;
+[Source Code](./src/plugins/extras/SimplifyModifierPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/SimplifyModifierPlugin.html)
+
+Boilerplate for implementing a plugin for simplifying geometries.
+This is a base class and cannot be used directly.
+
+A sample to use it:
+```typescript
+class SimplifyModifierPluginImpl extends SimplifyModifierPlugin {
+  protected _simplify(geometry: IGeometry, count: number) {
+    return new SimplifyModifier().modify(geometry, count) as IGeometry
+  }
+}
+
+const plugin = viewer.addPluginSync(new SimplifyModifierPluginImpl())
+
+const root = await viewer.load('file.glb')
+plugin.simplifyAll(root, {factor: 0.75})
+```
+Check the [example](https://threepipe.org/examples/#simplify-modifier-plugin/) for full implementation.
+
+## MeshOptSimplifyModifierPlugin
+
+[Example](https://threepipe.org/examples/#meshopt-simplify-modifier-plugin/) &mdash;
+[Source Code](./src/plugins/extras/MeshOptSimplifyModifierPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/MeshOptSimplifyModifierPlugin.html)
+
+Simplify modifier using [meshoptimizer](https://github.com/zeux/meshoptimizer) library. It Loads the library at runtime from a customisable CDN URL. 
+
+Note: It does not guarantee that the geometry will be simplified to the exact target count.
+
+```typescript
+const simplifyModifier = viewer.addPluginSync(new MeshOptSimplifyModifierPlugin())
+
+const root = await viewer.load('file.glb')
+simplifyModifier.simplifyAll(root, {factor: 0.75})
 ```
 
 # @threepipe Packages
