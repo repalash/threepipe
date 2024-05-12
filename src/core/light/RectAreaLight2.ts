@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, RectAreaLight} from 'three'
 import {ILight, ILightEvent} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiNumber, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
 @uiPanelContainer('RectArea Light')
@@ -10,6 +10,7 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
+    uiConfig: UiObjectConfig
     readonly isRectAreaLight2 = true
 
     @uiToggle('Enabled')

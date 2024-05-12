@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector3} 
 import {ILight, ILightEvent} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiInput, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiInput, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
 @uiPanelContainer('Spot Light')
@@ -10,6 +10,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
+    uiConfig: UiObjectConfig
     readonly isSpotLight2 = true
 
     @uiToggle('Enabled')

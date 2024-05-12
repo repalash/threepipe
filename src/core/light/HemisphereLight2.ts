@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, HemisphereLight, Vector3} from 'three'
 import {ILight, ILightEvent} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
 @uiPanelContainer('Hemisphere Light')
@@ -10,6 +10,7 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
+    uiConfig: UiObjectConfig
     readonly isHemisphereLight2 = true
 
     @uiToggle('Enabled')

@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, PointLight, PointLightShadow, Vector3} from 
 import {ILight, ILightEvent} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiNumber, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
 @uiPanelContainer('Point Light')
@@ -10,6 +10,7 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
+    uiConfig: UiObjectConfig
     readonly isPointLight2 = true
 
     @uiToggle('Enabled')

@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Eu
 import {ILight, ILightEvent, ILightEventTypes} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
 // todo: add LightShadow uiconfig
@@ -15,6 +15,7 @@ export class DirectionalLight2<
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
+    uiConfig: UiObjectConfig
     readonly isDirectionalLight2 = true
 
     @uiToggle('Enabled')
