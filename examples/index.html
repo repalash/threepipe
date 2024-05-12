@@ -261,9 +261,9 @@
                 const filterQuery = filterInput.value.toLowerCase();
                 urlParams.set('q', filterQuery);
                 if(searchTerm)
-                    window.history.replaceState({}, '', '?' + urlParams.toString());
+                    window.history.replaceState({}, '', '?' + urlParams.toString() + window.location.hash);
                 else if(filterQuery !== '')
-                    window.history.pushState({}, '', '?' + urlParams.toString());
+                    window.history.pushState({}, '', '?' + urlParams.toString() + window.location.hash);
 
                 searchTerm = filterQuery;
 
