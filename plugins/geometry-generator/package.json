@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-geometry-generator",
     "description": "Geometry generator plugin to create updatable parametric objects/geometries.",
-    "version": "0.2.2",
+    "version": "0.3.0",
     "devDependencies": {
     },
     "dependencies": {
@@ -16,7 +16,8 @@
             "markdown-to-html"
         ],
         "replace": {
-            "dependencies": {
+            "dependencies": {},
+            "peerDependencies": {
                 "threepipe": "^0.0.20"
             }
         }
