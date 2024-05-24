@@ -15,13 +15,13 @@ uniform vec2 screenSize;
 
 const float INV_NUM_SAMPLES = 1.0 / float(NUM_SAMPLES);
 
-//int getSelectionBit(in int number) {
-//    #ifdef WebGL2Context
-//    return (number/4) % 2;
-//    #else
-//    return int(mod(floor(float(number)/4.), 2.));
-//    #endif
-//}
+int getSelectionBit(in int number) {
+    #ifdef WebGL2Context
+    return (number/8) % 2;
+    #else
+    return int(mod(floor(float(number)/8.), 2.));
+    #endif
+}
 
 vec3 packFloatToRGB(const in float x) {
     const vec3 code = vec3(1.0, 255.0, 65025.0);
@@ -31,11 +31,7 @@ vec3 packFloatToRGB(const in float x) {
     return pack;
 }
 
-vec3 getPositionFromOffset(const in vec2 uv,
-const in vec2 offset,
-const in float screenSpaceRadius) {
-
-    vec2 uvOffset = uv + floor(screenSpaceRadius * offset) / screenSize;
+vec3 getPositionFromOffset(const in vec2 uvOffset) {
     #if defined(HAS_DEPTH_BUFFER) || defined(HAS_NORMAL_DEPTH_BUFFER)
     float d = getDepth(uvOffset);
     #else
@@ -44,10 +40,10 @@ const in float screenSpaceRadius) {
 
     #if LINEAR_DEPTH == 0
     float centerViewZ = viewZFromNDCZ(d);
-    return screenToView(uvOffset, centerViewZ);
+    return screenToView3(uvOffset, centerViewZ);
     #else
     d = mix(-cameraNearFar.x, -cameraNearFar.y, d);
-    return screenToView(uvOffset, d);
+    return screenToView3(uvOffset, d);
     #endif
 }
 
@@ -58,14 +54,13 @@ const in float occlusionSphereRadius,
 const in vec3 centerPosition,
 const in vec3 centerNormal) {
     float screenSpaceRadius = (float(id) + mod(randomAngle, 1.) + 0.5) * INV_NUM_SAMPLES;
-
-    float angle = screenSpaceRadius * (float(NUM_SPIRAL_TURNS) * 6.28) + randomAngle;
-
+    float angle = screenSpaceRadius * (float(NUM_SPIRAL_TURNS) * 6.28318) + randomAngle;
     screenSpaceRadius = (screenSpaceRadius * occlusionSphereRadius);
-
-    vec2 offset = vec2(cos(angle), sin(angle));
-
-    vec3 samplePosition = getPositionFromOffset(uv, offset, screenSpaceRadius);
+    vec2 uvOffset = uv + floor(screenSpaceRadius * vec2(cos(angle), sin(angle))) / screenSize;
+    #if CHECK_GBUFFER_FLAG == 1
+    if (getSelectionBit(getGBufferFlags(uvOffset.xy).a) < 1) return 0.0;
+    #endif
+    vec3 samplePosition = getPositionFromOffset(uvOffset);
     vec3 direction = samplePosition - centerPosition;
     float d2 = dot(direction, direction);
     float ao = max((dot(centerNormal, direction) + centerPosition.z * saoBiasEpsilon.x) / (saoBiasEpsilon.z * d2 + saoBiasEpsilon.y), 0.0);
@@ -102,8 +97,7 @@ void main() {
     float centerViewZ = mix(-cameraNearFar.x, -cameraNearFar.y, centerDepth);
     #endif
 
-    vec3 centerPosition = screenToView(vUv, centerViewZ);
-
+    vec3 centerPosition = screenToView3(vUv, centerViewZ);
 
     float occlusionSphereScreenRadius = 200. * saoData.z / (-centerPosition.z);
 
@@ -149,7 +143,8 @@ void main() {
 
     float aoValue = sum * saoData.y * INV_NUM_SAMPLES;
 
-    //    bool disableAO = getSelectionBit(getGBufferFlags(vUv).a) > 0 ? true : false;
+    // this is not needed since ao can be disabled by not adding the material extension or the patch.
+    // bool disableAO = getSelectionBit(getGBufferFlags(vUv).a) > 0 ? true : false;
 
     aoValue = 1. - clamp(aoValue, 0., 1.);
 

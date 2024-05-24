@@ -3,7 +3,7 @@ import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import {ExtendedShaderMaterial, IWebGLRenderer, ShaderMaterial2} from '../core'
 import {Shader, ShaderMaterialParameters, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
 import {uiToggle} from 'uiconfig.js'
-import {serialize} from 'ts-browser-helpers'
+import {onChange2, serialize} from 'ts-browser-helpers'
 import {IShaderPropertiesUpdater} from '../materials'
 
 export class ExtendedShaderPass extends ShaderPass implements IPass {
@@ -15,7 +15,9 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
     readonly isExtendedShaderPass = true
     // private _textureIDs: string[]
 
-    @uiToggle('Enabled') @serialize() enabled = true
+    @uiToggle('Enabled') @serialize()
+    @onChange2(ExtendedShaderPass.prototype.setDirty)
+        enabled = true
 
     constructor(shader: ShaderMaterial2|ShaderMaterialParameters, ...textureID: string[]) {
         super(
@@ -51,8 +53,8 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
     }
 
     setDirty() {
-        this.material.needsUpdate = true // do this when material defines etc are changed
-        this.onDirty.forEach(v=>v())
+        if (this.material) this.material.needsUpdate = true // do this when material defines etc are changed
+        this.onDirty?.forEach(v=>v())
     }
 
 

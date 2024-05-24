@@ -1,17 +1,17 @@
 import {Matrix4, Texture, TextureDataType, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderTarget} from 'three'
 import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
-import {ThreeViewer} from '../../viewer'
+import {type IViewerEvent, ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiConfig, uiFolderContainer, uiImage, uiSlider} from 'uiconfig.js'
 import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../../core'
-import {getOrCall, glsl, onChange2, serialize, ValOrFunc} from 'ts-browser-helpers'
+import {getOrCall, glsl, onChange2, serialize, updateBit, ValOrFunc} from 'ts-browser-helpers'
 import {MaterialExtension} from '../../materials'
 import {shaderReplaceString, shaderUtils} from '../../utils'
-import {getTexelDecoding, matDefine} from '../../three'
+import {getTexelDecoding, matDefine, matDefineBool} from '../../three'
 import ssaoPass from './shaders/SSAOPlugin.pass.glsl'
 import ssaoPatch from './shaders/SSAOPlugin.patch.glsl'
 import {uiConfigMaterialExtension} from '../../materials/MaterialExtender'
-import {GBufferPlugin} from './GBufferPlugin'
+import {GBufferPlugin, GBufferUpdaterContext} from './GBufferPlugin'
 
 export type SSAOPluginEventTypes = ''
 export type SSAOPluginTarget = WebGLRenderTarget
@@ -19,8 +19,8 @@ export type SSAOPluginTarget = WebGLRenderTarget
 /**
  * SSAO Plugin
  *
- * Adds a post-render pass to blend the last frame with the current frame.
- * This can be used to create a progressive rendering effect which is useful for progressive shadows, gi, denoising, baking, anti-aliasing, and many other effects.
+ * Adds Screen Space Ambient Occlusion (SSAO) to the scene.
+ * Adds a pass to calculate AO, which is then read by materials in the render pass.
  * @category Plugins
  */
 @uiFolderContainer('SSAO Plugin')
@@ -102,24 +102,40 @@ export class SSAOPlugin
         if (!this._viewer.renderManager.gbufferTarget || !this._viewer.renderManager.gbufferUnpackExtension)
             throw new Error('SSAOPlugin: GBuffer target not created. GBufferPlugin or DepthBufferPlugin is required.')
         this._createTarget(true)
-        const pass = new SSAOPluginPass(this.passId, this.target)
-        pass.before = ['render']
-        pass.after = ['gbuffer', 'depth']
-        pass.required = ['render'] // gbuffer required check above.
-        return pass
+        // todo: send target as a func, so it works when changed
+        return new SSAOPluginPass(this.passId, this.target)
     }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
+        const gbuffer = viewer.getPlugin(GBufferPlugin)
+        if (gbuffer) gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
+        else viewer.addEventListener('addPlugin', this._onPluginAdd)
         this._gbufferUnpackExtensionChanged()
         viewer.renderManager.addEventListener('gbufferUnpackExtensionChanged', this._gbufferUnpackExtensionChanged)
     }
 
+    private _onPluginAdd = (e: IViewerEvent)=>{
+        if (e.plugin?.constructor?.PluginType !== GBufferPlugin.PluginType) return
+        const gbuffer = e.plugin as GBufferPlugin
+        gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
+        this._viewer?.removeEventListener('addPlugin', this._onPluginAdd)
+    }
+
     onRemove(viewer: ThreeViewer): void {
+        viewer.removeEventListener('addPlugin', this._onPluginAdd)
         this._disposeTarget()
         return super.onRemove(viewer)
     }
 
+    updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
+        if (!c.material || !c.material.userData) return
+        const disabled = c.material.userData.ssaoCastDisabled || c.material.userData.pluginsDisabled
+        const x = disabled ? 0 : 1
+        data.w = updateBit(data.w, 3, x)
+
+        if (disabled && this._pass) this._pass.checkGBufferFlag = true
+    }
     /**
      * @deprecated use {@link target} instead
      */
@@ -132,9 +148,9 @@ export class SSAOPlugin
 
 @uiFolderContainer('SSAO Pass')
 export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass {
-    before = ['screen']
-    after = ['render']
-    required = ['render']
+    before = ['render']
+    after = ['gbuffer', 'depth']
+    required = ['render'] // gbuffer required check done in plugin.
 
     // todo bilateralPass
     // @serialize() readonly bilateralPass: BilateralFilterPass
@@ -171,6 +187,13 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     @matDefine('NUM_SAMPLES', undefined, undefined, SSAOPluginPass.prototype.setDirty)
         numSamples = 8
 
+    /**
+     * Whether to check for gbuffer flag or not. This is used to disable SSAO casting by some objects. its enabled automatically by the SSAOPlugin when required.
+     * This is disabled by default so that we dont read texture for no reason.
+     */
+    @matDefineBool('CHECK_GBUFFER_FLAG')
+        checkGBufferFlag = false
+
     // todo after bilateralPass is implemented
     // @bindToValue({obj: 'bilateralPass', key: 'enabled', onChange: 'setDirty'})
     // smoothEnabled = true
@@ -186,6 +209,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 ['NUM_SPIRAL_TURNS']: 3,
                 ['SSAO_PACKING']: 1, // 1 is (r: ssao, gba: depth), 2 is (rgb: ssao, a: 1), 3 is (rgba: packed_ssao), 4 is (rgb: packed_ssao, a: 1)
                 ['PERSPECTIVE_CAMERA']: 1, // set in PerspectiveCamera2
+                ['CHECK_GBUFFER_FLAG']: 0,
             },
             uniforms: {
                 tLastThis: {value: null},
@@ -201,7 +225,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
 
             fragmentShader: ssaoPass,
 
-        }, 'tDiffuse')
+        }, 'tDiffuse') // why is tLastThis not here. because encoding and size doesnt matter?
 
         this.needsSwap = false
         this.clear = true
@@ -218,9 +242,9 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
             return
         }
         this._updateParameters()
-        if (!this.material.defines.HAS_GBUFFER) {
-            console.warn('SSAOPluginPass: DepthNormalBuffer required for ssao')
-        }
+        // if (!this.material.defines.HAS_GBUFFER) {
+        //     console.warn('SSAOPluginPass: DepthNormalBuffer required for ssao')
+        // }
         renderer.renderManager.blit(writeBuffer, {
             source: target.texture,
         })
@@ -264,9 +288,10 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <aomap_fragment>', ssaoPatch)
         },
         onObjectRender: (_object, material, renderer: any) => {
-            const opaque = !material.transparent && (!material.transmission || material.transmission < 0.001)
-            const x: any = this.enabled && opaque &&
+            // const opaque = !material.transparent && (!material.transmission || material.transmission < 0.001)
+            const x: any = this.enabled && // opaque &&
             renderer.userData.screenSpaceRendering !== false &&
+            !material.userData?.pluginsDisabled &&
             !material.userData?.ssaoDisabled ? 1 : 0
 
             if (material.defines!.SSAO_ENABLED !== x) {
@@ -313,6 +338,19 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                     },
                     onChange: this.setDirty,
                 },
+                {
+                    type: 'checkbox',
+                    label: 'Cast SSAO',
+                    get value() {
+                        return !(material.userData.ssaoCastDisabled ?? false)
+                    },
+                    set value(v) {
+                        if (v === !(material.userData.ssaoCastDisabled ?? false)) return
+                        material.userData.ssaoCastDisabled = !v
+                        material.setDirty()
+                    },
+                    onChange: this.setDirty,
+                },
             ],
         }
     }
@@ -325,5 +363,10 @@ declare module '../../core/IMaterial' {
          * Disable SSAOPlugin for this material.
          */
         ssaoDisabled?: boolean
+        /**
+         * Cast SSAO on other objects.
+         * if casting is not working when this is false, ensure render to depth is true, like for transparent objects
+         */
+        ssaoCastDisabled?: boolean
     }
 }

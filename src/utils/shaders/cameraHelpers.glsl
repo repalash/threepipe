@@ -32,7 +32,7 @@ vec4 viewToScreen3(const in vec3 pos) {
     return projected;
 }
 
-vec3 screenToView(const in vec2 uv, const in float viewZ) {
+vec3 screenToView3(const in vec2 uv, const in float viewZ) {
     vec2 uv_ = 2. * uv - 1.;
     float xe = -(uv_.x + projection[2][0]) * viewZ / projection[0][0];
     float ye = -(uv_.y + projection[2][1]) * viewZ / projection[1][1];
