@@ -52,7 +52,7 @@ export function sortPasses(ps: IPipelinePass<IPassID>[]) {
         if (Object.keys(dict).length < 1) break
         if (!updated) {
             console.error(entries, dict, pipeline)
-            throw 'Not possible 2'
+            throw 'Not possible 2' // when some dependency(required) doesnt exist. todo: show better error.
             break
         }
     }

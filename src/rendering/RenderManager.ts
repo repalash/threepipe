@@ -280,7 +280,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
     }
 
     updateShaderProperties(material: {defines: Record<string, string|number|undefined>, uniforms: {[name: string]: IUniform}}): this {
-        // if (material.uniforms.currentFrameCount) material.uniforms.currentFrameCount.value = this.frameCount
+        if (material.uniforms.currentFrameCount) material.uniforms.currentFrameCount.value = this.frameCount
         if (!this.stableNoise) {
             if (material.uniforms.frameCount) material.uniforms.frameCount.value = this._totalFrameCount
             else console.warn('RenderManager: no uniform: frameCount')

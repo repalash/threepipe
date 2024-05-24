@@ -6,7 +6,7 @@ import {AnyFunction, getOrCall, safeSetProperty, ValOrFunc} from 'ts-browser-hel
  * @param propKey - uniform name
  * @param thisTarget - if `this` is the uniform (because uniforms = this wont work). It also adds _ in front of the name
  */
-export function uniform({uniforms, propKey, thisTarget = false}: {uniforms?: any, propKey?: string|symbol, thisTarget?:boolean} = {}): PropertyDecorator {
+export function uniform({uniforms, propKey, thisTarget = false, onChange}: {uniforms?: any, propKey?: string|symbol, thisTarget?:boolean, onChange?: (...args: any[]) => any} = {}): PropertyDecorator {
     // backing up properties as values are different when called again, no idea why.
     const cUniforms = !!uniforms
     const cPropKey = !!propKey
@@ -29,8 +29,11 @@ export function uniform({uniforms, propKey, thisTarget = false}: {uniforms?: any
                 return getUniform(this).value
             },
             set(newVal: any) {
-                getUniform(this).value = newVal
+                let val = getUniform(this).value
+                if (val === newVal) return
+                val = newVal
                 safeSetProperty(this, 'uniformsNeedUpdate', true, true)
+                onChange && callOnChange.call(this, onChange, [propertyKey, newVal])
             },
             // configurable: true,
             // enumerable: true,

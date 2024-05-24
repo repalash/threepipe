@@ -9,7 +9,7 @@ import {ITexture} from '../../core'
 import {ExtendedCopyPass} from '../../postprocessing'
 
 export interface RenderTargetBlock {
-    target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>}|undefined>
+    target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>}|undefined|null>
     name: string
     visible: boolean
     transparent: boolean

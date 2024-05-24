@@ -449,7 +449,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     updateShaderProperties(material: {defines: Record<string, string|number|undefined>, uniforms: {[name: string]: IUniform}}): this {
         if (material.uniforms.sceneBoundingRadius) material.uniforms.sceneBoundingRadius.value = this._sceneBoundingRadius
-        else console.warn('BaseRenderer: no uniform: frameCount')
+        else console.warn('BaseRenderer: no uniform: sceneBoundingRadius')
         return this
     }
 
