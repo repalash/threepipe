@@ -1,6 +1,7 @@
 import {
     BaseEvent,
     Color,
+    ColorSpace,
     FloatType,
     HalfFloatType,
     IUniform,
@@ -353,6 +354,11 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
     get composerTarget2(): IRenderTarget {
         return this._composer.renderTarget2
     }
+
+    /**
+     * The size set in the three.js renderer.
+     * Final size is renderSize * renderScale
+     */
     get renderSize(): Vector2 {
         return this._renderSize
     }
@@ -614,9 +620,14 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 super(...ps)
                 this.uuid = generateUUID()
                 const ops = ps[ps.length - 1] as WebGLRenderTargetOptions
+                const colorSpace = ops?.colorSpace
+                this._initTexture(colorSpace)
+            }
+
+            private _initTexture(colorSpace?: ColorSpace) {
                 if (Array.isArray(this.texture)) {
                     this.texture.forEach(t => {
-                        if (ops.colorSpace !== undefined) t.colorSpace = ops.colorSpace
+                        if (colorSpace !== undefined) t.colorSpace = colorSpace
                         t._target = this
                         t.toJSON = () => {
                             console.warn('Multiple render target texture.toJSON not supported yet.')
@@ -625,6 +636,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                     })
                 } else {
                     this.texture._target = this
+                    // if (colorSpace !== undefined) this.texture.colorSpace = colorSpace
                     this.texture.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
                         isRenderTargetTexture: true,
                     }) // so that it doesn't get serialized
@@ -641,12 +653,20 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 if (this.isTemporary) throw 'Cloning temporary render targets not supported'
                 if (Array.isArray(this.texture)) throw 'Cloning multiple render targets not supported'
                 // Note: todo: webgl render target.clone messes up the texture, by not copying isRenderTargetTexture prop and maybe some other stuff. So its better to just create a new one
-                const cloned = super.clone() as IRenderTarget
+                // const cloned = super.clone() as IRenderTarget
+                const cloned = new (this.constructor as Class<typeof this>)(this.renderManager)
+                cloned.copy(this)
+                cloned._initTexture((Array.isArray(this.texture) ? this.texture[0] : this.texture)?.colorSpace)
                 const tex = cloned.texture
                 if (Array.isArray(tex)) tex.forEach(t => t.isRenderTargetTexture = true)
                 else tex.isRenderTargetTexture = true
                 return processNewTarget(cloned, this.sizeMultiplier || 1, trackTarget)
             }
+            copy(source: IRenderTarget|WebGLRenderTarget|WebGLMultipleRenderTargets): this {
+                super.copy(source as any)
+                return this
+            }
+
         }(this, ...size, options)
     }
 

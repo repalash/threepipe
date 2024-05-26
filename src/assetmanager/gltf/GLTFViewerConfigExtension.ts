@@ -54,8 +54,9 @@ export class GLTFViewerConfigExtension {
 
             viewerConfig.resources = await viewer.loadConfigResources(viewerConfig.resources || {}, extraResources)
 
-            if (resultScene) (resultScene as RootSceneImportResult).importedViewerConfig = viewerConfig
         }
+
+        if (resultScene) (resultScene as RootSceneImportResult).importedViewerConfig = viewerConfig
 
         return viewerConfig
     }

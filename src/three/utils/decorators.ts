@@ -84,10 +84,11 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
             set(newVal: any) {
                 const {t, p} = getTarget(thisMat ? this : this.material)
                 if (processVal) newVal = processVal(newVal)
-                else if (typeof newVal === 'boolean') { // just in case
-                    console.error('Boolean values are not supported for defines. Use @matDefineBool instead.')
-                    newVal = newVal ? '1' : '0'
-                }
+                // boolean values are supported in material extender.
+                // else if (typeof newVal === 'boolean') { // just in case
+                //     console.error('Boolean values are not supported for defines. Use @matDefineBool instead.')
+                //     newVal = newVal ? '1' : '0'
+                // }
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 if (onChange && typeof onChange === 'function') {

@@ -11,10 +11,34 @@ import {CameraView, ICameraView} from './camera/CameraView'
 export type TCameraControlsMode = '' | 'orbit' | 'deviceOrientation' | 'threeFirstPerson' | 'pointerLock' | string
 
 export interface ICameraUserData extends IObject3DUserData {
-    autoNearFar?: boolean // default = true
-    minNearPlane?: number // default = 0.2
-    maxFarPlane?: number // default = 1000
-    autoLookAtTarget?: boolean // default = false, only for when controls and interactions are disabled
+    /**
+     * Automatically calculate near and far planes based on the scene bounding box.
+     */
+    autoNearFar?: boolean
+    /**
+     * Minimum near plane distance. (when {@link autoNearFar} is true)
+     * Or the near plane distance when {@link autoNearFar} is false.
+     * @default 0.2
+     */
+    minNearPlane?: number
+    /**
+     * Maximum far plane distance. (when {@link autoNearFar} is true)
+     * Or the far plane distance when {@link autoNearFar} is false.
+     * @default 1000
+     */
+    maxFarPlane?: number
+    /**
+     * Automatically rotate camera to look at(lookAt) the target.
+     * Only for when controls and interactions are disabled.
+     * @default false
+     */
+    autoLookAtTarget?: boolean
+
+    /**
+     * Disable jitter for this camera. (for {@link SSAAPlugin})
+     * @default false
+     */
+    disableJitter?: boolean
 
     __lastScale?: Vector3,
     __isMainCamera?: boolean,

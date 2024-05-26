@@ -21,6 +21,8 @@ import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {IGeometry} from '../IGeometry'
 
+export type TCamera = ICamera
+
 @uiFolderContainer('Root Scene')
 export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements IScene<ISceneEvent, ISceneEventTypes> {
     readonly isRootScene = true
@@ -30,7 +32,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     // private _processors = new ObjectProcessorMap<'environment' | 'background'>()
     // private _sceneObjects: ISceneObject[] = []
-    private _mainCamera: ICamera | null = null
+    private _mainCamera: TCamera | null = null
     /**
      * The root object where all imported objects are added.
      */
@@ -72,17 +74,17 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * The default camera in the scene
      */
-    @uiConfig() @serialize() readonly defaultCamera: ICamera
+    @uiConfig() @serialize() readonly defaultCamera: TCamera
 
     // private _environmentLight?: IEnvironmentLight
 
     // required just because we don't want activeCamera to be null.
-    private _dummyCam = new PerspectiveCamera2('') as ICamera
+    private _dummyCam = new PerspectiveCamera2('') as TCamera
 
-    get mainCamera(): ICamera {
+    get mainCamera(): TCamera {
         return this._mainCamera || this._dummyCam
     }
-    set mainCamera(camera: ICamera | undefined) {
+    set mainCamera(camera: TCamera | undefined) {
         const cam = this.mainCamera
         if (!camera) camera = this.defaultCamera
         if (cam === camera) return
@@ -102,11 +104,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty()
     }
 
-    private _renderCamera: ICamera | undefined
+    private _renderCamera: TCamera | undefined
     get renderCamera() {
         return this._renderCamera ?? this.mainCamera
     }
-    set renderCamera(camera: ICamera) {
+    set renderCamera(camera: TCamera) {
         const cam = this._renderCamera
         this._renderCamera = camera
         this.dispatchEvent({type: 'renderCameraChange', lastCamera: cam, camera})
@@ -117,7 +119,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param camera
      * @param objectProcessor
      */
-    constructor(camera: ICamera, objectProcessor?: IObjectProcessor) {
+    constructor(camera: TCamera, objectProcessor?: IObjectProcessor) {
         super()
         this.setDirty = this.setDirty.bind(this)
 
@@ -415,7 +417,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * This is called automatically every time the camera is updated.
      */
     refreshActiveCameraNearFar(): void {
-        const camera = this.mainCamera as ICamera
+        const camera = this.mainCamera as TCamera
         if (!camera) return
         if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
             camera.near = camera.userData.minNearPlane ?? 0.5
@@ -614,7 +616,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * @deprecated
      */
-    get activeCamera(): ICamera {
+    get activeCamera(): TCamera {
         console.error('activeCamera is deprecated. Use mainCamera instead.')
         return this.mainCamera
     }
@@ -622,7 +624,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * @deprecated
      */
-    set activeCamera(camera: ICamera | undefined) {
+    set activeCamera(camera: TCamera | undefined) {
         console.error('activeCamera is deprecated. Use mainCamera instead.')
         this.mainCamera = camera
     }

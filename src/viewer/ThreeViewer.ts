@@ -252,7 +252,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Note: should be max (screen refresh rate / animation frame rate) like 60Hz / 30fps
      * @type {number}
      */
-    public maxFramePerLoop = 1
+    maxFramePerLoop = 1
     readonly debug: boolean
 
     /**
@@ -738,6 +738,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             await this.removePlugin(this.plugins[type])
         }
         this.plugins[type] = p
+        const oldType = p.constructor.OldPluginType
+        if (oldType && this.plugins[oldType]) this.console.error('Plugin type mismatch')
+        if (oldType) this.plugins[oldType] = p
+
         await p.onAdded(this)
         this.dispatchEvent({type: 'addPlugin', target: this, plugin: p})
         this.setDirty(p)
@@ -765,6 +769,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             this.removePluginSync(this.plugins[type])
         }
         this.plugins[type] = p
+        const oldType = p.constructor.OldPluginType
+        if (oldType && this.plugins[oldType]) this.console.error('Plugin type mismatch')
+        if (oldType) this.plugins[oldType] = p
         p.onAdded(this)
         this.dispatchEvent({type: 'addPlugin', target: this, plugin: p})
         this.setDirty(p)

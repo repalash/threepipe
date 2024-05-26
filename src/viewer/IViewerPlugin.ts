@@ -12,6 +12,7 @@ export interface IViewerPlugin<TViewer extends ThreeViewer = ThreeViewer, IsSync
     // all classes must have this static property with a unique identifier value for this plugin
     constructor: {
         PluginType: string
+        OldPluginType?: string // rename to type alias maybe
     }
 
     // these plugins will be added automatically(with default settings), if they are not added yet.

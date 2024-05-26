@@ -12,6 +12,7 @@ import {UiObjectConfig} from 'uiconfig.js'
 export abstract class AViewerPlugin<T extends string = string, TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean> extends EventDispatcher<Event, T|'serialize'|'deserialize'> implements IViewerPlugin<TViewer, IsSync> {
     declare ['constructor']: typeof AViewerPlugin
     public static readonly PluginType: string = 'AViewerPlugin'
+    public static readonly OldPluginType?: string
     protected _dirty = false
 
     uiConfig?: UiObjectConfig = undefined // todo: this should work when uncommented, remove all get uiConfig and do it properly
@@ -38,7 +39,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
     }
 
     fromJSON(data: ISerializedConfig, meta?: SerializationMetaType): this|null|Promise<this|null> {
-        if (data.type !== this.constructor.PluginType)
+        if (data.type !== this.constructor.PluginType && data.type !== this.constructor.OldPluginType)
             return null
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.dispatchEvent({type: 'deserialize', data, meta})

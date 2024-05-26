@@ -11,6 +11,8 @@ import {
     UnsignedInt248Type,
     UnsignedIntType,
     UnsignedShortType,
+    WebGLMultipleRenderTargets,
+    WebGLRenderTarget,
     Wrapping,
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
@@ -33,7 +35,7 @@ export interface IRenderTarget extends EventDispatcher {
     targetKey?: string // for caching.
     clone(trackTarget?: boolean): this
     setSize(width: number, height: number, depth?: number): void;
-    copy(source: IRenderTarget): this;
+    copy(source: IRenderTarget|WebGLRenderTarget|WebGLMultipleRenderTargets): this;
     dispose(): void;
 
     scissor: Vector4;
