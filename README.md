@@ -92,6 +92,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [TonemapPlugin](#tonemapplugin) - Add tonemap to the final screen pass
   - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
   - [ProgressivePlugin](#progressiveplugin) - Post-render pass to blend the last frame with the current frame
+  - [SSAAPlugin](#ssaaplugin) - Add Super Sample Anti-Aliasing by applying jitter to the camera.
   - [DepthBufferPlugin](#depthbufferplugin) - Pre-rendering of depth buffer
   - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
   - [GBufferPlugin](#gbufferplugin) - Pre-rendering of depth-normal and flags buffers in a single pass
@@ -2197,6 +2198,29 @@ const viewer = new ThreeViewer({
 Progressive Plugin adds a post-render pass to blend the last frame with the current frame.
 
 This is used as a dependency in other plugins for progressive rendering effect which is useful for progressive shadows, gi, denoising, baking, anti-aliasing, and many other effects. The helper function `convergedPromise` returns a new promise that can be used to wait for the progressive rendering to converge.
+
+## SSAAPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#ssaa-plugin/) &mdash;
+[Source Code](./src/plugins/pipeline/SSAAPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/SSAAPlugin.html)
+
+SSAA Plugin adds support for [Super Sampling Anti-Aliasing](https://en.wikipedia.org/wiki/Supersampling) to the viewer. Simply add the plugin to the viewer to use it.
+
+It jitters the camera view offset over multiple frames, which are then blended by the [ProgressivePlugin](#progressiveplugin) to create a higher quality image. This is useful for reducing aliasing artifacts in the scene.
+
+By default, the pipeline only renders once per request animation frame. So we don't get any anti-aliasing while moving. For that, either use the TAA(Temporal Anti-aliasing) plugin or for the case of simple scenes - render multiple times per frame which can be done by setting `plugin.rendersPerFrame` or `viewer.rendersPerFrame`. Check out the [example](https://threepipe.org/examples/#ssaa-plugin/) to see the effect on frame rate. 
+
+```typescript
+
+const ssaa = viewer.addPluginSync(new SSAAPlugin())
+
+ssaa.enabled = true // toggle jittering(if you want to set custom view offset)
+
+ssaa.rendersPerFrame = 4 // render 4 times per frame (max 32 is useful)
+```
 
 ## DepthBufferPlugin
 

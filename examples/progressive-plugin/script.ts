@@ -9,17 +9,26 @@ import {
     PlaneGeometry,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
+    SSAAPlugin,
     ThreeViewer,
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
-
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        rgbm: false,
+        dropzone: {
+            addOptions: {
+                disposeSceneObjects: true,
+                importConfig: true,
+            },
+        },
     })
+    viewer.addPluginSync(new ProgressivePlugin((window as any).TESTING ? 20 : 200))
+    viewer.addPluginSync(new SSAAPlugin())
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))
     const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/fbx/Samba Dancing.fbx', {
@@ -60,7 +69,6 @@ async function init() {
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>directionalLight.shadow.map || undefined, 'shadow', true, true, true)
 
-    viewer.addPluginSync(new ProgressivePlugin((window as any).TESTING ? 20 : 200))
     viewer.addEventListener('postFrame', ()=>{
         if (viewer.renderManager.frameCount < 1) return
 

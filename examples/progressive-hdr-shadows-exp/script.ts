@@ -10,6 +10,7 @@ import {
     ProgressivePlugin,
     ShaderChunk,
     shaderReplaceString,
+    SSAAPlugin,
     ThreeViewer,
     Vector3,
 } from 'threepipe'
@@ -39,7 +40,14 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         rgbm: false,
-        plugins: [new ProgressivePlugin((window as any).TESTING ? 20 : 200)],
+        plugins: [new ProgressivePlugin((window as any).TESTING ? 20 : 200), SSAAPlugin],
+        dropzone: {
+            addOptions: {
+                disposeSceneObjects: true,
+                autoSetEnvironment: true,
+                autoSetBackground: true,
+            },
+        },
     })
 
     const directionalLight = createDirLight(viewer)

@@ -1,12 +1,14 @@
 import {IUniform, Texture, TextureDataType, UnsignedByteType, WebGLRenderTarget} from 'three'
 import {IPassID, IPipelinePass} from '../../postprocessing'
-import {ThreeViewer} from '../../viewer'
+import {ISerializedConfig, ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage, uiInput} from 'uiconfig.js'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer} from '../../core'
 import {AddBlendTexturePass} from '../../postprocessing/AddBlendTexturePass'
 import {getOrCall, serialize, ValOrFunc} from 'ts-browser-helpers'
 import {IShaderPropertiesUpdater} from '../../materials'
+import {SerializationMetaType} from '../../utils'
+import {SSAAPlugin} from './SSAAPlugin'
 
 export type ProgressivePluginEventTypes = ''
 export type ProgressivePluginTarget = WebGLRenderTarget
@@ -24,6 +26,7 @@ export class ProgressivePlugin
 
     readonly passId = 'progressive'
     public static readonly PluginType = 'ProgressivePlugin'
+    public static readonly OldPluginType = 'Progressive'
 
     /**
      * Different targets for different render cameras.
@@ -33,7 +36,6 @@ export class ProgressivePlugin
     protected _targets = new Map<string, ProgressivePluginTarget>()
 
     @serialize() @uiInput('Frame count') maxFrameCount: number
-    // todo: deserialize jitter
 
     // @uiImage('Last Texture' /* {readOnly: true}*/) texture?: Texture
 
@@ -58,13 +60,16 @@ export class ProgressivePlugin
         return this._viewer ? this.getTarget(this._viewer.scene.mainCamera)?.texture : undefined
     }
 
+    /**
+     * Note - this is not used right now
+     */
     // @onChange2(ProgressivePlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
     readonly bufferType: TextureDataType // cannot be changed after creation (for now)
 
     constructor(
         maxFrameCount = 32,
-        bufferType: TextureDataType = UnsignedByteType,
+        bufferType: TextureDataType = UnsignedByteType, // this is not used. todo use halffloat when rgbm = false
         enabled = true,
     ) {
         super()
@@ -152,6 +157,21 @@ export class ProgressivePlugin
                 this._viewer?.addEventListener('postRender', l)
             }
         })
+    }
+
+    fromJSON(data: ISerializedConfig&{pass?: any}, meta?: SerializationMetaType): this|null|Promise<this|null> {
+        console.log(data)
+        if (data.jitter !== undefined) {
+            const ssaa = this._viewer?.getPlugin(SSAAPlugin)
+            if (!ssaa) {
+                console.warn('Loading old webgi v0 file, add SSAAPlugin to get anti-aliasing')
+            } else {
+                data = {...data}
+                ssaa.enabled = data.jitter
+                delete data.jitter
+            }
+        }
+        return super.fromJSON(data, meta)
     }
 
 }

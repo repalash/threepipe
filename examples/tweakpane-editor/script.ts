@@ -34,6 +34,7 @@ import {
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
     SceneUiConfigPlugin,
+    SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
     ThreeFirstPersonControlsPlugin,
@@ -74,6 +75,7 @@ async function init() {
 
     await viewer.addPlugins([
         new ProgressivePlugin(),
+        new SSAAPlugin(),
         GLTFAnimationPlugin,
         PickingPlugin,
         new TransformControlsPlugin(false),
@@ -126,7 +128,7 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin],
-        ['Scene']: [ContactShadowGroundPlugin],
+        ['Scene']: [SSAAPlugin, ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
