@@ -29,9 +29,10 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
                 return getUniform(this).value
             },
             set(newVal: any) {
-                let val = getUniform(this).value
+                const u = getUniform(this)
+                const val = u.value
                 if (val === newVal) return
-                val = newVal
+                u.value = newVal
                 safeSetProperty(this, 'uniformsNeedUpdate', true, true)
                 onChange && callOnChange.call(this, onChange, [propertyKey, newVal])
             },
