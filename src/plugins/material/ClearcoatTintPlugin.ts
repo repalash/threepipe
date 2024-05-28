@@ -92,7 +92,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
             }, material)
         },
         extraUniforms: {
-            ...this._uniforms,
+            // ...this._uniforms, // done in constructor
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
             return (this.isDisabled() ? '0' : '1') + (material1.userData._clearcoatTint?.enableTint ? '1' : '0') + (material1.clearcoat > 0 ? '1' : '0')
@@ -100,7 +100,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
         isCompatible: (material1: PhysicalMaterial) => {
             return material1.isPhysicalMaterial
         },
-        getUiConfig: (material: PhysicalMaterial) => {
+        getUiConfig: (material: PhysicalMaterial) => { // todo use uiConfigMaterialExtension
             const viewer = this._viewer!
             if (material.userData._clearcoatTint === undefined) material.userData._clearcoatTint = {}
             const state = material.userData._clearcoatTint
@@ -169,6 +169,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
     constructor() {
         super()
         this._loaderCreate = this._loaderCreate.bind(this)
+        Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {

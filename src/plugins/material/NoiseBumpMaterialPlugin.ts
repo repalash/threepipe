@@ -92,13 +92,13 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
             }, material)
         },
         extraUniforms: {
-            ...this._uniforms,
+            // ...this._uniforms, // done in constructor
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
             return (this.isDisabled() ? '0' : '1') + (material1.userData._noiseBumpMat?.hasBump ? '1' : '0')
         },
         isCompatible: (material1: PhysicalMaterial) => material1.isPhysicalMaterial,
-        getUiConfig: material => {
+        getUiConfig: material => { // todo use uiConfigMaterialExtension
             const viewer = this._viewer!
             if (material.userData._noiseBumpMat === undefined) material.userData._noiseBumpMat = {}
             const state = material.userData._noiseBumpMat
@@ -249,6 +249,7 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
     constructor() {
         super()
         this._loaderCreate = this._loaderCreate.bind(this)
+        Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {

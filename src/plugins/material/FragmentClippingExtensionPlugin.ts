@@ -107,7 +107,7 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
             }, material)
         },
         extraUniforms: {
-            ...this._uniforms,
+            // ...this._uniforms, // done in constructor
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
             return (this.enabled ? '1' : '0') + (material1.userData._fragmentClippingExt?.clipEnabled ? '1' : '0')
@@ -115,7 +115,7 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
         isCompatible: (material1: PhysicalMaterial) => {
             return material1.isPhysicalMaterial || material1.userData.isGBufferMaterial // todo isGBufferMaterial
         },
-        getUiConfig: material => {
+        getUiConfig: material => { // todo use uiConfigMaterialExtension
             const viewer = this._viewer!
             if (material.userData._fragmentClippingExt === undefined) material.userData._fragmentClippingExt = {}
             const state = material.userData._fragmentClippingExt
@@ -194,6 +194,7 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
     constructor() {
         super()
         this._loaderCreate = this._loaderCreate.bind(this)
+        Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {

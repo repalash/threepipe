@@ -119,13 +119,13 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
             }, material)
         },
         extraUniforms: {
-            ...this._uniforms,
+            // ...this._uniforms, // done in constructor
         },
         computeCacheKey: (material1: PhysicalMaterial) => {
             return (this.enabled ? '1' : '0') + (material1.userData._hasCustomBump ? '1' : '0') + material1.userData?._customBumpMap?.uuid
         },
         isCompatible: (material1: PhysicalMaterial) => material1.isPhysicalMaterial,
-        getUiConfig: material => {
+        getUiConfig: material => { // todo use uiConfigMaterialExtension
             const viewer = this._viewer!
             const enableCustomBump = this.enableCustomBump.bind(this)
             const state = material.userData
@@ -193,6 +193,7 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
     constructor() {
         super()
         this._loaderCreate = this._loaderCreate.bind(this)
+        Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {

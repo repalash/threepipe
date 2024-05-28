@@ -1,4 +1,4 @@
-import {IMaterial, IMaterialUserData} from '../core'
+import {IMaterial, IMaterialUserData, IWebGLRenderer} from '../core'
 import {getOrCall, objectMap} from 'ts-browser-helpers'
 import {shaderReplaceString, shaderUtils} from '../utils'
 import {Object3D, Shader, ShaderChunk, WebGLRenderer} from 'three'
@@ -128,7 +128,7 @@ export function updateMaterialDefines(defines: MaterialExtension['extraDefines']
     if (flag) material.needsUpdate = true
 }
 
-function materialBeforeRender({target, object, renderer}:{object?: Object3D, renderer?: WebGLRenderer, target: IMaterial}) {
+function materialBeforeRender({target, object, renderer}:{object?: Object3D, renderer?: IWebGLRenderer, target: IMaterial}) {
     const material = target
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return
@@ -147,7 +147,7 @@ function materialBeforeRender({target, object, renderer}:{object?: Object3D, ren
     }
 }
 
-function materialAfterRender({target, object, renderer}:{object?: Object3D, renderer?: WebGLRenderer, target: IMaterial}) {
+function materialAfterRender({target, object, renderer}:{object?: Object3D, renderer?: IWebGLRenderer, target: IMaterial}) {
     const material = target
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return

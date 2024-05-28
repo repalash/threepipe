@@ -268,8 +268,8 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
             if (this._material.userData.gBufferData.tonemapEnabled !== this.tonemapGround) {
                 this._material.userData.gBufferData.tonemapEnabled = this.tonemapGround
             }
-            this._material.userData.ssaoDisabled = true
-            this._material.userData.sscsDisabled = true
+            // this._material.userData.ssaoDisabled = true //todo should be in BakedGroundPlugin
+            // this._material.userData.sscsDisabled = true //todo should be in BakedGroundPlugin
 
             // if (this._material.userData.__postTonemap === undefined) {
             //     this._material.userData.__postTonemap = this._material.userData.postTonemap

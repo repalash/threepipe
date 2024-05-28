@@ -1,5 +1,5 @@
 import {IUniform, Object3D, Shader, WebGLRenderer} from 'three'
-import {IMaterial} from '../core'
+import {IMaterial, IWebGLRenderer} from '../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ValOrFunc} from 'ts-browser-helpers'
 
@@ -56,7 +56,7 @@ export interface MaterialExtension{
      * @param material
      * @param renderer
      */
-    onObjectRender?: (object: Object3D, material: IMaterial, renderer: WebGLRenderer) => void
+    onObjectRender?: (object: Object3D, material: IMaterial, renderer: IWebGLRenderer) => void
 
 
     /**
@@ -66,7 +66,7 @@ export interface MaterialExtension{
      * @param material
      * @param renderer
      */
-    onAfterRender?: (object: Object3D, material: IMaterial, renderer: WebGLRenderer) => void
+    onAfterRender?: (object: Object3D, material: IMaterial, renderer: IWebGLRenderer) => void
 
     /**
      * Function to check if this material extension is compatible with the given material.
