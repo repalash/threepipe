@@ -46,7 +46,7 @@ async function init() {
         'https://threejs.org/examples/models/obj/male02/male02.obj',
         'https://threejs.org/examples/models/gltf/kira.glb', // slow
 
-        // not working
+        // not working/very slow
         'https://threejs.org/examples/models/gltf/Soldier.glb',
         'https://threejs.org/examples/models/gltf/LittlestTokyo.glb',
         'https://threejs.org/examples/models/gltf/ferrari.glb',
@@ -59,7 +59,6 @@ async function init() {
 
     viewer.scene.backgroundColor = null
     viewer.scene.background = null
-    // viewer.renderManager.screenPass.clipBackground = true // required when rgbm: true
 
     viewer.scene.mainCamera.controls!.enableDamping = false
 

@@ -1,8 +1,8 @@
 import {IRenderTarget, RenderManager} from '../rendering'
 import {HalfFloatType, LinearMipMapLinearFilter, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
-import {IRenderManagerEvent, IRenderManagerOptions} from '../core'
+import {IRenderManagerEvent, IRenderManagerOptions, IScene} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
-import {uiFolderContainer} from 'uiconfig.js'
+import {uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {MaterialExtension} from '../materials'
 import {onChange3} from 'ts-browser-helpers'
 
@@ -22,6 +22,7 @@ export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbu
     readonly zPrepass: boolean
     readonly renderPass: ExtendedRenderPass
     readonly screenPass: ScreenPass
+    declare uiConfig: UiObjectConfig
 
     constructor({rgbm = true, msaa = false, depthBuffer = false, ...options}: ViewerRenderManagerOptions) {
         super({
@@ -68,4 +69,12 @@ export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbu
         this.dispatchEvent({type: 'gbufferUnpackExtensionChanged', ...params})
     }
 
+    render(scene: IScene, renderToScreen?: boolean): void {
+        const cbf = this.screenPass.clipBackgroundForce
+        if (this.rgbm) {
+            const val = !scene.background && !scene.backgroundColor
+            if (val !== cbf) this.screenPass.clipBackgroundForce = val
+        }
+        super.render(scene, renderToScreen)
+    }
 }

@@ -62,6 +62,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         this._needsReRender = false
         this.reRender(renderManager.renderer)
         if (this.clipBackground && !(renderManager as ViewerRenderManager).gbufferTarget) {
+            // todo warn only when rgbm
             console.warn('ScreenPass: clipBackground set to true but no gbufferTarget set. Try adding GBufferPlugin.')
         }
     }
@@ -71,8 +72,16 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         super.dispose()
     }
 
+    /**
+     * Force clip background. If this is `true` {@link clipBackground} is overridden.
+     * This happens when scene.background and scene.backgroundColor are both null.
+     * This is set in {@link ViewerRenderManager.render}.
+     */
+    @matDefineBool('CLIP_BACKGROUND_FORCE', undefined, undefined, ScreenPass.prototype.setDirty, true)
+        clipBackgroundForce = false
+
     // todo: this is not serialized anymore?
-    @matDefineBool('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty, true)
+    @matDefineBool('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty)
     @uiToggle() clipBackground = false
 
     beforeRender(_: IScene, _1: ICamera, renderManager: ViewerRenderManager) {

@@ -29,7 +29,7 @@ async function init() {
         }),
     ])
 
-    viewer.scene.overrideMaterial = new PhysicalMaterial({
+    viewer.renderManager.renderPass.overrideMaterial = new PhysicalMaterial({
         color: 'white',
         roughness: 1,
         metalness: 0,
@@ -49,6 +49,7 @@ async function init() {
         expanded: true,
     })
     ui.setupPlugins(ProgressivePlugin)
+    ui.appendChild(viewer.renderManager.uiConfig)
 
     await viewer.getPlugin(ProgressivePlugin)?.convergedPromise
 

@@ -3654,7 +3654,10 @@ Note that this does not support all the features of three.js and may not work wi
 import {ThreeViewer} from 'threepipe'
 import {ThreeSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 
-const viewer = new ThreeViewer({...})
+const viewer = new ThreeViewer({
+  ...,
+  rgbm: false, // this is required
+})
 const svgRender = viewer.addPluginSync(ThreeSVGRendererPlugin)
 svgRender.autoRender = true // automatically render when camera or any object changes.
 svgRender.autoMakeSvgObjects = true // automatically create SVG objects for all meshes in the scene.
@@ -3664,10 +3667,8 @@ svgRender.autoMakeSvgObjects = true // automatically create SVG objects for all 
 const model = await viewer.load<IOBject3D>('path/to/file.glb')
 
 // clear the background of the viewer 
-// this is only required if rgbm = false in the viewer
 viewer.scene.backgroundColor = null
-// this is only required if rgbm = true in the viewer
-viewer.renderManager.screenPass.clipBackground = true
+viewer.scene.background = null
         
 // disable damping to get better experience.
 viewer.scene.mainCamera.controls!.enableDamping = false

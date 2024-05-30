@@ -110,7 +110,7 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
  * @param customDefines - object for setting define value (like ShaderMaterial.defines), otherwise this.material.defines is taken
  * @param thisMat - access this.defines instead of this.material.defines
  * @param onChange - function to call when the value changes. If a string, it is used as a property name in `this` and called. If a function, it is called. The function is called with the following parameters: key, newVal
- * @param deleteOnFalse - sets to undefined instead of '0' when false
+ * @param deleteOnFalse - sets to undefined instead of '0' when false. Note deleteOnFalse doesn't work with tweakpane ui because the value will be undefined.
  */
 export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat = false, onChange?: (...args: any[]) => any, deleteOnFalse = false): PropertyDecorator {
     return matDefine(key, customDefines, thisMat, onChange, (v: any)=>v ? '1' : deleteOnFalse ? undefined : '0', (v: any)=>v && v !== '0')

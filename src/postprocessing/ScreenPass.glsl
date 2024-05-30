@@ -23,7 +23,7 @@ void main() {
 
     #ifdef HAS_GBUFFER
 
-        #ifdef CLIP_BACKGROUND
+        #if (defined(CLIP_BACKGROUND) && CLIP_BACKGROUND > 0) || defined(CLIP_BACKGROUND_FORCE)
             if(isBackground) diffuseColor.a = 0.0;
             if(depth>0.99 && transparentColor.a >= 0.001) diffuseColor.a = transparentColor.a;
         #endif

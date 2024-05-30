@@ -135,6 +135,7 @@ export interface ThreeViewerOptions {
      * Same as pixelRatio in three.js
      * Can be set to `window.devicePixelRatio` to render at device resolution in browsers.
      * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile. This is set when 'auto' is passed.
+     * Default is 1.
      */
     renderScale?: number | 'auto'
 
