@@ -283,6 +283,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         return mat
     }
 
+    // use convertToIMaterial
     // processMaterial(material: IMaterial, options: AnyOptions&{useSourceMaterial?:boolean, materialTemplate?: string, register?: boolean}): IMaterial {
     //     if (!material.materialObject)
     //         material = (this._processMaterial(material, {...options, register: false}))!

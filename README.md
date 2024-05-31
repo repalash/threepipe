@@ -123,6 +123,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [DeviceOrientationControlsPlugin](#deviceorientationcontrolsplugin) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
   - [PointerLockControlsPlugin](#pointerlockcontrolsplugin) - Adds a controlsMode to the mainCamera for pointer lock controls.
   - [ThreeFirstPersonControlsPlugin](#threefirstpersoncontrolsplugin) - Adds a controlsMode to the mainCamera for first person controls from threejs.
+  - [GLTFKHRMaterialVariantsPlugin](#gltfkhrmaterialvariantsplugin) - Support using for variants from KHR_materials_variants extension in gltf models.
   - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
   - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
@@ -3236,6 +3237,44 @@ viewer.scene.mainCamera.controlsMode = 'threeFirstPerson'
 // switch back to default orbit controls
 viewer.scene.mainCamera.controlsMode = 'orbit'
 ```
+
+## GLTFKHRMaterialVariantsPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#gltf-khr-material-variants-plugin/) &mdash;
+[Source Code](./src/plugins/extras/GLTFKHRMaterialVariantsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GLTFKHRMaterialVariantsPlugin.html)
+
+GLTFKHRMaterialVariantsPlugin adds support for importing and exporting glTF models with the `KHR_materials_variants` extension to load the model with different material variants/combinations. It also provides API and UI to change the current material variant.
+
+The plugin automatically adds support for the extension when added to the viewer. 
+
+The materials are stored in `object.userData._variantMaterials` and are automatically loaded and saved when using the `GLTFLoader`.
+
+Sample Usage
+```typescript
+import {ThreeViewer, GLTFKHRMaterialVariantsPlugin, Mesh2} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const variantsPlugin = viewer.addPluginSync(GLTFKHRMaterialVariantsPlugin)
+
+// load some model
+await viewer.load(model_url)
+
+// list of all variants in the model (names and objects)
+console.log(variantsPlugin.variants) 
+
+// change the selected variant
+variantsPlugin.selectedVariant = 'beach'
+```
+
+### Links
+
+- https://www.khronos.org/blog/blender-gltf-i-o-support-for-gltf-pbr-material-extensions
+- https://www.khronos.org/blog/streamlining-3d-commerce-with-material-variant-support-in-gltf-assets
+- https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_variants/README.md
 
 ## Rhino3dmLoadPlugin
 
