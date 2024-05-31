@@ -43,6 +43,11 @@ export class SSAAPlugin extends AViewerPluginSync<SSAAPluginEventTypes> {
 
     dependencies = [ProgressivePlugin]
 
+    constructor(rendersPerFrame = 1) {
+        super()
+        this.rendersPerFrame = rendersPerFrame
+    }
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         viewer.addEventListener('preRender', this._preRender)

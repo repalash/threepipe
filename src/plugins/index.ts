@@ -61,6 +61,7 @@ export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/Camera
 export {ClearcoatTintPlugin} from './material/ClearcoatTintPlugin'
 export {NoiseBumpMaterialPlugin} from './material/NoiseBumpMaterialPlugin'
 export {CustomBumpMapPlugin} from './material/CustomBumpMapPlugin'
+export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
 
 // rendering
