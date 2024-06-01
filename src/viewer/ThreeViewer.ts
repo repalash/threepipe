@@ -1201,10 +1201,10 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     }
 
     /**
-     * Uses the {@link FileTransferPlugin} to export a blob. If the plugin is not available, it will download the blob.
-     * FileTransferPlugin can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
+     * Uses the {@link FileTransferPlugin} to export a Blob/File. If the plugin is not available, it will download the blob.
+     * `FileTransferPlugin` can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
      * @param blob - The blob or file to export/download
-     * @param name
+     * @param name - name of the file, if not provided, the name of the file is used if it's a file.
      */
     async exportBlob(blob: Blob|File, name?: string) {
         const tr = this.getPlugin<FileTransferPlugin>('FileTransferPlugin')

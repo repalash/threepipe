@@ -3,6 +3,7 @@ export {PipelinePassPlugin} from './base/PipelinePassPlugin'
 export {BaseImporterPlugin} from './base/BaseImporterPlugin'
 export {BaseGroundPlugin} from './base/BaseGroundPlugin'
 export {ACameraControlsPlugin} from './base/ACameraControlsPlugin'
+export {AAssetManagerProcessStatePlugin} from './base/AAssetManagerProcessStatePlugin'
 
 // pipeline
 export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
@@ -26,6 +27,8 @@ export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 // interaction
 export {DropzonePlugin, type DropzonePluginOptions} from './interaction/DropzonePlugin'
 export {FullScreenPlugin} from './interaction/FullScreenPlugin'
+export {LoadingScreenPlugin} from './interaction/LoadingScreenPlugin'
+export {InteractionPromptPlugin} from './interaction/InteractionPromptPlugin'
 export {PickingPlugin} from './interaction/PickingPlugin'
 export {TransformControlsPlugin} from './interaction/TransformControlsPlugin'
 export {EditorViewWidgetPlugin} from './interaction/EditorViewWidgetPlugin'

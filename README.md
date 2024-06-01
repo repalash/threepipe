@@ -99,6 +99,9 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [SSAOPlugin](#ssaoplugin) - Add SSAO(Screen Space Ambient Occlusion) for physical materials.
   - [CanvasSnapshotPlugin](#canvassnapshotplugin) - Add support for taking snapshots of the canvas
   - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [LoadingScreenPlugin](#loadingscreenplugin) - Shows a configurable loading screen overlay over the canvas.
+  - [FullScreenPlugin](#fullscreenplugin) - Adds support for moving the canvas or the container fullscreen mode in browsers
+  - [InteractionPromptPlugin](#interactionpromptplugin) - Adds an animated hand icon over canvas to prompt the user to interact
   - [TransformControlsPlugin](#transformcontrolsplugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
   - [ContactShadowGroundPlugin](#contactshadowgroundplugin) - Adds a ground plane at runtime with contact shadows
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
@@ -2440,6 +2443,103 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 })
 
 ```
+
+## FullScreenPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#fullscreen-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/FullScreenPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/FullScreenPlugin.html)
+
+A simple plugin that provides functions to enter, exit and toggle full screen mode and check if the viewer is in full screen mode. Either the canvas or the whole container can be set to full screen.
+
+```typescript
+import {ThreeViewer, FullScreenPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const fullscreen = viewer.addPluginSync(new FullScreenPlugin())
+
+// enter full screen
+await fullscreen.enter(viewer.container) // viewer.canvas is used if no element is passed
+// exit full screen
+await fullscreen.exit()
+// toggle
+await fullscreen.toggle(viewer.container)
+// check if full screen
+console.log(fullScreenPlugin.isFullScreen())
+```
+
+## LoadingScreenPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#loading-screen-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/LoadingScreenPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/LoadingScreenPlugin.html)
+
+Loading Screen Plugin adds configurable overlay with a logo, loading text, spinner and the list of loading items. It also provides options to minimize and maximize the loading popup when there is no objects in the scene.
+
+The overlay is automatically added to the viewer container and shown when any files are loading. Behaviour can be configured to change how its shown and hidden, and can even be triggered programmatically. 
+
+```typescript
+import {ThreeViewer, LoadingScreenPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const loadingScreen = viewer.addPluginSync(new LoadingScreenPlugin())
+loadingScreen.loadingTextHeader = 'Loading Helmet 3D Model'
+loadingScreen.errorTextHeader = 'Error Loading Helmet 3D Model'
+loadingScreen.showFileNames = true
+loadingScreen.showProcessStates = true
+loadingScreen.showProgress = true
+loadingScreen.backgroundOpacity = 0.4 // 0-1
+loadingScreen.backgroundBlur = 28 // px
+```
+
+See also the base class [AAssetManagerProcessStatePlugin](https://threepipe.org/docs/classes/AAssetManagerProcessStatePlugin.html) to write a custom loading plugin.
+
+## InteractionPromptPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#interaction-prompt-plugin/) &mdash;
+[Source Code](./src/plugins/interaction/InteractionPromptPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/InteractionPromptPlugin.html)
+
+Interaction Prompt Plugin adds a hand pointer icon over the canvas that moves to prompt the user to interact with the 3d scene. To use, simply add the plugin to the viewer.
+
+The default pointer icon from [google/model-viewer](https://github.com/google/model-viewer) and can be configured with the `pointerIcon` property.
+
+The pointer is automatically shown when some object is in the scene and the camera is not moving.
+
+The animation starts after a delay and stops on user interaction. It then restarts after a delay after the user stops interacting
+
+The plugin provides several options and functions to configure the automatic behaviour or trigger the animation manually.
+
+```typescript
+import {ThreeViewer, InteractionPromptPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const interactionPrompt = viewer.addPluginSync(new InteractionPromptPlugin())
+
+// change duration
+interactionPrompt.animationDuration = 3000
+// change animation distance in pixels 
+interactionPrompt.animationDistance = 100
+
+// disable auto start when the camera stops
+interactionPrompt.autoStart = false
+interactionPrompt.autoStop = false
+// manually start and stop 
+interactionPrompt.startAnimation()
+// ...
+interactionPrompt.stopAnimation()
+```
+
+Note - The pointer is automatically shown/hidden when animation is started/stopped.
 
 ## TransformControlsPlugin
 

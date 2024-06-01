@@ -64,7 +64,7 @@ export class HDRiGroundPlugin extends AViewerPluginSync<'', ThreeViewer> {
                     // const bgui = this._viewer.getPlugin<SimpleBackgroundEnvUiPlugin>('SimpleBackgroundEnvUiPlugin1')
                     // if (bgui) {
                     //     bgui.envmapBg = true
-                    //     bgui.uiConfig.uiRefresh?.('postFrame', true)
+                    //     bgui.uiConfig.uiRefresh?.(true, 'postFrame')
                     // } else
                     this._viewer.scene.background = 'environment'
                 } else this.enabled = false
