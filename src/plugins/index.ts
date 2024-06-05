@@ -70,6 +70,10 @@ export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/
 // rendering
 export {VirtualCamerasPlugin} from './rendering/VirtualCamerasPlugin'
 
+// configurator
+export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
+export {SwitchNodeBasePlugin, type ObjectSwitchNode} from './configurator/SwitchNodeBasePlugin'
+
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
 export {Object3DWidgetsPlugin} from './extras/Object3DWidgetsPlugin'

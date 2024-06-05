@@ -57,6 +57,7 @@ import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
 import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
+import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 
 async function init() {
 
@@ -121,10 +122,17 @@ async function init() {
         DeviceOrientationControlsPlugin,
         PointerLockControlsPlugin,
         ThreeFirstPersonControlsPlugin,
+        // InteractionPromptPlugin, // todo disable when not in Viewer tab, like in webgi
         new MeshOptSimplifyModifierPlugin(false), // will auto-initialize on first use.
         // new BasicSVGRendererPlugin(false, true),
         ...extraImportPlugins,
+        MaterialConfiguratorPlugin,
+        SwitchNodePlugin,
     ])
+
+    // to show more details in the UI and allow to edit changes in title etc.
+    viewer.getPlugin(MaterialConfiguratorPlugin)!.enableEditContextMenus = true
+    viewer.getPlugin(SwitchNodePlugin)!.enableEditContextMenus = true
 
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')
@@ -139,7 +147,7 @@ async function init() {
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
         ['Export']: [CanvasSnapshotPlugin],
-        ['Configuration']: [GLTFKHRMaterialVariantsPlugin],
+        ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],

@@ -9,6 +9,8 @@ export {threeConstMappings} from './const-mappings'
 export {ObjectPicker} from './ObjectPicker'
 export {autoGPUInstanceMeshes} from './gpu-instancing'
 export {HVBlurHelper} from './HVBlurHelper'
+export {MaterialPreviewGenerator} from './MaterialPreviewGenerator'
+export {snapObject} from './snapObject'
 export {ViewHelper2, type GizmoOrientation, type DomPlacement} from './ViewHelper2'
 
 // export {} from './constants'
