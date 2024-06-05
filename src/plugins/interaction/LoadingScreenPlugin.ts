@@ -23,7 +23,8 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         html: '<span class="loader"></span>',
     }]
     refresh() {
-        this._updateMainDiv(this._isPreviewing ? this._previewState : this.processState, false)
+        if (!this._viewer) return
+        this._updateMainDiv(this._isPreviewing ? this._previewState : this._viewer.assetManager.processState, false)
     }
 
     @uiDropdown('Loader', ['Spinner 1'].map((v, i) => ({value: i, label: v})))
@@ -228,7 +229,7 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
     stylesheet?: HTMLStyleElement
     stylesheetLoader?: HTMLStyleElement[]
     onAdded(viewer: ThreeViewer) {
-        this.stylesheet = createStyles(styles, viewer.container)
+        this.stylesheet = createStyles(this.styles, viewer.container)
         this.stylesheetLoader = this.spinners.map(s => createStyles(s.styles, viewer.container))
 
         viewer.scene.addEventListener('sceneUpdate', this._sceneUpdate)

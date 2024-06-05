@@ -1,4 +1,4 @@
-import {AViewerPluginSync} from '../../viewer'
+import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {downloadBlob} from 'ts-browser-helpers'
 
 export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
@@ -10,7 +10,7 @@ export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
 
     async exportFile(file: File|Blob, name?: string) {
         name = name || (file as File).name || 'file_export'
-        this.dispatchEvent({type: 'transferFile', path: name, state: 'exporting'})
+        this.dispatchEvent({type: 'transferFile', path: name, state: 'exporting', progress: 0})
         await this.actions.exportFile(file, name, ({state, progress})=>{
             this.dispatchEvent({type: 'transferFile', path: name, state: state ?? 'exporting', progress})
         })
@@ -21,6 +21,29 @@ export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
         exportFile: async(blob: Blob, name: string, _onProgress?: (d: {state?: string, progress?: number})=>void)=>{
             downloadBlob(blob, name)
         },
+    }
+
+
+    constructor() {
+        super()
+        this._updateProcessState = this._updateProcessState.bind(this)
+    }
+
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        this.addEventListener('transferFile', this._updateProcessState as any)
+    }
+    onRemove(viewer: ThreeViewer) {
+        this.removeEventListener('transferFile', this._updateProcessState as any)
+        super.onRemove(viewer)
+    }
+
+    protected _updateProcessState(data: {path: string, state: string, progress?: number}) {
+        if (!this._viewer) return
+        this._viewer.assetManager.setProcessState(data.path, data.state !== 'done' ? {
+            state: data.state,
+            progress: data.progress ? data.progress * 100 : undefined,
+        } : undefined)
     }
 
     actions = {...this.defaultActions}
