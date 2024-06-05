@@ -47,7 +47,7 @@ jobs:
     - run: mkdir _site
     - run: mv -t _site src docs dist examples README.md LICENSE index.html
     - run: mkdir -p _site/plugins
-    - run: find plugins -maxdepth 2 -type d \( -name dist -o -name docs -name src \) -exec sh -c "mkdir -p _site/{} && cp -r {} _site/{}/.." \;
+    - run: find plugins -maxdepth 2 -type d \( -name dist -o -name docs -o -name src \) -exec sh -c "mkdir -p _site/{} && cp -r {} _site/{}/.." \;
     - name: Setup Pages
       uses: actions/configure-pages@v3
     - name: Upload artifact
