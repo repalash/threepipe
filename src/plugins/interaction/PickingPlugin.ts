@@ -15,6 +15,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         return this._picker
     }
     static readonly PluginType = 'Picking'
+    static readonly OldPluginType = 'PickingPlugin' // todo: swap
     private _picker?: ObjectPicker
     private _widget?: SelectionWidget
     private _hoverWidget?: SelectionWidget

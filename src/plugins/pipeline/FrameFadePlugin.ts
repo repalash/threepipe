@@ -46,6 +46,13 @@ export class FrameFadePlugin
         this.isDisabled = ((sup)=>()=>!this._pointerEnabled || sup())(this.isDisabled)
     }
 
+    saveFrameTimeThreshold = 500 // ms
+
+    /**
+     * Start a frame fade transition.
+     * Note that the current frame data will only be used if the last running transition is ended or near the end. To do it anyway, call {@link stopTransition} first
+     * @param duration
+     */
     public async startTransition(duration: number) { // duration in ms
         if (!this._viewer || !this._pass || this.isDisabled()) return
         if (!this._target)
@@ -55,14 +62,20 @@ export class FrameFadePlugin
                 magFilter: LinearFilter,
                 colorSpace: (this._viewer.renderManager.composerTarget.texture as ITexture).colorSpace,
             })
+
+        if (this._pass.fadeTimeState < this.saveFrameTimeThreshold) // only save if very near the end
+            this._pass.toSaveFrame = true
+
         this._pass.fadeTimeState = Math.max(duration, this._pass.fadeTimeState)
         this._pass.fadeTime = this._pass.fadeTimeState
-        if (this._pass.fadeTimeState < 500) // only save if very near the end
-            this._pass.toSaveFrame = true
-        // this._pass.passObject.enabled = true
+        // this._pass.enabled = true
         this.setDirty()
         await timeout(duration)
     }
+
+    /**
+     * Stop a frame fade transition if running. Note that it will be stopped next frame.
+     */
     public stopTransition() {
         if (!this._pass) return
         this._pass.fadeTimeState = 0. // will be stopped in update on next frame
@@ -87,7 +100,6 @@ export class FrameFadePlugin
         window.removeEventListener('pointermove', this._onPointerMove)
         super.onRemove(viewer)
     }
-
 
     private _fadeCam = async(ev: any)=>
         ev.frameFade !== false && this.fadeOnActiveCameraChange && this.startTransition(ev.fadeDuration || 1000)

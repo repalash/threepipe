@@ -160,7 +160,6 @@ export class ProgressivePlugin
     }
 
     fromJSON(data: ISerializedConfig&{pass?: any}, meta?: SerializationMetaType): this|null|Promise<this|null> {
-        console.log(data)
         if (data.jitter !== undefined) {
             const ssaa = this._viewer?.getPlugin(SSAAPlugin)
             if (!ssaa) {

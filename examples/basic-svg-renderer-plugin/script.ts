@@ -16,7 +16,7 @@ async function init() {
 
     viewer.scene.addObject(new DirectionalLight2(0x0000ff, 1))
     const l = new DirectionalLight2(0xff0000, 1)
-    l.position.set(1, 1, 1)
+    l.target.position.set(-1, -1, -1)
     viewer.scene.addObject(l)
 
     await viewer.load('https://threejs.org/examples/models/gltf/ShadowmappableMesh.glb', {

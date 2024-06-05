@@ -1,7 +1,7 @@
-import {GLTFExporter, GLTFExporterOptions, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {IExportParser} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
-import {Object3D} from 'three'
+import {AnimationClip, Object3D} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {
     glbEncryptionProcessor,
@@ -15,7 +15,7 @@ import {
     GLTFViewerConfigExtension,
 } from '../gltf'
 
-export type GLTFExporter2Options = {
+export interface GLTFExporter2Options {
     /**
      * embed images in glb even when remote url is available
      * @default false
@@ -62,8 +62,52 @@ export type GLTFExporter2Options = {
      */
     encryptKey?: string|Uint8Array,
 
+
+    // From GLTFExporter
+
+    /**
+     * Export position, rotation and scale instead of matrix per node.
+     * Default is false
+     */
+    trs?: boolean;
+
+    /**
+     * Export only visible objects.
+     * Default is false.
+     */
+    onlyVisible?: boolean;
+
+    /**
+     * Export just the attributes within the drawRange, if defined, instead of exporting the whole array.
+     * Default is true.
+     */
+    truncateDrawRange?: boolean;
+
+    /**
+     * Restricts the image maximum size (both width and height) to the given value. This option works only if embedImages is true.
+     * Default is Infinity.
+     */
+    maxTextureSize?: number;
+
+    /**
+     * List of animations to be included in the export.
+     */
+    animations?: AnimationClip[];
+
+    /**
+     * Generate indices for non-index geometry and export with them.
+     * Default is false.
+     */
+    forceIndices?: boolean;
+
+    /**
+     * Export custom glTF extensions defined on an object's userData.gltfExtensions property.
+     * Default is true.
+     */
+    includeCustomExtensions?: boolean;
+
     [key: string]: any
-} & GLTFExporterOptions
+}
 
 export class GLTFExporter2 extends GLTFExporter implements IExportParser {
 
@@ -106,13 +150,14 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
         const gltfOptions: GLTFWriter2['options'] = {
             // default options
             binary: false,
-            trs: false,
-            onlyVisible: true,
-            truncateDrawRange: true,
+            trs: options.trs ?? false,
+            onlyVisible: options.onlyVisible ?? false,
+            truncateDrawRange: options.truncateDrawRange ?? true,
             externalImagesInExtras: !options.embedUrlImages && options.externalImagesInExtras || false, // this is handled in gltfMaterialExtrasWriter, also see GLTFDracoExporter
-            maxTextureSize: Infinity,
-            animations: [],
-            includeCustomExtensions: true,
+            maxTextureSize: options.maxTextureSize ?? Infinity,
+            animations: options.animations ?? [],
+            includeCustomExtensions: options.includeCustomExtensions ?? true,
+            forceIndices: options.forceIndices ?? false,
             exporterOptions: options,
         }
         if (options.exportExt === 'glb') {

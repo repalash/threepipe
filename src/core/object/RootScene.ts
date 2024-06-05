@@ -240,7 +240,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (addToRoot) this.add(obj)
         else this.modelRoot.add(obj)
 
-        if (autoCenter && !obj.userData.isCentered) {
+        if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered) { // pseudoCentered is legacy
             obj.autoCenter?.()
         } else {
             obj.userData.isCentered = true // mark as centered, so that autoCenter is not called again when file is reloaded.
