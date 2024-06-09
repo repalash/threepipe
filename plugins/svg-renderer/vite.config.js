@@ -19,7 +19,7 @@ const globals = {
 
 export default defineConfig({
     optimizeDeps: {
-        exclude: ['uiconfig.js', 'ts-browser-helpers', 'three-mesh-bvh'],
+        exclude: ['uiconfig.js', 'ts-browser-helpers', 'three-mesh-bvh', 'three'],
     },
     base: '',
     // define: {
@@ -42,7 +42,7 @@ export default defineConfig({
         outDir: 'dist',
         emptyOutDir: isProd,
         commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/, /three-mesh-bvh/],
+            exclude: [/uiconfig.js/, /ts-browser-helpers/, /three-mesh-bvh/, /three/],
         },
         rollupOptions: {
             output: {
