@@ -1,6 +1,5 @@
 import {
     _testFinish,
-    AssetExporterPlugin,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
@@ -14,7 +13,6 @@ import {
     FilmicGrainPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
-    FullScreenPlugin,
     GBufferPlugin,
     getUrlQueryParam,
     GLTFAnimationPlugin,
@@ -23,7 +21,6 @@ import {
     HalfFloatType,
     HDRiGroundPlugin,
     HemisphereLight,
-    InteractionPromptPlugin,
     KTX2LoadPlugin,
     KTXLoadPlugin,
     LoadingScreenPlugin,
@@ -39,13 +36,11 @@ import {
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
-    SceneUiConfigPlugin,
     SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
-    TonemapPlugin,
     TransformControlsPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
@@ -53,14 +48,11 @@ import {
     VignettePlugin,
     VirtualCamerasPlugin,
 } from 'threepipe'
-import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
-import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
-import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
-import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
+import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
+import {AWSClientPlugin} from '@threepipe/plugin-network'
 
 async function init() {
 
@@ -70,20 +62,24 @@ async function init() {
         msaa: true,
         rgbm: true,
         zPrepass: false, // set it to true if you only have opaque objects in the scene to get better performance.
-        dropzone: {
+        dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
+            // allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
             addOptions: {
-                clearSceneObjects: false, // clear the scene before adding new objects on drop.
+                disposeSceneObjects: true, // auto dispose of old scene objects
+                autoSetEnvironment: true, // when hdr is dropped
+                autoSetBackground: true, // when any image is dropped
+                autoCenter: true, // auto center the object
+                autoScale: true, // auto scale according to radius
+                autoScaleRadius: 2,
+                // license: 'Imported from dropzone', // Any license to set on imported objects
+                importConfig: true, // import config from file
             },
         },
     })
 
-    // @ts-expect-error unused
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 
     await viewer.addPlugins([
         LoadingScreenPlugin,
-        AssetExporterPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
@@ -117,8 +113,6 @@ async function init() {
         STLLoadPlugin,
         USDZLoadPlugin,
         BlendLoadPlugin,
-        HierarchyUiPlugin,
-        GeometryGeneratorPlugin,
         Object3DWidgetsPlugin,
         Object3DGeneratorPlugin,
         GaussianSplattingPlugin,
@@ -135,55 +129,28 @@ async function init() {
         MaterialConfiguratorPlugin,
         SwitchNodePlugin,
         AWSClientPlugin,
-        TransfrSharePlugin,
     ])
-
-    // to show more details in the UI and allow to edit changes in title etc.
-    viewer.getPlugin(MaterialConfiguratorPlugin)!.enableEditContextMenus = true
-    viewer.getPlugin(SwitchNodePlugin)!.enableEditContextMenus = true
-
-    const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
-    rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')
-    rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.flagsTexture}, 'gBufferFlags')
-    rt.addTarget(viewer.getPlugin(DepthBufferPlugin)?.target, 'depth', false, false, false)
-    rt.addTarget(viewer.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
-
-    editor.loadPlugins({
-        ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
-        ['Scene']: [SSAAPlugin, ContactShadowGroundPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
-        ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
-        ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin],
-        ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
-        ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin],
-    })
 
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'
 
     await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
-    viewer.getPlugin(TransfrSharePlugin)!.queryParam = 'm'
-
     const model = getUrlQueryParam('m') || getUrlQueryParam('model')
     if (model) {
         await viewer.load(model)
+        const promptDiv = document.getElementById('prompt-div')!
+        promptDiv.style.display = 'none'
     }
 
-    // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
-    //     autoCenter: true,
-    //     autoScale: true,
-    // })
-    //
-    // const model = result?.getObjectByName('Correction__MovingCamera')
-    // const config = model?.uiConfig
-    // console.log(model, config, result)
-    // if (config) ui.appendChild(config)
+    const dropzone = viewer.getPlugin(DropzonePlugin)!
+    dropzone.addEventListener('drop', (e: any) => {
+        if (!e.assets?.length) return // no assets imported
+        console.log('Dropped Event:', e)
+        const promptDiv = document.getElementById('prompt-div')!
+        promptDiv.style.display = 'none'
+    })
 
 }
 
 init().finally(_testFinish)
-

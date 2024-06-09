@@ -2,26 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Tweakpane Editor</title>
+    <title>Model Viewer Sample</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
-
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/repalash/gilroy-free-webfont@master/Gilroy-Extrabold.css" rel="stylesheet">
 
     <script type="importmap">
     {
         "imports": {
           "three": "./../../dist/index.mjs",
           "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
-          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs",
           "@threepipe/plugin-extra-importers": "./../../plugins/extra-importers/dist/index.mjs",
           "@threepipe/plugin-blend-importer": "./../../plugins/blend-importer/dist/index.mjs",
-          "@threepipe/plugin-geometry-generator": "./../../plugins/geometry-generator/dist/index.mjs",
           "@threepipe/plugin-configurator": "./../../plugins/configurator/dist/index.mjs",
           "@threepipe/plugin-network": "./../../plugins/network/dist/index.mjs",
           "@threepipe/plugin-gaussian-splatting": "./../../plugins/gaussian-splatting/dist/index.mjs"
@@ -30,16 +23,30 @@
 
     </script>
     <style id="example-style">
-        html {
-            display: block;
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        #prompt-div{
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            font-size: 2em;
+            font-family: sans-serif;
+            pointer-events: none;
         }
     </style>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
 </head>
-<body class="code-preview-container">
+<body>
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
+    <div id="prompt-div">Drop any <span style="font-family: monospace">glb/gltf/zip/fbx/obj/stl/3dm...</span> files here</div>
 </div>
 
 </body>
