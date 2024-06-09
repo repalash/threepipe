@@ -43,8 +43,10 @@ export {PLYLoadPlugin} from './import/PLYLoadPlugin'
 export {STLLoadPlugin} from './import/STLLoadPlugin'
 export {KTXLoadPlugin} from './import/KTXLoadPlugin'
 export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
+export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 
 // export
+export {AssetExporterPlugin} from './export/AssetExporterPlugin'
 export {CanvasSnapshotPlugin, CanvasSnipperPlugin} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
 

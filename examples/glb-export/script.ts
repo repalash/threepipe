@@ -5,6 +5,8 @@ const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HT
 
 async function init() {
 
+    // Note: see asset-exporter-plugin example as well
+
     // load obj + mtl
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     const helmet = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {

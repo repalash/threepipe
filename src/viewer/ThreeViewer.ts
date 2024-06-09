@@ -54,8 +54,13 @@ import {
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {uiConfig, UiObjectConfig, uiPanelContainer} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
-import type {CanvasSnapshotPlugin, FileTransferPlugin} from '../plugins'
-import {CameraViewPlugin, ProgressivePlugin} from '../plugins'
+import {
+    AssetExporterPlugin,
+    CameraViewPlugin,
+    CanvasSnapshotPlugin,
+    FileTransferPlugin,
+    ProgressivePlugin,
+} from '../plugins'
 // noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 // noinspection ES6PreferShortImport
@@ -515,7 +520,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * @param options
      */
     async export(obj?: IObject3D|IMaterial|ITexture|IRenderTarget|IViewerPlugin|(typeof this), options?: ExportFileOptions) {
-        if (!obj) obj = this._scene // this will export the glb with the scene and viewer config
+        if (!obj) obj = this._scene.modelRoot // this will export the glb with the scene and viewer config
         if ((<typeof this>obj).type === this.type) return jsonToBlob((<typeof this>obj).exportConfig())
         if ((<IViewerPlugin>obj).constructor?.PluginType) return jsonToBlob(this.exportPluginConfig(<IViewerPlugin>obj))
         return await this.assetManager.exporter.exportObject(<IObject3D|IMaterial|ITexture|IRenderTarget>obj, options)
@@ -524,11 +529,20 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     /**
      * Export the scene to a file (default: glb with viewer config) and return a blob
      * @param options
+     * @param useExporterPlugin - uses the {@link AssetExporterPlugin} if available. This is useful to use the options configured by the user in the plugin.
      */
-    async exportScene(options?: ExportFileOptions): Promise<BlobExt | undefined> {
+    async exportScene(options?: ExportFileOptions, useExporterPlugin = true): Promise<BlobExt | undefined> {
+        const exporter = useExporterPlugin ? this.getPlugin<AssetExporterPlugin>('AssetExporterPlugin') : undefined
+        if (exporter) return exporter.exportScene(options)
         return this.assetManager.exporter.exportObject(this._scene.modelRoot, options)
     }
 
+    /**
+     * Returns a blob with the screenshot of the canvas.
+     * If {@link CanvasSnapshotPlugin} is added, it will be used, otherwise canvas.toBlob will be used directly.
+     * @param mimeType default image/jpeg
+     * @param quality between 0 and 100
+     */
     async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
         const plugin = this.getPlugin<CanvasSnapshotPlugin>('CanvasSnapshotPlugin')
         if (plugin) {
@@ -1077,7 +1091,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     /**
      * Serialize all the viewer and plugin settings and versions.
      * @param binary - Indicate that the output will be converted and saved as binary data. (default: true)
-     * @param pluginFilter - List of PluginType to include. If empty, no plugins will be serialized. If undefined, all plugins will be serialized.
+     * @param pluginFilter - List of PluginType to include. If empty, no plugins will be serialized. If undefined/not-passed, all plugins will be serialized.
      * @returns {any} - Serializable JSON object.
      */
     toJSON(binary = true, pluginFilter?: string[]): ISerializedViewerConfig {
@@ -1202,7 +1216,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     /**
      * Uses the {@link FileTransferPlugin} to export a Blob/File. If the plugin is not available, it will download the blob.
-     * `FileTransferPlugin` can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
+     * {@link FileTransferPlugin} can be configured by other plugins to export the blob to a specific location like local file system, cloud storage, etc.
      * @param blob - The blob or file to export/download
      * @param name - name of the file, if not provided, the name of the file is used if it's a file.
      */

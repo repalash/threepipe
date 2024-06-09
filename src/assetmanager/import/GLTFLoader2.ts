@@ -139,11 +139,11 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             }
             const needsMeshOpt = parser.json?.extensionsUsed?.includes?.('EXT_meshopt_compression')
             if (needsMeshOpt) {
-                if ((window as any).MeshoptDecoder) { // added by the plugin or by the user
-                    this.setMeshoptDecoder((window as any).MeshoptDecoder)
-                    parser.options.meshoptDecoder = (window as any).MeshoptDecoder as any
+                if (window.MeshoptDecoder) { // added by the plugin or by the user
+                    this.setMeshoptDecoder(window.MeshoptDecoder)
+                    parser.options.meshoptDecoder = window.MeshoptDecoder
                 } else {
-                    console.error('Add GLTFMeshOptPlugin to viewer to enable EXT_meshopt_compression decode')
+                    console.error('Add GLTFMeshOptPlugin(and initialize it) to viewer to enable EXT_meshopt_compression decode')
                 }
             }
             const needsBasisU = parser.json?.extensionsUsed?.includes?.('KHR_texture_basisu')

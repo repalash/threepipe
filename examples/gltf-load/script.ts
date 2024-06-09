@@ -13,6 +13,8 @@ async function init() {
                 autoSetBackground: true,
             },
         },
+        // add optional plugins to load gltf with extensions like meshopt_compression, ktx2 etc
+        // plugins: [GLTFMeshOptDecodePlugin, KTX2LoadPlugin, GLTFKHRMaterialVariantsPlugin, ...],
     })
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
