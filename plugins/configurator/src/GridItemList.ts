@@ -22,6 +22,7 @@ export class GridItemList {
         // GridItemList._inited = true  // since container is cleared
         createStyles(styles, GridItemList._container)
         createStyles(tippyStyles, GridItemList._container)
+        GridItemList._container.id = 'gridItemList'
         GridItemList._container.style.position = 'absolute'
         GridItemList._container.style.top = '0'
         GridItemList._container.style.left = '0'

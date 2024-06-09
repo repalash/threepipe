@@ -35,7 +35,7 @@
     "scripts": {
         "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
         "new:publish": "npm run prepare && clean-package && npm publish --access public && clean-package restore",
-        "prepare": "npm run build",
+        "prepare": "npm run build && npm run docs",
         "build": "rimraf dist && NODE_ENV=production rollup -c",
         "dev": "rollup -c -w",
         "docs": "rimraf docs && npx typedoc"

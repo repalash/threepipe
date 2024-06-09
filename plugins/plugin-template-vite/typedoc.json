@@ -5,6 +5,6 @@
     "entryPoints": [
         "src/index.ts"
     ],
-    "name": "Threepipe Gaussian Splatting Plugin",
+    "name": "Threepipe Vite Plugin Template",
     "readme": "none"
 }

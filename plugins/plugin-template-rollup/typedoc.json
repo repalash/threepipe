@@ -5,6 +5,6 @@
     "entryPoints": [
         "src/index.ts"
     ],
-    "name": "Threepipe Tweakpane Editor Plugin",
+    "name": "Threepipe Rollup Plugin Template",
     "readme": "none"
 }
