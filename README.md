@@ -99,6 +99,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [SSAOPlugin](#ssaoplugin) - Add SSAO(Screen Space Ambient Occlusion) for physical materials.
   - [CanvasSnapshotPlugin](#canvassnapshotplugin) - Add support for taking snapshots of the canvas
   - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [AssetExporterPlugin](#assetexporterplugin) - Provides options and methods to export the scene, object GLB or Viewer Configuration.
   - [LoadingScreenPlugin](#loadingscreenplugin) - Shows a configurable loading screen overlay over the canvas.
   - [FullScreenPlugin](#fullscreenplugin) - Adds support for moving the canvas or the container fullscreen mode in browsers
   - [InteractionPromptPlugin](#interactionpromptplugin) - Adds an animated hand icon over canvas to prompt the user to interact
@@ -132,6 +133,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
   - [KTX2LoadPlugin](#ktx2loadplugin) - Add support for loading .ktx2 files
   - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
+  - [GLTFMeshOptDecodePlugin](#gltfmeshoptdecodeplugin) - Decode gltf files with EXT_meshopt_compression extension.
   - [SimplifyModifierPlugin](#simplifymodifierplugin) - Boilerplate for plugin to simplify geometries
   - [MeshOptSimplifyModifierPlugin](#meshoptsimplifymodifierplugin) - Simplify geometries using meshoptimizer library
 - [Packages](#threepipe-packages)
@@ -1519,7 +1521,7 @@ const renderTarget = renderManager.createTarget({
 })
 
 // Create a render target of custom size
-const renderTarget = renderManager.createTarget({
+const renderTarget2 = renderManager.createTarget({
   size: {
     width: 1024,
     height: 1024,
@@ -1920,7 +1922,7 @@ const assetManager = viewer.assetManager
 // Add an asset or an asset bundle
 const assets = await assetManager.addAsset('https://example.com/model.zip')
 // or
-const assets = await assetManager.addAsset({
+const assets1 = await assetManager.addAsset({
   path: 'https://example.com/model.zip',
   file: blob,
 })
@@ -1973,11 +1975,11 @@ exporter.addExporter({
 const materialManager = assetManager.materialManager
 
 // Create a material of type
-const mat = materialManager.create('physical')
+const mat1 = materialManager.create('physical')
 const mat2 = materialManager.create('unlit')
 
 // find or create a material by uuid
-const mat = materialManager.findOrCreate('00000000-0000-0000-0000-000000000000', {color: '#ffffff'})
+const mat3 = materialManager.findOrCreate('00000000-0000-0000-0000-000000000000', {color: '#ffffff'})
 
 // find a material creation template 
 const template = materialManager.findTemplate('physical')
@@ -1986,7 +1988,7 @@ const template = materialManager.findTemplate('physical')
 const materials = materialManager.getAllMaterials()
 
 // Get all materials of type
-const materials = materialManager.getMaterialsOfType(PhysicalMaterial.TypeSlug)
+const materials2 = materialManager.getMaterialsOfType(PhysicalMaterial.TypeSlug)
 
 // register a custom material to the manager for tracking and extensions
 // Note all materials created in threepipe internally are registered automatically on creation or when added to any scene object.
@@ -2008,10 +2010,10 @@ materialManager.registerTemplate({
     metalness: 0.5,
   },
 })
-const mat3 = materialManager.create('custom')
+const mat4 = materialManager.create('custom')
 
 // convert a standard three.js material to threepipe material 
-const mat4 = materialManager.convertToIMaterial(new ShadowMaterial(), {materialTemplate: 'test'})
+const mat5 = materialManager.convertToIMaterial(new ShadowMaterial(), {materialTemplate: 'test'})
 
 // register a custom material extension for all materials in the viewer
 materialManager.registerMaterialExtension(customExtension)
@@ -2471,6 +2473,42 @@ await fullscreen.toggle(viewer.container)
 // check if full screen
 console.log(fullScreenPlugin.isFullScreen())
 ```
+
+## AssetExporterPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#asset-exporter-plugin/) &mdash;
+[Source Code](./src/plugins/export/AssetExporterPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/AssetExporterPlugin.html)
+
+Asset Exporter Plugin provides options and methods to export the scene, object GLB or Viewer Config.
+All the functionality is available in the viewer(and `AssetExporter`) directly, this plugin only provides a ui-config and maintains state of the options which is saved as plugin configuration along with glb/vjson file
+
+```typescript
+import {ThreeViewer, AssetExporterPlugin} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const assetExporter = viewer.addPluginSync(new AssetExporterPlugin())
+// check the existing options
+console.log(assetExporter.exportOptions)
+// enable/disable viewer config/json embedding in glb
+assetExporter.viewerConfig = true
+// set encryption
+assetExporter.encrypt = true
+assetExporter.encryptKey = 'superstrongpassword' // comment this to get prompted for a key during export.
+
+// export scene as blob
+const blob = assetExporter.exportScene()
+// or export and download directly 
+assetExporter.downloadSceneGlb()
+
+// export a specific object
+const object = viewer.scene.getObjectByName('objectName')
+const blob2 = assetExporter.exportObject(object, true) // true to also download
+```
+Note: when downloading the model through the plugin, it uses viewer.export, which downloads the files by default, but uploads it to remote destinations when overloaded using `FileTransferPlugin`.
 
 ## LoadingScreenPlugin
 
@@ -3451,7 +3489,7 @@ const mesh = await viewer.load('file.stl')
 [Source Code](./src/plugins/import/KTX2LoadPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/KTX2LoadPlugin.html)
 
-Adds support for loading .ktx2 ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files.
+Adds support for loading .ktx2 ([Khronos Texture](https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/) files with asset manager and embedded in glTF files.
 
 KTX2LoadPlugin also adds support for exporting loaded .ktx2 files in glTF files with the [KHR_texture_basisu](https://www.khronos.org/registry/KHR/textures/2.0-extensions/KHR_texture_basisu/) extension.
 
@@ -3477,6 +3515,23 @@ import {KTXLoadPlugin} from 'threepipe'
 viewer.addPluginSync(new KTXLoadPlugin())
 
 const texture = await viewer.load('file.ktx')
+```
+
+## GLTFMeshOptDecodePlugin
+
+[Example](https://threepipe.org/examples/#gltf-meshopt-compression/) &mdash;
+[Source Code](./src/plugins/import/GLTFMeshOptDecodePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/GLTFMeshOptDecodePlugin.html)
+
+Loads the MeshOpt Decoder module from [meshoptimizer](https://github.com/zeux/meshoptimizer) library at runtime from a customisable cdn url.
+The loaded module is set in `window.MeshoptDecoder` and then used by `GLTFLoader2` to decode files using [EXT_meshopt_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md) extension
+
+```typescript
+import {GLTFMeshOptDecodePlugin} from 'threepipe'
+const plugin = viewer.addPluginSync(new GLTFMeshOptDecodePlugin())
+// await plugin.initialize() // optional, this happens when loading a gltf file with extension anyway
+
+const texture = await viewer.load('file.glb')
 ```
 
 ## SimplifyModifierPlugin
@@ -3645,7 +3700,7 @@ Includes Material Configurator and Switch Node Configurator Plugins.
 
 NPM: `npm install @threepipe/plugin-configurator`
 
-CDN: https://threepipe.org/plugins/con/dist/configurator/index.mjs
+CDN: https://threepipe.org/plugins/dist/configurator/index.mjs
 
 ### MaterialConfiguratorPlugin
 
@@ -3697,6 +3752,115 @@ To use, simply add the plugin in the viewer and configure using the created UI a
 To create a custom configurator UI, use the `SwitchNodeBasePlugin` directly and call the function `selectNode`, `getPreview` and `addNode` to apply and add variations respectively.
 
 [//]: # (TODO Add Example for custom UI)
+
+## @threepipe/plugin-network
+
+Network/Cloud related plugin implementations for Threepipe.
+
+Includes `AWSClientPlugin` and `TransfrSharePlugin`.
+
+NPM: `npm install @threepipe/plugin-network`
+
+CDN: https://threepipe.org/plugins/dist/network/index.mjs
+
+### TransfrSharePlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#transfr-share-plugin/) &mdash;
+[Source Code](./plugins/network/src/TransfrSharePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/network/docs/classes/TransfrSharePlugin.html)
+
+TransfrSharePlugin provides functionality to export and upload the scene or an object as glb and provide link to share/preview/edit the files.  
+
+It uses the options from the `AssetExporterPlugin` to export the scene or object, and can be configured using it's ui.
+
+Uses the free service [transfr.one](https://transfr.one/) by default which deletes the files after a certain time, but the url can be changed to a custom backend or a self-hosted version of transfr.
+
+Note: since the uploaded files are publicly accessible by anyone by default, it is recommended to encrypt the file using the exporter options or use a secure backend.
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {TransfrSharePlugin} from '@threepipe/plugin-network'
+
+const viewer = new ThreeViewer({...})
+
+// Add the plugin
+const sharePlugin = viewer.addPluginSync(new TransfrSharePlugin())
+
+// when sharing, this query param is set to the model link
+sharePlugin.queryParam = 'm' // this is the default
+// used when clicking/calling Share page link
+sharePlugin.pageUrl = window.location.href // this is the default
+
+// used when clicking/calling Share viewer link
+sharePlugin.baseUrls.viewer = 'https://threepipe.org/examples/model-viewer/index.html'
+// used when clicking/calling Share editor link
+sharePlugin.baseUrls.editor = 'https://threepipe.org/examples/tweakpane-editor/index.html'
+
+// set to a custom server
+// sharePlugin.serverUrl = 'https://example.com/'
+
+// upload and get the link of the 3d model
+const link = await sharePlugin.getLink()
+// or upload and get the share link with a base page. And also copy to clipboard and shows a alert prompt(using viewer.dialog)
+const link2 = await sharePlugin.shareLink('https://example.com/custom_viewer')
+// or get the editor link directly 
+const link3 = await sharePlugin.shareEditorLink()
+
+// to encrypt
+const assetExporterPlugin = viewer.getPlugin(AssetExporterPlugin) // this is a dependency, so automatically added
+assetExporterPlugin.encrypt = true
+// assetExporterPlugin.encryptKey = 'password' // user will be prompted for password when exporting if this is commented 
+
+await sharePlugin.shareViewerLink()
+```
+
+### AWSClientPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#aws-client-plugin/) &mdash;
+[Source Code](./plugins/network/src/AWSClientPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/network/docs/classes/AWSClientPlugin.html)
+
+Provides `fetch` function that performs a fetch request with AWS v4 signing.
+This is useful for connecting to AWS services like S3 directly from the client.
+It also interfaces with the `FileTransferPlugin` to directly upload file when exported with the viewer or the plugin.
+Note: Make sure to use keys with limited privileges and correct CORS settings.
+All the keys will be stored in plain text if `serializeSettings` is set to true
+
+```typescript
+import {ThreeViewer} from 'threepipe'
+import {AWSClientPlugin} from '@threepipe/plugin-network'
+
+const viewer = new ThreeViewer({...})
+
+const awsPlugin = viewer.addPluginSync(new AWSClientPlugin())
+// set parameters and export. This can all be done from the UI also.
+awsPlugin.accessKeyId = '00000000000000000000'
+awsPlugin.accessKeySecret = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+awsPlugin.endpointURL = 'https://s3.amazonaws.com/bucket/'
+awsPlugin.pathPrefix = 'some/path/'
+// or load a json file with the parameters
+// the json file can be creating by entering the data in the UI and clicking the download preset json option.
+await viewer.load('file.json')
+
+// this will export the scene as glb
+const blob = await viewer.exportScene()
+
+// for a plugin config
+// blob = await viewer.export(viewer.getPlugin(GroundPlugin))
+// for a material
+// blob = await viewer.export(object.material)
+// for an object/mesh
+// blob = await viewer.export(object, {exportExt: 'glb'})
+
+// upload to s3. needs the parameters to be correct
+await viewer.exportBlob(blob, 'filename.glb')
+```
+
+Note: CORS should be enabled for the S3 bucket on the domain where the viewer is hosted. This requirement can be bypassed during development by setting `AWSClientPlugin.USE_PROXY = true`. A free proxy is already set by default and can be changed by setting `AWSClientPlugin.PROXY_URL`. 
 
 ## @threepipe/plugins-extra-importers
 

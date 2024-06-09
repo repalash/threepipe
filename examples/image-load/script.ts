@@ -45,7 +45,7 @@ async function init() {
 
     // Listen to when a file is dropped
     viewer.assetManager.addEventListener('loadAsset', (e)=>{
-        if (!e.data.isTexture) return
+        if (!e.data?.isTexture) return
         const texture = e.data as ITexture
         texture.colorSpace = SRGBColorSpace
         const material = new UnlitMaterial({
