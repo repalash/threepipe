@@ -143,7 +143,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
         if (Array.isArray(tex)) {
             // todo support multi target
             this._viewer.dialog.alert('Multi target not supported yet')
-            this._viewer.console.warn('support multi target export')
+            this._viewer.console.warn('todo: support multi target export')
             return this
         }
         const canvas = this._viewer?.canvas

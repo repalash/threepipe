@@ -51,6 +51,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
         this._lastReadBuffer = readBuffer
         renderer.outputColorSpace = colorSpace
+        this._needsReRender = false
     }
 
     reRender(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, deltaTime?: number, maskActive?: boolean) {

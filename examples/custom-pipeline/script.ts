@@ -1,16 +1,23 @@
-import {_testFinish, DepthBufferPlugin, downloadBlob, HalfFloatType, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    DepthBufferPlugin,
+    downloadBlob,
+    HalfFloatType,
+    RenderTargetPreviewPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
-    msaa: true,
+    msaa: false,
     rgbm: true,
     zPrepass: false,
 })
 
 async function init() {
 
-    viewer.addPluginSync(new DepthBufferPlugin(HalfFloatType, true))
+    const depth = viewer.addPluginSync(new DepthBufferPlugin(HalfFloatType, true))
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     await viewer.load('https://threejs.org/examples/models/gltf/kira.glb', {
@@ -20,6 +27,10 @@ async function init() {
 
     viewer.renderManager.autoBuildPipeline = false
     viewer.renderManager.pipeline = ['render', 'screen']
+
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
+    targetPreview.addTarget(()=>depth.target, 'depth', false, true)
+    targetPreview.addTarget(()=>viewer.renderManager.composerTarget, 'composer-1', false, false)
 
     createSimpleButtons({
         ['depth']: () => {

@@ -113,7 +113,8 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
  * @param deleteOnFalse - sets to undefined instead of '0' when false. Note deleteOnFalse doesn't work with tweakpane ui because the value will be undefined.
  */
 export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat = false, onChange?: (...args: any[]) => any, deleteOnFalse = false): PropertyDecorator {
-    return matDefine(key, customDefines, thisMat, onChange, (v: any)=>v ? '1' : deleteOnFalse ? undefined : '0', (v: any)=>v && v !== '0')
+    // noinspection RedundantConditionalExpressionJS
+    return matDefine(key, customDefines, thisMat, onChange, (v: any)=>v ? '1' : deleteOnFalse ? undefined : '0', (v: any|undefined)=>v && v !== '0' ? true : false)
 }
 
 /**
