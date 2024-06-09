@@ -175,7 +175,7 @@ export class ProgressivePlugin
 
 }
 
-class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass {
+export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass {
     before = ['screen']
     after = ['render']
     required = ['render']

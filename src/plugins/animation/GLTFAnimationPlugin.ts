@@ -86,7 +86,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
     @uiToggle() @serialize() animateOnPageScroll = false
 
     /**
-     * Damping for the scroll animation, when {@link animateOnPage Scroll} is true.
+     * Damping for the scroll animation, when {@link animateOnPageScroll} is true.
      */
     @uiSlider('Page Scroll Damping', [0, 1]) @serialize() pageScrollAnimationDamping = 0.1
 

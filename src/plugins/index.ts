@@ -6,21 +6,21 @@ export {ACameraControlsPlugin} from './base/ACameraControlsPlugin'
 export {AAssetManagerProcessStatePlugin} from './base/AAssetManagerProcessStatePlugin'
 
 // pipeline
-export {ProgressivePlugin} from './pipeline/ProgressivePlugin'
+export {ProgressivePlugin, ProgressiveBlendPass} from './pipeline/ProgressivePlugin'
 export {GBufferPlugin, GBufferMaterial, DepthNormalMaterial} from './pipeline/GBufferPlugin'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
-export {FrameFadePlugin, type FrameFadePluginEventTypes} from './pipeline/FrameFadePlugin'
+export {FrameFadePlugin, FrameFadeBlendPass, type FrameFadePluginEventTypes} from './pipeline/FrameFadePlugin'
 export type {ProgressivePluginEventTypes, ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
-export type {GBufferPluginEventTypes, GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext} from './pipeline/GBufferPlugin'
+export type {GBufferPluginEventTypes, GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext, GBufferPluginTarget} from './pipeline/GBufferPlugin'
 export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
 export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
 export {SSAAPlugin, type SSAAPluginEventTypes} from './pipeline/SSAAPlugin'
 export {SSAOPlugin, SSAOPluginPass, type SSAOPluginEventTypes, type SSAOPluginTarget} from './pipeline/SSAOPlugin'
 
 // ui
-export {RenderTargetPreviewPlugin} from './ui/RenderTargetPreviewPlugin'
-export {GeometryUVPreviewPlugin} from './ui/GeometryUVPreviewPlugin'
+export {RenderTargetPreviewPlugin, type RenderTargetBlock} from './ui/RenderTargetPreviewPlugin'
+export {GeometryUVPreviewPlugin, type TargetBlock} from './ui/GeometryUVPreviewPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
@@ -42,11 +42,11 @@ export {USDZLoadPlugin} from './import/USDZLoadPlugin'
 export {PLYLoadPlugin} from './import/PLYLoadPlugin'
 export {STLLoadPlugin} from './import/STLLoadPlugin'
 export {KTXLoadPlugin} from './import/KTXLoadPlugin'
-export {KTX2LoadPlugin} from './import/KTX2LoadPlugin'
+export {KTX2LoadPlugin, KTX2Loader2, KHR_TEXTURE_BASISU} from './import/KTX2LoadPlugin'
 export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 
 // export
-export {AssetExporterPlugin} from './export/AssetExporterPlugin'
+export {AssetExporterPlugin, type ExportAssetOptions} from './export/AssetExporterPlugin'
 export {CanvasSnapshotPlugin, CanvasSnipperPlugin} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
 
@@ -59,7 +59,7 @@ export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
-export {PopmotionPlugin} from './animation/PopmotionPlugin'
+export {PopmotionPlugin, type AnimationResult} from './animation/PopmotionPlugin'
 export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
 
 // material
@@ -70,7 +70,7 @@ export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
 
 // rendering
-export {VirtualCamerasPlugin} from './rendering/VirtualCamerasPlugin'
+export {VirtualCamerasPlugin, type VirtualCamera} from './rendering/VirtualCamerasPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
@@ -78,9 +78,9 @@ export {SwitchNodeBasePlugin, type ObjectSwitchNode} from './configurator/Switch
 
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
-export {Object3DWidgetsPlugin} from './extras/Object3DWidgetsPlugin'
+export {Object3DWidgetsPlugin, type IObject3DHelper} from './extras/Object3DWidgetsPlugin'
 export {Object3DGeneratorPlugin} from './extras/Object3DGeneratorPlugin'
 export {ContactShadowGroundPlugin} from './extras/ContactShadowGroundPlugin'
-export {SimplifyModifierPlugin} from './extras/SimplifyModifierPlugin'
+export {SimplifyModifierPlugin, type SimplifyOptions} from './extras/SimplifyModifierPlugin'
 export {MeshOptSimplifyModifierPlugin} from './extras/MeshOptSimplifyModifierPlugin'
 export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlugin'

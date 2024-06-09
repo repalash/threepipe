@@ -792,7 +792,7 @@ export function jsonToBlob(json: any): BlobExt {
 
 
 /**
- * Used in {@link LUTCubeTextureWrapper} and {@link KTX2LoadPlugin} and imported in {@link loadConfigResources}
+ * Used in {@link LUTCubeTextureWrapper} and {@link KTX2LoadPlugin} and imported in {@link ThreeViewer.loadConfigResources}
  * @param texture
  * @param meta
  * @param name

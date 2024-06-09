@@ -63,9 +63,11 @@ export default {
         replace({
             'from \'three\'': 'from \'threepipe\'',
             delimiters: ['', ''],
+            preventAssignment: true,
         }),
         replace({
             'process.env.NODE_ENV': JSON.stringify('production'),
+            preventAssignment: true,
         }),
         postcss({
             modules: false,

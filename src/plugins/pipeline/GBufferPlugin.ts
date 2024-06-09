@@ -49,7 +49,7 @@ import {
 } from '../../core'
 
 export type GBufferPluginEventTypes = ''
-type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
+export type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 // export type GBufferPluginTarget = WebGLRenderTarget
 export type GBufferPluginPass = GBufferRenderPass<'gbuffer', GBufferPluginTarget>
 

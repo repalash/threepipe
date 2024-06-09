@@ -58,6 +58,7 @@ export default defineConfig({
         replace({
             'from \'three\'': 'from \'threepipe\'',
             delimiters: ['', ''],
+            preventAssignment: true,
         }),
         replace({
             'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),

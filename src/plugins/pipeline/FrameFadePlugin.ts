@@ -180,7 +180,7 @@ export class FrameFadePlugin
 
 }
 
-class FrameFadeBlendPass extends AddBlendTexturePass implements IPipelinePass {
+export class FrameFadeBlendPass extends AddBlendTexturePass implements IPipelinePass {
     before = ['progressive', 'taa']
     after = ['render']
     required = ['render', 'progressive']
