@@ -11,7 +11,7 @@ import {GLTFPreparser} from '../import'
  * @param options
  */
 export const glbEncryptionProcessor = async(gltf: ArrayBuffer|any, options: GLTFExporter2Options) => {
-    if (!gltf || typeof gltf === 'object' || !gltf.byteLength) return gltf
+    if (!gltf || !(gltf instanceof ArrayBuffer) || !gltf.byteLength || !options.encrypt) return gltf
     if (!options.encryptKey && window && window.prompt) {
         options.encryptKey = window.prompt('GLTFEncryption: Enter encryption key/password') || ''
     }

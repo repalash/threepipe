@@ -3,7 +3,7 @@ import {GLTFWriter2, ILoader, Importer, ImportResultExtras} from '../../assetman
 import {KTX2Loader} from 'three/examples/jsm/loaders/KTX2Loader.js'
 import {CompressedTexture} from 'three'
 import {serializeTextureInExtras} from '../../utils'
-import {ITexture} from '../../core'
+import {ITexture, upgradeTexture} from '../../core'
 import {BaseImporterPlugin} from '../base/BaseImporterPlugin'
 
 /**
@@ -35,17 +35,26 @@ export class KTX2LoadPlugin extends BaseImporterPlugin {
 }
 
 export class KTX2Loader2 extends KTX2Loader implements ILoader {
+    private _initTexture(t: CompressedTexture & ITexture) {
+        upgradeTexture.call(t)
+        t.userData.mimeType = 'image/ktx2'
+        t.toJSON = (meta?: any)=>{
+            return serializeTextureInExtras(t, meta, t.name, 'image/ktx2')
+        }
+        const cloneFn = t.clone
+        t.clone = ()=>{
+            const res = cloneFn.call(t)
+            if (res.source !== t.source) // in case something changes
+                res.source._sourceImgBuffer = t.source._sourceImgBuffer
+            return this._initTexture(res)
+        }
+        return t
+    }
     async createTexture(buffer: ArrayBuffer, config: any): Promise<CompressedTexture> {
         const buffer2 = new Uint8Array(buffer.slice(0)) // clones the buffer
         const texture = (await super.createTexture(buffer, config)) as CompressedTexture & ITexture
         texture.source._sourceImgBuffer = buffer2 // keep the same buffer when cloned and all, used in serializeTextureInExtras
-        texture.userData.mimeType = 'image/ktx2'
-        texture.toJSON = (meta?: any)=>{
-            return serializeTextureInExtras(texture, meta, texture.name, 'image/ktx2')
-        }
-        texture.clone = ()=>{
-            throw new Error('ktx2 texture cloning not supported')
-        }
+        this._initTexture(texture)
         return texture
     }
 

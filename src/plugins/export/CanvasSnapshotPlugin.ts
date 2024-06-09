@@ -12,7 +12,6 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync<''> {
     constructor() {
         super()
         this.downloadSnapshot = this.downloadSnapshot.bind(this)
-        this.getDataUrl({})
     }
 
     /**

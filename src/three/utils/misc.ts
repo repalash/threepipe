@@ -5,8 +5,8 @@ import {IGeometry, IMaterial, IObject3D, IScene, ITexture} from '../../core'
 /**
  * Convert geometry to BufferGeometry with indexed attributes.
  */
-export function toIndexedGeometry(geometry: BufferGeometry<any, any, any>, tolerance = -1) {
-    return mergeVertices(geometry, tolerance)
+export function toIndexedGeometry<T extends BufferGeometry<any, any, any> = BufferGeometry<any, any, any>>(geometry: T, tolerance = -1): T {
+    return mergeVertices(geometry, tolerance) as T
 }
 
 export function generateUUID() {
@@ -21,7 +21,7 @@ export function generateUUID() {
 export function isInScene(...sceneObj: (IGeometry|IMaterial|IObject3D|ITexture)[]): boolean {
     if (sceneObj.length > 1) return sceneObj.some((a)=>isInScene(a))
     const o = sceneObj[0]
-    if ((<ITexture>o).isTexture) return Array.from((<ITexture>o).userData.__appliedMaterials || []).some((m) => isInScene(m)) ?? false
+    if ((<ITexture>o).isTexture) return Array.from((<ITexture>o)._appliedMaterials || []).some((m) => isInScene(m)) ?? false
 
     const objects =
         (<IObject3D>o).isObject3D ? [<IObject3D>o] :

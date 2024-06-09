@@ -13,7 +13,7 @@ import {uiFolderContainer, uiNumber, uiToggle} from 'uiconfig.js'
 export class MeshOptSimplifyModifierPlugin extends SimplifyModifierPlugin {
     public static readonly PluginType = 'MeshOptSimplifyModifierPlugin'
 
-    constructor(initialize = true) {
+    constructor(initialize = true, public readonly rootNode = document.head) {
         super()
         // todo: check if compatible?
         if (initialize) this.initialize()
@@ -31,6 +31,7 @@ export class MeshOptSimplifyModifierPlugin extends SimplifyModifierPlugin {
     }
 
     protected _initializing?: Promise<void> = undefined
+    protected _script?: HTMLScriptElement
 
     async initialize() {
         if (this.initialized) return
@@ -46,14 +47,19 @@ window.dispatchEvent(new CustomEvent('${ev}'))
 });
 `
         this._initializing = new Promise<void>((res) => {
-            const l = () => {
-                window.removeEventListener(ev, l)
-                res() // todo timeout?
-            }
-            window.addEventListener(ev, l)
-            document.head.appendChild(s) // todo remove later?
-            // this._script = s
+            window.addEventListener(ev, ()=>res(), {once: true})
+            this.rootNode.appendChild(s)
+            this._script = s
         })
+        return await this._initializing
+    }
+
+    dispose() {
+        if (this._script) {
+            this._script.remove()
+            delete window.MeshoptSimplifier
+        }
+        this._script = undefined
     }
 
     @uiNumber()

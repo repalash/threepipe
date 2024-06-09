@@ -1,4 +1,12 @@
-import {_testFinish, FrameFadePlugin, IObject3D, PickingPlugin, SSAAPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    FrameFadePlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    PickingPlugin,
+    SSAAPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {SwitchNodePlugin} from '@threepipe/plugin-configurator'
 
@@ -7,7 +15,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [PickingPlugin, FrameFadePlugin, SSAAPlugin],
+        plugins: [LoadingScreenPlugin, PickingPlugin, FrameFadePlugin, SSAAPlugin],
         dropzone: {
             addOptions: {
                 disposeSceneObjects: true,

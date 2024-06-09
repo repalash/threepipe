@@ -43,7 +43,7 @@ jobs:
         cache: 'npm'
         cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
     - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
-    - run: npm run docs-all
+    - run: npm run docs
     - run: mkdir _site
     - run: mv -t _site src docs dist examples README.md LICENSE index.html
     - run: mkdir -p _site/plugins

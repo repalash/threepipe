@@ -11,7 +11,6 @@ export interface ITextureUserData{
      * Works only after it's applied to a material once.
      */
     disposeOnIdle?: boolean
-    __appliedMaterials?: Set<IMaterial>
 }
 export type ITextureEventTypes = 'dispose' | 'update'
 export type ITextureEvent<T extends string = ITextureEventTypes> = Event & {
@@ -37,13 +36,15 @@ export interface ITexture extends Texture {
         _sourceImgBuffer?: ArrayBuffer // see KTX2LoadPlugin and serializeTextureInExtras
     }
 
+    _appliedMaterials?: Set<IMaterial> // for internal use only. refers to the materials that this texture is applied to
+
     _target?: IRenderTarget // for internal use only. refers to the render target that this texture is attached to
 }
 
 export function upgradeTexture(this: ITexture) {
     this.assetType = 'texture'
     if (!this.userData) this.userData = {}
-    if (!this.userData.__appliedMaterials) this.userData.__appliedMaterials = new Set()
+    if (!this._appliedMaterials) this._appliedMaterials = new Set()
     if (!this.setDirty) this.setDirty = ()=>this.needsUpdate = true
     // todo: uiconfig, dispose, etc
 }

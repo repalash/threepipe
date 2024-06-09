@@ -446,7 +446,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
      * State of download/upload/process/other processes in the viewer.
      * Subscribes to importer and exporter by default, more can be added by plugins like {@link FileTransferPlugin}
      */
-    processState: Map<string, {state: string, progress: number | undefined}> = new Map()
+    processState: Map<string, {state: string, progress?: number | undefined}> = new Map()
 
     /**
      * Set process state for a path
@@ -455,7 +455,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
      * @param path
      * @param value
      */
-    setProcessState(path: string, value: {state: string, progress: number | undefined} | undefined) {
+    setProcessState(path: string, value: {state: string, progress?: number | undefined} | undefined) {
         if (value === undefined) this.processState.delete(path)
         else this.processState.set(path, value)
         this.dispatchEvent({type: 'processStateUpdate'})

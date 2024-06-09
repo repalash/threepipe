@@ -142,15 +142,15 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         const oldMaps = this._materialMaps.get(mat.uuid) || new Set<ITexture>()
         for (const map of newMaps) {
             if (oldMaps.has(map)) continue
-            if (!map.userData.__appliedMaterials) map.userData.__appliedMaterials = new Set<IMaterial>()
-            map.userData.__appliedMaterials.add(mat)
+            if (!map._appliedMaterials) map._appliedMaterials = new Set<IMaterial>()
+            map._appliedMaterials.add(mat)
             map.addEventListener('update', mat.__textureUpdate)
         }
         for (const map of oldMaps) {
             if (newMaps.has(map)) continue
             map.removeEventListener('update', mat.__textureUpdate)
-            if (!map.userData.__appliedMaterials) continue
-            const mats = map.userData.__appliedMaterials
+            if (!map._appliedMaterials) continue
+            const mats = map._appliedMaterials
             mats?.delete(mat)
             if (!mats || map.userData.disposeOnIdle === false) continue
             if (mats.size === 0) map.dispose()
