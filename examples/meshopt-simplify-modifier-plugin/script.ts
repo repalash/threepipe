@@ -8,6 +8,11 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [PickingPlugin],
+        dropzone: {
+            addOptions: {
+                disposeSceneObjects: true,
+            },
+        },
     })
 
     const simplify = viewer.addPluginSync(MeshOptSimplifyModifierPlugin)

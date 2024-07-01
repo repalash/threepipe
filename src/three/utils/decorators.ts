@@ -1,4 +1,4 @@
-import {AnyFunction, getOrCall, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
+import {AnyFunction, getOrCall, objectHasOwn, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
 
 /**
  *
@@ -12,7 +12,7 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
     const cPropKey = !!propKey
     const isThis = thisTarget
 
-    return (targetPrototype: any, propertyKey: string|symbol) => {
+    return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
         const getUniform = (target: any)=>{
             const uniforms1 = isThis ? target : cUniforms ? uniforms : target.uniforms || target._uniforms || target.extraUniforms
             let propKey1 = cPropKey ? propKey : propertyKey
@@ -24,7 +24,7 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
             }
             return a
         }
-        Object.defineProperty(targetPrototype, propertyKey, {
+        const prop = {
             get() {
                 return getUniform(this).value
             },
@@ -38,7 +38,15 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
             },
             // configurable: true,
             // enumerable: true,
-        })
+        } as any
+        // https://github.com/babel/babel/blob/909ed3473968c2ccd75f89e17c37ef4771cc3ff8/packages/babel-helpers/src/helpers/applyDecoratedDescriptor.ts#L11
+        if (descriptor) {
+            if (objectHasOwn(descriptor, 'value')) delete descriptor.value
+            if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
+            return Object.assign(descriptor, prop)
+        }
+        Object.defineProperty(targetPrototype, propertyKey, prop)
     }
 }
 
@@ -46,14 +54,14 @@ function callOnChange(this: any, onChange: (...args: any[]) => any, params: any[
     // same logic as onChange in ts-browser-helpers. todo: loop through object prototype chain like in onChange?
     if (onChange.name) {
         const fn: AnyFunction = this[onChange.name]
-        if (fn === onChange)
+        if (fn && fn === onChange)
             onChange.call(this, ...params)
-        else if (fn.name.endsWith(`bound ${onChange.name}`))
+        else if (fn && fn.name.endsWith(`bound ${onChange.name}`))
             fn(...params)
         else onChange(...params)
     } else onChange(...params)
 }
-
+// todo migrate to new decorators - https://2ality.com/2022/10/javascript-decorators.html
 /**
  * Decorator to create a three.js style define in this.material or this and bind to a property.
  * see also - {@link matDefineBool}
@@ -69,13 +77,13 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
     const cDefines = !!customDefines
     const cPropKey = !!key
 
-    return (targetPrototype: any, propertyKey: string|symbol) => {
+    return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
         const getTarget = (mat: any)=>{
             const t = cDefines ? customDefines : mat.defines || mat._defines || mat.extraDefines
             const p = cPropKey ? key : propertyKey
             return {t, p}
         }
-        Object.defineProperty(targetPrototype, propertyKey, {
+        const prop = {
             get() {
                 const {t, p} = getTarget(thisMat ? this : this.material)
                 let res = t[p]
@@ -100,7 +108,15 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
             },
             // configurable: true,
             // enumerable: true,
-        })
+        } as any
+        // https://github.com/babel/babel/blob/909ed3473968c2ccd75f89e17c37ef4771cc3ff8/packages/babel-helpers/src/helpers/applyDecoratedDescriptor.ts#L11
+        if (descriptor) {
+            if (objectHasOwn(descriptor, 'value')) delete descriptor.value
+            if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
+            return Object.assign(descriptor, prop)
+        }
+        Object.defineProperty(targetPrototype, propertyKey, prop)
     }
 }
 
@@ -119,6 +135,7 @@ export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat 
 
 /**
  * Binds a property to a value in an object. If the object is a string, it is used as a property name in `this`.
+ *
  * @param obj - object to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the object/string.
  * @param key - key to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the key/string.
  * @param onChange - function to call when the value changes. If a string, it is used as a property name in `this` and called. If a function, it is called. The function is called with the following parameters: key, newVal
@@ -128,14 +145,14 @@ export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat 
 export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {obj?: ValOrFunc<any>, key?: ValOrFunc<string | symbol>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any}): PropertyDecorator {
     const cPropKey = !!key
 
-    return (targetPrototype: any, propertyKey: string|symbol) => {
+    return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
         const getTarget = (_this: any)=>{
             let t = getOrCall(obj) || _this
             if (typeof t === 'string') t = _this[t]
             const p = cPropKey ? getOrCall(key) || propertyKey : propertyKey
             return {t, p}
         }
-        Object.defineProperty(targetPrototype, propertyKey, {
+        const prop = {
             get() {
                 const {t, p} = getTarget(this)
                 let res = t[p]
@@ -153,6 +170,14 @@ export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {ob
             },
             // configurable: true,
             // enumerable: true,
-        })
+        } as any
+        // https://github.com/babel/babel/blob/909ed3473968c2ccd75f89e17c37ef4771cc3ff8/packages/babel-helpers/src/helpers/applyDecoratedDescriptor.ts#L11
+        if (descriptor) {
+            if (objectHasOwn(descriptor, 'value')) delete descriptor.value
+            if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
+            return Object.assign(descriptor, prop)
+        }
+        Object.defineProperty(targetPrototype, propertyKey, prop)
     }
 }

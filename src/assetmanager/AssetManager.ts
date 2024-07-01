@@ -286,14 +286,14 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
             }, ['exr'], ['image/x-exr'], false),
 
             new Importer(FBXLoader, ['fbx'], ['model/fbx'], true),
-            new Importer(ZipLoader, ['zip', 'glbz', 'gltfz'], ['application/zip', 'data:model/gltf+zip'], true), // gltfz and glbz are invented zip files with gltf/glb inside along with resources
+            new Importer(ZipLoader, ['zip', 'glbz', 'gltfz'], ['application/zip', 'model/gltf+zip', 'model/zip'], true), // gltfz and glbz are invented zip files with gltf/glb inside along with resources
 
             new Importer(OBJLoader2 as any as Class<ILoader>, ['obj'], ['model/obj'], true),
             new Importer(MTLLoader2 as any as Class<ILoader>, ['mtl'], ['model/mtl'], false),
 
-            new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary'], true, (l, _, i) => l?.setup(this.viewer, i.extensions)),
+            new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf', 'data:model/glb'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary', 'model/glb'], true, (l, _, i) => l?.setup(this.viewer, i.extensions)),
 
-            new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco'], true),
+            new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true),
         ]
 
         this.importer.addImporter(...importers)

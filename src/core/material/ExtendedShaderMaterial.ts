@@ -16,6 +16,7 @@ import {
 import {shaderReplaceString} from '../../utils'
 import {IMaterialUserData} from '../IMaterial'
 
+// earlier it was ShaderMaterialEncodingSupport
 export class ExtendedShaderMaterial extends ShaderMaterial2 {
     declare ['constructor']: (typeof ExtendedShaderMaterial) & (typeof ShaderMaterial2)
 
@@ -46,6 +47,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
             this.uniformsNeedUpdate = true
         }
     }
+
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
         this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget() ?? renderer.getSize(new Vector2()))
 

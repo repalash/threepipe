@@ -70,8 +70,8 @@ import {Easing} from 'popmotion'
 import {OrbitControls3} from '../three'
 
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
-    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
-    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'renderEnabled'|'renderDisabled'
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
     [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
@@ -819,6 +819,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
         await p.onRemove(this)
+        this.dispatchEvent({type: 'removePlugin', target: this, plugin: p})
         delete this.plugins[type]
         if (dispose) await p.dispose() // todo await?
         this.setDirty(p)
@@ -833,6 +834,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
         p.onRemove(this)
+        this.dispatchEvent({type: 'removePlugin', target: this, plugin: p})
         delete this.plugins[type]
         if (dispose) p.dispose()
         this.setDirty(p)

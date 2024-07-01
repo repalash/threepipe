@@ -115,7 +115,7 @@
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.12.0",
+    "ts-browser-helpers": "^0.13.0",
     "uiconfig.js": "^0.0.12"
   },
   "//": {
