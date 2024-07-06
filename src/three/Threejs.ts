@@ -215,6 +215,9 @@ export {ShapeUtils} from 'three'
 export {PMREMGenerator} from 'three'
 export {WebGLUtils} from 'three'
 
+export type {ColorRepresentation, HSL, RGB} from 'three'
+export type {ShaderMaterialParameters} from 'three'
+
 export * from 'three/src/constants.js'
 
 export type {Shader} from 'three'

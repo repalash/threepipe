@@ -1,4 +1,4 @@
-import {AnyFunction, getOrCall, objectHasOwn, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
+import {FnCaller, getOrCall, objectHasOwn, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
 
 /**
  *
@@ -34,7 +34,7 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
                 if (val === newVal) return
                 u.value = newVal
                 safeSetProperty(this, 'uniformsNeedUpdate', true, true)
-                onChange && callOnChange.call(this, onChange, [propertyKey, newVal])
+                onChange && FnCaller.callFunction(onChange, this, [propertyKey, newVal])
             },
             // configurable: true,
             // enumerable: true,
@@ -50,17 +50,6 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
     }
 }
 
-function callOnChange(this: any, onChange: (...args: any[]) => any, params: any[]) {
-    // same logic as onChange in ts-browser-helpers. todo: loop through object prototype chain like in onChange?
-    if (onChange.name) {
-        const fn: AnyFunction = this[onChange.name]
-        if (fn && fn === onChange)
-            onChange.call(this, ...params)
-        else if (fn && fn.name.endsWith(`bound ${onChange.name}`))
-            fn(...params)
-        else onChange(...params)
-    } else onChange(...params)
-}
 // todo migrate to new decorators - https://2ality.com/2022/10/javascript-decorators.html
 /**
  * Decorator to create a three.js style define in this.material or this and bind to a property.
@@ -101,7 +90,7 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 if (onChange && typeof onChange === 'function') {
-                    callOnChange.call(this, onChange, [p, newVal])
+                    FnCaller.callFunction(onChange, this, [p, newVal])
                 } else {
                     safeSetProperty(thisMat ? this : this.material, 'needsUpdate', true, true)
                 }
@@ -165,8 +154,8 @@ export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {ob
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 let oc = onChange
-                if (oc && (typeof oc === 'string' || typeof oc === 'symbol')) oc = this[oc]
-                if (oc && typeof oc === 'function') callOnChange.call(this, oc, [p, newVal])
+                if (oc && (typeof oc === 'string' || typeof oc === 'symbol')) oc = this[oc] // todo just call it here directly
+                if (oc && typeof oc === 'function') FnCaller.callFunction(oc, this, [p, newVal])
             },
             // configurable: true,
             // enumerable: true,

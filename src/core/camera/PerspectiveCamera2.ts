@@ -32,7 +32,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      */
     private _canvas?: HTMLCanvasElement
     get isMainCamera(): boolean {
-        return this.userData.__isMainCamera || false
+        return this.userData ? this.userData.__isMainCamera || false : false
     }
 
     @serialize()

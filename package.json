@@ -15,7 +15,7 @@
     "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
     "new:publish": "npm run prepare && clean-package && npm publish && clean-package restore",
     "build:rollup": "rimraf dist && npm run update-version && NODE_ENV=production rollup -c",
-    "build": "npm run update-version && vite build",
+    "build": "npm run update-version && npm run compile && vite build",
     "dev:rollup": "rollup -c -w",
     "dev": "NODE_ENV=development vite build --watch",
     "build-examples": "tsc --project examples/tsconfig.build.json",
@@ -26,7 +26,7 @@
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs install",
-    "prepare": "npm run build && npm run compile && npm run build-plugins && npm run build-examples",
+    "prepare": "npm run build && npm run build-plugins && npm run build-examples",
 	"update-version": "node scripts/update-version.mjs"
   },
   "clean-package": {
@@ -115,13 +115,13 @@
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.13.0",
+    "ts-browser-helpers": "^0.14.2",
     "uiconfig.js": "^0.0.12"
   },
   "//": {
     "dependencies": {
       "uiconfig.js": "^0.0.12",
-      "ts-browser-helpers": "^0.12.0",
+      "ts-browser-helpers": "^0.14.2",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.153.1003/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.153.1003.tar.gz",
       "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.153.1002/package.tgz",
