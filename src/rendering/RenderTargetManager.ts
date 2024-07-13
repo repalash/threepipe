@@ -86,11 +86,18 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         return target
     }
 
-    disposeTarget(target: IRenderTarget): void {
+    /**
+     * Dispose and remove tracked target. Release target in-case of temporary target.
+     * To just dispose from the GPU memory and keep reference, call `target.dispose()` or `target.dispose(false)`
+     * @param target
+     * @param remove
+     */
+    disposeTarget(target: IRenderTarget, remove = true): void {
         if (!target) return
         if (target.isTemporary) return this.releaseTempTarget(target)
-        this.removeTrackedTarget(target)
-        target.dispose()
+        if (remove) this.removeTrackedTarget(target)
+        // @ts-expect-error internal, not in types
+        target.dispose(false) // false is not required but still passing so that it doesnt cause infinite loop in future.
     }
 
     getTempTarget<T extends IRenderTarget = IRenderTarget>(op: CreateRenderTargetOptions = {}): T {

@@ -607,6 +607,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
 
     protected _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget {
         const processNewTarget = this._processNewTarget
+        const disposeTarget = this.disposeTarget.bind(this)
         return new class RenderTarget extends clazz implements IRenderTarget {
             isTemporary?: boolean
             sizeMultiplier?: number
@@ -666,7 +667,11 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 super.copy(source as any)
                 return this
             }
-
+            // Note - by default unregister need to be false.
+            dispose(unregister = false) {
+                if (unregister === true) disposeTarget(this, true)
+                else super.dispose()
+            }
         }(this, ...size, options)
     }
 

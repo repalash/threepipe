@@ -588,7 +588,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         ;(window as any).threeViewers?.splice((window as any).threeViewers.indexOf(this), 1)
 
         if (this.resizeObserver) this.resizeObserver.unobserve(this._canvas)
-        else window.removeEventListener('resize', this.resize)
+        window.removeEventListener('resize', this.resize)
 
         this.dispatchEvent({type: 'dispose'})
     }

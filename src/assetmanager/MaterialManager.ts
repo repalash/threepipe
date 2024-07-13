@@ -120,7 +120,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             .forEach(map=>
                 !map.isRenderTargetTexture && map.userData.disposeOnIdle !== false &&
                 map.dispose && !isInScene(map) && map.dispose())
-        this.unregisterMaterial(mat) // todo, re-add when material is added again to the scene.
+        // this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly. todo: make an easy way to do that.
     }
 
     private _materialMaps = new Map<string, Set<ITexture>>()
