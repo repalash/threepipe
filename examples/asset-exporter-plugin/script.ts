@@ -7,13 +7,14 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, AssetExporterPlugin, SceneUiConfigPlugin],
+        plugins: [LoadingScreenPlugin, AssetExporterPlugin, SceneUiConfigPlugin, GLTFDracoExportPlugin],
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

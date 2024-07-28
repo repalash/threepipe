@@ -61,6 +61,7 @@ import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
+import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
 async function init() {
 
@@ -84,6 +85,7 @@ async function init() {
     await viewer.addPlugins([
         LoadingScreenPlugin,
         AssetExporterPlugin,
+        GLTFDracoExportPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,

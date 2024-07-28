@@ -141,6 +141,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
   - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
   - [@threepipe/plugin-configurator](#threepipeplugin-configurator) - Provides Material Configurator and Switch Node Plugin to allow users to select variations 
+  - [@threepipe/plugin-gltf-transform](#threepipeplugin-gltf-transform) - Plugin to transform gltf models (draco compression)
   - [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
   - [@threepipe/plugin-geometry-generator](#threepipeplugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
@@ -3753,6 +3754,41 @@ To create a custom configurator UI, use the `SwitchNodeBasePlugin` directly and 
 
 [//]: # (TODO Add Example for custom UI)
 
+## @threepipe/plugin-gltf-transform
+
+Exports [GLTFDracoExportPlugin](https://threepipe.org/plugins/gltf-transform/docs/classes/GLTFDracoExportPlugin.html) that extends the default gltf exporter to compress the file after export.
+
+[Example](https://threepipe.org/examples/#glb-draco-export/) &mdash;
+[Source Code](plugins/gltf-transform/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/gltf-transform/docs)
+
+NPM: `npm install @threepipe/plugin-gltf-transform`
+
+To use, simply add the plugin to the viewer and export using the `viewer.export` or `viewer.exportScene` functions. This also adds UI options to `AssetExporterPlugin` which are used when exporting using the plugin or using `viewer.exportScene`
+
+The plugin overloads the default gltf exporter in the asset manager with `GLTFDracoExporter`. Using the [gltf-transform](https://gltf-transform.donmccurdy.com/) library, it compresses the exported gltf file using the [khr_draco_mesh_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_draco_mesh_compression/README.md) extension.
+
+Note - Only `glb` export supported right now.
+
+Sample Usage:
+
+```typescript
+import {ThreeViewer, downloadBlob} from 'threepipe'
+import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(GLTFDracoExportPlugin)
+
+await viewer.load('file.glb')
+
+const blob = await viewer.exportScene({
+  compress: true, // this must be specified, by default it's false.
+  viewerConfig: true, // to export with viewer, scene and plugin settings
+})
+// download the file
+downloadBlob(blob, 'scene.glb')
+```
+
 ## @threepipe/plugin-network
 
 Network/Cloud related plugin implementations for Threepipe.
@@ -3940,6 +3976,7 @@ const model1 = await viewer.load<IObject3D>('data:application/x-blender;base64,.
 ```
 
 [//]: # ( TODO: The plugin should parse and references to other assets and find them relative to the .blend file or the current location.)
+
 
 ## @threepipe/plugin-geometry-generator
 

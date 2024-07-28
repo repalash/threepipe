@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.31",
+  "version": "0.0.32",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -27,7 +27,7 @@
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs install",
     "prepare": "npm run build && npm run build-plugins && npm run build-examples",
-	"update-version": "node scripts/update-version.mjs"
+    "update-version": "node scripts/update-version.mjs"
   },
   "clean-package": {
     "remove": [
