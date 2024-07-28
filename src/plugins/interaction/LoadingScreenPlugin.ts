@@ -164,8 +164,11 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         this.loadingElement.style.display = ''
     }
 
+    private _temp = document.createElement('template')
     private _setHTML(elem: HTMLElement, html:string) {
-        if (elem.innerHTML !== html) elem.innerHTML = html
+        this._temp.innerHTML = html
+        // Compare the parsed content instead of raw strings, as browsers might change html after setting.
+        if (this._temp.innerHTML.trim() !== elem.innerHTML.trim()) elem.innerHTML = html
     }
 
     protected _updateMainDiv(processState: Map<string, {state: string, progress?: number|undefined}>, updateVisibility = true) {

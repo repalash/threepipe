@@ -1,5 +1,5 @@
 import {ShaderMaterial2} from './ShaderMaterial2'
-import {getTexelDecoding2} from '../../three'
+import {getTexelDecoding} from '../../three'
 import {
     BufferGeometry,
     Camera,
@@ -49,7 +49,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
     }
 
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget() ?? renderer.getSize(new Vector2()))
+        this.uniforms.screenSize && this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget() ?? renderer.getSize(new Vector2()))
 
         for (const item of this.textures) {
             const textureID = item.id
@@ -69,7 +69,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
     onBeforeCompile(s: Shader, renderer: WebGLRenderer) {
         const pars = '\n' + this.textures
             .map(t=>`uniform sampler2D ${t.id}; \n`
-                    + getTexelDecoding2(t.id ?? 'input', t.colorSpace ?? LinearSRGBColorSpace)).join('\n')
+                    + getTexelDecoding(t.id ?? 'input', t, renderer.capabilities.isWebGL2)).join('\n')
 
         if (s.fragmentShader.includes('#include <encodings_pars_fragment>')) {
             s.fragmentShader = shaderReplaceString(s.fragmentShader, '#include <encodings_pars_fragment>', pars, {append: true})

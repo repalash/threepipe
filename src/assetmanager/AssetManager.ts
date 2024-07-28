@@ -8,6 +8,7 @@ import {
     LinearFilter,
     LinearMipmapLinearFilter,
     LoadingManager,
+    Object3D,
     PerspectiveCamera,
     TextureLoader,
 } from 'three'
@@ -47,6 +48,7 @@ import {ILoader} from './IImporter'
 import {AssetExporter} from './AssetExporter'
 import {IExporter} from './IExporter'
 import {GLTFExporter2} from './export'
+import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
 
 export interface AssetManagerOptions{
     /**
@@ -136,6 +138,11 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
     }: AddAssetOptions = {}): Promise<T | never[]> {
         const arr: (ImportResult | undefined)[] = Array.isArray(imported) ? imported : [imported]
         let ret: T = Array.isArray(imported) ? [] : undefined as any
+
+        if (options?.importConfig !== false) {
+            const config = arr.find(v => v?.assetType === 'config') || arr.find(v=>v && !!v.importedViewerConfig)?.importedViewerConfig
+            if (config) legacySeparateMapSamplerUVFix(config, arr.filter(a=>a?.isObject3D) as Object3D[])
+        }
 
         for (const obj of arr) {
             if (!obj) {

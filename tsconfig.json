@@ -30,7 +30,7 @@
         "plugins": [{ "name": "typescript-plugin-css-modules" }]
     },
     "include": [
-        "src/**/*",
+        "./src/**/*",
         "node_modules/@types/wicg-file-system-access/index.d.ts"
     ],
     "exclude": [

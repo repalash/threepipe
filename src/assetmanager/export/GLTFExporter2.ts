@@ -210,7 +210,6 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
         // should be last
         this.register(this.gltfViewerWriter(viewer))
         return this
-
     }
 
     gltfViewerWriter(viewer: ThreeViewer): (parser: GLTFWriter2) => GLTFExporterPlugin {

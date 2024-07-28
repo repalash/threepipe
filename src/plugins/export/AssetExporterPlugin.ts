@@ -51,26 +51,14 @@ export class AssetExporterPlugin extends AViewerPluginSync<''> {
         return super.onRemove(viewer)
     }
 
-    @serialize() exportOptions: ExportAssetOptions = {
+    // readonly because bound to ui
+    @serialize() readonly exportOptions: ExportAssetOptions = {
         name: 'scene',
         viewerConfig: true,
         encodeUint16Rgbe: false,
         convertMeshToIndexed: false,
         embedUrlImagePreviews: false,
         embedUrlImages: false,
-        // compress: false,
-        // dracoOptions: {
-        //     encodeSpeed: 5,
-        //     method: EncoderMethod.EDGEBREAKER,
-        //     quantizationVolume: 'mesh',
-        //     quantizationBits: {
-        //         ['POSITION']: 14,
-        //         ['NORMAL']: 10,
-        //         ['COLOR']: 8,
-        //         ['TEX_COORD']: 12,
-        //         ['GENERIC']: 12,
-        //     },
-        // } as EncoderOptions,
         encrypt: false,
         encryptKey: '',
     }
@@ -107,48 +95,6 @@ export class AssetExporterPlugin extends AViewerPluginSync<''> {
                 type: 'folder',
                 label: 'GLB Export',
                 children: [
-                    // compress ? {
-                    //     type: 'checkbox',
-                    //     label: 'DRACO Compress',
-                    //     property: [this.exportOptions, 'compress'],
-                    //     onChange: ()=>this.uiConfig.uiRefresh?.(true),
-                    // } : {},
-                    // compress && this.exportOptions.dracoOptions ? {
-                    //     type: 'folder',
-                    //     hidden: ()=>!this.exportOptions.compress,
-                    //     label: 'DRACO Options',
-                    //     children: [
-                    //         {
-                    //             type: 'slider',
-                    //             label: 'Encode Speed',
-                    //             bounds: [1, 10],
-                    //             property: [this.exportOptions.dracoOptions, 'encodeSpeed'],
-                    //         },
-                    //         {
-                    //             type: 'dropdown',
-                    //             label: 'Encoder Method',
-                    //             property: [this.exportOptions.dracoOptions, 'method'],
-                    //             children: Object.entries(EncoderMethod).map(([k, v]) => ({label: k, value: v})),
-                    //         },
-                    //         {
-                    //             type: 'dropdown',
-                    //             label: 'Quantization Volume',
-                    //             property: [this.exportOptions.dracoOptions, 'quantizationVolume'],
-                    //             children: ['mesh', 'scene', 'bbox'].map(v => ({label: v})),
-                    //         },
-                    //         {
-                    //             type: 'folder',
-                    //             label: 'Quantization Bits',
-                    //             children: Object.keys(this.exportOptions.dracoOptions.quantizationBits!).map(k => ({
-                    //                 type: 'slider',
-                    //                 label: k,
-                    //                 bounds: [1, 16],
-                    //                 stepSize: 1,
-                    //                 property: [this.exportOptions.dracoOptions.quantizationBits, k],
-                    //             })),
-                    //         },
-                    //     ],
-                    // } : {},
                     {
                         type: 'checkbox',
                         label: 'Viewer Config (All Settings)',
