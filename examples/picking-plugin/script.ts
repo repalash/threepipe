@@ -18,7 +18,9 @@ async function init() {
     ui.setupPluginUi(PickingPlugin)
 
     picking.addEventListener('hitObject', (e)=>{
-        console.log('Hit object', e)
+        console.log('Hit object', e, e.intersects.selectedObject)
+        // set to null to prevent selection
+        // e.intersects.selectedObject = null
     })
     picking.addEventListener('selectedObjectChanged', (e)=>{
         console.log('Selected Object Changed', e)

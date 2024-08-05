@@ -6,7 +6,6 @@ import {
     ClearcoatTintPlugin,
     ContactShadowGroundPlugin,
     CustomBumpMapPlugin,
-    DepthBufferPlugin,
     DeviceOrientationControlsPlugin,
     DropzonePlugin,
     EditorViewWidgetPlugin,
@@ -21,12 +20,11 @@ import {
     HalfFloatType,
     HDRiGroundPlugin,
     HemisphereLight,
+    InteractionPromptPlugin,
     KTX2LoadPlugin,
     KTXLoadPlugin,
     LoadingScreenPlugin,
-    MeshOptSimplifyModifierPlugin,
     NoiseBumpMaterialPlugin,
-    NormalBufferPlugin,
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
     ParallaxMappingPlugin,
@@ -51,7 +49,7 @@ import {
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
-import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
+import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {AWSClientPlugin} from '@threepipe/plugin-network'
 
 async function init() {
@@ -97,8 +95,8 @@ async function init() {
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new GBufferPlugin(HalfFloatType, true, true, true),
-        new DepthBufferPlugin(HalfFloatType, false, false),
-        new NormalBufferPlugin(HalfFloatType, false),
+        // new DepthBufferPlugin(HalfFloatType, false, false),
+        // new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
@@ -121,8 +119,8 @@ async function init() {
         DeviceOrientationControlsPlugin,
         PointerLockControlsPlugin,
         ThreeFirstPersonControlsPlugin,
-        // InteractionPromptPlugin, // todo disable when not in Viewer tab, like in webgi
-        new MeshOptSimplifyModifierPlugin(false, document.head), // will auto-initialize on first use.
+        InteractionPromptPlugin,
+        // new MeshOptSimplifyModifierPlugin(false, document.head), // will auto-initialize on first use.
         new GLTFMeshOptDecodePlugin(true, document.head),
         // new BasicSVGRendererPlugin(false, true),
         ...extraImportPlugins,

@@ -20,6 +20,7 @@
         "sourceMap": false,
         "paths": {
             "@threepipe/plugin-*": ["../plugins/*/src"],
+            "@threepipe/plugins-*": ["../plugins/*/src"],
             "threepipe": ["../src/"]
         },
         "target": "ES2020",

@@ -36,6 +36,7 @@ import {
     PickingPlugin,
     PLYLoadPlugin,
     PointerLockControlsPlugin,
+    PopmotionPlugin,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
@@ -46,6 +47,7 @@ import {
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
     TonemapPlugin,
+    TransformAnimationPlugin,
     TransformControlsPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
@@ -56,7 +58,7 @@ import {
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
-import {extraImportPlugins} from '@threepipe/plugin-extra-importers'
+import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
@@ -86,9 +88,11 @@ async function init() {
         LoadingScreenPlugin,
         AssetExporterPlugin,
         GLTFDracoExportPlugin,
+        PopmotionPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
+        TransformAnimationPlugin,
         PickingPlugin,
         new TransformControlsPlugin(false),
         EditorViewWidgetPlugin,

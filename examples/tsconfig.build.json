@@ -3,7 +3,8 @@
     "compilerOptions": {
         "paths": {
             "threepipe": ["../dist/"],
-            "@threepipe/plugin-*": ["../plugins/*/dist"]
+            "@threepipe/plugin-*": ["../plugins/*/dist"],
+            "@threepipe/plugins-*": ["../plugins/*/dist"]
         },
     },
 }

@@ -14,7 +14,7 @@ import {
     VRMLLoadPlugin,
     VTKLoadPlugin,
     XYZLoadPlugin,
-} from '@threepipe/plugin-extra-importers'
+} from '@threepipe/plugins-extra-importers'
 
 async function init() {
 
@@ -70,6 +70,7 @@ async function init() {
         'https://threejs.org/examples/models/vtk/bunny.vtk',
         'https://threejs.org/examples/models/vtk/cube_binary.vtp',
         'https://threejs.org/examples/models/xyz/helix_201.xyz',
+        'https://threejs.org/examples/models/vrml/meshWithTexture.wrl',
     ]
 
     const options: ImportAddOptions = {
