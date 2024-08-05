@@ -184,8 +184,8 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
         this.updateMouseFromEvent(event)
 
         const intersects = this.checkIntersection()
-        if (intersects)
-            this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects})
+        if (intersects) this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects})
+        else this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects: {selectedObject: null, intersect: null, intersects: []}})
         this.selectedObject = intersects?.selectedObject || null
     }
 
