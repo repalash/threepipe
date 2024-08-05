@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -108,7 +108,7 @@
     "typedoc": "^0.25.7",
     "typescript": "^5.3.3",
     "typescript-plugin-css-modules": "^5.0.1",
-    "vite": "^5.0.12",
+    "vite": "^5.3.5",
     "vite-plugin-dts": "^3.7.0"
   },
   "dependencies": {
