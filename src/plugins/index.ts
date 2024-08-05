@@ -60,6 +60,7 @@ export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
 export {PopmotionPlugin, type AnimationResult} from './animation/PopmotionPlugin'
+export {TransformAnimationPlugin, type TSavedTransform} from './animation/TransformAnimationPlugin'
 export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
 
 // material

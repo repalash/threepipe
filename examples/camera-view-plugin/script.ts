@@ -33,7 +33,7 @@ async function init() {
     )
 
     const rightView = new CameraView(
-        'leftView',
+        'rightView',
         new Vector3(6, 0, 0),
         initialView.target,
     )
@@ -70,9 +70,7 @@ async function init() {
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 
-    const uiC = ui.setupPluginUi(CameraViewPlugin)!
-    uiC.expanded = true
-    uiC.uiRefresh?.()
+    ui.setupPluginUi(CameraViewPlugin, {expanded: true})
 
 }
 

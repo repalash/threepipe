@@ -108,6 +108,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
   - [PopmotionPlugin](#popmotionplugin) - Integrates with popmotion.io library for animation/tweening
   - [CameraViewPlugin](#cameraviewplugin) - Add support for saving, loading, animating, looping between camera views
+  - [TransformAnimationPlugin](#transformanimationplugin) - Add support for saving, loading, animating, between object transforms
   - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](#geometryuvpreviewplugin) - Preview UVs of any geometry in a UI panel over the canvas
   - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
@@ -1550,7 +1551,7 @@ renderManager.maxTempPerKey = 10 // default = 5
 renderManager.blit(destination, {source: sourceTexture})
 
 // Clear color of the canvas
-renderManager.clearColor({r: 0, g: 0, b: 0, a: 1, depth: true, viewport: new Vector4(...)})
+renderManager.clearColor({r: 0, g: 0, b: 0, a: 1, depth: true, viewport: new Vector4()})
 
 // Clear of a render target
 renderManager.clearColor(renderTarget, {r: 0, g: 0, b: 0, a: 1, target: renderTarget})
@@ -2779,6 +2780,64 @@ cameraViewPlugin.viewLooping = false
 
 ```
 
+## TransformAnimationPlugin
+
+[//]: # (todo: image)
+
+[Example](https://threepipe.org/examples/#transform-animation-plugin/) &mdash;
+[Source Code](./src/plugins/animation/TransformAnimationPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/TransformAnimationPlugin.html)
+
+TransformAnimationPlugin adds support to save and load transform(position, rotation, scale) states for objects in the scene, which can then be animated to.
+It uses PopmotionPlugin internally to animate any object to a saved transform object.
+
+The transformations are saved in the object userData, and can be created and interacted with from the plugin.
+
+It also provides a UI to manage the states, this UI is added to the object's uiConfig and can be accessed using the object UI or PickingPlugin. Check the example for a working demo.
+
+Sample Usage - 
+```javascript
+import {TransformAnimationPlugin, ThreeViewer, Vector3, Quaternion, EasingFunctions, timeout} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const model = viewer.scene.getObjectByName('model')
+
+const transformAnim = viewer.addPluginSync(new TransformAnimationPlugin())
+
+// Save the current state of the model as a transform
+transformAnim.addTransform(model, 'initial')
+
+// Rotate/Move the model and save other transform states
+// left
+model.rotation.set(0, Math.PI / 2, 0)
+model.setDirty?.()
+transformAnim.addTransform(model, 'left')
+
+// top
+model.rotation.set(Math.PI / 2, 0, 0)
+model.setDirty?.()
+transformAnim.addTransform(model, 'top')
+
+// up
+model.position.set(0, 2, 0)
+model.lookAt(viewer.scene.mainCamera.position)
+model.setDirty?.()
+transformAnim.addTransform(model, 'up')
+
+// animate to a transform(from current position) in 1 sec
+const anim = transformAnim.animateTransform(model, 'left', 1000)
+// to stop the animation
+// anim.stop()
+// wait for the animation to finish
+await anim.promise
+
+// set a transform without animation
+transformAnim.setTransform(model, 'top')
+
+// await directly.
+await transformAnim.animateToTransform(model, 'up', 1000)?.promise
+```
 
 ## RenderTargetPreviewPlugin
 
