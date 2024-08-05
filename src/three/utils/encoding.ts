@@ -43,9 +43,9 @@ export function getTextureColorSpaceFromMap(map: Texture | WebGLRenderTarget | n
 
     let colorSpace
 
-    if (map && (<Texture>map).isTexture) {
+    if (map && (<Texture>map).colorSpace !== undefined) {
 
-        colorSpace = (<Texture>map).colorSpace
+        colorSpace = (<Texture>map).colorSpace || NoColorSpace
 
     } else if (map && (<WebGLRenderTarget>map).isWebGLRenderTarget) {
 
