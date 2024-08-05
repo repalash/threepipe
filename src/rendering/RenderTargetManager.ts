@@ -150,12 +150,14 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
 
     protected abstract _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget
 
-    dispose() {
+    dispose(clear = true) {
         this._trackedTargets.forEach(t=>t.dispose())
         Object.values(this._trackedTempTargets).forEach(t=>t.dispose())
-        this._trackedTargets = []
-        this._releasedTempTargets = {}
-        this._trackedTempTargets = []
+        if (clear) {
+            this._trackedTargets = []
+            this._releasedTempTargets = {}
+            this._trackedTempTargets = []
+        }
     }
 
     /**

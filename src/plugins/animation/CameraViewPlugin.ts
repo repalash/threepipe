@@ -118,7 +118,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         return super.onRemove(viewer)
     }
 
-    @uiButton('Reset To First View')
+    @uiButton('Reset To First View', {sendArgs: false})
     public async resetToFirstView(duration = 100) {
         if (this.isDisabled()) return
         this._currentView = undefined
@@ -138,7 +138,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     }
 
     addView(view: CameraView) {
-        this._cameraViews.push(view)
+        if (!this._cameraViews.includes(view)) this._cameraViews.push(view)
         view.addEventListener('setView', this._viewSetView as any)
         view.addEventListener('updateView', this._viewUpdateView as any)
         view.addEventListener('deleteView', this._viewDeleteView as any)
@@ -185,6 +185,10 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         const i = this._cameraViews.indexOf(view)
         if (i >= 0)
             this._cameraViews.splice(i, 1)
+        view.removeEventListener('setView', this._viewSetView as any)
+        view.removeEventListener('updateView', this._viewUpdateView as any)
+        view.removeEventListener('deleteView', this._viewDeleteView as any)
+        view.removeEventListener('animateView', this._viewAnimateView as any)
         this.uiConfig.uiRefresh?.()
         this.dispatchEvent({type: 'viewDelete', view})
     }
@@ -203,7 +207,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     private _currentView: CameraView | undefined
 
-    @uiButton('Focus Next') focusNext = (wrap = true)=>{
+    @uiButton('Focus Next', {sendArgs: false}) focusNext = (wrap = true)=>{
         if (this._animating) return
         if (this._cameraViews.length < 2) return
         let index = this._cameraViews.findIndex(v=>v === this._currentView)
@@ -213,7 +217,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
         else index = index % this._cameraViews.length
         this.animateToView(index)
     }
-    @uiButton('Focus Previous') focusPrevious = (wrap = true)=> {
+    @uiButton('Focus Previous', {sendArgs: false}) focusPrevious = (wrap = true)=> {
         if (this._animating) return
         if (this._cameraViews.length < 2 || !this._currentView) return
         let index = this._cameraViews.findIndex(v=>v === this._currentView)
@@ -226,7 +230,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     private _popAnimations: AnimationResult[] = []
 
-    async animateToView(_view: CameraView|number, duration?: number, easing?: Easing|EasingFunctionType, camera?: ICamera, throwOnStop = false) {
+    async animateToView(_view: CameraView|number|string, duration?: number, easing?: Easing|EasingFunctionType, camera?: ICamera, throwOnStop = false) {
         camera = camera || this._viewer?.scene.mainCamera
         if (!camera) return
         // if (this._currentView === view) return // todo: also check if the camera is at the correct position and orientation, till then use resetToFirstView to reset current view
@@ -245,7 +249,13 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
                 return
             }
         }
-        const view = typeof _view === 'number' ? this._cameraViews[_view] : _view
+        const view = typeof _view === 'number' ? this._cameraViews[_view] :
+            typeof _view === 'string' ? this._cameraViews.find(v=>v.name === _view) :
+                _view
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', _view)
+            return
+        }
 
         this._currentView = view
         this._animating = true
@@ -303,6 +313,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     fromJSON(data: any, meta?: any): this | null {
         this._cameraViews.forEach(v=>this.deleteView(v)) // deserialize pushes to the existing array
         if (super.fromJSON(data, meta)) {
+            this._cameraViews.forEach(v=>this.addView(v))
             this.uiConfig.uiRefresh?.()
             return this
         }
@@ -311,7 +322,7 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
     public async animateToObject(selected?: Object3D, distanceMultiplier = 4, duration?: number, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 5.0}) {
         if (!this._viewer) return
-        const bbox = new Box3B().expandByObject(selected || this._viewer.scene.modelRoot.modelObject, false, true)
+        const bbox = new Box3B().expandByObject(selected || this._viewer.scene.modelRoot, false, true)
         const center = bbox.getCenter(new Vector3())
         const size = bbox.getSize(new Vector3())
         const radius = size.length() / 2

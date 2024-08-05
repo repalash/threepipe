@@ -96,7 +96,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
     @onChange2(RenderManager.prototype.rebuildPipeline)
     public autoBuildPipeline = true
 
-    @uiButton('Rebuild Pipeline')
+    @uiButton('Rebuild Pipeline', {sendArgs: false})
     rebuildPipeline(setDirty = true): void {
         this._passesNeedsUpdate = true
         if (setDirty) this._updated({change: 'rebuild'})
@@ -275,8 +275,8 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
         this._updated({change: 'passRefresh'})
     }
 
-    dispose(): void {
-        super.dispose()
+    dispose(clear = true): void {
+        super.dispose(clear)
         this._renderer.dispose()
     }
 
@@ -521,7 +521,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
      * @param quality
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
+    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
         const canvas = document.createElement('canvas')
         canvas.width = target.width
         canvas.height = target.height
@@ -530,11 +530,11 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
         const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
         const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
         if (texture.type === HalfFloatType || texture.type === FloatType) {
-            const buffer = this.renderTargetToBuffer(target, textureIndex)
+            const buffer = this.renderTargetToBuffer(target as any, textureIndex)
             textureDataToImageData({data: buffer, width: target.width, height: target.height}, texture.colorSpace, imageData) // this handles converting to srgb
         } else {
             // todo: handle rgbm to srgb conversion?
-            this._renderer.readRenderTargetPixels(target, 0, 0, target.width, target.height, imageData.data, undefined, textureIndex)
+            this._renderer.readRenderTargetPixels(target as any, 0, 0, target.width, target.height, imageData.data, undefined, textureIndex)
         }
 
         ctx.putImageData(imageData, 0, 0)

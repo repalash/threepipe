@@ -48,6 +48,7 @@
   "files": [
     "dist",
     "src",
+    "lib",
     "examples",
     "plugins/*/dist",
     "plugins/*/src",

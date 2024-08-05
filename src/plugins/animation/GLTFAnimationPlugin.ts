@@ -340,7 +340,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
         this._viewer?.setDirty()
     }
 
-    @uiButton('Stop')
+    @uiButton('Stop', {sendArgs: false})
     stopAnimation(reset = false) {
         this._animationState = 'stopped'
         // safeSetProperty(this._viewer?.getPlugin<PickingPlugin>('Picking'), 'enabled', true)
@@ -355,7 +355,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'chec
 
     }
 
-    @uiButton('Reset')
+    @uiButton('Reset', {sendArgs: false})
     resetAnimation() {
         if (this._animationState !== 'stopped' && this._animationState !== 'none') {
             this.stopAnimation(true) // reset and stop

@@ -25,8 +25,9 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
 
     preprocessMaterial = (material: IMaterial, renderToGBuffer?: boolean) => {
         renderToGBuffer = renderToGBuffer ?? material.userData.renderToGBuffer
+        if (material.userData.pluginsDisabled) renderToGBuffer = false
         if (
-            material.transparent && renderToGBuffer || // transparent and render to gbuffer
+            material.transparent && (renderToGBuffer || material.opacity > 0.99) || // transparent and render to gbuffer
             !material.transparent && !material.transmission && renderToGBuffer === false // opaque and dont render to gbuffer
         ) {
             this._transparentMats.add(material)

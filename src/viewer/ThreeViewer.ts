@@ -570,27 +570,31 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     /**
      * Disposes the viewer and frees up all resource and events. Do not use the viewer after calling dispose.
      * @note - If you want to reuse the viewer, set viewer.enabled to false instead, then set it to true again when required. To dispose all the objects, materials in the scene use `viewer.scene.disposeSceneModels()`
-     * This function is not fully implemented yet. There might be some memory leaks.
+     * This function is not fully implemented yet. There might be some leaks.
      * @todo - return promise?
      */
-    public dispose(): void {
+    public dispose(clear = true): void {
         // todo: dispose stuff from constructor etc
-        for (const plugin of [...Object.values(this.plugins)]) {
-            this.removePlugin(plugin, true)
+        if (clear) {
+            for (const plugin of [...Object.values(this.plugins)]) {
+                this.removePlugin(plugin, true)
+            }
         }
 
-        this._scene.dispose()
-        this.renderManager.dispose()
+        this._scene.dispose(clear)
+        this.renderManager.dispose(clear)
 
-        this._canvas.removeEventListener('webglcontextrestored', this._onContextRestore, false)
-        this._canvas.removeEventListener('webglcontextlost', this._onContextLost, false)
+        if (clear) {
+            this._canvas.removeEventListener('webglcontextrestored', this._onContextRestore, false)
+            this._canvas.removeEventListener('webglcontextlost', this._onContextLost, false)
 
-        ;(window as any).threeViewers?.splice((window as any).threeViewers.indexOf(this), 1)
+            ;(window as any).threeViewers?.splice((window as any).threeViewers.indexOf(this), 1)
 
-        if (this.resizeObserver) this.resizeObserver.unobserve(this._canvas)
-        window.removeEventListener('resize', this.resize)
+            if (this.resizeObserver) this.resizeObserver.unobserve(this._canvas)
+            window.removeEventListener('resize', this.resize)
+        }
 
-        this.dispatchEvent({type: 'dispose'})
+        this.dispatchEvent({type: 'dispose', clear})
     }
 
     /**

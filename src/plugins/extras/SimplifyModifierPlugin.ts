@@ -149,7 +149,7 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync<''> {
      */
     protected abstract _simplify(geometry: IGeometry, count: number): IGeometry
 
-    @uiButton('Simplify All')
+    @uiButton('Simplify All', {sendArgs: false})
     async simplifyAll(root?: IObject3D, options?: SimplifyOptions) {
         if (!root && this._viewer) root = this._viewer.scene.modelRoot
         if (!root) {

@@ -262,7 +262,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty({refreshScene: true})
     }
 
-    @uiButton()
+    @uiButton(undefined, {sendArgs: false})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         const geoms = new Set<IGeometry>()
         ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
@@ -276,10 +276,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         setDirty && this.setDirty({refreshScene: true})
     }
 
-    disposeSceneModels(setDirty = true) {
-        [...this.modelRoot.children].forEach(child => child.dispose ? child.dispose() : child.removeFromParent())
-        this.modelRoot.clear()
-        if (setDirty) this.setDirty({refreshScene: true})
+    disposeSceneModels(setDirty = true, clear = true) {
+        if (clear) {
+            [...this.modelRoot.children].forEach(child => child.dispose ? child.dispose() : child.removeFromParent())
+            this.modelRoot.clear()
+            if (setDirty) this.setDirty({refreshScene: true})
+        } else {
+            this.modelRoot.children.forEach(child => child.dispose && child.dispose())
+        }
     }
 
     private _onEnvironmentChange() {
@@ -372,16 +376,22 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * Dispose the scene and clear all resources.
      * @warn Not fully implemented yet, just clears the scene.
      */
-    dispose(): void {
-        this.disposeSceneModels();
-        [...this.children].forEach(child => child.dispose ? child.dispose() : child.removeFromParent())
-        this.clear()
+    dispose(clear = true): void {
+        this.disposeSceneModels(false, clear)
+
+        if (clear) {
+            [...this.children].forEach(child => child.dispose ? child.dispose() : child.removeFromParent())
+            this.clear()
+        }
 
         // todo: dispose more stuff?
         this.environment?.dispose()
         if ((this.background as ITexture)?.isTexture) (this.background as ITexture)?.dispose?.()
-        this.environment = null
-        this.background = null
+
+        if (clear) {
+            this.environment = null
+            this.background = null
+        }
         return
     }
 

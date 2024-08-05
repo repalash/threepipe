@@ -13,7 +13,7 @@ import ParallaxMappingPluginReliefShader from './shaders/ParallaxMappingPlugin.r
  * This is a port of Relief Parallax Mapping from [Rabbid76/graphics-snippets](https://github.com/Rabbid76/graphics-snippets/blob/master/html/technique/parallax_005_parallax_relief_mapping_derivative_tbn.html)
  * @category Plugins
  */
-@uiFolderContainer('Parallax Mapping')
+@uiFolderContainer('Parallax Bump Mapping (MatExt)')
 export class ParallaxMappingPlugin extends AViewerPluginSync<''> {
     public static PluginType = 'ReliefParallaxMapping'
 

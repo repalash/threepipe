@@ -27,7 +27,7 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync<''> {
     }))
     protected _selectedType = ''
 
-    @uiButton('Generate')
+    @uiButton('Generate', {sendArgs: false})
     generate(type?: string, params?: any, addToScene = true) {
         if (!this._viewer) throw new Error('No viewer')
         const obj = this.generators[type ?? this._selectedType]?.(params)

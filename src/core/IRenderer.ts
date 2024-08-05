@@ -1,4 +1,4 @@
-import {IDisposable, PartialRecord} from 'ts-browser-helpers'
+import {PartialRecord} from 'ts-browser-helpers'
 import {
     Blending,
     Clock,
@@ -36,7 +36,7 @@ export type IRenderManagerEvent = Partial<IAnimationLoopEvent>&Partial<IRenderMa
 }
 export type IRenderManagerEventTypes = 'animationLoop'|'update'|'resize'|'contextLost'|'contextRestored'
 export interface RendererBlitOptions {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean}
-export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEvent, ET extends string = IRenderManagerEventTypes> extends RenderTargetManager<E, ET>, IDisposable, IShaderPropertiesUpdater{
+export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEvent, ET extends string = IRenderManagerEventTypes> extends RenderTargetManager<E, ET>, IShaderPropertiesUpdater{
     readonly renderer: IWebGLRenderer
     readonly needsRender: boolean
     rebuildPipeline(setDirty?: boolean): void

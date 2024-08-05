@@ -89,7 +89,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync<''> {
             quality: 0.9,
         }
 
-    @uiButton('Download .png')
+    // @uiButton('Download .png', {sendArgs: false})
     async downloadSnapshot(filename?: string, options: CanvasSnapshotOptions&{waitForProgressive?: boolean} = {waitForProgressive: true}): Promise<void> {
         if (!this._viewer) return
         if (!options.mimeType && !filename) this.filename = this.filename.split('.').slice(0, -1).join('.') + '.png'
@@ -97,6 +97,11 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync<''> {
         if (file) await this._viewer.exportBlob(file, file.name)
     }
 
+    @uiButton('Download .png')
+    protected async _downloadPng(): Promise<void> {
+        this.filename = this.filename.split('.').slice(0, -1).join('.') + '.png'
+        return this.downloadSnapshot(undefined, {mimeType: 'image/png'})
+    }
     @uiButton('Download .jpeg')
     protected async _downloadJpeg(): Promise<void> {
         this.filename = this.filename.split('.').slice(0, -1).join('.') + '.jpeg'

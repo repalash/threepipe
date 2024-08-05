@@ -51,7 +51,7 @@ export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {
         }
     }
 
-    @uiButton('Enter FullScreen')
+    @uiButton('Enter FullScreen', {sendArgs: false})
     async enter(element?: HTMLElement): Promise<void> {
         if (this.isFullScreen()) return
 
@@ -82,7 +82,7 @@ export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {
             return elem.msRequestFullscreen()
         }
     }
-    @uiButton('Exit FullScreen')
+    @uiButton('Exit FullScreen', {sendArgs: false})
     async exit(): Promise<void> {
         if (document.exitFullscreen) {
             return document.exitFullscreen()
@@ -94,7 +94,7 @@ export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {
             return (document as any).msExitFullscreen()
         }
     }
-    @uiButton('Toggle FullScreen')
+    @uiButton('Toggle FullScreen', {sendArgs: false})
     async toggle(element?: HTMLElement): Promise<void> {
         if (this.isFullScreen()) {
             return this.exit()

@@ -17,11 +17,11 @@ import {BaseGroundPlugin} from '../base/BaseGroundPlugin'
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
-import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {HVBlurHelper} from '../../three/utils/HVBlurHelper'
 import {shaderReplaceString} from '../../utils'
 
-@uiFolderContainer('Contact Shadow Ground')
+@uiPanelContainer('Contact Shadow Ground')
 export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     static readonly PluginType = 'ContactShadowGroundPlugin'
 
