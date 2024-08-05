@@ -1,9 +1,11 @@
 import Stats from 'stats.js'
 
 export class GLStatsJS {
-    private _stats: Stats = new Stats()
+    protected _stats: Stats = new Stats()
+    protected _container: HTMLElement
 
-    constructor(private _container: HTMLElement) {
+    constructor(container: HTMLElement) {
+        this._container = container
         this._stats.dom.id = 'stats-js'
         this._stats.dom.style.position = 'absolute'
         this._stats.dom.style.left = 'unset'
