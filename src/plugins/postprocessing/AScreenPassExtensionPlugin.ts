@@ -24,8 +24,9 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
         if (v) this.setDirty()
     }
 
-    constructor() {
+    constructor(shaderPatch = '') {
         super()
+        this._shaderPatch = shaderPatch
         this.setDirty = this.setDirty.bind(this)
     }
 

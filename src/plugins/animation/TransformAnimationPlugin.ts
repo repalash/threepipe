@@ -19,7 +19,7 @@ export interface TSavedTransform {
  * Also adds a UI to add and animate transforms on objects.
  * Requires the PopmotionPlugin to animate.
  *
- * @category Plugin
+ * @category Plugins
  */
 export class TransformAnimationPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'TransformAnimationPlugin'

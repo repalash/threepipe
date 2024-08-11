@@ -5,6 +5,13 @@ import {SerializationMetaType, wrapThisFunction2} from '../../utils'
 import {uiToggle} from 'uiconfig.js'
 import {ICamera, IRenderManager, IScene} from '../../core'
 
+/**
+ * Pipeline Pass Plugin
+ *
+ * Base class for creating a plugin that registers a custom pass to the main render pipeline
+ *
+ * @category Plugins
+ */
 export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId
 

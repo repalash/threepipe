@@ -14,7 +14,7 @@ import {Vector3} from 'three'
 
 /**
  * Adds support for generating different types of lights and camera objects in the viewer.
- * @category Plugin
+ * @category Plugins
  */
 @uiPanelContainer('Generate Scene Objects')
 export class Object3DGeneratorPlugin extends AViewerPluginSync<''> {

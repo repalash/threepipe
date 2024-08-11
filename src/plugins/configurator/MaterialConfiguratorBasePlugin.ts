@@ -8,6 +8,7 @@ import {Color} from 'three'
 
 /**
  * Material Configurator Plugin (Base)
+ *
  * This plugin allows you to create variations of materials mapped to material names or uuids in the scene.
  * These variations can be applied to the materials in the scene. (This copies the properties to the same material instances instead of assigning new materials)
  * The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.

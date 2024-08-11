@@ -54,10 +54,16 @@ export class VignettePlugin extends AScreenPassExtensionPlugin<''> {
 
     protected _shaderPatch = 'diffuseColor = Vignette(diffuseColor);'
 
+    /**
+     * @deprecated
+     */
     get bgcolor() {
         console.warn('VignettePlugin.bgcolor is deprecated, use VignettePlugin.color instead')
         return this.color
     }
+    /**
+     * @deprecated
+     */
     set bgcolor(v) {
         console.warn('VignettePlugin.bgcolor is deprecated, use VignettePlugin.color instead')
         this.color = v

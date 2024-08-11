@@ -26,7 +26,7 @@ export interface AnimationResult{
  *
  * Overrides the driver in popmotion to sync with the viewer and provide ways to keep track and stop animations.
  *
- * @category Plugin
+ * @category Plugins
  */
 export class PopmotionPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'PopmotionPlugin'

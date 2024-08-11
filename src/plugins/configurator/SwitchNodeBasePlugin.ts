@@ -7,6 +7,7 @@ import {snapObject} from '../../three'
 
 /**
  * Switch Node Plugin (Base)
+ *
  * This plugin allows you to configure object variations in a file and apply them in the scene.
  * Each SwitchNode is a parent object with multiple direct children. Only one child is visible at a time.
  * This works by toggling the `visible` property of the children of a parent object.

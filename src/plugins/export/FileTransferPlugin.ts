@@ -1,6 +1,13 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {downloadBlob} from 'ts-browser-helpers'
 
+/**
+ * File Transfer Plugin
+ *
+ * Provides a way to extend the viewer.export functionality with custom actions. Used in `AWSClientPlugin` to upload files directly to S3.
+ *
+ * @category Plugins
+ */
 export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
     enabled = true
 

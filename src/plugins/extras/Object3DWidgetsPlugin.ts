@@ -13,7 +13,7 @@ export interface IObject3DHelper<T extends Object3D&IWidget = Object3D&IWidget>{
 /**
  * Adds light and camera helpers/gizmos in the viewer.
  * A helper is automatically created when any supported light or camera is added to the scene.
- * @category Plugin
+ * @category Plugins
  */
 export class Object3DWidgetsPlugin extends AViewerPluginSync<''> {
     @onChange(Object3DWidgetsPlugin.prototype.setDirty)

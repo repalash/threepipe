@@ -10,9 +10,12 @@ import {
 import {gltfExporterMaterialsVariantsExtensionExport} from './helpers/GLTFMaterialsVariantsExtensionExport'
 
 /**
+ * GLTF khr_material_variants plugin
+ *
  * This plugin allows to import and export gltf files with KHR_materials_variants extension.
  * The material data is stored in the object userData. The plugin also provides a UI to select the variant.
- * @category Plugin
+ *
+ * @category Plugins
  */
 export class GLTFKHRMaterialVariantsPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'GLTFKHRMaterialVariantsPlugin'

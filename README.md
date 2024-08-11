@@ -134,6 +134,7 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
   - [KTX2LoadPlugin](#ktx2loadplugin) - Add support for loading .ktx2 files
   - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
+  - [USDZLoadPlugin](#usdzloadplugin) - Add support for loading .usdz files
   - [GLTFMeshOptDecodePlugin](#gltfmeshoptdecodeplugin) - Decode gltf files with EXT_meshopt_compression extension.
   - [SimplifyModifierPlugin](#simplifymodifierplugin) - Boilerplate for plugin to simplify geometries
   - [MeshOptSimplifyModifierPlugin](#meshoptsimplifymodifierplugin) - Simplify geometries using meshoptimizer library
@@ -147,6 +148,8 @@ To make changes and run the example, click on the CodePen button on the top righ
   - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
   - [@threepipe/plugin-geometry-generator](#threepipeplugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
   - [@threepipe/plugin-gaussian-splatting](#threepipeplugin-gaussian-splatting) - Gaussian Splatting plugin for loading and rendering splat files
+  - [@threepipe/plugin-network](#threepipeplugin-network) - Network/Cloud related plugin implementations for Threepipe.
+  - [@threepipe/plugin-svg-renderer](#threepipeplugin-svg-renderer) - Add support for exporting 3d scene as SVG.
 
 ## Getting Started
 
@@ -192,7 +195,10 @@ function ThreeViewerComponent({src, env}: {src: string, env: string}) {
 
     const envPromise = viewer.setEnvironmentMap(env)
     const modelPromise = viewer.load(src)
-    Promise.all([envPromise, modelPromise])
+    Promise.all([envPromise, modelPromise]).then(([env, model]) => {
+      console.log('Loaded', model, env, viewer)
+    })
+    
     return () => {
       viewer.dispose()
     }
@@ -222,7 +228,9 @@ const ThreeViewerComponent = {
       const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
       const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
-      Promise.all([envPromise, modelPromise])
+      Promise.all([envPromise, modelPromise]).then(([env, model]) => {
+        console.log('Loaded', model, env, viewer)
+      })
 
       onBeforeUnmount(() => {
         viewer.dispose();
@@ -255,7 +263,9 @@ A sample [svelte](https://svelte.dev/) component in js to render a model with an
         const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
         const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
-        Promise.all([envPromise, modelPromise])
+        Promise.all([envPromise, modelPromise]).then(([env, model]) => {
+          console.log('Loaded', model, env, viewer)
+        })
     });
     onDestroy(() => viewer.dispose())
 </script>
