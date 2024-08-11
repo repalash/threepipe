@@ -88,7 +88,7 @@ export class FrameFadePlugin
         viewer.scene.addEventListener('materialUpdate', this._fadeMat)
         viewer.scene.addEventListener('sceneUpdate', this._fadeScene)
         viewer.scene.addEventListener('objectUpdate', this._fadeObjectUpdate)
-        window.addEventListener('pointermove', this._onPointerMove)
+        window.addEventListener('pointermove', this._onPointerMove) // has to be on window
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -128,10 +128,10 @@ export class FrameFadePlugin
         const x = (ev.clientX - rect.left) / rect.width
         const y = (ev.clientY - rect.top) / rect.height
         this._pointerEnabled = x < 0 || x > 1 || y < 0 || y > 1
-
     }
 
     setDirty() {
+        super.setDirty()
         if (this.isDisabled()) return
         this._viewer?.setDirty()
     }
@@ -200,8 +200,8 @@ export class FrameFadeBlendPass extends AddBlendTexturePass implements IPipeline
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
         this.needsSwap = false
         const target = this.plugin.target
-        if (!this.plugin.canFrameFade || !target) return
 
+        if (!this.plugin.canFrameFade || !target) return
         const lastFrame = this.plugin.lastFrame
         if (this.toSaveFrame && lastFrame) {
             renderer.renderManager.blit(target, {source: lastFrame, respectColorSpace: false})
