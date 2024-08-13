@@ -1,7 +1,6 @@
 dist
 lib
 docs
-/index.html
 examples/**/*.js
 examples/**/*.js.map
 
@@ -66,3 +65,6 @@ typings/
 
 # next.js build output
 .next
+
+website/.vitepress/dist
+website/.vitepress/cache

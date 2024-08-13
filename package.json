@@ -22,12 +22,15 @@
     "dev-examples": "tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
     "serve": "ws -d . -p 9229",
-    "docs": "npx typedoc && markdown-to-html",
+    "docs": "npx typedoc && npm run website:build",
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs install",
     "prepare": "npm run build && npm run build-plugins && npm run build-examples",
-    "update-version": "node scripts/update-version.mjs"
+    "update-version": "node scripts/update-version.mjs",
+    "website:dev": "vitepress dev website",
+    "website:build": "vitepress build website",
+    "website:preview": "vitepress preview website"
   },
   "clean-package": {
     "remove": [
@@ -109,7 +112,8 @@
     "typescript": "^5.3.3",
     "typescript-plugin-css-modules": "^5.0.1",
     "vite": "^5.3.5",
-    "vite-plugin-dts": "^3.7.0"
+    "vite-plugin-dts": "^3.7.0",
+    "vitepress": "^1.3.2"
   },
   "dependencies": {
     "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.153.1002/package.tgz",

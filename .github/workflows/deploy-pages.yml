@@ -45,7 +45,8 @@ jobs:
     - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
     - run: npm run docs
     - run: mkdir _site
-    - run: mv -t _site src docs dist examples README.md LICENSE index.html
+    - run: mv -t _site src docs dist examples README.md LICENSE
+    - run: cp -r website/.vitepress/dist/* _site
     - run: mkdir -p _site/plugins
     - run: find plugins -maxdepth 2 -type d \( -name dist -o -name docs -o -name src \) -exec sh -c "mkdir -p _site/{} && cp -r {} _site/{}/.." \;
     - name: Setup Pages

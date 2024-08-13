@@ -1,0 +1,20 @@
+:root {
+    --vp-home-hero-name-color: transparent;
+    --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #ec630a, #ecae86);
+
+    --vp-c-orange-1: #ec630a;
+    --vp-c-orange-2: #e56819;
+    --vp-c-orange-3: #e16e37;
+    --vp-c-orange-soft: rgba(236, 99, 10, 0.14);
+
+    --vp-c-brand-1: var(--vp-c-orange-1);
+    --vp-c-brand-2: var(--vp-c-orange-2);
+    --vp-c-brand-3: var(--vp-c-orange-3);
+    --vp-c-brand-soft: var(--vp-c-orange-soft);
+
+    --vp-c-tip-1: var(--vp-c-green-1);
+    --vp-c-tip-2: var(--vp-c-green-2);
+    --vp-c-tip-3: var(--vp-c-green-3);
+    --vp-c-tip-soft: var(--vp-c-green-soft);
+
+}
