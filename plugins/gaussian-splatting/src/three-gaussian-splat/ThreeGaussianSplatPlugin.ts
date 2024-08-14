@@ -20,7 +20,7 @@ export class ThreeGaussianSplatPlugin extends AViewerPluginSync<string> {
     private _ready = false
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        createStyles(styles)
+        createStyles(styles, viewer.container)
         viewer.assetManager.importer.addImporter(this._importer)
         viewer.scene.addEventListener('mainCameraUpdate', this._activeCameraUpdate)
         viewer.scene.addEventListener('geometryUpdate', this._geometryUpdate)

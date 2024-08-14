@@ -1,4 +1,6 @@
 import {Remote, transfer, wrap} from 'comlink'
+// @ts-expect-error query param
+import WasmSorterWorker from './worker?worker&inline'
 import type {WasmSorter} from './worker'
 
 export const SPLAT_ROW_LENGTH = 3 * 4 + 3 * 4 + 4 + 4
@@ -24,7 +26,7 @@ export class SortWorkerManager {
     }
 
     constructor() {
-        const worker = new Worker(new URL('../cpp-sorter/worker', import.meta.url), {type: 'module'})
+        const worker = new WasmSorterWorker()
         worker.addEventListener('error', this.onError, false)
         this._workerCtor = wrap(worker) as any
     }
