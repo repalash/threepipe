@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, PickingPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, IObject3D, LoadingScreenPlugin, PickingPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +6,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const picking = viewer.addPluginSync(PickingPlugin)

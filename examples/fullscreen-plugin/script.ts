@@ -1,4 +1,4 @@
-import {_testFinish, FullScreenPlugin, IObject3D, ThreeViewer} from 'threepipe'
+import {_testFinish, FullScreenPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
@@ -6,6 +6,8 @@ async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
 
     const fullScreenPlugin = viewer.addPluginSync(new FullScreenPlugin())

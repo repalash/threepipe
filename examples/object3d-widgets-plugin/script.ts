@@ -1,6 +1,7 @@
 import {
     _testFinish,
     CameraViewPlugin,
+    LoadingScreenPlugin,
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
     ThreeViewer,
@@ -13,7 +14,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [CameraViewPlugin, Object3DGeneratorPlugin],
+        plugins: [CameraViewPlugin, Object3DGeneratorPlugin, LoadingScreenPlugin],
     })
     const widgets = viewer.addPluginSync(Object3DWidgetsPlugin)
 

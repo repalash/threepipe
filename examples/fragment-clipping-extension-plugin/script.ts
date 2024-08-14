@@ -2,6 +2,7 @@ import {
     _testFinish,
     FragmentClippingExtensionPlugin,
     IObject3D,
+    LoadingScreenPlugin,
     PhysicalMaterial,
     ThreeViewer,
     Vector4,
@@ -12,6 +13,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const fragmentClipping = viewer.addPluginSync(FragmentClippingExtensionPlugin)

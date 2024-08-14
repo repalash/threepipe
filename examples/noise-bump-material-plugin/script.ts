@@ -1,4 +1,11 @@
-import {_testFinish, IObject3D, NoiseBumpMaterialPlugin, PhysicalMaterial, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    IObject3D,
+    LoadingScreenPlugin,
+    NoiseBumpMaterialPlugin,
+    PhysicalMaterial,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +13,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const noiseBump = viewer.addPluginSync(NoiseBumpMaterialPlugin)

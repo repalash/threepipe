@@ -1,4 +1,11 @@
-import {_testFinish, GLTFKHRMaterialVariantsPlugin, IObject3D, SSAAPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    GLTFKHRMaterialVariantsPlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    SSAAPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,7 +13,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [SSAAPlugin, GLTFKHRMaterialVariantsPlugin],
+        plugins: [SSAAPlugin, GLTFKHRMaterialVariantsPlugin, LoadingScreenPlugin],
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

@@ -2,6 +2,7 @@ import {
     _testFinish,
     Box3B,
     IObject3D,
+    LoadingScreenPlugin,
     Mesh,
     Object3DWidgetsPlugin,
     PCFSoftShadowMap,
@@ -26,7 +27,7 @@ async function init() {
                 autoSetEnvironment: true, // when hdr/exr is dropped
             },
         },
-        plugins: [Object3DWidgetsPlugin],
+        plugins: [Object3DWidgetsPlugin, LoadingScreenPlugin],
     })
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))

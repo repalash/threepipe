@@ -1,9 +1,11 @@
 import {
     _testFinish,
+    DropzonePlugin,
     EditorViewWidgetPlugin,
     GBufferPlugin,
     GLTFAnimationPlugin,
     IObject3D,
+    LoadingScreenPlugin,
     PickingPlugin,
     ThreeViewer,
     TransformControlsPlugin,
@@ -19,7 +21,13 @@ async function init() {
         rgbm: false,
         // zPrepass: true,
         tonemap: false,
-        plugins: [GBufferPlugin, PickingPlugin, TransformControlsPlugin], /* TransformControlsPlugin */ // todo: transform controls doesnt work when selected object is in a parent.
+        plugins: [GBufferPlugin, PickingPlugin, TransformControlsPlugin, LoadingScreenPlugin], /* TransformControlsPlugin */ // todo: transform controls doesnt work when selected object is in a parent.
+        dropzone: {
+            autoAdd: true,
+            addOptions: {
+                disposeSceneObjects: true,
+            },
+        },
     })
     viewer.addPluginSync(new EditorViewWidgetPlugin('bottom-left', 128))
 
@@ -45,6 +53,10 @@ async function init() {
         'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
         'https://threejs.org/examples/models/obj/male02/male02.obj',
         'https://threejs.org/examples/models/gltf/kira.glb', // slow
+
+        // to test
+        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets/Models/WaterBottle/glTF-Draco/WaterBottle.gltf',
+        'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets/Models/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.gltf',
 
         // not working/very slow
         'https://threejs.org/examples/models/gltf/Soldier.glb',
@@ -75,8 +87,7 @@ async function init() {
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPlugins(ThreeSVGRendererPlugin)
-    ui.setupPlugins(GLTFAnimationPlugin)
-    ui.setupPlugins(PickingPlugin)
+    ui.setupPlugins(GLTFAnimationPlugin, PickingPlugin, DropzonePlugin)
 }
 
 init().finally(_testFinish)

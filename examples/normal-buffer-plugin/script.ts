@@ -2,6 +2,7 @@ import {
     _testFinish,
     downloadBlob,
     HalfFloatType,
+    LoadingScreenPlugin,
     NoColorSpace,
     NormalBufferPlugin,
     RenderTargetPreviewPlugin,
@@ -12,6 +13,7 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

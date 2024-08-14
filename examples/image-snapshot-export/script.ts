@@ -1,9 +1,10 @@
-import {_testFinish, downloadBlob, isWebpExportSupported, ThreeViewer} from 'threepipe'
+import {_testFinish, downloadBlob, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
+    plugins: [LoadingScreenPlugin],
 })
 
 // Note: see also: CanvasSnapshotPlugin

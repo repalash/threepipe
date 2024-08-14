@@ -19,8 +19,8 @@
     <canvas id="three-canvas" style="width: 800px; height: 600px" ref="canvasRef"></canvas>
 </div>
 <script id="example-script" type="module" data-scripts="./index.html">
-    // import { ThreeViewer } from 'https://threepipe.org/dist/index.mjs'
-    import { ThreeViewer } from './../../dist/index.mjs'
+    // import { ThreeViewer, LoadingScreenPlugin } from 'https://threepipe.org/dist/index.mjs'
+    import { ThreeViewer, LoadingScreenPlugin } from './../../dist/index.mjs'
     import { createApp, ref, onMounted, onBeforeUnmount } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
     const ThreeViewerComponent = {
@@ -28,7 +28,10 @@
             const canvasRef = ref(null);
 
             onMounted(() => {
-                const viewer = new ThreeViewer({ canvas: canvasRef.value });
+                const viewer = new ThreeViewer({
+                    canvas: canvasRef.value,
+                    plugins: [LoadingScreenPlugin],
+                });
 
                 // Load an environment map
                 const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');

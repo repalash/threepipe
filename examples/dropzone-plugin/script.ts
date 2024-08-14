@@ -1,4 +1,4 @@
-import {_testFinish, DropzonePlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -18,6 +18,7 @@ async function init() {
                 importConfig: true, // import config from file
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')

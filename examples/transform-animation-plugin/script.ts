@@ -1,4 +1,11 @@
-import {_testFinish, IObject3D, PopmotionPlugin, ThreeViewer, TransformAnimationPlugin} from 'threepipe'
+import {
+    _testFinish,
+    IObject3D,
+    LoadingScreenPlugin,
+    PopmotionPlugin,
+    ThreeViewer,
+    TransformAnimationPlugin,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
@@ -6,7 +13,7 @@ async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
-        plugins: [PopmotionPlugin],
+        plugins: [PopmotionPlugin, LoadingScreenPlugin],
     })
     const transformAnimPlugin = viewer.addPluginSync(TransformAnimationPlugin)
     console.log(transformAnimPlugin)

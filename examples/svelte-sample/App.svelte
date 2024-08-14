@@ -1,15 +1,17 @@
 <script>
     import {onDestroy, onMount} from 'svelte';
 
-    const {ThreeViewer} = window.threepipe; // umd imported from unpkg in index.html
+    const {ThreeViewer, LoadingScreenPlugin} = window.threepipe; // umd imported from unpkg in index.html
     // or
-    // import {ThreeViewer} from 'threepipe'; // esm imported from npm
+    // import {ThreeViewer, LoadingScreenPlugin} from 'threepipe'; // esm imported from npm
 
     let canvasRef;
     let viewer;
 
     onMount(() => {
-        viewer = new ThreeViewer({canvas: canvasRef});
+        viewer = new ThreeViewer({canvas: canvasRef,
+            plugins: [LoadingScreenPlugin],
+        });
 
         // Load an environment map
         const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');

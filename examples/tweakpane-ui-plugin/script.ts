@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, ThreeViewer, TonemapPlugin} from 'threepipe'
+import {_testFinish, IObject3D, LoadingScreenPlugin, ThreeViewer, TonemapPlugin} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +6,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

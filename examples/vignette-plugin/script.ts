@@ -1,10 +1,12 @@
-import {_testFinish, IObject3D, ThreeViewer, VignettePlugin} from 'threepipe'
+import {_testFinish, IObject3D, LoadingScreenPlugin, ThreeViewer, VignettePlugin} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.addPluginSync(VignettePlugin)

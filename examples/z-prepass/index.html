@@ -26,7 +26,7 @@
     </style>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, DepthBufferPlugin, ThreeViewer, UnsignedByteType} from 'threepipe'
+        import {_testFinish, DepthBufferPlugin, LoadingScreenPlugin, ThreeViewer, UnsignedByteType} from 'threepipe'
 
         async function init() {
 
@@ -35,6 +35,7 @@
                 msaa: true,
                 rgbm: true,
                 zPrepass: true,
+                plugins: [LoadingScreenPlugin],
             })
 
             viewer.addPluginSync(new DepthBufferPlugin(UnsignedByteType, true))

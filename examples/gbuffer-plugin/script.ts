@@ -5,6 +5,7 @@ import {
     GBufferPlugin,
     HalfFloatType,
     IObject3D,
+    LoadingScreenPlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
@@ -14,6 +15,7 @@ const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     zPrepass: true,
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

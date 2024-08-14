@@ -2,6 +2,7 @@ import {
     _testFinish,
     BoxGeometry,
     ITexture,
+    LoadingScreenPlugin,
     Mesh,
     ParallaxMappingPlugin,
     PhysicalMaterial,
@@ -15,7 +16,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [new SSAAPlugin(4)],
+        plugins: [new SSAAPlugin(4), LoadingScreenPlugin],
         dropzone: {
             addOptions: {
                 disposeSceneObjects: true,

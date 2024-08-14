@@ -1,10 +1,18 @@
-import {_testFinish, RenderTargetPreviewPlugin, SSAAPlugin, SSAOPlugin, ThreeViewer, UnsignedByteType} from 'threepipe'
+import {
+    _testFinish,
+    LoadingScreenPlugin,
+    RenderTargetPreviewPlugin,
+    SSAAPlugin,
+    SSAOPlugin,
+    ThreeViewer,
+    UnsignedByteType,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
-    plugins: [SSAAPlugin],
+    plugins: [SSAAPlugin, LoadingScreenPlugin],
     tonemap: false,
 })
 

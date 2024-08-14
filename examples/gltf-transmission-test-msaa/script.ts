@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, RenderTargetPreviewPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, IObject3D, LoadingScreenPlugin, RenderTargetPreviewPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
@@ -6,6 +6,7 @@ const viewer = new ThreeViewer({
     msaa: true,
     rgbm: true,
     zPrepass: false,
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

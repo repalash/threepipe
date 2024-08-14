@@ -1,10 +1,20 @@
-import {_testFinish, CustomBumpMapPlugin, ITexture, Mesh, PhysicalMaterial, PlaneGeometry, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    CustomBumpMapPlugin,
+    ITexture,
+    LoadingScreenPlugin,
+    Mesh,
+    PhysicalMaterial,
+    PlaneGeometry,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const customBump = viewer.addPluginSync(CustomBumpMapPlugin)

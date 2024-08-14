@@ -1,4 +1,12 @@
-import {_testFinish, IObject3D, PhysicalMaterial, ProgressivePlugin, SSAAPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    IObject3D,
+    LoadingScreenPlugin,
+    PhysicalMaterial,
+    ProgressivePlugin,
+    SSAAPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -14,6 +22,7 @@ async function init() {
                 importConfig: true,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
     viewer.addPluginSync(new SSAAPlugin())
 

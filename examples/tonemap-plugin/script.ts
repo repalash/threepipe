@@ -1,4 +1,12 @@
-import {_testFinish, DepthBufferPlugin, IObject3D, ThreeViewer, TonemapPlugin, UnsignedByteType} from 'threepipe'
+import {
+    _testFinish,
+    DepthBufferPlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    ThreeViewer,
+    TonemapPlugin,
+    UnsignedByteType,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +14,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         tonemap: true, // this is true by default
+        plugins: [LoadingScreenPlugin],
     })
 
     // A GBuffer(depth buffer here) is required for the `tonemapBackground` flag in TonemapPlugin to work

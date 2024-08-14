@@ -1,10 +1,20 @@
-import {_testFinish, BoxGeometry, FrameFadePlugin, Mesh, PhysicalMaterial, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    BoxGeometry,
+    FrameFadePlugin,
+    LoadingScreenPlugin,
+    Mesh,
+    PhysicalMaterial,
+    ThreeViewer,
+} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
     viewer.addPluginSync(FrameFadePlugin)
 

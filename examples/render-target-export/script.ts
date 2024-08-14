@@ -3,6 +3,7 @@ import {
     DepthBufferPlugin,
     downloadBlob,
     isWebpExportSupported,
+    LoadingScreenPlugin,
     ThreeViewer,
     UnsignedByteType,
     WebGLRenderTarget,
@@ -12,6 +13,7 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     rgbm: false, // this will make the composer target not use RGBM encoding, and use HalfFloat. Otherwise, its UnsignedByteType
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

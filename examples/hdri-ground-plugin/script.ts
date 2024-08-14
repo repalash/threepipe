@@ -1,4 +1,4 @@
-import {_testFinish, CameraViewPlugin, HDRiGroundPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, CameraViewPlugin, HDRiGroundPlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -14,7 +14,7 @@ async function init() {
                 autoSetBackground: true,
             },
         },
-        plugins: [CameraViewPlugin],
+        plugins: [CameraViewPlugin, LoadingScreenPlugin],
     })
     const hdriGround = viewer.addPluginSync(HDRiGroundPlugin)
 

@@ -1,4 +1,4 @@
-import {_testFinish, ThreeViewer} from 'threepipe'
+import {_testFinish, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
@@ -16,6 +16,8 @@ async function init() {
         // add optional plugins to load gltf with extensions like meshopt_compression, ktx2 etc
         // plugins: [GLTFMeshOptDecodePlugin, KTX2LoadPlugin, GLTFKHRMaterialVariantsPlugin, ...],
     })
+
+    viewer.addPluginSync(LoadingScreenPlugin)
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
         setBackground: true,

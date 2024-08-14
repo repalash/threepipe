@@ -1,10 +1,12 @@
-import {_testFinish, ContactShadowGroundPlugin, IObject3D, ThreeViewer} from 'threepipe'
+import {_testFinish, ContactShadowGroundPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.addPluginSync(ContactShadowGroundPlugin)

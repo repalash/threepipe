@@ -1,6 +1,8 @@
-import {_testFinish, downloadBlob, IObject3D, ThreeViewer} from 'threepipe'
+import {_testFinish, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
-const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
+const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
+    plugins: [LoadingScreenPlugin],
+})
 
 async function init() {
 

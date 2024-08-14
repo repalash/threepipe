@@ -4,6 +4,7 @@ import {
     Box3B,
     DirectionalLight,
     IObject3D,
+    LoadingScreenPlugin,
     Mesh,
     PhysicalMaterial,
     PlaneGeometry,
@@ -26,6 +27,7 @@ async function init() {
                 importConfig: true,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
     viewer.addPluginSync(new ProgressivePlugin((window as any).TESTING ? 20 : 200))
     viewer.addPluginSync(new SSAAPlugin())

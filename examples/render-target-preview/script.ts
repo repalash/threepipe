@@ -2,6 +2,7 @@ import {
     _testFinish,
     DepthBufferPlugin,
     HalfFloatType,
+    LoadingScreenPlugin,
     NormalBufferPlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
@@ -12,6 +13,7 @@ const viewer = new ThreeViewer({
     msaa: true,
     rgbm: true,
     zPrepass: false,
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

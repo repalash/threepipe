@@ -1,4 +1,13 @@
-import {_testFinish, ITexture, Mesh, PlaneGeometry, SRGBColorSpace, ThreeViewer, UnlitMaterial} from 'threepipe'
+import {
+    _testFinish,
+    ITexture,
+    LoadingScreenPlugin,
+    Mesh,
+    PlaneGeometry,
+    SRGBColorSpace,
+    ThreeViewer,
+    UnlitMaterial,
+} from 'threepipe'
 
 async function init() {
 
@@ -13,6 +22,7 @@ async function init() {
                 autoSetBackground: false,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.scene.setBackgroundColor('#555555')

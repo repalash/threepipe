@@ -3,6 +3,7 @@ import {
     DepthBufferPlugin,
     downloadBlob,
     HalfFloatType,
+    LoadingScreenPlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
@@ -11,6 +12,7 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
+    plugins: [LoadingScreenPlugin],
 })
 
 async function init() {

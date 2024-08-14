@@ -3,6 +3,7 @@ import {
     Box3B,
     HemisphereLight2,
     IObject3D,
+    LoadingScreenPlugin,
     Mesh,
     Object3DWidgetsPlugin,
     PhysicalMaterial,
@@ -24,7 +25,7 @@ async function init() {
                 autoSetEnvironment: true, // when hdr/exr is dropped
             },
         },
-        plugins: [Object3DWidgetsPlugin],
+        plugins: [Object3DWidgetsPlugin, LoadingScreenPlugin],
     })
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))

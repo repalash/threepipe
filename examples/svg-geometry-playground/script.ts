@@ -2,6 +2,7 @@ import {
     _testFinish,
     EditorViewWidgetPlugin,
     GBufferPlugin,
+    LoadingScreenPlugin,
     PickingPlugin,
     ThreeViewer,
     TransformControlsPlugin,
@@ -18,7 +19,7 @@ async function init() {
         rgbm: false,
         // zPrepass: true,
         tonemap: false,
-        plugins: [GBufferPlugin, PickingPlugin, TransformControlsPlugin],
+        plugins: [GBufferPlugin, PickingPlugin, TransformControlsPlugin, LoadingScreenPlugin],
     })
     viewer.addPluginSync(new EditorViewWidgetPlugin('bottom-left', 128))
 

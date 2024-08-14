@@ -1,4 +1,13 @@
-import {_testFinish, BoxGeometry, Color, Mesh, PhysicalMaterial, ThreeViewer, TonemapPlugin} from 'threepipe'
+import {
+    _testFinish,
+    BoxGeometry,
+    Color,
+    LoadingScreenPlugin,
+    Mesh,
+    PhysicalMaterial,
+    ThreeViewer,
+    TonemapPlugin,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +15,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         rgbm: false,
+        plugins: [LoadingScreenPlugin],
     })
     viewer.scene.backgroundColor = new Color().set('black')
     viewer.getPlugin(TonemapPlugin)!.exposure = 0.04

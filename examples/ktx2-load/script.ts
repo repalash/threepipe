@@ -2,6 +2,7 @@ import {
     _testFinish,
     ITexture,
     KTX2LoadPlugin,
+    LoadingScreenPlugin,
     Mesh,
     PlaneGeometry,
     SRGBColorSpace,
@@ -18,7 +19,7 @@ async function init() {
         dropzone: {
             allowedExtensions: ['ktx2'],
         },
-        plugins: [KTX2LoadPlugin],
+        plugins: [KTX2LoadPlugin, LoadingScreenPlugin],
     })
 
     viewer.scene.setBackgroundColor('#555555')

@@ -1,10 +1,11 @@
-import {_testFinish, GLTFAnimationPlugin, ICamera, ThreeViewer} from 'threepipe'
+import {_testFinish, GLTFAnimationPlugin, ICamera, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)

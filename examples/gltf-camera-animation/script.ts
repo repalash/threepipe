@@ -1,4 +1,4 @@
-import {_testFinish, GLTFAnimationPlugin, ICamera, ThreeViewer} from 'threepipe'
+import {_testFinish, GLTFAnimationPlugin, ICamera, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
@@ -12,6 +12,7 @@ async function init() {
                 autoSetEnvironment: true, // when hdr is dropped
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
 
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)

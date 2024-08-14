@@ -2,6 +2,7 @@ import {
     _testFinish,
     ITexture,
     KTXLoadPlugin,
+    LoadingScreenPlugin,
     Mesh,
     PlaneGeometry,
     SRGBColorSpace,
@@ -17,6 +18,7 @@ async function init() {
         dropzone: {
             allowedExtensions: ['ktx'],
         },
+        plugins: [LoadingScreenPlugin],
     })
     viewer.addPluginSync(KTXLoadPlugin)
 

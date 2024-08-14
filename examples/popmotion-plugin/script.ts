@@ -1,10 +1,22 @@
-import {_testFinish, BoxGeometry, Color, Mesh, PhysicalMaterial, PopmotionPlugin, ThreeViewer, Vector3} from 'threepipe'
+import {
+    _testFinish,
+    BoxGeometry,
+    Color,
+    LoadingScreenPlugin,
+    Mesh,
+    PhysicalMaterial,
+    PopmotionPlugin,
+    ThreeViewer,
+    Vector3,
+} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
     const popmotion = viewer.addPluginSync(PopmotionPlugin)
 

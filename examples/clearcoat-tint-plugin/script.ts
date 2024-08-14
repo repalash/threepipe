@@ -1,4 +1,11 @@
-import {_testFinish, ClearcoatTintPlugin, IObject3D, PhysicalMaterial, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    ClearcoatTintPlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    PhysicalMaterial,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +13,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     const clearcoatTint = viewer.addPluginSync(ClearcoatTintPlugin)

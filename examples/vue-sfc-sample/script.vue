@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import {ThreeViewer} from "threepipe";
+import {LoadingScreenPlugin, ThreeViewer} from "threepipe";
 import {onBeforeUnmount, onMounted, ref} from "vue"
 
 export default {
@@ -12,7 +12,10 @@ export default {
     const canvasRef = ref(null);
 
     onMounted(() => {
-      const viewer = new ThreeViewer({canvas: canvasRef.value});
+      const viewer = new ThreeViewer({
+        canvas: canvasRef.value,
+        plugins: [LoadingScreenPlugin],
+      });
 
       // Load an environment map
       const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');

@@ -1,8 +1,9 @@
-import {_testFinish, downloadBlob, IAsset, ITexture, ThreeViewer} from 'threepipe'
+import {_testFinish, downloadBlob, IAsset, ITexture, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement})
 
 async function init() {
+    viewer.addPluginSync(LoadingScreenPlugin)
 
     // import a hdr file
     const dataTexture = await viewer.import<ITexture>('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')

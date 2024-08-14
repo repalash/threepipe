@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, Rhino3dmLoadPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, IObject3D, LoadingScreenPlugin, Rhino3dmLoadPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
@@ -13,6 +13,7 @@ async function init() {
                 autoSetBackground: true,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.addPluginSync(Rhino3dmLoadPlugin)

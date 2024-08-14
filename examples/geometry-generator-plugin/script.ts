@@ -1,4 +1,11 @@
-import {_testFinish, CameraViewPlugin, Object3DGeneratorPlugin, PickingPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    CameraViewPlugin,
+    LoadingScreenPlugin,
+    Object3DGeneratorPlugin,
+    PickingPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
@@ -7,7 +14,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [PickingPlugin, CameraViewPlugin, Object3DGeneratorPlugin],
+        plugins: [PickingPlugin, CameraViewPlugin, Object3DGeneratorPlugin, LoadingScreenPlugin],
     })
     const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
 

@@ -1,4 +1,12 @@
-import {_testFinish, GLTFAnimationPlugin, HemisphereLight, ImportAddOptions, IObject3D, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    GLTFAnimationPlugin,
+    HemisphereLight,
+    ImportAddOptions,
+    IObject3D,
+    LoadingScreenPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {
     AMFLoadPlugin,
     BVHLoadPlugin,
@@ -26,6 +34,7 @@ async function init() {
                 disposeSceneObjects: true,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
     viewer.addPluginsSync([
         GLTFAnimationPlugin,

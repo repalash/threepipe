@@ -1,4 +1,4 @@
-import {_testFinish, EditorViewWidgetPlugin, IObject3D, ThreeViewer, timeout} from 'threepipe'
+import {_testFinish, EditorViewWidgetPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer, timeout} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,6 +6,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.scene.setBackgroundColor(0x151822)

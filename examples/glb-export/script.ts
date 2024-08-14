@@ -1,9 +1,10 @@
-import {_testFinish, downloadBlob, IMaterial, IObject3D, ThreeViewer} from 'threepipe'
+import {_testFinish, downloadBlob, IMaterial, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
 
 async function init() {
+    viewer.addPluginSync(LoadingScreenPlugin)
 
     // Note: see asset-exporter-plugin example as well
 

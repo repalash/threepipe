@@ -2,6 +2,7 @@ import {
     _testFinish,
     HemisphereLight,
     IObject3D,
+    LoadingScreenPlugin,
     PerspectiveCamera2,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
@@ -17,7 +18,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         debug: true,
-        plugins: [new ProgressivePlugin(16), SSAAPlugin],
+        plugins: [new ProgressivePlugin(16), SSAAPlugin, LoadingScreenPlugin],
     })
     const virtualCameras = viewer.addPluginSync(VirtualCamerasPlugin)
 

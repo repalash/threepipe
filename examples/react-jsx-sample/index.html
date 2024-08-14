@@ -19,15 +19,17 @@
 <body>
 <div id="root"></div>
 <script id="example-script" type="text/babel" data-scripts="./index.html" data-type="module">
-    // import {ThreeViewer} from 'https://threepipe.org/dist/index.mjs'
-    import {ThreeViewer} from './../../dist/index.mjs'
+    // import {ThreeViewer, LoadingScreenPlugin} from 'https://threepipe.org/dist/index.mjs'
+    import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
     import React from 'https://esm.sh/react'
     import ReactDOM from 'https://esm.sh/react-dom'
 
     function ThreeViewerComponent({ src, env }) {
         const canvasRef = React.useRef(null);
         React.useEffect(() => {
-            const viewer = new ThreeViewer({canvas: canvasRef.current})
+            const viewer = new ThreeViewer({canvas: canvasRef.current,
+                plugins: [LoadingScreenPlugin],
+            })
 
             // Load an environment map
             const envPromise = viewer.setEnvironmentMap(env)

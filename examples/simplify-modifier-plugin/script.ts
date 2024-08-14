@@ -4,6 +4,7 @@ import {
     IGeometry,
     IMaterial,
     IObject3D,
+    LoadingScreenPlugin,
     PickingPlugin,
     SimplifyModifierPlugin,
     ThreeViewer,
@@ -25,7 +26,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [PickingPlugin],
+        plugins: [PickingPlugin, LoadingScreenPlugin],
     })
 
     const simplify = viewer.addPluginSync(SimplifyModifierPluginImpl)

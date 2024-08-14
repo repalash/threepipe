@@ -2,6 +2,7 @@ import {
     _testFinish,
     IObject3D,
     LinearToneMapping,
+    LoadingScreenPlugin,
     Mesh,
     PerspectiveCamera2,
     PlaneGeometry,
@@ -20,7 +21,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         debug: true,
-        plugins: [new ProgressivePlugin(16)],
+        plugins: [new ProgressivePlugin(16), LoadingScreenPlugin],
     })
     const virtualCameras = viewer.addPluginSync(VirtualCamerasPlugin)
     const popmotion = viewer.addPluginSync(PopmotionPlugin)

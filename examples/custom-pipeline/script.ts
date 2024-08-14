@@ -3,6 +3,7 @@ import {
     DepthBufferPlugin,
     downloadBlob,
     HalfFloatType,
+    LoadingScreenPlugin,
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
@@ -13,6 +14,8 @@ const viewer = new ThreeViewer({
     msaa: false,
     rgbm: true,
     zPrepass: false,
+    plugins: [LoadingScreenPlugin],
+    renderScale: 'auto',
 })
 
 async function init() {

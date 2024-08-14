@@ -1,4 +1,11 @@
-import {_testFinish, IObject3D, MeshOptSimplifyModifierPlugin, PickingPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    IObject3D,
+    LoadingScreenPlugin,
+    MeshOptSimplifyModifierPlugin,
+    PickingPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
@@ -7,7 +14,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [PickingPlugin],
+        plugins: [PickingPlugin, LoadingScreenPlugin],
         dropzone: {
             addOptions: {
                 disposeSceneObjects: true,

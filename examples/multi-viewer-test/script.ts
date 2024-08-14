@@ -1,4 +1,4 @@
-import {_testFinish, ThreeViewer} from 'threepipe'
+import {_testFinish, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const models = [
     'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
@@ -21,6 +21,7 @@ async function init(i: number) {
                 autoSetBackground: true,
             },
         },
+        plugins: [LoadingScreenPlugin],
     })
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {

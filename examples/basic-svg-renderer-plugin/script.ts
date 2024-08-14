@@ -1,4 +1,4 @@
-import {_testFinish, DirectionalLight2, ThreeViewer} from 'threepipe'
+import {_testFinish, DirectionalLight2, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {BasicSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 
@@ -8,6 +8,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         tonemap: false,
+        plugins: [LoadingScreenPlugin],
     })
 
     viewer.scene.mainCamera.controls!.enableDamping = false

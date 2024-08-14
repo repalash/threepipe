@@ -1,4 +1,12 @@
-import {_testFinish, CameraView, CameraViewPlugin, EasingFunctions, ThreeViewer, Vector3} from 'threepipe'
+import {
+    _testFinish,
+    CameraView,
+    CameraViewPlugin,
+    EasingFunctions,
+    LoadingScreenPlugin,
+    ThreeViewer,
+    Vector3,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
@@ -6,6 +14,8 @@ async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+        renderScale: 'auto',
+        plugins: [LoadingScreenPlugin],
     })
     const cameraViewPlugin = viewer.addPluginSync(CameraViewPlugin)
     console.log(cameraViewPlugin)
