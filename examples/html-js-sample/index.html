@@ -16,9 +16,14 @@
 </head>
 <body>
 <canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
+<!--<script src="https://unpkg.com/threepipe"></script>-->
+<script src="./../../dist/index.js"></script>
 <script id="example-script" type="module" data-scripts="./index.html">
+    const {ThreeViewer, LoadingScreenPlugin} = threepipe
+    // or
+    // import {ThreeViewer, LoadingScreenPlugin} from 'threepipe' // if using import maps
+    // import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
     // import {ThreeViewer, LoadingScreenPlugin} from 'https://threepipe.org/dist/index.mjs'
-    import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
 
     const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
 

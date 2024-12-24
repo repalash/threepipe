@@ -14,6 +14,19 @@
             font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
         }
 
+        :root {
+            --primary-color: #58a6ff;
+            //--primary-color: #ccdef5;
+            //--primary-color: #ec630a;
+            --secondary-color: #ec630a;
+            //--background-color: #1a1a1c;
+            --background-color: #1B1B1F;
+            //--text-color: #bbb;
+            --text-color: #DFDFD6;
+            --text-color-accent: #eee;
+            --text-color-hover: #fff;
+        }
+
         .root-container {
             display: flex;
             flex-direction: row;
@@ -29,18 +42,18 @@
             right: 0.5rem;
             font-size: 1.75rem;
             padding: 0.5rem;
-            color: #bbb;
+            color: var(--text-color);
         }
 
         .hamburger:hover {
-            color: #fff;
+            color: var(--text-color-hover);
         }
 
         .sidebar {
             max-width: min(320px, 30%);
             height: 100%;
-            background: #1a1a1c;
-            color: #bbb;
+            background: var(--background-color);
+            color: var(--text-color);
             padding: 1rem 1rem;
             box-sizing: border-box;
             overflow-y: auto;
@@ -59,12 +72,12 @@
         }
 
         .sidebar h1 a {
-            color: #58a6ff;
+            color: var(--secondary-color);
             text-decoration: none;
         }
 
         .sidebar h1 a:hover {
-            color: #eee;
+            color: var(--text-color-accent);
         }
 
         .sidebar h2 {
@@ -86,18 +99,18 @@
         }
 
         .sidebar ul li a {
-            color: #58a6ff;
+            color: var(--primary-color);
             text-underline-offset: 0.25rem;
             text-decoration: none;
             transition: color 0.25s ease-in-out;
         }
 
         .sidebar ul li a:hover {
-            color: #eee;
+            color: var(--text-color-accent);
         }
 
         .sidebar ul li a.selected {
-            color: #fff;
+            color: var(--text-color-hover);
             font-weight: bold;
             text-decoration: underline;
         }
@@ -136,7 +149,7 @@
             left: 0;
             height: 100%;
             width: 3.3rem;
-            color: #58a6ff;
+            color: var(--primary-color);
             font-size: 1.25rem;
             text-align: center;
             vertical-align: middle;
@@ -159,7 +172,7 @@
             box-sizing: border-box;
             width: 100%;
             padding: 0.5rem;
-            color: #bbb;
+            color: var(--text-color);
             background: #1e1e20;
             border: none;
             border-radius: 4px;
@@ -170,7 +183,7 @@
         }
         .search-bar input:focus {
             background: #2a2a2c;
-            color: #fff;
+            color: var(--text-color-hover);
             outline: none;
         }
         .search-bar input::placeholder {
