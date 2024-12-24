@@ -1,8 +1,8 @@
-import path from "node:path";
-import fs from "node:fs";
-import {execSync} from "node:child_process";
+import path from 'node:path';
+import fs from 'node:fs';
+import {execSync} from 'node:child_process';
 
-export function loopPluginDirs(callback){
+export function loopPluginDirs (callback) {
     const pathname = new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:\/)/, '$1')
     const __dirname = path.dirname(pathname);
     const pluginsDir = path.resolve(__dirname, '../plugins')
@@ -17,7 +17,7 @@ export function loopPluginDirs(callback){
 
 }
 
-export function execEachPlugin(command, templates = false){
+export function execEachPlugin (command, templates = false) {
     loopPluginDirs((pluginDir, pluginFolder) => {
         if(!templates && pluginFolder.startsWith('plugin-template-')) return;
         console.log(`Executing ${command} in ${pluginDir}`)

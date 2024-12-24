@@ -2,6 +2,7 @@
 
 // in nodejs
 
-import {writeFileSync} from "node:fs"
+import {writeFileSync} from 'node:fs'
 
-writeFileSync("src/viewer/version.ts", `export const VERSION = '${process.env.npm_package_version}'\n`)
+writeFileSync('src/viewer/version.ts', `export const VERSION = '${process.env.npm_package_version}'\n`)
+
