@@ -1,6 +1,6 @@
 import {createLight} from './light'
 import {createMesh} from './mesh'
-import {Object3D} from 'three'
+import {Object3D} from 'threepipe'
 
 const blenderObjectTypes = {
     mesh: 1,

@@ -63,6 +63,7 @@
     "homepage": "https://github.com/repalash/threepipe#readme",
     "repository": {
         "type": "git",
-        "url": "git://github.com/repalash/threepipe.git"
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/svg-renderer"
     }
 }
