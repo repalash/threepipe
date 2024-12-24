@@ -35,14 +35,13 @@ export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig)
             type: 'checkbox',
             label: 'Auto LookAt Target',
             getValue: ()=>this.userData.autoLookAtTarget ?? false,
-            setValue: (v)=>{
+            setValue: (v: boolean)=>{
                 this.userData.autoLookAtTarget = v
                 config.uiRefresh?.(true, 'postFrame')
             },
         },
     ]
 }
-
 
 export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjectConfig {
     if (!this) return {}
@@ -129,12 +128,15 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Auto Scale',
                 hidden: ()=>!this.autoScale,
                 prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
-                value: ()=>{
+                value: async()=>{
                     const def = (this.userData.autoScaleRadius || 2) + ''
                     const res = prompt('Auto Scale Radius: Object will be scaled to the given radius', def)
                     if (res === null) return
                     const rad = parseFloat(res || def)
-                    if (Math.abs(rad) > 0) this.autoScale?.(rad)
+                    if (Math.abs(rad) > 0) {
+                        this.autoScale?.(rad)
+                        return ()=>this.autoScale?.(rad, undefined, undefined, true)
+                    }
                 },
             },
             {
@@ -144,6 +146,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     const res = confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
                     if (!res) return
                     this.autoCenter?.(true)
+                    return ()=>this.autoCenter?.(true, true)
                 },
             },
             {

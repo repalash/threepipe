@@ -305,7 +305,7 @@ export const iMaterialUI = {
             children: [
                 {
                     type: 'slider',
-                    bounds: [-0.2, 0.2],
+                    bounds: [-1, 1],
                     stepSize: 0.001,
                     property: [material, 'bumpScale'],
                     hidden: ()=>!material.bumpMap,

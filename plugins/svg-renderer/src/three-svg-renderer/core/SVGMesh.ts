@@ -12,7 +12,14 @@
 
 import {Color, Material, Mesh, Vector3} from 'three';
 import {HalfedgeDS} from '../../three-mesh-halfedge';
-import {acceleratedRaycast, CENTER, MeshBVH, MeshBVHOptions} from 'three-mesh-bvh';
+import {
+  acceleratedRaycast,
+  CENTER,
+  computeBoundsTree,
+  disposeBoundsTree,
+  MeshBVH,
+  MeshBVHOptions
+} from 'three-mesh-bvh';
 import {computeMorphedGeometry, disposeMesh} from '../utils/buffergeometry';
 
 type ColorMaterial = Material & {color: Color};
@@ -35,6 +42,15 @@ export interface SVGTexture {
    */
   url: string;
 }
+
+declare module 'three/src/core/BufferGeometry' {
+  export interface BufferGeometry {
+    boundsTree?: MeshBVH;
+    computeBoundsTree: typeof computeBoundsTree;
+    disposeBoundsTree: typeof disposeBoundsTree;
+  }
+}
+
 
 /**
  * Mesh object that can be rendered as SVG.

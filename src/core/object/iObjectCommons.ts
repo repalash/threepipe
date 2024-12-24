@@ -20,25 +20,47 @@ export const iObjectCommons = {
     upgradeObject3D: upgradeObject3D,
     makeUiConfig: makeIObject3DUiConfig,
 
-    autoCenter: function<T extends IObject3D>(this: T, setDirty = true): T {
-        const bb = new Box3B().expandByObject(this, true, true)
-        const center = bb.getCenter(new Vector3())
-        this.position.sub(center)
+    autoCenter: function<T extends IObject3D>(this: T, setDirty = true, undo = false): T {
+        if (undo) {
+            if (!this.userData.autoCentered || !this.userData._lastCenter) return this
+            this.position.add(this.userData._lastCenter)
+            delete this.userData.autoCentered
+            delete this.userData.isCentered
+            delete this.userData._lastCenter
+        } else {
+            const bb = new Box3B().expandByObject(this, true, true)
+            const center = bb.getCenter(new Vector3())
+            this.userData._lastCenter = center/* .clone()*/
+            this.position.sub(center)
+            this.userData.autoCentered = true
+            this.userData.isCentered = true
+        }
         this.updateMatrix()
-        this.userData.autoCentered = true
-        this.userData.isCentered = true
-        if (setDirty) this.setDirty({change: 'autoCenter'})
+        if (setDirty) this.setDirty({change: 'autoCenter', undo})
         return this
     },
-    autoScale: function<T extends IObject3D>(this: T, autoScaleRadius?: number, isCentered?: boolean, setDirty = true): T {
-        const bbox = new Box3B().expandByObject(this, true, true)
-        const radius = bbox.getSize(new Vector3()).length() * 0.5
-        if (autoScaleRadius === undefined) {
-            autoScaleRadius = this.userData.autoScaleRadius || 1
+    autoScale: function<T extends IObject3D>(this: T, autoScaleRadius?: number, isCentered?: boolean, setDirty = true, undo = false): T {
+        let scale = 1
+        if (undo) { // Note - undo only works for quick undo, not for multiple times
+            if (!this.userData.autoScaled || !this.userData._lastScaleRadius) return this
+            const rad = this.userData.autoScaleRadius || autoScaleRadius || 1
+            scale = this.userData._lastScaleRadius / rad
+            if (!isFinite(scale)) return this // NaN when radius is 0
+            this.userData.autoScaled = true
+            this.userData.autoScaleRadius = autoScaleRadius
+            delete this.userData._lastScaleRadius
+        } else {
+            const bbox = new Box3B().expandByObject(this, true, true)
+            const radius = bbox.getSize(new Vector3()).length() * 0.5
+            if (autoScaleRadius === undefined) {
+                autoScaleRadius = this.userData.autoScaleRadius || 1
+            }
+            scale = autoScaleRadius / radius
+            if (!isFinite(scale)) return this // NaN when radius is 0
+            this.userData.autoScaled = true
+            this.userData.autoScaleRadius = autoScaleRadius
+            this.userData._lastScaleRadius = radius
         }
-        const scale = autoScaleRadius / radius
-        // this.scale.multiplyScalar(20 / radius)
-        if (!isFinite(scale)) return this // NaN when radius is 0
 
         if (this.userData.pseudoCentered) {
             this.children.forEach(child => {
@@ -47,6 +69,7 @@ export const iObjectCommons = {
         } else
             this.scale.multiplyScalar(scale)
         if (isCentered || this.userData.isCentered) this.position.multiplyScalar(scale)
+
         this.traverse((obj) => {
             const l = obj as any
             if (l.isLight && l.shadow?.camera?.right) {
@@ -64,9 +87,9 @@ export const iObjectCommons = {
                 obj.setDirty()
             }
         })
-        this.userData.autoScaled = true
-        this.userData.autoScaleRadius = autoScaleRadius
-        if (setDirty) this.setDirty({change: 'autoScale'})
+
+        if (setDirty) this.setDirty({change: 'autoScale', undo})
+
         return this
     },
 

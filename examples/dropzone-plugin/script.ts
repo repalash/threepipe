@@ -1,4 +1,11 @@
-import {_testFinish, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    DropzonePlugin,
+    LoadingScreenPlugin,
+    PickingPlugin,
+    Rhino3dmLoadPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -6,7 +13,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
-            allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
+            allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj', '3dm'], // only allow these file types. If undefined, all files are allowed.
             addOptions: {
                 disposeSceneObjects: true, // auto dispose of old scene objects
                 autoSetEnvironment: true, // when hdr is dropped
@@ -18,7 +25,7 @@ async function init() {
                 importConfig: true, // import config from file
             },
         },
-        plugins: [LoadingScreenPlugin],
+        plugins: [LoadingScreenPlugin, PickingPlugin, Rhino3dmLoadPlugin],
     })
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
@@ -32,7 +39,9 @@ async function init() {
     })
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
-    ui.appendChild(dropzone.uiConfig)
+    // ui.appendChild(dropzone.uiConfig)
+    ui.setupPluginUi(DropzonePlugin)
+    ui.setupPluginUi(PickingPlugin)
 
 }
 

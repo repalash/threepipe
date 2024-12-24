@@ -4,12 +4,12 @@ import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 import license from 'rollup-plugin-license'
-import packageJson from './package.json' assert {type: 'json'};
+import packageJson from './package.json' with {type: 'json'};
 import path from 'path'
 import {fileURLToPath} from 'url';
 import postcss from 'rollup-plugin-postcss'
 import replace from '@rollup/plugin-replace'
-import terser from "@rollup/plugin-terser";
+import terser from '@rollup/plugin-terser';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,11 +20,11 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 const settings = {
     globals: {
-        "three": "threepipe", // just incase someone uses three
-        "threepipe": "threepipe",
-        "@threepipe/plugin-tweakpane": "@threepipe/plugin-tweakpane"
+        'three': 'threepipe', // just incase someone uses three
+        'threepipe': 'threepipe',
+        '@threepipe/plugin-tweakpane': '@threepipe/plugin-tweakpane',
     },
-    sourcemap: true
+    sourcemap: true,
 }
 
 export default {
@@ -45,8 +45,8 @@ export default {
             name: name,
             format: 'es',
             plugins: [
-                isProduction && terser()
-            ]
+                isProduction && terser(),
+            ],
         },
         {
             file: './dist/index.js',
@@ -54,9 +54,9 @@ export default {
             name: name,
             format: 'umd',
             plugins: [
-                isProduction && terser()
-            ]
-        }
+                isProduction && terser(),
+            ],
+        },
     ],
     external: Object.keys(settings.globals),
     plugins: [
@@ -69,7 +69,7 @@ export default {
         }),
         postcss({
             modules: false,
-            autoModules: true,  // todo; issues with typescript import css, because inject is false
+            autoModules: true, // todo; issues with typescript import css, because inject is false
             inject: false,
             minimize: isProduction,
             // Or with custom options for `postcss-modules`
@@ -82,7 +82,7 @@ export default {
             include: 'node_modules/**',
             extensions: ['.js'],
             ignoreGlobal: false,
-            sourceMap: false
+            sourceMap: false,
         }),
         license({
             banner: `
@@ -96,6 +96,6 @@ export default {
                 output: path.join(__dirname, 'dist', 'dependencies.txt'),
                 includePrivate: true, // Default is false.
             },
-        })
-    ]
+        }),
+    ],
 }

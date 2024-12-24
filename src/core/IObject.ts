@@ -206,14 +206,16 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
      * @param autoScaleRadius - optional (taken from userData.autoScaleRadius by default)
      * @param isCentered - optional (taken from userData.isCentered by default)
      * @param setDirty - true by default
+     * @param undo - undo any previous autoScale operation
      */
-    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean): this
+    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean, undo?: boolean): this
 
     /**
      *
      * @param setDirty - calls {@link setDirty} @default true
+     * @param undo - undo any previous autoCenter operation
      */
-    autoCenter?(setDirty?: boolean): this
+    autoCenter?(setDirty?: boolean, undo?: boolean): this
 
     /**
      * @deprecated use object directly
