@@ -88,7 +88,7 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
 
     @uiInput('Logo Image')
     @onChange(LoadingScreenPlugin.prototype.refresh)
-    @serialize() logoImage = 'https://static.webgi.xyz/logo.svg'
+    @serialize() logoImage = 'https://threepipe.org/logo.svg'
 
     private _isPreviewing = false
     private _previewState = new Map([['file.glb', {state: 'downloading', progress: 50}], ['environment.hdr', {state: 'adding'}]])

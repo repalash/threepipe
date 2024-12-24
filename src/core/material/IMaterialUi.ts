@@ -300,6 +300,7 @@ export const iMaterialUI = {
     bumpNormal: (material: PhysicalMaterial|LegacyPhongMaterial): UiObjectConfig => (
         {
             type: 'folder',
+            // uuid: 'bump_normal',
             label: 'Bump/Normal',
             children: [
                 {

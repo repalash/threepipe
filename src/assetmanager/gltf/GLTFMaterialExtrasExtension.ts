@@ -48,7 +48,7 @@ export class GLTFMaterialExtrasExtension {
 
                     // if (ext.transparent !== undefined) o.transparent = ext.transparent // this is set by GLTFLoader based on alpha mode
 
-                    // if (ext.envMapIntensity !== undefined) o.envMapIntensity = ext.envMapIntensity // this is set in global by rootscene
+                    if (ext.envMapIntensity !== undefined) o.envMapIntensity = ext.envMapIntensity // for when separateEnvMapIntensity is true
 
                     // if (ext.stencilWrite !== undefined) o.stencilWrite = ext.stencilWrite
                     // if (ext.stencilWriteMask !== undefined) o.stencilWriteMask = ext.stencilWriteMask
@@ -158,7 +158,7 @@ export class GLTFMaterialExtrasExtension {
             if (material.vertexColors !== undefined) dat.vertexColors = material.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
             if (material.alphaTest !== undefined) dat.alphaTest = material.alphaTest
 
-            // if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity
+            if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
 
             // if (material.stencilWrite !== undefined) dat.stencilWrite = material.stencilWrite
             // if (material.stencilWriteMask !== undefined) dat.stencilWriteMask = material.stencilWriteMask

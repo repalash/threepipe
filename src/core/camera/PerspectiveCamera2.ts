@@ -199,7 +199,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     setDirty(options?: ICameraSetDirtyOptions|Event): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
+        if (!options?.key || options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
 
         this.getWorldPosition(this._positionWorld)
 

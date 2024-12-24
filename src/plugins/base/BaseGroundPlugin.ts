@@ -1,6 +1,6 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IGeometry, iGeometryCommons, IMaterial, ISceneEvent, Mesh2, PhysicalMaterial, UnlitMaterial} from '../../core'
-import {BufferAttribute, Euler, InterleavedBufferAttribute, PlaneGeometry, Vector3} from 'three'
+import {BufferAttribute, BufferGeometry, Euler, InterleavedBufferAttribute, PlaneGeometry, Vector3} from 'three'
 import {onChange, onChange2, serialize} from 'ts-browser-helpers'
 import {OrbitControls3} from '../../three'
 import {uiConfig, uiFolderContainer, uiNumber, uiToggle} from 'uiconfig.js'
@@ -176,6 +176,9 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
 
     }
 
+    // not serialized. this can be controlled by other plugins like ModelStagePlugin and serialized there
+    useModelBounds = false
+
     protected _refreshTransform() {
         if (!this._mesh) return
         if (!this._viewer) return
@@ -190,7 +193,11 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         }
         if (this.autoAdjustTransform) {
             this._mesh.userData.bboxVisible = false
-            const bbox = this._viewer.scene.getBounds(true)
+
+            const bbox = this.useModelBounds ?
+                this._viewer.scene.getModelBounds(true, true, true) :
+                this._viewer.scene.getBounds(true, true, true)
+
             this._mesh.userData.bboxVisible = true
             const v = bbox.getCenter(
                 new Vector3()).sub(new Vector3(0,
@@ -221,12 +228,24 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         if (mesh) {
             mesh.userData.physicsMass = 0
             mesh.userData.userSelectable = false
+            mesh.userData.isGroundMesh = true
             mesh.castShadow = true
             mesh.receiveShadow = true
             mesh.name = 'Ground Plane'
         }
         return mesh
     }
+
+    setGeometry(g: BufferGeometry) {
+        if (this._geometry) this._geometry.dispose()
+        this._geometry = iGeometryCommons.upgradeGeometry.call(g)
+        if (!this._geometry.attributes.uv2) {
+            this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
+            this._geometry.attributes.uv2.needsUpdate = true
+        }
+        if (this._mesh) this._mesh.geometry = g
+    }
+
 
     protected _createMaterial(material?: PhysicalMaterial): PhysicalMaterial {
         if (!material) material = new PhysicalMaterial({

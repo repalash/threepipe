@@ -180,20 +180,20 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync<''> {
         if (!this.initialized) {
             await this.initialize()
             if (!this.initialized) {
-                await this._viewer.dialog.alert('SimplifyModifierPlugin cannot be initialized')
+                await this._viewer.dialog.alert('Simplify: SimplifyModifierPlugin cannot be initialized')
                 return
             }
         }
         const selected = this._pickingPlugin?.getSelectedObject()
         if (!selected) {
-            await this._viewer.dialog.alert('Nothing Selected')
+            await this._viewer.dialog.alert('Simplify: Nothing Selected')
             return
         }
         let doAll = false
         if (!selected.geometry) doAll = true
         else if (selected.children.length === 0) doAll = true
         if (!doAll) {
-            const resp = await this._viewer.dialog.confirm('Simplify all in hierarchy?')
+            const resp = await this._viewer.dialog.confirm('Simplify: Simplify all in hierarchy?')
             if (resp) doAll = true
         }
         if (doAll) {

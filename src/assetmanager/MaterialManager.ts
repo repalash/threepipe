@@ -318,10 +318,10 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         return blob
     }
 
-    applyMaterial(material: IMaterial, nameOrUuid: string): boolean {
+    applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true): boolean {
         const mType = Object.getPrototypeOf(material).constructor.TYPE
-        let currentMats = this.findMaterialsByName(nameOrUuid, true)
-        if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameOrUuid) as any]
+        let currentMats = this.findMaterialsByName(nameRegexOrUuid, regex)
+        if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameRegexOrUuid) as any]
         let applied = false
         for (const c of currentMats) {
             // console.log(c)

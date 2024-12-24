@@ -471,8 +471,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                    {r?: number, g?: number, b?: number, a?: number, target?: IRenderTarget, depth?: boolean, stencil?: boolean, viewport?: Vector4}): void {
         const color = this._renderer.getClearColor(new Color())
         const alpha = this._renderer.getClearAlpha()
-        this._renderer.setClearColor(new Color(r ?? color.r, g ?? color.g, b ?? color.b))
-        this._renderer.setClearAlpha(a ?? alpha)
+        this._renderer.setClearColor(new Color(r ?? color.r, g ?? color.g, b ?? color.b), a ?? alpha)
         const lastTarget = this._renderer.getRenderTarget()
         const activeCubeFace = this._renderer.getActiveCubeFace()
         const activeMipLevel = this._renderer.getActiveMipmapLevel()
@@ -494,6 +493,13 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
 
         this._renderer.setRenderTarget((target as WebGLRenderTarget) ?? null)
         this._renderer.clear(true, depth, stencil)
+        if (target && typeof target.clear === 'function') {
+            // WebGLCubeRenderTarget
+            target.clear(this._renderer, true, depth, stencil)
+        } else {
+            this._renderer.setRenderTarget((target as any as WebGLRenderTarget) ?? null)
+            this._renderer.clear(true, depth, stencil)
+        }
 
         if (viewport) {
             if (!target) {
@@ -508,8 +514,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
         }
 
         this._renderer.setRenderTarget(lastTarget, activeCubeFace, activeMipLevel)
-        this._renderer.setClearColor(color)
-        this._renderer.setClearAlpha(alpha)
+        this._renderer.setClearColor(color, alpha)
     }
 
 

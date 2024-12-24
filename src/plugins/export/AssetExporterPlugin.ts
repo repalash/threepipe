@@ -113,7 +113,7 @@ export class AssetExporterPlugin extends AViewerPluginSync<''> {
                         onChange: ()=>this.uiConfig.uiRefresh?.(true),
                     },
                     {
-                        type: 'checkbox',
+                        type: 'input',
                         label: 'Encrypt Password',
                         hidden: ()=>!this.exportOptions.encrypt,
                         property: [this.exportOptions, 'encryptKey'],
@@ -138,7 +138,7 @@ export class AssetExporterPlugin extends AViewerPluginSync<''> {
             },
             {
                 type: 'button',
-                label: 'Export Viewer Config',
+                label: 'Export Config',
                 value: async()=>{
                     const blob = new Blob([JSON.stringify(this._viewer?.exportConfig(false), null, 2)], {type: 'application/json'})
                     if (blob) await this._viewer?.exportBlob(blob, this.exportOptions.name + '.' + ThreeViewer.ConfigTypeSlug)

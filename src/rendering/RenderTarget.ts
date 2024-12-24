@@ -17,7 +17,7 @@ import {
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
 import {DepthTexture} from 'three/src/textures/DepthTexture'
-import type {IRenderManager} from '../core'
+import type {IRenderManager, IWebGLRenderer} from '../core'
 import {ValOrArr} from 'ts-browser-helpers'
 
 export interface IRenderTarget extends EventDispatcher {
@@ -67,6 +67,7 @@ export interface IRenderTarget extends EventDispatcher {
 
     isWebGLCubeRenderTarget?: boolean
     isWebGLMultipleRenderTargets?: boolean
+    clear?(renderer: IWebGLRenderer, color: boolean, depth: boolean, stencil: boolean): void
 
     readonly renderManager?: IRenderManager
 }

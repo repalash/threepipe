@@ -294,6 +294,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
             color: new Color(1, 1, 1),
         },
         generator: (params) => {
+            // todo: option to convert Phong to Physical(for fbx)? or add it to PhysicalMaterial.MaterialTemplate
             return new LegacyPhongMaterial(params)
         },
     }

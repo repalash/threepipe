@@ -359,7 +359,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     refreshScene(event?: Partial<ISceneEvent> & ISceneSetDirtyOptions): this {
         if (event && event.type === 'objectUpdate' && event.object === this) return this // ignore self
-        if (event?.sceneUpdate === false || event?.refreshScene === false) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
+        // todo test the isCamera here. this is for animation object plugin
+        if (event?.sceneUpdate === false || event?.refreshScene === false || event.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)
         this.refreshActiveCameraNearFar()
         this._sceneBounds = this.getBounds(false, true)
@@ -396,7 +397,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
     /**
-     * Returns the bounding box of the scene model root.
+     * Returns the bounding box of the whole scene (model root and other meta objects).
+     * To get the bounds of just the objects added by the user(not by plugins) use `new Box3B().expandByObject(scene.modelRoot)`
      * @param precise
      * @param ignoreInvisible
      * @param ignoreWidgets
@@ -407,6 +409,23 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         // See bboxVisible in userdata in Box3B
         return new Box3B().expandByObject(this, precise, ignoreInvisible, (o: any)=>{
             if (ignoreWidgets && ((o as IWidget).isWidget || o.assetType === 'widget')) return true
+            return ignoreObject?.(o) ?? false
+        })
+    }
+
+    /**
+     * Similar to {@link getBounds}, but returns the bounding box of just the {@link modelRoot}.
+     * @param precise
+     * @param ignoreInvisible
+     * @param ignoreWidgets
+     * @param ignoreObject
+     * @returns {Box3B}
+     */
+    getModelBounds(precise = false, ignoreInvisible = true, ignoreWidgets = true, ignoreObject?: (obj: Object3D)=>boolean): Box3B {
+        if (this.modelRoot == undefined)
+            return new Box3B()
+        return new Box3B().expandByObject(this.modelRoot, precise, ignoreInvisible, (o: any)=>{
+            if (ignoreWidgets && o.assetType === 'widget') return true
             return ignoreObject?.(o) ?? false
         })
     }

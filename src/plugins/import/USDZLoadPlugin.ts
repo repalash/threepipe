@@ -17,7 +17,10 @@ export class USDZLoadPlugin extends BaseImporterPlugin {
         async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<Mesh> {
             this.currentUrl = url
             const res = await super.loadAsync(url, onProgress)
+            // console.log(res)
             this.currentUrl = ''
+            if (!res.children.length) throw new Error('No mesh found in USDZ file, note that usdc files are not supported.')
+            // todo see three-usdz-loader
             return res
         }
 

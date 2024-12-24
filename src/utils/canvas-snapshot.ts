@@ -19,6 +19,7 @@ export interface CanvasSnapshotOptions {
     scale?: number,
     timeout?: number, // in ms, if not specified, will be based on progressive rendering or 200ms
     displayPixelRatio?: number,
+    cloneCanvas?: boolean, // default = true
 }
 
 export class CanvasSnapshot {
@@ -102,9 +103,9 @@ export class CanvasSnapshot {
     }
 
     public static async GetDataUrl(canvas: HTMLCanvasElement, {mimeType = 'image/png', quality, ...options}: CanvasSnapshotOptions): Promise<string> {
-        const clone = await this.GetClonedCanvas(canvas, options)
+        const clone = options.cloneCanvas === false ? canvas : await this.GetClonedCanvas(canvas, options)
         const url = clone.toDataURL(mimeType, quality)
-        if (!this.Debug) clone.remove()
+        if (!this.Debug && clone !== canvas) clone.remove()
         return url
     }
 
@@ -120,7 +121,7 @@ export class CanvasSnapshot {
     }
 
     public static async GetBlob(canvas: HTMLCanvasElement, options: CanvasSnapshotOptions = {}): Promise<Blob> {
-        const clone = await this.GetClonedCanvas(canvas, options)
+        const clone = options.cloneCanvas === false ? canvas : await this.GetClonedCanvas(canvas, options)
 
         const blob = await new Promise<Blob>((resolve, reject) => {
             clone.toBlob((b) => {
@@ -128,7 +129,7 @@ export class CanvasSnapshot {
                 else reject()
             }, options.mimeType ?? 'image/png', options.quality)
         })
-        if (!this.Debug) clone.remove()
+        if (!this.Debug && clone !== canvas) clone.remove()
 
         return blob
     }
