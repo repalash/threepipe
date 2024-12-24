@@ -21,7 +21,7 @@ import {
     Vector3,
     Vector4,
 } from 'threepipe'
-import styles from './tpTheme.css'
+import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
 
 @uiFolderContainer('Tweakpane UI')

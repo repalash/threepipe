@@ -10,9 +10,9 @@ import {
 } from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
 import {setupWebGiLogo} from './logo'
-import styles from './TweakpaneEditorPlugin.css'
+import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import tippyStyles from 'tippy.js/dist/tippy.css'
+import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync<string> {

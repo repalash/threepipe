@@ -13,9 +13,7 @@
         "remove": [
             "clean-package",
             "scripts",
-            "devDependencies",
-            "//",
-            "markdown-to-html"
+            "devDependencies"
         ],
         "replace": {
             "dependencies": {},

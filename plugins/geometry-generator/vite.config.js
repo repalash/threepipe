@@ -34,7 +34,7 @@ export default defineConfig({
         } : null,
         lib: {
             entry: 'src/index.ts',
-            formats: isProd ? ['es', 'umd'] : ['es'],
+            formats: isProd && main !== module ? ['es', 'umd'] : ['es'],
             name: name,
             fileName: (format) => (format === 'umd' ? main : module).replace('dist/', ''),
         },
