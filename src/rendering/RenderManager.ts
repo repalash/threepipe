@@ -581,10 +581,10 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
             mimeType = hdr ? 'image/x-exr' : 'image/png'
         }
         if (!hdrFormats.includes(mimeType)) hdr = false
-        let buffer: ArrayBufferLike
+        let buffer: ArrayBuffer
         if (!hdr) {
             const url = this.renderTargetToDataUrl(target, mimeType === 'auto' ? undefined : mimeType, 90, textureIndex)
-            buffer = base64ToArrayBuffer(url.split(',')[1])
+            buffer = base64ToArrayBuffer(url.split(',')[1]) as ArrayBuffer
             mimeType = url.split(';')[0].split(':')[1]
         } else {
             if (mimeType !== 'image/x-exr') {
@@ -592,7 +592,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 mimeType = 'image/x-exr'
             }
             const exporter = new EXRExporter2()
-            buffer = exporter.parse(this._renderer, target, {textureIndex})
+            buffer = exporter.parse(this._renderer, target, {textureIndex}).buffer as ArrayBuffer
         }
         const b = new Blob([buffer], {type: mimeType}) as BlobExt
         b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]

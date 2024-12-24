@@ -243,7 +243,7 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
             this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
             this._geometry.attributes.uv2.needsUpdate = true
         }
-        if (this._mesh) this._mesh.geometry = g
+        if (this._mesh) this._mesh.geometry = this._geometry
     }
 
 

@@ -19,7 +19,7 @@ export const glbEncryptionProcessor = async(gltf: ArrayBuffer|any, options: GLTF
         console.warn('GLTF Export: encryption key not provided, skipping encryption')
         return gltf
     }
-    const buffer = await aesGcmEncrypt(new Uint8Array(gltf as ArrayBuffer), options.encryptKey)
+    const buffer = await aesGcmEncrypt(new Uint8Array(gltf), options.encryptKey)
     return makeGLBFile(buffer, {
         asset: {
             version: '2.0',

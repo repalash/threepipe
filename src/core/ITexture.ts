@@ -33,7 +33,7 @@ export interface ITexture extends Texture {
     setDirty?(): void
 
     source: Source & {
-        _sourceImgBuffer?: ArrayBuffer // see KTX2LoadPlugin and serializeTextureInExtras
+        _sourceImgBuffer?: ArrayBuffer|Uint8Array // see KTX2LoadPlugin and serializeTextureInExtras
     }
 
     _appliedMaterials?: Set<IMaterial> // for internal use only. refers to the materials that this texture is applied to

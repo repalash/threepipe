@@ -23,10 +23,11 @@ export class GLTFViewerConfigExtension {
      */
     static async ImportViewerConfig(parser: GLTFParser, viewer: ThreeViewer, resultScenes: Group[], scene?: any): Promise<Partial<ISerializedViewerConfig>> {
         if (!scene) {
-            const scenes = parser.json.scenes || []
+            const scenes = (parser.json.scenes as Group[]) || []
             if (scenes.length !== 1) {
                 for (const scene1 of scenes) {
-                    await this.ImportViewerConfig(parser, viewer, [resultScenes[scenes.indexOf(scene1)]] || resultScenes, scene1)
+                    const i = scenes.indexOf(scene1)
+                    await this.ImportViewerConfig(parser, viewer, i >= 0 ? [resultScenes[i]] : resultScenes, scene1)
                 }
                 return {}
             }

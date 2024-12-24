@@ -22,7 +22,7 @@ export type TViewerScreenShader = TViewerScreenShaderFrag | ShaderMaterialParame
 
 @uiFolderContainer('Screen Pass')
 export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'screen'> {
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     readonly passId = 'screen'
     after: IPassID[] = ['render']
     required: IPassID[] = ['render']

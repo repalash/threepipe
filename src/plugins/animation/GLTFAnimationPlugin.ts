@@ -24,7 +24,7 @@ import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 @uiFolderContainer('GLTF Animations')
 export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'checkpointBegin'|'animationStep'> {
     enabled = true
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
 
     static readonly PluginType = 'GLTFAnimation'
     /**

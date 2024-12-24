@@ -15,32 +15,32 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Color', (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
     @uiSlider('Angle', [0, 2], 0.01)
     @onChange3('setDirty')
-        angle: number
+    declare angle: number
     @uiSlider('Penumbra', [0, 0.9999], 0.01)
     @onChange3('setDirty')
-        penumbra: number
+    declare penumbra: number
     @uiInput('Distance')
     @onChange3('setDirty')
-        distance: number
+    declare distance: number
     @uiInput('Decay')
     @onChange3('setDirty')
-        decay: number
+    declare decay: number
     @uiVector('Position', undefined, undefined, (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly position: Vector3
+    declare readonly position: Vector3
     @uiVector('Rotation', undefined, undefined, (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly rotation: Euler
+    declare readonly rotation: Euler
     @uiToggle('Cast Shadow')
     @onChange3('setDirty')
-        castShadow: boolean
+    declare castShadow: boolean
 
     constructor(color?: ColorRepresentation, intensity?: number, distance?: number,
         angle?: number,
@@ -90,8 +90,8 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

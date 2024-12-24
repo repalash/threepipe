@@ -10,7 +10,7 @@ import {LineMaterial2} from '../../core'
 export class SpotLightHelper2 extends ALightHelperWidget {
     color: ColorRepresentation | undefined
     cone: LineSegments2
-    light: (SpotLight & IUiConfigContainer) | undefined
+    declare light: (SpotLight & IUiConfigContainer) | undefined
     @onChange(SpotLightHelper2.prototype.update)
         material: LineMaterial2
     @onChange(SpotLightHelper2.prototype.update)

@@ -35,7 +35,7 @@ export class SSAOPlugin
     target?: SSAOPluginTarget
     @uiImage('SSAO Buffer' /* {readOnly: true}*/) texture?: Texture
 
-    @uiConfig() protected _pass?: SSAOPluginPass
+    @uiConfig() declare protected _pass?: SSAOPluginPass
 
     // @onChange2(SSAOPlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)

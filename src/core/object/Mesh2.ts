@@ -13,9 +13,9 @@ export class Mesh2<
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
 
-    material: TMaterial
-    readonly materials: IMaterial[]
-    geometry: TGeometry
+    declare material: TMaterial
+    declare readonly materials: IMaterial[]
+    declare geometry: TGeometry
 
     /**
      * @deprecated use `this` instead
@@ -29,7 +29,7 @@ export class Mesh2<
         iObjectCommons.upgradeObject3D.call(this)
     }
 
-    userData: IObject3DUserData
+    declare userData: IObject3DUserData
 
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
@@ -44,8 +44,8 @@ export class Mesh2<
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
     dispose: (removeFromParent?: boolean) => void
 
     // endregion

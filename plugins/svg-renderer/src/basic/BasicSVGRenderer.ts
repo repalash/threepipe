@@ -5,13 +5,13 @@ import {onChange2} from 'ts-browser-helpers'
 @uiFolderContainer('Basic SVG Renderer')
 export class BasicSVGRenderer extends SVGRenderer {
     @uiToggle()
-        autoClear: boolean
+    declare autoClear: boolean
     @uiToggle()
-        sortObjects: boolean
+    declare sortObjects: boolean
     @uiToggle()
-        sortElements: boolean
+    declare sortElements: boolean
     @uiNumber()
-        overdraw: number
+    declare overdraw: number
 
     @uiDropdown(undefined, ['low', 'high'])
     @onChange2(BasicSVGRenderer.prototype._refresh)

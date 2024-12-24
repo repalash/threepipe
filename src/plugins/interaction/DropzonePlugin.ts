@@ -26,7 +26,7 @@ export interface DropzonePluginOptions {
 @uiFolderContainer('Dropzone')
 export class DropzonePlugin extends AViewerPluginSync<'drop'> {
     static readonly PluginType = 'Dropzone'
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     @uiToggle() @serialize() enabled = true
     private _inputEl?: HTMLInputElement
     private _dropzone?: Dropzone

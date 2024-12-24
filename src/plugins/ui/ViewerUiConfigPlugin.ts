@@ -15,7 +15,7 @@ export class ViewerUiConfigPlugin extends AViewerPluginSync<''> {
     }
 
     @serialize('viewer')
-    protected _viewer: ThreeViewer | undefined // todo: fix deserialization throwing error
+    declare protected _viewer: ThreeViewer | undefined // todo: fix deserialization throwing error
 
     // toJSON(): any {
     //     return this._viewer?.toJSON() ?? {}

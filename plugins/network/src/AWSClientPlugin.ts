@@ -26,7 +26,7 @@ import {AwsClient, AwsV4Signer} from 'aws4fetch'
 @uiFolderContainer('AWS/S3 Client')
 export class AWSClientPlugin extends AViewerPluginSync<'fileUpload'> {
     static readonly PluginType = 'AWSClientPlugin1'
-    uiConfig?: UiObjectConfig
+    declare uiConfig: UiObjectConfig
 
     enabled = true
     private _connected = false

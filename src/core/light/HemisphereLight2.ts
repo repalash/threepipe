@@ -10,22 +10,22 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     readonly isHemisphereLight2 = true
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Sky Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiColor('Ground Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
-        groundColor: Color
+    declare groundColor: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
     @uiVector('Position', undefined, undefined, (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly position: Vector3
+    declare readonly position: Vector3
 
     constructor(skyColor?: ColorRepresentation, groundColor?: ColorRepresentation, intensity?: number) {
         super(skyColor, groundColor, intensity)
@@ -70,8 +70,8 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

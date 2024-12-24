@@ -39,7 +39,7 @@ export class ShaderMaterial2<E extends IMaterialEvent = IMaterialEvent, ET = IMa
 
     assetType = 'material' as const
 
-    userData: IMaterialUserData
+    declare userData: IMaterialUserData
 
     public readonly isAShaderMaterial = true
 

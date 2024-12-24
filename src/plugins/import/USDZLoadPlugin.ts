@@ -31,7 +31,7 @@ export class USDZLoadPlugin extends BaseImporterPlugin {
                 if (filename) {
                     const zip: Zippable = {}
                     zip[filename] = new Uint8Array(buffer)
-                    buffer = zipSync(zip).buffer
+                    buffer = zipSync(zip).buffer as ArrayBuffer
                 }
             }
             return super.parse(buffer)

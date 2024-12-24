@@ -22,7 +22,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
 
     textures: {colorSpace: ColorSpace, id: string}[] = []
 
-    userData: IMaterialUserData
+    declare userData: IMaterialUserData
 
     constructor(parameters: ShaderMaterialParameters, textureIds: string[], isRawShaderMaterial = false) {
         super(parameters, isRawShaderMaterial)

@@ -6,7 +6,7 @@ import {ThreeSerialization} from '../../utils'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
-    options: GLTFExporterOptions & {
+    declare options: GLTFExporterOptions & {
         externalImagesInExtras: boolean,
         exporterOptions: GLTFExporter2Options
     }

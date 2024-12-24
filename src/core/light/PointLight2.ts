@@ -10,29 +10,29 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     readonly isPointLight2 = true
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Color', (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
     @uiNumber('Distance')
     @onChange3('setDirty')
-        distance: number
+    declare distance: number
     @uiNumber('Decay')
     @onChange3('setDirty')
-        decay: number
+    declare decay: number
     @uiVector('Position', undefined, undefined, (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly position: Vector3
+    declare readonly position: Vector3
     @uiToggle('Cast Shadow')
     @onChange3('setDirty')
-        castShadow: boolean
+    declare castShadow: boolean
 
     constructor(color?: ColorRepresentation, intensity?: number, distance?: number, decay?: number) {
         super(color, intensity, distance, decay)
@@ -77,8 +77,8 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

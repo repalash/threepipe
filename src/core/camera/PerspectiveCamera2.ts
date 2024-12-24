@@ -19,7 +19,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         return this._controls
     }
 
-    @uiInput('Name') name: string
+    @uiInput('Name') declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
@@ -40,17 +40,17 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
     @uiSlider('Field Of View', [1, 180], 0.001)
-    @serialize() fov: number
+    @serialize() declare fov: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @serialize() focus: number
+    @serialize() declare focus: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
     @uiSlider('FoV Zoom', [0.001, 10], 0.001)
-    @serialize() zoom: number
+    @serialize() declare zoom: number
 
     @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
-    @serialize() readonly position: Vector3
+    @serialize() declare readonly position: Vector3
 
     /**
      * The target position of the camera (where the camera looks at). Also syncs with the controls.target, so it's not required to set that separately.
@@ -488,7 +488,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @onChange((k: string, v: boolean)=>{
         if (!v) console.warn('Setting camera invisible is not supported', k, v)
     })
-        visible: boolean
+    declare visible: boolean
 
     get isActiveCamera(): boolean {
         return this.isMainCamera
@@ -601,8 +601,8 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ICameraEvent) => void
-    parent: IObject3D | null
-    children: IObject3D[]
+    declare parent: IObject3D | null
+    declare children: IObject3D[]
 
     // endregion
 

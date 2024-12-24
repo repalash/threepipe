@@ -76,18 +76,18 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
 
     // region UI Config
 
-    @uiInput() name: string
-    @uiColor() color: Color
-    @uiToggle() dashed: boolean
-    @uiNumber() dashScale: number
-    @uiNumber() dashSize: number
-    @uiNumber() dashOffset: number
-    @uiNumber() gapSize: number
-    @uiNumber() linewidth: number
-    @uiVector() resolution: Vector2
-    @uiToggle() alphaToCoverage: boolean
-    @uiToggle() worldUnits: boolean
-    // @uiToggle() fog = true
+    @uiInput() declare name: string
+    @uiColor() declare color: Color
+    @uiToggle() declare dashed: boolean
+    @uiNumber() declare dashScale: number
+    @uiNumber() declare dashSize: number
+    @uiNumber() declare dashOffset: number
+    @uiNumber() declare gapSize: number
+    @uiNumber() declare linewidth: number
+    @uiVector() declare resolution: Vector2
+    @uiToggle() declare alphaToCoverage: boolean
+    @uiToggle() declare worldUnits: boolean
+    // @uiToggle() declare fog = true
 
 
     // todo dispose ui config

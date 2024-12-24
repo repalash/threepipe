@@ -10,18 +10,18 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     readonly isAmbientLight2 = true
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Color', (that: AmbientLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
 
     constructor(color?: ColorRepresentation, intensity?: number) {
         super(color, intensity)
@@ -66,8 +66,8 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

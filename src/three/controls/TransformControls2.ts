@@ -11,7 +11,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     setDirty = iObjectCommons.setDirty.bind(this)
     refreshUi = iObjectCommons.refreshUi.bind(this)
 
-    object: IObject3D | undefined
+    declare object: IObject3D | undefined
     private _keyDownListener(event: KeyboardEvent) {
         if (!this.enabled) return
         if (!this.object) return
@@ -132,29 +132,29 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     // region properties
 
-    enabled: boolean
+    declare enabled: boolean
 
     // axis: 'X' | 'Y' | 'Z' | 'E' | 'XY' | 'YZ' | 'XZ' | 'XYZ' | 'XYZE' | null
 
     // onChange not required for before since they fire 'change' event on changed. see TransformControls.js
 
     @uiDropdown('Mode', ['translate', 'rotate', 'scale'].map(label=>({label})))
-        mode: 'translate' | 'rotate' | 'scale'
+    declare mode: 'translate' | 'rotate' | 'scale'
 
-    translationSnap: number | null
-    rotationSnap: number | null
-    scaleSnap: number | null
+    declare translationSnap: number | null
+    declare rotationSnap: number | null
+    declare scaleSnap: number | null
 
     @uiDropdown('Space', ['world', 'local'].map(label=>({label})))
-        space: 'world' | 'local'
+    declare space: 'world' | 'local'
     @uiSlider('Size', [0.1, 10], 0.1)
-        size: number
+    declare size: number
     @uiToggle('Show X')
-        showX: boolean
+    declare showX: boolean
     @uiToggle('Show Y')
-        showY: boolean
+    declare showY: boolean
     @uiToggle('Show Z')
-        showZ: boolean
+    declare showZ: boolean
 
     // dragging: boolean
 
@@ -183,8 +183,8 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ISceneEvent) => void
-    parent: IObject3D | null
-    children: IObject3D[]
+    declare parent: IObject3D | null
+    declare children: IObject3D[]
 
     // endregion
 }

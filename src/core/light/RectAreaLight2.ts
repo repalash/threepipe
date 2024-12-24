@@ -15,22 +15,22 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Color', (that: RectAreaLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
     @uiNumber('Width')
     @onChange3('setDirty')
-        width: number
+    declare width: number
     @uiNumber('Height')
     @onChange3('setDirty')
-        height: number
+    declare height: number
     @uiNumber('Power')
     @onChange3('setDirty')
-        power: number
+    declare power: number
 
 
     constructor(color?: ColorRepresentation, intensity?: number, width?: number, height?: number) {
@@ -75,8 +75,8 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

@@ -15,25 +15,25 @@ export class DirectionalLight2<
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig: UiObjectConfig
+    declare uiConfig: UiObjectConfig
     readonly isDirectionalLight2 = true
 
     @uiToggle('Enabled')
     @onChange3('setDirty')
-        visible: boolean
+    declare visible: boolean
 
     @uiColor('Color', (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
-        color: Color
+    declare color: Color
     @uiSlider('Intensity', [0, 30], 0.01)
     @onChange3('setDirty')
-        intensity: number
+    declare intensity: number
     @uiVector('Position', undefined, undefined, (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly position: Vector3
+    declare readonly position: Vector3
     @uiVector('Rotation', undefined, undefined, (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
-    readonly rotation: Euler
+    declare readonly rotation: Euler
     @uiToggle('Cast Shadow')
     @onChange3('setDirty')
-        castShadow: boolean
+    declare castShadow: boolean
 
     constructor(color?: ColorRepresentation, intensity?: number) {
         super(color, intensity)
@@ -80,8 +80,8 @@ export class DirectionalLight2<
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

@@ -12,7 +12,7 @@ import {ThreeViewer} from '../../viewer'
 export class Rhino3dmLoadPlugin extends BaseImporterPlugin implements IUiConfigContainer {
     public static readonly PluginType = 'Rhino3dmLoadPlugin'
     protected _importer = new Importer(Rhino3dmLoader2, ['3dm'], ['model/vnd.3dm', 'model/3dm'], true)
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
 
     /**
      * Import materials from the file based on material source and color source. If false, a default material will be used

@@ -11,7 +11,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
 
     @uiToggle('Enabled') enabled = true
 
-    scene?: IScene
+    declare scene?: IScene
     before?: IPassID[]
     after?: IPassID[]
     required?: IPassID[]

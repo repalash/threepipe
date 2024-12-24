@@ -9,7 +9,7 @@ import {IShaderPropertiesUpdater} from '../materials'
 export class ExtendedShaderPass extends ShaderPass implements IPass {
     public static readonly DEFAULT_TEX_ID = 'tDiffuse'
 
-    material!: ShaderMaterial2
+    declare material: ShaderMaterial2
     overrideReadBuffer: {texture?: WebGLRenderTarget['texture']}|null = null
 
     readonly isExtendedShaderPass = true

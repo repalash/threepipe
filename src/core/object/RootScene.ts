@@ -28,7 +28,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     readonly isRootScene = true
 
     assetType = 'model' as const
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
 
     // private _processors = new ObjectProcessorMap<'environment' | 'background'>()
     // private _sceneObjects: ISceneObject[] = []
@@ -360,7 +360,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     refreshScene(event?: Partial<ISceneEvent> & ISceneSetDirtyOptions): this {
         if (event && event.type === 'objectUpdate' && event.object === this) return this // ignore self
         // todo test the isCamera here. this is for animation object plugin
-        if (event?.sceneUpdate === false || event?.refreshScene === false || event.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
+        if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)
         this.refreshActiveCameraNearFar()
         this._sceneBounds = this.getBounds(false, true)
@@ -534,8 +534,8 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ISceneEvent) => void
-    parent: null
-    children: IObject3D[]
+    declare parent: null
+    declare children: IObject3D[]
 
     // endregion
 

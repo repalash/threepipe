@@ -36,7 +36,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
     public static readonly TYPE = 'LegacyPhongMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
 
-    userData: IMaterialUserData
+    declare userData: IMaterialUserData
 
     public readonly isLegacyPhongMaterial = true
 

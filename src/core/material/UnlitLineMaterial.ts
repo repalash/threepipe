@@ -25,7 +25,7 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     public static readonly TYPE = 'UnlitLineMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
 
-    userData: IMaterialUserData
+    declare userData: IMaterialUserData
 
     public readonly isUnlitLineMaterial = true
 

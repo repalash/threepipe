@@ -9,7 +9,7 @@ import {LineMaterial2} from '../../core'
 export class PointLightHelper2 extends ALightHelperWidget {
     color: ColorRepresentation | undefined
     lightSphere: Wireframe
-    light: (PointLight & IUiConfigContainer) | undefined
+    declare light: (PointLight & IUiConfigContainer) | undefined
     @onChange(PointLightHelper2.prototype.update)
         material: LineMaterial2
     @onChange(PointLightHelper2.prototype.update)

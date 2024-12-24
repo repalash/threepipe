@@ -10,7 +10,7 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
     color: ColorRepresentation|undefined
     lightPlane: Line2
     targetLine: Line2
-    light: (DirectionalLight&IUiConfigContainer)|undefined
+    declare light: (DirectionalLight&IUiConfigContainer)|undefined
 
     @onChange(DirectionalLightHelper2.prototype.update)
         material: LineMaterial2
