@@ -26,7 +26,7 @@ Just want to try it out? Skip to the [Quickstart](./getting-started).
 
 Key features include:
 - Simple, intuitive API for creating 3D model viewers/configurators/editors on web pages, with many built-in presets for common workflows and use-cases.
-- Companion [editor](https://threepipe.org/examples/tweakpane-editor/) to create, edit and configure 3D scenes in the browser.
+- Companion [editor](https://editor.threepipe.org/) to create, edit and configure 3D scenes in the browser.
 - Modular architecture that allows you to easily extend the viewer, scene objects, materials, shaders, rendering, post-processing and serialization with custom functionality.
 - Plugin system along with a rich library of built-in plugins that allows you to easily add new features to the viewer.
 - [uiconfig](https://github.com/repalash/uiconfig.js) compatibility to automatically generate configuration UIs in the browser.

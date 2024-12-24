@@ -10,7 +10,7 @@ next:
 
 # Getting Started
 
-Getting started with Threepipe is easy. You can use it in your HTML/JS, React, Vue.js, Svelte, or any other web framework. The best way to use it is as an ES module in your project. Simply install the package `threepipe` from npm, or include it in html from any CDN like [esm.sh](https://esm.sh/threepipe) or [jsdelivr](https://cdn.jsdelivr.net/npm/threepipe@latest).
+Getting started with Threepipe is easy. You can use it in your HTML/JS, React, Vue.js, Svelte, or any other web framework. The best way to use it is as an ES module in your project. Simply install the package `threepipe` from npm, or include it in html from any CDN like [unpkg](https://unpkg.com/threepipe) or [jsdelivr](https://cdn.jsdelivr.net/npm/threepipe@latest).
 
 [![NPM Package](https://img.shields.io/npm/v/threepipe.svg)](https://www.npmjs.com/package/threepipe)
 
@@ -25,7 +25,7 @@ Getting started with Threepipe is easy. You can use it in your HTML/JS, React, V
 ## Quickstart
 
 ### Codepen
-You can quickly prototype in JavaScript on Codepen. Here is a starter pen with the basic setup: [Threepipe Starter Codepen](https://codepen.io/repalash/pen/GRbEONZ?editors=0010)
+You can quickly prototype in JavaScript on Codepen. Here is a starter pen with the basic setup: [Threepipe Starter Codepen](https://codepen.io/repalash/pen/GRbEONZ?editors=0010) (with JS scripts), or [with import maps](https://codepen.io/repalash/pen/poXpKEQ?editors=0010)
 
 Simply fork the pen and start coding.
 
@@ -53,11 +53,9 @@ Now, code from any of the examples on the [Threepipe Examples](https://threepipe
 
 ```html
 <canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
+<script src="https://unpkg.com/threepipe"></script>
 <script type="module">
-  import {ThreeViewer, DepthBufferPlugin} from 'https://threepipe.org/dist/index.mjs'
-  // or 
-  // import {ThreeViewer, DepthBufferPlugin} from 'https://cdn.jsdelivr.net/npm/threepipe@latest/dist/index.mjs'
-  // import {ThreeViewer, DepthBufferPlugin} from 'https://esm.sh/threepipe'
+  const {ThreeViewer, DepthBufferPlugin} = threepipe
   // import {ThreeViewer, DepthBufferPlugin} from 'threepipe' // using npm or importmaps
 
   const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
@@ -79,7 +77,7 @@ Now, code from any of the examples on the [Threepipe Examples](https://threepipe
 ```
 Check it in action: [html-js-sample](https://threepipe.org/examples/#html-js-sample/)
 
-Check out the details about [ThreeViewer API](#viewer-api) and more [plugins](#threepipe-plugins).
+Check out the details about [ThreeViewer API](../guide/viewer-api) and more [plugins](../guide/core-plugins.md).
 
 ### NPM
 
