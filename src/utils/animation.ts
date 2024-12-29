@@ -65,7 +65,7 @@ export type AnimateResult = ReturnType<typeof animate>
 export function makeSetterFor<V>(target: any, key: string, setDirty?: ()=>void) {
     const v = target[key] as any
     const dirty = ()=>{
-        if (typeof target?.setDirty === 'function') target.setDirty()
+        // if (typeof target?.setDirty === 'function') target.setDirty()
         setDirty?.()
     }
     const isBool = typeof v === 'boolean'

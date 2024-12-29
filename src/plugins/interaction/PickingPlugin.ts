@@ -5,6 +5,7 @@ import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
 import {IObject3D, IObject3DEvent, ISceneEvent} from '../../core'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
+import {type UndoManagerPlugin} from './UndoManagerPlugin'
 
 export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'hoverObjectChanged'|'hitObject'> {
     @serialize()
@@ -139,6 +140,14 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
 
+        viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=>{
+            if (!this._picker) return
+            this._picker.undoManager = um.undoManager
+        }, ()=>{
+            if (!this._picker) return
+            this._picker.undoManager = undefined
+        })
+
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -154,6 +163,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
             this._picker.removeEventListener('hoverObjectChanged', this._hoverObjectChanged)
             this._picker.removeEventListener('hitObject', this._onObjectHit)
             this._picker.dispose()
+            this._picker.undoManager = undefined // because setting above
             this._picker = undefined
         }
         super.onRemove(viewer)

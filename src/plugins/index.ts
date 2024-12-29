@@ -35,6 +35,7 @@ export {EditorViewWidgetPlugin} from './interaction/EditorViewWidgetPlugin'
 export {DeviceOrientationControlsPlugin} from './interaction/DeviceOrientationControlsPlugin'
 export {PointerLockControlsPlugin} from './interaction/PointerLockControlsPlugin'
 export {ThreeFirstPersonControlsPlugin} from './interaction/ThreeFirstPersonControlsPlugin'
+export {UndoManagerPlugin} from './interaction/UndoManagerPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'

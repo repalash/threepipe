@@ -1,5 +1,5 @@
 import {Event, EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
-import {now} from 'ts-browser-helpers'
+import {JSUndoManager, now} from 'ts-browser-helpers'
 import {ICamera, IObject3D} from '../../core'
 
 export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'selectedObjectChanged'|'hitObject'> {
@@ -15,6 +15,7 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
      */
     static PointerClickMaxDistance = 0.1 // 1/20 of the canvas
 
+    undoManager?: JSUndoManager
     private _root: IObject3D
     private _camera: ICamera
     private _mouseDownTime: number
@@ -92,9 +93,18 @@ export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'s
     }
 
     set selectedObject(object) {
+        this._setSelected(object)
+    }
+
+    private _setSelected(object: IObject3D|null, record = true) {
         if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object) return
+        const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
         this.dispatchEvent({type: 'selectedObjectChanged', object: this.selectedObject})
+        record && this.undoManager?.record({
+            undo: () => this._setSelected(current.length ? current[0] : null, false),
+            redo: () => this._setSelected(object, false),
+        })
     }
 
     get hoverObject(): IObject3D | null {

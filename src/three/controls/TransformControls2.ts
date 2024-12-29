@@ -15,6 +15,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     private _keyDownListener(event: KeyboardEvent) {
         if (!this.enabled) return
         if (!this.object) return
+        if (event.metaKey || event.ctrlKey) return
 
         switch (event.code) {
 

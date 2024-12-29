@@ -2,9 +2,11 @@ import {uiButton, uiConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {OrbitControls3, TransformControls2} from '../../three'
 import {PickingPlugin} from './PickingPlugin'
-import {onChange} from 'ts-browser-helpers'
+import {JSUndoManager, onChange} from 'ts-browser-helpers'
 import {TransformControls} from '../../three/controls/TransformControls'
 import {UnlitLineMaterial, UnlitMaterial} from '../../core'
+import {Euler, Object3D, Vector3} from 'three'
+import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
 @uiPanelContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync<''> {
@@ -55,6 +57,15 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
         },
     }
 
+
+    private _transformState = {
+        obj: null as Object3D|null,
+        position: new Vector3(),
+        rotation: new Euler(),
+        scale: new Vector3(),
+    }
+    undoManager?: JSUndoManager
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
@@ -84,6 +95,51 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
                 return
             }
             event.object ? this.transformControls.attach(event.object) : this.transformControls.detach()
+        })
+
+        viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=> {
+            this.undoManager = um.undoManager
+        }, ()=> this.undoManager = undefined)
+
+        // same logic for undo as three.js editor. todo It can be made better by syncing with the UI so it supports the hotkeys and other properties inside TransformControls2
+        this.transformControls.addEventListener('mouseDown', ()=> {
+            if (!this.transformControls) return
+            const object = this.transformControls.object
+            if (!object) return
+
+            this._transformState.obj = object
+            this._transformState.position = object.position.clone()
+            this._transformState.rotation = object.rotation.clone()
+            this._transformState.scale = object.scale.clone()
+        })
+
+        this.transformControls.addEventListener('mouseUp', ()=> {
+            if (!this.transformControls) return
+            const object = this.transformControls.object
+            if (!object) return
+
+            if (this._transformState.obj !== object || !this.undoManager) return
+
+            const key = ({
+                'translate': 'position',
+                'rotate': 'rotation',
+                'scale': 'scale',
+            } as const)[this.transformControls.getMode()]
+            if (!key) return
+            if (this._transformState[key].equals(object[key] as any)) return
+
+            const command = {
+                last: this._transformState[key].clone(), current: object[key].clone(),
+                set: (value: any) => {
+                    object[key].copy(value)
+                    object.updateMatrixWorld(true)
+                    this.transformControls?.dispatchEvent({type: 'change'} as any)
+                    this.transformControls?.dispatchEvent({type: 'objectChange'} as any)
+                },
+                undo: () => command.set(command.last),
+                redo: () => command.set(command.current),
+            }
+            this.undoManager.record(command)
         })
 
     }
