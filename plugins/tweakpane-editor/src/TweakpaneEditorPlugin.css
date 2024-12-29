@@ -106,6 +106,7 @@
     cursor: pointer;
     box-shadow: 0 2px 4px var(--tp-base-shadow-color);
     transition: all 0.25s;
+    box-sizing: content-box !important;
 }
 .round-button:hover{
     color: white;
@@ -123,6 +124,7 @@
     width: auto;
     height: 1.2rem;
     aspect-ratio: 1;
+    box-sizing: content-box !important;
 }
 
 .mode-buttons-container{

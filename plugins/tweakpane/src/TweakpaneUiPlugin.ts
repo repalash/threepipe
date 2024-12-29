@@ -19,10 +19,11 @@ import {
     uploadFile,
     Vector2,
     Vector3,
-    Vector4,
+    Vector4, UndoManagerPlugin,
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
+import {JSUndoManager} from 'ts-browser-helpers'
 
 @uiFolderContainer('Tweakpane UI')
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
@@ -30,21 +31,26 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     static readonly PluginType = 'TweakpaneUi'
     enabled = true
 
+    static CONTAINER_SLOT = 'uiconfigMainPanelSlot'
+
     @onChange(TweakpaneUiPlugin.prototype._colorModeChanged)
     @uiDropdown('Color Mode', ['black', 'white', 'blue'].map(label=>({label})))
         colorMode: 'black'|'white'|'blue'
 
-    constructor(expanded = false, bigTheme = true, container: HTMLElement = document.body, colorMode?: 'black'|'white'|'blue') {
-        super(container, {
+    constructor(expanded = false, bigTheme = true, container?: HTMLElement, colorMode?: 'black'|'white'|'blue') {
+        super(container ?? document.getElementById(TweakpaneUiPlugin.CONTAINER_SLOT) ?? document.getElementById('tweakpaneMainPanelSlot') ?? document.body, {
             expanded, autoPostFrame: false,
-        })
+        }, false)
         this.THREE = {Color, Vector4, Vector3, Vector2} as any
-        this._root!.registerPlugin(TweakpaneImagePlugin)
+        this._root!.registerPlugin(TweakpaneImagePlugin as any)
         if (bigTheme) createStyles(styles, container)
         this.colorMode = colorMode ?? (localStorage ? localStorage.getItem('tpTheme') as any : 'blue') ?? 'blue'
     }
 
     protected _viewer?: ThreeViewer
+
+    private _lastManager?: JSUndoManager
+
     onAdded(viewer: ThreeViewer): void {
         this._viewer = viewer
         this.typeGenerators.image = tpImageInputGenerator(this._viewer)
@@ -52,13 +58,23 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         viewer.addEventListener('postRender', this._postRender)
         viewer.addEventListener('preFrame', this._preFrame)
         viewer.addEventListener('postFrame', this._postFrame)
+        const undo = viewer.getOrAddPluginSync(UndoManagerPlugin) // yes, manual dependency
+        if (undo?.undoManager) {
+            this._lastManager?.dispose()
+            this._lastManager = this.undoManager
+            this.undoManager = undo.undoManager
+            if (this._lastManager) Object.assign(this.undoManager.presets, this._lastManager.presets)
+        }
     }
+
     onRemove(viewer: ThreeViewer): void {
         this._viewer = undefined
         viewer.removeEventListener('preRender', this._preRender)
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('preFrame', this._preFrame)
         viewer.removeEventListener('postFrame', this._postFrame)
+        this.undoManager = this._lastManager
+        this._lastManager = undefined
         this.dispose()
     }
 
@@ -160,6 +176,11 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         document.body.classList.add('tpTheme-' + this.colorMode)
         if (!localStorage) return
         localStorage.setItem('tpTheme', this.colorMode)
+    }
+
+    dispose() {
+        this.undoManager?.dispose()
+        this.unmount()
     }
 
 }

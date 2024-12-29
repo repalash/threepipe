@@ -22,9 +22,16 @@ import {
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
 
+
+export const makeTextSvg2 = (text: string): string => {
+    return `data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext style='font: 8px "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace; fill: white;' x='9' y='18'%3E${text}%3C/text%3E%3C/svg%3E%0A`
+}
+
 const staticData = {
     placeholderVal: 'placeholder',
+    // renderTarImage: makeColorSvg('ffffff'),
     renderTarImage: makeTextSvg('Render Target'),
+    renderTarImage2: makeTextSvg2('...'),
     dataTexImage: makeTextSvg('Data Texture'),
     lutCubeTexImage: makeTextSvg('CUBE Texture'),
     compressedTexImage: makeTextSvg('Compressed Texture'),
@@ -33,7 +40,7 @@ const staticData = {
     tempMap: {} as any,
 }
 
-function proxyGetValue(cc: any, viewer: ThreeViewer) {
+function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
     if (cc?.get) cc = cc.get()
     let ret: any = undefined
     if (!cc) return staticData.placeholderVal
@@ -47,15 +54,27 @@ function proxyGetValue(cc: any, viewer: ThreeViewer) {
     if (cc.isTexture) {
         // console.warn('here')
         // todo: use textureToCanvas for data texture
-        if (cc.image && !cc.image.tp_src) {
-            if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) { // todo: support playback in video
-                cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
-            } else if (cc.isRenderTargetTexture) {
+        if (cc.image && !cc.image.tp_src && !cc.tp_src) {
+            if (cc.isRenderTargetTexture) {
                 if (cc._target) {
-                    // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
-                    cc.tp_src = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
-                    setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                    // todo do same change in blueprint
+                    // doing in the timeout so it doesnt hang when opening a folder which does deep refresh
+                    // if (!config._lastRtRefresh || Date.now() - config._lastRtRefresh > 5000) { // 5000 should be significantly more than 500 + 100 below
+                    setTimeout(() => {
+
+                        // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
+                        const dataUrl = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
+                        cc.tp_src = dataUrl
+                        setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                        config.uiRefresh?.(false, 'postFrame')
+
+                    }, 200)
+                    cc.tp_src = staticData.renderTarImage2
+                    // }
+                    // config._lastRtRefresh = Date.now()
                 }
+            } else if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) { // todo: support playback in video
+                cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
             } else {
                 cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
             }
@@ -115,7 +134,7 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         }
     }
     config.__proxy.value_ = v1
-    renderer.methods.setValue(config, v1, {last: true}, false)
+    renderer.methods.setValue(config, v1, {last: true}, false, false)
     config.uiRefresh?.(false, 'postFrame')
 }
 
@@ -287,7 +306,7 @@ async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig,
     }
 }
 
-export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* FolderApi */, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => {
+export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => any = (viewer: ThreeViewer) => (parent: any /* FolderApi */, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => {
     // if (config.value !== undefined) throw 'Not supported yet'
 
     if (!config.__proxy) {
@@ -297,21 +316,26 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* Fo
 
         Object.defineProperty(config.__proxy, 'value', {
             get: () => {
-                config.__proxy.value_ = renderer.methods.getValue(config)
-                const ret = proxyGetValue(config.__proxy.value_, viewer)
-                if (typeof ret !== 'string' && !ret.id?.length) ret.id = generateUUID()
-                const id = typeof ret === 'string' ? ret : ret.id ?? ret
-                if (!staticData.textureMap[id]) staticData.textureMap[id] = config.__proxy.value_
-                return ret
+                try {
+                    config.__proxy.value_ = renderer.methods.getRawValue(config) // sending undefined to disable comparison for undo etc
+                    const ret = proxyGetValue(config.__proxy.value_, viewer, config)
+                    if (typeof ret !== 'string' && !ret.id?.length) ret.id = generateUUID()
+                    const id = typeof ret === 'string' ? ret : ret.id ?? ret
+                    if (!staticData.textureMap[id]) staticData.textureMap[id] = config.__proxy.value_
+                    return ret
+                } catch (e) {
+                    console.error('uiconfig-tweakpane - ImageInput Unknown error', e)
+                    return staticData.placeholderVal
+                }
             },
             set: (v: any) => {
                 if (getOrCall(config.readOnly)) return
-                config.__proxy.value_ = renderer.methods.getValue(config) // current value
+                config.__proxy.value_ = renderer.methods.getRawValue(config) // current value
                 proxySetValue(v, config.__proxy.value_, config, viewer, renderer)
             },
         })
     }
-    config.__proxy.value_ = renderer.methods.getValue(config)
+    config.__proxy.value_ = renderer.methods.getRawValue(config)
 
     params = params ?? {}
     params.extensions = ['.jpg', '.png', '.svg', '.hdr',
@@ -347,6 +371,7 @@ export const tpImageInputGenerator = (viewer: ThreeViewer) => (parent: any /* Fo
             menu.style.top = 'auto'
             menu.style.bottom = rect.height + 8 + 'px'
         }
+        config.uiRefresh?.(false, 'postFrame')
     }
     params.view = 'input-image'
     return renderer.typeGenerators.input(parent, config, renderer, params)
