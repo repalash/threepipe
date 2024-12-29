@@ -121,7 +121,9 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
         if (!this.importer || !this.viewer) return []
         const imported = await this.importer.import<T>(assetOrPath, options)
         if (!imported) {
-            console.warn('Unable to import', assetOrPath, imported)
+            const path = typeof assetOrPath === 'string' ? assetOrPath : (assetOrPath as IAsset)?.path
+            if (path && !path.split('?')[0].endsWith('.vjson'))
+                console.warn('Threepipe AssetManager - Unable to import', assetOrPath, imported)
             return []
         }
         return this.loadImported<(T | undefined)[]>(imported, options)

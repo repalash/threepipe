@@ -259,14 +259,17 @@ export const iMaterialUI = {
         {
             type: 'button',
             label: `Select ${material.constructor.TypeSlug}`,
-            value: ()=>{
-                uploadFile(false, false, material.constructor.TypeSlug).then(async(files)=>files?.[0]?.text()).then((text)=>{
-                    if (!text) return
-                    const json = JSON.parse(text)
-                    if (json.uuid) delete json.uuid // just copy the material properties
-                    material.fromJSON(json, getEmptyMeta())
-                })
-            },
+            value: async()=>uploadFile(false, false, material.constructor.TypeSlug).then(async(files)=>files?.[0]?.text()).then((text)=>{
+                if (!text) return
+                const json = JSON.parse(text)
+                if (json.uuid) delete json.uuid // just copy the material properties
+                const currentJson = material.toJSON()
+                material.fromJSON(json, getEmptyMeta())
+                return {
+                    undo: ()=>material.fromJSON(currentJson, getEmptyMeta()),
+                    redo: ()=>material.fromJSON(json, getEmptyMeta()),
+                }
+            }),
         },
     ],
     roughMetal: (material: PhysicalMaterial): UiObjectConfig => (

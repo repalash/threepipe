@@ -236,16 +236,17 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         return mesh
     }
 
-    setGeometry(g: BufferGeometry) {
-        if (this._geometry) this._geometry.dispose()
-        this._geometry = iGeometryCommons.upgradeGeometry.call(g)
+    setGeometry(g?: BufferGeometry) {
+        if (!g) g = this._geometry
+        else if (this._geometry) this._geometry.dispose()
+        if (!g) return
+        iGeometryCommons.upgradeGeometry.call(g)
         if (!this._geometry.attributes.uv2) {
             this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
             this._geometry.attributes.uv2.needsUpdate = true
         }
         if (this._mesh) this._mesh.geometry = this._geometry
     }
-
 
     protected _createMaterial(material?: PhysicalMaterial): PhysicalMaterial {
         if (!material) material = new PhysicalMaterial({

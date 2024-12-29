@@ -2,6 +2,7 @@ import {IObject3D} from '../IObject'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
 import {Vector3} from 'three'
+import {ThreeViewer} from '../../viewer'
 
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
@@ -127,15 +128,17 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'button',
                 label: 'Auto Scale',
                 hidden: ()=>!this.autoScale,
-                prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
+                // prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
                 value: async()=>{
                     const def = (this.userData.autoScaleRadius || 2) + ''
-                    const res = prompt('Auto Scale Radius: Object will be scaled to the given radius', def)
+                    const res = await ThreeViewer.Dialog.prompt('Auto Scale Radius: Object will be scaled to the given radius', def)
                     if (res === null) return
                     const rad = parseFloat(res || def)
                     if (Math.abs(rad) > 0) {
-                        this.autoScale?.(rad)
-                        return ()=>this.autoScale?.(rad, undefined, undefined, true)
+                        return {
+                            action: ()=>this.autoScale?.(rad),
+                            undo: ()=>this.autoScale?.(rad, undefined, undefined, true),
+                        }
                     }
                 },
             },
@@ -143,10 +146,12 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'button',
                 label: 'Auto Center',
                 value: ()=>{
-                    const res = confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
-                    if (!res) return
-                    this.autoCenter?.(true)
-                    return ()=>this.autoCenter?.(true, true)
+                    // const res = await ThreeViewer.Dialog.confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
+                    // if (!res) return
+                    return {
+                        action: ()=>this.autoCenter?.(true),
+                        undo: ()=>this.autoCenter?.(true, true),
+                    }
                 },
             },
             {
@@ -159,8 +164,18 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                         type: 'button',
                         label: 'Rotate ' + l + '90',
                         value: ()=>{
-                            this.rotateOnAxis(new Vector3(l.includes('X') ? 1 : 0, l.includes('Y') ? 1 : 0, l.includes('Z') ? 1 : 0), Math.PI / 2 * (l.includes('-') ? -1 : 1))
-                            this.setDirty?.({refreshScene: true, refreshUi: false})
+                            const axis = new Vector3(l.includes('X') ? 1 : 0, l.includes('Y') ? 1 : 0, l.includes('Z') ? 1 : 0)
+                            const angle = Math.PI / 2 * (l.includes('-') ? -1 : 1)
+                            return {
+                                action: ()=>{
+                                    this.rotateOnAxis(axis, angle)
+                                    this.setDirty?.({refreshScene: true, refreshUi: false})
+                                },
+                                undo: ()=>{
+                                    this.rotateOnAxis(axis, -angle)
+                                    this.setDirty?.({refreshScene: true, refreshUi: false})
+                                },
+                            }
                         },
                     }
                 }),

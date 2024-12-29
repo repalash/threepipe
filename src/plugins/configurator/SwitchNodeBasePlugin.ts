@@ -13,7 +13,7 @@ import {snapObject} from '../../three'
  * This works by toggling the `visible` property of the children of a parent object.
  * The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.
  * It also provides a function to create snapshot previews of individual variations. This creates a limited render of the object with the selected child visible.
- * To get a proper render, its better to render it offline and set the image as a preview.
+ * To get a proper render, it's better to render it offline and set the image as a preview.
  *
  * See `SwitchNodePlugin` in [plugin-configurator](https://threepipe.org/plugins/configurator/docs/index.html) for example on inheriting with a custom UI renderer.
  *
@@ -117,6 +117,7 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync<''> {
         if (!this.enabled) return false
         if (!this._viewer) return false
         this._uiNeedRefresh = false
+        if (this.autoSnapIcons) this.snapIcons()
 
         this.refreshUiConfig()
         return true
@@ -167,6 +168,34 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync<''> {
     addNode(node: ObjectSwitchNode, refreshUi = true) {
         this.variations.push(node)
         if (refreshUi) this.refreshUi()
+    }
+
+    /**
+     * If true, the plugin will automatically take snapshots of the icons in _refreshUi and put them in the object.userdata.__icon
+     * Otherwise, call {@link snapIcons} manually
+     */
+    autoSnapIcons = false
+
+    /**
+     * Snapshots icons and puts in the userdata.__icon
+     */
+    snapIcons() {
+        for (const variation of this.variations) {
+            const obj = this._viewer!.scene.getObjectByName(variation.name)
+            if (!obj) {
+                console.warn('no object found for variation, skipping', variation)
+                continue
+            }
+            if (obj.children.length < 1) {
+                console.warn('SwitchNode does not have enough children', variation)
+            }
+
+            for (const child of obj.children) {
+                if (child.userData.__icon) return
+                const image = this.getPreview(variation, child, false)
+                if (image) child.userData.__icon = image
+            }
+        }
     }
 
     uiConfig: UiObjectConfig = {

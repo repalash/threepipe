@@ -77,7 +77,7 @@ export const iMaterialCommons = {
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         if (options?.needsUpdate !== false) this.needsUpdate = true
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
-        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
+        if (options?.last !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
     setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
         function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string})): IMaterial {

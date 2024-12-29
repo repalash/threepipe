@@ -188,10 +188,10 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
                 driver: this.defaultDriver,
                 ...options,
                 onUpdate: !isBool ? options.onUpdate : undefined,
-                onComplete: ()=>{
+                onComplete: async()=>{
                     try {
                         if (isBool) options.onUpdate?.(options.to as any)
-                        options.onComplete && options.onComplete()
+                        options.onComplete && await options.onComplete()
                     } catch (e: any) {
                         if (!end2()) return
                         reject(e)
@@ -200,9 +200,9 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
                     if (!end2()) return
                     resolve()
                 },
-                onStop: ()=>{
+                onStop: async()=>{
                     try {
-                        options.onStop && options.onStop()
+                        options.onStop && await options.onStop()
                     } catch (e: any) {
                         if (!end2()) return
                         reject(e)

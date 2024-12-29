@@ -9,7 +9,7 @@ import path from 'node:path';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
-const {main, module, browser} = packageJson['clean-package'].replace
+const {main, module, browser} = packageJson
 
 export default defineConfig({
     optimizeDeps: {

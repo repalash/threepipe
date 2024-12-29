@@ -319,7 +319,6 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
     }
 
     applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true): boolean {
-        const mType = Object.getPrototypeOf(material).constructor.TYPE
         let currentMats = this.findMaterialsByName(nameRegexOrUuid, regex)
         if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameRegexOrUuid) as any]
         let applied = false
@@ -328,18 +327,32 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
             if (!c) continue
             if (c === material) continue
             if (c.userData.__isVariation) continue
-            const cType = Object.getPrototypeOf(c).constructor.TYPE
-            // console.log(cType, mType)
-            if (cType === mType) {
-                const n = c.name
-                c.setValues(material)
-                c.name = n
-                applied = true
-            } else {
-                // todo
-                // if ((c as any)['__' + mType]) continue
-                const newMat = (c as any)['__' + mType] || this.create(mType)
-                if (!newMat) continue
+            const applied2 = this.copyMaterialProps(c, material)
+            if (applied2) applied = true
+        }
+        return applied
+    }
+
+    /**
+     * copyProps from material to c
+     * @param c
+     * @param material
+     */
+    copyMaterialProps(c: IMaterial, material: IMaterial) {
+        let applied = false
+        const mType = Object.getPrototypeOf(material).constructor.TYPE
+        const cType = Object.getPrototypeOf(c).constructor.TYPE
+        // console.log(cType, mType)
+        if (cType === mType) {
+            const n = c.name
+            c.setValues(material)
+            c.name = n
+            applied = true
+        } else {
+            // todo
+            // if ((c as any)['__' + mType]) continue
+            const newMat = (c as any)['__' + mType] || this.create(mType)
+            if (newMat) {
                 const n = c.name
                 newMat.setValues(material)
                 newMat.name = n

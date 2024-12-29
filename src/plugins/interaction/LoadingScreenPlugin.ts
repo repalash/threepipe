@@ -86,9 +86,11 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
     @onChange(LoadingScreenPlugin.prototype.refresh)
     @serialize() textColor = '#222222'
 
+    static LS_DEFAULT_LOGO = 'https://threepipe.org/logo.svg'
+
     @uiInput('Logo Image')
     @onChange(LoadingScreenPlugin.prototype.refresh)
-    @serialize() logoImage = 'https://threepipe.org/logo.svg'
+    @serialize() logoImage = LoadingScreenPlugin.LS_DEFAULT_LOGO
 
     private _isPreviewing = false
     private _previewState = new Map([['file.glb', {state: 'downloading', progress: 50}], ['environment.hdr', {state: 'adding'}]])
@@ -126,6 +128,10 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
     }
 
     private _isHidden = false
+
+    get visible() {
+        return !this._isHidden
+    }
 
     async hide() {
         this._isHidden = true
@@ -207,16 +213,22 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
                 errors.length === processState.size && this.hideOnOnlyErrors)) {
                 this.hideDelay ? this.hideWithDelay() : this.hide()
             } else if (processState.size > 0 && this.showOnFilesLoading) {
+                const sceneObjects = this._viewer.scene.modelRoot.children
+                if (sceneObjects.length > 0 && this.minimizeOnSceneObjectLoad && this._viewer.scene.environment) this.minimize()
+                else this.maximize()
                 this.show()
             }
         }
     }
 
+    // disables showOnSceneEmpty
+    isEditor = false
+
     private _sceneUpdate = (e: any) => {
         if (!this._viewer) return
         if (!e.hierarchyChanged) return
         const sceneObjects = this._viewer.scene.modelRoot.children
-        if (sceneObjects.length === 0 && this.showOnSceneEmpty) {
+        if (sceneObjects.length === 0 && this.showOnSceneEmpty && !this.isEditor) {
             this.show()
         }
         // console.log(sceneObjects.length)

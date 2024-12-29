@@ -2,6 +2,7 @@ import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
 import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three/utils'
 import {BufferGeometry, Vector3} from 'three'
+import {ThreeViewer} from '../../viewer'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -57,22 +58,24 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Center Geometry',
-                    value: () => {
+                    value: async() => {
+                        if (!await ThreeViewer.Dialog.confirm('This will move the objects based on the geometry center, do you want to continue?\nThis action cannot be undone.')) return
                         this.center()
                     },
                 },
                 {
                     type: 'button',
                     label: 'Center Geometry (keep position)',
-                    value: () => {
+                    value: async() => {
+                        if (!await ThreeViewer.Dialog.confirm('This will move the geometry center keeping the object position, do you want to continue?\nThis action cannot be undone.')) return
                         this.center(undefined, true)
                     },
                 },
                 {
                     type: 'button',
                     label: 'Compute vertex normals',
-                    value: () => {
-                        if (this.hasAttribute('normal') && !confirm('Normals already exist, replace with computed normals?')) return
+                    value: async() => {
+                        if (this.hasAttribute('normal') && !await ThreeViewer.Dialog.confirm('Normals already exist, replace with computed normals?\nThis action cannot be undone.')) return
                         this.computeVertexNormals()
                         this.setDirty()
                     },
@@ -80,8 +83,8 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Compute vertex tangents',
-                    value: () => {
-                        if (this.hasAttribute('tangent') && !confirm('Tangents already exist, replace with computed tangents?')) return
+                    value: async() => {
+                        if (this.hasAttribute('tangent') && !await ThreeViewer.Dialog.confirm('Tangents already exist, replace with computed tangents?\nThis action cannot be undone.')) return
                         this.computeTangents()
                         this.setDirty()
                     },
@@ -98,9 +101,9 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Convert to indexed',
                     hidden: () => !!this.index,
-                    value: () => {
+                    value: async() => {
                         if (this.attributes.index) return
-                        const tolerance = parseFloat(prompt('Tolerance', '-1') ?? '-1')
+                        const tolerance = parseFloat(await ThreeViewer.Dialog.prompt('Convert to Indexed: Tolerance?', '-1') ?? '-1')
                         toIndexedGeometry(this, tolerance)
                         this.setDirty()
                     },
@@ -118,9 +121,9 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Create uv1 from uv',
-                    value: () => {
+                    value: async() => {
                         if (this.hasAttribute('uv1')) {
-                            if (!confirm('uv1 already exists, replace with uv data?')) return
+                            if (!await ThreeViewer.Dialog.confirm('uv1 already exists, replace with uv data?\nThis action cannot be undone.')) return
                         }
                         this.setAttribute('uv1', this.getAttribute('uv'))
                         this.setDirty()
@@ -130,12 +133,12 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Remove vertex color attribute',
                     hidden: () => !this.hasAttribute('color'),
-                    value: () => {
+                    value: async() => {
                         if (!this.hasAttribute('color')) {
-                            prompt('No color attribute found')
+                            await ThreeViewer.Dialog.prompt('No color attribute found')
                             return
                         }
-                        if (!confirm('Remove color attribute?')) return
+                        if (!await ThreeViewer.Dialog.confirm('Remove color attribute?')) return
                         this.deleteAttribute('color')
                         this.setDirty()
                     },
@@ -144,8 +147,8 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Auto GPU Instances',
                     hidden: ()=> !this.appliedMeshes || this.appliedMeshes.size < 2,
-                    value: ()=>{
-                        if (!confirm('This action is irreversible, do you want to continue?')) return
+                    value: async()=>{
+                        if (!await ThreeViewer.Dialog.confirm('This will automatically create Instanced Mesh from geometry instances. This action is irreversible, do you want to continue?')) return
                         autoGPUInstanceMeshes(this)
                     },
                 },

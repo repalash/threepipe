@@ -2,9 +2,9 @@ import {Event, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEvent, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
-import {copyObject3DUserData} from '../../utils/serialization'
+import {copyObject3DUserData} from '../../utils'
 import {IGeometry, IGeometryEvent} from '../IGeometry'
-import {Box3B} from '../../three/math/Box3B'
+import {Box3B} from '../../three'
 import {makeIObject3DUiConfig} from './IObjectUi'
 import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
@@ -13,7 +13,7 @@ import {ILight} from '../light/ILight'
 export const iObjectCommons = {
     setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions): void {
         this.dispatchEvent({bubbleToParent: true, ...options, type: 'objectUpdate', object: this}) // this sets sceneUpdate in root scene
-        if (options?.refreshUi !== false) this.refreshUi?.()
+        if (options?.refreshUi !== false && options?.last !== false) this.refreshUi?.()
         // console.log('object update')
     },
 

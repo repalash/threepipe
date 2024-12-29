@@ -36,10 +36,14 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<''> {
         super.onAdded(viewer)
 
         // todo subscribe to plugin add event if picking is not added yet.
-        this._picking = viewer.getPlugin<PickingPlugin>('Picking')
+        viewer.forPlugin(PickingPlugin, (p)=>{
+            this._picking = p
+            this._picking?.addEventListener('selectedObjectChanged', this._refreshUiConfig)
+        }, ()=>{
+            this._picking?.removeEventListener('selectedObjectChanged', this._refreshUiConfig)
+            this._picking = undefined
+        })
         this._previewGenerator = new MaterialPreviewGenerator()
-
-        this._picking?.addEventListener('selectedObjectChanged', this._refreshUiConfig)
         viewer.addEventListener('preFrame', this._refreshUi)
     }
 
@@ -256,22 +260,22 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<''> {
         this.variations.splice(this.variations.indexOf(variation), 1)
         this.refreshUi()
     }
-    addVariation(material?: IMaterial) {
-        const clone = material?.clone?.()
+    addVariation(material?: IMaterial, variationKey?: string, cloneMaterial = true) {
+        const clone = cloneMaterial && material?.clone ? material.clone() : material
         if (material && clone) {
-            let variation = this.findVariation(material.uuid)
-            if (!variation && material.name.length > 0) variation = this.findVariation(material.name)
+            let variation = this.findVariation(variationKey ?? material.uuid)
+            if (!variation && !variationKey && material.name.length > 0) variation = this.findVariation(material.name)
             if (!variation) {
-                variation = this.createVariation(material)
+                variation = this.createVariation(material, variationKey)
             }
             variation.materials.push(clone)
             this.refreshUi()
         }
     }
 
-    createVariation(material: IMaterial) {
+    createVariation(material: IMaterial, variationKey?: string) {
         this.variations.push({
-            uuid: material.name.length > 0 ? material.name : material.uuid,
+            uuid: variationKey ?? material.name.length > 0 ? material.name : material.uuid,
             title: material.name.length > 0 ? material.name : 'No Name',
             preview: 'generate:sphere',
             materials: [],

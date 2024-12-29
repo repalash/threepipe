@@ -1,5 +1,5 @@
 import {type AViewerPlugin, AViewerPluginSync} from '../../viewer/AViewerPlugin'
-import type {IViewerEvent, ThreeViewer} from '../../viewer'
+import type {ThreeViewer} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {Shader, Vector4, WebGLRenderer} from 'three'
 import {IMaterial} from '../../core'
@@ -81,21 +81,15 @@ export abstract class AScreenPassExtensionPlugin<T extends string> extends AView
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        const gbuffer = viewer.getPlugin(GBufferPlugin)
-        if (gbuffer) gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
-        else viewer.addEventListener('addPlugin', this._onPluginAdd)
+        viewer.forPlugin(GBufferPlugin, (gbuffer) => {
+            gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
+        }, (gbuffer)=>{
+            gbuffer.unregisterGBufferUpdater(this.constructor.PluginType)
+        })
         viewer.renderManager.screenPass.material.registerMaterialExtensions([this])
     }
 
-    private _onPluginAdd = (e: IViewerEvent)=>{
-        if (e.plugin?.constructor?.PluginType !== GBufferPlugin.PluginType) return
-        const gbuffer = e.plugin as GBufferPlugin
-        gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
-        this._viewer?.removeEventListener('addPlugin', this._onPluginAdd)
-    }
-
     onRemove(viewer: ThreeViewer) {
-        viewer.removeEventListener('addPlugin', this._onPluginAdd)
         viewer.getPlugin(GBufferPlugin)?.unregisterGBufferUpdater(this.constructor.PluginType)
         viewer.renderManager.screenPass.material.unregisterMaterialExtensions([this])
         super.onRemove(viewer)

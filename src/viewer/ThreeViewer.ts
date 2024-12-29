@@ -762,8 +762,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (oldType) this.plugins[oldType] = p
 
         await p.onAdded(this)
-        this.dispatchEvent({type: 'addPlugin', target: this, plugin: p})
-        this.setDirty(p)
+        this._onPluginAdd(p)
         return p
     }
 
@@ -792,8 +791,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (oldType && this.plugins[oldType]) this.console.error('Plugin type mismatch')
         if (oldType) this.plugins[oldType] = p
         p.onAdded(this)
-        this.dispatchEvent({type: 'addPlugin', target: this, plugin: p})
-        this.setDirty(p)
+        this._onPluginAdd(p)
         return p
     }
 
@@ -823,10 +821,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
         await p.onRemove(this)
-        this.dispatchEvent({type: 'removePlugin', target: this, plugin: p})
-        delete this.plugins[type]
-        if (dispose) await p.dispose() // todo await?
-        this.setDirty(p)
+        this._onPluginRemove(p, dispose)
     }
 
     /**
@@ -838,7 +833,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
         p.onRemove(this)
-        this.dispatchEvent({type: 'removePlugin', target: this, plugin: p})
+        this._onPluginRemove(p, dispose)
         delete this.plugins[type]
         if (dispose) p.dispose()
         this.setDirty(p)
@@ -988,6 +983,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         if (filter && filter.length === 0) return []
         return Object.entries(this.plugins).map(p=> {
             if (filter && !filter.includes(p[1].constructor.PluginType)) return
+            if (this.serializePluginsIgnored.includes((p[1].constructor as any).PluginType)) return
             // if (!p[1].toJSON) this.console.log(`Plugin of type ${p[0]} is not serializable`)
             return p[1].serializeWithViewer !== false ? p[1].toJSON?.(meta) : undefined
         }).filter(p=> !!p)
@@ -1005,12 +1001,13 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
                 this.console.warn('Invalid plugin to import ', p)
                 return
             }
+            if (this.serializePluginsIgnored.includes(p.type)) return
             const plugin = this.getPlugin(p.type)
             if (!plugin) {
                 // this.console.warn(`Plugin of type ${p.type} is not added, cannot deserialize`)
                 return
             }
-            plugin.fromJSON?.(p, meta)
+            plugin.fromJSON && plugin.fromJSON(p, meta)
         })
         return this
     }
@@ -1404,5 +1401,75 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     getPluginByType<T extends IViewerPlugin>(type: string): T | undefined {
         return this.plugins[type] as T | undefined
     }
+
+
+    private _onPluginAdd(p: IViewerPlugin) {
+        const ev = {type: 'addPlugin', target: this, plugin: p} as const
+        this.dispatchEvent(ev)
+        this._pluginListeners.add.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
+        this.setDirty(p)
+    }
+    private _onPluginRemove(p: IViewerPlugin, dispose = false) {
+        const ev = {type: 'removePlugin', target: this, plugin: p} as const
+        this.dispatchEvent(ev)
+        this._pluginListeners.remove.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
+        delete this.plugins[p.constructor.PluginType]
+        if (dispose) p.dispose() // todo await?
+        this.setDirty(p)
+    }
+
+    private _pluginListeners: Record<'add' | 'remove', ({p: string[], l: (event: IViewerEvent) => void})[]> = {
+        add: [],
+        remove: [],
+    }
+
+    addPluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void, ...plugins: string[]): void {
+        this._pluginListeners[type].push({p: plugins, l: listener})
+    }
+    removePluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void): void {
+        this._pluginListeners[type] = this._pluginListeners[type].filter(l=> l.l !== listener)
+    }
+
+    /**
+     * Can be used to "subscribe" to plugins.
+     * @param plugin
+     * @param mount
+     * @param unmount
+     */
+    forPlugin<T extends IViewerPlugin>(plugin: string|Class<T>, mount: (p: T) => void, unmount?: (p: T) => void): void {
+        const um = ()=>{
+            if (unmount) {
+                const lis = () => {
+                    const p1 = this.getPlugin(plugin)
+                    if (!p1) return
+                    this.removePluginListener('remove', lis)
+                    unmount(p1)
+                }
+                this.addPluginListener('remove', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType)
+            }
+        }
+
+        const p = this.getPlugin(plugin)
+        if (p) {
+            mount(p)
+            um()
+        } else {
+            const lis = () => {
+                const p1 = this.getPlugin(plugin)
+                if (!p1) return
+                this.removePluginListener('add', lis)
+                mount(p1)
+                um()
+            }
+            this.addPluginListener('add', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType)
+        }
+
+    }
+
+    /**
+     * plugins that are not serialized/deserialized with the viewer from config. useful when loading files exported from the editor, etc
+     * (runtime only, not serialized itself)
+     */
+    serializePluginsIgnored: string[] = []
 
 }

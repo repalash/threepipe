@@ -226,20 +226,25 @@ export class InteractionPromptPlugin extends AViewerPluginSync<''> {
         // }
     }
 
-    @uiButton() stopAnimation = () => {
+    @uiButton() stopAnimation = async({reset = true}: {reset?: boolean} = {}) => {
         if (!this._viewer || !this.cursorEl) return // dont check for enabled here.
         this.animationRunning = false
         this.cursorEl.style.opacity = '0'
+        if (this.currentSphericalPosition && reset) {
+            this._viewer.scene.mainCamera.position.setFromSpherical(this.currentSphericalPosition).add(this._viewer.scene.mainCamera.target)
+            this._viewer.scene.mainCamera.setDirty()
+        }
         this._viewer.scene.mainCamera.setInteractions(true, InteractionPromptPlugin.PluginType)
         // if (this.interactionsDisabled) {
         //     this._viewer.scene.mainCamera.interactionsEnabled = true
         //     this.interactionsDisabled = false
         // }
+        return this._viewer.doOnce('postFrame')
     }
 
     private _pointerDown = () => {
         if (this.isDisabled()) return
-        if (this.autoStop) this.stopAnimation()
+        if (this.autoStop) this.stopAnimation({reset: false}) // todo dont reset only on pointer drag, not down
         this.lastActionTime = now()
     }
     private _x = 0

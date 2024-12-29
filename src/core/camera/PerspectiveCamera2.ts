@@ -204,8 +204,9 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         this.getWorldPosition(this._positionWorld)
 
         iCameraCommons.setDirty.call(this, options)
-
-        this._camUi.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
+        
+        if (options?.last !== false)
+            this._camUi.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
     }
 
     /**
@@ -216,7 +217,9 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         if (this.autoAspect) {
             if (!this._canvas) console.error('cannot calculate aspect ratio without canvas/container')
             else {
-                this.aspect = this._canvas.clientWidth / this._canvas.clientHeight
+                let aspect = this._canvas.clientWidth / this._canvas.clientHeight
+                if (!isFinite(aspect)) aspect = 1
+                this.aspect = aspect
                 this.updateProjectionMatrix?.()
             }
         }
@@ -266,7 +269,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     private _initCameraControls() {
         const mode = this.controlsMode
         this._controls = this._controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
-        if (!this._controls && mode !== '') console.error('Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
+        if (!this._controls && mode !== '') console.error('PerspectiveCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
         this._controls?.addEventListener('change', this._controlsChanged)
         this._currentControlsMode = this._controls ? mode : ''
         // todo maybe set target like this:

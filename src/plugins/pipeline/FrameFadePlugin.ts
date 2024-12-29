@@ -27,6 +27,9 @@ export class FrameFadePlugin
 
     dependencies = [ProgressivePlugin]
 
+    // disables fadeOn... options but not serialized
+    isEditor = false
+
     @serialize() @uiToggle() fadeOnActiveCameraChange = true
     @serialize() @uiToggle() fadeOnMaterialUpdate = true
     @serialize() @uiToggle() fadeOnSceneUpdate = true
@@ -102,13 +105,13 @@ export class FrameFadePlugin
     }
 
     private _fadeCam = async(ev: any)=>
-        ev.frameFade !== false && this.fadeOnActiveCameraChange && this.startTransition(ev.fadeDuration || 1000)
+        ev.frameFade !== false && !this.isEditor && this.fadeOnActiveCameraChange && this.startTransition(ev.fadeDuration || 1000)
     private _fadeMat = async(ev: any)=>
-        ev.frameFade !== false && this.fadeOnMaterialUpdate && this.startTransition(ev.fadeDuration || 200)
+        ev.frameFade !== false && !this.isEditor && this.fadeOnMaterialUpdate && this.startTransition(ev.fadeDuration || 200)
     private _fadeScene = async(ev: any)=>
-        ev.frameFade !== false && this.fadeOnSceneUpdate && this.startTransition(ev.fadeDuration || 500)
+        ev.frameFade !== false && !this.isEditor && this.fadeOnSceneUpdate && this.startTransition(ev.fadeDuration || 500)
     private _fadeObjectUpdate = async(ev: any)=>
-        ev.frameFade && this.startTransition(ev.fadeDuration || 500)
+        ev.frameFade && !this.isEditor && this.startTransition(ev.fadeDuration || 500)
 
     private _onPointerMove = (ev: PointerEvent)=> {
         const canvas = this._viewer?.canvas

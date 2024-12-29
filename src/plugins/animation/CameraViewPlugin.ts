@@ -7,6 +7,7 @@ import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlide
 import {EasingFunctions, EasingFunctionType} from '../../utils'
 import {CameraView, ICamera, ICameraView, PerspectiveCamera2} from '../../core'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
+import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
@@ -257,6 +258,11 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
             return
         }
 
+        const interactionPrompt = this._viewer?.getPlugin(InteractionPromptPlugin)
+        if (interactionPrompt && interactionPrompt.animationRunning) {
+            await interactionPrompt.stopAnimation({reset: true})
+        }
+
         this._currentView = view
         this._animating = true
 
@@ -337,10 +343,11 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
 
         const cam = this._viewer.scene.mainCamera
         let cameraZ = 1
-        if (cam.isPerspectiveCamera) {
+        if (cam.isPerspectiveCamera && size.length() > 0.0001) {
+            const aspect = isFinite(cam.aspect) ? cam.aspect : 1
             // get the max side of the bounding box (fits to width OR height as needed )
-            const fov = (cam as PerspectiveCamera2).fov * (Math.PI / 180)
-            const fovh = 2 * Math.atan(Math.tan(fov / 2) * cam.aspect)
+            const fov = Math.max(1, (cam as PerspectiveCamera2).fov) * (Math.PI / 180)
+            const fovh = 2 * Math.atan(Math.tan(fov / 2) * aspect)
             const dx = size.z / 2 + Math.abs(size.x / 2 / Math.tan(fovh / 2))
             const dy = size.z / 2 + Math.abs(size.y / 2 / Math.tan(fov / 2))
             cameraZ = Math.max(dx, dy)

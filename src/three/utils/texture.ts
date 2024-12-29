@@ -5,12 +5,11 @@ import {
     FloatType,
     HalfFloatType,
     LinearSRGBColorSpace,
-    Texture,
+    Texture, TextureImageData,
     TextureDataType,
     UnsignedByteType,
     WebGLRenderer,
 } from 'three'
-import {TextureImageData} from 'three/src/textures/types'
 import {canvasFlipY, LinearToSRGB} from 'ts-browser-helpers'
 
 export function getTextureDataType(renderer?: WebGLRenderer): TextureDataType {

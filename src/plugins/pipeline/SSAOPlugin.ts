@@ -1,6 +1,6 @@
 import {Matrix4, Texture, TextureDataType, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderTarget} from 'three'
 import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
-import {type IViewerEvent, ThreeViewer} from '../../viewer'
+import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiConfig, uiFolderContainer, uiImage, uiSlider} from 'uiconfig.js'
 import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../../core'
@@ -108,22 +108,16 @@ export class SSAOPlugin
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        const gbuffer = viewer.getPlugin(GBufferPlugin)
-        if (gbuffer) gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
-        else viewer.addEventListener('addPlugin', this._onPluginAdd)
+        viewer.forPlugin(GBufferPlugin, (gbuffer) => {
+            gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
+        }, (gbuffer)=>{
+            gbuffer.unregisterGBufferUpdater(this.constructor.PluginType)
+        })
         this._gbufferUnpackExtensionChanged()
         viewer.renderManager.addEventListener('gbufferUnpackExtensionChanged', this._gbufferUnpackExtensionChanged)
     }
 
-    private _onPluginAdd = (e: IViewerEvent)=>{
-        if (e.plugin?.constructor?.PluginType !== GBufferPlugin.PluginType) return
-        const gbuffer = e.plugin as GBufferPlugin
-        gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
-        this._viewer?.removeEventListener('addPlugin', this._onPluginAdd)
-    }
-
     onRemove(viewer: ThreeViewer): void {
-        viewer.removeEventListener('addPlugin', this._onPluginAdd)
         this._disposeTarget()
         return super.onRemove(viewer)
     }
