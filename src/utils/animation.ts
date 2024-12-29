@@ -68,24 +68,30 @@ export function makeSetterFor<V>(target: any, key: string, setDirty?: ()=>void) 
         if (typeof target?.setDirty === 'function') target.setDirty()
         setDirty?.()
     }
-    if (v && typeof v.copy === 'function')
+    const isBool = typeof v === 'boolean'
+    if (v && v.isColor)
+        return (a: any) => {
+            v.set(a)
+            dirty()
+        }
+    else if (v && typeof v.copy === 'function')
         return (a: any) => {
             v.copy(a)
             dirty()
         }
     else
         return (a: V)=>{
-            target[key] = a
+            target[key] = !isBool ? a : !!a
             dirty()
         }
 }
 
-export async function animateTarget<V>(target: any, key: string, options: AnimationOptions<V>, animations?: AnimateResult[]) {
+export async function animateTarget<V>(target: any, key: string, options: AnimationOptions<V>, animations?: AnimateResult[], forceCurrent = false) {
     if (!(key in target)) {
         console.error('invalid key', key, target)
     }
     const setter = makeSetterFor(target, key)
-    const fromVal = target[key]
+    const fromVal = forceCurrent || options.from === undefined ? target[key] : options.from
     const onUpdate = (val: V)=>{
         setter(val)
         options.onUpdate && options.onUpdate(val)

@@ -173,11 +173,24 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
                 }
                 return true
             }
+            // todo: test boolean
+            if (options.from === undefined) {
+                console.warn('from is undefined', options)
+                resolve()
+                return
+            }
+            const isBool = typeof options.from === 'boolean'
+            if (isBool) {
+                options.from = options.from ? 1 : 0 as any
+                options.to = options.to ? 1 : 0 as any
+            }
             const opts: AnimationOptions<V> = {
                 driver: this.defaultDriver,
                 ...options,
+                onUpdate: !isBool ? options.onUpdate : undefined,
                 onComplete: ()=>{
                     try {
+                        if (isBool) options.onUpdate?.(options.to as any)
                         options.onComplete && options.onComplete()
                     } catch (e: any) {
                         if (!end2()) return
@@ -198,7 +211,6 @@ export class PopmotionPlugin extends AViewerPluginSync<''> {
                     resolve()
                 },
             }
-            // todo: support boolean using timeout.
             const anim = animate(opts)
             this.animations[uuid]._stop = anim.stop
             this.animations[uuid].options = opts
