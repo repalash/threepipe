@@ -9,6 +9,7 @@
         "isolatedModules": false,
         "module": "es2020",
         "noImplicitAny": true,
+        "noImplicitOverride": false,
         "declaration": false,
         "noImplicitThis": true,
         "noUnusedLocals": true,
