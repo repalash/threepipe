@@ -1,19 +1,29 @@
 {
   "name": "threepipe",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "sources": "src/index.ts",
   "browser": "dist/index.js",
+  "exports": {
+    ".": {
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.js"
+    },
+    "./dist/": {
+      "import": "./dist/",
+      "require": "./dist/"
+    }
+  },
   "type": "module",
   "scripts": {
     "compile": "rimraf lib && npm run compile:esm && npm run copy:css",
     "compile:esm": "tsc -p ./src",
     "copy:css": "copyfiles -u 1 \"src/**/*.css\" lib",
     "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
-    "new:publish": "npm run prepare && clean-package && npm publish && clean-package restore",
+    "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish && clean-package restore && git tag v$npm_package_version",
     "build": "npm run update-version && npm run compile && vite build",
     "dev": "NODE_ENV=development vite build --watch",
     "build-examples": "tsc --project examples/tsconfig.build.json",
@@ -37,13 +47,7 @@
       "devDependencies",
       "optionalDependencies",
       "//"
-    ],
-    "replace": {
-      "main": "dist/index.js",
-      "module": "dist/index.mjs",
-      "browser": "dist/index.js",
-      "types": "dist/index.d.ts"
-    }
+    ]
   },
   "files": [
     "dist",

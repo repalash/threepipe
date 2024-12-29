@@ -169,6 +169,13 @@ export class GBufferPlugin
                 this.target.texture[0].name = 'gbufferDepthNormal'
                 this.target.texture[1].name = 'gbufferFlags'
                 this.textures = this.target.texture
+
+                // todo flag buffer filtering?
+                // const flagTexture = this.flagsTexture
+                // flagTexture.generateMipmaps = false
+                // flagTexture.minFilter = NearestFilter
+                // flagTexture.magFilter = NearestFilter
+
             } else {
                 this.target.texture.name = 'gbufferDepthNormal'
                 this.textures.push(this.target.texture)

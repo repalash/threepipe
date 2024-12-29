@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-tweakpane-editor",
     "description": "Tweakpane Editor Plugin for ThreePipe",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "devDependencies": {
         "tippy.js": "^6.3.7",
         "treejs": "git://github.com/repalash/treejs.git#d303016bb74e75725d13e97291ac1d4727985918"
@@ -9,6 +9,16 @@
     "dependencies": {
         "threepipe": "file:./../../src/",
         "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
     },
     "clean-package": {
         "remove": [
@@ -34,7 +44,7 @@
     ],
     "scripts": {
         "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
-        "new:publish": "npm run prepare && clean-package && npm publish --access public && clean-package restore",
+        "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish --access public && clean-package restore && git tag v$npm_package_version",
         "prepare": "npm run build && npm run docs",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",

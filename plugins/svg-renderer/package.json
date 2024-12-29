@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-svg-renderer",
     "description": "Plugins for SVG Rendering of 3d objects for Threepipe",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "devDependencies": {
         "@svgdotjs/svg.js": "^3.2.0",
         "@svgdotjs/svg.topath.js": "^2.0.3",
@@ -15,6 +15,16 @@
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
     },
     "clean-package": {
         "remove": [
@@ -41,7 +51,7 @@
     ],
     "scripts": {
         "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
-        "new:publish": "npm run prepare && clean-package && npm publish --access public && clean-package restore",
+        "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish --access public && clean-package restore && git tag v$npm_package_version",
         "prepare": "npm run build && npm run docs",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
