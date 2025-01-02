@@ -167,8 +167,8 @@ export class InteractionPromptPlugin extends AViewerPluginSync<''> {
 
     private _mainCameraUpdate = (e: any)=>{
         if (this.isDisabled()) return
-        if (e.change === 'deserialize') {
-            this.stopAnimation()
+        if (e.change === 'deserialize' && this.animationRunning) {
+            this.stopAnimation({reset: false}) // reset is false so that the new camera position is not reset
             this.startAnimation()
         } else {
             this.lastActionTime = now()

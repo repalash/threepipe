@@ -55,7 +55,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager
-        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb * b.a, 1.);')
+        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb * b.a, 1.);', '', undefined, renderManager.maxHDRIntensity)
         this.setDirty = this.setDirty.bind(this)
     }
 

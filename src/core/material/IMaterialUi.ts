@@ -152,7 +152,19 @@ export const iMaterialUI = {
                     // hidden: ()=>!material.transparent && material.transmission < 0.001,
                     getValue: ()=>material.userData.renderToGBuffer === true,
                     setValue: (v: boolean)=>{
-                        material.userData.renderToGBuffer = v ? v : undefined
+                        if (!v && !material.userData.renderToGBuffer) return
+                        material.userData.renderToGBuffer = v
+                        material.setDirty()
+                    },
+                },
+                {
+                    type: 'checkbox',
+                    label: 'Render to Depth',
+                    hidden: ()=>material.userData.renderToDepth !== undefined,
+                    getValue: ()=>material.userData.renderToDepth === true,
+                    setValue: (v: boolean)=>{
+                        if (!v && !material.userData.renderToDepth) return
+                        material.userData.renderToDepth = v
                         material.setDirty()
                     },
                 },
@@ -219,6 +231,44 @@ export const iMaterialUI = {
                     property: [material, 'lightMap'],
                 },
                 makeSamplerUi(material, 'lightMap'),
+            ],
+        }
+    ),
+    environment: (material: IMaterial): UiObjectConfig => (
+        {
+            type: 'folder',
+            label: 'Environment',
+            children: [
+                {
+                    type: 'checkbox',
+                    label: 'Override Environment',
+                    // property: [this.userData, 'separateEnvMapIntensity'],
+                    getValue: ()=>material.userData.separateEnvMapIntensity === true,
+                    setValue: (v: boolean)=>{
+                        material.userData.separateEnvMapIntensity = v
+                        if (!v) delete material.userData.separateEnvMapIntensity
+                    },
+                    // onChange: material.setDirty,
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 20],
+                    hidden: ()=>!material.userData.separateEnvMapIntensity,
+                    label: 'Environment Intensity',
+                    property: [material, 'envMapIntensity'],
+                },
+                {
+                    type: 'dropdown',
+                    hidden: ()=>!material.userData.separateEnvMapIntensity && !material.userData.envMapSlotKey,
+                    label: 'Environment Map',
+                    children: ['', 'environment1', 'environment2'].map((i)=>({label: i || 'default', value: i})),
+                    getValue: ()=>material.userData.envMapSlotKey || '',
+                    setValue: (v: string)=>{
+                        material.userData.envMapSlotKey = v
+                        if (!v) delete material.userData.envMapSlotKey
+                        material.setDirty()
+                    },
+                },
             ],
         }
     ),

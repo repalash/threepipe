@@ -1,13 +1,14 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {IGeometry, iGeometryCommons, IMaterial, ISceneEvent, Mesh2, PhysicalMaterial, UnlitMaterial} from '../../core'
+import {IGeometry, iGeometryCommons, IMaterial, ISceneEvent, Mesh2, PhysicalMaterial} from '../../core'
 import {BufferAttribute, BufferGeometry, Euler, InterleavedBufferAttribute, PlaneGeometry, Vector3} from 'three'
 import {onChange, onChange2, serialize} from 'ts-browser-helpers'
-import {OrbitControls3} from '../../three'
+import {bindToValue, OrbitControls3} from '../../three'
 import {uiConfig, uiFolderContainer, uiNumber, uiToggle} from 'uiconfig.js'
 
 @uiFolderContainer('Ground')
 export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginSync<TEvent> {
     public static readonly PluginType: string = 'BaseGroundPlugin'
+    public static readonly OldPluginType: string = 'Ground'
 
     get enabled() {
         return this.visible
@@ -77,6 +78,7 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
 
     @serialize('material')
     @uiConfig()
+    @bindToValue({obj: 'mesh', key: 'material'})
     protected _material?: PhysicalMaterial
 
     onAdded(viewer: ThreeViewer): void {
@@ -223,7 +225,7 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
 
 
     protected _createMesh(mesh?: Mesh2<IGeometry&PlaneGeometry, IMaterial>): Mesh2<IGeometry&PlaneGeometry, IMaterial> {
-        if (!mesh) mesh = new Mesh2(this._geometry, new UnlitMaterial())
+        if (!mesh) mesh = new Mesh2(this._geometry, this._createMaterial())
         else mesh.geometry = this._geometry
         if (mesh) {
             mesh.userData.physicsMass = 0
@@ -252,6 +254,8 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         if (!material) material = new PhysicalMaterial({
             name: 'BaseGroundMaterial',
             color: 0xffffff,
+            roughness: 0.8,
+            metalness: 0.5,
         })
         material.userData.runtimeMaterial = true
         return material
@@ -261,18 +265,16 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         if (!this._viewer) return false
         if (this.isDisabled()) return false
         const mat = this._material ?? this._createMaterial()
-        const isNewMaterial = mat !== this._material
+        const isNewMaterial = this._mesh.material !== this._material
         if (isNewMaterial) { // new material
-            this._removeMaterial()
+            // this._removeMaterial()
             this._material = mat
-            const id = this._material?.uuid
-            if (!id) console.warn('No material found for ground')
+            // const id = this._material?.uuid
+            // if (!id) console.warn('No material found for ground')
             this._viewer.scene.setDirty()
-            if (this._mesh && this._material) {
-                this._material.roughness = 0.2
-                this._material.metalness = 0.5
-                this._mesh.material = this._material // for update event handlers.
-            }
+            // if (this._mesh && this._material) {
+            //     this._mesh.material = this._material // must be set even if same, for update event handlers.
+            // }
         }
         if (this._material) {
             if (this._material.userData.__renderToDepth === undefined) {

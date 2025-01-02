@@ -5,7 +5,7 @@ import {ExtendedShaderPass} from './ExtendedShaderPass'
 import {IPass} from './Pass'
 
 export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass {
-    constructor(uniforms: {[uniform: string]: IUniform}, blendFunc = 'c = a + b;', extraFrag = '', texture?: Texture) {
+    constructor(uniforms: {[uniform: string]: IUniform}, blendFunc = 'c = a + b;', extraFrag = '', texture?: Texture, maxIntensity = 120) {
         super({
             vertexShader: CopyShader.vertexShader,
             fragmentShader: `
@@ -16,7 +16,7 @@ export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass
                     vec4 b = tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) );
                     vec4 c = vec4(0);
                     ${blendFunc}
-                    c = clamp(c, vec4(0), vec4(8));
+                    c = clamp(c, vec4(0), vec4(MAX_INTENSITY));
                     gl_FragColor = c;
                     #include <encodings_fragment>
                 }
@@ -25,6 +25,9 @@ export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass
                 'tDiffuse': {value: null},
                 'tDiffuse2': {value: texture},
                 ...uniforms,
+            },
+            defines: {
+                ['MAX_INTENSITY']: maxIntensity,
             },
         }, 'tDiffuse', 'tDiffuse2')
         this.clear = false

@@ -107,7 +107,7 @@ export class ProgressivePlugin
 
     protected _createPass() {
         // this._createTarget(true)
-        const pass = new ProgressiveBlendPass(this.passId, ()=>this.target ?? this._createTarget()) // todo: disposeTarget somewhere
+        const pass = new ProgressiveBlendPass(this.passId, ()=>this.target ?? this._createTarget(), this._viewer?.renderManager.maxHDRIntensity) // todo: disposeTarget somewhere
         pass.dirty = () => (this._viewer?.renderManager.frameCount || 0) < this.maxFrameCount // todo use isConverged function
         return pass
     }
@@ -180,8 +180,8 @@ export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipeli
     after = ['render']
     required = ['render']
     dirty: ValOrFunc<boolean> = () => false
-    constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>) {
-        super()
+    constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>, maxIntensity = 120) {
+        super(undefined, maxIntensity)
     }
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
         if (!this.enabled) return

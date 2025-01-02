@@ -183,6 +183,9 @@ export interface ThreeViewerOptions {
         target?: Vector3,
 
     }
+    
+    // values above this might be clamped in post processing
+    maxHDRIntensity?: number
 
     /**
      * Options for the asset manager.
@@ -428,6 +431,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             renderScale: typeof options.renderScale === 'string' ? options.renderScale === 'auto' ?
                 Math.min(2, window.devicePixelRatio) : parseFloat(options.renderScale) :
                 options.renderScale,
+            maxHDRIntensity: options.maxHDRIntensity,
         })
         this.renderManager.addEventListener('animationLoop', this._animationLoop as any)
         this.renderManager.addEventListener('resize', ()=> this._scene.mainCamera.refreshAspect())

@@ -81,7 +81,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     @matDefineBool('CLIP_BACKGROUND_FORCE', undefined, undefined, ScreenPass.prototype.setDirty, true)
         clipBackgroundForce = false
 
-    // todo: this is not serialized anymore?
+    // todo: this is not serialized anymore? we should serialize this in some plugin...
     @matDefineBool('CLIP_BACKGROUND', undefined, undefined, ScreenPass.prototype.setDirty)
     @uiToggle() clipBackground = false
 

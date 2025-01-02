@@ -59,6 +59,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         environment: ITexture | null = null
 
     /**
+     * Extra textures/envmaps that can be used by objects/materials/plugins and will be serialized.
+     */
+    @serialize()
+    public textureSlots: Record<string, ITexture> = {}
+    /**
      * The intensity for the environment light.
      */
     @uiSlider('Environment Intensity', [0, 10], 0.01)
@@ -126,7 +131,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         iObjectCommons.upgradeObject3D.call(this, undefined, objectProcessor)
 
         // this is called from parentDispatch since scene is a parent.
-        this.addEventListener('materialUpdate', ()=>this.dispatchEvent({type: 'sceneMaterialUpdate'}))
+        this.addEventListener('materialUpdate', (e: any)=>this.dispatchEvent({...e, type: 'sceneMaterialUpdate'}))
         this.addEventListener('objectUpdate', this.refreshScene)
         this.addEventListener('geometryUpdate', this.refreshScene)
         this.addEventListener('geometryChanged', this.refreshScene)
@@ -341,11 +346,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     }
 
 
-    private _mainCameraUpdate = () => {
+    private _mainCameraUpdate = (e: any) => {
         this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
-        this.dispatchEvent({type: 'mainCameraUpdate'})
-        this.dispatchEvent({type: 'activeCameraUpdate'}) // deprecated
+        this.dispatchEvent({...e, type: 'mainCameraUpdate'})
+        this.dispatchEvent({...e, type: 'activeCameraUpdate'}) // deprecated
     }
 
     // cached values

@@ -180,6 +180,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
             iMaterialUI.blending(this),
             iMaterialUI.polygonOffset(this),
             iMaterialUI.aoLightMap(this),
+            // iMaterialUI.environment(this),
             ...iMaterialUI.misc(this),
         ],
     }

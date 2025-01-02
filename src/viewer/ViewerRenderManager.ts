@@ -1,5 +1,12 @@
 import {IRenderTarget, RenderManager} from '../rendering'
-import {HalfFloatType, LinearMipMapLinearFilter, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
+import {
+    HalfFloatType,
+    LinearFilter,
+    LinearMipMapLinearFilter,
+    NoColorSpace,
+    RGBM16ColorSpace,
+    UnsignedByteType,
+} from 'three'
 import {IRenderManagerEvent, IRenderManagerOptions, IScene} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
 import {uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
@@ -12,6 +19,7 @@ export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     depthBuffer?: boolean,
     zPrepass?: boolean,
     screenShader?: TViewerScreenShader
+    maxHDRIntensity?: number
 }
 
 @uiFolderContainer('Render Manager')
@@ -20,6 +28,7 @@ export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbu
     readonly msaa: boolean | number
     readonly depthBuffer: boolean
     readonly zPrepass: boolean
+    readonly maxHDRIntensity: number
     readonly renderPass: ExtendedRenderPass
     readonly screenPass: ScreenPass
     declare uiConfig: UiObjectConfig
@@ -32,14 +41,15 @@ export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbu
                 colorSpace: rgbm ? RGBM16ColorSpace : NoColorSpace,
                 type: rgbm ? UnsignedByteType : HalfFloatType,
                 depthBuffer: depthBuffer,
-                generateMipmaps: msaa ? true : undefined, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
-                minFilter: msaa ? LinearMipMapLinearFilter : undefined, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
+                generateMipmaps: msaa ? true : false, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
+                minFilter: msaa ? LinearMipMapLinearFilter : LinearFilter, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
             },
         })
         this.rgbm = rgbm
         this.msaa = msaa && this.isWebGL2
         this.depthBuffer = depthBuffer
         this.zPrepass = options.zPrepass || false
+        this.maxHDRIntensity = options.maxHDRIntensity ?? (rgbm ? 16 : 72)
 
         let doTransmissionFix = true // const for debugging, todo could be made into a static prop maybe?
         if (!this._renderer.userData) {

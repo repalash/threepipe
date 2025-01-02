@@ -148,7 +148,7 @@ export class FrameFadePlugin
     }
 
     protected _createPass() {
-        return new FrameFadeBlendPass(this.passId, this)
+        return new FrameFadeBlendPass(this.passId, this, this._viewer?.renderManager.maxHDRIntensity)
     }
 
     get canFrameFade() {
@@ -189,17 +189,16 @@ export class FrameFadeBlendPass extends AddBlendTexturePass implements IPipeline
     required = ['render', 'progressive']
     dirty: ValOrFunc<boolean> = () => false
 
-
     fadeTime = 0 // ms
     fadeTimeState = 0
     toSaveFrame = false
 
     private _lastTime = 0
 
-
-    constructor(public readonly passId: IPassID, public plugin: FrameFadePlugin) {
-        super()
+    constructor(public readonly passId: IPassID, public plugin: FrameFadePlugin, maxIntensity = 120) {
+        super(undefined, maxIntensity)
     }
+
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
         this.needsSwap = false
         const target = this.plugin.target

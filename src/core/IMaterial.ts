@@ -47,8 +47,17 @@ export interface IMaterialUserData extends IImportResultUserData{
      */
     renderToDepth?: boolean
 
-    // only for materials that have envMapIntensity
+    /**
+     * Flag to tell the scene to prefer `material.envMapIntensity` over `scene.envMapIntensity`
+     * only for materials that have envMapIntensity
+     */
     separateEnvMapIntensity?: boolean // default: false
+    /**
+     * The environment map to use in the `RootScene`. To use this, object with the material must be in the RootScene, and the key should exist in the `RootScene`'s `textureSlots`.
+     *
+     * only for materials that have envMap
+     */
+    envMapSlotKey?: string
 
     cloneId?: string
     cloneCount?: number

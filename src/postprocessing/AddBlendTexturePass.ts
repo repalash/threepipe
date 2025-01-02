@@ -5,7 +5,7 @@ import {IPass} from './Pass'
 import {glsl} from 'ts-browser-helpers'
 
 export class AddBlendTexturePass extends ExtendedShaderPass implements IPass {
-    constructor(texture?: Texture) {
+    constructor(texture?: Texture, maxIntensity = 120) {
         super({
             vertexShader: CopyShader.vertexShader,
             fragmentShader: glsl`
@@ -13,7 +13,7 @@ export class AddBlendTexturePass extends ExtendedShaderPass implements IPass {
                 uniform vec4 weight2;
                 varying vec2 vUv;
                 void main() {
-                    vec4 texel = clamp(weight * tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) ) + weight2 * tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) ), vec4(0), vec4(8));
+                    vec4 texel = clamp(weight * tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) ) + weight2 * tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) ), vec4(0), vec4(MAX_INTENSITY));
                     gl_FragColor = texel;
                     #include <encodings_fragment>
                 }
@@ -23,6 +23,9 @@ export class AddBlendTexturePass extends ExtendedShaderPass implements IPass {
                 'tDiffuse2': {value: texture},
                 'weight': {value: new Vector4(1, 1, 1, 1)},
                 'weight2': {value: new Vector4(1, 1, 1, 1)},
+            },
+            defines: {
+                ['MAX_INTENSITY']: maxIntensity,
             },
         }, 'tDiffuse', 'tDiffuse2')
         this.clear = false

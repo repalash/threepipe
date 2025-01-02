@@ -139,6 +139,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
             iMaterialUI.bumpNormal(this),
             iMaterialUI.emission(this),
             iMaterialUI.transmission(this),
+            iMaterialUI.environment(this),
             iMaterialUI.clearcoat(this),
             iMaterialUI.iridescence(this),
             iMaterialUI.sheen(this),
