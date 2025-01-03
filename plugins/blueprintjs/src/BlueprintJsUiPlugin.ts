@@ -10,33 +10,45 @@ import {
     IViewerPlugin,
     IViewerPluginSync,
     Texture,
-    ThreeViewer,
+    ThreeViewer, UndoManagerPlugin,
     uploadFile,
     Vector2,
     Vector3,
     Vector4,
 } from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
+import {JSUndoManager} from 'ts-browser-helpers'
 
 export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IViewerPluginSync {
     declare ['constructor']: typeof BlueprintJsUiPlugin
     static readonly PluginType = 'BlueprintJsUi'
     enabled = true
+    static CONTAINER_SLOT = 'uiconfigMainPanelSlot'
 
-    constructor(container: HTMLElement = document.body) {
-        super(container, {
+    constructor(container?: HTMLElement) {
+        super(container ?? document.getElementById(BlueprintJsUiPlugin.CONTAINER_SLOT) ?? document.body, {
             autoPostFrame: false,
         })
         this.THREE = {Color, Vector4, Vector3, Vector2, Texture} as any
     }
 
     protected _viewer?: ThreeViewer
+
+    private _lastManager?: JSUndoManager
+
     onAdded(viewer: ThreeViewer): void {
         this._viewer = viewer
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
         viewer.addEventListener('preFrame', this._preFrame)
         viewer.addEventListener('postFrame', this._postFrame)
+        const undo = viewer.getOrAddPluginSync(UndoManagerPlugin) // yes, manual dependency
+        if (undo?.undoManager) {
+            this._lastManager?.dispose()
+            this._lastManager = this.undoManager
+            this.undoManager = undo.undoManager
+            if (this._lastManager) Object.assign(this.undoManager.presets, this._lastManager.presets)
+        }
     }
     onRemove(viewer: ThreeViewer): void {
         this._viewer = undefined
@@ -44,7 +56,14 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('preFrame', this._preFrame)
         viewer.removeEventListener('postFrame', this._postFrame)
+        this.undoManager = this._lastManager
+        this._lastManager = undefined
         this.dispose()
+    }
+
+    dispose() {
+        this.undoManager?.dispose()
+        this.unmount()
     }
 
     private _plugins: IViewerPlugin[] = []

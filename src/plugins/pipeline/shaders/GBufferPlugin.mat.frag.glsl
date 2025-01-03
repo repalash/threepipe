@@ -103,7 +103,7 @@ void main() {
     #else
     float linearZ = linstep(-cameraNearFar.x, -cameraNearFar.y, -vViewPosition.z);
     #endif
-    vec2 packedZ = pack16(pow(linearZ, 0.5));
+    vec2 packedZ = pack16(pow(max(0.,linearZ), 0.5));
     vec2 packedNormal = packNormal(normal);
 
     #if IS_GLSL3 > 0
