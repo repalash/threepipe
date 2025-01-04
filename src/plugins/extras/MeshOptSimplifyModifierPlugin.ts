@@ -92,7 +92,7 @@ window.dispatchEvent(new CustomEvent('${ev}'))
         )
         console.log('srcCount', srcIndexArray.length / 3, 'destCount', dstIndexArray.length / 3)
         if (error) {
-            console.error('Simplify error', error)
+            console.warn('Simplify error', error)
             // return geometry // todo
         }
         // (geometry.index!.array as Uint32Array).set(dstIndexArray)

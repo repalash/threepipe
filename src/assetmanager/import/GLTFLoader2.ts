@@ -161,8 +161,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             }}
         }
     }
-
-
 }
 
 export interface GLTFPreparser{

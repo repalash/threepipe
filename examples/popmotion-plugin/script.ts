@@ -36,7 +36,8 @@ async function init() {
                 to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
                 duration: 500, // ms
                 onComplete: () => isMovedUp = !isMovedUp,
-            }) // setDirty is automatically called on the cube since it's the target
+                onUpdate: () => cube.setDirty(),
+            })
             btn.disabled = false
         },
         ['Rotate +90deg']: async(btn) => {

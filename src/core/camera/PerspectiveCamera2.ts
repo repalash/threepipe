@@ -215,7 +215,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      */
     refreshAspect(setDirty = true): void {
         if (this.autoAspect) {
-            if (!this._canvas) console.error('cannot calculate aspect ratio without canvas/container')
+            if (!this._canvas) console.error('PerspectiveCamera2: cannot calculate aspect ratio without canvas/container')
             else {
                 let aspect = this._canvas.clientWidth / this._canvas.clientHeight
                 if (!isFinite(aspect)) aspect = 1

@@ -239,13 +239,18 @@
             const links = document.querySelectorAll('li>a');
             let selected = document.querySelector('a.selected');
 
-            function selectTarget(target) {
+            function selectTarget(target, scroll = false) {
                 selected.classList.remove('selected');
                 target.classList.add('selected');
                 selected = target;
                 iframe.src = target.href;
                 sidebar.dataset.selectedExample = target.innerText;
                 window.location.hash = "#" + target.getAttribute("href").slice(2);
+                if(scroll){
+                    setTimeout(() => { // this is required because of autofocus
+                        target.scrollIntoView({behavior: "smooth", block: "center"});
+                    }, 100);
+                }
             }
 
             links.forEach(link => {
@@ -259,9 +264,9 @@
             const hash = window.location.hash.slice(1);
             if(hash){
                 const target = document.querySelector(`a[href="./${hash}"]`);
-                selectTarget(target || selected);
+                selectTarget(target || selected, true);
             }
-            else selectTarget(selected);
+            else selectTarget(selected, true);
 
             let urlParams = new URLSearchParams(window.location.search);
             let searchTerm = urlParams.get('q');
@@ -355,7 +360,7 @@
             <li><a href="./dropzone-plugin/">Dropzone (Drag & Drop) Plugin </a></li>
             <li><a href="./transform-controls-plugin/">Transform Controls Plugin </a></li>
             <li><a href="./editor-view-widget-plugin/">Editor View Widget Plugin </a></li>
-            <li><a href="./loading-screen-plugin/">FullScreen Plugin </a></li>
+            <li><a href="./loading-screen-plugin/">Loading Screen Plugin </a></li>
             <li><a href="./fullscreen-plugin/">FullScreen Plugin </a></li>
             <li><a href="./interaction-prompt-plugin/">Interaction Prompt Plugin </a></li>
             <li><a href="./device-orientation-controls-plugin/">Device Orientation Controls Plugin (Gyroscope) </a></li>
@@ -430,7 +435,7 @@
             <li><a href="./fragment-clipping-extension-plugin/">Fragment Clipping Extension Plugin </a></li>
             <li><a href="./noise-bump-material-plugin/">SparkleBump(NoiseBump) Material Plugin </a></li>
             <li><a href="./custom-bump-map-plugin/">Custom Bump Map Plugin </a></li>
-            <li><a href="./parallax-mapping-plugin/">Parallax Mapping Plugin </a></li>
+            <li><a href="./parallax-mapping-plugin/">Parallax(Relief) Mapping Plugin </a></li>
         </ul>
         <h2 class="category">Utils</h2>
         <ul>

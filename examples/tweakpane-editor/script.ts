@@ -148,6 +148,7 @@ async function init() {
     viewer.getPlugin(MaterialConfiguratorPlugin)!.enableEditContextMenus = true
     viewer.getPlugin(SwitchNodePlugin)!.enableEditContextMenus = true
 
+    // todo do same in blueprint editor
     // disable fading on update
     viewer.getPlugin(LoadingScreenPlugin)!.isEditor = true
     // disable fading on update
