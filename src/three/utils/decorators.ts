@@ -128,10 +128,11 @@ export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat 
  * @param obj - object to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the object/string.
  * @param key - key to bind to. If a string, it is used as a property name in `this`. If a function, it is called and the result is used as the key/string.
  * @param onChange - function to call when the value changes. If a string, it is used as a property name in `this` and called. If a function, it is called. The function is called with the following parameters: key, newVal
+ * @param onChangeParams - if true, the parameters passed to the onChange function are [key, newVal]. If false, no parameters are passed. Default = `true`
  * @param processVal - function that processes the value before setting it.
  * @param invProcessVal - function that processes the value before returning it.
  */
-export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {obj?: ValOrFunc<any>, key?: ValOrFunc<string | symbol>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any}): PropertyDecorator {
+export function bindToValue({obj, key, processVal, invProcessVal, onChange, onChangeParams = true}: {obj?: ValOrFunc<any>, key?: ValOrFunc<string | symbol>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any, onChangeParams?: boolean}): PropertyDecorator {
     const cPropKey = !!key
 
     return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
@@ -144,18 +145,20 @@ export function bindToValue({obj, key, onChange, processVal, invProcessVal}: {ob
         const prop = {
             get() {
                 const {t, p} = getTarget(this)
+                if (!t || typeof t !== 'object') return
                 let res = t[p]
                 if (invProcessVal) res = invProcessVal(res)
                 return res
             },
             set(newVal: any) {
                 const {t, p} = getTarget(this)
+                if (!t || typeof t !== 'object') return
                 if (processVal) newVal = processVal(newVal)
                 safeSetProperty(t, p, newVal, true)
                 if (newVal === undefined) delete t[p]
                 let oc = onChange
                 if (oc && (typeof oc === 'string' || typeof oc === 'symbol')) oc = this[oc] // todo just call it here directly
-                if (oc && typeof oc === 'function') FnCaller.callFunction(oc, this, [p, newVal])
+                if (oc && typeof oc === 'function') FnCaller.callFunction(oc, this, onChangeParams ? [p, newVal] : [])
             },
             // configurable: true,
             // enumerable: true,

@@ -44,7 +44,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync<''> {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
-        viewer.scene.addObject(this._widgetRoot)
+        viewer.scene.addObject(this._widgetRoot, {addToRoot: true, autoScale: false, autoCenter: false})
     }
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)

@@ -10,7 +10,7 @@ import {
 } from 'three'
 import type {IObject3D, IObjectProcessor} from '../IObject'
 import {type ICamera} from '../ICamera'
-import {Box3B} from '../../three'
+import {bindToValue, Box3B} from '../../three'
 import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {ThreeSerialization} from '../../utils'
@@ -54,21 +54,36 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     @uiSlider('Background Intensity', [0, 10], 0.01)
         backgroundIntensity = 1
 
+    /**
+     * The default environment map used when rendering materials in the scene
+     */
     @uiImage('Environment')
     @serialize() @onChange2(RootScene.prototype._onEnvironmentChange)
         environment: ITexture | null = null
 
-    /**
-     * Extra textures/envmaps that can be used by objects/materials/plugins and will be serialized.
-     */
-    @serialize()
-    public textureSlots: Record<string, ITexture> = {}
     /**
      * The intensity for the environment light.
      */
     @uiSlider('Environment Intensity', [0, 10], 0.01)
     @serialize() @onChange3(RootScene.prototype.setDirty)
         envMapIntensity = 1
+
+    /**
+     * Rotation in radians of the default environment map.
+     * Same as {@link environment}.rotation.
+     *
+     * Note - this is not serialized here, but inside the texture.
+     */
+    @uiSlider('Environment Rotation', [-Math.PI, Math.PI], 0.01)
+    @bindToValue({obj: 'environment', key: 'rotation', onChange: RootScene.prototype.setDirty, onChangeParams: false})
+        envMapRotation = 0
+
+    /**
+     * Extra textures/envmaps that can be used by objects/materials/plugins and will be serialized.
+     */
+    @serialize()
+    public textureSlots: Record<string, ITexture> = {}
+
     /**
      * Fixed direction environment reflections irrespective of camera position.
      */

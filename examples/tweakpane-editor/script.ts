@@ -125,7 +125,7 @@ async function init() {
         BlendLoadPlugin,
         HierarchyUiPlugin,
         GeometryGeneratorPlugin,
-        Object3DWidgetsPlugin,
+        new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
         GaussianSplattingPlugin,
         ContactShadowGroundPlugin,

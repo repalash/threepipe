@@ -15,16 +15,32 @@
         }
 
         :root {
-            --primary-color: #58a6ff;
+            //--primary-color: #58a6ff;
+            --primary-color: #6d7a8c;
             //--primary-color: #ccdef5;
             //--primary-color: #ec630a;
             --secondary-color: #ec630a;
             //--background-color: #1a1a1c;
-            --background-color: #1B1B1F;
+            --background-color: #E7EFF8;
+            --background-color-search: #dae1ea;
+            --background-color-search-hover: #c3d4e7;
             //--text-color: #bbb;
-            --text-color: #DFDFD6;
-            --text-color-accent: #eee;
-            --text-color-hover: #fff;
+            --text-color: #1C2026;
+            --text-color-accent: #2b313a;
+            --text-color-hover: #2b313a;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --primary-color: #b6bfcb;
+                --secondary-color: #ec630a;
+                --background-color: #1C2026;
+                --background-color-search: #3e4550;
+                --background-color-search-hover: #555e6b;
+                --text-color: #F6F7F9;
+                --text-color-accent: #d2d3d5;
+                --text-color-hover: #d2d3d5;
+            }
         }
 
         .root-container {
@@ -43,6 +59,7 @@
             font-size: 1.75rem;
             padding: 0.5rem;
             color: var(--text-color);
+            cursor: pointer;
         }
 
         .hamburger:hover {
@@ -50,7 +67,7 @@
         }
 
         .sidebar {
-            max-width: min(320px, 30%);
+            width: min(320px, 30%);
             height: 100%;
             background: var(--background-color);
             color: var(--text-color);
@@ -61,10 +78,11 @@
             flex-direction: column;
             gap: 0.5rem;
             position: relative;
+            transition: width 0s ease-in-out;
         }
 
         .sidebar h1 {
-            color: #ddd;
+            color: var(--text-color);
             font-size: 1.5rem;
             margin: 0 3rem 1rem 0;
             font-weight: normal;
@@ -72,7 +90,10 @@
         }
 
         .sidebar h1 a {
-            color: var(--secondary-color);
+            //background: linear-gradient(to right, rgb(231, 7, 7), rgb(91, 34, 203), rgb(7, 108, 211));
+            background: linear-gradient(to right, var(--secondary-color), var(--secondary-color), rgb(231, 7, 7));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-decoration: none;
         }
 
@@ -83,7 +104,7 @@
         .sidebar h2 {
             font-size: 1.2rem;
             margin: 0 0 0.5rem 0.25rem;
-            font-weight: normal;
+            font-weight: 500;
             padding: 0;
         }
 
@@ -102,7 +123,13 @@
             color: var(--primary-color);
             text-underline-offset: 0.25rem;
             text-decoration: none;
-            transition: color 0.25s ease-in-out;
+            font-weight: 500;
+            transition: color 0.3s ease-in-out, font-weight 0.3s ease-in-out, background-size 0.75s;
+            background: linear-gradient(to right, rgb(231, 7, 7), rgb(91, 34, 203), rgb(7, 108, 211));
+            background-position: 0 100%;
+            background-repeat: no-repeat;
+            background-size: 0 0;
+            padding-bottom: 2px;
         }
 
         .sidebar ul li a:hover {
@@ -112,7 +139,8 @@
         .sidebar ul li a.selected {
             color: var(--text-color-hover);
             font-weight: bold;
-            text-decoration: underline;
+            background-size: 100% 0.1em;
+            //text-decoration: underline;
         }
 
         .iframe-container {
@@ -141,6 +169,8 @@
 
         .closed.sidebar{
             padding: 1.75rem;
+            width: 3.3rem;
+            transition: width 0.3s ease-in-out;
         }
         .closed:before{
             content: attr(data-selected-example);
@@ -156,6 +186,8 @@
             line-height: 3.25rem;
             writing-mode: vertical-lr;
             text-orientation: upright;
+            text-transform: uppercase;
+            font-family: "Source Code Pro", Menlo, Courier, monospace;
         }
 
         .closed > .search-bar {
@@ -172,29 +204,29 @@
             box-sizing: border-box;
             width: 100%;
             padding: 0.5rem;
-            color: var(--text-color);
-            background: #1e1e20;
+            color: var(--text-color-accent);
+            background: var(--background-color-search);
             border: none;
             border-radius: 4px;
             transition: all 0.3s ease-in-out;
         }
         .search-bar input:hover {
-            background: #2a2a2c;
+            background: var(--background-color-search-hover);
         }
         .search-bar input:focus {
-            background: #2a2a2c;
+            background: var(--background-color-search-hover);
             color: var(--text-color-hover);
             outline: none;
         }
         .search-bar input::placeholder {
-            color: #888;
+            color: var(--primary-color);
         }
         .search-icon {
             position: absolute;
             top: 50%;
             left: 10px;
             transform: translateY(-50%);
-            color: #888;
+            color: var(--primary-color);
             width: 15px;
             height: 15px;
         }
@@ -208,7 +240,7 @@
                 flex-direction: column;
             }
             .sidebar{
-                max-width: 100%;
+                width: 100%;
                 height: auto;
                 max-height: 50%;
                 padding: 1rem;

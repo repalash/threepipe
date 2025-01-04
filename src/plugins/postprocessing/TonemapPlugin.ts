@@ -48,7 +48,10 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
         ['TONEMAP_BACKGROUND']: '1',
     } as const
 
-    @serialize() @uiToggle('Enabled') enabled = true
+    @serialize()
+    @onChange(TonemapPlugin.prototype.setDirty)
+    @uiToggle('Enabled')
+        enabled = true
 
     @uiDropdown('Mode', ([
         ['Linear', LinearToneMapping],

@@ -1,12 +1,21 @@
-import {_testFinish, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, AssetExporterPlugin, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
-const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
+const viewer = new ThreeViewer({
+    canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+    dropzone: {
+        addOptions: {
+            disposeSceneObjects: true,
+        },
+    },
+    msaa: true,
+})
 
 async function init() {
 
     viewer.addPluginSync(LoadingScreenPlugin)
+    viewer.addPluginSync(AssetExporterPlugin)
     viewer.addPluginSync(GLTFDracoExportPlugin)
 
     // Note: see asset-exporter-plugin example as well
