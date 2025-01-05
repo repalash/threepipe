@@ -26,6 +26,7 @@ function ThreeViewerComponent({src, env}: {src: string, env: string}) {
         }
     }, [])
     return (
+        // @ts-expect-error react ts error
         <canvas id="three-canvas" style={{width: 800, height: 600}} ref={canvasRef} />
     )
 }

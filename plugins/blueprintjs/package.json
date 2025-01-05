@@ -1,9 +1,9 @@
 {
     "name": "@threepipe/plugin-blueprintjs",
     "description": "Blueprint.js UI Plugin for ThreePipe",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "devDependencies": {
-        "uiconfig-blueprint": "^0.0.3"
+        "uiconfig-blueprint": "0.1.0-dev.4"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
@@ -63,7 +63,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.18"
+                "threepipe": "^0.0.34"
             }
         }
     },
@@ -72,7 +72,7 @@
             "uiconfig-blueprint": "^0.0.3"
         },
         "local_dependencies": {
-            "uiconfig-blueprint": "^file:./../uiconfig-blueprint"
+            "uiconfig-blueprint": "file:./../../../uiconfig-blueprint"
         }
     }
 }

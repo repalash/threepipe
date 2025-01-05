@@ -14,10 +14,8 @@ import {
     uploadFile,
     Vector2,
     Vector3,
-    Vector4,
+    Vector4, UiObjectConfig,
 } from 'threepipe'
-import {UiObjectConfig} from 'uiconfig.js'
-import {JSUndoManager} from 'ts-browser-helpers'
 
 export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IViewerPluginSync {
     declare ['constructor']: typeof BlueprintJsUiPlugin
@@ -34,7 +32,7 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
 
     protected _viewer?: ThreeViewer
 
-    private _lastManager?: JSUndoManager
+    private _lastManager?: UndoManagerPlugin['undoManager']
 
     onAdded(viewer: ThreeViewer): void {
         this._viewer = viewer

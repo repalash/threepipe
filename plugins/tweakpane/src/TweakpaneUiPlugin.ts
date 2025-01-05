@@ -23,7 +23,6 @@ import {
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
-import {JSUndoManager} from 'ts-browser-helpers'
 
 @uiFolderContainer('Tweakpane UI')
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
@@ -49,7 +48,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
 
     protected _viewer?: ThreeViewer
 
-    private _lastManager?: JSUndoManager
+    private _lastManager?: UndoManagerPlugin['undoManager']
 
     onAdded(viewer: ThreeViewer): void {
         this._viewer = viewer
