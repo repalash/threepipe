@@ -4,6 +4,8 @@ export type {AnyFunction, AnyOptions, Class, IDisposable, IJSONSerializable, Par
 export type {Serializer} from 'ts-browser-helpers'
 
 export {PointerDragHelper} from 'ts-browser-helpers'
+export {JSUndoManager} from 'ts-browser-helpers'
+export type {JSUndoManagerCommand2, JSUndoManagerCommand, JSUndoManagerOptions, JSUndoManagerCommand1} from 'ts-browser-helpers'
 export {Damper} from 'ts-browser-helpers'
 export {SimpleEventDispatcher} from 'ts-browser-helpers'
 

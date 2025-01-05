@@ -1,4 +1,5 @@
 import {
+    BufferGeometry,
     Color,
     EquirectangularReflectionMapping,
     EventListener,
@@ -10,7 +11,7 @@ import {
 } from 'three'
 import type {IObject3D, IObjectProcessor} from '../IObject'
 import {type ICamera} from '../ICamera'
-import {bindToValue, Box3B} from '../../three'
+import {autoGPUInstanceMeshes, bindToValue, Box3B} from '../../three'
 import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {ThreeSerialization} from '../../utils'
@@ -282,7 +283,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty({refreshScene: true})
     }
 
-    @uiButton(undefined, {sendArgs: false})
+    @uiButton('Center All Geometries', {sendArgs: false})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         const geoms = new Set<IGeometry>()
         ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
@@ -448,6 +449,13 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
             if (ignoreWidgets && o.assetType === 'widget') return true
             return ignoreObject?.(o) ?? false
         })
+    }
+
+    @uiButton('Auto GPU Instance Meshes')
+    autoGPUInstanceMeshes() {
+        const geoms = new Set<BufferGeometry>()
+        this.modelRoot.traverse((o) => o.geometry && geoms.add(o.geometry))
+        geoms.forEach((g: any) => autoGPUInstanceMeshes(g))
     }
 
     private _v1 = new Vector3()

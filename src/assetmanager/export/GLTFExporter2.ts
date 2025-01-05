@@ -14,6 +14,7 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
+import {GLTFMeshGpuInstancingExporter} from '../../three/utils/gpu-instancing'
 
 export interface GLTFExporter2Options {
     /**
@@ -201,6 +202,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
         GLTFMaterialsDisplacementMapExtension.Export,
         GLTFMaterialsLightMapExtension.Export,
         GLTFMaterialsAlphaMapExtension.Export,
+        (w)=>new GLTFMeshGpuInstancingExporter(w),
     ]
 
     setup(viewer: ThreeViewer, extraExtensions?: ((parser: GLTFWriter2) => GLTFExporterPlugin)[]): this {

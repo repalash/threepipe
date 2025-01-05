@@ -10,13 +10,14 @@ import {
     NormalBlending,
     NoToneMapping,
     PCFShadowMap,
+    ShadowMapType,
     Texture,
     Vector2,
     Vector4,
     WebGLMultipleRenderTargets,
     WebGLRenderer,
     WebGLRenderTarget,
-    WebGLRenderTargetOptions,
+    WebGLRenderTargetOptions, WebGLShadowMap,
 } from 'three'
 import {EffectComposer2, IPassID, IPipelinePass, sortPasses} from '../postprocessing'
 import {IRenderTarget} from './RenderTarget'
@@ -42,8 +43,8 @@ import {
     serialize,
     ValOrArr,
 } from 'ts-browser-helpers'
-import {uiButton, uiConfig, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
-import {generateUUID, textureDataToImageData} from '../three'
+import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
+import {bindToValue, generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
 import {RendererBlitOptions} from '../core/IRenderer'
 
@@ -66,6 +67,19 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
             this._renderScale = value
             this.setSize(undefined, undefined, true)
         }
+    }
+
+    @serialize()
+    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})))
+    @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged})
+        shadowMapType: ShadowMapType
+
+    @bindToValue({obj: 'renderer', key: 'shadowMap'})
+        shadowMap: WebGLShadowMap
+
+    private _shadowMapTypeChanged() {
+        this.resetShadows()
+        this.reset()
     }
 
     @uiConfig(undefined, {label: 'Passes'})
