@@ -38,12 +38,28 @@ export class Rhino3dmLoadPlugin extends BaseImporterPlugin implements IUiConfigC
      */
     @onChange(Rhino3dmLoadPlugin.prototype._refresh) @uiToggle()
         hideLineMesh = false
+    /**
+     * Hide all points in the file
+     */
+    @onChange(Rhino3dmLoadPlugin.prototype._refresh)
+    @uiToggle()
+        hidePointMesh = true
+
+    /**
+     * Remove strings from userData
+     */
+    @onChange(Rhino3dmLoadPlugin.prototype._refresh)
+    @uiToggle()
+        loadUserDataStrings = true
 
     protected _refresh() {
         Rhino3dmLoader2.ImportMaterials = this.importMaterials
         Rhino3dmLoader2.ForceLayerMaterials = this.forceLayerMaterials
         Rhino3dmLoader2.ReplaceWithInstancedMesh = this.replaceWithInstancedMesh
         Rhino3dmLoader2.HideLineMesh = this.hideLineMesh
+        Rhino3dmLoader2.HidePointMesh = this.hidePointMesh
+        Rhino3dmLoader2.LoadUserDataStrings = this.loadUserDataStrings
+        Rhino3dmLoader2.LoadUserDataWarnings = false
     }
 
     onAdded(viewer: ThreeViewer) {

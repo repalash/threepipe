@@ -24,6 +24,9 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
     public static ForceLayerMaterials = false
     public static ReplaceWithInstancedMesh = false
     public static HideLineMesh = false
+    public static HidePointMesh = false
+    public static LoadUserDataStrings = true
+    public static LoadUserDataWarnings = true
 
     materials: Material[] = []
 
@@ -57,8 +60,11 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
             if (layer) obj.userData.rhinoLayer = layer
             obj.userData.rhino3dmRoot = ret.uuid
 
-            // console.log(obj.userData.attributes)
-            // instancing
+            if (!Rhino3dmLoader2.LoadUserDataStrings)
+                obj.userData.strings = []
+            if (!Rhino3dmLoader2.LoadUserDataWarnings)
+                delete obj.userData.warnings
+
             this._hideLineMesh(obj)
             this._useInstancedMesh(obj)
             this._useMaterialSource(obj, layer)
@@ -126,15 +132,15 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
     }
 
     private _hideLineMesh(obj: Object3D) {
-        if (!Rhino3dmLoader2.HideLineMesh) return
+        if (!Rhino3dmLoader2.HideLineMesh && !Rhino3dmLoader2.HidePointMesh) return
         if (obj.children.length <= 0) return
         const toHide: any[] = []
         obj.traverse((c) => {
             if (c && (
-                (c as Line).isLine ||
-                (c as LineSegments).isLineSegments ||
-                (c as Points).isPoints
-            )) toHide.push(c)
+                Rhino3dmLoader2.HideLineMesh && ((c as Line).isLine || (c as LineSegments).isLineSegments))
+                ||
+                Rhino3dmLoader2.HidePointMesh && (c as Points).isPoints
+            ) toHide.push(c)
         })
         toHide.forEach((c) => {
             c.userData.visible_3dm = c.visible

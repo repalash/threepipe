@@ -1,7 +1,7 @@
 import Stats from 'stats.js'
 
 export class GLStatsJS {
-    protected _stats: Stats = new Stats()
+    protected _stats: any = new Stats()
     protected _container: HTMLElement
 
     constructor(container: HTMLElement) {
