@@ -26,7 +26,7 @@ export default defineConfig({
           {text: 'Features', link: 'guide/features'},
           {text: 'Viewer API', link: 'guide/viewer-api'},
           {text: 'Core Plugins', link: 'guide/core-plugins'},
-          {text: '@threepipe Packages', link: 'guide/threepipe-package'},
+          {text: '@threepipe Packages', link: 'guide/threepipe-packages'},
         ]
       },
       {

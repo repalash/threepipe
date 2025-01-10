@@ -37,106 +37,6 @@ View the source code by pressing the code button on the top left of the example 
 
 To make changes and run the example, click on the CodePen button on the top right of the source code.
 
-## Table of Contents
-
-- [ThreePipe](#threepipe)
-  - [Examples](https://threepipe.org/examples/)
-  - [Table of Contents](#table-of-contents)
-  - [Getting Started](#getting-started)
-    - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
-    - [React](#react)
-    - [Vue.js](#vuejs)
-    - [Svelte](#svelte)
-    - [NPM/YARN Package](#npmyarn)
-      - [Installation](#installation)
-      - [Loading a 3D Model](#loading-a-3d-model)
-  - [License](#license)
-  - [Status](#status)
-  - [Documentation (API Reference)](#documentation)
-  - [WebGi](#webgi)
-  - [Contributing](#contributing)
-- [Features](#features)
-  - [File Formats](#file-formats)
-  - [Loading files](#loading-files)
-  - [Exporting files](#exporting-files)
-  - [Render Pipeline](#render-pipeline)
-  - [Material Extension](#material-extension)
-  - [UI Configuration](#ui-configuration)
-  - [Serialization](#serialization)
-  - [Plugin System](#plugin-system)
-- [Viewer API](#viewer-api)
-  - [ThreeViewer](#threeviewer)
-  - [RenderManager](#rendermanager)
-  - [RootScene](#rootscene)
-  - [ICamera](#icamera)
-  - [AssetManager](#assetmanager)
-    - [AssetImporter](#assetimporter)
-    - [AssetExporter](#assetexporter)
-    - [MaterialManager](#materialmanager)
-  - [Other classes and interfaces](#other-classes-and-interfaces)
-- [Plugins](#threepipe-plugins)
-  - [TonemapPlugin](#tonemapplugin) - Add tonemap to the final screen pass
-  - [DropzonePlugin](#dropzoneplugin) - Drag and drop local files to import and load
-  - [ProgressivePlugin](#progressiveplugin) - Post-render pass to blend the last frame with the current frame
-  - [SSAAPlugin](#ssaaplugin) - Add Super Sample Anti-Aliasing by applying jitter to the camera.
-  - [DepthBufferPlugin](#depthbufferplugin) - Pre-rendering of depth buffer
-  - [NormalBufferPlugin](#normalbufferplugin) - Pre-rendering of normal buffer
-  - [GBufferPlugin](#gbufferplugin) - Pre-rendering of depth-normal and flags buffers in a single pass
-  - [SSAOPlugin](#ssaoplugin) - Add SSAO(Screen Space Ambient Occlusion) for physical materials.
-  - [CanvasSnapshotPlugin](#canvassnapshotplugin) - Add support for taking snapshots of the canvas
-  - [PickingPlugin](#pickingplugin) - Adds support for selecting objects in the viewer with user interactions and selection widgets
-  - [AssetExporterPlugin](#assetexporterplugin) - Provides options and methods to export the scene, object GLB or Viewer Configuration.
-  - [LoadingScreenPlugin](#loadingscreenplugin) - Shows a configurable loading screen overlay over the canvas.
-  - [FullScreenPlugin](#fullscreenplugin) - Adds support for moving the canvas or the container fullscreen mode in browsers
-  - [InteractionPromptPlugin](#interactionpromptplugin) - Adds an animated hand icon over canvas to prompt the user to interact
-  - [TransformControlsPlugin](#transformcontrolsplugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
-  - [ContactShadowGroundPlugin](#contactshadowgroundplugin) - Adds a ground plane at runtime with contact shadows
-  - [GLTFAnimationPlugin](#gltfanimationplugin) - Add support for playing and seeking gltf animations
-  - [PopmotionPlugin](#popmotionplugin) - Integrates with popmotion.io library for animation/tweening
-  - [CameraViewPlugin](#cameraviewplugin) - Add support for saving, loading, animating, looping between camera views
-  - [TransformAnimationPlugin](#transformanimationplugin) - Add support for saving, loading, animating, between object transforms
-  - [RenderTargetPreviewPlugin](#rendertargetpreviewplugin) - Preview any render target in a UI panel over the canvas
-  - [GeometryUVPreviewPlugin](#geometryuvpreviewplugin) - Preview UVs of any geometry in a UI panel over the canvas
-  - [FrameFadePlugin](#framefadeplugin) - Post-render pass to smoothly fade to a new rendered frame over time
-  - [VignettePlugin](#vignetteplugin) - Add Vignette effect  by patching the final screen pass
-  - [ChromaticAberrationPlugin](#chromaticaberrationplugin) - Add Chromatic Aberration effect  by patching the final screen pass
-  - [FilmicGrainPlugin](#filmicgrainplugin) - Add Filmic Grain effect  by patching the final screen pass
-  - [NoiseBumpMaterialPlugin](#noisebumpmaterialplugin) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
-  - [CustomBumpMapPlugin](#custombumpmapplugin) - Custom Bump Map material extension for PhysicalMaterial
-  - [ClearcoatTintPlugin](#clearcoattintplugin) - Clearcoat Tint material extension for PhysicalMaterial
-  - [FragmentClippingExtensionPlugin](#fragmentclippingextensionplugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
-  - [ParallaxMappingPlugin](#parallaxmappingplugin) - Relief Parallax Bump Mapping extension for PhysicalMaterial
-  - [HDRiGroundPlugin](#hdrigroundplugin) - Add support for ground projected hdri/skybox to the webgl background shader.
-  - [VirtualCamerasPlugin](#virtualcamerasplugin) - Add support for rendering virtual cameras before the main one every frame.
-  - [EditorViewWidgetPlugin](#editorviewwidgetplugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
-  - [Object3DWidgetsPlugin](#object3dwidgetsplugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
-  - [Object3DGeneratorPlugin](#object3dwidgetsplugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
-  - [DeviceOrientationControlsPlugin](#deviceorientationcontrolsplugin) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
-  - [PointerLockControlsPlugin](#pointerlockcontrolsplugin) - Adds a controlsMode to the mainCamera for pointer lock controls.
-  - [ThreeFirstPersonControlsPlugin](#threefirstpersoncontrolsplugin) - Adds a controlsMode to the mainCamera for first person controls from threejs.
-  - [GLTFKHRMaterialVariantsPlugin](#gltfkhrmaterialvariantsplugin) - Support using for variants from KHR_materials_variants extension in gltf models.
-  - [Rhino3dmLoadPlugin](#rhino3dmloadplugin) - Add support for loading .3dm files
-  - [PLYLoadPlugin](#plyloadplugin) - Add support for loading .ply files
-  - [STLLoadPlugin](#stlloadplugin) - Add support for loading .stl files
-  - [KTX2LoadPlugin](#ktx2loadplugin) - Add support for loading .ktx2 files
-  - [KTXLoadPlugin](#ktxloadplugin) - Add support for loading .ktx files
-  - [USDZLoadPlugin](#usdzloadplugin) - Add support for loading .usdz files
-  - [GLTFMeshOptDecodePlugin](#gltfmeshoptdecodeplugin) - Decode gltf files with EXT_meshopt_compression extension.
-  - [SimplifyModifierPlugin](#simplifymodifierplugin) - Boilerplate for plugin to simplify geometries
-  - [MeshOptSimplifyModifierPlugin](#meshoptsimplifymodifierplugin) - Simplify geometries using meshoptimizer library
-- [Packages](#threepipe-packages)
-  - [@threepipe/plugin-tweakpane](#threepipeplugin-tweakpane) Tweakpane UI Plugin
-  - [@threepipe/plugin-blueprintjs](#threepipeplugin-blueprintjs) BlueprintJs UI Plugin
-  - [@threepipe/plugin-tweakpane-editor](#threepipeplugin-tweakpane-editor) - Tweakpane Editor Plugin
-  - [@threepipe/plugin-configurator](#threepipeplugin-configurator) - Provides Material Configurator and Switch Node Plugin to allow users to select variations 
-  - [@threepipe/plugin-gltf-transform](#threepipeplugin-gltf-transform) - Plugin to transform gltf models (draco compression)
-  - [@threepipe/plugins-extra-importers](#threepipeplugins-extra-importers) - Plugin for loading more file types supported by loaders in three.js
-  - [@threepipe/plugin-blend-importer](#threepipeplugin-blend-importer) - Blender to add support for loading .blend file
-  - [@threepipe/plugin-geometry-generator](#threepipeplugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
-  - [@threepipe/plugin-gaussian-splatting](#threepipeplugin-gaussian-splatting) - Gaussian Splatting plugin for loading and rendering splat files
-  - [@threepipe/plugin-network](#threepipeplugin-network) - Network/Cloud related plugin implementations for Threepipe.
-  - [@threepipe/plugin-svg-renderer](#threepipeplugin-svg-renderer) - Add support for exporting 3d scene as SVG.
-
 ## Getting Started
 
 ### HTML/JS Quickstart (CDN)
@@ -166,7 +66,7 @@ To make changes and run the example, click on the CodePen button on the top righ
 ```
 Check it in action: https://threepipe.org/examples/#html-js-sample/
 
-Check out the details about the [ThreeViewer API](#viewer-api) and more [plugins](#threepipe-plugins) below.
+Check out the details about the [ThreeViewer API](https://threepipe.org/guide/viewer-api.html) and more [plugins](https://threepipe.org/guide/core-plugins.html).
 
 ### React
 
@@ -302,7 +202,7 @@ The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), se
 
 Check out the GLTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#gltf-load/
 
-Check out the [Plugins](#plugin-system) section below to learn how to add additional functionality to the viewer.
+Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system) section to learn how to add additional functionality to the viewer.
 
 ## License
 The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the Free [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE).
@@ -312,7 +212,106 @@ Some plugins(in the [plugins](https://github.com/repalash/threepipe/tree/master/
 ## Status
 The project is in `alpha` stage and under active development. Many features will be added but the core API will not change significantly in future releases.
 
-Check out [WebGi](https://webgi.xyz/) for an advanced tailor-made solution for e-commerce, jewelry, automobile, apparel, furniture etc.
+Check out [WebGi](https://webgi.xyz/docs) for an advanced tailor-made solution for e-commerce, jewelry, automobile, apparel, furniture etc.
+
+## Table of Contents
+
+- [ThreePipe](#threepipe)
+  - [Examples](https://threepipe.org/examples/)
+  - [Table of Contents](#table-of-contents)
+  - [Getting Started](#getting-started)
+    - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
+    - [React](#react)
+    - [Vue.js](#vuejs)
+    - [Svelte](#svelte)
+    - [NPM/YARN Package](#npmyarn)
+      - [Installation](#installation)
+      - [Loading a 3D Model](#loading-a-3d-model)
+  - [License](#license)
+  - [Status](#status)
+  - [Documentation (API Reference)](#documentation)
+  - [Contributing](#contributing)
+- [Features](https://threepipe.org/guide/features.html)
+  - [File Formats](https://threepipe.org/guide/features.html#file-formats)
+  - [Loading files](https://threepipe.org/guide/features.html#loading-files)
+  - [Exporting files](https://threepipe.org/guide/features.html#exporting-files)
+  - [Render Pipeline](https://threepipe.org/guide/features.html#render-pipeline)
+  - [Material Extension](https://threepipe.org/guide/features.html#material-extension)
+  - [UI Configuration](https://threepipe.org/guide/features.html#ui-configuration)
+  - [Serialization](https://threepipe.org/guide/features.html#serialization)
+  - [Plugin System](https://threepipe.org/guide/features.html#plugin-system)
+- [Viewer API](https://threepipe.org/guide/viewer-api.html#viewer-api)
+  - [ThreeViewer](https://threepipe.org/guide/viewer-api.html#threeviewer)
+  - [RenderManager](https://threepipe.org/guide/viewer-api.html#rendermanager)
+  - [RootScene](https://threepipe.org/guide/viewer-api.html#rootscene)
+  - [ICamera](https://threepipe.org/guide/viewer-api.html#icamera)
+  - [AssetManager](https://threepipe.org/guide/viewer-api.html#assetmanager)
+    - [AssetImporter](https://threepipe.org/guide/viewer-api.html#assetimporter)
+    - [AssetExporter](https://threepipe.org/guide/viewer-api.html#assetexporter)
+    - [MaterialManager](https://threepipe.org/guide/viewer-api.html#materialmanager)
+  - [Other classes and interfaces](https://threepipe.org/guide/viewer-api.html#other-classes-and-interfaces)
+- [Plugins](https://threepipe.org/guide/core-plugins.html#threepipe-plugins)
+  - [TonemapPlugin](https://threepipe.org/plugin/TonemapPlugin.html) - Add tonemap to the final screen pass
+  - [DropzonePlugin](https://threepipe.org/plugin/DropzonePlugin.html - Drag and drop local files to import and load
+  - [ProgressivePlugin](https://threepipe.org/plugin/ProgressivePlugin.html) - Post-render pass to blend the last frame with the current frame
+  - [SSAAPlugin](https://threepipe.org/plugin/SSAAPlugin.html) - Add Super Sample Anti-Aliasing by applying jitter to the camera.
+  - [DepthBufferPlugin](https://threepipe.org/plugin/DepthBufferPlugin.html) - Pre-rendering of depth buffer
+  - [NormalBufferPlugin](https://threepipe.org/plugin/NormalBufferPlugin.html) - Pre-rendering of normal buffer
+  - [GBufferPlugin](https://threepipe.org/plugin/GBufferPlugin.html) - Pre-rendering of depth-normal and flags buffers in a single pass
+  - [SSAOPlugin](https://threepipe.org/plugin/SSAOPlugin.html) - Add SSAO(Screen Space Ambient Occlusion) for physical materials.
+  - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas
+  - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene, object GLB or Viewer Configuration.
+  - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas.
+  - [FullScreenPlugin](https://threepipe.org/plugin/FullScreenPlugin.html) - Adds support for moving the canvas or the container fullscreen mode in browsers
+  - [InteractionPromptPlugin](https://threepipe.org/plugin/InteractionPromptPlugin.html) - Adds an animated hand icon over canvas to prompt the user to interact
+  - [TransformControlsPlugin](https://threepipe.org/plugin/TransformControlsPlugin.html) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
+  - [ContactShadowGroundPlugin](https://threepipe.org/plugin/ContactShadowGroundPlugin.html) - Adds a ground plane at runtime with contact shadows
+  - [GLTFAnimationPlugin](https://threepipe.org/plugin/GLTFAnimationPlugin.html) - Add support for playing and seeking gltf animations
+  - [PopmotionPlugin](https://threepipe.org/plugin/PopmotionPlugin.html) - Integrates with popmotion.io library for animation/tweening
+  - [CameraViewPlugin](https://threepipe.org/plugin/CameraViewPlugin.html) - Add support for saving, loading, animating, looping between camera views
+  - [TransformAnimationPlugin](https://threepipe.org/plugin/TransformAnimationPlugin.html) - Add support for saving, loading, animating, between object transforms
+  - [RenderTargetPreviewPlugin](https://threepipe.org/plugin/RenderTargetPreviewPlugin.html) - Preview any render target in a UI panel over the canvas
+  - [GeometryUVPreviewPlugin](https://threepipe.org/plugin/GeometryUVPreviewPlugin.html) - Preview UVs of any geometry in a UI panel over the canvas
+  - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
+  - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add Chromatic Aberration effect  by patching the final screen pass
+  - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add Filmic Grain effect  by patching the final screen pass
+  - [NoiseBumpMaterialPlugin](https://threepipe.org/plugin/NoiseBumpMaterialPlugin.html) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
+  - [CustomBumpMapPlugin](https://threepipe.org/plugin/CustomBumpMapPlugin.html) - Custom Bump Map material extension for PhysicalMaterial
+  - [ClearcoatTintPlugin](https://threepipe.org/plugin/ClearcoatTintPlugin.html) - Clearcoat Tint material extension for PhysicalMaterial
+  - [FragmentClippingExtensionPlugin](https://threepipe.org/plugin/FragmentClippingExtensionPlugin.html) - Fragment/SDF Clipping material extension for PhysicalMaterial
+  - [ParallaxMappingPlugin](https://threepipe.org/plugin/ParallaxMappingPlugin.html) - Relief Parallax Bump Mapping extension for PhysicalMaterial
+  - [HDRiGroundPlugin](https://threepipe.org/plugin/HDRiGroundPlugin.html) - Add support for ground projected hdri/skybox to the webgl background shader.
+  - [VirtualCamerasPlugin](https://threepipe.org/plugin/VirtualCamerasPlugin.html) - Add support for rendering virtual cameras before the main one every frame.
+  - [EditorViewWidgetPlugin](https://threepipe.org/plugin/EditorViewWidgetPlugin.html) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
+  - [Object3DWidgetsPlugin](https://threepipe.org/plugin/Object3DWidgetsPlugin.html) - Automatically create light and camera helpers/gizmos when they are added to the scene.
+  - [Object3DGeneratorPlugin](https://threepipe.org/plugin/Object3DGeneratorPlugin.html) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
+  - [DeviceOrientationControlsPlugin](https://threepipe.org/plugin/DeviceOrientationControlsPlugin.html) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
+  - [PointerLockControlsPlugin](https://threepipe.org/plugin/PointerLockControlsPlugin.html) - Adds a controlsMode to the mainCamera for pointer lock controls.
+  - [ThreeFirstPersonControlsPlugin](https://threepipe.org/plugin/ThreeFirstPersonControlsPlugin.html) - Adds a controlsMode to the mainCamera for first person controls from threejs.
+  - [GLTFKHRMaterialVariantsPlugin](https://threepipe.org/plugin/GLTFKHRMaterialVariantsPlugin.html) - Support using for variants from KHR_materials_variants extension in gltf models.
+  - [Rhino3dmLoadPlugin](https://threepipe.org/plugin/Rhino3dmLoadPlugin.html) - Add support for loading .3dm files
+  - [PLYLoadPlugin](https://threepipe.org/plugin/PLYLoadPlugin.html) - Add support for loading .ply files
+  - [STLLoadPlugin](https://threepipe.org/plugin/STLLoadPlugin.html) - Add support for loading .stl files
+  - [KTX2LoadPlugin](https://threepipe.org/plugin/KTX2LoadPlugin.html) - Add support for loading .ktx2 files
+  - [KTXLoadPlugin](https://threepipe.org/plugin/KTXLoadPlugin.html) - Add support for loading .ktx files
+  - [USDZLoadPlugin](https://threepipe.org/plugin/USDZLoadPlugin.html) - Add support for loading .usdz files
+  - [GLTFMeshOptDecodePlugin](https://threepipe.org/plugin/GLTFMeshOptDecodePlugin.html) - Decode gltf files with EXT_meshopt_compression extension.
+  - [SimplifyModifierPlugin](https://threepipe.org/plugin/SimplifyModifierPlugin.html) - Boilerplate for plugin to simplify geometries
+  - [MeshOptSimplifyModifierPlugin](https://threepipe.org/plugin/MeshOptSimplifyModifierPlugin.html) - Simplify geometries using meshoptimizer library
+- [Packages](https://threepipe.org/guide/threepipe-packages.html)
+  - [@threepipe/plugin-tweakpane](https://threepipe.org/package/plugin-tweakpane.html) Tweakpane UI Plugin
+  - [@threepipe/plugin-blueprintjs](https://threepipe.org/package/plugin-blueprintjs.html) BlueprintJs UI Plugin
+  - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Tweakpane Editor Plugin
+  - [@threepipe/plugin-configurator](https://threepipe.org/package/plugin-configurator.html) - Provides Material Configurator and Switch Node Plugin to allow users to select variations
+  - [@threepipe/plugin-gltf-transform](https://threepipe.org/package/plugin-gltf-transform.html) - Plugin to transform gltf models (draco compression)
+  - [@threepipe/plugins-extra-importers](https://threepipe.org/package/plugins-extra-importers.html) - Plugin for loading more file types supported by loaders in three.js
+  - [@threepipe/plugin-blend-importer](https://threepipe.org/package/plugin-blend-importer.html) - Blender to add support for loading .blend file
+  - [@threepipe/plugin-geometry-generator](https://threepipe.org/package/plugin-geometry-generator.html) - Generate parametric geometry types that can be re-generated from UI/API.
+  - [@threepipe/plugin-gaussian-splatting](https://threepipe.org/package/plugin-gaussian-splatting.html) - Gaussian Splatting plugin for loading and rendering splat files
+  - [@threepipe/plugin-network](https://threepipe.org/package/plugin-network.html) - Network/Cloud related plugin implementations for Threepipe.
+  - [@threepipe/plugin-svg-renderer](https://threepipe.org/package/plugin-svg-renderer.html) - Add support for exporting 3d scene as SVG.
 
 ## Documentation
 

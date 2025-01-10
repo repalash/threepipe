@@ -76,7 +76,7 @@ for rendering the final output on the canvas.
 More passes can be added and removed from the pipeline
 using the [registerPass](https://threepipe.org/docs/classes/RenderManager.html#registerPass) and [unregisterPass](https://threepipe.org/docs/classes/RenderManager.html#unregisterPass) methods.
 
-The pipeline passes need to follow the interface of [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) and [IPipelinePassPlugin](https://threepipe.org/docs/interfaces/IPipelinePassPlugin.html).
+The pipeline passes need to follow the interface of [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) and [PipelinePassPlugin](https://threepipe.org/docs/classes/PipelinePassPlugin.html).
 Which adds some important parameters over the three.js Pass,
 like pass id and support for defining where the pass should be added in the pipeline and it's dependants.
 
