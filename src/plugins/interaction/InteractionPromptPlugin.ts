@@ -233,6 +233,7 @@ export class InteractionPromptPlugin extends AViewerPluginSync<''> {
         if (this.currentSphericalPosition && reset) {
             this._viewer.scene.mainCamera.position.setFromSpherical(this.currentSphericalPosition).add(this._viewer.scene.mainCamera.target)
             this._viewer.scene.mainCamera.setDirty()
+            this.currentSphericalPosition = undefined
         }
         this._viewer.scene.mainCamera.setInteractions(true, InteractionPromptPlugin.PluginType)
         // if (this.interactionsDisabled) {

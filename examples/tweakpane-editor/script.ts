@@ -1,6 +1,7 @@
 import {
     _testFinish,
     AssetExporterPlugin,
+    BaseGroundPlugin,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
@@ -65,18 +66,11 @@ import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-co
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 // @ts-expect-error todo fix
-import {BloomPlugin, TemporalAAPlugin, VelocityBufferPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin} from '@threepipe/webgi-plugins'
+import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
     return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
 }
-
-// const rgbm = !['false', 'no', 'f'].includes(getUrlQueryParam('rgbm', 'yes').toLowerCase())
-// const msaa = !['false', 'no', 'f'].includes(getUrlQueryParam('msaa', 'no').toLowerCase())
-// const debug = !['false', 'no', 'f'].includes(getUrlQueryParam('debug', 'no').toLowerCase())
-// const caching = !['false', 'no', 'f'].includes(getUrlQueryParam('cache', 'yes').toLowerCase())
-// const depthTonemap = !['no', 'false', 'f'].includes(getUrlQueryParam('depthTonemap', 'yes').toLowerCase() as any) // default is true
-// const depthPrepass = !['no', 'false', 'f'].includes(getUrlQueryParam('depthPrepass', 'yes').toLowerCase() as any) // default is true
 
 async function init() {
 
@@ -152,6 +146,7 @@ async function init() {
         new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
         GaussianSplattingPlugin,
+        // BaseGroundPlugin,
         ContactShadowGroundPlugin,
         CanvasSnapshotPlugin,
         DeviceOrientationControlsPlugin,
@@ -189,7 +184,7 @@ async function init() {
 
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
-        ['Scene']: [SSAAPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
+        ['Scene']: [SSAAPlugin, BaseGroundPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
