@@ -12,6 +12,7 @@ export class ViewerUiConfigPlugin extends AViewerPluginSync<''> {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.uiConfig = viewer.uiConfig
+        this.uiConfig.expanded = true
     }
 
     @serialize('viewer')

@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.34",
+  "version": "0.0.35-dev",
   "description": "A 3D viewer framework built on top of three.js in TypeScript with a focus on quality rendering, modularity and extensibility.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -44,7 +44,6 @@
     "remove": [
       "clean-package",
       "scripts",
-      "devDependencies",
       "optionalDependencies",
       "//"
     ]
@@ -119,6 +118,14 @@
     "uiconfig.js": "^0.1.2",
     "popmotion": "^11.0.5"
   },
+  "peerDependencies": {
+    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.153.1006/package.tgz"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
   "//": {
     "dependencies": {
       "uiconfig.js": "^0.1.2",
@@ -135,6 +142,11 @@
       "three": "file:./../three.js",
       "@types/three": "file:./../three-ts-types/types/three"
     }
+  },
+  "overrides": {
+    "ts-browser-helpers": "$ts-browser-helpers",
+    "three": "$three",
+    "@types/three": "$@types/three"
   },
   "optionalDependencies": {
     "win-node-env": "^0.6.1"

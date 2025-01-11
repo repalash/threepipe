@@ -30,7 +30,7 @@
             --text-color-hover: #2b313a;
         }
 
-        @media (prefers-color-scheme: light) {
+        @media (prefers-color-scheme: dark) {
             :root {
                 --primary-color: #b6bfcb;
                 --secondary-color: #ec630a;
@@ -362,14 +362,6 @@
             <li><a class="selected" href="./tweakpane-editor/">Tweakpane Editor </a></li>
             <li><a href="./model-viewer/">Model Viewer </a></li>
         </ul>
-        <h2 class="category">Post-Processing</h2>
-        <ul>
-            <li><a href="./tonemap-plugin/">Tonemap Plugin </a></li>
-            <li><a href="./vignette-plugin/">Vignette Plugin </a></li>
-            <li><a href="./chromatic-aberration-plugin/">Chromatic Aberration Plugin </a></li>
-            <li><a href="./filmic-grain-plugin/">Filmic Grain Plugin </a></li>
-            <li><a href="./frame-fade-plugin/">Frame Fade Plugin </a></li>
-        </ul>
         <h2 class="category">Rendering</h2>
         <ul>
             <li><a href="./progressive-plugin/">Progressive Plugin </a></li>
@@ -383,6 +375,24 @@
             <li><a href="./virtual-camera/">Virtual Camera (Animated) </a></li>
             <li><a href="./basic-svg-renderer-plugin/">Basic SVG Renderer Plugin </a></li>
             <li><a href="./three-svg-renderer-plugin/">Three SVG Renderer Plugin </a></li>
+        </ul>
+        <h2 class="category">Realistic Rendering (webgi)</h2>
+        <ul>
+            <li><a href="./bloom-plugin/">HDR Bloom Plugin </a></li>
+            <li><a href="./depthoffield-plugin/">DepthOfField Plugin </a></li>
+            <li><a href="./ssreflection-plugin/">Screen Space Reflection(SSR) Plugin </a></li>
+            <li><a href="./temporalaa-plugin/">Temporal Anti-aliasing Plugin </a></li>
+            <li><a href="./velocity-buffer-plugin/">Velocity Buffer Plugin (TAA) </a></li>
+            <li><a href="./sscontactshadows-plugin/">Contact Shadows(SSCS) Plugin </a></li>
+        </ul>
+        <h2 class="category">Post-Processing</h2>
+        <ul>
+            <li><a href="./tonemap-plugin/">Tonemap Plugin </a></li>
+            <li><a href="./vignette-plugin/">Vignette Plugin </a></li>
+            <li><a href="./chromatic-aberration-plugin/">Chromatic Aberration Plugin </a></li>
+            <li><a href="./filmic-grain-plugin/">Filmic Grain Plugin </a></li>
+            <li><a href="./frame-fade-plugin/">Frame Fade Plugin </a></li>
+            <li><a href="./unreal-bloom-pass/">Unreal Bloom Pass </a></li>
         </ul>
         <h2 class="category">Interaction</h2>
         <ul>
@@ -437,7 +447,6 @@
             <li><a href="./glb-draco-export/">GLB (+DRACO) Export </a></li>
             <li><a href="./pmat-material-export/">PMAT Material Export </a></li>
             <li><a href="./transfr-share-plugin/">Transfr.one Share Plugin<br/>(Upload, share link) </a></li>
-            <li><a href="./svg-geometry-playground/">SVG Geometry Playground </a></li>
         </ul>
         <h2 class="category">UI Plugins</h2>
         <ul>
@@ -487,6 +496,7 @@
         <h2 class="category">Experiments</h2>
         <ul>
             <li><a href="./progressive-hdr-shadows-exp/">Progressive HDR Environment Shadows</a></li>
+            <li><a href="./svg-geometry-playground/">SVG Geometry Playground </a></li>
         </ul>
         <h2 class="category">UI Config</h2>
         <ul>

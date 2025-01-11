@@ -64,15 +64,33 @@ import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
+// @ts-expect-error todo fix
+import {BloomPlugin, TemporalAAPlugin, VelocityBufferPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin} from '@threepipe/webgi-plugins'
+
+function checkQuery(key: string, def = true) {
+    return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
+}
+
+// const rgbm = !['false', 'no', 'f'].includes(getUrlQueryParam('rgbm', 'yes').toLowerCase())
+// const msaa = !['false', 'no', 'f'].includes(getUrlQueryParam('msaa', 'no').toLowerCase())
+// const debug = !['false', 'no', 'f'].includes(getUrlQueryParam('debug', 'no').toLowerCase())
+// const caching = !['false', 'no', 'f'].includes(getUrlQueryParam('cache', 'yes').toLowerCase())
+// const depthTonemap = !['no', 'false', 'f'].includes(getUrlQueryParam('depthTonemap', 'yes').toLowerCase() as any) // default is true
+// const depthPrepass = !['no', 'false', 'f'].includes(getUrlQueryParam('depthPrepass', 'yes').toLowerCase() as any) // default is true
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         renderScale: 'auto',
-        msaa: true,
-        rgbm: true,
-        zPrepass: false, // set it to true if you only have opaque objects in the scene to get better performance.
+        msaa: checkQuery('msaa', false),
+        rgbm: checkQuery('rgbm', true),
+        debug: checkQuery('debug', false),
+        assetManager: {
+            storage: checkQuery('cache', true),
+        },
+        // set it to true if you only have opaque objects in the scene to get better performance.
+        zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
         dropzone: {
             addOptions: {
                 clearSceneObjects: false, // clear the scene before adding new objects on drop.
@@ -116,6 +134,12 @@ async function init() {
         new ChromaticAberrationPlugin(false),
         new FilmicGrainPlugin(false),
         new SSAOPlugin(UnsignedByteType, 1),
+        SSReflectionPlugin,
+        new SSContactShadowsPlugin(false),
+        new DepthOfFieldPlugin(false),
+        BloomPlugin,
+        TemporalAAPlugin,
+        new VelocityBufferPlugin(UnsignedByteType, false),
         KTX2LoadPlugin,
         KTXLoadPlugin,
         PLYLoadPlugin,
@@ -154,6 +178,9 @@ async function init() {
     // disable fading on update
     viewer.getPlugin(FrameFadePlugin)!.isEditor = true
 
+
+    viewer.getPlugin(TemporalAAPlugin)!.stableNoise = true
+
     const rt = viewer.getOrAddPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')
     rt.addTarget({texture: viewer.getPlugin(GBufferPlugin)?.flagsTexture}, 'gBufferFlags')
@@ -161,11 +188,11 @@ async function init() {
     rt.addTarget(viewer.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
 
     editor.loadPlugins({
-        ['Viewer']: [ViewerUiConfigPlugin, SceneUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
-        ['Scene']: [SSAAPlugin, ContactShadowGroundPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
+        ['Scene']: [SSAAPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],

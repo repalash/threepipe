@@ -11,9 +11,6 @@ hero:
     alt: Threepipe
   actions:
     - theme: brand
-      text: About Threepipe
-      link: ./guide/introduction
-    - theme: alt
       text: Examples
       link: https://threepipe.org/examples
       target: _blank
@@ -23,6 +20,9 @@ hero:
     - theme: brand
       text: 3D glTF Editor
       link: https://editor.threepipe.org
+    - theme: alt
+      text: About Threepipe
+      link: ./guide/introduction
 
 features:
   - title: Start quickly

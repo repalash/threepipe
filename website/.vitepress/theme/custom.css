@@ -18,4 +18,37 @@
 
     --vp-home-hero-name-color: transparent;
     --vp-home-hero-name-background: -webkit-linear-gradient(120deg, var(--vp-c-orange-1), var(--vp-c-orange-0));
+
 }
+
+/*https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css*/
+
+/**
+ * Colors: Background
+ *
+ * - `bg`: The bg color used for main screen.
+ *
+ * - `bg-alt`: The alternative bg color used in places such as "sidebar",
+ *   or "code block".
+ *
+ * - `bg-elv`: The elevated bg color. This is used at parts where it "floats",
+ *   such as "dialog".
+ *
+ * - `bg-soft`: The bg color to slightly distinguish some components from
+ *   the page. Used for things like "carbon ads" or "table".
+ * -------------------------------------------------------------------------- */
+
+:root {
+    --vp-c-bg: #E7EFF8;
+    --vp-c-bg-alt: #dae1ea;
+    --vp-c-bg-elv: #E7EFF8;
+    --vp-c-bg-soft: #d8e3ef;
+}
+
+.dark {
+    --vp-c-bg: #1C2026;
+    --vp-c-bg-alt: #22272f;
+    --vp-c-bg-elv: #1C2026;
+    --vp-c-bg-soft: #282a2f;
+}
+
