@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-gaussian-splatting",
     "description": "Gaussian Splatting for Threepipe",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "devDependencies": {
         "comlink": "^4.4.1",
         "@types/emscripten": "^1.39.10"
@@ -31,7 +31,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.23"
+                "threepipe": "^0.0.35"
             }
         }
     },

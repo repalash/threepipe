@@ -261,14 +261,12 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         return material
     }
 
-    protected _refreshMaterial(): boolean {
-        if (!this._viewer) return false
-        if (this.isDisabled()) return false
-        const mat = this._material ?? this._createMaterial()
-        const isNewMaterial = this._mesh.material !== this._material
-        if (isNewMaterial) { // new material
+    protected _refreshMaterial() {
+        if (!this._viewer) return
+        if (this.isDisabled()) return
+        if (!this._material) { // new material
             // this._removeMaterial()
-            this._material = mat
+            this._material = this._createMaterial()
             // const id = this._material?.uuid
             // if (!id) console.warn('No material found for ground')
             this._viewer.scene.setDirty()
@@ -301,7 +299,7 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
             // }
         }
         this._viewer.setDirty(this) // todo: something else also?
-        return isNewMaterial
+        return
     }
 
     get material() {

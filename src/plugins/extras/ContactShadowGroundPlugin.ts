@@ -1,4 +1,4 @@
-import {onChange, serialize} from 'ts-browser-helpers'
+import {getOrCall, onChange, serialize} from 'ts-browser-helpers'
 import {
     BasicDepthPacking,
     Color,
@@ -20,6 +20,7 @@ import {IRenderTarget} from '../../rendering'
 import {uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {HVBlurHelper} from '../../three/utils/HVBlurHelper'
 import {shaderReplaceString} from '../../utils'
+import {PhysicalMaterial} from '../../core'
 
 @uiPanelContainer('Contact Shadow Ground')
 export class ContactShadowGroundPlugin extends BaseGroundPlugin {
@@ -91,7 +92,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     }
 
     onRemove(viewer: ThreeViewer): void {
-        const target = this._depthPass?.target
+        const target = getOrCall(this._depthPass?.target)
         if (target) this._viewer?.renderManager.disposeTarget(target)
         this._depthPass?.dispose()
         this._depthPass = undefined
@@ -115,7 +116,10 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         this._depthPass.camera = this.shadowCamera
         this._depthPass.render(this._viewer.renderManager.renderer, null)
 
-        const blurTarget = this._viewer.renderManager.getTempTarget<IRenderTarget&WebGLRenderTarget>({
+        const target = getOrCall(this._depthPass.target)
+        if (!target) return
+        
+        const blurTarget = this._viewer.renderManager.getTempTarget<IRenderTarget & WebGLRenderTarget>({
             type: UnsignedByteType,
             format: RGBAFormat,
             colorSpace: NoColorSpace,
@@ -126,12 +130,9 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
             magFilter: LinearFilter,
             // isAntialiased: this._viewer.isAntialiased,
         })
-
-        this._blurHelper.blur(this._depthPass.target.texture, this._depthPass.target, blurTarget, this.blurAmount / 256)
-        this._blurHelper.blur(this._depthPass.target.texture, this._depthPass.target, blurTarget, 0.4 * this.blurAmount / 256)
-
+        this._blurHelper.blur(target.texture, target, blurTarget, this.blurAmount / 256)
+        this._blurHelper.blur(target.texture, target, blurTarget, 0.4 * this.blurAmount / 256)
         this._viewer.renderManager.releaseTempTarget(blurTarget)
-
     }
 
     protected _refreshTransform() {
@@ -164,7 +165,9 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
 
     protected _removeMaterial() {
         if (!this._material) return
-        // todo: remove map or render target thats assigned
+        this._material.alphaMap = null
+        if (this._material.userData.ssreflDisabled) delete this._material.userData.ssreflDisabled
+        if (this._material.userData.ssreflNonPhysical) delete this._material.userData.ssreflNonPhysical
         super._removeMaterial()
     }
 
@@ -174,24 +177,24 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         super.refresh()
     }
 
-    protected _refreshMaterial(): boolean {
+    protected _createMaterial(material?: PhysicalMaterial): PhysicalMaterial {
+        const mat = super._createMaterial(material)
+        mat.roughness = 1
+        mat.metalness = 0
+        mat.color.set(0x111111)
+        mat.transparent = true
+        mat.userData.ssreflDisabled = true
+        mat.userData.ssreflNonPhysical = false
+        // mat.userData.inverseAlphaMap = false // this must be false, if getting inverted colors, check clear color of gbuffer render pass.
+        return mat
+    }
+
+    protected _refreshMaterial() {
         if (!this._viewer) return false
         const isNewMaterial = super._refreshMaterial()
         if (!this._material) return isNewMaterial
-        this._material.alphaMap = this._depthPass?.target.texture || null
-
-        if (isNewMaterial) {
-            this._material.roughness = 1
-            this._material.metalness = 0
-            this._material.color.set(0x111111)
-            this._material.transparent = true
-            this._material.userData.ssreflDisabled = true // todo: unset this in remove material.
-            this._material.userData.ssreflNonPhysical = false
-            // this._material.materialObject.userData.inverseAlphaMap = false // this must be false, if getting inverted colors, check clear color of gbuffer render pass.
-        }
-
+        this._material.alphaMap = getOrCall(this._depthPass?.target)?.texture || null
         return isNewMaterial
-
     }
 
 }

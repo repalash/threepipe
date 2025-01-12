@@ -7,11 +7,32 @@ import type {AddAssetOptions, ImportFilesOptions, ImportResult} from '../../asse
 import {serialize} from 'ts-browser-helpers'
 
 export interface DropzonePluginOptions {
+    /**
+     * The DOM element to attach the dropzone to.
+     */
     domElement?: HTMLElement
+    /**
+     * Allowed file extensions. If undefined, all files are allowed.
+     */
     allowedExtensions?: string[]
+    /**
+     * Automatically import assets when dropped.
+     * @default true
+     */
     autoImport?: boolean
+    /**
+     * Automatically add dropped and imported assets to the scene.
+     * Works only if {@link autoImport} is true.
+     * @default true
+     */
     autoAdd?: boolean
+    /**
+     * Import options for the {@link AssetImporter.importFiles}, used when importing files.
+     */
     importOptions?: ImportFilesOptions
+    /**
+     * Add options for the {@link RootScene.addObject}, used when adding assets to the scene.
+     */
     addOptions?: AddAssetOptions
 }
 

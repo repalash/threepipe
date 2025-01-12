@@ -32,7 +32,7 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
 
     protected _viewer?: ThreeViewer
 
-    private _lastManager?: UndoManagerPlugin['undoManager']
+    private _lastManager?: BlueprintJsUiPlugin['undoManager']
 
     onAdded(viewer: ThreeViewer): void {
         this._viewer = viewer
@@ -41,11 +41,12 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
         viewer.addEventListener('preFrame', this._preFrame)
         viewer.addEventListener('postFrame', this._postFrame)
         const undo = viewer.getOrAddPluginSync(UndoManagerPlugin) // yes, manual dependency
-        if (undo?.undoManager) {
+        const manager = undo?.undoManager
+        if (manager) {
             this._lastManager?.dispose()
             this._lastManager = this.undoManager
-            this.undoManager = undo.undoManager
-            if (this._lastManager) Object.assign(this.undoManager.presets, this._lastManager.presets)
+            this.undoManager = manager
+            if (this._lastManager) Object.assign(manager.presets, this._lastManager.presets)
         }
     }
     onRemove(viewer: ThreeViewer): void {

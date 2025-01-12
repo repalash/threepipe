@@ -65,7 +65,7 @@ import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
-// @ts-expect-error todo fix
+// @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
@@ -86,6 +86,8 @@ async function init() {
         // set it to true if you only have opaque objects in the scene to get better performance.
         zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
         dropzone: {
+            autoImport: true,
+            autoAdd: true,
             addOptions: {
                 clearSceneObjects: false, // clear the scene before adding new objects on drop.
             },
@@ -172,7 +174,6 @@ async function init() {
     viewer.getPlugin(LoadingScreenPlugin)!.isEditor = true
     // disable fading on update
     viewer.getPlugin(FrameFadePlugin)!.isEditor = true
-
 
     viewer.getPlugin(TemporalAAPlugin)!.stableNoise = true
 

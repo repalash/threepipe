@@ -116,15 +116,26 @@ export interface ProcessRawOptions {
 }
 
 export interface LoadFileOptions {
-    fileHandler?: any, // custom {@link ILoader} for the file
+    /**
+     * The custom {@link ILoader} to use for the file. If not specified, the importer will try to determine the loader from the file extension.
+     */
+    fileHandler?: any,
     /**
      * Query string to add to the url. Default = undefined
      */
     queryString?: string,
-    rootPath?: string, // internal use
+    /**
+     * for internal use
+     */
+    rootPath?: string,
 }
 
-export interface ImportFilesOptions extends ProcessRawOptions, LoadFileOptions {allowedExtensions?: string[]}
+export interface ImportFilesOptions extends ProcessRawOptions, LoadFileOptions {
+    /**
+     * Allowed file extensions. If undefined, all files are allowed.
+     */
+    allowedExtensions?: string[]
+}
 
 export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
     /**

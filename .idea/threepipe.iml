@@ -7,6 +7,11 @@
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
       <excludeFolder url="file://$MODULE_DIR$/docs" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/lib" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/extra-importers/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/blueprintjs/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/tweakpane/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/website/.vitepress/cache" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

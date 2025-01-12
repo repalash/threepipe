@@ -30,6 +30,7 @@ export class GaussianSplatGeometry extends InstancedBufferGeometry implements IG
     readonly isGaussianSplatGeometry = true
 
     assetType: 'geometry' // dont set the value here since its checked in upgradeGeometry
+    center2 = iGeometryCommons.center2
     setDirty = iGeometryCommons.setDirty
     refreshUi = iGeometryCommons.refreshUi
     appliedMeshes = new Set<IObject3D>()
