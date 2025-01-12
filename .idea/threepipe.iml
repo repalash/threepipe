@@ -12,6 +12,16 @@
       <excludeFolder url="file://$MODULE_DIR$/plugins/blueprintjs/docs" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/tweakpane/docs" />
       <excludeFolder url="file://$MODULE_DIR$/website/.vitepress/cache" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/blend-importer/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/configurator/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/gaussian-splatting/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/geometry-generator/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/gltf-transform/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/network/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/plugin-template-rollup" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/plugin-template-vite" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/svg-renderer/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/tweakpane-editor/docs" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
