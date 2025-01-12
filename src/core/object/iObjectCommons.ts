@@ -1,4 +1,4 @@
-import {Event, Mesh, Vector3} from 'three'
+import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEvent, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
@@ -39,6 +39,7 @@ export const iObjectCommons = {
         if (setDirty) this.setDirty({change: 'autoCenter', undo})
         return this
     },
+
     autoScale: function<T extends IObject3D>(this: T, autoScaleRadius?: number, isCentered?: boolean, setDirty = true, undo = false): T {
         let scale = 1
         if (undo) { // Note - undo only works for quick undo, not for multiple times
@@ -91,6 +92,55 @@ export const iObjectCommons = {
         if (setDirty) this.setDirty({change: 'autoScale', undo})
 
         return this
+    },
+
+    pivotToBoundsCenter: function<T extends IObject3D>(this: T, setDirty = true): ()=>void {
+        const bb = new Box3B().expandByObject(this, true, true)
+        const center = bb.getCenter(new Vector3())
+        return iObjectCommons.pivotToPoint.call(this, center, setDirty)
+    },
+
+    pivotToPoint: function<T extends IObject3D>(this: T, point: Vector3, setDirty = true): ()=>void {
+        const worldCenter = new Vector3().copy(point)
+        const localCenter = new Vector3().copy(worldCenter)
+
+        const worldMatrixInv = new Matrix4().copy(this.matrixWorld).invert()
+        const m = this.parent?.matrixWorld
+        const parentWorldMatrixInv = new Matrix4()
+        if (m !== undefined)
+            parentWorldMatrixInv.copy(m).invert()
+
+        // Get the center with respect to the parent
+        worldCenter.applyMatrix4(parentWorldMatrixInv)
+        const lastPosition = this.position.clone()
+
+        // Apply the new position
+        this.position.copy(worldCenter)
+
+        // local center
+        localCenter.applyMatrix4(worldMatrixInv).negate()
+
+        // Shift the geometry
+        if (this.geometry) {
+            this.geometry.translate(localCenter.x, localCenter.y, localCenter.z)
+        }
+        // Add offsets
+        this.children.forEach((object)=> {
+            object.position.add(localCenter)
+        })
+        if (setDirty) this.setDirty({change: 'pivotToPoint', undo: false})
+
+        return ()=>{
+            // undo
+            this.position.copy(lastPosition)
+            if (this.geometry) {
+                this.geometry.translate(-localCenter.x, -localCenter.y, -localCenter.z)
+            }
+            this.children.forEach((object)=> {
+                object.position.sub(localCenter)
+            })
+            if (setDirty) this.setDirty({change: 'pivotToPoint', undo: true})
+        }
     },
 
     eventCallbacks: {
@@ -401,6 +451,8 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     if (!this.refreshUi) this.refreshUi = iObjectCommons.refreshUi
     if (!this.autoScale) this.autoScale = iObjectCommons.autoScale.bind(this)
     if (!this.autoCenter) this.autoCenter = iObjectCommons.autoCenter.bind(this)
+    if (!this.pivotToBoundsCenter) this.pivotToBoundsCenter = iObjectCommons.pivotToBoundsCenter.bind(this)
+    if (!this.pivotToPoint) this.pivotToPoint = iObjectCommons.pivotToPoint.bind(this)
 
     // fired from Object3D.js
     this.addEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)

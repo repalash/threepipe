@@ -155,6 +155,15 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 },
             },
             {
+                type: 'button',
+                label: 'Pivot to Node Center',
+                value: async()=>{
+                    const res = await ThreeViewer.Dialog.confirm('Pivot to Center: Adjust the pivot to bounding box center. The object will rotate around the new pivot, are you sure you want to proceed?')
+                    if (!res) return
+                    return this.pivotToBoundsCenter?.(true) // return value is the undo function
+                },
+            },
+            {
                 type: 'folder',
                 label: 'Rotate model',
                 children: [

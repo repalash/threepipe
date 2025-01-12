@@ -33,6 +33,13 @@ export interface ICameraUserData extends IObject3DUserData {
      * @default false
      */
     autoLookAtTarget?: boolean
+    /**
+     * Automatically move the camera(dolly) based on the scene size when the field of view(fov) changes.
+     * Works when controls are enabled or autoLookAtTarget is true.
+     *
+     * Note - The camera must be added to RootScene for this to work
+     */
+    dollyFov?: boolean
 
     /**
      * Disable jitter for this camera. (for {@link SSAAPlugin})

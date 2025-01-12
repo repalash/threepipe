@@ -21,6 +21,7 @@ import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {IGeometry} from '../IGeometry'
+import {getFittingDistance} from '../../three/utils/camera'
 
 export type TCamera = ICamera
 
@@ -287,7 +288,9 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         const geoms = new Set<IGeometry>()
         ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
-        geoms.forEach(g => g.center(undefined, keepPosition))
+        const undos: (()=>void)[] = []
+        geoms.forEach(g => undos.push(g.center2(undefined, keepPosition)))
+        return ()=>undos.forEach(u=>u())
     }
 
     clearSceneModels(dispose = false, setDirty = true): void {
@@ -365,6 +368,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     private _mainCameraUpdate = (e: any) => {
         this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
+        if (e.key === 'fov') this.dollyActiveCameraFov()
         this.dispatchEvent({...e, type: 'mainCameraUpdate'})
         this.dispatchEvent({...e, type: 'activeCameraUpdate'}) // deprecated
     }
@@ -384,6 +388,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)
         this.refreshActiveCameraNearFar()
+        // this.dollyActiveCameraFov()
         this._sceneBounds = this.getBounds(false, true)
         // this.boxHelper?.boxHelper?.copy?.(this._sceneBounds)
         this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
@@ -504,6 +509,26 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
         // camera.near = 3
         // camera.far = 20
+    }
+
+    /**
+     * Refreshes the scene active camera near far values, based on the scene bounding box.
+     * This is called automatically every time the camera fov is updated.
+     */
+    dollyActiveCameraFov(): void {
+        const camera = this.mainCamera as TCamera
+        if (!camera) return
+        if (!camera.userData.dollyFov) {
+            return
+        }
+
+        const bbox = this.getModelBounds(false, true, true)
+
+        // todo this is not exact because of 1.5, this needs to be calculated based on current position and last fov
+        const cameraZ = getFittingDistance(camera, bbox) * 1.5
+        const direction = new Vector3().subVectors(camera.target, camera.position).normalize()
+        camera.position.copy(direction.multiplyScalar(-cameraZ).add(camera.target))
+        camera.setDirty()
     }
 
     updateShaderProperties(material: {defines: Record<string, string|number|undefined>, uniforms: {[name: string]: IUniform}}): this {

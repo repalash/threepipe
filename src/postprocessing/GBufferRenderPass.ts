@@ -3,6 +3,7 @@ import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {getOrCall, ValOrFunc} from 'ts-browser-helpers'
 
 @uiFolderContainer<GBufferRenderPass>((c)=>c.passId + ' Render Pass')
 export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget=WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
@@ -16,7 +17,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
     after?: IPassID[]
     required?: IPassID[]
 
-    constructor(public readonly passId: TP, public target: T, material: Material, clearColor: Color = new Color(1, 1, 1), clearAlpha = 1) {
+    constructor(public readonly passId: TP, public target: ValOrFunc<T>, material: Material, clearColor: Color = new Color(1, 1, 1), clearAlpha = 1) {
         super(undefined, undefined, material, clearColor, clearAlpha)
     }
 
@@ -74,7 +75,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
             transparentRender: false,
             transmissionRender: false,
             mainRenderPass: false,
-        }, ()=> super.render(renderer, null, this.target, deltaTime as any, maskActive as any)) // here this.target is the write-buffer, variable writeBuffer is ignored
+        }, ()=> super.render(renderer, null, getOrCall(this.target), deltaTime as any, maskActive as any)) // here this.target is the write-buffer, variable writeBuffer is ignored
 
         this._transparentMats.forEach(m => m.transparent = !m.transparent)
         this._transparentMats.clear()

@@ -66,7 +66,6 @@ import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/Drop
 // noinspection ES6PreferShortImport
 import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
-import {Easing} from 'popmotion'
 import {OrbitControls3} from '../three'
 
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
@@ -126,8 +125,10 @@ export interface ThreeViewerOptions {
      */
     rgbm?: boolean
     /**
-     * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin)
-     * todo: It will be disabled when there are any transparent/transmissive objects with render to depth buffer enabled.
+     * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin).
+     * Set it to true if you only have opaque objects in the scene to get better performance.
+     *
+     * todo fix: It will be disabled when there are any transparent/transmissive objects with render to depth buffer enabled, see forceZPrepass
      */
     zPrepass?: boolean
     /**
@@ -183,7 +184,7 @@ export interface ThreeViewerOptions {
         target?: Vector3,
 
     }
-    
+
     // values above this might be clamped in post processing
     maxHDRIntensity?: number
 
@@ -1320,7 +1321,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
     //     this.fromJSON(config, config.resources)
     // }
 
-    public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType) {
+    public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
         const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
         if (!camViews) {
             this.console.error('ThreeViewer: CameraViewPlugin (CameraViews) is required for fitToView to work')

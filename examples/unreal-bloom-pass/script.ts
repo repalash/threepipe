@@ -20,7 +20,7 @@ async function init() {
         rgbm: false, // The pass from three.js doesn't support RGBM encoded render targets
         zPrepass: false,
         renderScale: 1,
-        maxHDRIntensity: 8,
+        maxHDRIntensity: 100,
         dropzone: {
             addOptions: {
                 disposeSceneObjects: true,

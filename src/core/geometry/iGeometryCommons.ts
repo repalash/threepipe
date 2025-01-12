@@ -3,6 +3,7 @@ import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
 import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three/utils'
 import {BufferGeometry, Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
+import {IObject3D} from '../IObject'
 
 export const iGeometryCommons = {
     setDirty: function(this: IGeometry, options?: IGeometrySetDirtyOptions): void {
@@ -23,7 +24,7 @@ export const iGeometryCommons = {
         },
     upgradeGeometry: upgradeGeometry,
     center: (superCenter: BufferGeometry['center']): IGeometry['center'] =>
-        function(this: IGeometry, offset?: Vector3, keepWorldPosition = false): IGeometry {
+        function(this: IGeometry, offset?: Vector3, keepWorldPosition = false, setDirty = true): IGeometry {
             if (keepWorldPosition) {
                 offset = offset ? offset.clone() : new Vector3()
                 superCenter.call(this, offset)
@@ -32,14 +33,50 @@ export const iGeometryCommons = {
                 for (const m of meshes) {
                     m.updateMatrix()
                     m.position.copy(offset).applyMatrix4(m.matrix)
-                    m.setDirty()
+                    if (setDirty) m.setDirty()
                 }
             } else {
                 superCenter.call(this, offset)
             }
-            this.setDirty()
+            if (setDirty) this.setDirty()
             return this
         },
+    center2: function(this: IGeometry, offset?: Vector3, keepWorldPosition = false, setDirty = true): ()=>void {
+        const offset1 = offset ? offset : new Vector3()
+        if (keepWorldPosition) {
+            this.center(offset1, false, false)
+            const meshes = this.appliedMeshes
+            const positions = new WeakMap<IObject3D, Vector3>()
+            for (const m of meshes) {
+                m.updateMatrix()
+                positions.set(m, m.position.clone())
+                m.position.set(-offset1.x, -offset1.y, -offset1.z).applyMatrix4(m.matrix)
+                if (setDirty) m.setDirty()
+            }
+            if (setDirty) this.setDirty()
+            return ()=>{
+                // undo
+                for (const m of meshes) {
+                    const pos = positions.get(m)
+                    if (!pos) {
+                        console.warn('GeometryCommons: No position found for mesh', m)
+                        continue
+                    }
+                    m.position.copy(pos)
+                    if (setDirty) m.setDirty()
+                }
+                if (setDirty) this.setDirty()
+            }
+        } else {
+            this.center(offset1, false, false)
+            if (setDirty) this.setDirty()
+            return ()=>{
+                // undo
+                this.translate(-offset1.x, -offset1.y, -offset1.z)
+                if (setDirty) this.setDirty()
+            }
+        }
+    },
     makeUiConfig: function(this: IGeometry): UiObjectConfig {
         if (this.uiConfig) return this.uiConfig
         return {
@@ -59,16 +96,16 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Center Geometry',
                     value: async() => {
-                        if (!await ThreeViewer.Dialog.confirm('This will move the objects based on the geometry center, do you want to continue?\nThis action cannot be undone.')) return
-                        this.center()
+                        if (!await ThreeViewer.Dialog.confirm('This will move the objects based on the geometry center, do you want to continue?')) return
+                        return this.center2()
                     },
                 },
                 {
                     type: 'button',
                     label: 'Center Geometry (keep position)',
                     value: async() => {
-                        if (!await ThreeViewer.Dialog.confirm('This will move the geometry center keeping the object position, do you want to continue?\nThis action cannot be undone.')) return
-                        this.center(undefined, true)
+                        if (!await ThreeViewer.Dialog.confirm('This will move the geometry center keeping the object position, do you want to continue?')) return
+                        return this.center2(undefined, true)
                     },
                 },
                 {
@@ -174,6 +211,7 @@ function upgradeGeometry(this: IGeometry) {
     this.dispose = iGeometryCommons.dispose(this.dispose)
     this.center = iGeometryCommons.center(this.center)
     this.clone = iGeometryCommons.clone(this.clone)
+    if (!this.center2) this.center2 = iGeometryCommons.center2
 
     if (!this.setDirty) this.setDirty = iGeometryCommons.setDirty
     if (!this.refreshUi) this.refreshUi = iGeometryCommons.refreshUi

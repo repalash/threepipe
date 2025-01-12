@@ -5,9 +5,10 @@ import {Box3B} from '../../three'
 import {onChange, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {EasingFunctions, EasingFunctionType} from '../../utils'
-import {CameraView, ICamera, ICameraView, PerspectiveCamera2} from '../../core'
+import {CameraView, ICamera, ICameraView} from '../../core'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
+import {getFittingDistance} from '../../three/utils/camera'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
@@ -338,22 +339,8 @@ export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewC
     public async animateToFitObject(selected?: Object3D, distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
         if (!this._viewer) return
         const bbox = new Box3B().expandByObject(selected || this._viewer.scene.modelRoot, false, true)
+        const cameraZ = getFittingDistance(this._viewer.scene.mainCamera, bbox)
         const center = bbox.getCenter(new Vector3()) // world position
-        const size = bbox.getSize(new Vector3())
-
-        const cam = this._viewer.scene.mainCamera
-        let cameraZ = 1
-        if (cam.isPerspectiveCamera && size.length() > 0.0001) {
-            const aspect = isFinite(cam.aspect) ? cam.aspect : 1
-            // get the max side of the bounding box (fits to width OR height as needed )
-            const fov = Math.max(1, (cam as PerspectiveCamera2).fov) * (Math.PI / 180)
-            const fovh = 2 * Math.atan(Math.tan(fov / 2) * aspect)
-            const dx = size.z / 2 + Math.abs(size.x / 2 / Math.tan(fovh / 2))
-            const dy = size.z / 2 + Math.abs(size.y / 2 / Math.tan(fov / 2))
-            cameraZ = Math.max(dx, dy)
-
-        }
-
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, cameraZ * distanceMultiplier)), center, duration, ease)
     }
 

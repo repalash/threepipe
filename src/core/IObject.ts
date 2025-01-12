@@ -1,6 +1,6 @@
 import {IDisposable} from 'ts-browser-helpers'
 import {IMaterial} from './IMaterial'
-import {Event, Object3D} from 'three'
+import {Event, Object3D, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEvent} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
@@ -202,6 +202,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     userData: IObject3DUserData
 
     /**
+     * Scales the object to fit the given radius.
      *
      * @param autoScaleRadius - optional (taken from userData.autoScaleRadius by default)
      * @param isCentered - optional (taken from userData.isCentered by default)
@@ -211,11 +212,33 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean, undo?: boolean): this
 
     /**
+     * Moves the bounding box center of the object to the center of the world
      *
      * @param setDirty - calls {@link setDirty} @default true
      * @param undo - undo any previous autoCenter operation
      */
     autoCenter?(setDirty?: boolean, undo?: boolean): this
+
+    /**
+     * Moves the object pivot to the center of the bounding box.
+     *
+     * The object will rotate around the new pivot.
+     *
+     * @param setDirty - calls {@link setDirty} @default true
+     * @returns undo function
+     */
+    pivotToBoundsCenter?(setDirty?: boolean): () => void
+
+    /**
+     * Moves the object pivot to the given point
+     *
+     * The object will rotate around the new pivot.
+     *
+     * @param point - point to move the pivot to
+     * @param setDirty - calls {@link setDirty} @default true
+     * @returns undo function
+     */
+    pivotToPoint?(point: Vector3, setDirty?: boolean): this
 
     /**
      * @deprecated use object directly

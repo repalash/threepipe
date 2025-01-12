@@ -107,12 +107,22 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         minNearPlane = 0.5
+
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
      * Used in RootScene when {@link autoNearFar} is true.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         maxFarPlane = 1000
+
+    /**
+     * Automatically move the camera(dolly) when the field of view(fov) changes.
+     * Works when controls are enabled or autoLookAtTarget is true.
+     *
+     * Note - this is not exact
+     */
+    @bindToValue({obj: 'userData'})
+        dollyFov = false // bound to userData so that it's saved in the glb.
 
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
         super(fov, aspect)
@@ -409,6 +419,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     }
 
     // endregion
+
     // region utils/others
 
     // for shader prop updater
@@ -426,6 +437,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         // material.defines.ORTHOGRAPHIC_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0' // todo
         return this
     }
+
 
     dispose(): void {
         this._disposeCameraControls()
@@ -453,6 +465,11 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
             type: 'input',
             label: 'Auto Near Far',
             property: [this, 'autoNearFar'],
+        },
+        {
+            type: 'input',
+            label: 'Dolly FoV',
+            property: [this, 'dollyFov'],
         },
         ()=>({ // because _controlsCtors can change
             type: 'dropdown',
@@ -618,6 +635,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 export class PerspectiveCamera0 extends PerspectiveCamera2 {
     constructor(fov?: number, aspect?: number, near?: number, far?: number) {
         super(undefined, undefined, undefined, fov, aspect || 1)
+        this.dollyFov = false
         if (near || far) {
             this.autoNearFar = false
             if (near) {

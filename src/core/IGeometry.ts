@@ -18,7 +18,21 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
     refreshUi(): void;
     uiConfig?: UiObjectConfig
     appliedMeshes: Set<IObject3D>
-    center(offset?: Vector3, keepWorldPosition?: boolean): this
+
+    /**
+     * Centers the geometry.
+     * @param offset - returns the offset applied to the geometry
+     * @param keepWorldPosition - Updates the attached meshes, so that the world position of the geometry remains the same.
+     * @param setDirty
+     */
+    center(offset?: Vector3, keepWorldPosition?: boolean, setDirty?: boolean): this
+
+    /**
+     * Same as center but returns a function to undo the centering
+     * @param offset
+     * @param keepWorldPosition
+     */
+    center2(offset?: Vector3, keepWorldPosition?: boolean): ()=>void
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IGeometryUserData

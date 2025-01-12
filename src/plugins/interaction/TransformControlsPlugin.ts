@@ -162,7 +162,7 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
 
     @uiButton('Center All Meshes')
     centerAllMeshes() {
-        this._viewer?.scene.centerAllGeometries(true)
+        return this._viewer?.scene.centerAllGeometries(true)
     }
 
 }
