@@ -29,7 +29,7 @@ import {
     WebGLRenderTarget,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
-import {ThreeViewer} from '../../viewer'
+import {ThreeViewer, ViewerRenderManager} from '../../viewer'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
@@ -51,7 +51,7 @@ import {
 export type GBufferPluginEventTypes = ''
 export type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 // export type GBufferPluginTarget = WebGLRenderTarget
-export type GBufferPluginPass = GBufferRenderPass<'gbuffer', GBufferPluginTarget>
+export type GBufferPluginPass = GBufferRenderPass<'gbuffer', GBufferPluginTarget|undefined>
 
 export interface GBufferUpdaterContext {
     material: IMaterial, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D
@@ -118,6 +118,19 @@ export class GBufferPlugin
     // }
 
     unpackExtension: MaterialExtension = {
+        /**
+         * Use this in shader to get the snippet
+         * ```
+         * // for gbuffer
+         * #include <packing>
+         * #define THREE_PACKING_INCLUDED
+         * ```
+         * or if you don't need packing include
+         * ```
+         * #include <gbuffer_unpack>
+         * ```
+         * @param shader
+         */
         shaderExtender: (shader)=>{
             const includes = ['gbuffer_unpack', 'packing'] as const
             const include = includes.find(i=>shader.fragmentShader.includes(`#include <${i}>`))
@@ -149,11 +162,12 @@ export class GBufferPlugin
         if (recreateTarget) this._disposeTarget()
         const useMultiple = this._viewer?.renderManager.isWebGL2 && this.renderFlagsBuffer
         if (!this.target) {
+            const rm = this._viewer.renderManager
             this.target = this._viewer.renderManager.createTarget<GBufferPluginTarget>(
                 {
                     depthBuffer: true,
-                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer ? // requirement for zPrepass
-                        this._viewer.renderManager.composerTarget.samples || 0 : 0,
+                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer && rm.msaa ? // requirement for zPrepass
+                        typeof rm.msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : rm.msaa : 0,
                     type: this.bufferType,
                     textureCount: useMultiple ? 2 : 1,
                     depthTexture: this.renderDepthTexture,
@@ -189,7 +203,7 @@ export class GBufferPlugin
             })
         }
 
-        if (this._pass) this._pass.target = this.target
+        // if (this._pass) this._pass.target = this.target
 
         if (this.isPrimaryGBuffer) {
             this._viewer.renderManager.gbufferTarget = this.target
@@ -219,7 +233,7 @@ export class GBufferPlugin
         if (!this.target) throw new Error('GBufferPlugin: target not created')
         if (!this.material) throw new Error('GBufferPlugin: material not created')
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass(this.passId, this.target, this.material, new Color(1, 1, 1), 1)
+        const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(1, 1, 1), 1)
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth) // if renderToDepth is undefined then renderToGbuffer is taken internally
         pass.before = ['render']

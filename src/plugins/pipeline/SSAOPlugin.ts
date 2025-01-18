@@ -74,7 +74,7 @@ export class SSAOPlugin
         this.texture = this.target.texture
         this.texture.name = 'ssaoBuffer'
 
-        if (this._pass) this._pass.target = this.target
+        // if (this._pass) this._pass.target = this.target
     }
 
     protected _disposeTarget() {
@@ -102,8 +102,7 @@ export class SSAOPlugin
         if (!this._viewer.renderManager.gbufferTarget || !this._viewer.renderManager.gbufferUnpackExtension)
             throw new Error('SSAOPlugin: GBuffer target not created. GBufferPlugin or DepthBufferPlugin is required.')
         this._createTarget(true)
-        // todo: send target as a func, so it works when changed
-        return new SSAOPluginPass(this.passId, this.target)
+        return new SSAOPluginPass(this.passId, ()=>this.target)
     }
 
     onAdded(viewer: ThreeViewer) {
@@ -299,7 +298,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
              #include <simpleCameraHelpers>
         `,
         computeCacheKey: () => {
-            return this.enabled ? '1' : '0' + getOrCall(this.target)?.texture?.colorSpace
+            return (this.enabled ? '1' : '0') + getOrCall(this.target)?.texture?.colorSpace
         },
         uuid: SSAOPlugin.PluginType,
         ...uiConfigMaterialExtension(this._getUiConfig.bind(this), SSAOPlugin.PluginType),

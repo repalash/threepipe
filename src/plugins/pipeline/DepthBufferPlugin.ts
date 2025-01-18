@@ -18,7 +18,7 @@ import {
     WebGLRenderTarget,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
-import {ThreeViewer} from '../../viewer'
+import {ThreeViewer, ViewerRenderManager} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiDropdown, uiFolderContainer, uiImage} from 'uiconfig.js'
@@ -31,7 +31,7 @@ import {IMaterial, PhysicalMaterial} from '../../core'
 export type DepthBufferPluginEventTypes = ''
 // type DepthBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type DepthBufferPluginTarget = WebGLRenderTarget
-export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget>
+export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget|undefined>
 
 /**
  * Depth Buffer Plugin
@@ -102,12 +102,13 @@ export class DepthBufferPlugin
     protected _createTarget(recreate = true) {
         if (!this._viewer) return
         if (recreate) this._disposeTarget()
+        const rm = this._viewer.renderManager
         if (!this.target)
             this.target = this._viewer.renderManager.createTarget<DepthBufferPluginTarget>(
                 {
                     depthBuffer: true,
-                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer ? // requirement for zPrepass
-                        this._viewer.renderManager.composerTarget.samples || 0 : 0,
+                    samples: this._viewer.renderManager.zPrepass && this.isPrimaryGBuffer && rm.msaa ? // requirement for zPrepass
+                        typeof rm.msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : rm.msaa : 0,
                     type: this.bufferType,
                     // magFilter: NearestFilter,
                     // minFilter: NearestFilter,
@@ -118,7 +119,7 @@ export class DepthBufferPlugin
         this.texture = this.target.texture
         this.texture.name = 'depthBuffer'
 
-        if (this._pass) this._pass.target = this.target
+        // if (this._pass) this._pass.target = this.target
 
         if (this.isPrimaryGBuffer) {
             this._viewer.renderManager.gbufferTarget = this.target
@@ -147,7 +148,7 @@ export class DepthBufferPlugin
         this._createTarget(true)
         if (!this.target) throw new Error('DepthBufferPlugin: target not created')
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass(this.passId, this.target, this.material, new Color(0, 0, 0), 1)
+        const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth) // if renderToDepth is undefined then renderToGbuffer is taken internally
         pass.before = ['render']

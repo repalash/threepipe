@@ -26,7 +26,7 @@ import {uiFolderContainer, uiImage} from 'uiconfig.js'
 export type NormalBufferPluginEventTypes = ''
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
-export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget>
+export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget|undefined>
 /**
  * Normal Buffer Plugin
  *
@@ -54,10 +54,11 @@ export class NormalBufferPlugin
         if (!this._viewer) return
         if (recreate) this._disposeTarget()
 
+        // const rm = this._viewer.renderManager
         if (!this.target) this.target = this._viewer.renderManager.createTarget<NormalBufferPluginTarget>(
             {
                 depthBuffer: true,
-                // samples: v.renderManager.composerTarget.samples || 0,
+                // samples: rm.msaa ? typeof rm.msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : rm.msaa : 0,
                 samples: 0,
                 type: this.bufferType,
                 magFilter: NearestFilter,
@@ -68,7 +69,7 @@ export class NormalBufferPlugin
         this.texture = this.target.texture
         this.texture.name = 'normalBuffer'
 
-        if (this._pass) this._pass.target = this.target
+        // if (this._pass) this._pass.target = this.target
     }
     protected _disposeTarget() {
         if (!this._viewer) return
@@ -83,7 +84,7 @@ export class NormalBufferPlugin
         this._createTarget(true)
         if (!this.target) throw new Error('NormalBufferPlugin: target not created')
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass(this.passId, this.target, this.material, new Color(0, 0, 0), 1)
+        const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, true)
         pass.before = ['render']

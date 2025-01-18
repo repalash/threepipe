@@ -1,12 +1,5 @@
 import {IRenderTarget, RenderManager} from '../rendering'
-import {
-    HalfFloatType,
-    LinearFilter,
-    LinearMipMapLinearFilter,
-    NoColorSpace,
-    RGBM16ColorSpace,
-    UnsignedByteType,
-} from 'three'
+import {HalfFloatType, LinearFilter, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
 import {IRenderManagerEvent, IRenderManagerOptions, IScene} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
 import {uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
@@ -33,16 +26,19 @@ export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbu
     readonly screenPass: ScreenPass
     declare uiConfig: UiObjectConfig
 
+    static DEFAULT_MSAA_SAMPLES = 4
+
     constructor({rgbm = true, msaa = false, depthBuffer = false, ...options}: ViewerRenderManagerOptions) {
         super({
             ...options,
             targetOptions: {
-                samples: msaa ? typeof msaa !== 'number' ? 4 : msaa : 0,
+                samples: 0,
+                // samples: msaa ? typeof msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : msaa : 0,
                 colorSpace: rgbm ? RGBM16ColorSpace : NoColorSpace,
                 type: rgbm ? UnsignedByteType : HalfFloatType,
                 depthBuffer: depthBuffer,
-                generateMipmaps: msaa ? true : false, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
-                minFilter: msaa ? LinearMipMapLinearFilter : LinearFilter, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
+                generateMipmaps: /* msaa ? true : */false, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
+                minFilter: /* msaa ? LinearMipMapLinearFilter : */LinearFilter, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
             },
         })
         this.rgbm = rgbm

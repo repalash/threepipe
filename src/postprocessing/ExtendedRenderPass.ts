@@ -33,9 +33,10 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
     get transparentTarget(): IRenderTarget {
         if (!this._transparentTarget) {
+            const msaa = this.renderManager.msaa
             this._transparentTarget = this.renderManager.getTempTarget({
                 sizeMultiplier: 1,
-                samples: this.renderManager.composerTarget.samples || 0,
+                samples: msaa ? typeof msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : msaa : 0,
                 colorSpace: NoColorSpace,
                 type: this.renderManager.renderer.extensions.has('EXT_color_buffer_half_float') ? HalfFloatType : UnsignedByteType,
                 format: RGBAFormat,
@@ -46,10 +47,39 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         }
         return this._transparentTarget
     }
+
     private _releaseTransparentTarget() {
         if (this._transparentTarget)
             this.renderManager.releaseTempTarget(this._transparentTarget)
         this._transparentTarget = undefined
+    }
+
+    readonly preserveOpaqueTarget = false
+    private _opaqueTarget?: WebGLRenderTarget
+
+    get opaqueTarget(): WebGLRenderTarget {
+        if (!this._opaqueTarget) {
+            const composerTarget = this.renderManager.composerTarget as WebGLRenderTarget
+            const msaa = this.renderManager.msaa
+            this._opaqueTarget = this.renderManager.getTempTarget({
+                sizeMultiplier: 1,
+                samples: msaa ? typeof msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : msaa : 0,
+                colorSpace: composerTarget.texture.colorSpace,
+                type: this.renderManager.rgbm ? UnsignedByteType : HalfFloatType,
+                format: composerTarget.texture.format,
+                minFilter: composerTarget.texture.minFilter,
+                magFilter: composerTarget.texture.magFilter,
+                depthBuffer: composerTarget.depthBuffer,
+                generateMipmaps: composerTarget.texture.generateMipmaps,
+            })
+            // console.log(this._opaqueTarget.samples)
+        }
+        return this._opaqueTarget
+    }
+    private _releaseOpaqueTarget() {
+        if (this._opaqueTarget)
+            this.renderManager.releaseTempTarget(this._opaqueTarget)
+        this._opaqueTarget = undefined
     }
 
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
@@ -59,6 +89,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         this.setDirty = this.setDirty.bind(this)
     }
 
+    // names are incorrect. We read from `writeBuffer` and write to `readBuffer`. same in super class
     render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget|null, readBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
         let needsSwap = false
@@ -72,7 +103,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         }
 
         const ud = renderer.userData
-        if (!ud) console.error('threejs is not patched?')
+        if (!ud) console.error('threejs is not patched. Use the @repalash/three.js-modded to this functionality.')
 
         const useGBufferDepth = (this.renderManager.zPrepass || !this.renderManager.depthBuffer) && this.renderManager.gbufferTarget
         let depthRenderBuffer: WebGLRenderbuffer | undefined = undefined
@@ -89,6 +120,16 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
 
         }
+
+        const lastReadBuffer = readBuffer
+
+        // if msaa we need to create a new multi sampled target to render to
+
+        // todo
+        readBuffer = this.renderManager.msaa ? this.opaqueTarget : readBuffer
+        // readBuffer = this.opaqueTarget
+        // if(readBuffer?.samples !== gbuffer?.samples)
+        //     console.error('ExtendedRenderPass - readBuffer and gbuffer samples are not same', readBuffer?.samples, gbuffer?.samples)
 
         let renderFn = ()=> {
             super.render(renderer, null, readBuffer, deltaTime, maskActive, depthRenderBuffer) // read is write in super.render (RenderPass)
@@ -133,7 +174,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // renderer.autoClearDepth = false
 
                 ud.transmissionRenderTarget = writeBuffer
-                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
+                ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa target. its fine now because writeBuffer is never multi sampled
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -178,7 +219,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                     opaqueRender: true,
                     transparentRender: false,
                     transmissionRender: false,
-                }, renderFn)
+                }, renderFn) // render to readBuffer
 
                 renderer.autoClearDepth = curClearDepth
 
@@ -188,6 +229,9 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 const renderBufferProps2 = renderer.properties.get(readBuffer)
                 depthRenderBuffer = renderBufferProps2.__webglDepthRenderbuffer || renderBufferProps2.__webglDepthbuffer
             }
+
+            // readBuffer has data
+
             renderFn = ()=> {
                 super.render(renderer, null, this.transparentTarget as any, deltaTime, maskActive, depthRenderBuffer)
             }
@@ -205,7 +249,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                     opaqueRender: false,
                     transparentRender: true,
                     transmissionRender: false,
-                }, renderFn)
+                }, renderFn) // render to transparentTarget
 
                 this.clear = curClear
                 renderer.autoClearDepth = curClearDepth
@@ -213,11 +257,14 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
             if (!renderer.info || renderer.info.render.calls > 0) {
 
+                // writeBuffer = transparentTarget + readBuffer
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture
                 this._blendPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
-                needsSwap = true
+                needsSwap = true // writeBuffer has the data now.
 
             }
+
+            // if needsSwap, writeBuffer has data, else readBuffer
 
             // Transmission
             {
@@ -227,6 +274,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 // const curClearDepth = renderer.autoClearDepth
                 // renderer.autoClearDepth = false
 
+                // if needsSwap, writeBuffer has current data, else readBuffer
                 ud.transmissionRenderTarget = needsSwap ? writeBuffer : readBuffer
                 ud.blurTransmissionTarget = this.blurTransmissionTarget && ud.transmissionRenderTarget.samples === 0 // todo: not working with msaa
 
@@ -236,7 +284,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                     opaqueRender: false,
                     transparentRender: false,
                     transmissionRender: true,
-                }, renderFn)
+                }, renderFn) // render to transparentTarget
 
                 ud.blurTransmissionTarget = undefined
                 ud.transmissionRenderTarget = undefined
@@ -250,11 +298,15 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             if (!renderer.info || renderer.info.render.calls > 0) {
 
                 // console.log('missive blit', renderer.info.render.frame)
+
+                // writeBuffer = transparentTarget + readBuffer. opaque will overwrite opaque pixels again
                 this._blendPass.uniforms.tDiffuse2.value = this.transparentTarget.texture
                 this._blendPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
-                needsSwap = true
+                needsSwap = true // writeBuffer has the data now.
 
             }
+
+            // if needsSwap, writeBuffer has data, else readBuffer
 
             if (renderToScreen) {
                 this.renderToScreen = true
@@ -268,8 +320,22 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
         }
 
+        // todo no need to do this if renderToScreen is true
+        // resolve msaa
+        if (!needsSwap && lastReadBuffer !== readBuffer && readBuffer) {
+            // copy from readBuffer to lastReadBuffer
+            const source = Array.isArray(readBuffer.texture) ? readBuffer.texture[0] : readBuffer.texture
+            source && this.renderManager.blit(lastReadBuffer, {
+                source: source, clear: true,
+            })
+            readBuffer = lastReadBuffer
+        }
+
         if (!this.preserveTransparentTarget)
             this._releaseTransparentTarget()
+        if (!this.preserveOpaqueTarget)
+            this._releaseOpaqueTarget()
+
         this.needsSwap = needsSwap
         renderer.userData.mainRenderPass = undefined
     }
