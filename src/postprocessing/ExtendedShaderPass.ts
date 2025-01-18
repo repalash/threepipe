@@ -26,6 +26,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
         this.setDirty = this.setDirty.bind(this)
     }
 
+    // writes to writeBuffer
     render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget|null, readBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
         renderer.renderWithModes({

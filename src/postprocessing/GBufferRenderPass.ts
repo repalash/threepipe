@@ -6,7 +6,7 @@ import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {getOrCall, ValOrFunc} from 'ts-browser-helpers'
 
 @uiFolderContainer<GBufferRenderPass>((c)=>c.passId + ' Render Pass')
-export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget=WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
+export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget|undefined=WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
     readonly isGBufferRenderPass = true
     uiConfig: UiObjectConfig
 

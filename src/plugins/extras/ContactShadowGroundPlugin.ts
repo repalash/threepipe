@@ -47,7 +47,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
 
 
     shadowCamera = new OrthographicCamera(-1, 1, 1, -1, 0.001, this.shadowHeight)
-    private _depthPass?: GBufferRenderPass<'contactShadowGround', WebGLRenderTarget>
+    private _depthPass?: GBufferRenderPass<'contactShadowGround', WebGLRenderTarget|undefined>
     private _blurHelper?: HVBlurHelper
 
     constructor() {

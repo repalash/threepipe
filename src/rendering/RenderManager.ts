@@ -691,6 +691,11 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 if (unregister === true) disposeTarget(this, true)
                 else super.dispose()
             }
+
+            // required for uiconfig.js. see UiConfigMethods.getValue
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            _ui_isPrimitive = true
+            
         }(this, ...size, options)
     }
 

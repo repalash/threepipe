@@ -51,8 +51,10 @@ export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extend
     }
 
     onRemove(viewer: TViewer): void {
-        if (this._pass) viewer.renderManager.unregisterPass(this._pass)
-        this._pass?.dispose?.()
+        if (this._pass) {
+            viewer.renderManager.unregisterPass(this._pass)
+            if (this._pass.dispose) this._pass.dispose()
+        }
         this._pass = undefined
         super.onRemove(viewer)
     }

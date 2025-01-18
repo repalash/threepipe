@@ -33,6 +33,7 @@ const hdris = [
     'https://hdrihaven.r2cache.com/hdr/1k/studio_small_05_1k.hdr',
     'https://hdrihaven.r2cache.com/hdr/1k/studio_small_02_1k.hdr',
     'https://hdrihaven.r2cache.com/hdr/1k/studio_small_01_1k.hdr',
+    'https://hdrihaven.r2cache.com/hdr/1k/empty_warehouse_01_1k.hdr',
 ]
 
 async function init() {

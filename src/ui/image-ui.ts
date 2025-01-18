@@ -18,13 +18,14 @@ import {
 } from 'three'
 import {UiObjectConfig} from 'uiconfig.js'
 
-export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
+export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T, label?: string, hidden?: ()=>boolean, setDirty?: ()=>any) {
+    setDirty = setDirty ?? (()=>mat.setDirty && mat.setDirty())
     // const im = map === 'map'
     return {
         type: 'folder',
-        label: <string>map + ' Sampler',
-        hidden: ()=>!mat[map],
-        onChange: ()=>mat.setDirty(),
+        label: label ?? <string>map + ' Sampler',
+        hidden: ()=>!mat[map] || hidden && hidden(),
+        onChange: setDirty,
         children: [
             ()=>({
                 type: 'vec2',
@@ -111,13 +112,12 @@ export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T) {
                             t1.source.data = imageBitmap
                             t1.source.needsUpdate = true
                             t1.needsUpdate = true
-                            mat?.setDirty?.()
-
+                            setDirty()
                         })
                     } else {
                         tex.flipY = value
                         tex.needsUpdate = true
-                        mat?.setDirty?.()
+                        setDirty()
                     }
 
                 },
