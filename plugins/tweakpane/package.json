@@ -1,10 +1,11 @@
 {
     "name": "@threepipe/plugin-tweakpane",
     "description": "Tweakpane UI Plugin for ThreePipe",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "devDependencies": {
         "tweakpane-image-plugin": "https://github.com/repalash/tweakpane-image-plugin/releases/download/v1.1.404/package.tgz",
-        "uiconfig-tweakpane": "^0.0.10"
+        "uiconfig-tweakpane": "^0.0.10",
+        "uiconfig.js": "^0.1.3"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
@@ -67,7 +68,7 @@
                 "uiconfig-tweakpane": "^0.0.10"
             },
             "peerDependencies": {
-                "threepipe": "^0.0.34"
+                "threepipe": "^0.0.35"
             }
         }
     },

@@ -42,8 +42,8 @@ const staticData = {
 
 function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
     if (cc?.get) cc = cc.get()
-    let ret: any = undefined
-    if (!cc) return staticData.placeholderVal
+    let ret = staticData.placeholderVal
+    if (!cc) return ret
     if (cc.isCompressedTexture && !cc.image.tp_src) {
         cc.image.tp_src = staticData.compressedTexImage
     }
@@ -57,11 +57,10 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
         if (cc.image && !cc.image.tp_src && !cc.tp_src) {
             if (cc.isRenderTargetTexture) {
                 if (cc._target) {
-                    // todo do same change in blueprint
                     // doing in the timeout so it doesnt hang when opening a folder which does deep refresh
                     // if (!config._lastRtRefresh || Date.now() - config._lastRtRefresh > 5000) { // 5000 should be significantly more than 500 + 100 below
                     setTimeout(() => {
-
+                        if (!cc._target) return
                         // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
                         const dataUrl = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
                         cc.tp_src = dataUrl
@@ -85,22 +84,24 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
             }
         }
         if (cc.image) {
-            ret = cc.image.tp_src_uuid
-            ret = ret ? staticData.imageMap[ret] : undefined
+            const uid = cc.image.tp_src_uuid as string
+            ret = uid ? staticData.imageMap[uid] : undefined
             if (!ret) ret = cc.image.tp_src || cc.image.src
         }
         if (cc.tp_src) ret = cc.tp_src
     } else if (typeof cc === 'string') {
         ret = cc
     } else if (cc.domainMin) { // for lut CUBE files.
-        ret = cc.texture
-        if (cc.texture.image && !cc.texture.image.tp_src) {
-            cc.texture.image.tp_src = staticData.lutCubeTexImage
-        }
-        if (cc.texture.image) {
-            ret = cc.texture.image.tp_src_uuid
-            ret = ret ? staticData.imageMap[ret] : undefined
-            if (!ret) ret = cc.texture.image.tp_src || cc.texture.image.src
+        // ret = cc.texture
+        const image = cc.texture.image
+        if (image) {
+            // todo this will always show placeholder, we need to snapshot data texture
+            if (!image.tp_src) {
+                image.tp_src = staticData.lutCubeTexImage
+            }
+            const uid = image.tp_src_uuid as string
+            ret = uid ? staticData.imageMap[uid] : undefined
+            if (!ret) ret = image.tp_src || image.src
         }
     } else if (cc) {
         console.error('unknown value', cc)
@@ -111,8 +112,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
         cc.image.tp_src_uuid = uuid
         staticData.tempMap[ret] = uuid
     }
-    if (typeof ret === 'string')
-        ret = staticData.imageMap[ret] ?? ret // Note: this will be a bottleneck if the length of src is too long.
+    ret = staticData.imageMap[ret] ?? ret // Note: this will be a bottleneck if the length of src is too long.
     return ret
 }
 
@@ -134,7 +134,7 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         }
     }
     config.__proxy.value_ = v1
-    renderer.methods.setValue(config, v1, {last: true}, false, false)
+    renderer.methods.setValue(config, v1, {last: true}, false, true)
     config.uiRefresh?.(false, 'postFrame')
 }
 
@@ -213,14 +213,16 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
     CustomContextMenu.Remove()
     const tex: ITexture&Partial<ImportResultExtras> = config.__proxy.value_
     if (!tex) return
-    let vcv = tex.image ?? config.uiRef.controller_.valueController.value.rawValue
+    const vcv = tex.image ?? config.uiRef.controller_.valueController.value.rawValue
     if (tex.__rootBlob && !tex.__rootBlob.objectUrl) tex.__rootBlob.objectUrl = URL.createObjectURL(tex.__rootBlob)
     let src = tex.__rootBlob ? tex.__rootBlob.objectUrl : tex.userData.rootPath || vcv?.src
+    if (src && src.startsWith('blob:')) src = ''
+
     let revokeSrc = false
 
     // HTML image/video/bitmap
     if (vcv && (vcv instanceof ImageBitmap || vcv instanceof HTMLImageElement || vcv instanceof HTMLVideoElement) && !src)
-        vcv = imageBitmapToBase64(vcv)
+        src = imageBitmapToBase64(vcv)
 
     let name = tex.__rootBlob ? tex.__rootBlob.name || 'image.' + (tex.__rootBlob.ext || 'png') : null
 
@@ -318,7 +320,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
             get: () => {
                 try {
                     config.__proxy.value_ = renderer.methods.getRawValue(config) // sending undefined to disable comparison for undo etc
-                    const ret = proxyGetValue(config.__proxy.value_, viewer, config)
+                    const ret = proxyGetValue(config.__proxy.value_, viewer, config) as any
                     if (typeof ret !== 'string' && !ret.id?.length) ret.id = generateUUID()
                     const id = typeof ret === 'string' ? ret : ret.id ?? ret
                     if (!staticData.textureMap[id]) staticData.textureMap[id] = config.__proxy.value_
