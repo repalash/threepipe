@@ -18,8 +18,8 @@ import {
     UiObjectConfig,
     uploadFile,
     Vector2,
-    Vector3,
-    Vector4, UndoManagerPlugin,
+    Vector3, Texture,
+    Vector4, UndoManagerPlugin, WebGLRenderTarget, WebGLCubeRenderTarget, WebGLMultipleRenderTargets,
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
@@ -44,6 +44,15 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         this._root!.registerPlugin(TweakpaneImagePlugin as any)
         if (bigTheme) createStyles(styles, container)
         this.colorMode = colorMode ?? (localStorage ? localStorage.getItem('tpTheme') as any : 'blue') ?? 'blue'
+
+        // @ts-expect-error required for tpTextureInputComponent so that it doesn't clone it. todo check others as well like object3d etc
+        Texture.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLRenderTarget.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLCubeRenderTarget.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLMultipleRenderTargets.prototype._ui_isPrimitive = true
     }
 
     protected _viewer?: ThreeViewer

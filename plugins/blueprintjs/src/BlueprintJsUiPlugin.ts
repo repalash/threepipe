@@ -14,7 +14,7 @@ import {
     uploadFile,
     Vector2,
     Vector3,
-    Vector4, UiObjectConfig,
+    Vector4, UiObjectConfig, WebGLCubeRenderTarget, WebGLMultipleRenderTargets, WebGLRenderTarget,
 } from 'threepipe'
 
 export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IViewerPluginSync {
@@ -28,6 +28,15 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
             autoPostFrame: false,
         })
         this.THREE = {Color, Vector4, Vector3, Vector2, Texture} as any
+
+        // @ts-expect-error required for tpTextureInputComponent so that it doesn't clone it. todo check others as well like object3d etc
+        Texture.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLRenderTarget.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLCubeRenderTarget.prototype._ui_isPrimitive = true
+        // @ts-expect-error same
+        WebGLMultipleRenderTargets.prototype._ui_isPrimitive = true
     }
 
     protected _viewer?: ThreeViewer
