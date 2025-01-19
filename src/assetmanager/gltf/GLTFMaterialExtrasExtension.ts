@@ -283,4 +283,7 @@ export class GLTFMaterialExtrasExtension {
             // console.log(w)
         },
     })
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number>|undefined = undefined
 }

@@ -65,11 +65,11 @@ export {TransformAnimationPlugin, type TSavedTransform} from './animation/Transf
 export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
 
 // material
-export {ClearcoatTintPlugin} from './material/ClearcoatTintPlugin'
-export {NoiseBumpMaterialPlugin} from './material/NoiseBumpMaterialPlugin'
-export {CustomBumpMapPlugin} from './material/CustomBumpMapPlugin'
+export {ClearcoatTintPlugin, clearCoatTintGLTFExtension} from './material/ClearcoatTintPlugin'
+export {NoiseBumpMaterialPlugin, noiseBumpMaterialGLTFExtension} from './material/NoiseBumpMaterialPlugin'
+export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/CustomBumpMapPlugin'
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
-export {FragmentClippingExtensionPlugin, FragmentClippingMode} from './material/FragmentClippingExtensionPlugin'
+export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
 
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera} from './rendering/VirtualCamerasPlugin'

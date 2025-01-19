@@ -47,8 +47,10 @@ import {Class, ValOrArr} from 'ts-browser-helpers'
 import {ILoader} from './IImporter'
 import {AssetExporter} from './AssetExporter'
 import {IExporter} from './IExporter'
-import {GLTFExporter2} from './export'
+import {GLTFExporter2, GLTFWriter2} from './export'
 import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
+import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter'
 
 export interface AssetManagerOptions{
     /**
@@ -99,6 +101,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
         this._sceneUpdated = this._sceneUpdated.bind(this)
         this.addAsset = this.addAsset.bind(this)
         this.addRaw = this.addRaw.bind(this)
+        this._loaderCreate = this._loaderCreate.bind(this)
         this.addImported = this.addImported.bind(this)
 
         this.importer = new AssetImporter(!!viewer.getPlugin('debug'))
@@ -110,6 +113,7 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
         this.viewer.scene.addEventListener('beforeDeserialize', this._sceneUpdated)
         this._initCacheStorage(simpleCache, storage ?? true)
 
+        this._setupGltfExtensions()
         this._setupObjectProcess()
         this._setupProcessState()
         this._addImporters()
@@ -309,17 +313,19 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
 
     }
 
+    private _gltfExporter = {
+        ext: ['gltf', 'glb'],
+        extensions: [] as (typeof GLTFExporter2.ExportExtensions)[number][],
+        ctor: (_, exporter) => {
+            const ex = new GLTFExporter2()
+            // This should be added at the end.
+            ex.setup(this.viewer, exporter.extensions)
+            return ex
+        },
+    } satisfies IExporter
+
     protected _addExporters() {
-        const exporters: IExporter[] = [
-            {
-                ext: ['gltf', 'glb'], extensions: [], ctor: (_, exporter) => {
-                    const ex = new GLTFExporter2()
-                    // This should be added at the end.
-                    ex.setup(this.viewer, exporter.extensions)
-                    return ex
-                },
-            },
-        ]
+        const exporters: IExporter[] = [this._gltfExporter]
 
         this.exporter.addExporter(...exporters)
     }
@@ -493,6 +499,57 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
             } : undefined)
         })
     }
+
+    // region glTF extensions registration helpers
+
+    gltfExtensions: {
+        name: string
+        import: (parser: GLTFParser) => GLTFLoaderPlugin,
+        export: (parser: GLTFWriter2) => GLTFExporterPlugin,
+        textures?: Record<string, string|number> // see GLTFDracoExportPlugin
+    }[] = []
+
+    protected _setupGltfExtensions() {
+        this.importer.addEventListener('loaderCreate', this._loaderCreate as any)
+        this.viewer.forPlugin('GLTFDracoExportPlugin', (p)=> {
+            if (!p.addExtension) return
+            for (const gltfExtension of this.gltfExtensions) {
+                p.addExtension(gltfExtension.name, gltfExtension.textures)
+            }
+        })
+    }
+
+    protected _loaderCreate({loader}: {loader: GLTFLoader2}) {
+        if (!loader.isGLTFLoader2) return
+        for (const gltfExtension of this.gltfExtensions) {
+            loader.register(gltfExtension.import)
+        }
+    }
+
+    registerGltfExtension(ext: AssetManager['gltfExtensions'][number]) {
+        const ext1 = this.gltfExtensions.findIndex(e => e.name === ext.name)
+        if (ext1 >= 0) this.gltfExtensions.splice(ext1, 1)
+        this.gltfExtensions.push(ext)
+        this._gltfExporter.extensions.push(ext.export)
+        const exporter2 = this.exporter.getExporter('gltf', 'glb')
+        if (exporter2 && exporter2 !== this._gltfExporter)
+            exporter2.extensions?.push(ext.export)
+    }
+
+    unregisterGltfExtension(name: string) {
+        const ind = this.gltfExtensions.findIndex(e => e.name === name)
+        if (ind < 0) return
+        this.gltfExtensions.splice(ind, 1)
+        const ind1 = this._gltfExporter.extensions.findIndex(e => e.name === name)
+        if (ind1 >= 0) this._gltfExporter.extensions.splice(ind1, 1)
+        const exporter2 = this.exporter.getExporter('gltf', 'glb')
+        if (exporter2?.extensions && exporter2 !== this._gltfExporter) {
+            const ind2 = exporter2.extensions.findIndex(e => e.name === name)
+            if (ind2 >= 0) exporter2.extensions?.splice(ind2, 1)
+        }
+    }
+
+    // endregion
 
 
     // region deprecated

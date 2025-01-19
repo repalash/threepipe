@@ -5,7 +5,7 @@ import {glsl, serialize} from 'ts-browser-helpers'
 import {IMaterialUserData, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString, ThreeSerialization} from '../../utils'
-import {GLTFLoader2, GLTFWriter2} from '../../assetmanager'
+import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
 
 /**
@@ -161,37 +161,26 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
         this._viewer?.setDirty()
     }
 
-    private _loaderCreate({loader}: {loader: GLTFLoader2}) {
-        if (!loader.isGLTFLoader2) return
-        loader.register((p) => new GLTFMaterialsClearcoatTintExtensionImport(p))
-    }
-
     constructor() {
         super()
-        this._loaderCreate = this._loaderCreate.bind(this)
         Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {
         super.onAdded(v)
-        // v.addEventListener('preRender', this._preRender)
         v.assetManager.materials.registerMaterialExtension(this.materialExtension)
-        v.assetManager.importer.addEventListener('loaderCreate', this._loaderCreate as any)
-        v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(glTFMaterialsClearcoatTintExtensionExport)
-
+        v.assetManager.registerGltfExtension(clearCoatTintGLTFExtension)
     }
 
     onRemove(v: ThreeViewer) {
         v.assetManager.materials?.unregisterMaterialExtension(this.materialExtension)
-        v.assetManager.importer?.removeEventListener('loaderCreate', this._loaderCreate as any)
-        const exporter = v.assetManager.exporter.getExporter('gltf', 'glb')
-        if (exporter) {
-            const index = exporter.extensions?.indexOf(glTFMaterialsClearcoatTintExtensionExport)
-            if (index !== undefined && index >= 0) exporter.extensions?.splice(index, 1)
-        }
+        v.assetManager.unregisterGltfExtension(clearCoatTintGLTFExtension.name)
         return super.onRemove(v)
     }
 
+    /**
+     * @deprecated - use {@link clearCoatTintGLTFExtension}
+     */
     public static readonly CLEARCOAT_TINT_GLTF_EXTENSION = 'WEBGI_materials_clearcoat_tint'
 
 }
@@ -210,7 +199,7 @@ declare module '../../core/IMaterial' {
 /**
  * ClearcoatTint Materials Extension
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_clearcoat_tint.html
+ * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_clearcoat_tint.html (todo - fix link)
  */
 class GLTFMaterialsClearcoatTintExtensionImport implements GLTFLoaderPlugin {
     public name: string
@@ -218,7 +207,7 @@ class GLTFMaterialsClearcoatTintExtensionImport implements GLTFLoaderPlugin {
 
     constructor(parser: GLTFParser) {
         this.parser = parser
-        this.name = ClearcoatTintPlugin.CLEARCOAT_TINT_GLTF_EXTENSION
+        this.name = clearCoatTintGLTFExtension.name
     }
 
     async extendMaterialParams(materialIndex: number, materialParams: any) {
@@ -239,7 +228,14 @@ const glTFMaterialsClearcoatTintExtensionExport = (w: GLTFWriter2)=> ({
 
         const extensionDef: any = ThreeSerialization.Serialize(material.userData._clearcoatTint)
 
-        materialDef.extensions[ ClearcoatTintPlugin.CLEARCOAT_TINT_GLTF_EXTENSION ] = extensionDef
-        w.extensionsUsed[ ClearcoatTintPlugin.CLEARCOAT_TINT_GLTF_EXTENSION ] = true
+        materialDef.extensions[ clearCoatTintGLTFExtension.name ] = extensionDef
+        w.extensionsUsed[ clearCoatTintGLTFExtension.name ] = true
     },
 })
+
+export const clearCoatTintGLTFExtension = {
+    name: 'WEBGI_materials_clearcoat_tint',
+    import: (p) => new GLTFMaterialsClearcoatTintExtensionImport(p),
+    export: glTFMaterialsClearcoatTintExtensionExport,
+    textures: undefined,
+} satisfies AssetManager['gltfExtensions'][number]

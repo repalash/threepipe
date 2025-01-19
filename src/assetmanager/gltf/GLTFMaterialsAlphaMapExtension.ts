@@ -14,6 +14,11 @@ export class GLTFMaterialsAlphaMapExtension {
     static readonly WebGiMaterialsAlphaMapExtension = 'WEBGI_materials_alphamap'
     static Import = (parser: GLTFParser): GLTFLoaderPlugin=> new GLTFMaterialsAlphaMapExtensionImport(parser)
     static Export = (writer: GLTFWriter): GLTFExporterPlugin => new GLTFMaterialsAlphaMapExtensionExport(writer)
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number> = {
+        alphaTexture: 'G',
+    }
 }
 
 class GLTFMaterialsAlphaMapExtensionImport {

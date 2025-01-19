@@ -13,6 +13,11 @@ export class GLTFMaterialsLightMapExtension {
     static readonly WebGiMaterialsLightMapExtension = 'WEBGI_materials_lightmap'
     static Import = (parser: GLTFParser): GLTFLoaderPlugin=> new GLTFMaterialsLightMapExtensionImport(parser)
     static Export = (writer: GLTFWriter): GLTFExporterPlugin => new GLTFMaterialsLightMapExtensionExport(writer)
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number> = {
+        lightMapTexture: 'RGB',
+    }
 }
 
 class GLTFMaterialsLightMapExtensionImport {

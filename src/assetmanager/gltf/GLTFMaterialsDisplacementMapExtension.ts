@@ -13,6 +13,11 @@ export class GLTFMaterialsDisplacementMapExtension {
     static readonly WebGiMaterialsDisplacementMapExtension = 'WEBGI_materials_displacementmap'
     static Import = (parser: GLTFParser): GLTFLoaderPlugin=> new GLTFMaterialsDisplacementMapExtensionImport(parser)
     static Export = (writer: GLTFWriter): GLTFExporterPlugin => new GLTFMaterialsDisplacementMapExtensionExport(writer)
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number> = {
+        displacementTexture: 'R',
+    }
 }
 
 class GLTFMaterialsDisplacementMapExtensionImport {

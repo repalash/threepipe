@@ -13,6 +13,11 @@ export class GLTFMaterialsBumpMapExtension {
     static readonly WebGiMaterialsBumpMapExtension = 'WEBGI_materials_bumpmap'
     static Import = (parser: GLTFParser): GLTFLoaderPlugin=> new GLTFMaterialsBumpMapExtensionImport(parser)
     static Export = (writer: GLTFWriter): GLTFExporterPlugin => new GLTFMaterialsBumpMapExtensionExport(writer)
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number> = {
+        bumpTexture: 'R',
+    }
 }
 
 class GLTFMaterialsBumpMapExtensionImport {

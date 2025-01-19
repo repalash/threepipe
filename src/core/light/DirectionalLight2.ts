@@ -24,7 +24,7 @@ export class DirectionalLight2<
 
     @uiColor('Color', (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
-    @uiSlider('Intensity', [0, 30], 0.01)
+    @uiSlider('Intensity', [0, 100], 0.01)
     @onChange3('setDirty')
     declare intensity: number
     @uiVector('Position', undefined, undefined, (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))

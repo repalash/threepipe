@@ -5,7 +5,7 @@ import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IObject3D, ITexture, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString} from '../../utils'
-import {GLTFLoader2, GLTFWriter2} from '../../assetmanager'
+import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
 import CustomBumpMapPluginShader from './shaders/CustomBumpMapPlugin.glsl'
 import {matDefine} from '../../three'
@@ -147,7 +147,7 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
                             if (v === state._hasCustomBump) return
                             if (v) {
                                 if (!enableCustomBump(material))
-                                    viewer.dialog.alert('Cannot add CustomBumpMap.')
+                                    viewer.dialog.alert('CustomBumpMapPlugin - Cannot add CustomBumpMap.')
                             } else {
                                 state._hasCustomBump = false
                                 if (material.setDirty) material.setDirty()
@@ -161,7 +161,7 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
                         bounds: [-1, 1],
                         hidden: () => !state._hasCustomBump,
                         property: [state, '_customBumpScale'],
-                        onChange: this.setDirty,
+                        // onChange: this.setDirty,
                     },
                     {
                         type: 'image',
@@ -169,10 +169,10 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
                         hidden: () => !state._hasCustomBump,
                         property: [state, '_customBumpMap'],
                         onChange: ()=>{
-                            material.setDirty()
+                            if (material.setDirty) material.setDirty()
                         },
                     },
-                    makeSamplerUi(state as any, '_customBumpMap'),
+                    makeSamplerUi(state as any, '_customBumpMap', 'Sampler', ()=>!state._hasCustomBump, ()=>material.setDirty && material.setDirty()),
                 ],
             }
             return config
@@ -185,14 +185,8 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
         this._viewer?.setDirty()
     }
 
-    private _loaderCreate({loader}: {loader: GLTFLoader2}) {
-        if (!loader.isGLTFLoader2) return
-        loader.register((p) => new GLTFMaterialsCustomBumpMapImport(p))
-    }
-
     constructor() {
         super()
-        this._loaderCreate = this._loaderCreate.bind(this)
         Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
@@ -200,24 +194,20 @@ export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
         super.onAdded(v)
         // v.addEventListener('preRender', this._preRender)
         v.assetManager.materials.registerMaterialExtension(this.materialExtension)
-        v.assetManager.importer.addEventListener('loaderCreate', this._loaderCreate as any)
-        v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(glTFMaterialsCustomBumpMapExport)
+        v.assetManager.registerGltfExtension(customBumpMapGLTFExtension)
         // v.getPlugin(GBufferPlugin)?.material?.registerMaterialExtensions([this.materialExtension])
-
     }
 
     onRemove(v: ThreeViewer) {
         v.assetManager.materials?.unregisterMaterialExtension(this.materialExtension)
-        v.assetManager.importer?.removeEventListener('loaderCreate', this._loaderCreate as any)
-        const exporter = v.assetManager.exporter.getExporter('gltf', 'glb')
-        if (exporter) {
-            const index = exporter.extensions?.indexOf(glTFMaterialsCustomBumpMapExport)
-            if (index !== undefined && index >= 0) exporter.extensions?.splice(index, 1)
-        }
+        v.assetManager.unregisterGltfExtension(customBumpMapGLTFExtension.name)
         // v.getPlugin(GBufferPlugin)?.material?.unregisterMaterialExtensions([this.materialExtension])
         return super.onRemove(v)
     }
 
+    /**
+     * @deprecated use {@link customBumpMapGLTFExtension}
+     */
     public static readonly CUSTOM_BUMP_MAP_GLTF_EXTENSION = 'WEBGI_materials_custom_bump_map'
 
 }
@@ -242,7 +232,7 @@ class GLTFMaterialsCustomBumpMapImport implements GLTFLoaderPlugin {
 
     constructor(parser: GLTFParser) {
         this.parser = parser
-        this.name = CustomBumpMapPlugin.CUSTOM_BUMP_MAP_GLTF_EXTENSION
+        this.name = customBumpMapGLTFExtension.name
     }
 
     async extendMaterialParams(materialIndex: number, materialParams: any) {
@@ -299,7 +289,16 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2)=> ({
 
         }
 
-        materialDef.extensions[ CustomBumpMapPlugin.CUSTOM_BUMP_MAP_GLTF_EXTENSION ] = extensionDef
-        w.extensionsUsed[ CustomBumpMapPlugin.CUSTOM_BUMP_MAP_GLTF_EXTENSION ] = true
+        materialDef.extensions[ customBumpMapGLTFExtension.name ] = extensionDef
+        w.extensionsUsed[ customBumpMapGLTFExtension.name ] = true
     },
 })
+
+export const customBumpMapGLTFExtension = {
+    name: 'WEBGI_materials_custom_bump_map',
+    import: (p) => new GLTFMaterialsCustomBumpMapImport(p),
+    export: glTFMaterialsCustomBumpMapExport,
+    textures: {
+        customBumpMap: 'RGB',
+    },
+} satisfies AssetManager['gltfExtensions'][number]

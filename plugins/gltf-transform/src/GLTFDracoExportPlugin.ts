@@ -1,8 +1,6 @@
 import {
     AssetExporterPlugin,
     AViewerPluginSync,
-    ClearcoatTintPlugin,
-    CustomBumpMapPlugin,
     DRACOLoader2,
     generateUUID,
     GLTFLightExtrasExtension,
@@ -12,8 +10,12 @@ import {
     GLTFMaterialsDisplacementMapExtension,
     GLTFMaterialsLightMapExtension,
     GLTFObject3DExtrasExtension,
-    NoiseBumpMaterialPlugin,
+    IExporter,
     ThreeViewer,
+    clearCoatTintGLTFExtension,
+    customBumpMapGLTFExtension,
+    noiseBumpMaterialGLTFExtension,
+    fragmentClippingGLTFExtension,
 } from 'threepipe'
 import {GLTFDracoExporter} from './GLTFDracoExporter'
 import {UiObjectConfig} from 'uiconfig.js'
@@ -36,58 +38,88 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync<''> {
     public static readonly PluginType = 'GLTFDracoExportPlugin'
     enabled = true
 
+    /**
+     * These are added here, but also added as plugins. Added here by default so that the data is not lost if some plugin is not added in an app.
+     * To explicitly remove the data, use `removeExtension` with the name of the extension
+     */
+    extraExtensions = [
+        [GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension, GLTFMaterialsBumpMapExtension.Textures],
+        [GLTFMaterialsLightMapExtension.WebGiMaterialsLightMapExtension, GLTFMaterialsLightMapExtension.Textures],
+        [GLTFMaterialsAlphaMapExtension.WebGiMaterialsAlphaMapExtension, GLTFMaterialsAlphaMapExtension.Textures],
+        [GLTFMaterialsDisplacementMapExtension.WebGiMaterialsDisplacementMapExtension, GLTFMaterialsDisplacementMapExtension.Textures],
+        [customBumpMapGLTFExtension.name, customBumpMapGLTFExtension.textures],
+        [GLTFLightExtrasExtension.WebGiLightExtrasExtension, GLTFLightExtrasExtension.Textures],
+        [GLTFObject3DExtrasExtension.WebGiObject3DExtrasExtension, GLTFObject3DExtrasExtension.Textures],
+        [GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension, GLTFMaterialExtrasExtension.Textures],
+        [clearCoatTintGLTFExtension.name, clearCoatTintGLTFExtension.textures],
+        [noiseBumpMaterialGLTFExtension.name, noiseBumpMaterialGLTFExtension.textures],
+        [fragmentClippingGLTFExtension.name, fragmentClippingGLTFExtension.textures],
+
+        // extenal plugins
+
+        // AnisotropyMaterialExtension
+        ['WEBGI_materials_anisotropy', {
+            anisotropyDirection: 'RGB',
+        }],
+        // todo port
+        // DiamondMaterialExtension
+        // AnimationMarkersExtension
+        // ThinFilmLayerMaterialExtension
+        // TriplanarMappingMaterialExtension
+        // SSBevelMaterialExtension
+    ] as [string, Record<string, string|number>|undefined][]
+
+    addExtension(name: string, textures?: Record<string, string|number>) {
+        const ext = this.extraExtensions.findIndex(e => e[0] === name)
+        if (ext >= 0) this.extraExtensions[ext] = [name, textures]
+        else this.extraExtensions.push([name, textures])
+    }
+
+    /**
+     * Note - don't remove an extension when removing a plugin.
+     *
+     * extensions can be removed if you don't want to save the data of some plugin when transforming glb. But since this is not desirable in most cases, it is not recommended.
+     * @param name
+     */
+    removeExtension(name: string) {
+        const ext = this.extraExtensions.findIndex(e => e[0] === name)
+        if (ext >= 0) this.extraExtensions.splice(ext, 1)
+    }
+
+    private _lastExporter?: IExporter['ctor'] = undefined
+
+    protected _ctor: IExporter['ctor'] = (_, _exporter) => {
+        if (!this._viewer) throw new Error('Viewer not set')
+        const tempFile = generateUUID() + '.drc' // dummy
+        const ex = new GLTFDracoExporter({},
+            // todo unregister on dispose
+            this._viewer.assetManager.importer.registerFile(tempFile) as DRACOLoader2)
+        ex.setup(this._viewer, _exporter.extensions)
+        for (const [ext, config] of this.extraExtensions) {
+            ex.createAndAddExtension(ext, config)
+        }
+        return ex
+    }
+
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        const importer = viewer.assetManager.importer
         const exporter = viewer.assetManager.exporter
 
-        const glbExporter = exporter.getExporter('glb')
-        if (glbExporter) exporter.removeExporter(glbExporter)
-
-        // todo remove exporter and add back the old one on plugin remove.
-        exporter.addExporter({
-            ...glbExporter || {
+        let glbExporter = exporter.getExporter('glb')
+        this._lastExporter = glbExporter?.ctor
+        if (!glbExporter) {
+            console.error('GLTFDracoExportPlugin: GLB exporter not found in AssetManager.exporter, creating a new one.')
+            glbExporter = {
                 ext: ['glb', 'gltf'],
                 extensions: [],
-            }, // for extensions
-            ctor: (_, _exporter) => {
-                const tempFile = generateUUID() + '.drc' // dummy
-                const ex = new GLTFDracoExporter({},
-                    // todo unregister on dispose
-                    importer.registerFile(tempFile) as DRACOLoader2)
-                ex.setup(viewer, _exporter.extensions)
-                ex.createAndAddExtension(GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension, {
-                    bumpTexture: 'R',
-                })
-                ex.createAndAddExtension(GLTFMaterialsLightMapExtension.WebGiMaterialsLightMapExtension, {
-                    lightMapTexture: 'RGB',
-                })
-                ex.createAndAddExtension(GLTFMaterialsAlphaMapExtension.WebGiMaterialsAlphaMapExtension, {
-                    alphaTexture: 'G',
-                })
-                ex.createAndAddExtension(GLTFMaterialsDisplacementMapExtension.WebGiMaterialsDisplacementMapExtension, {
-                    displacementTexture: 'R',
-                })
-                ex.createAndAddExtension(CustomBumpMapPlugin.CUSTOM_BUMP_MAP_GLTF_EXTENSION, {
-                    customBumpMap: 'RGB',
-                })
-                ex.createAndAddExtension(GLTFLightExtrasExtension.WebGiLightExtrasExtension)
-                ex.createAndAddExtension(GLTFObject3DExtrasExtension.WebGiObject3DExtrasExtension)
-                ex.createAndAddExtension(GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension)
-                ex.createAndAddExtension(ClearcoatTintPlugin.CLEARCOAT_TINT_GLTF_EXTENSION)
-                ex.createAndAddExtension(NoiseBumpMaterialPlugin.NOISE_BUMP_MATERIAL_GLTF_EXTENSION)
-                // todo port
-                // DiamondMaterialExtension
-                // AnimationMarkersExtension
-                // AnisotropyMaterialExtension
-                // ThinFilmLayerMaterialExtension
-                // TriplanarMappingMaterialExtension
-                // SSBevelMaterialExtension
-                return ex
-            },
-        })
+                ctor: this._ctor,
+            }
+            exporter.addExporter(glbExporter)
+        } else {
+            glbExporter.ctor = this._ctor
+        }
 
-        // for ui
+        // for ui. todo use viewer.forPlugin
         const exportPlugin = viewer.getPlugin(AssetExporterPlugin)
         if (exportPlugin) {
             Object.assign(exportPlugin.exportOptions, {
@@ -112,6 +144,15 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync<''> {
                 console.warn('GLTFDracoExportPlugin: Unable to setup UI')
             }
         }
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        const exporter = viewer.assetManager.exporter
+        const glbExporter = exporter.getExporter('glb')
+        if (glbExporter && this._lastExporter) {
+            glbExporter.ctor = this._lastExporter
+        }
+        super.onRemove(viewer)
     }
 
     protected _makeUi = (exporter: AssetExporterPlugin)=>[

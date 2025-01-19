@@ -1,5 +1,5 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {GLTFLoader2} from '../../assetmanager'
+import {AssetManager} from '../../assetmanager'
 import {onChange, serialize} from 'ts-browser-helpers'
 import {IMaterial, IObject3D} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
@@ -23,28 +23,18 @@ export class GLTFKHRMaterialVariantsPlugin extends AViewerPluginSync<''> {
 
     constructor() {
         super()
-        this._loaderCreate = this._loaderCreate.bind(this)
     }
 
     onAdded(v: ThreeViewer): void {
         super.onAdded(v)
         // v.addEventListener('preRender', this._preRender)
         v.scene.addEventListener('addSceneObject', this._objectAdded)
-        v.assetManager.importer.addEventListener('loaderCreate', this._loaderCreate as any)
-        v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(gltfExporterMaterialsVariantsExtensionExport)
-    }
-
-    private _loaderCreate({loader}: {loader: GLTFLoader2}) {
-        if (!loader.isGLTFLoader2) return
-        loader.register((p) => new GLTFMaterialsVariantsExtensionImport(p))
+        v.assetManager.registerGltfExtension(khrMaterialVariantsGLTFExtension)
     }
 
     onRemove(v: ThreeViewer): void {
         v.scene.removeEventListener('addSceneObject', this._objectAdded)
-        v.assetManager.importer.removeEventListener('loaderCreate', this._loaderCreate as any)
-        const exportExts = v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions || []
-        const i = exportExts.indexOf(gltfExporterMaterialsVariantsExtensionExport)
-        if (i !== -1) exportExts.splice(i, 1)
+        v.assetManager.unregisterGltfExtension(khrMaterialVariantsGLTFExtension.name)
         this.variants = {}
         return super.onRemove(v)
     }
@@ -152,3 +142,10 @@ declare module './../../core/IObject'{
         _originalMaterial?: IObject3D['material']
     }
 }
+
+export const khrMaterialVariantsGLTFExtension = {
+    name: khrMaterialsVariantsGLTF,
+    import: (p) => new GLTFMaterialsVariantsExtensionImport(p),
+    export: gltfExporterMaterialsVariantsExtensionExport,
+    // textures: undefined,
+} satisfies AssetManager['gltfExtensions'][number]

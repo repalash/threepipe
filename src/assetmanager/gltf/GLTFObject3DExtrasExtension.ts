@@ -69,4 +69,7 @@ export class GLTFObject3DExtrasExtension {
             }
         },
     })
+
+    // see GLTFDracoExportPlugin
+    static Textures: Record<string, string|number>|undefined = undefined
 }

@@ -5,7 +5,7 @@ import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IMaterialUserData, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString, ThreeSerialization} from '../../utils'
-import {GLTFLoader2, GLTFWriter2} from '../../assetmanager'
+import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
 import FragmentClippingExtensionPluginPars from './shaders/FragmentClippingExtensionPlugin.pars.glsl'
 import FragmentClippingExtensionPluginPatch from './shaders/FragmentClippingExtensionPlugin.patch.glsl'
@@ -186,14 +186,8 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
         this._viewer?.setDirty()
     }
 
-    private _loaderCreate({loader}: {loader: GLTFLoader2}) {
-        if (!loader.isGLTFLoader2) return
-        loader.register((p) => new GLTFMaterialsFragmentClippingExtensionImport(p))
-    }
-
     constructor() {
         super()
-        this._loaderCreate = this._loaderCreate.bind(this)
         Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
@@ -201,24 +195,21 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
         super.onAdded(v)
         // v.addEventListener('preRender', this._preRender)
         v.assetManager.materials.registerMaterialExtension(this.materialExtension)
-        v.assetManager.importer.addEventListener('loaderCreate', this._loaderCreate as any)
-        v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(glTFMaterialsFragmentClippingExtensionExport)
+        v.assetManager.registerGltfExtension(fragmentClippingGLTFExtension)
         // v.getPlugin(GBufferPlugin)?.material?.registerMaterialExtensions([this.materialExtension])
 
     }
 
     onRemove(v: ThreeViewer) {
         v.assetManager.materials?.unregisterMaterialExtension(this.materialExtension)
-        v.assetManager.importer?.removeEventListener('loaderCreate', this._loaderCreate as any)
-        const exporter = v.assetManager.exporter.getExporter('gltf', 'glb')
-        if (exporter) {
-            const index = exporter.extensions?.indexOf(glTFMaterialsFragmentClippingExtensionExport)
-            if (index !== undefined && index >= 0) exporter.extensions?.splice(index, 1)
-        }
+        v.assetManager.unregisterGltfExtension(fragmentClippingGLTFExtension.name)
         // v.getPlugin(GBufferPlugin)?.material?.unregisterMaterialExtensions([this.materialExtension])
         return super.onRemove(v)
     }
 
+    /**
+     * @deprecated use - use {@link fragmentClippingGLTFExtension}
+     */
     public static readonly FRAGMENT_CLIPPING_EXTENSION_GLTF_EXTENSION = 'WEBGI_materials_fragment_clipping_extension'
 
 }
@@ -255,7 +246,7 @@ class GLTFMaterialsFragmentClippingExtensionImport implements GLTFLoaderPlugin {
 
     constructor(parser: GLTFParser) {
         this.parser = parser
-        this.name = FragmentClippingExtensionPlugin.FRAGMENT_CLIPPING_EXTENSION_GLTF_EXTENSION
+        this.name = fragmentClippingGLTFExtension.name
     }
 
     async extendMaterialParams(materialIndex: number, materialParams: any) {
@@ -276,7 +267,14 @@ const glTFMaterialsFragmentClippingExtensionExport = (w: GLTFWriter2)=> ({
 
         const extensionDef: any = ThreeSerialization.Serialize(material.userData._fragmentClippingExt)
 
-        materialDef.extensions[ FragmentClippingExtensionPlugin.FRAGMENT_CLIPPING_EXTENSION_GLTF_EXTENSION ] = extensionDef
-        w.extensionsUsed[ FragmentClippingExtensionPlugin.FRAGMENT_CLIPPING_EXTENSION_GLTF_EXTENSION ] = true
+        materialDef.extensions[ fragmentClippingGLTFExtension.name ] = extensionDef
+        w.extensionsUsed[ fragmentClippingGLTFExtension.name ] = true
     },
 })
+
+export const fragmentClippingGLTFExtension = {
+    name: 'WEBGI_materials_fragment_clipping',
+    import: (p) => new GLTFMaterialsFragmentClippingExtensionImport(p),
+    export: glTFMaterialsFragmentClippingExtensionExport,
+    textures: undefined,
+} satisfies AssetManager['gltfExtensions'][number]

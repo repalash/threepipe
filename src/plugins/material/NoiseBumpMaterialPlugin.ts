@@ -5,7 +5,7 @@ import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IMaterialUserData, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString, ThreeSerialization} from '../../utils'
-import {GLTFLoader2, GLTFWriter2} from '../../assetmanager'
+import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
 import NoiseBumpMaterialPluginPars from './shaders/NoiseBumpMaterialPlugin.pars.glsl'
 import NoiseBumpMaterialPluginPatch from './shaders/NoiseBumpMaterialPlugin.patch.glsl'
@@ -241,35 +241,26 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
         this._viewer?.setDirty()
     }
 
-    private _loaderCreate({loader}: {loader: GLTFLoader2}) {
-        if (!loader.isGLTFLoader2) return
-        loader.register((p) => new GLTFMaterialsNoiseBumpMaterialImport(p))
-    }
-
     constructor() {
         super()
-        this._loaderCreate = this._loaderCreate.bind(this)
         Object.assign(this.materialExtension.extraUniforms!, this._uniforms)
     }
 
     onAdded(v: ThreeViewer) {
         super.onAdded(v)
         v.assetManager.materials.registerMaterialExtension(this.materialExtension)
-        v.assetManager.importer.addEventListener('loaderCreate', this._loaderCreate as any)
-        v.assetManager.exporter.getExporter('gltf', 'glb')?.extensions?.push(glTFMaterialsNoiseBumpMaterialExport)
+        v.assetManager.registerGltfExtension(noiseBumpMaterialGLTFExtension)
     }
 
     onRemove(v: ThreeViewer) {
         v.assetManager.materials?.unregisterMaterialExtension(this.materialExtension)
-        v.assetManager.importer?.removeEventListener('loaderCreate', this._loaderCreate as any)
-        const exporter = v.assetManager.exporter.getExporter('gltf', 'glb')
-        if (exporter) {
-            const index = exporter.extensions?.indexOf(glTFMaterialsNoiseBumpMaterialExport)
-            if (index !== undefined && index >= 0) exporter.extensions?.splice(index, 1)
-        }
+        v.assetManager.unregisterGltfExtension(noiseBumpMaterialGLTFExtension.name)
         return super.onRemove(v)
     }
 
+    /**
+     * @deprecated - use {@link noiseBumpMaterialGLTFExtension}
+     */
     public static readonly NOISE_BUMP_MATERIAL_GLTF_EXTENSION = 'WEBGI_materials_noise_bump'
 
 }
@@ -293,7 +284,7 @@ declare module '../../core/IMaterial' {
 /**
  * FragmentClipping Materials Extension
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_fragment_clipping_extension.html
+ * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_fragment_clipping_extension.html (todo - fix link)
  */
 class GLTFMaterialsNoiseBumpMaterialImport implements GLTFLoaderPlugin {
     public name: string
@@ -301,7 +292,7 @@ class GLTFMaterialsNoiseBumpMaterialImport implements GLTFLoaderPlugin {
 
     constructor(parser: GLTFParser) {
         this.parser = parser
-        this.name = NoiseBumpMaterialPlugin.NOISE_BUMP_MATERIAL_GLTF_EXTENSION
+        this.name = noiseBumpMaterialGLTFExtension.name
     }
 
     async extendMaterialParams(materialIndex: number, materialParams: any) {
@@ -322,7 +313,15 @@ const glTFMaterialsNoiseBumpMaterialExport = (w: GLTFWriter2)=> ({
 
         const extensionDef: any = ThreeSerialization.Serialize(material.userData._noiseBumpMat)
 
-        materialDef.extensions[ NoiseBumpMaterialPlugin.NOISE_BUMP_MATERIAL_GLTF_EXTENSION ] = extensionDef
-        w.extensionsUsed[ NoiseBumpMaterialPlugin.NOISE_BUMP_MATERIAL_GLTF_EXTENSION ] = true
+        materialDef.extensions[ noiseBumpMaterialGLTFExtension.name ] = extensionDef
+        w.extensionsUsed[ noiseBumpMaterialGLTFExtension.name ] = true
     },
 })
+
+export const noiseBumpMaterialGLTFExtension = {
+    name: 'WEBGI_materials_noise_bump',
+    import: (p) => new GLTFMaterialsNoiseBumpMaterialImport(p),
+    export: glTFMaterialsNoiseBumpMaterialExport,
+    textures: undefined,
+} satisfies AssetManager['gltfExtensions'][number]
+
