@@ -414,7 +414,7 @@ export const iMaterialUI = {
                 },
                 {
                     type: 'slider',
-                    bounds: [0, 10],
+                    bounds: [0, 100],
                     property: [material, 'emissiveIntensity'],
                 },
                 {

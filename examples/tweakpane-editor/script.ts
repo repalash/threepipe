@@ -77,7 +77,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         renderScale: 'auto',
-        msaa: checkQuery('msaa', false),
+        msaa: checkQuery('msaa', true),
         rgbm: checkQuery('rgbm', true),
         debug: checkQuery('debug', false),
         assetManager: {

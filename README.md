@@ -6,7 +6,7 @@ A new way to work with three.js, 3D models and rendering on the web.
 [Github](https://github.com/repalash/threepipe) &mdash;
 [Examples](https://threepipe.org/examples/) &mdash;
 [API Reference](https://threepipe.org/docs/) &mdash;
-[WebGi](https://webgi.xyz/docs/)
+[WebGi](https://webgi.dev/)
 
 [![NPM Package](https://img.shields.io/npm/v/threepipe.svg)](https://www.npmjs.com/package/threepipe)
 [![Discord Server](https://img.shields.io/discord/956788102473584660?label=Discord&logo=discord)](https://discord.gg/apzU8rUWxY)
@@ -210,9 +210,8 @@ The core framework([src](https://github.com/repalash/threepipe/tree/master/src),
 Some plugins(in the [plugins](https://github.com/repalash/threepipe/tree/master/plugins) folder) might have different licenses. Check the individual plugin documentation and the source folder/files for more details.
 
 ## Status
-The project is in `alpha` stage and under active development. Many features will be added but the core API will not change significantly in future releases.
-
-Check out [WebGi](https://webgi.xyz/docs) for an advanced tailor-made solution for e-commerce, jewelry, automobile, apparel, furniture etc.
+The project is in `beta` stage and under active development. 
+Many features will be added but the core API will not change significantly in future releases.
 
 ## Table of Contents
 

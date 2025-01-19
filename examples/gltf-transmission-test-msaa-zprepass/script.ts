@@ -6,6 +6,7 @@ const viewer = new ThreeViewer({
     msaa: true,
     rgbm: true,
     zPrepass: true, // This example shows a bug in zPrepass
+    // forceZPrepass: true,
     plugins: [LoadingScreenPlugin],
 })
 

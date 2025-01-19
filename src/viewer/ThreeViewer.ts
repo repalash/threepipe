@@ -116,25 +116,29 @@ export interface ThreeViewerOptions {
     screenShader?: TViewerScreenShader,
     /**
      * Use MSAA.
+     * Renders objects in a multi-sampled buffer.
+     * @default false
      */
     msaa?: boolean,
     /**
      * Use Uint8 RGBM HDR Render Pipeline.
      * Provides better performance with post-processing.
      * RenderManager Uses Half-float if set to false.
+     * @default true
      */
     rgbm?: boolean
     /**
      * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin).
      * Set it to true if you only have opaque objects in the scene to get better performance.
      *
-     * todo fix: It will be disabled when there are any transparent/transmissive objects with render to depth buffer enabled, see forceZPrepass
+     * todo fix: It should be disabled when there are any transparent/transmissive objects with render to depth buffer enabled, see forceZPrepass
      */
     zPrepass?: boolean
-    /**
-     * Force z-prepass even if there are transparent/transmissive objects with render to depth buffer enabled.
-     */
-    forceZPrepass?: boolean // todo
+    // /**
+    //  * Force z-prepass even if there are transparent/transmissive objects with render to depth buffer enabled.
+    //  * Not implemented
+    //  */
+    // forceZPrepass?: boolean // todo
 
     /**
      * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
@@ -430,7 +434,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
         this.renderManager = new ViewerRenderManager({
             canvas: this._canvas,
             msaa: options.msaa ?? options.isAntialiased ?? false,
-            rgbm: options.rgbm ?? options.useRgbm ?? false,
+            rgbm: options.rgbm ?? options.useRgbm ?? true,
             zPrepass: options.zPrepass ?? options.useGBufferDepth ?? false,
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
             screenShader: options.screenShader,
@@ -1103,7 +1107,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
      * Deserialize and import all the viewer and plugin settings, exported with {@link exportConfig}.
      */
     async importConfig(json: ISerializedConfig|ISerializedViewerConfig) {
-        if (json.type !== this.type && <string>json.type !== 'ViewerApp') {
+        if (json.type !== this.type && <string>json.type !== 'ViewerApp' && <string>json.type !== 'ThreeViewer') {
             if (this.getPlugin(json.type)) {
                 return this.importPluginConfig(json)
             } else {

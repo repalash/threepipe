@@ -93,6 +93,9 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         for (const vElement of v) shader.vertexShader = shaderReplaceString(shader.vertexShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
         for (const fElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, fElement[0], '#glMarker ' + fElement[1] + '\n' + fElement[0])
 
+        // for NaN. todo do the same in Unlit and line materials?
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <output_fragment>', 'gl_FragColor = clamp(gl_FragColor, 0.0, 1000.0);\n', {append: true})
+
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
 
         shader.defines && (shader.defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0)
