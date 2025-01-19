@@ -24,6 +24,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.matrix = object.matrixWorld
         this.matrixAutoUpdate = false
 
+        this.dispose = this.dispose.bind(this)
         this._objectUpdate = this._objectUpdate.bind(this)
         this.attach(object)
         this.traverse(o => {

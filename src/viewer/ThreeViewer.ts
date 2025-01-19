@@ -136,14 +136,19 @@ export interface ThreeViewerOptions {
      */
     forceZPrepass?: boolean // todo
 
-    /*
+    /**
      * Render scale, 1 = full resolution, 0.5 = half resolution, 2 = double resolution.
      * Same as pixelRatio in three.js
      * Can be set to `window.devicePixelRatio` to render at device resolution in browsers.
      * An optimal value is `Math.min(2, window.devicePixelRatio)` to prevent issues on mobile. This is set when 'auto' is passed.
-     * Default is 1.
+     * @default 1
      */
     renderScale?: number | 'auto'
+    /**
+     * Max render scale when set to 'auto'
+     * @default 2
+     */
+    maxRenderScale?: number
 
     debug?: boolean
 
@@ -430,7 +435,7 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
             screenShader: options.screenShader,
             renderScale: typeof options.renderScale === 'string' ? options.renderScale === 'auto' ?
-                Math.min(2, window.devicePixelRatio) : parseFloat(options.renderScale) :
+                Math.min(options.maxRenderScale || 2, window.devicePixelRatio) : parseFloat(options.renderScale) :
                 options.renderScale,
             maxHDRIntensity: options.maxHDRIntensity,
         })

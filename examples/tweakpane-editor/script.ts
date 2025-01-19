@@ -66,7 +66,7 @@ import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-co
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 // @ts-expect-error todo fix import
-import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin} from '@threepipe/webgi-plugins'
+import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
     return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
@@ -107,8 +107,12 @@ async function init() {
         new SSAAPlugin(),
         GLTFAnimationPlugin,
         TransformAnimationPlugin,
+        new GBufferPlugin(HalfFloatType, true, true, true),
+        new DepthBufferPlugin(HalfFloatType, false, false),
+        new NormalBufferPlugin(HalfFloatType, false),
         PickingPlugin,
         new TransformControlsPlugin(false),
+        OutlinePlugin,
         EditorViewWidgetPlugin,
         CameraViewPlugin,
         ViewerUiConfigPlugin,
@@ -116,13 +120,11 @@ async function init() {
         FragmentClippingExtensionPlugin,
         NoiseBumpMaterialPlugin,
         CustomBumpMapPlugin,
+        AnisotropyPlugin,
         new ParallaxMappingPlugin(false),
         GLTFKHRMaterialVariantsPlugin,
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
-        new GBufferPlugin(HalfFloatType, true, true, true),
-        new DepthBufferPlugin(HalfFloatType, false, false),
-        new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
@@ -136,6 +138,7 @@ async function init() {
         BloomPlugin,
         TemporalAAPlugin,
         new VelocityBufferPlugin(UnsignedByteType, false),
+        new SSGIPlugin(UnsignedByteType, 1, false),
         KTX2LoadPlugin,
         KTXLoadPlugin,
         PLYLoadPlugin,
@@ -186,13 +189,13 @@ async function init() {
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
         ['Scene']: [SSAAPlugin, BaseGroundPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     })
 

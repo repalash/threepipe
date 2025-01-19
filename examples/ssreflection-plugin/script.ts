@@ -1,14 +1,16 @@
 import {
     _testFinish,
     BaseGroundPlugin,
+    Color,
     GBufferPlugin,
-    IObject3D, LoadingScreenPlugin,
+    LoadingScreenPlugin,
     PickingPlugin,
-    RenderTargetPreviewPlugin, SSAAPlugin,
+    RenderTargetPreviewPlugin,
+    SSAAPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-// @ts-expect-error todo fix
+// @ts-expect-error todo fix import
 import {BloomPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {
@@ -30,41 +32,30 @@ async function init() {
     const ssrefl = viewer.addPluginSync(new SSReflectionPlugin(inline))
     const ground = viewer.addPluginSync(BaseGroundPlugin)
     viewer.addPluginSync(PickingPlugin)
-    console.log(ssrefl)
+
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
-        setBackground: true,
-    })
-    await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-        autoCenter: true,
-        autoScale: true,
-    })
-    // const model = result?.getObjectByName('node_damagedHelmet_-6514')
-    // const materials = (model?.materials || []) as PhysicalMaterial[]
-
-    ui.setupPluginUi(ssrefl)
+    ui.setupPluginUi(ssrefl, {expanded: true})
     ui.setupPluginUi(BaseGroundPlugin)
     ui.setupPluginUi(PickingPlugin)
     ui.setupPluginUi(BloomPlugin)
 
-    // for (const material of materials) {
-    //     ui.appendChild(material.uiConfig)
-    // }
-
-    // bloom.pass!.intensity = 3
-    // bloom.pass!.threshold = 1
-
-    // viewer.scene.background = null
-    // bloom.pass!.bloomDebug = true
-
-    ground.material!.roughness = 0.2
     const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
     if (!ssrefl.inlineShaderRayTrace) {
         targetPreview.addTarget(() => ssrefl.target, 'ssrefl')
     }
-    // const gb = viewer.getPlugin(GBufferPlugin)
-    // targetPreview.addTarget(() => gb?.target, 'depth')
+
+    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb', {
+        autoCenter: true,
+        autoScale: false,
+    })
+
+    viewer.scene.backgroundColor = new Color(0x1B1B1F)
+    ground.tonemapGround = false
+    ground.material!.color.set(0x1B1B1F)
+    ground.material!.roughness = 0.2
+    ground.material!.userData.separateEnvMapIntensity = true
+    ground.material!.envMapIntensity = 0
 
 }
 

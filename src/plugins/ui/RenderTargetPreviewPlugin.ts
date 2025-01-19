@@ -76,6 +76,7 @@ export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPlu
             this._viewer.renderManager.blit(null, {
                 source: tex,
                 clear: !targetBlock.transparent,
+                // transparent: targetBlock.transparent, // todo
                 respectColorSpace: !targetBlock.originalColorSpace,
                 viewport: new Vector4(rect.x, rect.y, rect.width, rect.height),
                 material: targetBlock.material,

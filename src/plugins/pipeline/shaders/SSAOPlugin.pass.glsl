@@ -7,7 +7,11 @@
 varying vec2 vUv;
 
 uniform sampler2D tLastThis;
+
+#ifndef D_frameCount
+#define D_frameCount
 uniform float frameCount;
+#endif
 
 uniform vec4 saoData;
 uniform vec3 saoBiasEpsilon;
