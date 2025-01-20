@@ -10,13 +10,13 @@ next:
 
 # UI Configuration
 
-Almost all of the classes and plugins in Threepipe include [uiconfig.js](https://repalash.com/uiconfig.js/) support and can be used to create configuration UIs, 3d configurators and even full-editors.
+Almost all the classes and plugins in Threepipe include [uiconfig.js](https://repalash.com/uiconfig.js/) support and can be used to create configuration UIs, 3d configurators and even full-editors.
 The UIs are automatically generated based on the configuration object under `.uiConfig` property on all objects. These are of type [UiObjectConfig](https://repalash.com/uiconfig.js/interfaces/UiObjectConfig.html).
 In some classes, the ui configs are also generated using typescript decorators.
 
 The `uiConfig` is also added to all three.js objects and materials when they are added to the scene.
 
-The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](#threepipeplugin-tweakpane), [BlueprintJsUiPlugin](#threepipeplugin-blueprintjs)
+The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](../package/plugin-tweakpane), [BlueprintJsUiPlugin](../package/plugin-blueprintjs)
 
 An example showing how to create a UI for a material
 
@@ -34,7 +34,7 @@ See it in action: https://threepipe.org/examples/#material-uiconfig/
 Check more examples showing [Viewer UI](https://threepipe.org/examples/#viewer-uiconfig/), [Scene UI](https://threepipe.org/examples/#scene-uiconfig/), [Object UI](https://threepipe.org/examples/#object-uiconfig/), [Camera UI](https://threepipe.org/examples/#camera-uiconfig/)
 
 ::: info
-[TweakpaneEditorPlugin](#threepipeplugin-tweakpane-editor) further uses the Tweakpane configuration panel along with various plugins to create an 3d editor.
+[TweakpaneEditorPlugin](../package/plugin-tweakpane-editor) further uses the Tweakpane configuration panel along with various plugins to create a 3d editor.
 :::
 
 Custom UI configuration can be created to generate custom UI for the editor or tweaking.

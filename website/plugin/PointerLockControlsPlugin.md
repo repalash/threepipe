@@ -17,7 +17,7 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/interaction/PointerLockControlsPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/PointerLockControlsPlugin.html)
 
-PointerLockControlsPlugin adds support for using PointerLockControls from three.js. It works similar to controls in first person shooter, captures the mouse pointer and uses it to look around with the camera.
+PointerLockControlsPlugin adds support for using PointerLockControls from three.js. It works similar to controls in first-person shooter, captures the mouse pointer and uses it to look around with the camera.
 
 After the plugin is added, it adds support for setting `pointerLock` as the key in `scene.mainCamera.controlMode`.
 

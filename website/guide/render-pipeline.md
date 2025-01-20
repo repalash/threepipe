@@ -19,7 +19,7 @@ which provides utilities for creating, tracking and destroying dedicated and tem
 
 The main render pipeline supports progressive rendering and is fully configurable. Plugins and applications can add custom passes, effects, and shaders to the pipeline.
 
-Plugins like [GBufferPlugin](https://threepipe.org/docs/classes/GBufferPlugin.html), [SSAOPlugin](https://threepipe.org/docs/classes/SSAOPlugin.html), [TonemapPlugin](https://threepipe.org/docs/classes/TonemapPlugin.html), etc interact and extend the render pipeline by adding custom passes to the render pipeline and material extensions to the material manager.
+Plugins like [GBufferPlugin](https://threepipe.org/docs/classes/GBufferPlugin.html), [SSAOPlugin](https://threepipe.org/docs/classes/SSAOPlugin.html), [TonemapPlugin](https://threepipe.org/docs/classes/TonemapPlugin.html), etc. interact and extend the render pipeline by adding custom passes to the render pipeline and material extensions to the material manager.
 
 ## Render Targets
 

@@ -120,7 +120,7 @@ The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), se
 
 Check out the GLTF Load example to see it in action or to check the JS equivalent code: [Example: gltf-load](https://threepipe.org/examples/#gltf-load/)
 
-Check out the [Plugins](#plugin-system) section below to learn how to add additional functionality to the viewer.
+Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system) section to learn how to add additional functionality to the viewer.
 
 ### React
 

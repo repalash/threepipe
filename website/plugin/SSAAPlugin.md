@@ -19,9 +19,9 @@ next:
 
 SSAA Plugin adds support for [Super Sampling Anti-Aliasing](https://en.wikipedia.org/wiki/Supersampling) to the viewer. Simply add the plugin to the viewer to use it.
 
-It jitters the camera view offset over multiple frames, which are then blended by the [ProgressivePlugin](#progressiveplugin) to create a higher quality image. This is useful for reducing aliasing artifacts in the scene.
+It jitters the camera view offset over multiple frames, which are then blended by the [ProgressivePlugin](./progressiveplugin) to create a higher quality image. This is useful for reducing aliasing artifacts in the scene.
 
-By default, the pipeline only renders once per request animation frame. So we don't get any anti-aliasing while moving. For that, either use the TAA(Temporal Anti-aliasing) plugin or for the case of simple scenes - render multiple times per frame which can be done by setting `plugin.rendersPerFrame` or `viewer.rendersPerFrame`. Check out the [example](https://threepipe.org/examples/#ssaa-plugin/) to see the effect on frame rate.
+By default, the pipeline only renders once per request animation frame. So we don't get any antialiasing while moving. For that, either use the TAA(Temporal Anti-aliasing) plugin or for the case of simple scenes - render multiple times per frame which can be done by setting `plugin.rendersPerFrame` or `viewer.rendersPerFrame`. Check out the [example](https://threepipe.org/examples/#ssaa-plugin/) to see the effect on frame rate.
 
 ```typescript
 

@@ -17,7 +17,7 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/FrameFadePlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/FrameFadePlugin.html)
 
-FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc to avoid a sudden jump.
+FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc. to avoid a sudden jump.
 
 ```typescript
 import {ThreeViewer, FrameFadePlugin} from 'threepipe'

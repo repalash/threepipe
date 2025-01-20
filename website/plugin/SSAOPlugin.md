@@ -19,11 +19,11 @@ next:
 
 SSAO Plugin adds support for [Screen Space Ambient Occlusion](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) to the viewer. Simply add the plugin to the viewer to use it.
 
-This is done by adding a pre-render pass to the render manager which renders SSAO to a custom render target. SSAOPlugin depends on [GBufferPlugin](#gbufferplugin), and is automatically added if not already.
+This is done by adding a pre-render pass to the render manager which renders SSAO to a custom render target. SSAOPlugin depends on [GBufferPlugin](./GBufferPlugin), and is automatically added if not already.
 
 This render target is then used by all PhysicalMaterial(s) in the scene during the main RenderPass to get the AO data. SSAO can also be disabled from the UI of the material.
 
-Note: Use with [ProgressivePlugin](#progressiveplugin) and `TemporalAAPlugin` for best results.
+Note: Use with [ProgressivePlugin](./ProgressivePlugin) and `TemporalAAPlugin` for best results.
 
 ```typescript
 import {ThreeViewer, SSAOPlugin} from 'threepipe'

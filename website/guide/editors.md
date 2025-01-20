@@ -14,7 +14,7 @@ Threepipe provides a set of editors to create, edit and configure 3D scenes in t
 
 The editors render `uiConfig` from the viewer, scene, and plugins along with several custom UI elements to provide a completely dynamic and extendable interface. 
 
-A common workflow is drop a 3d model into the editor, enable the required plugins, set proper lighting, background, environment maps, set plugin properties like post-processing settings, materials, animations, camera views etc, and export a compressed glb file with scene settings and plugin data. This glb file can then be loaded into the viewer(with all the plugins) to get the same scene and settings. 
+A common workflow is drop a 3d model into the editor, enable the required plugins, set proper lighting, background, environment maps, set plugin properties like post-processing settings, materials, animations, camera views etc., and export a compressed glb file with scene settings and plugin data. This glb file can then be loaded into the viewer(with all the plugins) to get the same scene and settings. 
 
 ## Tweakpane Editor
 

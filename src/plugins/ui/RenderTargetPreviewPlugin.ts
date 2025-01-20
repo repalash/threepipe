@@ -17,6 +17,12 @@ export interface RenderTargetBlock {
     div: HTMLDivElement
     material?: ShaderMaterial // see ExtendedCopyPass
 }
+
+/**
+ * RenderTargetPreviewPlugin is a useful development and debugging plugin that renders any registered render-target to the screen in small collapsable panels.
+ *
+ * @category Plugins
+ */
 @uiFolderContainer('Render Target Preview Plugin')
 export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
     static readonly PluginType = 'RenderTargetPreviewPlugin'

@@ -144,8 +144,8 @@ export default defineConfig({
             items: [
               {text: 'RenderTargetPreviewPlugin', link: 'plugin/RenderTargetPreviewPlugin'},
               {text: 'GeometryUVPreviewPlugin', link: 'plugin/GeometryUVPreviewPlugin'},
-              {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
-              {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},
+              // {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
+              // {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},
             ],
           },
           {

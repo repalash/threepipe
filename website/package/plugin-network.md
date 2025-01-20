@@ -31,7 +31,7 @@ npm install @threepipe/plugin-network
 
 TransfrSharePlugin provides functionality to export and upload the scene or an object as glb and provide link to share/preview/edit the files.
 
-It uses the options from the `AssetExporterPlugin` to export the scene or object, and can be configured using it's ui.
+It uses the options from the `AssetExporterPlugin` to export the scene or object, and can be configured using its ui.
 
 Uses the free service [transfr.one](https://transfr.one/) by default which deletes the files after a certain time, but the url can be changed to a custom backend or a self-hosted version of transfr.
 

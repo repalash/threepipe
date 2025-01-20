@@ -16,7 +16,7 @@ Plugins can be added to the viewer at any time and can be removed using the `rem
 
 There are built-in plugins provided in the core of threepipe, that can be directly added to the viewer to add new features. These plugins are designed to be modular and can be used independently or in combination with other plugins. They also serve as good examples and starting points for creating custom plugins.
 
-All of the plugins are configurable, serializable and expose a UI to control their properties.
+All the plugins are configurable, serializable and expose a UI to control their properties.
 
 Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tweakpane-editor](https://threepipe.org/examples/#tweakpane-editor) examples which use most of these plugins.
 
@@ -97,7 +97,7 @@ Plugins to configure export options and methods for different file formats.
 
 - [CanvasSnapshotPlugin](../plugin/CanvasSnapshotPlugin) - Add support for taking snapshots of the canvas.
 - [AssetExporterPlugin](../plugin/AssetExporterPlugin) - Provides helper options, methods and ui config to export the scene, object GLB or Viewer Configuration.
-- [FileTransferPlugin](../plugin/FileTransferPlugin) - Provides a way to extend the viewer.export functionality with custom actions.
+- [FileTransferPlugin](../plugin/FileTransferPlugin) - Provides a way to extend the `viewer.export` functionality with custom actions.
 
 ## Extras
 

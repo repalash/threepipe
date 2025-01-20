@@ -73,12 +73,12 @@ Check the [model-viewer](https://threepipe.org/examples/#model-viewer/) example 
 
 ## Materials
 
-The materials downloaded as PMAT/BMAT/JSON etc from threepipe,
+The materials downloaded as `PMAT`/`BMAT`/`JSON` etc. from threepipe,
 webgi or the editor can be loaded
 and registered with the [MaterialManager](https://threepipe.org/docs/classes/MaterialManager)
 using the `viewer.load` method.
 
-Custom material types can also be registered by plugins(like dmat for diamonds), which can also be loaded automatically using the `viewer.load` method.
+Custom material types can also be registered by plugins(like `DMAT` for diamonds), which can also be loaded automatically using the `viewer.load` method.
 
 ```typescript
 const pMaterial = await viewer.load<PhysicalMaterial>('https://example.com/file.pmat')
@@ -140,7 +140,7 @@ Any level of zip hierarchy is flattened.
 Loading files like .gltf with references to assets inside the zip file,
 any relative references are also automatically resolved.
 This is supported for file types like gltf, glb, obj,
-etc which support references to external files and has `root` set to `true in [IImporter](https://threepipe.org/docs/interfaces/IImporter.html).
+etc. which support references to external files and has `root` set to `true in [IImporter](https://threepipe.org/docs/interfaces/IImporter.html).
 
 ```typescript
 const objectGltf = await viewer.load<IObject3D>('https://example.com/model.gltf.zip')
@@ -193,7 +193,7 @@ const text = await viewer.load<IObject>({
 ```
 The same can be done for any file type.
 
-To load a `Map` of files(like when multiple files are dragged and dropped on the webpage) with internal references to other files, use `viewer.assetManager.importer.importFiles` method. Check the source for [DropzonePlugin](#dropzoneplugin) for an example.
+To load a `Map` of files(like when multiple files are dragged and dropped on the webpage) with internal references to other files, use `viewer.assetManager.importer.importFiles` method. Check the source for [DropzonePlugin](../plugin/DropzonePlugin) for an example.
 
 ## Background, Environment maps
 

@@ -121,7 +121,7 @@ init();
 
 The `ThreeViewer` class is used to create a new 3D viewer instance. It includes several components including a `Scene`, `Camera`(with `OrbitControls`), `Renderer`, `RenderManager`, `AssetManager`, and some default plugins(like `TonemapPlugin`). It is set up to provide a quickstart to create a three.js app with all the required components. 
 
-Additionally plugins like `LoadingScreenPlugin`, `ProgressivePlugin`, `SSAAPlugin`, and `ContactShadowGroundPlugin` are added to extend the functionality of the viewer.
+Additionally, plugins like `LoadingScreenPlugin`, `ProgressivePlugin`, `SSAAPlugin`, and `ContactShadowGroundPlugin` are added to extend the functionality of the viewer.
 
 Check out this sample on CodePen: [threepipe-sample](https://codepen.io/repalash/pen/GRbEONZ?editors=0010)
 

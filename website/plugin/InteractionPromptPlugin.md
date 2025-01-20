@@ -21,7 +21,7 @@ Interaction Prompt Plugin adds a hand pointer icon over the canvas that moves to
 
 The default pointer icon from [google/model-viewer](https://github.com/google/model-viewer) and can be configured with the `pointerIcon` property.
 
-The pointer is automatically shown when some object is in the scene and the camera is not moving.
+The pointer is automatically shown when some object is in the scene and the camera are not moving.
 
 The animation starts after a delay and stops on user interaction. It then restarts after a delay after the user stops interacting
 

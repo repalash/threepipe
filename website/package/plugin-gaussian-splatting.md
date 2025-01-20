@@ -34,7 +34,7 @@ Currently working:
 * ThreeGaussianSplatPlugin (Same as GaussianSplattingPlugin), add importer and update events to the viewer
 * GaussianSplatMaterialExtension for adding gaussian splat functionality to any material like Unlit, Physical
 * GaussianSplatMesh a subclass of Mesh2 for holding the gaussian splat geometry and a material with gaussian splat extension. also handles basic raycast in the splat geometry. (assuming simple points)
-* GaussianSplatGeometry holds the geometry data and and the sort worker. Computes correct bounding box and sphere.
+* GaussianSplatGeometry holds the geometry data and the sort worker. Computes correct bounding box and sphere.
 * SplatLoader for loading splat files and creating the geometry and material.
 * GaussianSplatMaterialUnlit, GaussianSplatMaterialRaw
 * GaussianSplatMaterialPhysical, working but normals are hardcoded to 0,1,0

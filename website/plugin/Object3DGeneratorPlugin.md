@@ -18,7 +18,7 @@ next:
 [API Reference](https://threepipe.org/docs/classes/Object3DGeneratorPlugin.html)
 
 Object3DGeneratorPlugin adds support for creating different types of lights and camera objects in the viewer.
-Call the `generate` method with any type to generate a type of object(like lights, cameras, mesh etc).
+Call the `generate` method with any type to generate a type of object(like lights, cameras, mesh etc.).
 
 Support for the following types of generators is included in the plugin:
 * camera-perspective - Creates instance of `PerspectiveCamera2`
@@ -29,7 +29,7 @@ Support for the following types of generators is included in the plugin:
 * light-hemisphere - Creates instance of `HemisphereLight2`
 * light-rect-area - Creates instance of `RectAreaLight2`
 
-Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](#threepipeplugin-geometry-generator) to add various type of primitive objects like plane, sphere, etc
+Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](../package/plugin-geometry-generator) to add various type of primitive objects like plane, sphere, etc.
 A custom generator can take in any kind object as parameters and should return an `IObject3D`.
 
 Sample Usage

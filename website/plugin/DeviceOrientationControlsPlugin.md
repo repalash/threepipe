@@ -20,7 +20,7 @@ next:
 DeviceOrientationControlsPlugin enables controlling the main camera rotation in the scene with device orientation. This only works on devices which have a gyroscope(but can also be emulated in devtools in chrome).
 After the plugin is added, it adds support for setting `deviceOrientation` as the key in `scene.mainCamera.controlMode`.
 
-When the controls is started (for the first time), the current camera rotation is and the device orientation is saved and used as reference. To reset the saved device orientation, call `resetView` in the controls.
+When the controls are started (for the first time), the current camera rotation is and the device orientation is saved and used as reference. To reset the saved device orientation, call `resetView` in the controls.
 
 Sample Usage
 ```typescript

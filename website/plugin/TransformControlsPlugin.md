@@ -21,7 +21,7 @@ Transform Controls Plugin adds support for moving, rotating and scaling objects 
 
 Under the hood, TransformControlsPlugin uses [TransformControls2](https://threepipe.org/docs/classes/TransformControls2) to provide the interactive controls, it is a extended version of three.js [TransformControls](https://threejs.org/docs/#examples/en/controls/TransformControls).
 
-When the plugin is added to the viewer, it interfaces with the [PickingPlugin](#pickingplugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
+When the plugin is added to the viewer, it interfaces with the [PickingPlugin](./PickingPlugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
 
 If the `PickingPlugin` is not added to the viewer before the `TransformControlsPlugin`, it is added automatically with the plugin.
 

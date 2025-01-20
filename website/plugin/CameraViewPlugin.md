@@ -17,8 +17,8 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/animation/CameraViewPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/CameraViewPlugin.html)
 
-CameraViewPlugin adds support to save and load camera views, which can then be animated to.
-It uses PopmotionPlugin internally to animate any camera to a saved view or to loop through all the saved views.
+`CameraViewPlugin` adds support to save and load camera views, which can then be animated to.
+It uses `PopmotionPlugin` internally to animate any camera to a saved view or to loop through all the saved views.
 
 It also provides a UI to manage the views.
 

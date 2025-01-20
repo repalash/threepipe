@@ -17,7 +17,7 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/extras/HDRiGroundPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/HDRiGroundPlugin.html)
 
-HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environemnt and enabling the plugin.
+HDRiGroundPlugin patches the background shader in the renderer to add support for ground projected environment map/skybox. Works simply by setting the background same as the environment and enabling the plugin.
 
 The world radius, tripod height, and origin position(center offset) can be set in the plugin.
 

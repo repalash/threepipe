@@ -10,7 +10,7 @@ prev:
 
 # Plugin System
 
-Plugins are the building blocks of features in a 3D Viewer. Each plugin handles its own individual feature along with serialisation and lifecycle management. Threepipe uses a plugin system to add new options, rendering styles, post processing passes, and more functionality. The plugin architecture is designed similar to other js frameworks like vue or webpack (but for 3d rendering).
+Plugins are the building blocks of features in a 3D Viewer. Each plugin handles its own individual feature along with serialisation and lifecycle management. Threepipe uses a plugin system to add new options, rendering styles, post-processing passes, and more functionality. The plugin architecture is designed similar to other js frameworks like vue or webpack (but for 3d rendering).
 
 ::: tip
 Check the pages on [Core Plugins](./core-plugins) and [@threepipe Packages](./threepipe-packages) for a list of available plugins.
@@ -18,7 +18,7 @@ Check the pages on [Core Plugins](./core-plugins) and [@threepipe Packages](./th
 
 All plugins follow the same basic structure, independent of the logic, with the API to add and remove plugins being always consistent (and one-liner). This makes it easy to debug, bundle, tree-shake, serialisation/deserialisation and extend functionality to the 3d viewer. It is also recommended to keep individual plugins small and handle one specific functionality.
 
-Plugins can be dependant on other plugins. These dependencies are automatically resolved and added to the viewer at runtime. eg. `SSAOPlugin` depends on `GBufferPlugin` to get the depth and normal data. So, when `SSAOPlugin` is added to the viewer, it automatically adds `GBufferPlugin` before that (if not added already).
+Plugins can be dependent on other plugins. These dependencies are automatically resolved and added to the viewer at runtime. e.g. `SSAOPlugin` depends on `GBufferPlugin` to get the depth and normal data. So, when `SSAOPlugin` is added to the viewer, it automatically adds `GBufferPlugin` before that (if not added already).
 
 ::: note
 Plugin dependencies are different from pass/filter dependencies, which specifies how passes should be arranged in the render pipeline (effect composer).
@@ -28,7 +28,7 @@ Threepipe ships with a library of internal and external plugins to achieve photo
 
 The plugins can be added synchronously or asynchronously using `viewer.addPluginSync` and `viewer.addPlugin` methods respectively.
 
-It is recommended to create custom plugins for reusable features, as they provide built-in features for ui configuration, serialization, integration with editors etc and are easy to manage and tree-shake in the code.
+It is recommended to create custom plugins for reusable features, as they provide built-in features for ui configuration, serialization, integration with editors etc. and are easy to manage and tree-shake in the code.
 
 Check out the list of plugins in the [Core Plugin](./core-plugins) and [@threepipe Packages](./threepipe-packages) pages.
 
@@ -120,7 +120,7 @@ Notes:
 * All plugins that are present in the dependencies array when the plugin is added to the viewer, are created and attached to the viewer in `super.onAdded`
 * Custom events can be dispatched with `this.dispatchEvent`, and subscribed to with `plugin.addEventListener`. The event type must be described in the class signature for typescript autocomplete to work.
 * Event listeners and other hooks can be added and removed in `onAdded` and `onRemove` functions for the viewer and other plugins.
-* To the viewer render the next frame, `viewer.setDirty()` can be called, or set `this.dirty = true` in preFrame and reset in postFrame to stop the rendering. (Note that rendering may continue if some other plugin sets the viewer dirty like `ProgressivePlugin` or any of the animation plugins). Check `isConverged` in `ProgressivePlugin` to check if its the final frame.
+* To the viewer render the next frame, `viewer.setDirty()` can be called, or set `this.dirty = true` in preFrame and reset in postFrame to stop the rendering. (Note that rendering may continue if some other plugin sets the viewer dirty like `ProgressivePlugin` or any of the animation plugins). Check `isConverged` in `ProgressivePlugin` to check if it's the final frame.
 * All Plugins which inherit from AViewerPlugin support serialisation. Create property `serializeWithViewer = false` to disable serialisation with the viewer in config and glb or `toJSON: any = undefined` to disable serialisation entirely
 * `plugin.toJSON()` and `plugin.fromJSON()` or `ThreeSerialization` can be used to serialize and deserialize plugins. `viewer.exportPluginConfig` and `viewer.importPluginConfig` also exist for this.
 * @serialize('label') decorator can be used to mark any public/private variable as serializable. label (optional) corresponds to the key in JSON.

@@ -16,7 +16,7 @@ The material manager is used to register materials and material extensions.
 The material extensions can extend any material in the scene, or any plugin/pass with additional uniforms, defines, shader snippets and provides hooks.
 
 The material extensions are automatically applied to all materials in the scene that are compatible,
-when the extension is registered or when the material(the object its assigned to) is added to the scene.
+when the extension is registered or when the material(the object it's assigned to) is added to the scene.
 
 Threepipe includes several built-in materials like [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial.html), [UnlitMaterial](https://threepipe.org/docs/classes/UnlitMaterial.html), [ExtendedShaderMaterial](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html), [LegacyPhongMaterial](https://threepipe.org/docs/classes/LegacyPhongMaterial.html), that include support for extending the material. Any existing three.js material can be made extendable, check the `ShaderPass2` class for a simple example that adds support for material extension to three.js ShaderPass.
 

@@ -10,7 +10,7 @@ next:
 
 # Exporting files
 
-Threepipe has support for exporting various asset type with AssetManager, as well as support to export viewer and plugin configuration, arbitrary objects etc using the [serialization](#serialization) system.
+Threepipe has support for exporting various asset type with AssetManager, as well as support to export viewer and plugin configuration, arbitrary objects etc. using the [serialization](./serialization) system.
 
 [viewer.export()](https://threepipe.org/docs/classes/ThreeViewer.html#export) is a high-level wrapper for exporting scene objects, materials, textures, render targets, viewer/scene configuration and plugin configurations.
 

@@ -51,7 +51,7 @@ When deserialized they need an object to deserialize into.
 This ensures there is always just one instance.
 With this, the serialization system works like `toJSON` and `fromJSON` methods in three.js.
 
-Check the [plugin system](#plugin-system) below for more details on how to mark properties as serializable for plugins.
+Check the [plugin system](https://threepipe.org/guide/features.html#plugin-system) page for more details on how to mark properties as serializable for plugins.
 
 ```typescript
 class CustomClass{

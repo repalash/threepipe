@@ -17,7 +17,7 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/interaction/ThreeFirstPersonControlsPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/ThreeFirstPersonControlsPlugin.html)
 
-ThreeFirstPersonControlsPlugin adds support for using FirstPersonControls from three.js. It works similar to idle look around in first person games, it does not captures the mouse pointer.
+ThreeFirstPersonControlsPlugin adds support for using FirstPersonControls from three.js. It works similar to idle look around in first person games, it does not capture the mouse pointer.
 
 After the plugin is added, it adds support for setting `threeFirstPerson` as the key in `scene.mainCamera.controlMode`.
 

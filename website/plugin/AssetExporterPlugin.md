@@ -18,7 +18,7 @@ next:
 [API Reference](https://threepipe.org/docs/classes/AssetExporterPlugin.html)
 
 Asset Exporter Plugin provides options and methods to export the scene, object GLB or Viewer Config.
-All the functionality is available in the viewer(and `AssetExporter`) directly, this plugin only provides a ui-config and maintains state of the options which is saved as plugin configuration along with glb/vjson file
+All the functionality is available in the viewer(and `AssetExporter`) directly, this plugin only provides an ui-config and maintains state of the options which is saved as plugin configuration along with glb/vjson file
 
 ```typescript
 import {ThreeViewer, AssetExporterPlugin} from 'threepipe'

@@ -1,6 +1,13 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {serialize} from 'ts-browser-helpers'
 
+/**
+ * Viewer UI Config Plugin
+ *
+ * Just a plugin wrapper over the `viewer.uiConfig
+ *
+ * @category Plugins
+ */
 export class ViewerUiConfigPlugin extends AViewerPluginSync<''> {
     static readonly PluginType = 'ViewerUiConfigPlugin'
     enabled = true

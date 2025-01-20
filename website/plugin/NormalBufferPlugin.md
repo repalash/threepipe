@@ -20,7 +20,7 @@ next:
 Normal Buffer Plugin adds a pre-render pass to the render manager and renders a normal buffer to a target. The render target can be accessed by other plugins throughout the rendering pipeline to create effects like SSAO, SSR, etc.
 
 ::: info NOTE
-Use [`GBufferPlugin`](#GBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
+Use [`GBufferPlugin`](./GBufferPlugin) if using both `DepthBufferPlugin` and `NormalBufferPlugin` to render both depth and normal buffers in a single pass.
 :::
 
 ```typescript

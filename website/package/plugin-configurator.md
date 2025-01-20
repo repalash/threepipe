@@ -53,14 +53,14 @@ To create a custom configurator UI, use the `MaterialConfiguratorBasePlugin` dir
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/configurator/src/SwitchNodePlugin.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/configurator/docs/classes/SwitchNodePlugin.html)
 
-SwitchNodePlugin adds a UI to configure and switch between different different object variations within a switch node object.
+SwitchNodePlugin adds a UI to configure and switch between different object variations within a switch node object.
 
 This plugin allows you to configure object variations with object names in a file and apply them in the scene.
 Each SwitchNode is a parent object with multiple direct children. Only one child is visible at a time.
 This works by toggling the `visible` property of the children of a parent object.
 The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.
 It also provides a function to create snapshot previews of individual variations. This creates a limited render of the object with the selected child visible.
-To get a proper render, its better to render it offline and set the image as a preview.
+To get a proper render, it's better to render it offline and set the image as a preview.
 This functionality is inherited from [SwitchNodeBasePlugin](https://threepipe.org/docs/classes/SwitchNodeBasePlugin.html).
 
 Additionally, this plugin adds a simple Grid UI in the DOM over the viewer canvas to show various material variations and allow the user to apply them.

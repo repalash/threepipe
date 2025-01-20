@@ -18,4 +18,4 @@ next:
 
 Progressive Plugin adds a post-render pass to blend the last frame with the current frame.
 
-This is used as a dependency in other plugins for progressive rendering effect which is useful for progressive shadows, gi, denoising, baking, anti-aliasing, and many other effects. The helper function `convergedPromise` returns a new promise that can be used to wait for the progressive rendering to converge.
+This is used as a dependency in other plugins for progressive rendering effect which is useful for progressive shadows, gi, denoising, baking, antialiasing, and many other effects. The helper function `convergedPromise` returns a new promise that can be used to wait for the progressive rendering to converge.

@@ -13,7 +13,7 @@ next:
 
 Exports [BlendImporterPlugin](https://threepipe.org/plugins/blend-importer/docs/classes/BlendLoadPlugin.html) which adds support for loading .blend files.
 
-It uses [js.blend](https://github.com/acweathersby/js.blend) for parsing blend file structure.
+It uses [`js.blend`](https://github.com/acweathersby/js.blend) for parsing blend file structure.
 
 ::: warning Note
 This is still a WIP.

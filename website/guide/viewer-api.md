@@ -24,7 +24,7 @@ next:
     - `.exporter`: [`AssetExporter`](https://threepipe.org/docs/classes/AssetExporter.html) - for exporting assets
     - `.materialManager`: [`MaterialManager`](https://threepipe.org/docs/classes/MaterialManager.html) - for managing materials and material extensions
 - `.plugins`: `Record<string,`[`IViewerPlugin`](https://threepipe.org/docs/interfaces/IViewerPlugin.html)`>` - Plugins added to the viewer
-- `.uiConfig`: [`UiObjectConfig`](https://repalash.com/uiconfig.js/interfaces/UiObjectConfig.html) - UI confguration for the viewer. Used to automatically generate UIs for the viewer and plugins.
+- `.uiConfig`: [`UiObjectConfig`](https://repalash.com/uiconfig.js/interfaces/UiObjectConfig.html) - UI configuration for the viewer. Used to automatically generate UIs for the viewer and plugins.
 
 ## ThreeViewer
 
@@ -196,9 +196,9 @@ await viewer.setEnvironmentMap('https://example.com/file.hdr')
 viewer.addSceneObject(imported)
 ```
 
-[`viewer.load`](https://threepipe.org/docs/classes/ThreeViewer.html#load) - Loads a single asset by path or [IAsset](https://threepipe.org/docs/interfaces/IAsset.html) object, and adds to the scene if its 3d object or loads it if it's a configuration It is the same as [AssetManager.addAssetSingle](https://threepipe.org/docs/classes/AssetManager.html#addAssetSingle). Use [AssetManager.addAsset](https://threepipe.org/docs/classes/AssetManager.html#addAsset) to load multiple assets from the same path like in case of zip bundles.
+[`viewer.load`](https://threepipe.org/docs/classes/ThreeViewer.html#load) - Loads a single asset by path or [IAsset](https://threepipe.org/docs/interfaces/IAsset.html) object, and adds to the scene if its 3d object or loads it if it's a configuration It is the same as [AssetManager.addAssetSingle](https://threepipe.org/docs/classes/AssetManager.html#addAssetSingle). Use [AssetManager.addAsset](https://threepipe.org/docs/classes/AssetManager.html#addAsset) to load multiple assets from the same path as in case of zip bundles.
 
-[`viewer.import`](https://threepipe.org/docs/classes/ThreeViewer.html#import) - Load a single asset but does not add to the scene or load the configuration. It is the same as [AssetManager.importer.importSingle](https://threepipe.org/docs/classes/AssetImporter.html#importSingle). Use [AssetManager.importer.import](https://threepipe.org/docs/classes/AssetImporter.html#import) to import multiple assets from the same path like in case of zip bundles.
+[`viewer.import`](https://threepipe.org/docs/classes/ThreeViewer.html#import) - Load a single asset but does not add to the scene or load the configuration. It is the same as [AssetManager.importer.importSingle](https://threepipe.org/docs/classes/AssetImporter.html#importSingle). Use [AssetManager.importer.import](https://threepipe.org/docs/classes/AssetImporter.html#import) to import multiple assets from the same path as in case of zip bundles.
 
 [`viewer.export`](https://threepipe.org/docs/classes/ThreeViewer.html#export) - Exports an object, material, texture, render target or plugin configuration and returns a Blob. It is similar to [AssetManager.exporter.exportObject](https://threepipe.org/docs/classes/AssetExporter.html#exportObject) but adds support for exporting plugin and self(viewer) configs.
 
@@ -318,7 +318,7 @@ viewer.dispose()
 
 ```
 
-[`viewer.setRenderSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setRenderSize) - Sets the rendering resolution and fits the canvas in container based on the mode. The modes are `cover`, `contain`, `fill`, `scale-down` and `none`. The canvas size and render scale is calculated automatically to match the render render.
+[`viewer.setRenderSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setRenderSize) - Sets the rendering resolution and fits the canvas in container based on the mode. The modes are `cover`, `contain`, `fill`, `scale-down` and `none`. The canvas size and render scale is calculated automatically to match the render.
 
 [`viewer.setSize`](https://threepipe.org/docs/classes/ThreeViewer.html#setSize) - Sets the size of the canvas and updates the renderer and the camera. If no width/height is passed, canvas is set to 100% of the container.
 
@@ -451,7 +451,7 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 
 [`renderManager.context`](https://threepipe.org/docs/classes/ViewerRenderManager.html#context) - Access  the WebGL rendering context for the canvas.
 
-[`renderManager.renderPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#renderPass) - The main render pass used in the render pipeline. Instance of three.js [RenderPass](https://threejs.org/docs/#api/en/postprocessing/RenderPass) with extra features like z prepass, rgbm rendering, blurred transmission, msaa and other optimizations.
+[`renderManager.renderPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#renderPass) - The main render pass used in the render pipeline. Instance of three.js [RenderPass](https://threejs.org/docs/#api/en/postprocessing/RenderPass) with extra features like z-prepass, RGBM rendering, blurred transmission, msaa and other optimizations.
 
 [`renderManager.screenPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#screenPass) - The main screen pass used in the render pipeline. Instance of three.js [ShaderPass](https://threejs.org/docs/#api/en/postprocessing/ShaderPass) with extra features like material extension, custom fragment, overriding read buffer, re-render to screen on change, etc
 
@@ -471,7 +471,7 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 
 [`renderManager.totalFrameCount`](https://threepipe.org/docs/classes/RenderManager.html#totalFrameCount) - The total frames rendered since the render manager was created.
 
-[`renderManager.frameCount`](https://threepipe.org/docs/classes/RenderManager.html#frameCount) - The current frame count in progressive rendering. This is useful for progressive rendering effects like progressive shadows, gi, denoising, baking, anti-aliasing, and many other effects.
+[`renderManager.frameCount`](https://threepipe.org/docs/classes/RenderManager.html#frameCount) - The current frame count in progressive rendering. This is useful for progressive rendering effects like progressive shadows, gi, denoising, baking, antialiasing, and many other effects.
 
 ### Render Targets management
 
@@ -489,7 +489,7 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 
 ### Helpers
 
-[`renderManager.blit`](https://threepipe.org/docs/classes/RenderManager.html#blit) - Blits a texture to the canvas or another render target with standard or a custom material. See [RendererBlitOptions](https://threepipe.org/docs/interfaces/RendererBlitOptions.html) for options.
+[`renderManager.blit`](https://threepipe.org/docs/classes/RenderManager.html#blit) - Copy a texture to the canvas or another render target with standard or a custom material. See [RendererBlitOptions](https://threepipe.org/docs/interfaces/RendererBlitOptions.html) for options.
 
 [`renderManager.clearColor`](https://threepipe.org/docs/classes/RenderManager.html#clearColor) - Clears the color of the canvas or a render target.
 
@@ -634,7 +634,7 @@ scene.refreshActiveNearFar()
 
 [`scene.setDirty`](https://threepipe.org/docs/classes/RootScene.html#setDirty) - Notifies that something has changed in the scene for re-render.
 
-[`scene.refreshScene`](https://threepipe.org/docs/classes/RootScene.html#refreshScene) - Notifies that some object has changed in the scene for scene refresh(like shadow refresh, ground etc) and re-render. Slower than `setDirty`, as it refreshes shadows, updates bounds, etc.
+[`scene.refreshScene`](https://threepipe.org/docs/classes/RootScene.html#refreshScene) - Notifies that some object has changed in the scene for scene refresh(like shadow refresh, ground etc.) and re-render. Slower than `setDirty`, as it refreshes shadows, updates bounds, etc.
 
 [`scene.refreshActiveNearFar`](https://threepipe.org/docs/classes/RootScene.html#refreshActiveNearFar) - Refreshes active near far. (in most cases this is done automatically and need not be called)
 
@@ -658,7 +658,7 @@ RootScene dispatches many events that are useful when writing app logic or plugi
 
 `'materialUpdate`' - When a material in the scene has updated. (setDirty called on the material)
 
-`'objectUpdate`' - When a object in the scene has updated. (setDirty called on the object)
+`'objectUpdate`' - When an object in the scene has updated. (setDirty called on the object)
 
 `'textureUpdate`' - When a texture in the scene has updated. (setDirty called on the texture)
 
@@ -773,7 +773,7 @@ camera.deactivateMain()
 
 [`camera.setControlsCtor`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setControlsCtor) - Register a custom camera controls constructor. The controls can be set by setting `controlsMode` to the key/name of the controls.
 
-[`camera.setInteractions`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setInteractions) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer. Using this multiple plugins can disable interactions and it will be enabled again when all of them enable it back.
+[`camera.setInteractions`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#setInteractions) - If `true`, the camera can be interacted with. This is useful when animating the camera or using the window scroll or programmatically automating the viewer. Using this multiple plugins can disable interactions, and it will be enabled again when all of them enable it back.
 
 [`camera.refreshAspect`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#refreshAspect) - Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer or when `viewer.resize()` is called)
 
@@ -781,7 +781,7 @@ camera.deactivateMain()
 
 [`camera.deactivateMain`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#deactivateMain) - Deactivate the camera as the main camera.
 
-See also [CameraViewPlugin](#cameraviewplugin) for camera focus animation.
+See also [CameraViewPlugin](../plugin/CameraViewPlugin) for camera focus animation.
 
 ::: info Note
 The constructor signature of `PerspectiveCamera2` is different `PerspectiveCamera`(from three.js), since it requires the canvas and the controlsMode during creation.
@@ -916,7 +916,7 @@ materialManager.dispose()
 
 [`assetManager.addAsset`](https://threepipe.org/docs/classes/AssetManager.html#addAsset) - Add an asset or an asset bundle. Returns a promise that resolves to an array of asset objects. An asset can contain multiple objects, hence an array is returned. Use shorthand `viewer.load(path)` to load a single asset from a single file.
 
-[`assetManager.storage`](https://threepipe.org/docs/classes/AssetManager.html#storage) - Get the storage used in the asset manager for caching. This is the storage that can be passed in the `ThreeViewer` contructor options.
+[`assetManager.storage`](https://threepipe.org/docs/classes/AssetManager.html#storage) - Get the storage used in the asset manager for caching. This is the storage that can be passed in the `ThreeViewer` constructor options.
 
 [`assetManager.importer`](https://threepipe.org/docs/classes/AssetManager.html#importer) - Get the importer. Provides low-level functions to import assets. This is an instance of [AssetImporter](https://threepipe.org/docs/classes/AssetImporter.html).
 
@@ -964,13 +964,13 @@ materialManager.dispose()
 
 [`materialManager.convertToIMaterial`](https://threepipe.org/docs/classes/MaterialManager.html#convertToIMaterial) - Convert/upgrade a standard three.js material to threepipe material, by making it conform to [IMaterial](https://threepipe.org/docs/interfaces/IMaterial.html).
 
-[`materialManager.registerMaterialExtension`](https://threepipe.org/docs/classes/MaterialManager.html#registerMaterialExtension) - Register a custom material extension for all materials in the viewer. Requires an instance of [IMaterialExtension](https://threepipe.org/docs/interfaces/IMaterialExtension.html). Material extensions are used to add custom properties, methods, uniforms, defines, shader patches etc to predefined materials. The extensions are added to the material when the mateiral or extension is registered to the manager.
+[`materialManager.registerMaterialExtension`](https://threepipe.org/docs/classes/MaterialManager.html#registerMaterialExtension) - Register a custom material extension for all materials in the viewer. Requires an instance of [IMaterialExtension](https://threepipe.org/docs/interfaces/IMaterialExtension.html). Material extensions are used to add custom properties, methods, uniforms, defines, shader patches etc. to predefined materials. The extensions are added to the material when the material or extension is registered to the manager.
 
 [`materialManager.unregisterMaterialExtension`](https://threepipe.org/docs/classes/MaterialManager.html#unregisterMaterialExtension) - Unregister a material extension from the manager.
 
 [`materialManager.clearExtensions`](https://threepipe.org/docs/classes/MaterialManager.html#clearExtensions) - Remove all material extensions from the manager.
 
-[`materialManager.applyMaterial`](https://threepipe.org/docs/classes/MaterialManager.html#applyMaterial) - Apply a material properties to other material(s) in the scene by name or uuid. This is useful when you want to change the properties of all materials with a given name or uuid. This can also be a regex, in that case a regex.match will be performed on the material/object name.
+[`materialManager.applyMaterial`](https://threepipe.org/docs/classes/MaterialManager.html#applyMaterial) - Apply a material properties to other material(s) in the scene by name or uuid. This is useful when you want to change the properties of all materials with a given name or uuid. This can also be a regex, in that case a regex. Match will be performed on the material/object name.
 
 [`materialManager.exportMaterial`](https://threepipe.org/docs/classes/MaterialManager.html#exportMaterial) - Export a material as JSON. Note: use `viewer.export` or `AssetExporter` instead to export all the embedded assets properly.
 
@@ -978,9 +978,9 @@ materialManager.dispose()
 
 ## Other classes and interfaces
 
-Threepipe provides various interfaces and classes for for three.js objects with upgraded features like UI events, serialization, etc.
+Threepipe provides various interfaces and classes for three.js objects with upgraded features like UI events, serialization, etc.
 These can be used while developing new apps to get better developer experience and features.
-When standard three.js instances are added to the scene, they are automatically upgraded automatically at runtime to make them work with the rest of the framework.
+When standard three.js instances are added to the scene, they are automatically upgraded at runtime to make them work with the rest of the framework.
 
 Some important interfaces:
 

@@ -16,7 +16,7 @@ import FragmentClippingExtensionPluginPatch from './shaders/FragmentClippingExte
  * Fragment clipping allows to clip fragments of the material in screen space or world space based on a circle, rectangle, plane, sphere, etc.
  * It uses fixed SDFs with params defined by the user for clipping.
  * It also adds a UI to the material to edit the settings.
- * It uses WEBGI_materials_fragment_clipping_extension glTF extension to save the settings in glTF files.
+ * It uses `WEBGI_materials_fragment_clipping_extension` glTF extension to save the settings in glTF files.
  * @category Plugins
  */
 @uiFolderContainer('Fragment Clipping (MatExt)')
