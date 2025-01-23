@@ -1,4 +1,4 @@
-import {UiObjectConfig} from 'uiconfig.js'
+import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     BufferGeometry,
     Camera,
@@ -32,6 +32,11 @@ import {iMaterialUI} from './IMaterialUi'
 
 export type PhysicalMaterialEventTypes = IMaterialEventTypes | ''
 
+/**
+ * And extension of three.js MeshPhysicalMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
+ *
+ * @category Materials
+ */
 export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, PhysicalMaterialEventTypes> implements IMaterial<IMaterialEvent, PhysicalMaterialEventTypes> {
     declare ['constructor']: typeof PhysicalMaterial
     public static readonly TypeSlug = 'pmat'
@@ -135,17 +140,18 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
         },
         children: [
             ...iMaterialUI.base(this),
+            ...generateUiConfig(this),
             iMaterialUI.blending(this),
-            iMaterialUI.polygonOffset(this),
-            iMaterialUI.aoLightMap(this),
             iMaterialUI.roughMetal(this),
             iMaterialUI.bumpNormal(this),
             iMaterialUI.emission(this),
             iMaterialUI.transmission(this),
             iMaterialUI.environment(this),
+            iMaterialUI.aoLightMap(this),
             iMaterialUI.clearcoat(this),
             iMaterialUI.iridescence(this),
             iMaterialUI.sheen(this),
+            iMaterialUI.polygonOffset(this),
             ...iMaterialUI.misc(this),
         ],
     }

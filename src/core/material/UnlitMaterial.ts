@@ -8,7 +8,7 @@ import {
     Shader,
     WebGLRenderer,
 } from 'three'
-import {UiObjectConfig} from 'uiconfig.js'
+import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEvent,
@@ -27,6 +27,11 @@ import {iMaterialUI} from './IMaterialUi'
 
 export type UnlitMaterialEventTypes = IMaterialEventTypes | ''
 
+/**
+ * And extension of three.js MeshBasicMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
+ *
+ * @category Materials
+ */
 export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitMaterialEventTypes> {
     declare ['constructor']: typeof UnlitMaterial
 
@@ -177,9 +182,10 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
         },
         children: [
             ...iMaterialUI.base(this),
+            ...generateUiConfig(this),
             iMaterialUI.blending(this),
-            iMaterialUI.polygonOffset(this),
             iMaterialUI.aoLightMap(this),
+            iMaterialUI.polygonOffset(this),
             // iMaterialUI.environment(this),
             ...iMaterialUI.misc(this),
         ],

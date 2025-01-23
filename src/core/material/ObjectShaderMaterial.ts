@@ -1,5 +1,5 @@
-import {Color, IUniform, LineBasicMaterial, LineBasicMaterialParameters, Material, Shader, WebGLRenderer} from 'three'
-import {UiObjectConfig} from 'uiconfig.js'
+import {IUniform, Material, Shader, ShaderMaterial, ShaderMaterialParameters, WebGLRenderer} from 'three'
+import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEvent,
@@ -10,29 +10,28 @@ import {
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
+import {SerializationMetaType, shaderUtils, ThreeSerialization} from '../../utils'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
-import {makeSamplerUi} from '../../ui/image-ui'
 import {iMaterialUI} from './IMaterialUi'
 
-export type UnlitLineMaterialEventTypes = IMaterialEventTypes | ''
+export type ObjectShaderMaterialEventTypes = IMaterialEventTypes | ''
 
 /**
- * And extension of three.js LineBasicMaterial that can be assigned to lines, and support threepipe features, uiconfig, and serialization.
+ * And extension of three.js ShaderMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> {
-    declare ['constructor']: typeof UnlitLineMaterial
+export class ObjectShaderMaterial extends ShaderMaterial<IMaterialEvent, ObjectShaderMaterialEventTypes> implements IMaterial<IMaterialEvent, ObjectShaderMaterialEventTypes> {
+    declare ['constructor']: typeof ObjectShaderMaterial
 
-    public static readonly TypeSlug = 'blmat'
-    public static readonly TYPE = 'UnlitLineMaterial' // not using .type because it is used by three.js
+    public static readonly TypeSlug = 'shmat'
+    public static readonly TYPE = 'ObjectShaderMaterial' // not using .type because it is used by three.js
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
 
-    public readonly isUnlitLineMaterial = true
+    public readonly isObjectShaderMaterial = true
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
@@ -42,7 +41,9 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
 
     generator?: IMaterialGenerator
 
-    constructor({customMaterialExtensions, ...parameters}: LineBasicMaterialParameters & IMaterialParameters = {}) {
+    // envMap: ITexture | null = null
+
+    constructor({customMaterialExtensions, ...parameters}: ShaderMaterialParameters & IMaterialParameters = {}) {
         super()
         !this.defines && (this.defines = {})
         this.fog = false
@@ -64,24 +65,29 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     }
 
     onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
-        const f = [
-            ['vec3 outgoingLight = ', 'afterModulation'], // added markers before found substring
-            ['#include <aomap_fragment>', 'beforeModulation'],
-            ['ReflectedLight reflectedLight = ', 'beforeAccumulation'],
-            ['#include <clipping_planes_fragment>', 'mainStart'],
-        ]
-        const v = [
-            ['#include <uv_vertex>', 'mainStart'],
-        ]
-
-        for (const vElement of v) shader.vertexShader = shaderReplaceString(shader.vertexShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
-        for (const vElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
+        // const f = [
+        //     ['vec3 outgoingLight = ', 'afterModulation'], // added markers before found substring
+        //     ['#include <aomap_fragment>', 'beforeModulation'],
+        //     ['ReflectedLight reflectedLight = ', 'beforeAccumulation'],
+        //     ['#include <clipping_planes_fragment>', 'mainStart'],
+        // ]
+        // const v = [
+        //     ['#include <uv_vertex>', 'mainStart'],
+        // ]
+        //
+        // for (const vElement of v) shader.vertexShader = shaderReplaceString(shader.vertexShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
+        // for (const vElement of f) shader.fragmentShader = shaderReplaceString(shader.fragmentShader, vElement[0], '#glMarker ' + vElement[1] + '\n' + vElement[0])
 
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
+        // shader.defines.INVERSE_ALPHAMAP = this.userData.inverseAlphaMap ? 1 : 0
 
         super.onBeforeCompile(shader, renderer)
     }
 
+    // onBeforeRender(...args: Parameters<IMaterial['onBeforeRender']>): void {
+    //     super.onBeforeRender(...args)
+    //     iMaterialCommons.onBeforeRender.call(this, ...args)
+    // }
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
@@ -96,9 +102,9 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(LineBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(ShaderMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['LineBasicMaterial', 'LineBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['ShaderMaterial', 'ShaderMaterial2', 'ExtendedShaderMaterial', this.constructor.TYPE].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -116,7 +122,7 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     /**
      * Serializes this material to JSON.
      * @param meta - metadata for serialization
-     * @param _internal - Calls only super.toJSON, does internal three.js serialization and @serialize tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
      */
     toJSON(meta?: SerializationMetaType, _internal = false): any {
         if (_internal) return {
@@ -150,8 +156,8 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     // todo dispose ui config
     uiConfig: UiObjectConfig = {
         type: 'folder',
-        label: 'Unlit Line Material',
-        uuid: 'MBLM2_' + this.uuid,
+        label: 'Shader Material',
+        uuid: 'OSM2_' + this.uuid,
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
@@ -159,41 +165,8 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
             this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
         },
         children: [
-            {
-                type: 'input',
-                property: [this, 'name'],
-            },
-            // {
-            //     type: 'monitor',
-            //     property: [this, 'uuid'],
-            // },
-            {
-                type: 'checkbox',
-                property: [this, 'vertexColors'],
-            },
-            {
-                type: 'color',
-                property: [this, 'color'],
-            },
-            makeSamplerUi(this, 'map'),
-            {
-                type: 'number',
-                property: [this, 'linewidth'],
-            },
-            {
-                type: 'dropdown',
-                property: [this, 'linecap'],
-                children: ['butt', 'round', 'square'].map(label => ({label})),
-            },
-            {
-                type: 'dropdown',
-                property: [this, 'linejoin'],
-                children: ['bevel', 'round', 'miter'].map(label => ({label})),
-            },
-            // {
-            //     type: 'checkbox',
-            //     property: [this, 'fog'],
-            // },
+            ...generateUiConfig(this),
+            ...iMaterialUI.base(this),
             iMaterialUI.blending(this),
             iMaterialUI.polygonOffset(this),
             ...iMaterialUI.misc(this),
@@ -204,35 +177,63 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
 
 
     // Class properties can also be listed with annotations like @serialize or @property
-    // used for serialization
+    // used for serialization // todo change for shadermaterial
     static readonly MaterialProperties = {
         ...threeMaterialPropList,
 
-        color: new Color(0xffffff),
-        map: null,
+        defines: {},
+        uniforms: {},
+        uniformsGroups: [],
+
+        vertexShader: '',
+        fragmentShader: '',
+
         linewidth: 1,
-        linecap: 'round',
-        linejoin: 'round',
-        fog: true,
+
+        wireframe: false,
+        wireframeLinewidth: 1,
+
+        fog: false, // set to use scene fog
+        lights: false, // set to use scene lights
+        clipping: false, // set to use user-defined clipping planes
+
+        forceSinglePass: true,
+
+        extensions: {
+            derivatives: false, // set to use derivatives
+            fragDepth: false, // set to use fragment depth values
+            drawBuffers: false, // set to use draw buffers
+            shaderTextureLOD: false, // set to use shader texture LOD
+        },
+
+        // When rendered geometry doesn't include these attributes but the material does,
+        // use these default values in WebGL. This avoids errors when buffer data is missing.
+        defaultAttributeValues: {
+            'color': [1, 1, 1],
+            'uv': [0, 0],
+            'uv1': [0, 0],
+        },
+
+        index0AttributeName: undefined,
+        uniformsNeedUpdate: false,
+
+        glslVersion: null,
+        flatShading: false,
     }
 
-    static MaterialTemplate: IMaterialTemplate<UnlitLineMaterial, Partial<typeof UnlitLineMaterial.MaterialProperties>> = {
-        materialType: UnlitLineMaterial.TYPE,
-        name: 'unlit_line',
-        typeSlug: UnlitLineMaterial.TypeSlug,
-        alias: ['line_basic', 'unlit_line', UnlitLineMaterial.TYPE, UnlitLineMaterial.TypeSlug, 'LineBasicMaterial', 'LineBasicMaterial2'],
+    static MaterialTemplate: IMaterialTemplate<ObjectShaderMaterial, Partial<typeof ObjectShaderMaterial.MaterialProperties>> = {
+        materialType: ObjectShaderMaterial.TYPE,
+        name: 'shader',
+        typeSlug: ObjectShaderMaterial.TypeSlug,
+        alias: ['shader', ObjectShaderMaterial.TYPE, ObjectShaderMaterial.TypeSlug, 'ShaderMaterial', 'ShaderMaterial2', 'ExtendedShaderMaterial'],
         params: {
-            color: new Color(1, 1, 1),
+            vertexShader: shaderUtils.defaultVertex,
+            fragmentShader: shaderUtils.defaultFragment,
         },
         generator: (params) => {
-            return new UnlitLineMaterial(params)
+            return new ObjectShaderMaterial(params)
         },
     }
 }
 
-export class LineBasicMaterial2 extends UnlitLineMaterial {
-    constructor(parameters?: LineBasicMaterialParameters) {
-        super(parameters)
-        console.error('LineBasicMaterial2 is deprecated, use UnlitLineMaterial instead')
-    }
-}
+// todo gltf material extension

@@ -17,6 +17,11 @@ import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/line
 
 export type LineMaterial2EventTypes = IMaterialEventTypes | ''
 
+/**
+ * And extension of three.js LineMaterial that can be assigned to lines, and support threepipe features, uiconfig, and serialization.
+ *
+ * @category Materials
+ */
 export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2EventTypes> implements IMaterial<IMaterialEvent, LineMaterial2EventTypes> {
     declare ['constructor']: typeof LineMaterial2
     public static readonly TypeSlug = 'lmat'
