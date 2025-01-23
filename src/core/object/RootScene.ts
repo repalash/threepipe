@@ -587,7 +587,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ISceneEvent) => void
-    declare parent: null
+    declare parent: IObject3D | null
     declare children: IObject3D[]
 
     // endregion

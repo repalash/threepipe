@@ -1,4 +1,4 @@
-import {FnCaller, getOrCall, objectHasOwn, safeSetProperty, ValOrFunc} from 'ts-browser-helpers'
+import {FnCaller, getOrCall, objectHasOwn, safeSetProperty, ValOrArr, ValOrFunc} from 'ts-browser-helpers'
 
 /**
  *
@@ -132,15 +132,23 @@ export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat 
  * @param processVal - function that processes the value before setting it.
  * @param invProcessVal - function that processes the value before returning it.
  */
-export function bindToValue({obj, key, processVal, invProcessVal, onChange, onChangeParams = true}: {obj?: ValOrFunc<any>, key?: ValOrFunc<string | symbol>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any, onChangeParams?: boolean}): PropertyDecorator {
+export function bindToValue({obj, key, processVal, invProcessVal, onChange, onChangeParams = true}: {obj?: ValOrFunc<any>, key?: ValOrFunc<ValOrArr<string | symbol>>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any, onChangeParams?: boolean}): PropertyDecorator {
     const cPropKey = !!key
 
     return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
         const getTarget = (_this: any)=>{
             let t = getOrCall(obj) || _this
             if (typeof t === 'string') t = _this[t]
-            const p = cPropKey ? getOrCall(key) || propertyKey : propertyKey
-            return {t, p}
+            let p1 = cPropKey ? getOrCall(key) || propertyKey : propertyKey
+            let p: string|symbol
+            if (Array.isArray(p1)) {
+                while (p1.length > 1 && t && typeof t === 'object') {
+                    t = t[p1[0]]
+                    p1 = p1.slice(1)
+                }
+                p = p1.length ? p1[0] : propertyKey
+            } else p = p1
+            return {t, p: p}
         }
         const prop = {
             get() {

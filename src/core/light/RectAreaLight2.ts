@@ -75,7 +75,7 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    declare parent: null
+    declare parent: IObject3D | null
     declare children: IObject3D[]
 
     // endregion

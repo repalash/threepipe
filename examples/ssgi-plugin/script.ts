@@ -82,63 +82,8 @@ async function init() {
     light.lookAt(-25, 0, 0)
     light.intensity = 30
     light.castShadow = true
-    light.shadow.camera.left = -25
-    light.shadow.camera.right = 25
-    light.shadow.camera.top = 25
-    light.shadow.camera.bottom = -25
-    light.shadow.mapSize.set(1024, 1024)
-
-    // todo add to DirectionalLight
-    light.uiConfig.children!.push({
-        type: 'vec2',
-        label: 'Shadow Map Size',
-        property: [light?.shadow, 'mapSize'],
-        onChange: ()=>{
-            light.shadow.map?.dispose()
-            light.shadow.mapPass?.dispose()
-            light.shadow.map = null as any
-            light.shadow.mapPass = null as any
-        },
-    },
-    {
-        type: 'slider',
-        bounds: [-0.001, 0.001],
-        stepSize: 0.00002,
-        label: 'Shadow Bias',
-        property: [light?.shadow, 'bias'],
-        onChange: (e)=>light.setDirty(e),
-    },
-    {
-        type: 'slider',
-        bounds: [-0.1, 0.1],
-        stepSize: 0.005,
-        label: 'Shadow Normal Bias',
-        property: [light?.shadow, 'normalBias'],
-        onChange: (e)=>light.setDirty(e),
-    },
-    {
-        type: 'slider',
-        bounds: [0, 5],
-        label: 'Shadow radius',
-        property: [light?.shadow, 'radius'],
-        onChange: (e)=>light.setDirty(e),
-    },
-    {
-        type: 'slider',
-        bounds: [0.1, 50],
-        label: 'Shadow frustum',
-        // property: [light.shadow, 'radius'],
-        getValue: ()=>{
-            return light.shadow.camera.right * 2
-        },
-        setValue: (v: number)=>{
-            light.shadow.camera.left = -v / 2
-            light.shadow.camera.right = v / 2
-            light.shadow.camera.top = v / 2
-            light.shadow.camera.bottom = -v / 2
-        },
-        onChange: (e)=>light.setDirty(e),
-    })
+    light.shadowFrustum = 50
+    light.shadowMapSize.set(1024, 1024)
 
     ui.appendChild(light.uiConfig)
 }

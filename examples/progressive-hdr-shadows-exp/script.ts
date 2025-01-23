@@ -4,7 +4,7 @@ import {
     BasicShadowMap,
     Color,
     DataUtils,
-    DirectionalLight,
+    DirectionalLight, DirectionalLight2,
     IObject3D,
     LoadingScreenPlugin,
     MaterialExtension,
@@ -141,19 +141,16 @@ float ambientOcclusion = getShadow( directionalShadowMap[ ii ], edls.shadowMapSi
 }
 
 function createDirLight(viewer: ThreeViewer) {
-    const directionalLight = new DirectionalLight(0xffffff, 4)
+    const directionalLight = new DirectionalLight2(0xffffff, 4)
     directionalLight.position.set(-2, -2, 2)
     directionalLight.lookAt(0, 0, 0)
     directionalLight.color.set(0xffffff)
     directionalLight.intensity = 0
     directionalLight.castShadow = true
-    directionalLight.shadow.mapSize.setScalar(1024)
-    directionalLight.shadow.camera.near = 0.1
-    directionalLight.shadow.camera.far = 10
-    directionalLight.shadow.camera.top = 2
-    directionalLight.shadow.camera.bottom = -2
-    directionalLight.shadow.camera.left = -2
-    directionalLight.shadow.camera.right = 2
+    directionalLight.shadowMapSize.setScalar(1024)
+    directionalLight.shadowNear = 0.1
+    directionalLight.shadowFar = 10
+    directionalLight.shadowFrustum = 4
     viewer.scene.addObject(directionalLight, {addToRoot: true})
     // move to index 0 in parent.children, so that directionalLight always has index 0 in shader. required for material extension
     const parent = directionalLight.parent!

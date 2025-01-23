@@ -1,10 +1,16 @@
-import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector3} from 'three'
+import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector2, Vector3} from 'three'
 import {ILight, ILightEvent} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiInput, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiInput, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
+import {bindToValue} from '../../three'
 
+/**
+ * Extension of three.js SpotLight with additional properties for serialization and UI
+ *
+ * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
+ */
 @uiPanelContainer('Spot Light')
 export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
@@ -42,6 +48,51 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     @onChange3('setDirty')
     declare castShadow: boolean
 
+    @uiVector('Shadow Map Size')
+    @bindToValue({obj: 'shadow', key: 'mapSize', onChange: SpotLight2.prototype._mapSizeChanged, onChangeParams: false})
+        shadowMapSize: Vector2
+
+    protected _mapSizeChanged() {
+        this.shadow.map?.dispose()
+        this.shadow.mapPass?.dispose()
+        this.shadow.map = null as any
+        this.shadow.mapPass = null as any
+        this.setDirty({change: 'shadowMapSize'})
+    }
+
+    @uiSlider('Shadow Bias', [-0.001, 0.001], 0.00001)
+    @bindToValue({obj: 'shadow', key: 'bias', onChange: 'setDirty'})
+        shadowBias: number
+
+    @uiSlider('Shadow Radius', [0, 5], 0.01)
+    @bindToValue({obj: 'shadow', key: 'radius', onChange: 'setDirty'})
+        shadowRadius: number
+
+    @uiSlider('Shadow Focus', [0, 1], 0.001)
+    @bindToValue({obj: 'shadow', key: 'focus', onChange: 'setDirty'})
+        shadowFocus: number
+
+    @uiNumber('Shadow Near')
+    @bindToValue({obj: 'shadow', key: ['camera', 'near'], onChange: SpotLight2.prototype._shadowCamUpdate})
+        shadowNear: number
+
+    @uiNumber('Shadow Far')
+    @bindToValue({obj: 'shadow', key: ['camera', 'far'], onChange: SpotLight2.prototype._shadowCamUpdate})
+        shadowFar: number
+
+    @uiNumber('Shadow Aspect')
+    @bindToValue({obj: 'shadow', key: 'aspect', onChange: SpotLight2.prototype._shadowCamUpdate})
+        shadowAspect: number
+
+    @uiSlider('Shadow FOV', [1, 179], 1)
+    @bindToValue({obj: 'shadow', key: 'fov', onChange: SpotLight2.prototype._shadowCamUpdate})
+        shadowFov: number
+
+    protected _shadowCamUpdate(change?: string) {
+        this.shadow.camera.updateProjectionMatrix()
+        this.setDirty({change})
+    }
+
     constructor(color?: ColorRepresentation, intensity?: number, distance?: number,
         angle?: number,
         penumbra?: number,
@@ -76,7 +127,6 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
         return this
     }
 
-
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
@@ -90,7 +140,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    declare parent: null
+    declare parent: IObject3D | null
     declare children: IObject3D[]
 
     // endregion

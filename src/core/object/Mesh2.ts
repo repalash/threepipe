@@ -44,7 +44,7 @@ export class Mesh2<
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    declare parent: null
+    declare parent: IObject3D | null
     declare children: IObject3D[]
     dispose: (removeFromParent?: boolean) => void
 

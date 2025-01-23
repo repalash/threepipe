@@ -11,8 +11,11 @@ import {iMaterialCommons} from '../material/iMaterialCommons'
 import {ILight} from '../light/ILight'
 
 export const iObjectCommons = {
-    setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions): void {
-        this.dispatchEvent({bubbleToParent: true, ...options, type: 'objectUpdate', object: this}) // this sets sceneUpdate in root scene
+    setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions, ...args: any[]): void {
+        if (typeof options === 'string') { // just incase called by decorators
+            options = {change: options}
+        }
+        this.dispatchEvent({bubbleToParent: true, ...options, type: 'objectUpdate', object: this, args}) // this sets sceneUpdate in root scene
         if (options?.refreshUi !== false && options?.last !== false) this.refreshUi?.()
         // console.log('object update')
     },

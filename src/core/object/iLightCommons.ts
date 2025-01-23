@@ -3,9 +3,12 @@ import {IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
 
 export const iLightCommons = {
-    setDirty: function(this: ILight, options?: IObjectSetDirtyOptions): void {
-        this.dispatchEvent({bubbleToParent: true, ...options, type: 'lightUpdate', light: this, object: this}) // this sets sceneUpdate in root scene
-        iObjectCommons.setDirty.call(this, options)
+    setDirty: function(this: ILight, options?: IObjectSetDirtyOptions, ...args: any[]): void {
+        if (typeof options === 'string') { // just incase called by decorators
+            options = {change: options}
+        }
+        this.dispatchEvent({bubbleToParent: true, ...options, type: 'lightUpdate', light: this, object: this, args}) // this sets sceneUpdate in root scene
+        iObjectCommons.setDirty.call(this, options, ...args)
     },
     upgradeLight: upgradeLight,
     refreshUi: iObjectCommons.refreshUi,

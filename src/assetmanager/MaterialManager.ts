@@ -12,6 +12,7 @@ import {
     PhysicalMaterial,
     UnlitLineMaterial,
     UnlitMaterial,
+    ObjectShaderMaterial,
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
@@ -31,6 +32,7 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         UnlitLineMaterial.MaterialTemplate,
         LineMaterial2.MaterialTemplate,
         LegacyPhongMaterial.MaterialTemplate,
+        ObjectShaderMaterial.MaterialTemplate,
     ]
 
     private _materials: IMaterial[] = []

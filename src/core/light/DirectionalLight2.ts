@@ -1,11 +1,19 @@
-import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Euler, Vector3} from 'three'
+import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Euler, Vector2, Vector3} from 'three'
 import {ILight, ILightEvent, ILightEventTypes} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
-import {onChange3} from 'ts-browser-helpers'
+import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {onChange2, onChange3} from 'ts-browser-helpers'
+import {bindToValue} from '../../three'
 
-// todo: add LightShadow uiconfig
+/**
+ * Extension of three.js DirectionalLight with additional properties for serialization and UI
+ * A directional light is a light source that has a position but no dimensions - a single point in space that emits light in a specific direction.
+ *
+ * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
+ *
+ * @category Lights
+ */
 // todo: add Light section in the readme detailing these ...2 lights
 @uiPanelContainer('Directional Light')
 export class DirectionalLight2<
@@ -35,20 +43,72 @@ export class DirectionalLight2<
     @onChange3('setDirty')
     declare castShadow: boolean
 
+    @uiVector('Shadow Map Size')
+    @bindToValue({obj: 'shadow', key: 'mapSize', onChange: DirectionalLight2.prototype._mapSizeChanged, onChangeParams: false})
+        shadowMapSize: Vector2
+
+    protected _mapSizeChanged() {
+        this.shadow.map?.dispose()
+        this.shadow.mapPass?.dispose()
+        this.shadow.map = null as any
+        this.shadow.mapPass = null as any
+        this.setDirty({change: 'shadowMapSize'})
+    }
+
+    @uiSlider('Shadow Bias', [-0.001, 0.001], 0.00001)
+    @bindToValue({obj: 'shadow', key: 'bias', onChange: 'setDirty'})
+        shadowBias: number
+
+    @uiSlider('Shadow Normal Bias', [-0.1, 0.1], 0.005)
+    @bindToValue({obj: 'shadow', key: 'normalBias', onChange: 'setDirty'})
+        shadowNormalBias: number
+
+    @uiSlider('Shadow Radius', [0, 5], 0.01)
+    @bindToValue({obj: 'shadow', key: 'radius', onChange: 'setDirty'})
+        shadowRadius: number
+
+    @uiSlider('Shadow Frustum', [0.1, 50], 0.01)
+    @onChange2(DirectionalLight2.prototype._shadowFrustumChanged)
+        shadowFrustum: number
+
+    @uiNumber('Shadow Near')
+    @bindToValue({obj: 'shadow', key: ['camera', 'near'], onChange: DirectionalLight2.prototype._shadowCamUpdate})
+        shadowNear: number
+
+    @uiNumber('Shadow Far')
+    @bindToValue({obj: 'shadow', key: ['camera', 'far'], onChange: DirectionalLight2.prototype._shadowCamUpdate})
+        shadowFar: number
+
+    protected _shadowFrustumChanged() {
+        const v = this.shadowFrustum
+        this.shadow.camera.left = -v / 2
+        this.shadow.camera.right = v / 2
+        this.shadow.camera.top = v / 2
+        this.shadow.camera.bottom = -v / 2
+        this.shadow.camera.updateProjectionMatrix()
+        this.setDirty({change: 'shadowFrustum'})
+    }
+
+    protected _shadowCamUpdate(change?: string) {
+        this.shadow.camera.updateProjectionMatrix()
+        this.setDirty({change})
+    }
+
     constructor(color?: ColorRepresentation, intensity?: number) {
         super(color, intensity)
         this.target.position.set(0, 0, -1) // because of GLTF spec: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_lights_punctual
         this.add(this.target) // todo: make sure the child isn't exported in gltf
         iLightCommons.upgradeLight.call(this)
+        this.shadowFrustum = 10
     }
 
     autoScale() {
-        console.warn('AutoScale not supported on Lights')
+        console.warn('DirectionalLight2: AutoScale not supported on Lights')
         return this
     }
 
     autoCenter() {
-        console.warn('AutoCenter not supported on Lights')
+        console.warn('DirectionalLight2: AutoCenter not supported on Lights')
         return this
     }
 
@@ -66,7 +126,6 @@ export class DirectionalLight2<
         return this
     }
 
-
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
@@ -80,7 +139,7 @@ export class DirectionalLight2<
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     dispatchEvent: (event: ILightEvent) => void
-    declare parent: null
+    declare parent: IObject3D | null
     declare children: IObject3D[]
 
     // endregion

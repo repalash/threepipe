@@ -56,11 +56,11 @@ async function init() {
     light.distance = 5
     light.decay = 0.5
     light.castShadow = true
-    light.shadow.mapSize.setScalar(1024)
-    light.shadow.camera.near = 0.1
-    light.shadow.camera.far = 10
-    light.shadow.camera.aspect = 1
-    light.shadow.camera.fov = 45
+    light.shadowMapSize.setScalar(1024)
+    light.shadowNear = 0.1
+    light.shadowFar = 10
+    light.shadowAspect = 1
+    light.shadowFov = 45
 
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
 
