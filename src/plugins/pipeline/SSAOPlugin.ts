@@ -29,6 +29,7 @@ export class SSAOPlugin
 
     readonly passId = 'ssao'
     public static readonly PluginType = 'SSAOPlugin'
+    public static readonly OldPluginType = 'SSAO'
 
     dependencies = [GBufferPlugin]
 
@@ -119,6 +120,17 @@ export class SSAOPlugin
     onRemove(viewer: ThreeViewer): void {
         this._disposeTarget()
         return super.onRemove(viewer)
+    }
+
+    fromJSON(data: any, meta?: any): this|null|Promise<this|null> {
+        // legacy
+        if (data.passes?.ssao) {
+            data = {...data}
+            data.pass = data.passes.ssao
+            delete data.passes
+            if (data.pass.enabled !== undefined) data.enabled = data.pass.enabled
+        }
+        return super.fromJSON(data, meta)
     }
 
     updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {

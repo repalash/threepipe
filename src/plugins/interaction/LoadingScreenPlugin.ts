@@ -209,16 +209,24 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         this._mainDiv.style.color = this.textColor
         this._setHTML(this.logoElement, this.logoImage ? `<img class="loadingScreenLogoImage" src="${this.logoImage}"/>` : '')
         if (updateVisibility) {
-            if (this.hideOnFilesLoad && (processState.size === 0 ||
-                errors.length === processState.size && this.hideOnOnlyErrors)) {
-                this.hideDelay ? this.hideWithDelay() : this.hide()
-            } else if (processState.size > 0 && this.showOnFilesLoading) {
-                const sceneObjects = this._viewer.scene.modelRoot.children
-                if (sceneObjects.length > 0 && this.minimizeOnSceneObjectLoad && this._viewer.scene.environment) this.minimize()
-                else this.maximize()
-                this.show()
-            }
+            this._updateVisibility(processState, errors.length)
         }
+    }
+
+    protected _updateVisibility(processState: Map<string, {state: string, progress?: number|undefined}>, errors: number) {
+        if (!this._viewer) return false
+        if (this.hideOnFilesLoad && (processState.size === 0 ||
+            errors === processState.size && this.hideOnOnlyErrors) && !this._isHidden) {
+            this.hideDelay ? this.hideWithDelay() : this.hide()
+            return true
+        } else if (processState.size > 0 && this.showOnFilesLoading && this._isHidden) {
+            const sceneObjects = this._viewer.scene.modelRoot.children
+            if (sceneObjects.length > 0 && this.minimizeOnSceneObjectLoad && this._viewer.scene.environment) this.minimize()
+            else this.maximize()
+            this.show()
+            return true
+        }
+        return false
     }
 
     // disables showOnSceneEmpty
@@ -231,12 +239,17 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         if (sceneObjects.length === 0 && this.showOnSceneEmpty && !this.isEditor) {
             this.show()
         }
-        // console.log(sceneObjects.length)
         if (sceneObjects.length > 0) {
-            if (this.hideOnSceneObjectLoad)
-                this.hideWithDelay()
-            else if (this.minimizeOnSceneObjectLoad && this._viewer.scene.environment)
-                timeout(this.hideDelay + 300).then(()=>this.minimize())
+            // case - objects loaded, clear current scene, load loaded objects
+            // load - process state 0, hide with delay. clear scene shows loading screen, loading current object doesnt change process state...
+            const processState = this._viewer.assetManager.processState
+            const errors = [...processState.values()].filter(v => v.state === 'error')
+            if (!this._updateVisibility(processState, errors.length)) {
+                if (this.hideOnSceneObjectLoad)
+                    this.hideWithDelay()
+                else if (this.minimizeOnSceneObjectLoad && this._viewer.scene.environment)
+                    timeout(this.hideDelay + 300).then(() => this.minimize())
+            }
         } else if (this.minimizeOnSceneObjectLoad)
             this.maximize()
     }
