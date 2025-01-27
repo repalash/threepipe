@@ -118,10 +118,16 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
         mat.setDirty()
-        this._getMapsForMaterial(mat)
-            .forEach(map=>
-                !map.isRenderTargetTexture && map.userData.disposeOnIdle !== false &&
-                map.dispose && !isInScene(map) && map.dispose())
+        for (const map of this._getMapsForMaterial(mat)) {
+            const dispose = !map.isRenderTargetTexture
+                && map.userData.disposeOnIdle !== false
+                && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
+
+            if (dispose && typeof map.dispose === 'function') {
+                // console.log('disposing texture', map)
+                map.dispose()
+            }
+        }
         // this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly. todo: make an easy way to do that.
     }
 

@@ -172,6 +172,7 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     material?: IMaterial | IMaterial[]
     /**
      * Same as material but always returns an array.
+     * To set, just set `material` property
      */
     readonly materials?: IMaterial[]
     // eslint-disable-next-line @typescript-eslint/naming-convention

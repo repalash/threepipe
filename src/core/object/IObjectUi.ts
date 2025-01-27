@@ -3,6 +3,13 @@ import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
 import {Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
+import {UnlitMaterial} from '../material/UnlitMaterial'
+import {PhysicalMaterial} from '../material/PhysicalMaterial'
+
+// todo move somewhere?
+const defaultMaterial = new UnlitMaterial()
+defaultMaterial.name = 'Default Unlit Material'
+defaultMaterial.uiConfig = undefined as any
 
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
@@ -225,6 +232,36 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'folder',
                 children: (this.material as IUiConfigContainer[]).map((a)=>a?.uiConfig).filter(a=>a),
             } : (this.material as IUiConfigContainer)?.uiConfig,
+            {
+                label: 'Remove Material(s)',
+                type: 'button',
+                hidden: ()=>!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial,
+                value: ()=>{
+                    const mat = this.materials
+                    this.material = [defaultMaterial]
+                    return ()=> this.material = mat
+                },
+            },
+            {
+                label: 'New Physical Material',
+                type: 'button',
+                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial),
+                value: ()=>{
+                    const mat = this.materials
+                    this.material = [new PhysicalMaterial()]
+                    return ()=> this.material = mat
+                },
+            },
+            {
+                label: 'New Unlit Material',
+                type: 'button',
+                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial),
+                value: ()=>{
+                    const mat = this.materials
+                    this.material = [new UnlitMaterial()]
+                    return ()=> this.material = mat
+                },
+            },
         ]
         ;(config.children as UiObjectConfig[]).push(...ui)
     }
