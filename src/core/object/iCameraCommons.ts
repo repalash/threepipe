@@ -9,11 +9,11 @@ export const iCameraCommons = {
             this.controls.target.copy(this.target)
             // this.controls.update() // this should be done automatically postFrame
         }
-        if (!this.controls || !this.controls.enabled) {
-            if (this.userData.autoLookAtTarget) {
-                this.lookAt(this.target)
-            }
+        // if (!this.controls || !this.controls.enabled) {
+        if (this.userData.autoLookAtTarget) {
+            this.lookAt(this.target)
         }
+        // }
         this.dispatchEvent({...options, type: 'update'}) // does not bubble
         this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true}) // this sets dirty in the viewer
         iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})

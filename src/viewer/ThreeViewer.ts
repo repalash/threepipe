@@ -20,6 +20,7 @@ import {
     IObject3D,
     IObjectProcessor,
     ITexture,
+    OrthographicCamera2,
     PerspectiveCamera2,
     RootScene,
     TCameraControlsMode,
@@ -188,10 +189,10 @@ export interface ThreeViewerOptions {
     tonemap?: boolean
 
     camera?: {
+        type?: 'perspective'|'orthographic',
         controlsMode?: TCameraControlsMode,
         position?: Vector3,
         target?: Vector3,
-
     }
 
     // values above this might be clamped in post processing
@@ -373,8 +374,11 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
         // camera
 
-        const camera = new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
-        camera.name = 'Default Camera'
+        const camera =
+            options.camera?.type === 'orthographic' ?
+                new OrthographicCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas) :
+                new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
+        camera.name = 'Default Camera' + (camera.type === 'OrthographicCamera' ? ' (Ortho)' : '')
         options.camera?.position ? camera.position.copy(options.camera.position) : camera.position.set(0, 0, 5)
         options.camera?.target ? camera.target.copy(options.camera.target) : camera.target.set(0, 0, 0)
         camera.setDirty()

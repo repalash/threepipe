@@ -1,4 +1,5 @@
 export {PerspectiveCamera2, PerspectiveCamera0} from './camera/PerspectiveCamera2'
+export {OrthographicCamera2, OrthographicCamera0} from './camera/OrthographicCamera2'
 export {CameraView, type ICameraView} from './camera/CameraView'
 export {ExtendedShaderMaterial} from './material/ExtendedShaderMaterial'
 export {PhysicalMaterial, type PhysicalMaterialEventTypes, MeshStandardMaterial2} from './material/PhysicalMaterial'

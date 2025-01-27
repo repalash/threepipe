@@ -1,5 +1,5 @@
-import {Camera, Event, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {Camera, Event, IUniform, Object3D, OrthographicCamera, Vector3} from 'three'
+import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
@@ -12,8 +12,9 @@ import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig} from '../object/IObjectUi'
 import {CameraView, ICameraView} from './CameraView'
 
+// todo: extract out common functions with perspective camera into iCameraCommons
 // todo: maybe change domElement to some wrapper/base class of viewer
-export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
+export class OrthographicCamera2 extends OrthographicCamera implements ICamera {
     assetType = 'camera' as const
     get controls(): ICameraControls | undefined {
         return this._controls
@@ -24,7 +25,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize('camControls')
     private _controls?: ICameraControls
     private _currentControlsMode: TCameraControlsMode = ''
-    @onChange2(PerspectiveCamera2.prototype.refreshCameraControls)
+    @onChange2(OrthographicCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
     /**
      * It should be the canvas actually
@@ -38,18 +39,51 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     @serialize()
         userData: ICameraUserData = {}
 
-    @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('Field Of View', [1, 180], 0.001)
-    @serialize() declare fov: number
-
-    @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @serialize() declare focus: number
-
-    @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('FoV Zoom', [0.001, 10], 0.001)
+    @onChange3(OrthographicCamera2.prototype.setDirty)
+    @uiNumber('Zoom')
     @serialize() declare zoom: number
 
-    @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @onChange3(OrthographicCamera2.prototype.setDirty)
+    @uiNumber<OrthographicCamera2>('Left', (t)=>({hidden: ()=>t._frustumSize !== undefined}))
+    @serialize() declare left: number
+
+    @onChange3(OrthographicCamera2.prototype.setDirty)
+    @uiNumber<OrthographicCamera2>('Right', (t)=>({hidden: ()=>t._frustumSize !== undefined}))
+    @serialize() declare right: number
+
+    @onChange3(OrthographicCamera2.prototype.setDirty)
+    @uiNumber<OrthographicCamera2>('Top', (t)=>({hidden: ()=>t._frustumSize !== undefined}))
+    @serialize() declare top: number
+
+    @onChange3(OrthographicCamera2.prototype.setDirty)
+    @uiNumber<OrthographicCamera2>('Bottom', (t)=>({hidden: ()=>t._frustumSize !== undefined}))
+    @serialize() declare bottom: number
+
+    private _frustumSize: number | undefined = undefined
+
+    /**
+     * Frustum size of the camera. This is used to calculate bounds (left, right, top, bottom) based on aspect ratio.
+     * Set to 0 (or negative) value to disable automatic, and to set the bounds manually.
+     */
+    @uiInput<OrthographicCamera2>('Frustum Size'/* , (t)=>({hidden: ()=>t.frustumSize === undefined})*/)
+    get frustumSize(): number {
+        return this._frustumSize ?? 0
+    }
+
+    set frustumSize(value: number) {
+        this._frustumSize = value <= 0 ? undefined : value
+        this.refreshFrustum(false)
+        this.setDirty()
+    }
+
+    // @onChange3(OrthographicCamera2.prototype.setDirty)
+    // @serialize() declare focus: number
+
+    // @onChange3(OrthographicCamera2.prototype.setDirty)
+    // @uiSlider('FoV Zoom', [0.001, 10], 0.001)
+    // @serialize() declare zoom: number
+
+    @uiVector('Position', undefined, undefined, (that:OrthographicCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() declare readonly position: Vector3
 
     /**
@@ -57,7 +91,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      * Note: this is always in world-space
      * Note: {@link autoLookAtTarget} must be set to `true` to make the camera look at the target when no controls are enabled
      */
-    @uiVector('Target', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @uiVector('Target', undefined, undefined, (that:OrthographicCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
     /**
@@ -65,9 +99,17 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      * Defaults to `true` if {@link domElement}(canvas) is set.
      */
     @serialize()
-    @onChange2(PerspectiveCamera2.prototype.refreshAspect)
+    @onChange2(OrthographicCamera2.prototype.refreshAspect)
     @uiToggle('Auto Aspect')
         autoAspect: boolean
+
+    /**
+     * Aspect ratio to use when {@link frustumSize} is defined
+     */
+    @serialize()
+    @onChange2(OrthographicCamera2.prototype.refreshAspect)
+    @uiToggle<OrthographicCamera2>('Aspect Ratio', (t)=>({disabled: ()=>t.autoAspect}))
+        aspect: number
 
     /**
      * Near clipping plane.
@@ -75,7 +117,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      * To change the minimum that's possible set {@link minNearPlane}
      * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane}
      */
-    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
+    @onChange2(OrthographicCamera2.prototype._nearFarChanged)
         near = 0.01
 
     /**
@@ -84,7 +126,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      * To change the maximum that's possible set {@link maxFarPlane}
      * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane}
      */
-    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
+    @onChange2(OrthographicCamera2.prototype._nearFarChanged)
         far = 50
 
     /**
@@ -110,23 +152,16 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
-     * Used in RootScene when {@link autoNearFar} is `true`.
+     * Used in RootScene when {@link autoNearFar} is true.
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
         maxFarPlane = 1000
 
-    /**
-     * Automatically move the camera(dolly) when the field of view(fov) changes.
-     * Works when controls are enabled or `autoLookAtTarget` is `true`.
-     *
-     * Note - this is not exact
-     */
-    @bindToValue({obj: 'userData'})
-        dollyFov = false // bound to userData so that it's saved in the glb.
-
-    constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, fov?: number, aspect?: number) {
-        super(fov, aspect)
+    constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, frustumSize?: number, left?: number, right?: number, top?: number, bottom?: number, near?: number, far?: number, aspect?: number) {
+        super(left, right, top, bottom, near, far)
         this._canvas = domElement
+        this.aspect = aspect || 1
+        this._frustumSize = frustumSize ?? 4
         this.autoAspect = autoAspect ?? !!domElement
 
         iCameraCommons.upgradeCamera.call(this) // todo: test if autoUpgrade = false works as expected if we call upgradeObject3D externally after constructor, because we have setDirty, refreshTarget below.
@@ -134,6 +169,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         this.controlsMode = controlsMode || ''
 
         this.refreshTarget(undefined, false)
+        this.refreshFrustum(false)
 
         // if (!camera)
         //     this.targetUpdated(false)
@@ -143,38 +179,10 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         // if (domElement)
         //     domElement.style.touchAction = 'none' // this is done in orbit controls anyway
 
-
-        // const ae = this._canvas.addEventListener
-        // todo: this breaks tweakpane UI.
-        // this._canvas.addEventListener = (type: string, listener: any, options1: any) => { // see https://github.com/mrdoob/three.js/pull/19782
-        //     ae(type, listener, type === 'wheel' && typeof options1 !== 'boolean' ? {
-        //         ...typeof options1 === 'object' ? options1 : {},
-        //         capture: false,
-        //         passive: false,
-        //     } : options1)
-        // }
-
         // this.refreshCameraControls() // this is done on set controlsMode
         // const target = this.target
 
     }
-
-    // @serialize('camOptions') //todo handle deserialization of this
-
-    // region interactionsEnabled
-
-    // private _interactionsEnabled = true
-    //
-    // get interactionsEnabled(): boolean {
-    //     return this._interactionsEnabled
-    // }
-    //
-    // set interactionsEnabled(value: boolean) {
-    //     if (this._interactionsEnabled !== value) {
-    //         this._interactionsEnabled = value
-    //         this.refreshCameraControls(true)
-    //     }
-    // }
 
     private _interactionsDisabledBy = new Set<string>()
 
@@ -209,7 +217,9 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     setDirty(options?: ICameraSetDirtyOptions|Event): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (!options?.key || options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
+        if (!options?.key || ['zoom', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize'].includes(options.key)) {
+            this.updateProjectionMatrix()
+        }
 
         this.getWorldPosition(this._positionWorld)
 
@@ -225,12 +235,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      */
     refreshAspect(setDirty = true): void {
         if (this.autoAspect) {
-            if (!this._canvas) console.error('PerspectiveCamera2: cannot calculate aspect ratio without canvas/container')
+            if (!this._canvas) console.error('OrthographicCamera2: cannot calculate aspect ratio without canvas/container')
             else {
                 let aspect = this._canvas.clientWidth / this._canvas.clientHeight
                 if (!isFinite(aspect)) aspect = 1
                 this.aspect = aspect
-                this.updateProjectionMatrix && this.updateProjectionMatrix()
+                this.refreshFrustum(false)
             }
         }
         if (setDirty) this.setDirty()
@@ -246,6 +256,15 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     refreshTarget = iCameraCommons.refreshTarget
     activateMain = iCameraCommons.activateMain
     deactivateMain = iCameraCommons.deactivateMain
+
+    refreshFrustum(setDirty = true) {
+        if (this._frustumSize === undefined) return
+        this.top = this._frustumSize / 2
+        this.bottom = -this.top
+        this.left = this.bottom * this.aspect
+        this.right = this.top * this.aspect
+        setDirty && this.setDirty()
+    }
 
     // endregion
 
@@ -267,12 +286,12 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         controls.listenToKeyEvents(elem) // optional // todo: make option for this
         // controls.enableKeys = true
         controls.screenSpacePanning = true
-
+        controls.enableZoom = false
         return controls
     }]])
     setControlsCtor(key: string, ctor: TControlsCtor, replace = false): void {
         if (!replace && this._controlsCtors.has(key)) {
-            console.error('PerspectiveCamera2: ' + key + ' already exists.')
+            console.error('OrthographicCamera2: ' + key + ' already exists.')
             return
         }
         this._controlsCtors.set(key, ctor)
@@ -288,7 +307,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     private _initCameraControls() {
         const mode = this.controlsMode
         this._controls = this._controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
-        if (!this._controls && mode !== '') console.error('PerspectiveCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
+        if (!this._controls && mode !== '') console.error('OrthographicCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
         this._controls?.addEventListener('change', this._controlsChanged)
         this._currentControlsMode = this._controls ? mode : ''
         // todo maybe set target like this:
@@ -338,36 +357,10 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
      */
     toJSON(meta?: any, baseOnly = false): any {
         if (baseOnly) return super.toJSON(meta)
-        // todo add camOptions for backwards compatibility?
         return ThreeSerialization.Serialize(this, meta, true)
     }
 
     fromJSON(data: any, meta?: any): this | null {
-        if (data.camOptions || data.aspect === 'auto')
-            data = {...data}
-        if (data.camOptions) {
-            const op = data.camOptions
-            if (op.fov) data.fov = op.fov
-            if (op.focus) data.focus = op.focus
-            if (op.zoom) data.zoom = op.zoom
-            if (op.aspect) data.aspect = op.aspect
-            if (op.controlsMode) data.controlsMode = op.controlsMode
-            // todo: add support for this
-            // if (op.left) data.left = op.left
-            // if (op.right) data.right = op.right
-            // if (op.top) data.top = op.top
-            // if (op.bottom) data.bottom = op.bottom
-            // if (op.frustumSize) data.frustumSize = op.frustumSize
-            // if (op.controlsEnabled) data.controlsEnabled = op.controlsEnabled
-            delete data.camOptions
-        }
-        if (data.aspect === 'auto') {
-            data.aspect = this.aspect
-            this.autoAspect = true
-        }
-        // if (data.cameraObject) this._camera.fromJSON(data.cameraObject)
-        // todo: add check for OrbitControls being not deserialized(inited properly) if it doesn't exist yet (if it is not inited properly)
-        // console.log(JSON.parse(JSON.stringify(data)))
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.setDirty({change: 'deserialize'})
         return this
@@ -442,8 +435,8 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         material.uniforms.cameraPositionWorld?.value?.copy(this._positionWorld)
         material.uniforms.cameraNearFar?.value?.set(this.near, this.far)
         if (material.uniforms.projection) material.uniforms.projection.value = this.projectionMatrix // todo: rename to projectionMatrix2?
-        material.defines.PERSPECTIVE_CAMERA = this.type === 'PerspectiveCamera' ? '1' : '0'
-        // material.defines.ORTHOGRAPHIC_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0' // todo
+        material.defines.PERSPECTIVE_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0'
+        material.defines.ORTHOGRAPHIC_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0'
         return this
     }
 
@@ -470,16 +463,6 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
             label: ()=>(this.autoNearFar ? 'Max' : '') + ' Far',
             property: [this, 'maxFarPlane'],
         },
-        {
-            type: 'input',
-            label: 'Auto Near Far',
-            property: [this, 'autoNearFar'],
-        },
-        {
-            type: 'input',
-            label: 'Dolly FoV',
-            property: [this, 'dollyFov'],
-        },
         ()=>({ // because _controlsCtors can change
             type: 'dropdown',
             label: 'Controls Mode',
@@ -495,17 +478,6 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         label: ()=>this.name || 'Camera',
         children: [
             ...this._camUi,
-            // todo hack for zoom in and out for now.
-            ()=>(this._controls as OrbitControls3)?.zoomIn ? {
-                type: 'button',
-                label: 'Zoom in',
-                value: ()=> (this._controls as OrbitControls3)?.zoomIn(1),
-            } : {},
-            ()=>(this._controls as OrbitControls3)?.zoomOut ? {
-                type: 'button',
-                label: 'Zoom out',
-                value: ()=> (this._controls as OrbitControls3)?.zoomOut(1),
-            } : {},
             ()=>this._controls?.uiConfig,
         ],
     }
@@ -551,51 +523,6 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         if (setDirty) this.setDirty()
     }
 
-    // setCameraOptions<T extends Partial<IPerspectiveCameraOptions | IOrthographicCameraOptions>>(value: T, setDirty = true): void {
-    //     const ops: any = {...value}
-    //
-    //     this._refreshCameraOptions(false)
-    //     this.refreshCameraControls(false)
-    //     if (setDirty) this.setDirty()
-    // }
-
-    // not to be used
-    // private _changeType(setDirty = true) {
-    //     // let cam = this._camera.modelObject
-    //
-    //     // change of type, not supported now.
-    //     // if (this._options.type !== cam.type) {
-    //     //     const cam2 = this._options.type === 'PerspectiveCamera' ? new PerspectiveCamera() : new OrthographicCamera()
-    //     //     cam2.name = this._camera.name
-    //     //     cam2.near = this._camera.modelObject.near
-    //     //     cam2.far = this._camera.modelObject.far
-    //     //     cam2.zoom = this._camera.modelObject.zoom
-    //     //     cam2.scale.copy(this._camera.modelObject.scale)
-    //     //
-    //     //     const isActive = this._isMainCamera
-    //     //     if (isActive) this.deactivateMain()
-    //     //     this._camera = this._setCameraObject(cam2)
-    //     //     cam = this._camera.modelObject
-    //     //     if (isActive) this.activateMain()
-    //     //     this._camera.modelObject.updateProjectionMatrix()
-    //     // }
-    //
-    //     // this._nearFarChanged() // this updates projection matrix todo: move to setDirty
-    //
-    //     if (setDirty) this.setDirty()
-    // }
-
-
-    // private _cameraObjectUpdate = (e: any)=>{
-    //     this.setDirty(e)
-    // }
-    // private _setCameraObject(cam: OrthographicCamera | PerspectiveCamera) {
-    //     if (this._camera) this._camera.removeEventListener('objectUpdate', this._cameraObjectUpdate)
-    //     this._camera = setupIModel(cam as any)
-    //     this._camera.addEventListener('objectUpdate', this._cameraObjectUpdate)
-    //     return this._camera
-    // }
-
     // endregion
 
     // region inherited type fixes
@@ -620,14 +547,13 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 }
 
 /**
- * Empty class with the constructor same as PerspectiveCamera in three.js.
+ * Empty class with the constructor same as OrthographicCamera in three.js.
  * This can be used to remain compatible with three.js construct signature.
  */
-export class PerspectiveCamera0 extends PerspectiveCamera2 {
-    constructor(fov?: number, aspect?: number, near?: number, far?: number) {
-        super(undefined, undefined, undefined, fov, aspect || 1)
-        this.dollyFov = false
-        if (near || far) {
+export class OrthographicCamera0 extends OrthographicCamera2 {
+    constructor(left?: number, right?: number, top?: number, bottom?: number, near?: number, far?: number) {
+        super(undefined, undefined, undefined, undefined, left, right, top, bottom, near, far, 1)
+        if (near !== undefined || far) {
             this.autoNearFar = false
             if (near) {
                 this.near = near

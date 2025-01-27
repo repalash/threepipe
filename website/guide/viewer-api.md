@@ -677,9 +677,9 @@ Check [IObject3DEventTypes](https://threepipe.org/docs/interfaces/IObject3DEvent
 
 ## ICamera
 
-Source Code: [src/core/camera/PerspectiveCamera2.ts](https://github.com/repalash/threepipe/blob/master/src/core/camera/PerspectiveCamera2.ts), [src/core/ICamera.ts](https://github.com/repalash/threepipe/blob/master/src/core/ICamera.ts)
+Source Code: [src/core/camera/PerspectiveCamera2.ts](https://github.com/repalash/threepipe/blob/master/src/core/camera/PerspectiveCamera2.ts), [src/core/ICamera.ts](https://github.com/repalash/threepipe/blob/master/src/core/ICamera.ts), [src/core/camera/OrthographicCamera2.ts](https://github.com/repalash/threepipe/blob/master/src/core/camera/OrthographicCamera2.ts)
 
-API Reference: [PerspectiveCamera2](https://threepipe.org/docs/classes/PerspectiveCamera2.html), [ICamera](https://threepipe.org/docs/interfaces/ICamera.html)
+API Reference: [PerspectiveCamera2](https://threepipe.org/docs/classes/PerspectiveCamera2.html), [ICamera](https://threepipe.org/docs/interfaces/ICamera.html), [OrthographicCamera2](https://threepipe.org/docs/classes/OrthographicCamera2.html)
 
 ICamera is an interface for a camera that extends the three.js [Camera](https://threejs.org/docs/#api/en/cameras/Camera).
 PerspectiveCamera2 implements the interface,
@@ -781,11 +781,42 @@ camera.deactivateMain()
 
 [`camera.deactivateMain`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#deactivateMain) - Deactivate the camera as the main camera.
 
+[`OrbitControls3`](https://threepipe.org/docs/classes/OrbitControls3.html) - An extension of three.js orbit controls with several new features like scroll damping, room bounds, dolly zoom and more.
+
 See also [CameraViewPlugin](../plugin/CameraViewPlugin) for camera focus animation.
 
 ::: info Note
 The constructor signature of `PerspectiveCamera2` is different `PerspectiveCamera`(from three.js), since it requires the canvas and the controlsMode during creation.
 Because of this `PerspectiveCamera0` is provided with the same signature as `PerspectiveCamera` for compatibility, in case the controls functionality is not required.
+:::
+
+::: tip Orthographic Projection
+Threepipe provides a way to specify the type of the main scene camera when initializing. This is `perspective` by default but can be used as `orthographic` to set the main camera as an orthographic camera.
+For most 3d applications, using `orthographic` main camera is not recommended, as it provides a different API and serialized differently. 
+
+To use orthographic projection, it is possible to use the Perspective Camera with a field of view of 1 degree for an approximation, which is good enough for most applications.
+This has several additional advantages including the ability to move the camera with scroll in orbit controls, animate between perspective and orthographic(by animating FoV), compatibility with gltf and other formats, compatibility with all post-processing plugins, and use the same API for both cameras.
+:::
+
+::: details Orthographic Main Camera
+`OrthographicCamera2` is an extension of three.js [OrthographicCamera](https://threejs.org/docs/#api/en/cameras/OrthographicCamera) with extra features like target, automatic frustum management(with aspect), automatic near far management(from RootScene), camera control attachment and hooks(like OrbitControls) and the ability to set as the main camera in the root scene.
+It can be used as the main camera by passing the type when creating the `ThreeViewer` instance - 
+```typescript
+const viewer = new ThreeViewer({
+  camera: {
+      type: 'orthographic',
+  }
+})
+const camera = viewer.scene.mainCamera as OrthographicCamera2
+```
+
+A `OrthographicCamera0` is also provided similar to `PerspectiveCamera0` for compatibility.
+
+As mentioned above, its possible to use perspective camera with a field of view of 1 degree for an approximation - 
+```typescript
+const viewer = new ThreeViewer({...})
+viewer.scene.mainCamera.fov = 1
+```
 :::
 
 ## AssetManager
