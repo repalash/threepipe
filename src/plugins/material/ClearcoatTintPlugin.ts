@@ -67,8 +67,8 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
             // Note: clearcoat only considers specular, not diffuse
 
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-                'float dotNVcc = saturate( dot( geometry.clearcoatNormal, geometry.viewDir ) );',
-                'float dotNVcc = saturate( dot( geometry.clearcoatNormal, -refract(geometry.viewDir, geometry.clearcoatNormal, 1./ccIor) ) );')
+                'float dotNVcc = saturate( dot( geometryClearcoatNormal, geometryViewDir ) );',
+                'float dotNVcc = saturate( dot( geometryClearcoatNormal, -refract(geometryViewDir, geometryClearcoatNormal, 1./ccIor) ) );')
 
             // todo: we are considering all light is coming from env map, but we should consider light coming from light sources by seperating light and env map attenuation
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,

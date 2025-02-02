@@ -130,7 +130,7 @@ float ambientOcclusion = getShadow( directionalShadowMap[ ii ], edls.shadowMapSi
 
 	#if defined( USE_ENVMAP ) && defined( STANDARD )
 
-		float dotNV = saturate( dot( geometry.normal, geometry.viewDir ) );
+		float dotNV = saturate( dot( geometryNormal, geometryViewDir ) );
 
 		reflectedLight.indirectSpecular *= computeSpecularOcclusion( dotNV, ambientOcclusion, material.roughness );
 

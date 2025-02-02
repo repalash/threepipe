@@ -149,7 +149,7 @@ vec3 reliefParallaxPerturbNormal(in float faceDirection, inout vec3 normal){
 
     // normal = geometryNormal;
 
-    // todo: modify geometry.position (vViewPosition) for point, spot and area lights
+    // todo: modify geometryPosition (vViewPosition) for point, spot and area lights
 
     return parallaxUv;
 }

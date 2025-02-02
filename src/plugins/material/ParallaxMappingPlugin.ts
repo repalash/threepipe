@@ -68,8 +68,7 @@ export class ParallaxMappingPlugin extends AViewerPluginSync {
                 shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
                     // .replace('texture2D( map, parallaxUv.xy )', 'texture2D( map, parallaxUv.xy )')
                     'texture2D( map, parallaxUv.xy )',
-                    this.debugNormals ? 'vec4(normal, 1.); normal = geometryNormal' : 'vec4(parallaxUv.z,0., 0., 1.)')
-
+                    this.debugNormals ? 'vec4(normal, 1.); normal = nonPerturbedNormal' : 'vec4(parallaxUv.z,0., 0., 1.)')
 
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <normal_fragment_maps>',
                 shaderReplaceString(
