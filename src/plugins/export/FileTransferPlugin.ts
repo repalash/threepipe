@@ -1,5 +1,14 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {downloadBlob} from 'ts-browser-helpers'
+
+export interface FileTransferPluginEventMap extends AViewerPluginEventMap{
+    transferFile: {
+        path: string
+        state: 'exporting'|'done'|'error'
+        progress?: number
+        name?: string
+    }
+}
 
 /**
  * File Transfer Plugin
@@ -8,7 +17,7 @@ import {downloadBlob} from 'ts-browser-helpers'
  *
  * @category Plugins
  */
-export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
+export class FileTransferPlugin extends AViewerPluginSync<FileTransferPluginEventMap> {
     enabled = true
 
     static readonly PluginType = 'FileTransferPlugin'
@@ -25,7 +34,7 @@ export class FileTransferPlugin extends AViewerPluginSync<'transferFile'> {
     }
 
     readonly defaultActions = {
-        exportFile: async(blob: Blob, name: string, _onProgress?: (d: {state?: string, progress?: number})=>void)=>{
+        exportFile: async(blob: Blob, name: string, _onProgress?: (d: {state?: 'exporting'|'done'|'error', progress?: number})=>void)=>{
             downloadBlob(blob, name)
         },
     }

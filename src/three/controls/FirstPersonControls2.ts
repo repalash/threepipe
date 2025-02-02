@@ -1,7 +1,7 @@
 import {EventDispatcher, MathUtils, Object3D, Spherical, Vector3} from 'three'
 import {IEvent, now, serialize} from 'ts-browser-helpers'
 import {uiInput, uiPanelContainer, uiToggle} from 'uiconfig.js'
-import {ICameraControls} from '../../core'
+import {ICameraControls, ICameraControlsEventMap} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _lookDirection = new Vector3()
@@ -15,7 +15,7 @@ const _changeEvent: IEvent<'change'> = {type: 'change'}
 
 // todo bug - this is not showing in the UI. To test, switch to threeFirstPerson controlsMode for Default Camera in the tweakpane editor
 @uiPanelContainer('First Person Controls')
-export class FirstPersonControls2 extends EventDispatcher implements ICameraControls<'change'> {
+export class FirstPersonControls2 extends EventDispatcher<ICameraControlsEventMap> implements ICameraControls {
     readonly object: Object3D
     readonly domElement: HTMLElement | Document
 

@@ -33,7 +33,7 @@ export interface SimplifyOptions{
  * This is a base class and cannot be used directly.
  * See {@link MeshOptSimplifyModifierPlugin} the [simplify-modifier-plugin](https://threepipe.org/examples/#simplify-modifier-plugin) example for a sample implementation.
  */
-export abstract class SimplifyModifierPlugin extends AViewerPluginSync<''> {
+export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'SimplifyModifierPlugin'
     enabled = true
     toJSON: any = undefined

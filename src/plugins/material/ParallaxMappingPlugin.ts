@@ -14,7 +14,7 @@ import ParallaxMappingPluginReliefShader from './shaders/ParallaxMappingPlugin.r
  * @category Plugins
  */
 @uiFolderContainer('Parallax Bump Mapping (MatExt)')
-export class ParallaxMappingPlugin extends AViewerPluginSync<''> {
+export class ParallaxMappingPlugin extends AViewerPluginSync {
     public static PluginType = 'ReliefParallaxMapping'
 
     @onChange(ParallaxMappingPlugin.prototype._updateExtension)

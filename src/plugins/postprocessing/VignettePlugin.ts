@@ -16,7 +16,7 @@ import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
  * @category Plugins
  */
 @uiFolderContainer('Vignette')
-export class VignettePlugin extends AScreenPassExtensionPlugin<''> {
+export class VignettePlugin extends AScreenPassExtensionPlugin {
     static readonly PluginType = 'Vignette'
 
     readonly extraUniforms = {

@@ -1,4 +1,4 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {absMax, now, onChange, onChange2, PointerDragHelper, serialize} from 'ts-browser-helpers'
 import {uiButton, uiDropdown, uiFolderContainer, uiMonitor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {AnimationAction, AnimationClip, AnimationMixer, LoopOnce, LoopRepeat} from 'three'
@@ -6,6 +6,12 @@ import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {IObject3D} from '../../core'
 import {generateUUID} from '../../three'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
+
+export interface GLTFAnimationPluginEventMap extends AViewerPluginEventMap{
+    checkpointBegin: object
+    checkpointEnd: object
+    animationStep: {delta: number, time: number}
+}
 
 /**
  * Manages playback of GLTF animations.
@@ -22,7 +28,7 @@ import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
  * @category Plugins
  */
 @uiFolderContainer('GLTF Animations')
-export class GLTFAnimationPlugin extends AViewerPluginSync<'checkpointEnd'|'checkpointBegin'|'animationStep'> {
+export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEventMap> {
     enabled = true
     declare uiConfig: UiObjectConfig
 

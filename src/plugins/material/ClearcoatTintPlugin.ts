@@ -16,7 +16,7 @@ import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTF
  * @category Plugins
  */
 @uiFolderContainer('Clearcoat Tint (MatExt)')
-export class ClearcoatTintPlugin extends AViewerPluginSync<''> {
+export class ClearcoatTintPlugin extends AViewerPluginSync {
     static readonly PluginType = 'ClearcoatTintPlugin'
 
     @uiToggle('Enabled', (that: ClearcoatTintPlugin)=>({onChange: that.setDirty}))

@@ -15,7 +15,7 @@ export interface IObject3DHelper<T extends Object3D&IWidget = Object3D&IWidget>{
  * A helper is automatically created when any supported light or camera is added to the scene.
  * @category Plugins
  */
-export class Object3DWidgetsPlugin extends AViewerPluginSync<''> {
+export class Object3DWidgetsPlugin extends AViewerPluginSync {
     @onChange(Object3DWidgetsPlugin.prototype.setDirty)
         enabled = true
     public static readonly PluginType = 'Object3DWidgetsPlugin'

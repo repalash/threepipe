@@ -18,7 +18,7 @@ import {copyProps} from 'ts-browser-helpers'
 import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
-import {IMaterial, IMaterialEvent, IMaterialSetDirtyOptions} from '../IMaterial'
+import {IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from '../IMaterial'
 import {isInScene} from '../../three/utils'
 
 /**
@@ -106,12 +106,12 @@ export const iMaterialCommons = {
             this.setDirty?.()
             return this
         },
-    dispose: (superDispose: Material<any, any>['dispose']): IMaterial['dispose'] =>
+    dispose: (superDispose: Material['dispose']): IMaterial['dispose'] =>
         function(this: IMaterial, force = true): void {
             if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
             superDispose.call(this)
         },
-    clone: (superClone: Material<any, any>['clone']): IMaterial['clone'] =>
+    clone: (superClone: Material['clone']): IMaterial['clone'] =>
         function(this: IMaterial): IMaterial {
             if (!this.userData.cloneId) {
                 this.userData.cloneId = '0'
@@ -130,10 +130,10 @@ export const iMaterialCommons = {
             return material
         },
     dispatchEvent: (superDispatchEvent: Material['dispatchEvent']): IMaterial['dispatchEvent'] =>
-        function(this: IMaterial, event: IMaterialEvent): void {
+        function(this: IMaterial, event): void {
             superDispatchEvent.call(this, event)
             const type = event.type
-            if (event.bubbleToObject && (
+            if ((event as IMaterialEventMap['materialUpdate']).bubbleToObject && (
                 type === 'beforeDeserialize' || type === 'materialUpdate' || type === 'textureUpdate' // todo - add more events
             )) {
                 this.appliedMeshes.forEach(m => m.dispatchEvent({...event, material: this, type}))

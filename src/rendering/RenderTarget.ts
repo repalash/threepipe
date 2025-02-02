@@ -2,17 +2,15 @@ import {
     ColorSpace,
     DepthFormat,
     DepthStencilFormat,
-    EventDispatcher,
     FloatType,
     MagnificationTextureFilter,
     MinificationTextureFilter,
+    RenderTarget,
     Texture,
     TextureDataType,
     UnsignedInt248Type,
     UnsignedIntType,
     UnsignedShortType,
-    WebGLMultipleRenderTargets,
-    WebGLRenderTarget,
     Wrapping,
 } from 'three'
 import {Vector4} from 'three/src/math/Vector4'
@@ -20,7 +18,7 @@ import {DepthTexture} from 'three/src/textures/DepthTexture'
 import type {IRenderManager, IWebGLRenderer} from '../core'
 import {ValOrArr} from 'ts-browser-helpers'
 
-export interface IRenderTarget extends EventDispatcher {
+export interface IRenderTarget extends RenderTarget<Texture | Texture[]> {
     isWebGLRenderTarget: boolean
     width: number
     height: number
@@ -35,7 +33,7 @@ export interface IRenderTarget extends EventDispatcher {
     targetKey?: string // for caching.
     clone(trackTarget?: boolean): this
     setSize(width: number, height: number, depth?: number): void;
-    copy(source: IRenderTarget|WebGLRenderTarget|WebGLMultipleRenderTargets): this;
+    copy(source: IRenderTarget|RenderTarget): this;
     dispose(): void;
 
     scissor: Vector4;

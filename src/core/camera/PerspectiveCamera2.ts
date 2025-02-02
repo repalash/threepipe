@@ -1,7 +1,7 @@
-import {Camera, Event, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {Camera, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
-import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
+import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
@@ -13,7 +13,7 @@ import {makeICameraCommonUiConfig} from '../object/IObjectUi'
 import {CameraView, ICameraView} from './CameraView'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
-export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
+export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> extends PerspectiveCamera<TE&ICameraEventMap> implements ICamera<TE&ICameraEventMap> {
     assetType = 'camera' as const
     get controls(): ICameraControls | undefined {
         return this._controls
@@ -206,10 +206,14 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
 
     // region refreshing
 
-    setDirty(options?: ICameraSetDirtyOptions|Event): void {
+    setDirty(options?: ICameraSetDirtyOptions): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (!options?.key || options?.key === 'fov' || options?.key === 'zoom') this.updateProjectionMatrix()
+        // noinspection SuspiciousTypeOfGuard it can be string when called from bindToValue
+        const changeKey = typeof options === 'string' ? options : options?.key
+        if (!changeKey || changeKey === 'fov' || changeKey === 'zoom') this.updateProjectionMatrix()
+
+        if (typeof options === 'string') options = undefined
 
         this.getWorldPosition(this._positionWorld)
 
@@ -423,7 +427,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
         this.copy(camera, undefined, distanceFromTarget, worldSpace)
     }
 
-    setViewToMain(eventOptions: Partial<ICameraEvent>) {
+    setViewToMain(eventOptions: Omit<ICameraEventMap['setView'], 'camera'|'bubbleToParent'>): void {
         this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
     }
 
@@ -611,7 +615,7 @@ export class PerspectiveCamera2 extends PerspectiveCamera implements ICamera {
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ICameraEvent) => void
+    // dispatchEvent: (event: ICameraEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

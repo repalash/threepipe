@@ -1,4 +1,16 @@
-import type {Color, Event, IUniform, Material, MaterialParameters, Shader} from 'three'
+import {
+    BufferGeometry,
+    Camera,
+    Color,
+    IUniform,
+    Material,
+    MaterialEventMap,
+    MaterialParameters,
+    Object3D,
+    Scene,
+    Shader,
+    WebGLRenderer,
+} from 'three'
 import type {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
 import type {MaterialExtension} from '../materials'
 import type {ChangeEvent, IUiConfigContainer} from 'uiconfig.js'
@@ -9,18 +21,65 @@ import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
-export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
-export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
-    type: T
-    bubbleToObject?: boolean
-    bubbleToParent?: boolean
-    material?: IMaterial
+// export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
+// export type IMaterialEvent<T extends string = IMaterialEventTypes> = Event & {
+//     type: T
+//     bubbleToObject?: boolean
+//     bubbleToParent?: boolean
+//     material?: IMaterial
+//
+//     texture?: ITexture
+//     oldTexture?: ITexture
+//
+//     uiChangeEvent?: ChangeEvent
+// }
 
-    texture?: ITexture
-    oldTexture?: ITexture
-
-    uiChangeEvent?: ChangeEvent
+export interface IMaterialEventMap extends MaterialEventMap{
+    beforeCompile: {
+        shader: Shader
+        renderer: WebGLRenderer
+    }
+    beforeRender: {
+        renderer: WebGLRenderer
+        scene: Scene
+        camera: Camera
+        geometry: BufferGeometry
+        object: Object3D
+    }
+    afterRender: {
+        renderer: WebGLRenderer
+        scene: Scene
+        camera: Camera
+        geometry: BufferGeometry
+        object: Object3D
+    }
+    /**
+     * For internal use
+     */
+    beforeDeserialize: {
+        data: unknown
+        meta?: SerializationMetaType
+        bubbleToObject: boolean
+        bubbleToParent: boolean
+    }
 }
+
+declare module 'three'{
+    export interface MaterialEventMap{
+        materialUpdate: {
+            bubbleToObject?: boolean
+            bubbleToParent?: boolean
+            uiChangeEvent?: ChangeEvent
+        } & IMaterialSetDirtyOptions
+        textureUpdate: {
+            texture: ITexture
+            bubbleToObject?: boolean
+            bubbleToParent?: boolean
+            uiChangeEvent?: ChangeEvent
+        }
+    }
+}
+
 export interface IMaterialSetDirtyOptions extends ISetDirtyCommonOptions{
     /**
      * @default true
@@ -125,7 +184,7 @@ export interface IMaterialUserData extends IImportResultUserData{
     postTonemap?: boolean
 }
 
-export interface IMaterial<E extends IMaterialEvent = IMaterialEvent, ET = IMaterialEventTypes> extends Material<E, ET>, IJSONSerializable, IDisposable, IUiConfigContainer {
+export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends Material<TE>, IJSONSerializable, IDisposable, IUiConfigContainer {
     constructor: {
         TYPE: string
         TypeSlug: string

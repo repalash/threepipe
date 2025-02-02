@@ -1,9 +1,17 @@
-import {Color, IUniform, LineBasicMaterial, LineBasicMaterialParameters, Material, Shader, WebGLRenderer} from 'three'
+import {
+    BaseEvent,
+    Color,
+    IUniform,
+    LineBasicMaterial,
+    LineBasicMaterialParameters,
+    Material,
+    Shader,
+    WebGLRenderer,
+} from 'three'
 import {UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
+    IMaterialEventMap,
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
@@ -16,14 +24,12 @@ import {IObject3D} from '../IObject'
 import {makeSamplerUi} from '../../ui/image-ui'
 import {iMaterialUI} from './IMaterialUi'
 
-export type UnlitLineMaterialEventTypes = IMaterialEventTypes | ''
-
 /**
  * And extension of three.js LineBasicMaterial that can be assigned to lines, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitLineMaterialEventTypes> {
+export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends LineBasicMaterial<TE> implements IMaterial<TE> {
     declare ['constructor']: typeof UnlitLineMaterial
 
     public static readonly TypeSlug = 'blmat'
@@ -38,7 +44,7 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 
@@ -116,7 +122,7 @@ export class UnlitLineMaterial extends LineBasicMaterial<IMaterialEvent, UnlitLi
     /**
      * Serializes this material to JSON.
      * @param meta - metadata for serialization
-     * @param _internal - Calls only super.toJSON, does internal three.js serialization and @serialize tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
      */
     toJSON(meta?: SerializationMetaType, _internal = false): any {
         if (_internal) return {

@@ -17,7 +17,7 @@ import {Color} from 'three'
  *
  * @category Plugins
  */
-export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<''> {
+export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
     enabled = true
     public static PluginType = 'MaterialConfiguratorPlugin'
     private _picking: PickingPlugin | undefined

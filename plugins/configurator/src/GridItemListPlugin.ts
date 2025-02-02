@@ -4,7 +4,7 @@ import {GridItemList} from './GridItemList'
 /**
  * A helper plugin to create a a simple list of small grids like for material or object configurator
  */
-export class GridItemListPlugin extends AViewerPluginSync<''> {
+export class GridItemListPlugin extends AViewerPluginSync {
     enabled = true
     toJSON: any = undefined
     create = GridItemList.Create

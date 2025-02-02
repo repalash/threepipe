@@ -11,7 +11,7 @@ import {AssetExporterPlugin, AViewerPluginSync, IObject3D, uiButton, uiFolderCon
  * Note: since the uploaded files are publicly accessible by anyone by default, it is recommended to encrypt the file using the exporter options or use a secure backend.
  */
 @uiFolderContainer('Share Link')
-export class TransfrSharePlugin extends AViewerPluginSync<''> {
+export class TransfrSharePlugin extends AViewerPluginSync {
     public static readonly PluginType = 'TransfrSharePlugin'
 
     toJSON: any = null

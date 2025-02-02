@@ -1,28 +1,19 @@
 import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
-import {Color, IUniform, Material, Shader, Vector2, WebGLRenderer} from 'three'
+import {BaseEvent, Color, IUniform, Material, Shader, Vector2, WebGLRenderer} from 'three'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
-import {
-    IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
-    IMaterialGenerator,
-    IMaterialParameters,
-    IMaterialTemplate,
-} from '../IMaterial'
+import {IMaterial, IMaterialEventMap, IMaterialGenerator, IMaterialParameters, IMaterialTemplate} from '../IMaterial'
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/lines/LineMaterial.js'
 
-export type LineMaterial2EventTypes = IMaterialEventTypes | ''
-
 /**
  * And extension of three.js LineMaterial that can be assigned to lines, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2EventTypes> implements IMaterial<IMaterialEvent, LineMaterial2EventTypes> {
+export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends LineMaterial<TE> implements IMaterial<TE> {
     declare ['constructor']: typeof LineMaterial2
     public static readonly TypeSlug = 'lmat'
     public static readonly TYPE = 'LineMaterial2' // not using .type because it is used by three.js
@@ -34,7 +25,7 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 
@@ -147,7 +138,7 @@ export class LineMaterial2 extends LineMaterial<IMaterialEvent, LineMaterial2Eve
     /**
      * Serializes this material to JSON.
      * @param meta - metadata for serialization
-     * @param _internal - Calls only super.toJSON, does internal three.js serialization and @serialize tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
      */
     toJSON(meta?: SerializationMetaType, _internal = false): any {
         if (_internal) return {

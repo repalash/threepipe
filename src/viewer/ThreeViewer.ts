@@ -69,6 +69,7 @@ import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
 import {OrbitControls3} from '../three'
 
+// todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
     type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
     eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
@@ -231,7 +232,7 @@ export interface ThreeViewerOptions {
  * @category Viewer
  */
 @uiPanelContainer('Viewer')
-export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes> {
+export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IViewerEvent>> {
     public static readonly VERSION = VERSION
     public static readonly ConfigTypeSlug = 'vjson'
     uiConfig!: UiObjectConfig
@@ -587,9 +588,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     /**
      * Disposes the viewer and frees up all resource and events. Do not use the viewer after calling dispose.
-     * @note - If you want to reuse the viewer, set viewer.enabled to false instead, then set it to true again when required. To dispose all the objects, materials in the scene use `viewer.scene.disposeSceneModels()`
+     * NOTE - If you want to reuse the viewer, set viewer.enabled to false instead, then set it to true again when required. To dispose all the objects, materials in the scene use `viewer.scene.disposeSceneModels()`
      * This function is not fully implemented yet. There might be some leaks.
-     * @todo - return promise?
+     * TODO - return promise?
      */
     public dispose(clear = true): void {
         // todo: dispose stuff from constructor etc
@@ -1146,9 +1147,9 @@ export class ThreeViewer extends EventDispatcher<IViewerEvent, IViewerEventTypes
 
     /**
      * Deserialize all the viewer and plugin settings.
-     * @note use async {@link ThreeViewer.importConfig} to import a json/config exported with {@link ThreeViewer.exportConfig} or {@link ThreeViewer.toJSON}.
-     * @param data - The serialized JSON object retured from {@link toJSON}.
-     * @param meta - The meta object
+     * NOTE - use async {@link ThreeViewer.importConfig} to import a json/config exported with {@link ThreeViewer.exportConfig} or {@link ThreeViewer.toJSON}.
+     * @param data - The serialized JSON object returned from {@link toJSON}.
+     * @param meta - The meta object, see {@link SerializationMetaType}
      * @returns {this}
      */
     fromJSON(data: ISerializedViewerConfig, meta?: SerializationMetaType): this|null {

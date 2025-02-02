@@ -13,7 +13,7 @@ import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
  * @category Plugins
  */
 @uiFolderContainer('ChromaticAberration')
-export class ChromaticAberrationPlugin extends AScreenPassExtensionPlugin<''> {
+export class ChromaticAberrationPlugin extends AScreenPassExtensionPlugin {
     static readonly PluginType = 'ChromaticAberration'
 
     readonly extraUniforms = {

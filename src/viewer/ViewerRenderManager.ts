@@ -1,10 +1,11 @@
 import {IRenderTarget, RenderManager} from '../rendering'
 import {HalfFloatType, LinearFilter, NoColorSpace, RGBM16ColorSpace, UnsignedByteType} from 'three'
-import {IRenderManagerEvent, IRenderManagerOptions, IScene} from '../core'
+import {IRenderManagerOptions, IScene} from '../core'
 import {ExtendedRenderPass, ScreenPass, TViewerScreenShader} from '../postprocessing'
 import {uiFolderContainer, UiObjectConfig} from 'uiconfig.js'
 import {MaterialExtension} from '../materials'
 import {onChange3} from 'ts-browser-helpers'
+import {IRenderManagerEventMap} from '../core/IRenderer'
 
 export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     rgbm?: boolean,
@@ -15,8 +16,17 @@ export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     maxHDRIntensity?: number
 }
 
+export interface ViewerRenderManagerEventMap extends IRenderManagerEventMap{
+    gbufferUnpackExtensionChanged: {
+        key: string;
+        value: any;
+        oldValue: any;
+        // target: TTarget;
+    }
+}
+
 @uiFolderContainer('Render Manager')
-export class ViewerRenderManager extends RenderManager<IRenderManagerEvent, 'gbufferUnpackExtensionChanged'> {
+export class ViewerRenderManager extends RenderManager<ViewerRenderManagerEventMap> {
     readonly rgbm: boolean
     readonly msaa: boolean | number
     readonly depthBuffer: boolean

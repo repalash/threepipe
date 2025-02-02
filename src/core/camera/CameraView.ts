@@ -1,4 +1,4 @@
-import {Event, EventDispatcher, Quaternion, Vector3} from 'three'
+import {EventDispatcher, Quaternion, Vector3} from 'three'
 import {onChange, serializable, serialize} from 'ts-browser-helpers'
 import {IUiConfigContainer, uiButton, uiInput, uiNumber, UiObjectConfig, uiPanelContainer, uiVector} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
@@ -17,9 +17,16 @@ export interface ICameraView extends IUiConfigContainer{
     delete(camera?: ICamera): void
 }
 
+export interface CameraViewEventMap {
+    setView: {camera?: ICamera, view: ICameraView}
+    animateView: {camera?: ICamera, duration?: number, view: ICameraView}
+    updateView: {camera?: ICamera, view: ICameraView}
+    deleteView: {camera?: ICamera, view: ICameraView}
+}
+
 @serializable('CameraView')
 @uiPanelContainer('Camera View')
-export class CameraView extends EventDispatcher<Event, 'setView'|'animateView'|'updateView'|'deleteView'> implements ICameraView, IUiConfigContainer {
+export class CameraView extends EventDispatcher<CameraViewEventMap> implements ICameraView, IUiConfigContainer {
     uuid = generateUUID()
     @onChange(CameraView.prototype._nameChanged)
     @serialize() @uiInput() name = 'Camera View'

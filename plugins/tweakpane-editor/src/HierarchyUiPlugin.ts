@@ -3,7 +3,7 @@ import Tree from 'treejs'
 import {AViewerPluginSync, IObject3D, Object3D, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 
-export class HierarchyUiPlugin extends AViewerPluginSync<''> {
+export class HierarchyUiPlugin extends AViewerPluginSync {
     enabled = true
     public static readonly PluginType = 'HierarchyUiPlugin'
 
@@ -39,7 +39,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync<''> {
     }
 
     reset(e?: any) {
-        if (e?.fromHierarchyPlugin) return // for infinite loop
+        if (e?.source !== HierarchyUiPlugin.PluginType) return // for infinite loop
         if (!e?.hierarchyChanged) return
         this._needsReset = true
     }
@@ -76,7 +76,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync<''> {
                 onItemLabelClick: (item: any) => {
                     const obj1 = this._viewer?.scene.modelRoot.getObjectByProperty('uuid', item)
                     if (!obj1 || !obj.visible) return
-                    obj1.dispatchEvent({type: 'select', value: obj1, ui: true})
+                    obj1.dispatchEvent({type: 'select', value: obj1, object: obj1, ui: true})
                 },
             })
         })
@@ -136,7 +136,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync<''> {
                 if (o.visible) o.traverseAncestors(p=>ancestorSet.add(p))
             })
             ancestorSet.forEach(o=> o.visible = true)
-            this._viewer?.scene?.setDirty({refreshScene: true, fromHierarchyPlugin: true, updateGround: false})
+            this._viewer?.scene?.setDirty({refreshScene: true, source: HierarchyUiPlugin.PluginType, updateGround: false})
         })
     }
 }

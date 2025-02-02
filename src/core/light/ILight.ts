@@ -1,11 +1,10 @@
 import {Light, LightShadow, Object3D} from 'three'
-import {IObject3D, IObject3DEvent, IObject3DEventTypes, IObject3DUserData} from '../IObject'
+import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 
 export interface ILight<
     TShadowSupport extends LightShadow | undefined = LightShadow | undefined,
-    E extends ILightEvent = ILightEvent,
-    ET extends ILightEventTypes = ILightEventTypes
-> extends Light<TShadowSupport, E, ET>, IObject3D<E, ET> {
+    TE extends IObject3DEventMap = IObject3DEventMap
+> extends Light<TShadowSupport, TE>, IObject3D<TE> {
     assetType: 'light'
     readonly isLight: true
 
@@ -43,9 +42,9 @@ export interface ILight<
     // endregion
 }
 
-export type ILightEventTypes = IObject3DEventTypes | 'lightUpdate'// | string
-export type ILightEvent = Omit<IObject3DEvent, 'type'> & {
-    type: ILightEventTypes
-    light?: ILight | null
-    // change?: string
-}
+// export type ILightEventTypes = IObject3DEventTypes | 'lightUpdate'// | string
+// export type ILightEvent = Omit<IObject3DEvent, 'type'> & {
+//     type: ILightEventTypes
+//     light?: ILight | null
+//     // change?: string
+// }

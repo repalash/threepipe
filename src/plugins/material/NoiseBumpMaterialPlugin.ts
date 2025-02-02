@@ -19,7 +19,7 @@ import NoiseBumpMaterialPluginPatch from './shaders/NoiseBumpMaterialPlugin.patc
  * @category Plugins
  */
 @uiFolderContainer('Noise/Sparkle Bump (MatExt)')
-export class NoiseBumpMaterialPlugin extends AViewerPluginSync<''> {
+export class NoiseBumpMaterialPlugin extends AViewerPluginSync {
     static readonly PluginType = 'NoiseBumpMaterialPlugin'
 
     @uiToggle('Enabled', (that: NoiseBumpMaterialPlugin)=>({onChange: that.setDirty}))

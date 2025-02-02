@@ -1,8 +1,18 @@
-import {BaseEvent, EventDispatcher, WebGLRenderTarget} from 'three'
+import {EventDispatcher, WebGLRenderTarget} from 'three'
 import {IMaterial, IObject3D, ITexture} from '../core'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportParser} from './IExporter'
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
+
+export interface AssetExporterEventMap {
+    exporterCreate: {exporter: IExporter, parser: IExportParser}
+    exportFile: {
+        obj: IObject3D|IMaterial|ITexture|IRenderTarget,
+        state: 'processing'|'exporting'|'done'|'error',
+        error?: any,
+        exportOptions: ExportFileOptions
+    }
+}
 
 /**
  * Asset Exporter
@@ -11,7 +21,7 @@ import {IRenderTarget} from '../rendering'
  * Used in {@link AssetManager} to export assets.
  * @category Asset Manager
  */
-export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' | 'exportFile'> implements IAssetExporter {
+export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implements IAssetExporter {
     readonly exporters: IExporter[] = [
         {ctor: ()=>new SimpleJSONExporter(), ext: ['json']},
         {ctor: ()=>new SimpleTextExporter(), ext: ['txt', 'text']},
@@ -86,17 +96,17 @@ export class AssetExporter extends EventDispatcher<BaseEvent, 'exporterCreate' |
             else {
                 const parser = this._getParser(ext)
 
-                this.dispatchEvent({type: 'exportFile', obj, state:'exporting'})
+                this.dispatchEvent({type: 'exportFile', obj, state:'exporting', exportOptions: options})
                 res = await parser.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
                 res.ext = processed.ext
             }
 
-            this.dispatchEvent({type: 'exportFile', obj, state: 'done'})
+            this.dispatchEvent({type: 'exportFile', obj, state: 'done', exportOptions: options})
 
         } catch (e) {
             console.error('AssetExporter: Unable to Export file', obj)
             // console.error(e)
-            this.dispatchEvent({type: 'exportFile', obj, state: 'error', error: e})
+            this.dispatchEvent({type: 'exportFile', obj, state: 'error', error: e, exportOptions: options})
             throw e
             return undefined
         }

@@ -1,14 +1,14 @@
 import {Mesh} from 'three'
-import {IObject3D, IObject3DUserData} from '../IObject'
+import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
 import {IGeometry} from '../IGeometry'
-import {ILightEvent} from '../light/ILight'
 
 export class Mesh2<
     TGeometry extends IGeometry = IGeometry,
-    TMaterial extends IMaterial | IMaterial[] = IMaterial | IMaterial[]
-> extends Mesh<TGeometry, TMaterial> implements IObject3D {
+    TMaterial extends IMaterial | IMaterial[] = IMaterial | IMaterial[],
+    TE extends IObject3DEventMap = IObject3DEventMap
+> extends Mesh<TGeometry, TMaterial, TE> implements IObject3D<TE> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
@@ -43,7 +43,6 @@ export class Mesh2<
     copy: (source: Mesh2|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ILightEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
     dispose: (removeFromParent?: boolean) => void

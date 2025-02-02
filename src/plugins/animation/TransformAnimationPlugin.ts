@@ -21,7 +21,7 @@ export interface TSavedTransform {
  *
  * @category Plugins
  */
-export class TransformAnimationPlugin extends AViewerPluginSync<''> {
+export class TransformAnimationPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'TransformAnimationPlugin'
     toJSON: any = undefined
 

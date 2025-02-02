@@ -1,6 +1,6 @@
 import {iObjectCommons} from './iObjectCommons'
 import {Camera, Vector3} from 'three'
-import type {ICamera, ICameraEvent, ICameraSetDirtyOptions} from '../ICamera'
+import type {ICamera, ICameraEventMap, ICameraSetDirtyOptions} from '../ICamera'
 
 export const iCameraCommons = {
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {
@@ -14,11 +14,11 @@ export const iCameraCommons = {
             this.lookAt(this.target)
         }
         // }
-        this.dispatchEvent({...options, type: 'update'}) // does not bubble
+        this.dispatchEvent({...options, type: 'update', bubbleToParent: false, camera: this}) // does not bubble
         this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true}) // this sets dirty in the viewer
         iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})
     },
-    activateMain: function(this: ICamera, options: Partial<ICameraEvent> = {}, _internal = false, _refresh = true): void {
+    activateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true): void {
         if (!_internal) {
             if (options.camera === null) return this.deactivateMain(options, _internal, _refresh)
             return this.dispatchEvent({
@@ -37,7 +37,7 @@ export const iCameraCommons = {
         this.setDirty({change: 'activateMain', ...options})
         // console.log({...this._camera.modelObject.position})
     },
-    deactivateMain: function(this: ICamera, options: Partial<ICameraEvent> = {}, _internal = false, _refresh = true): void {
+    deactivateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true): void {
         if (!_internal) return this.dispatchEvent({
             type: 'activateMain', ...options,
             camera: null,

@@ -17,7 +17,7 @@ import {gltfExporterMaterialsVariantsExtensionExport} from './helpers/GLTFMateri
  *
  * @category Plugins
  */
-export class GLTFKHRMaterialVariantsPlugin extends AViewerPluginSync<''> {
+export class GLTFKHRMaterialVariantsPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'GLTFKHRMaterialVariantsPlugin'
     enabled = true
 

@@ -9,7 +9,7 @@ import {Euler, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
 @uiPanelContainer('Transform Controls')
-export class TransformControlsPlugin extends AViewerPluginSync<''> {
+export class TransformControlsPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'TransformControlsPlugin'
 
     @uiToggle()
@@ -56,7 +56,6 @@ export class TransformControlsPlugin extends AViewerPluginSync<''> {
             // this._viewer.scene.mainCamera.setInteractions(!this._isInteracting, TransformControlsPlugin.PluginType)
         },
     }
-
 
     private _transformState = {
         obj: null as Object3D|null,

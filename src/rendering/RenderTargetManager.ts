@@ -1,7 +1,6 @@
 import {Class} from 'ts-browser-helpers'
 import {createRenderTargetKey, CreateRenderTargetOptions, IRenderTarget} from './RenderTarget'
 import {
-    BaseEvent,
     ClampToEdgeWrapping,
     DepthFormat,
     DepthTexture,
@@ -20,7 +19,7 @@ import {
     WebGLRenderTargetOptions,
 } from 'three'
 
-export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET extends string = string> extends EventDispatcher<E, ET> {
+export abstract class RenderTargetManager<TE extends object = object> extends EventDispatcher<TE> {
     abstract isWebGL2: boolean
     abstract readonly renderSize: Vector2
     abstract renderScale: number
@@ -72,7 +71,7 @@ export abstract class RenderTargetManager<E extends BaseEvent = BaseEvent, ET ex
         size = size || this.renderSize.clone().multiplyScalar(this.renderScale * (sizeMultiplier = sizeMultiplier || 1))
         size.width = Math.floor(size.width)
         size.height = Math.floor(size.height)
-        const depthTex = depthTexture ? new DepthTexture(size.width, size.height, depthTextureType) : undefined
+        const depthTex = depthTexture ? new DepthTexture(size.width, size.height, depthTextureType) : null
         if (depthTex) depthTex.format = depthTextureFormat
         const target = this.createTargetCustom<T>(textureCount > 1 ? {
             width: size.width,

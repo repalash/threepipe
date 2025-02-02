@@ -19,7 +19,7 @@ import {snapObject} from '../../three'
  *
  * @category Plugins
  */
-export class SwitchNodeBasePlugin extends AViewerPluginSync<''> {
+export class SwitchNodeBasePlugin extends AViewerPluginSync {
     public static readonly PluginType = 'SwitchNodePlugin'
 
     enabled = true

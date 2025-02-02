@@ -17,7 +17,7 @@ import {Vector3} from 'three'
  * @category Plugins
  */
 @uiPanelContainer('Generate Scene Objects')
-export class Object3DGeneratorPlugin extends AViewerPluginSync<''> {
+export class Object3DGeneratorPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'Object3DGeneratorPlugin'
     enabled = true
     toJSON: any = undefined

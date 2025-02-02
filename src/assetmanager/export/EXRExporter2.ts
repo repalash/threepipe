@@ -12,7 +12,7 @@ export class EXRExporter2 extends EXRExporter implements IExportParser {
             console.warn('No textureIndex specified for WebGLMultipleRenderTargets')
         const res = target.isWebGLRenderTarget ?
             this.parse(target.renderManager!.webglRenderer, <WebGLRenderTarget>target, options) :
-            this.parse(undefined, <DataTexture>obj, options)
+            this.parse(<DataTexture>obj, options)
         return new Blob([res], {type: 'image/x-exr'})
     }
 }

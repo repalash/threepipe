@@ -1,7 +1,13 @@
-import {AViewerPluginSync} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
 import {ICamera} from '../../core'
 import {uiFolderContainer, uiToggle} from 'uiconfig.js'
+
+export interface VirtualCamerasPluginEventMap extends AViewerPluginEventMap {
+    preRenderCamera: {camera: VirtualCamera}
+    preBlitCamera: {camera: VirtualCamera, readBuffer: WebGLTexture}
+    postRenderCamera: {camera: VirtualCamera}
+}
 
 export interface VirtualCamera {
     camera: ICamera
@@ -9,7 +15,7 @@ export interface VirtualCamera {
     enabled: boolean
 }
 @uiFolderContainer('Virtual Cameras')
-export class VirtualCamerasPlugin extends AViewerPluginSync<'preRenderCamera' | 'preBlitCamera' | 'postRenderCamera'> {
+export class VirtualCamerasPlugin extends AViewerPluginSync<VirtualCamerasPluginEventMap> {
     public static readonly PluginType = 'VirtualCamerasPlugin'
 
     @uiToggle()

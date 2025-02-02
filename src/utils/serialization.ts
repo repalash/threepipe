@@ -621,7 +621,7 @@ export class MetaImporter {
         resources.shapes = json.shapes ? objLoader.parseShapes(Object.values(json.shapes)) : {}
         if (extraResources && extraResources.shapes) resources.shapes = {...resources.shapes, ...extraResources.shapes}
 
-        resources.geometries = json.geometries ? objLoader.parseGeometries(Object.values(json.geometries), Object.values(resources.shapes)) : {}
+        resources.geometries = json.geometries ? objLoader.parseGeometries(Object.values(json.geometries), resources.shapes) : {}
         if (extraResources && extraResources.geometries) resources.geometries = {...resources.geometries, ...extraResources.geometries}
 
         resources.images = json.images ? await objLoader.parseImagesAsync(Object.values(json.images)) : {} // local images only like data url and data textures

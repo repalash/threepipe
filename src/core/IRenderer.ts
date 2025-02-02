@@ -1,15 +1,5 @@
 import {PartialRecord} from 'ts-browser-helpers'
-import {
-    Blending,
-    Clock,
-    Event,
-    ShaderMaterial,
-    Texture,
-    Vector2,
-    Vector4,
-    WebGLRenderer,
-    WebGLRenderTarget,
-} from 'three'
+import {Blending, Clock, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
 import {CreateRenderTargetOptions, IRenderTarget, RenderTargetManager} from '../rendering'
 import {IShaderPropertiesUpdater} from '../materials'
 import {EffectComposer2, IPassID, IPipelinePass} from '../postprocessing'
@@ -19,24 +9,30 @@ import {BlobExt} from '../assetmanager'
 export type TThreeRendererMode = 'shadowMapRender' | 'backgroundRender' | 'sceneRender' | 'opaqueRender' | 'transparentRender' | 'transmissionRender' | 'mainRenderPass' | 'screenSpaceRendering'
 export type TThreeRendererModeUserData = PartialRecord<TThreeRendererMode, boolean>
 
-export interface IAnimationLoopEvent extends Event{
+export interface IAnimationLoopEvent {
     renderer: IWebGLRenderer
     deltaTime: number
     time: number
     xrFrame?: XRFrame
 }
-export interface IRenderManagerUpdateEvent extends Event{
-    change: 'registerPass' | 'unregisterPass' | 'useLegacyLights' | 'passRefresh' | 'size' | 'rebuild' | string
-    data: any
-    pass: IPipelinePass
+export interface IRenderManagerUpdateEvent {
+    change?: 'registerPass' | 'unregisterPass' | 'useLegacyLights' | 'passRefresh' | 'size' | 'rebuild' | string
+    data?: any
+    pass?: IPipelinePass
 }
-export type IRenderManagerEvent = Partial<IAnimationLoopEvent>&Partial<IRenderManagerUpdateEvent>&Event & {
 
-    [key: string]: any
+export interface IRenderManagerEventMap {
+    animationLoop: IAnimationLoopEvent
+    update: IRenderManagerUpdateEvent
+    resize: object
+    contextRestored: object
+    contextLost: {
+        event: WebGLContextEvent
+    }
 }
-export type IRenderManagerEventTypes = 'animationLoop'|'update'|'resize'|'contextLost'|'contextRestored'
+
 export interface RendererBlitOptions {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean}
-export interface IRenderManager<E extends IRenderManagerEvent = IRenderManagerEvent, ET extends string = IRenderManagerEventTypes> extends RenderTargetManager<E, ET>, IShaderPropertiesUpdater{
+export interface IRenderManager<TE extends IRenderManagerEventMap = IRenderManagerEventMap> extends RenderTargetManager<TE>, IShaderPropertiesUpdater{
     readonly renderer: IWebGLRenderer
     readonly needsRender: boolean
     rebuildPipeline(setDirty?: boolean): void

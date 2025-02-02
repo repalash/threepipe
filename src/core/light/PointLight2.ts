@@ -1,5 +1,5 @@
 import {Color, ColorRepresentation, PointLight, PointLightShadow, Vector2, Vector3} from 'three'
-import {ILight, ILightEvent} from './ILight'
+import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
 import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
@@ -127,7 +127,7 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     copy: (source: PointLight|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ILightEvent) => void
+    // dispatchEvent: (event: ILightEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

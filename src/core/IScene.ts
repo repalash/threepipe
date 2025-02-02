@@ -1,9 +1,10 @@
-import {IObject3D, IObject3DEvent, IObject3DEventTypes, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
-import {Color, Scene} from 'three'
+import {IObject3D, IObject3DEventMap, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
+import {Color, Scene, Texture} from 'three'
 import {IShaderPropertiesUpdater} from '../materials'
 import {ICamera} from './ICamera'
 import {Box3B} from '../three'
 import {ITexture} from './ITexture'
+import {IGeometry} from './IGeometry'
 
 export interface AddObjectOptions {
     /**
@@ -62,21 +63,90 @@ export interface AddObjectOptions {
 }
 
 // | string
-export type ISceneEventTypes = IObject3DEventTypes | 'sceneUpdate' | 'addSceneObject' |
-    'mainCameraChange' | 'mainCameraUpdate' | 'environmentChanged' | 'backgroundChanged' | 'renderCameraChange' |
-    'update' | // todo: deprecate, use 'sceneUpdate' instead
-    'textureAdded' | // todo remove
-    'activeCameraChange' | 'activeCameraUpdate' | // todo: deprecate
-    'sceneMaterialUpdate' // todo deprecate: use 'materialUpdate' instead
+// export type ISceneEventTypes =
+//     'update' // todo: deprecate, use 'sceneUpdate' instead
 // | string
 
-export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObject3DEvent<T> {
-    scene?: IScene | null
+// export interface ISceneEvent<T extends string = ISceneEventTypes> extends IObject3DEvent<T> {
+//     scene?: IScene | null
+//
+//     hierarchyChanged?: boolean // for 'sceneUpdate' event
+//     // change?: string
+// }
 
-    hierarchyChanged?: boolean // for 'sceneUpdate' event
-    // change?: string
+export interface ISceneEventMap extends IObject3DEventMap {
+    sceneUpdate: {
+        hierarchyChanged?: boolean
+        refreshScene?: boolean
+        object?: IObject3D
+        change?: ISceneEventMap['objectUpdate']['change']
+
+        // args?: any[]
+        bubbleToParent?: boolean // objectUpdate, geometryUpdate, geometryChanged
+        geometry?: IGeometry|null // geometryUpdate and geometryChanged
+        oldGeometry?: IGeometry|null // geometryChanged
+
+        /**
+         * @deprecated use {@link refreshScene} instead
+         */
+        sceneUpdate?: boolean
+    } & ISceneSetDirtyOptions
+    addSceneObject: {
+        object: IObject3D
+        options?: AddObjectOptions
+
+        geometryChanged?: boolean
+        updateGround?: boolean
+    }
+    mainCameraChange: {
+        lastCamera: ICamera
+        camera: ICamera
+    }
+    mainCameraUpdate: IObject3DEventMap['cameraUpdate']
+
+    renderCameraChange: {
+        lastCamera: ICamera | undefined
+        camera: ICamera
+    },
+    // sceneUpdate: {
+    //     change?: string
+    //     sceneUpdate?: boolean
+    //     refreshScene?: boolean
+    //     hierarchyChanged: boolean
+    //     geometryChanged: boolean
+    // }
+    environmentChanged: {
+        environment: ITexture|null
+    }
+    backgroundChanged: {
+        background: Texture | Color | 'environment' | null
+        backgroundColor: Color | null
+    }
+    // textureAdded: {
+    //     texture: ITexture
+    // }
+
+    /**
+     * @deprecated use {@link mainCameraChange} instead
+     */
+    activeCameraChange: ISceneEventMap['mainCameraChange']
+    /**
+     * @deprecated use {@link mainCameraUpdate} instead
+     */
+    activeCameraUpdate: ISceneEventMap['mainCameraUpdate']
+    /**
+     * @deprecated use {@link materialUpdate} instead
+     */
+    sceneMaterialUpdate: IObject3DEventMap['materialUpdate']
+    /**
+     * @deprecated use {@link objectUpdate} or {@link sceneUpdate} instead
+     */
+    update: IObject3DEventMap['objectUpdate']
 }
-export type ISceneSetDirtyOptions = IObjectSetDirtyOptions
+
+export interface ISceneSetDirtyOptions extends IObjectSetDirtyOptions{
+    refreshScene?: boolean // duplicated declaration from parent intentionally
+}
 
 
 export type ISceneUserData = IObject3DUserData
@@ -93,8 +163,8 @@ export interface IWidget {
     dispose?(): void
 }
 
-export interface IScene<E extends ISceneEvent = ISceneEvent, ET extends ISceneEventTypes = ISceneEventTypes>
-    extends Scene<E, ET>, IObject3D<E, ET>, IShaderPropertiesUpdater {
+export interface IScene<TE extends ISceneEventMap = ISceneEventMap>
+    extends Scene<TE>, IObject3D<TE>, IShaderPropertiesUpdater {
     readonly visible: boolean;
     readonly isScene: true;
     /**

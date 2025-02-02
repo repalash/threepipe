@@ -2,7 +2,7 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {serialize} from 'ts-browser-helpers'
 import {RootScene} from '../../core'
 
-export class SceneUiConfigPlugin extends AViewerPluginSync<''> {
+export class SceneUiConfigPlugin extends AViewerPluginSync {
     static readonly PluginType = 'SceneUiConfigPlugin'
     enabled = true
     serializeWithViewer = false

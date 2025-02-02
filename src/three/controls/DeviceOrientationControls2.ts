@@ -1,7 +1,7 @@
 import {Euler, EulerOrder, EventDispatcher, MathUtils, Object3D, Quaternion, Vector3} from 'three'
 import {IEvent, now, serialize} from 'ts-browser-helpers'
 import {uiButton, uiPanelContainer, uiSlider} from 'uiconfig.js'
-import {ICameraControls} from '../../core'
+import {ICameraControls, ICameraControlsEventMap} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _zee = new Vector3(0, 0, 1)
@@ -20,7 +20,7 @@ const _changeEvent: IEvent<'change'> = {type: 'change'}
 const EPS = 0.000001
 
 @uiPanelContainer('Device Orientation Controls')
-export class DeviceOrientationControls2 extends EventDispatcher implements ICameraControls<'change'> {
+export class DeviceOrientationControls2 extends EventDispatcher<ICameraControlsEventMap> implements ICameraControls {
     object: Object3D
     enabled = false // do not serialize this as it signifies weather this is active.
     deviceOrientation?: DeviceOrientationEvent

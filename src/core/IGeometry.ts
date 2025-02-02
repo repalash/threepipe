@@ -1,4 +1,10 @@
-import {BufferGeometry, Event, NormalBufferAttributes, NormalOrGLBufferAttributes, Vector3} from 'three'
+import {
+    BufferGeometry,
+    BufferGeometryEventMap,
+    NormalBufferAttributes,
+    NormalOrGLBufferAttributes,
+    Vector3,
+} from 'three'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {AnyOptions} from 'ts-browser-helpers'
 import {IObject3D} from './IObject'
@@ -12,7 +18,7 @@ export interface IGeometryUserData extends IImportResultUserData{
     disposeOnIdle?: boolean
     // [key: string]: any // commented for noe
 }
-export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes> extends BufferGeometry<Attributes, IGeometryEvent, IGeometryEventTypes>, IUiConfigContainer {
+export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE>, IUiConfigContainer {
     assetType: 'geometry'
     setDirty(options?: IGeometrySetDirtyOptions): void;
     refreshUi(): void;
@@ -49,13 +55,22 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
     _uiConfig?: UiObjectConfig
 
 }
-export type IGeometryEventTypes = 'dispose' | 'geometryUpdate' // | string
-export type IGeometryEvent<T extends string = IGeometryEventTypes> = Event & {
-    type: T
-    bubbleToObject?: boolean // bubble event to parent root
-    geometry?: IGeometry
-    // change?: string
-}
+// export type IGeometryEventTypes = 'dispose' | 'geometryUpdate' // | string
+// export type IGeometryEvent<T extends string = IGeometryEventTypes> = Event & {
+//     type: T
+//     bubbleToObject?: boolean // bubble event to parent root
+//     geometry?: IGeometry
+//     // change?: string
+// }
 export type IGeometrySetDirtyOptions = AnyOptions & {bubbleToObject?: boolean}
 
+export type IGeometryEventMap = BufferGeometryEventMap
 
+declare module 'three'{
+    export interface BufferGeometryEventMap{
+        geometryUpdate: {
+            geometry: IGeometry
+            bubbleToObject?: boolean
+        }
+    }
+}

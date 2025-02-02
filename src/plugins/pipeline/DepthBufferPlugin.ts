@@ -28,7 +28,6 @@ import DepthBufferUnpack from './shaders/DepthBufferPlugin.unpack.glsl'
 import {threeConstMappings} from '../../three'
 import {IMaterial, PhysicalMaterial} from '../../core'
 
-export type DepthBufferPluginEventTypes = ''
 // type DepthBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type DepthBufferPluginTarget = WebGLRenderTarget
 export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget|undefined>
@@ -41,7 +40,7 @@ export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPlugin
  */
 @uiFolderContainer('Depth Buffer Plugin')
 export class DepthBufferPlugin
-    extends PipelinePassPlugin<DepthBufferPluginPass, 'depth', DepthBufferPluginEventTypes> {
+    extends PipelinePassPlugin<DepthBufferPluginPass, 'depth'> {
 
     readonly passId = 'depth'
     public static readonly PluginType = 'DepthBufferPlugin'

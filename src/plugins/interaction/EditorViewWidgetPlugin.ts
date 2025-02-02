@@ -4,7 +4,7 @@ import {uiFolderContainer, uiToggle} from 'uiconfig.js'
 import {onChange} from 'ts-browser-helpers'
 
 @uiFolderContainer('Editor View Widget')
-export class EditorViewWidgetPlugin extends AViewerPluginSync<''> {
+export class EditorViewWidgetPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'EditorViewWidgetPlugin'
 
     @uiToggle()

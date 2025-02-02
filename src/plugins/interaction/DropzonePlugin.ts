@@ -1,4 +1,4 @@
-import {type ThreeViewer} from '../../viewer/'
+import {AViewerPluginEventMap, type ThreeViewer} from '../../viewer/'
 // noinspection ES6PreferShortImport
 import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {Dropzone} from '../../utils'
@@ -36,6 +36,15 @@ export interface DropzonePluginOptions {
     addOptions?: AddAssetOptions
 }
 
+export interface DropzonePluginEventMap extends AViewerPluginEventMap{
+    drop: {
+        files: Map<string, File>
+        imported?: Map<string, (ImportResult | undefined)[]>
+        assets?: (ImportResult | undefined)[]
+        nativeEvent: DragEvent
+    }
+}
+
 /**
  * Dropzone Plugin
  *
@@ -45,7 +54,7 @@ export interface DropzonePluginOptions {
  * @category Plugins
  */
 @uiFolderContainer('Dropzone')
-export class DropzonePlugin extends AViewerPluginSync<'drop'> {
+export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     static readonly PluginType = 'Dropzone'
     declare uiConfig: UiObjectConfig
     @uiToggle() @serialize() enabled = true

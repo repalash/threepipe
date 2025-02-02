@@ -6,7 +6,7 @@ import {
     LinearFilter,
     Material,
     NoColorSpace,
-    RGBAFormat,
+    RGBAFormat, Texture,
     UnsignedByteType,
     WebGLMultipleRenderTargets,
     WebGLRenderTarget,
@@ -90,12 +90,13 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     }
 
     // names are incorrect. We read from `writeBuffer` and write to `readBuffer`. same in super class
-    render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget|null, readBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget<Texture|Texture[]>|null, readBuffer?: WebGLMultipleRenderTargets|WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
         let needsSwap = false
 
         renderer.userData.mainRenderPass = true
         if (!this._doTransmissionFix && !this.renderManager.rgbm) {
+            // @ts-expect-error todo fix render target ts?
             super.render(renderer, writeBuffer || null, readBuffer, deltaTime, maskActive)
             this.needsSwap = needsSwap
             renderer.userData.mainRenderPass = undefined
@@ -132,6 +133,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         //     console.error('ExtendedRenderPass - readBuffer and gbuffer samples are not same', readBuffer?.samples, gbuffer?.samples)
 
         let renderFn = ()=> {
+            // @ts-expect-error todo fix render target ts?
             super.render(renderer, null, readBuffer, deltaTime, maskActive, depthRenderBuffer) // read is write in super.render (RenderPass)
         }
 

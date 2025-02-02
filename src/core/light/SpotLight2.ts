@@ -1,5 +1,5 @@
 import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector2, Vector3} from 'three'
-import {ILight, ILightEvent} from './ILight'
+import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
 import {uiColor, uiInput, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
@@ -139,7 +139,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     copy: (source: SpotLight|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ILightEvent) => void
+    // dispatchEvent: (event: ILightEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

@@ -34,7 +34,7 @@ export enum EncoderMethod {
  *
  * @category Plugins
  */
-export class GLTFDracoExportPlugin extends AViewerPluginSync<''> {
+export class GLTFDracoExportPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'GLTFDracoExportPlugin'
     enabled = true
 

@@ -9,24 +9,22 @@ import {
     UVMapping,
     Vector3,
 } from 'three'
-import type {IObject3D, IObjectProcessor} from '../IObject'
+import type {IObject3D, IObject3DEventMap, IObjectProcessor} from '../IObject'
 import {type ICamera} from '../ICamera'
 import {autoGPUInstanceMeshes, bindToValue, Box3B} from '../../three'
 import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
-import {AddObjectOptions, IScene, ISceneEvent, ISceneEventTypes, ISceneSetDirtyOptions, IWidget} from '../IScene'
+import {AddObjectOptions, IScene, ISceneEventMap, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {IGeometry} from '../IGeometry'
 import {getFittingDistance} from '../../three/utils/camera'
 
-export type TCamera = ICamera
-
 @uiFolderContainer('Root Scene')
-export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements IScene<ISceneEvent, ISceneEventTypes> {
+export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene<TE&ISceneEventMap> implements IScene<TE> {
     readonly isRootScene = true
 
     assetType = 'model' as const
@@ -34,7 +32,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     // private _processors = new ObjectProcessorMap<'environment' | 'background'>()
     // private _sceneObjects: ISceneObject[] = []
-    private _mainCamera: TCamera | null = null
+    private _mainCamera: ICamera | null = null
     /**
      * The root object where all imported objects are added.
      */
@@ -96,17 +94,17 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * The default camera in the scene
      */
-    @uiConfig() @serialize() readonly defaultCamera: TCamera
+    @uiConfig() @serialize() readonly defaultCamera: ICamera
 
     // private _environmentLight?: IEnvironmentLight
 
     // required just because we don't want activeCamera to be null.
-    private _dummyCam = new PerspectiveCamera2('') as TCamera
+    private _dummyCam = new PerspectiveCamera2('') as ICamera
 
-    get mainCamera(): TCamera {
+    get mainCamera(): ICamera {
         return this._mainCamera || this._dummyCam
     }
-    set mainCamera(camera: TCamera | undefined) {
+    set mainCamera(camera: ICamera | undefined) {
         const cam = this.mainCamera
         if (!camera) camera = this.defaultCamera
         if (cam === camera) return
@@ -126,11 +124,11 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         this.setDirty()
     }
 
-    private _renderCamera: TCamera | undefined
+    private _renderCamera: ICamera | undefined
     get renderCamera() {
         return this._renderCamera ?? this.mainCamera
     }
-    set renderCamera(camera: TCamera) {
+    set renderCamera(camera: ICamera) {
         const cam = this._renderCamera
         this._renderCamera = camera
         this.dispatchEvent({type: 'renderCameraChange', lastCamera: cam, camera})
@@ -141,7 +139,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * @param camera
      * @param objectProcessor
      */
-    constructor(camera: TCamera, objectProcessor?: IObjectProcessor) {
+    constructor(camera: ICamera, objectProcessor?: IObjectProcessor) {
         super()
         this.setDirty = this.setDirty.bind(this)
 
@@ -358,14 +356,14 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         if (options?.refreshScene) {
             this.refreshScene(options)
         } else {
-            this.dispatchEvent({type: 'update'}) // todo remove
+            this.dispatchEvent({type: 'update', bubbleToParent: false, object: this}) // todo remove
             iObjectCommons.setDirty.call(this, {...options, scene: this})
         } // this sets dirty in the viewer
         return this
     }
 
 
-    private _mainCameraUpdate = (e: any) => {
+    private _mainCameraUpdate: EventListener<IObject3DEventMap['cameraUpdate'], 'cameraUpdate', ICamera> = (e) => {
         this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
         if (e.key === 'fov') this.dollyActiveCameraFov()
@@ -382,7 +380,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      */
     // readonly boxHelper: Box3Helper
 
-    refreshScene(event?: Partial<ISceneEvent> & ISceneSetDirtyOptions): this {
+    refreshScene(event?: Partial<(ISceneEventMap['objectUpdate']|ISceneEventMap['geometryUpdate']|ISceneEventMap['geometryChanged'])> & ISceneSetDirtyOptions & {type?: keyof ISceneEventMap}): this {
         if (event && event.type === 'objectUpdate' && event.object === this) return this // ignore self
         // todo test the isCamera here. this is for animation object plugin
         if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
@@ -401,7 +399,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
 
     /**
      * Dispose the scene and clear all resources.
-     * @warn Not fully implemented yet, just clears the scene.
+     * WARNING - Not fully implemented yet, just clears the scene.
      */
     dispose(clear = true): void {
         this.disposeSceneModels(false, clear)
@@ -479,7 +477,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * This is called automatically every time the camera is updated.
      */
     refreshActiveCameraNearFar(): void {
-        const camera = this.mainCamera as TCamera
+        const camera = this.mainCamera as ICamera
         if (!camera) return
         if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
             camera.near = camera.userData.minNearPlane ?? 0.5
@@ -516,7 +514,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * This is called automatically every time the camera fov is updated.
      */
     dollyActiveCameraFov(): void {
-        const camera = this.mainCamera as TCamera
+        const camera = this.mainCamera as ICamera
         if (!camera) return
         if (!camera.userData.dollyFov) {
             return
@@ -552,7 +550,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
      * Deserialize the scene properties
      * @param json - object from {@link toJSON}
      * @param meta
-     * @returns {this<TCamera>}
+     * @returns {this<ICamera>}
      */
     fromJSON(json: any, meta?: any): this {
         const env = json.environment
@@ -565,7 +563,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
         return this
     }
 
-    addEventListener<T extends ISceneEventTypes>(type: T, listener: EventListener<ISceneEvent, T, this>): void {
+    addEventListener<T extends keyof ISceneEventMap>(type: T, listener: EventListener<ISceneEventMap[T], T, this>): void {
         if (type === 'activeCameraChange') console.error('activeCameraChange is deprecated. Use mainCameraChange instead.')
         if (type === 'activeCameraUpdate') console.error('activeCameraUpdate is deprecated. Use mainCameraUpdate instead.')
         if (type === 'sceneMaterialUpdate') console.error('sceneMaterialUpdate is deprecated. Use materialUpdate instead.')
@@ -586,7 +584,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     copy: (source: this, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ISceneEvent) => void
+    // dispatchEvent: (event: ISceneEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 
@@ -698,7 +696,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * @deprecated
      */
-    get activeCamera(): TCamera {
+    get activeCamera(): ICamera {
         console.error('activeCamera is deprecated. Use mainCamera instead.')
         return this.mainCamera
     }
@@ -706,7 +704,7 @@ export class RootScene extends Scene<ISceneEvent, ISceneEventTypes> implements I
     /**
      * @deprecated
      */
-    set activeCamera(camera: TCamera | undefined) {
+    set activeCamera(camera: ICamera | undefined) {
         console.error('activeCamera is deprecated. Use mainCamera instead.')
         this.mainCamera = camera
     }

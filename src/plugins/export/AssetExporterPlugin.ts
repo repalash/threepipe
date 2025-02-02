@@ -21,7 +21,7 @@ export interface ExportAssetOptions extends ExportFileOptions {
  * Provides options and methods to export the scene, object GLB or Viewer Config.
  * All the functionality is available in the viewer directly, this provides only a ui-config and maintains state of the options.
  */
-export class AssetExporterPlugin extends AViewerPluginSync<''> {
+export class AssetExporterPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'AssetExporterPlugin'
     enabled = true
 

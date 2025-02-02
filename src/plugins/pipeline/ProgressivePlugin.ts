@@ -10,7 +10,6 @@ import {IShaderPropertiesUpdater} from '../../materials'
 import {SerializationMetaType} from '../../utils'
 import {SSAAPlugin} from './SSAAPlugin'
 
-export type ProgressivePluginEventTypes = ''
 export type ProgressivePluginTarget = WebGLRenderTarget
 
 /**
@@ -22,7 +21,7 @@ export type ProgressivePluginTarget = WebGLRenderTarget
  */
 @uiFolderContainer('Progressive Plugin')
 export class ProgressivePlugin
-    extends PipelinePassPlugin<ProgressiveBlendPass, 'progressive', ProgressivePluginEventTypes> implements IShaderPropertiesUpdater {
+    extends PipelinePassPlugin<ProgressiveBlendPass, 'progressive'> implements IShaderPropertiesUpdater {
 
     readonly passId = 'progressive'
     public static readonly PluginType = 'ProgressivePlugin'

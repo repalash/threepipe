@@ -24,7 +24,7 @@ import {Class} from 'ts-browser-helpers'
  * Geometry generator plugin to create updatable parametric objects/geometries.
  * Includes support for several primitive types from three.js
  */
-export class GeometryGeneratorPlugin extends AViewerPluginSync<''> {
+export class GeometryGeneratorPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'GeometryGeneratorPlugin'
     enabled = true
     toJSON: any = undefined

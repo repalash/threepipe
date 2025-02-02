@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     Color,
     ColorSpace,
     FloatType,
@@ -17,7 +16,8 @@ import {
     WebGLMultipleRenderTargets,
     WebGLRenderer,
     WebGLRenderTarget,
-    WebGLRenderTargetOptions, WebGLShadowMap,
+    WebGLRenderTargetOptions,
+    WebGLShadowMap,
 } from 'three'
 import {EffectComposer2, IPassID, IPipelinePass, sortPasses} from '../postprocessing'
 import {IRenderTarget} from './RenderTarget'
@@ -25,8 +25,6 @@ import {RenderTargetManager} from './RenderTargetManager'
 import {IShaderPropertiesUpdater} from '../materials'
 import {
     IRenderManager,
-    IRenderManagerEvent,
-    IRenderManagerEventTypes,
     type IRenderManagerOptions,
     IRenderManagerUpdateEvent,
     IScene,
@@ -46,11 +44,11 @@ import {
 import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 import {bindToValue, generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
-import {RendererBlitOptions} from '../core/IRenderer'
+import {IRenderManagerEventMap, RendererBlitOptions} from '../core/IRenderer'
 
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')
-export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEventTypes extends string = IRenderManagerEventTypes> extends RenderTargetManager<IRenderManagerEvent|TEvent, IRenderManagerEventTypes|TEventTypes> implements IShaderPropertiesUpdater, IRenderManager {
+export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEventMap> extends RenderTargetManager<IRenderManagerEventMap&TE> implements IShaderPropertiesUpdater, IRenderManager<IRenderManagerEventMap&TE> {
     private readonly _isWebGL2: boolean
     private readonly _composer: EffectComposer2
     private readonly _context: WebGLRenderingContext
@@ -590,7 +588,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
      * If auto (default), then it will be picked based on the render target type.
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    exportRenderTarget(target: WebGLMultipleRenderTargets|WebGLRenderTarget, mimeType = 'auto', textureIndex = 0): BlobExt {
+    exportRenderTarget(target: WebGLRenderTarget<Texture|Texture[]>, mimeType = 'auto', textureIndex = 0): BlobExt {
         const hdrFormats = ['image/x-exr']
         const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
         let hdr = texture.type === HalfFloatType || texture.type === FloatType
@@ -621,7 +619,7 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
 
     // region Events Dispatch
 
-    private _updated(data?: Partial<IRenderManagerUpdateEvent>) {
+    private _updated(data?: IRenderManagerUpdateEvent) {
         this.dispatchEvent({...data, type: 'update'})
     }
 
@@ -678,17 +676,19 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
                 // Note: todo: webgl render target.clone messes up the texture, by not copying isRenderTargetTexture prop and maybe some other stuff. So its better to just create a new one
                 // const cloned = super.clone() as IRenderTarget
                 const cloned = new (this.constructor as Class<typeof this>)(this.renderManager)
-                cloned.copy(this)
+                cloned.copy(this as any)
                 cloned._initTexture((Array.isArray(this.texture) ? this.texture[0] : this.texture)?.colorSpace)
                 const tex = cloned.texture
                 if (Array.isArray(tex)) tex.forEach(t => t.isRenderTargetTexture = true)
                 else tex.isRenderTargetTexture = true
                 return processNewTarget(cloned, this.sizeMultiplier || 1, trackTarget)
             }
-            copy(source: IRenderTarget|WebGLRenderTarget|WebGLMultipleRenderTargets): this {
-                super.copy(source as any)
-                return this
-            }
+
+            // copy(source: IRenderTarget|RenderTarget): this {
+            //     super.copy(source as any)
+            //     return this
+            // }
+
             // Note - by default unregister need to be false.
             dispose(unregister = false) {
                 if (unregister === true) disposeTarget(this, true)

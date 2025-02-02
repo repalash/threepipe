@@ -1,5 +1,5 @@
 import {Euler, EventDispatcher, Object3D, Vector3} from 'three'
-import {IEvent, serialize} from 'ts-browser-helpers'
+import {serialize} from 'ts-browser-helpers'
 import {uiInput, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {ICameraControls} from '../../core'
 
@@ -8,19 +8,25 @@ const _euler = new Euler(0, 0, 0, 'YXZ')
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _vector = new Vector3()
 
-export type TPointerLockEvents = 'change'|'lock'|'unlock'
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const _changeEvent: IEvent<TPointerLockEvents> = {type: 'change'}
+const _changeEvent = {type: 'change'} as const
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const _lockEvent: IEvent<TPointerLockEvents> = {type: 'lock'}
+const _lockEvent = {type: 'lock'} as const
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const _unlockEvent: IEvent<TPointerLockEvents> = {type: 'unlock'}
+const _unlockEvent = {type: 'unlock'} as const
+
+export interface PointerLockControls2EventMap {
+    change: Record<string, unknown>
+    lock: Record<string, unknown>
+    unlock: Record<string, unknown>
+}
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _PI_2 = Math.PI / 2
 
+
 @uiPanelContainer('Pointer Lock Controls')
-export class PointerLockControls2 extends EventDispatcher implements ICameraControls<TPointerLockEvents> {
+export class PointerLockControls2 extends EventDispatcher<PointerLockControls2EventMap> implements ICameraControls<PointerLockControls2EventMap> {
     readonly domElement: HTMLElement
     readonly object: Object3D
     isLocked = false

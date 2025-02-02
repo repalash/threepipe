@@ -20,7 +20,7 @@ import {Vertex} from './three-mesh-halfedge'
 * SVG Rendering from 3d scenes helper plugin using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer) (GPLV3 Licenced)
 */
 @uiFolderContainer('SVG Renderer')
-export class ThreeSVGRendererPlugin extends AViewerPluginSync<''> {
+export class ThreeSVGRendererPlugin extends AViewerPluginSync {
     static readonly PluginType = 'ThreeSVGRendererPlugin'
 
     @uiToggle()
@@ -360,9 +360,9 @@ export class ThreeSVGRendererPlugin extends AViewerPluginSync<''> {
         this.renderer.viewmap.options.creaseAngle.max = this.creaseAngle.y
 
         const passes = this.renderer.drawHandler.passes
-        const fillPass = passes.find(p=>p instanceof FillPass) as FillPass
-        const visibleContourPass = passes.find(p=>p instanceof VisibleChainPass) as VisibleChainPass
-        const hiddenContourPass = passes.find(p=>p instanceof HiddenChainPass) as HiddenChainPass
+        const fillPass = passes.find(p=>p instanceof FillPass)!
+        const visibleContourPass = passes.find(p=>p instanceof VisibleChainPass)!
+        const hiddenContourPass = passes.find(p=>p instanceof HiddenChainPass)!
         if (fillPass) {
             fillPass.enabled = this.drawPolygons && (this.drawPolygonFills || this.drawPolygonStrokes || this.drawImageFills)
             fillPass.drawFills = this.drawPolygonFills

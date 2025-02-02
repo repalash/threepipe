@@ -1,5 +1,6 @@
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
+    BaseEvent,
     BufferGeometry,
     Camera,
     Color,
@@ -17,8 +18,7 @@ import {
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
     IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
+    IMaterialEventMap,
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
@@ -30,14 +30,12 @@ import {IObject3D} from '../IObject'
 import {ITexture} from '../ITexture'
 import {iMaterialUI} from './IMaterialUi'
 
-export type PhysicalMaterialEventTypes = IMaterialEventTypes | ''
-
 /**
  * And extension of three.js MeshPhysicalMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, PhysicalMaterialEventTypes> implements IMaterial<IMaterialEvent, PhysicalMaterialEventTypes> {
+export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshPhysicalMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof PhysicalMaterial
     public static readonly TypeSlug = 'pmat'
     public static readonly TYPE = 'PhysicalMaterial' // not using .type because it is used by three.js
@@ -51,7 +49,7 @@ export class PhysicalMaterial extends MeshPhysicalMaterial<IMaterialEvent, Physi
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

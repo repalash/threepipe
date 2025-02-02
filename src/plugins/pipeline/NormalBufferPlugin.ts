@@ -23,7 +23,6 @@ import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import type {IMaterial, PhysicalMaterial} from '../../core'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
 
-export type NormalBufferPluginEventTypes = ''
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget|undefined>
@@ -35,7 +34,7 @@ export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPlu
  */
 @uiFolderContainer('Normal Buffer Plugin')
 export class NormalBufferPlugin
-    extends PipelinePassPlugin<NormalBufferPluginPass, 'normal', NormalBufferPluginEventTypes> {
+    extends PipelinePassPlugin<NormalBufferPluginPass, 'normal'> {
 
     readonly passId = 'normal'
     public static readonly PluginType = 'NormalBufferPlugin'

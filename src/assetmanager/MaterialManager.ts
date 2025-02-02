@@ -1,22 +1,21 @@
-import {BaseEvent, ColorManagement, EventDispatcher, Material} from 'three'
+import {ColorManagement, Event, EventDispatcher, EventListener, Material, Texture} from 'three'
 import {
     IMaterial,
     iMaterialCommons,
-    IMaterialEvent,
     IMaterialParameters,
     IMaterialTemplate,
     ITexture,
-    ITextureEvent,
     LegacyPhongMaterial,
     LineMaterial2,
+    ObjectShaderMaterial,
     PhysicalMaterial,
     UnlitLineMaterial,
     UnlitMaterial,
-    ObjectShaderMaterial,
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID, isInScene} from '../three'
+import {IMaterialEventMap} from '../core/IMaterial'
 
 /**
  * Material Manager
@@ -25,7 +24,7 @@ import {generateUUID, isInScene} from '../three'
  * Used in {@link AssetManager} to manage materials.
  * @category Asset Manager
  */
-export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
+export class MaterialManager<TEventMap extends object = object> extends EventDispatcher<TEventMap> {
     readonly templates: IMaterialTemplate[] = [
         PhysicalMaterial.MaterialTemplate,
         UnlitMaterial.MaterialTemplate,
@@ -133,13 +132,13 @@ export class MaterialManager<T = ''> extends EventDispatcher<BaseEvent, T> {
 
     private _materialMaps = new Map<string, Set<ITexture>>()
 
-    protected _materialUpdate = (e: IMaterialEvent<'materialUpdate'>)=>{
+    protected _materialUpdate: EventListener<IMaterialEventMap['materialUpdate'], 'materialUpdate', IMaterial> = (e)=>{
         const mat = e.material || e.target
         if (!mat || mat.assetType !== 'material') return
         this._refreshTextureRefs(mat)
     }
 
-    protected _textureUpdate = function(this: IMaterial, e: ITextureEvent<'update'>) {
+    protected _textureUpdate = function(this: IMaterial, e: Event<'update', Texture>) {
         if (!this || this.assetType !== 'material') return
         this.dispatchEvent({texture: e.target, bubbleToParent: true, bubbleToObject: true, ...e, type: 'textureUpdate'})
     }

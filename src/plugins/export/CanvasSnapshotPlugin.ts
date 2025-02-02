@@ -5,7 +5,7 @@ import {CanvasSnapshot, CanvasSnapshotOptions} from '../../utils/canvas-snapshot
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 
 @uiFolderContainer('Canvas Snapshot (Image Export)')
-export class CanvasSnapshotPlugin extends AViewerPluginSync<''> {
+export class CanvasSnapshotPlugin extends AViewerPluginSync {
     static readonly PluginType = 'CanvasSnapshotPlugin'
     enabled = true
 

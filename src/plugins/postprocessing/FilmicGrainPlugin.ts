@@ -14,7 +14,7 @@ import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
  * @category Plugins
  */
 @uiFolderContainer('FilmicGrain')
-export class FilmicGrainPlugin extends AScreenPassExtensionPlugin<''> {
+export class FilmicGrainPlugin extends AScreenPassExtensionPlugin {
     static readonly PluginType = 'FilmicGrain'
 
     readonly extraUniforms = {

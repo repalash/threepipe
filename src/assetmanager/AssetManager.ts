@@ -29,7 +29,7 @@ import {
     iMaterialCommons,
     IObject3D,
     iObjectCommons,
-    ISceneEvent,
+    ISceneEventMap,
     ITexture,
     PerspectiveCamera2,
     PointLight2,
@@ -79,6 +79,10 @@ export interface AddAssetOptions extends AddObjectOptions{
 export type ImportAddOptions = ImportAssetOptions & AddAssetOptions
 export type AddRawOptions = ProcessRawOptions & AddAssetOptions
 
+export interface AssetManagerEventMap{
+    loadAsset: {data: ImportResult}
+    processStateUpdate: object
+}
 
 /**
  * Asset Manager
@@ -86,7 +90,7 @@ export type AddRawOptions = ProcessRawOptions & AddAssetOptions
  * Utility class to manage import, export, and material management.
  * @category Asset Manager
  */
-export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult}, 'loadAsset'|'processStateUpdate'> {
+export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     readonly viewer: ThreeViewer
     readonly importer: AssetImporter
     readonly exporter: AssetExporter
@@ -216,8 +220,9 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
         return (await this.addRaw<T>(res, options))?.[0]
     }
 
-    private _sceneUpdated(event: ISceneEvent) { // todo: check if objects are added some other way.
-        if (event.type === 'addSceneObject') {
+    private _sceneUpdated<T extends keyof ISceneEventMap>(ev: BaseEvent<T> & ISceneEventMap[T]) { // todo: check if objects are added some other way.
+        if (ev.type === 'addSceneObject') {
+            const event = ev as ISceneEventMap['addSceneObject']
             const target = event.object as ImportResult
             switch (target.assetType) {
             case 'material':
@@ -232,15 +237,17 @@ export class AssetManager extends EventDispatcher<BaseEvent&{data?: ImportResult
             default:
                 break
             }
-        } else if (event.type === 'materialChanged') {
+        } else if (ev.type === 'materialChanged') {
+            const event = ev as ISceneEventMap['materialChanged']
             const target = event.material as IMaterial | IMaterial[] | undefined
             const targets = Array.isArray(target) ? target : target ? [target] : []
             for (const t of targets) {
                 this.materials.registerMaterial(t)
             }
-        } else if (event.type === 'beforeDeserialize') {
+        } else if (ev.type === 'beforeDeserialize') {
+            const event = ev as ISceneEventMap['beforeDeserialize']
             // object/material/texture to be deserialized
-            const data = event.data
+            const data = event.data as any
             const meta = event.meta
             if (!data.metadata) {
                 console.warn('Invalid data(no metadata)', data)

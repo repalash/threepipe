@@ -14,11 +14,11 @@ import {OrbitControls3} from '../../three'
  * The animation starts after a delay and stops on user interaction. It then restarts after a delay after the user stops interacting
  *
  * The plugin provides several options and functions to configure the automatic behaviour or trigger the animation manually.
- * @todo - create example
+ * TODO - create example
  * @category Plugins
  */
 @uiFolderContainer('Interaction Prompt')
-export class InteractionPromptPlugin extends AViewerPluginSync<''> {
+export class InteractionPromptPlugin extends AViewerPluginSync {
     static readonly PluginType = 'InteractionPromptPlugin'
     @serialize()
     @uiToggle() enabled

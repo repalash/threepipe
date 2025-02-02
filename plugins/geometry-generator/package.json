@@ -26,7 +26,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.20"
+                "threepipe": "^0.0.39"
             }
         }
     },

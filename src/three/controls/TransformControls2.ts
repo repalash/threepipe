@@ -1,6 +1,6 @@
 import {TransformControls} from './TransformControls.js'
 import {MathUtils} from 'three'
-import type {ICamera, IObject3D, ISceneEvent, IWidget} from '../../core'
+import type {ICamera, IObject3D, IWidget} from '../../core'
 import {iObjectCommons} from '../../core'
 import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 
@@ -111,11 +111,11 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this.size = 2
 
         this.addEventListener('objectChange', () => {
-            this?.object?.setDirty({fadeFrame: false})
+            this?.object?.setDirty({frameFade: false})
             // todo: do this.setDirty?
         })
         this.addEventListener('change', () => {
-            this.setDirty({fadeFrame: false})
+            this.setDirty({frameFade: false})
         })
 
         this._keyUpListener = this._keyUpListener.bind(this)
@@ -183,7 +183,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     copy: (source: this, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ISceneEvent) => void
+    // dispatchEvent: (event: ISceneEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

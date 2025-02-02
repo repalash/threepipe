@@ -36,7 +36,7 @@ export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
  * @category Plugins
  */
 @uiFolderContainer('Tonemapping')
-export class TonemapPlugin extends AScreenPassExtensionPlugin<''> {
+export class TonemapPlugin extends AScreenPassExtensionPlugin {
     static readonly PluginType = 'Tonemap'
 
     readonly extraUniforms = {

@@ -1,6 +1,6 @@
 import {Object3D, Vector3} from 'three'
 import {Easing} from 'popmotion'
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {Box3B} from '../../three'
 import {onChange, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
@@ -12,13 +12,20 @@ import {getFittingDistance} from '../../three/utils/camera'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
+export interface CameraViewPluginEventMap extends AViewerPluginEventMap{
+    viewChange: {view: CameraView}
+    startViewChange: {view: CameraView}
+    viewAdd: {view: CameraView}
+    viewDelete: {view: CameraView}
+}
+
 /**
  * Camera View Plugin
  *
  * Provides API to save, interact and animate and loop between with multiple camera states/views using the {@link PopmotionPlugin}.
  *
  */
-export class CameraViewPlugin extends AViewerPluginSync<'viewChange'|'startViewChange'|'viewAdd'|'viewDelete'> {
+export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap> {
     static readonly PluginType = 'CameraViews'
 
     enabled = true

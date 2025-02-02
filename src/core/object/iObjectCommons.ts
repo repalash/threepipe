@@ -1,9 +1,9 @@
 import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {objectHasOwn} from 'ts-browser-helpers'
-import {IObject3D, IObject3DEvent, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
+import {IObject3D, IObject3DEventMap, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData} from '../../utils'
-import {IGeometry, IGeometryEvent} from '../IGeometry'
+import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B} from '../../three'
 import {makeIObject3DUiConfig} from './IObjectUi'
 import {iGeometryCommons} from '../geometry/iGeometryCommons'
@@ -172,7 +172,7 @@ export const iObjectCommons = {
                 })
             }
         },
-        onGeometryUpdate: function(this: IObject3D, e: IGeometryEvent<'geometryUpdate'>): void {
+        onGeometryUpdate: function(this: IObject3D, e: IGeometryEventMap['geometryUpdate']&Event<'geometryUpdate'>): void {
             if (!e.bubbleToObject) return
             this.dispatchEvent({bubbleToParent: true, ...e, object: this, geometry: e.geometry})
         },
@@ -230,7 +230,8 @@ export const iObjectCommons = {
         // todo: check by uuid?
 
         // Remove old material listeners
-        const mats = Array.isArray(this.material) ? [...(this.material as IMaterial[])] : [this.material!]
+        const oldMats = this.material
+        const mats = Array.isArray(oldMats) ? [...oldMats] : [oldMats!]
         for (const mat of mats) {
             if (!mat) continue
             if (mat.appliedMeshes) {
@@ -255,7 +256,7 @@ export const iObjectCommons = {
         }
         this._currentMaterial = !materials.length ? null : materials.length !== 1 ? materials : materials[0] || null
 
-        this.dispatchEvent({type: 'materialChanged', material, oldMaterial: mats, object: this, bubbleToParent: true})
+        this.dispatchEvent({type: 'materialChanged', material: this._currentMaterial ?? null, oldMaterial: oldMats ?? null, object: this, bubbleToParent: true})
         this.refreshUi()
     },
     setMaterials: function(this: IObject3D, materials: IMaterial[]) {
@@ -315,7 +316,7 @@ export const iObjectCommons = {
             this._onGeometryUpdate && geometry.addEventListener('geometryUpdate', this._onGeometryUpdate)
             geometry.appliedMeshes.add(this)
         }
-        this.dispatchEvent({type: 'geometryChanged', geometry, oldGeometry: geom, bubbleToParent: true})
+        this.dispatchEvent({type: 'geometryChanged', geometry: geometry ?? null, oldGeometry: geom, bubbleToParent: true, object: this})
         this.refreshUi()
 
     },
@@ -324,9 +325,9 @@ export const iObjectCommons = {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
 
-    dispatchEvent: (superDispatch: IObject3D['dispatchEvent']) =>
-        function(this: IObject3D, event: IObject3DEvent): void {
-            if (event.bubbleToParent || this.userData?.__autoBubbleToParentEvents?.includes(event.type)) {
+    dispatchEvent: (superDispatch: IObject3D['dispatchEvent']): IObject3D['dispatchEvent'] =>
+        function(this: IObject3D, event): void {
+            if ((event as IObject3DEventMap['objectUpdate']).bubbleToParent || this.userData?.__autoBubbleToParentEvents?.includes(event.type)) {
                 // console.log('parent dispatch', e, this.parentRoot, this.parent)
                 const pRoot = this.parentRoot || this.parent
                 if (this.parentRoot !== this) pRoot?.dispatchEvent(event)
@@ -349,7 +350,7 @@ export const iObjectCommons = {
             return clone
         },
     copy: (superCopy: IObject3D['copy']): IObject3D['copy'] =>
-        function(this: IObject3D|ILight, source: IObject3D, ...args): IObject3D {
+        function(this: IObject3D, source: IObject3D, ...args): IObject3D {
             const lightTarget = this.isLight ? (this as ILight).target : null
 
             const userData = source.userData
@@ -469,7 +470,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
         this.userData.__meshSetup = true
 
-        this._onGeometryUpdate = (e: IGeometryEvent) => iObjectCommons.eventCallbacks.onGeometryUpdate.call(this, e)
+        this._onGeometryUpdate = (e) => iObjectCommons.eventCallbacks.onGeometryUpdate.call(this, e)
 
         // Material, Geometry prop init
         iObjectCommons.initMaterial.call(this)

@@ -8,7 +8,7 @@ import {serialize} from 'ts-browser-helpers'
  *
  * @category Plugins
  */
-export class ViewerUiConfigPlugin extends AViewerPluginSync<''> {
+export class ViewerUiConfigPlugin extends AViewerPluginSync {
     static readonly PluginType = 'ViewerUiConfigPlugin'
     enabled = true
     serializeWithViewer = false

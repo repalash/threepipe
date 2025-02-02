@@ -1,4 +1,5 @@
 import {
+    AViewerPluginEventMap,
     AViewerPluginSync,
     FileTransferPlugin,
     pathJoin,
@@ -13,6 +14,15 @@ import {
 } from 'threepipe'
 import {AwsClient, AwsV4Signer} from 'aws4fetch'
 
+export interface AWSClientPluginEventMap extends AViewerPluginEventMap {
+    fileUpload: {
+        name: string
+        blob: Blob
+        response: Response
+        path: string
+    }
+}
+
 /**
  * AWSClientPlugin
  * Provides `fetch` function that performs a fetch request with AWS v4 signing.
@@ -24,7 +34,7 @@ import {AwsClient, AwsV4Signer} from 'aws4fetch'
  * {@todo Make an example for AWSClient Plugin}
  */
 @uiFolderContainer('AWS/S3 Client')
-export class AWSClientPlugin extends AViewerPluginSync<'fileUpload'> {
+export class AWSClientPlugin extends AViewerPluginSync<AWSClientPluginEventMap> {
     static readonly PluginType = 'AWSClientPlugin1'
     declare uiConfig: UiObjectConfig
 

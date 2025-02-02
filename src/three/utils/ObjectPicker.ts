@@ -1,8 +1,14 @@
-import {Event, EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
+import {EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
 import {JSUndoManager, now} from 'ts-browser-helpers'
 import {ICamera, IObject3D} from '../../core'
 
-export class ObjectPicker extends EventDispatcher<Event, 'hoverObjectChanged'|'selectedObjectChanged'|'hitObject'> {
+export interface ObjectPickerEventMap{
+    hoverObjectChanged: {object: IObject3D | null}
+    selectedObjectChanged: {object: IObject3D | null}
+    hitObject: {time: number, intersects: {selectedObject: IObject3D | null, intersect: Intersection<IObject3D> | null, intersects: Intersection<IObject3D>[]}}
+}
+
+export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _firstHit: IObject3D | undefined
 
     hoverEnabled = false

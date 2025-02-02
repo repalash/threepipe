@@ -1,5 +1,10 @@
 import {uiButton, uiFolderContainer} from 'uiconfig.js'
-import {AViewerPluginSync} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync} from '../../viewer'
+
+export interface FullScreenPluginEventMap extends AViewerPluginEventMap{
+    enter: object
+    exit: object
+}
 
 /**
  * Full Screen Plugin
@@ -13,7 +18,7 @@ import {AViewerPluginSync} from '../../viewer'
  * @category Plugins
  */
 @uiFolderContainer('Full Screen')
-export class FullScreenPlugin extends AViewerPluginSync<'enter'|'exit'> {
+export class FullScreenPlugin extends AViewerPluginSync<FullScreenPluginEventMap> {
     public static readonly PluginType = 'FullScreenPlugin'
 
     toJSON: any = undefined

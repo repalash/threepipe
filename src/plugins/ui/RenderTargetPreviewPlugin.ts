@@ -24,7 +24,7 @@ export interface RenderTargetBlock {
  * @category Plugins
  */
 @uiFolderContainer('Render Target Preview Plugin')
-export class RenderTargetPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
+export class RenderTargetPreviewPlugin extends AViewerPluginSync {
     static readonly PluginType = 'RenderTargetPreviewPlugin'
 
     @uiToggle('Enabled')

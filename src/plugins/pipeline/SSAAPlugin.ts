@@ -5,7 +5,6 @@ import {IEvent, onChange, serialize} from 'ts-browser-helpers'
 import {ICamera, ILight} from '../../core'
 import {ProgressivePlugin} from './ProgressivePlugin'
 
-export type SSAAPluginEventTypes = ''
 export type TCamera = ICamera & (PerspectiveCamera|OrthographicCamera)
 
 /**
@@ -17,7 +16,7 @@ export type TCamera = ICamera & (PerspectiveCamera|OrthographicCamera)
  * @category Plugins
  */
 @uiFolderContainer('SSAA Plugin')
-export class SSAAPlugin extends AViewerPluginSync<SSAAPluginEventTypes> {
+export class SSAAPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'SSAAPlugin'
 
     @serialize() @uiToggle('Enabled')

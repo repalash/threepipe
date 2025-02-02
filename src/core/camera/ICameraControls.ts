@@ -1,7 +1,11 @@
 import {IUiConfigContainer} from 'uiconfig.js'
-import {Camera, Event, EventDispatcher, Object3D, Vector3} from 'three'
+import {Camera, EventDispatcher, Object3D, Vector3} from 'three'
 
-export interface ICameraControls<TEvents = 'change'|string> extends IUiConfigContainer<void, 'panel'>, EventDispatcher<Event, TEvents> {
+export interface ICameraControlsEventMap {
+    change: object
+}
+
+export interface ICameraControls<TE extends ICameraControlsEventMap = ICameraControlsEventMap> extends IUiConfigContainer<void, 'panel'>, EventDispatcher<TE> {
     object: Object3D
     enabled: boolean
 

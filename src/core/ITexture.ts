@@ -1,6 +1,5 @@
 import {IMaterial} from './IMaterial'
-import {Event, Source, Texture} from 'three'
-import {ChangeEvent} from 'uiconfig.js'
+import {Source, Texture, TextureEventMap} from 'three'
 import {IRenderTarget} from '../rendering'
 
 export interface ITextureUserData{
@@ -12,14 +11,17 @@ export interface ITextureUserData{
      */
     disposeOnIdle?: boolean
 }
-export type ITextureEventTypes = 'dispose' | 'update'
-export type ITextureEvent<T extends string = ITextureEventTypes> = Event & {
-    type: T
-    texture?: ITexture
-    uiChangeEvent?: ChangeEvent
-}
 
-export interface ITexture extends Texture {
+// export type ITextureEventTypes = 'dispose' | 'update'
+// export type ITextureEvent<T extends string = ITextureEventTypes> = Event & {
+//     type: T
+//     texture?: ITexture
+//     uiChangeEvent?: ChangeEvent
+// }
+
+export type ITextureEventMap = TextureEventMap
+
+export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extends Texture<TE> {
     assetType?: 'texture'
     userData: ITextureUserData
     readonly isTexture: true

@@ -1,4 +1,5 @@
 import {
+    BaseEvent,
     Color,
     IUniform,
     Material,
@@ -12,8 +13,7 @@ import {
 import {UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
+    IMaterialEventMap,
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
@@ -27,9 +27,7 @@ import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 import {makeSamplerUi} from '../../ui/image-ui'
 
-export type PhongMaterialEventTypes = IMaterialEventTypes | ''
-
-export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, PhongMaterialEventTypes> implements IMaterial<IMaterialEvent, PhongMaterialEventTypes> {
+export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshPhongMaterial<TE> implements IMaterial<TE> {
     declare ['constructor']: typeof LegacyPhongMaterial
 
     public static readonly TypeSlug = 'phongmat'
@@ -44,8 +42,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
-
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
     generator?: IMaterialGenerator
 
     envMap: ITexture | null = null
@@ -135,7 +132,7 @@ export class LegacyPhongMaterial extends MeshPhongMaterial<IMaterialEvent, Phong
     /**
      * Serializes this material to JSON.
      * @param meta - metadata for serialization
-     * @param _internal - Calls only super.toJSON, does internal three.js serialization and @serialize tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
      */
     toJSON(meta?: SerializationMetaType, _internal = false): any {
         if (_internal) return {

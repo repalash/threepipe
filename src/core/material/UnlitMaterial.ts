@@ -1,4 +1,5 @@
 import {
+    BaseEvent,
     Color,
     IUniform,
     Material,
@@ -11,8 +12,7 @@ import {
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
+    IMaterialEventMap,
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
@@ -25,14 +25,12 @@ import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 
-export type UnlitMaterialEventTypes = IMaterialEventTypes | ''
-
 /**
  * And extension of three.js MeshBasicMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMaterialEventTypes> implements IMaterial<IMaterialEvent, UnlitMaterialEventTypes> {
+export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshBasicMaterial<TE> implements IMaterial<TE> {
     declare ['constructor']: typeof UnlitMaterial
 
     public static readonly TypeSlug = 'bmat'
@@ -47,7 +45,7 @@ export class UnlitMaterial extends MeshBasicMaterial<IMaterialEvent, UnlitMateri
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

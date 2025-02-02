@@ -1,9 +1,8 @@
-import {IUniform, Material, Shader, ShaderMaterial, ShaderMaterialParameters, WebGLRenderer} from 'three'
+import {BaseEvent, IUniform, Material, Shader, ShaderMaterial, ShaderMaterialParameters, WebGLRenderer} from 'three'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
-    IMaterialEvent,
-    IMaterialEventTypes,
+    IMaterialEventMap,
     IMaterialGenerator,
     IMaterialParameters,
     IMaterialTemplate,
@@ -15,14 +14,12 @@ import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 
-export type ObjectShaderMaterialEventTypes = IMaterialEventTypes | ''
-
 /**
  * And extension of three.js ShaderMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
  *
  * @category Materials
  */
-export class ObjectShaderMaterial extends ShaderMaterial<IMaterialEvent, ObjectShaderMaterialEventTypes> implements IMaterial<IMaterialEvent, ObjectShaderMaterialEventTypes> {
+export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE> implements IMaterial<TE> {
     declare ['constructor']: typeof ObjectShaderMaterial
 
     public static readonly TypeSlug = 'shmat'
@@ -37,7 +34,7 @@ export class ObjectShaderMaterial extends ShaderMaterial<IMaterialEvent, ObjectS
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
-    dispatchEvent(event: IMaterialEvent): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
+    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

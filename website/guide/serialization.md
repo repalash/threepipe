@@ -104,7 +104,7 @@ class MyMaterial extends ThreeMaterial{
     /**
      * Serializes this material to JSON.
      * @param meta - metadata for serialization
-     * @param _internal - Calls only super.toJSON, does internal three.js serialization and @serialize tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer->material
      */
     toJSON(meta?: SerializationMetaType, _internal = false): any {
         if (_internal) return {

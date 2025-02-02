@@ -1,4 +1,4 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {createDiv, createStyles, getOrCall, onChange, ValOrFunc} from 'ts-browser-helpers'
 import styles from './GeometryUVPreviewPlugin.css?inline'
 import {CustomContextMenu} from '../../utils'
@@ -15,7 +15,7 @@ export interface TargetBlock {
 }
 
 @uiFolderContainer('Render Target Preview Plugin')
-export class GeometryUVPreviewPlugin<TEvent extends string> extends AViewerPluginSync<TEvent> {
+export class GeometryUVPreviewPlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap> extends AViewerPluginSync<TE> {
     static readonly PluginType = 'GeometryUVPreviewPlugin'
 
     @uiToggle('Enabled')

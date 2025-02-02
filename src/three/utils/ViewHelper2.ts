@@ -9,7 +9,7 @@ import {
     Material,
     Mesh,
     MeshBasicMaterial,
-    Object3D,
+    Object3D, Object3DEventMap,
     OrthographicCamera,
     PerspectiveCamera,
     Quaternion,
@@ -69,13 +69,18 @@ export type DomPlacement =
     | 'bottom-right'
     | 'bottom-center'
 
+export interface ViewHelper2EventMap extends Object3DEventMap{
+    ['animating-changed']: {detail: {key: 'animating', value: boolean, oldValue: boolean}}
+    update: {event: PointerEvent, change: 'pointer'} | {change: 'orientation'}
+}
+
 /**
  * Extended ViewHelper implemented from the following source:
  * https://github.com/Fennec-hub/viewHelper
  * MIT License
  * Copyright (c) 2022 Fennec-hub
  */
-export class ViewHelper2 extends Object3D {
+export class ViewHelper2 extends Object3D<ViewHelper2EventMap> {
     camera: OrthographicCamera | PerspectiveCamera
     orthoCamera = new OrthographicCamera(-1.8, 1.8, 1.8, -1.8, 0, 4)
     isViewHelper = true
@@ -208,7 +213,7 @@ export class ViewHelper2 extends Object3D {
         // if (this.dragging) return;
         (this.backgroundSphere.material as Material).opacity = 0.4
         this.handleHover(e)
-        this.dispatchEvent({type: 'update', event: e})
+        this.dispatchEvent({type: 'update', event: e, change: 'pointer'})
     }
 
     onPointerLeave(e: PointerEvent) {
@@ -216,7 +221,7 @@ export class ViewHelper2 extends Object3D {
         (this.backgroundSphere.material as Material).opacity = 0.2
         resetSprites(this.spritePoints)
         this.domContainer.style.cursor = ''
-        this.dispatchEvent({type: 'update', event: e})
+        this.dispatchEvent({type: 'update', event: e, change: 'pointer'})
     }
 
     handleClick(e: PointerEvent|MouseEvent) {
@@ -326,7 +331,7 @@ export class ViewHelper2 extends Object3D {
     setOrientation(orientation: GizmoOrientation) {
         prepareAnimationData(this.camera, this.target, orientation)
         this.animating = true
-        this.dispatchEvent({type: 'update'})
+        this.dispatchEvent({type: 'update', change: 'orientation'})
     }
 
     dispose() {

@@ -48,7 +48,6 @@ import {
     ShaderMaterial2,
 } from '../../core'
 
-export type GBufferPluginEventTypes = ''
 export type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
 // export type GBufferPluginTarget = WebGLRenderTarget
 export type GBufferPluginPass = GBufferRenderPass<'gbuffer', GBufferPluginTarget|undefined>
@@ -68,7 +67,7 @@ export interface GBufferUpdater {
  */
 @uiFolderContainer('G-Buffer Plugin')
 export class GBufferPlugin
-    extends PipelinePassPlugin<GBufferPluginPass, 'gbuffer', GBufferPluginEventTypes> {
+    extends PipelinePassPlugin<GBufferPluginPass, 'gbuffer'> {
 
     readonly passId = 'gbuffer'
     public static readonly PluginType = 'GBuffer'
@@ -373,7 +372,10 @@ export class GBufferMaterial extends ShaderMaterial2 {
             if (!map) return
             this.uniforms[key].value = map
             if (!this.uniforms[key + 'Transform']) console.error('GBufferMaterial: ' + key + 'Transform is not defined in uniform')
-            else renderer.materials.refreshTransformUniform(map, this.uniforms[key + 'Transform'])
+            else {
+                if ((map as Texture).isTexture)
+                    renderer.materials.refreshTransformUniform((map as Texture), this.uniforms[key + 'Transform'])
+            }
         }
 
         setMap('map')

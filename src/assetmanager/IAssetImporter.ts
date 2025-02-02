@@ -1,4 +1,4 @@
-import {BaseEvent, EventDispatcher, LoadingManager, Object3D} from 'three'
+import {EventDispatcher, LoadingManager, Object3D} from 'three'
 import {IDisposable} from 'ts-browser-helpers'
 import {IAsset, IFile} from './IAsset'
 import {ILoader} from './IImporter'
@@ -161,8 +161,34 @@ export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
     importedFile?: IFile,
 }
 
-export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
-export interface IAssetImporter extends EventDispatcher<BaseEvent, IAssetImporterEventTypes>, IDisposable {
+// export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
+
+export interface IAssetImporterEventMap {
+    loaderCreate: {type: 'loaderCreate', loader: ILoader}
+    importFile: {type: 'importFile', path: string, state: 'downloading'|'done'|'error'|'adding', progress?: number, loadedBytes?: number, totalBytes?: number, error?: any}
+    importFiles: {type: 'importFiles', files: Map<string, IFile>, state: 'start'|'end'}
+    processRaw: {type: 'processRaw', data: any, options: ProcessRawOptions, path?: string}
+    processRawStart: {type: 'processRawStart', data: any, options: ProcessRawOptions, path?: string}
+
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onLoad: {type: 'onLoad'}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onProgress: {type: 'onProgress', url: string, loaded: number, total: number}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onError: {type: 'onError', url: string}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onStart: {type: 'onStart', url: string, loaded: number, total: number}
+}
+
+export interface IAssetImporter<TE extends IAssetImporterEventMap = IAssetImporterEventMap> extends EventDispatcher<TE>, IDisposable {
     readonly loadingManager: LoadingManager
     readonly cachedAssets: IAsset[]
 

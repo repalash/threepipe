@@ -10,13 +10,13 @@ export {ProgressivePlugin, ProgressiveBlendPass} from './pipeline/ProgressivePlu
 export {GBufferPlugin, GBufferMaterial, DepthNormalMaterial} from './pipeline/GBufferPlugin'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
-export {FrameFadePlugin, FrameFadeBlendPass, type FrameFadePluginEventTypes} from './pipeline/FrameFadePlugin'
-export type {ProgressivePluginEventTypes, ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
-export type {GBufferPluginEventTypes, GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext, GBufferPluginTarget} from './pipeline/GBufferPlugin'
-export type {DepthBufferPluginEventTypes, DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
-export type {NormalBufferPluginEventTypes, NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
-export {SSAAPlugin, type SSAAPluginEventTypes} from './pipeline/SSAAPlugin'
-export {SSAOPlugin, SSAOPluginPass, type SSAOPluginEventTypes, type SSAOPluginTarget} from './pipeline/SSAOPlugin'
+export {FrameFadePlugin, FrameFadeBlendPass} from './pipeline/FrameFadePlugin'
+export type {ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
+export type {GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext, GBufferPluginTarget} from './pipeline/GBufferPlugin'
+export type {DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
+export type {NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
+export {SSAAPlugin} from './pipeline/SSAAPlugin'
+export {SSAOPlugin, SSAOPluginPass, type SSAOPluginTarget} from './pipeline/SSAOPlugin'
 
 // ui
 export {RenderTargetPreviewPlugin, type RenderTargetBlock} from './ui/RenderTargetPreviewPlugin'
@@ -72,7 +72,7 @@ export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
 
 // rendering
-export {VirtualCamerasPlugin, type VirtualCamera} from './rendering/VirtualCamerasPlugin'
+export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'

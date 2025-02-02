@@ -1,7 +1,7 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {TControlsCtor} from '../../core'
 
-export abstract class ACameraControlsPlugin extends AViewerPluginSync<''> {
+export abstract class ACameraControlsPlugin extends AViewerPluginSync {
     readonly enabled = true
     toJSON: any = undefined
     protected abstract _controlsCtor: TControlsCtor

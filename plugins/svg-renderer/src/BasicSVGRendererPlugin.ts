@@ -13,7 +13,7 @@ import {BasicSVGRenderer} from './basic/BasicSVGRenderer'
  * SVG rendering of 3d objects using SVGRenderer from three/addons
  */
 @uiFolderContainer('SVG Renderer')
-export class BasicSVGRendererPlugin extends AViewerPluginSync<''> {
+export class BasicSVGRendererPlugin extends AViewerPluginSync {
     static readonly PluginType = 'BasicSVGRendererPlugin'
 
     @uiToggle()

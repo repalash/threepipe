@@ -1,5 +1,5 @@
 import {Camera, Vector3} from 'three'
-import {IObject3D, IObject3DEvent, IObject3DEventTypes, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
+import {IObject3D, IObject3DEventMap, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
 import {IShaderPropertiesUpdater} from '../materials'
 import {ICameraControls, TControlsCtor} from './camera/ICameraControls'
 import {CameraView, ICameraView} from './camera/CameraView'
@@ -54,7 +54,7 @@ export interface ICameraUserData extends IObject3DUserData {
     // [key: string]: any // commented for noe
 }
 
-export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICameraEventTypes = ICameraEventTypes> extends Camera<E, ET>, IObject3D<E, ET>, IShaderPropertiesUpdater {
+export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends Camera<TE>, IObject3D<TE>, IShaderPropertiesUpdater {
     assetType: 'camera'
     readonly isCamera: true
     setDirty(options?: ICameraSetDirtyOptions): void;
@@ -63,8 +63,8 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
     readonly isPerspectiveCamera?: boolean;
     readonly isOrthographicCamera?: boolean;
 
-    activateMain(options?: Partial<ICameraEvent>, _internal?: boolean, _refresh?: boolean): void;
-    deactivateMain(options?: Partial<ICameraEvent>, _internal?: boolean, _refresh?: boolean): void;
+    activateMain(options?: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'>, _internal?: boolean, _refresh?: boolean): void;
+    deactivateMain(options?: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'>, _internal?: boolean, _refresh?: boolean): void;
 
     /**
      * @deprecated use `this` instead
@@ -155,7 +155,7 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
      * Dispatches the `setView` event which triggers the main camera to set its view to this camera's view.
      * @param eventOptions
      */
-    setViewToMain(eventOptions: Partial<ICameraEvent>): void
+    setViewToMain(eventOptions: Pick<ICameraEventMap['setView'], 'ui'>): void
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
@@ -176,11 +176,18 @@ export interface ICamera<E extends ICameraEvent = ICameraEvent, ET extends ICame
 }
 
 
-export type ICameraEventTypes = IObject3DEventTypes | 'update'// | string
-export type ICameraEvent = Omit<IObject3DEvent, 'type'> & {
-    type: ICameraEventTypes
-    camera?: ICamera | null
-    // change?: string
-}
+// export type ICameraEventTypes = IObject3DEventTypes | 'update'// | string
+// export type ICameraEvent = Omit<IObject3DEvent, 'type'> & {
+//     type: ICameraEventTypes
+//     camera?: ICamera | null
+//     // change?: string
+// }
 export type ICameraSetDirtyOptions = IObjectSetDirtyOptions
 
+export interface ICameraEventMap extends IObject3DEventMap {
+    update: {
+        camera: ICamera
+        bubbleToParent: false
+        // todo
+    } & ICameraSetDirtyOptions
+}

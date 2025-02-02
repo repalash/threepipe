@@ -1,8 +1,8 @@
 import {createDiv, onChange, serialize} from 'ts-browser-helpers'
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiToggle} from 'uiconfig.js'
 
-export abstract class AAssetManagerProcessStatePlugin<T extends string = ''> extends AViewerPluginSync<T> {
+export abstract class AAssetManagerProcessStatePlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap> extends AViewerPluginSync<TE> {
     @uiToggle('Enabled')
     @onChange(AAssetManagerProcessStatePlugin.prototype._onEnabledChange)
     @serialize() enabled = true

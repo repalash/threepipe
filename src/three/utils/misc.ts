@@ -5,7 +5,7 @@ import {IGeometry, IMaterial, IObject3D, IScene, ITexture} from '../../core'
 /**
  * Convert geometry to BufferGeometry with indexed attributes.
  */
-export function toIndexedGeometry<T extends BufferGeometry<any, any, any> = BufferGeometry<any, any, any>>(geometry: T, tolerance = -1): T {
+export function toIndexedGeometry<T extends BufferGeometry<any, any> = BufferGeometry<any, any>>(geometry: T, tolerance = -1): T {
     return mergeVertices(geometry, tolerance) as T
 }
 

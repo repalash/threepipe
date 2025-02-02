@@ -1,7 +1,7 @@
-import {Camera, Event, IUniform, Object3D, OrthographicCamera, Vector3} from 'three'
+import {Camera, IUniform, Object3D, OrthographicCamera, Vector3} from 'three'
 import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
-import type {ICamera, ICameraEvent, ICameraUserData, TCameraControlsMode} from '../ICamera'
+import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
@@ -14,7 +14,7 @@ import {CameraView, ICameraView} from './CameraView'
 
 // todo: extract out common functions with perspective camera into iCameraCommons
 // todo: maybe change domElement to some wrapper/base class of viewer
-export class OrthographicCamera2 extends OrthographicCamera implements ICamera {
+export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> extends OrthographicCamera<TE&ICameraEventMap> implements ICamera<TE&ICameraEventMap> {
     assetType = 'camera' as const
     get controls(): ICameraControls | undefined {
         return this._controls
@@ -214,12 +214,16 @@ export class OrthographicCamera2 extends OrthographicCamera implements ICamera {
 
     // region refreshing
 
-    setDirty(options?: ICameraSetDirtyOptions|Event): void {
+    setDirty(options?: ICameraSetDirtyOptions): void {
         if (!this._positionWorld) return // class not initialized
 
-        if (!options?.key || ['zoom', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize'].includes(options.key)) {
+        // noinspection SuspiciousTypeOfGuard it can be string when called from bindToValue
+        const changeKey = typeof options === 'string' ? options : options?.key
+        if (!changeKey || ['zoom', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize'].includes(changeKey)) {
             this.updateProjectionMatrix()
         }
+
+        if (typeof options === 'string') options = undefined
 
         this.getWorldPosition(this._positionWorld)
 
@@ -416,7 +420,7 @@ export class OrthographicCamera2 extends OrthographicCamera implements ICamera {
         this.copy(camera, undefined, distanceFromTarget, worldSpace)
     }
 
-    setViewToMain(eventOptions: Partial<ICameraEvent>) {
+    setViewToMain(eventOptions: Omit<ICameraEventMap['setView'], 'camera'|'bubbleToParent'>) {
         this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
     }
 
@@ -538,7 +542,7 @@ export class OrthographicCamera2 extends OrthographicCamera implements ICamera {
     clone: (recursive?: boolean) => this
     add: (...object: IObject3D[]) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ICameraEvent) => void
+    // dispatchEvent: (event: ICameraEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

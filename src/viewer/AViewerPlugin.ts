@@ -1,15 +1,20 @@
 import type {ISerializedConfig, IViewerEvent, ThreeViewer} from './ThreeViewer'
 import {IViewerEventTypes} from './ThreeViewer'
-import {Event, EventDispatcher} from 'three'
+import {EventDispatcher} from 'three'
 import {PartialRecord, SerializationMetaType, ThreeSerialization} from '../utils'
 import {IViewerPlugin, IViewerPluginAsync} from './IViewerPlugin'
 import {UiObjectConfig} from 'uiconfig.js'
+
+export interface AViewerPluginEventMap {
+    serialize: {data: ISerializedConfig}
+    deserialize: {data: ISerializedConfig, meta?: SerializationMetaType}
+}
 
 /**
  * Base Class for Viewer Plugins
  * @category Viewer
  */
-export abstract class AViewerPlugin<T extends string = string, TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean> extends EventDispatcher<Event, T|'serialize'|'deserialize'> implements IViewerPlugin<TViewer, IsSync> {
+export abstract class AViewerPlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer = ThreeViewer, IsSync extends boolean = boolean> extends EventDispatcher<TE & AViewerPluginEventMap> implements IViewerPlugin<TViewer, IsSync> {
     declare ['constructor']: typeof AViewerPlugin
     public static readonly PluginType: string = 'AViewerPlugin'
     public static readonly OldPluginType?: string
@@ -135,7 +140,7 @@ export abstract class AViewerPlugin<T extends string = string, TViewer extends T
  * Base Class for Sync Viewer Plugins
  * @category Viewer
  */
-export abstract class AViewerPluginSync<T extends string, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<T, TViewer, true> {
+export abstract class AViewerPluginSync<TE extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<TE, TViewer, true> {
     declare ['constructor']: (typeof AViewerPluginSync) & (typeof AViewerPlugin)
 
     onAdded(viewer: TViewer): void {
@@ -154,7 +159,7 @@ export abstract class AViewerPluginSync<T extends string, TViewer extends ThreeV
  * Base Class for Async Viewer Plugins
  * @category Viewer
  */
-export abstract class AViewerPluginAsync<T extends string, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<T, TViewer, false> implements IViewerPluginAsync<TViewer> {
+export abstract class AViewerPluginAsync<TE extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<TE, TViewer, false> implements IViewerPluginAsync<TViewer> {
     declare ['constructor']: (typeof AViewerPluginAsync) & (typeof AViewerPlugin)
 
     async onAdded(viewer: TViewer): Promise<void> {

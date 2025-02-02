@@ -1,26 +1,118 @@
-import {IDisposable} from 'ts-browser-helpers'
-import {IMaterial} from './IMaterial'
-import {Event, Object3D, Vector3} from 'three'
+import {IMaterial, IMaterialEventMap} from './IMaterial'
+import {EventListener, Object3D, Object3DEventMap, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
-import {IGeometry, IGeometryEvent} from './IGeometry'
+import {IGeometry, IGeometryEventMap} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
 
-export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'textureUpdate' | 'geometryChanged' |
-    'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
-    'setView' | 'activateMain' | 'cameraUpdate' // from camera
-    // | string
-export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends Event {
-    type: T
-    object?: IObject3D // object that triggered the event, target might be parent in case of bubbleToParent
-    bubbleToParent?: boolean // bubble event to parent root
-    change?: string
-    material?: IMaterial|undefined|IMaterial[] // from materialUpdate and materialChanged
-    oldMaterial?: IMaterial|undefined|IMaterial[] // from materialChanged
-    geometry?: IGeometry|undefined // from geometryUpdate, geometryChanged
-    oldGeometry?: IGeometry|undefined // from geometryChanged
-    source?: any
+// export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'textureUpdate' | 'geometryChanged' |
+//     'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
+//     'setView' | 'activateMain' | 'cameraUpdate' // from camera
+// | string
+// export interface IObject3DEvent<T extends string = IObject3DEventTypes> extends Event {
+//     type: T
+//     object?: IObject3D // object that triggered the event, target might be parent in case of bubbleToParent
+//     bubbleToParent?: boolean // bubble event to parent root
+//     change?: string  // todo - add to new type...
+//     material?: IMaterial|undefined|IMaterial[] // from materialUpdate and materialChanged
+//     oldMaterial?: IMaterial|undefined|IMaterial[] // from materialChanged
+//     geometry?: IGeometry|undefined // from geometryUpdate, geometryChanged
+//     oldGeometry?: IGeometry|undefined // from geometryChanged
+//     source?: any // todo - add to new type...
+// }
+
+declare module 'three'{
+    export interface Object3DEventMap{
+        select: { // todo
+            ui?: boolean
+            focusCamera?: boolean
+            bubbleToParent?: boolean
+            object: IObject3D
+            value?: IObject3D /* | Material*/ // todo is this required?
+
+            source?: string // who is triggering the event. so that recursive events can be prevented
+        }
+    }
 }
+// [key: keyof Object3DEventMap]: Object3DEventMap[key] & {
+//     bubbleToParent?: boolean
+// }
+export interface IObject3DEventMap extends Object3DEventMap{
+    dispose: {
+        // object: IObject3D
+        // todo
+        bubbleToParent: false
+    }
+    materialUpdate: {
+        // object: IObject3D
+        material: IMaterial|IMaterial[]
+    }
+    objectUpdate: {
+        object: IObject3D
+        change?: string
+        args?: any[]
+        bubbleToParent: boolean
+    }
+    textureUpdate: {
+        // object: IObject3D
+        // todo
+    }
+    geometryChanged: {
+        object: IObject3D
+        geometry: IGeometry|null
+        oldGeometry: IGeometry|null
+        bubbleToParent: boolean
+    }
+    materialChanged: {
+        object: IObject3D
+        material: IMaterial|IMaterial[]|null
+        oldMaterial: IMaterial|IMaterial[]|null
+        bubbleToParent: boolean
+    }
+    geometryUpdate: {
+        object: IObject3D
+        geometry: IGeometry
+        // oldGeometry: IGeometry
+        bubbleToParent: boolean
+    }
+    added: {
+        // object: IObject3D
+        // todo
+    }
+    removed: {
+        // object: IObject3D
+        // todo
+    }
+    beforeDeserialize: { // from material
+        material: IMaterial
+        // todo
+    } & IMaterialEventMap['beforeDeserialize']
+    setView: {
+        ui?: boolean
+        camera: ICamera
+        bubbleToParent: boolean
+        // object: IObject3D
+        // todo
+    }
+    activateMain: {
+        ui?: boolean
+        camera?: ICamera | null
+        bubbleToParent: boolean
+        // object: IObject3D
+        // todo
+    }
+    cameraUpdate: {
+        ui?: boolean
+        camera?: ICamera
+        // object: IObject3D
+        bubbleToParent: boolean
+        // todo
+    } & ICameraSetDirtyOptions
+}
+// Record<keyof IObject3DEventMap0, IObject3DEventMap0[keyof IObject3DEventMap0] & {
+//     // bubbleToParent?: boolean
+// }>
 
 export interface ISetDirtyCommonOptions {
     /**
@@ -58,7 +150,24 @@ export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
      */
     sceneUpdate?: boolean // update scene after setting dirty
 
-    [key: string]: any
+    source?: string // who is triggering the event. so that recursive events can be prevented
+
+    // from onChange3 etc.
+    key?: string
+
+    /**
+     * Set to true if this is the last value in a user input chain. (like when mouse up on slider)
+     */
+    last?: boolean
+    /**
+     * Indicates that this change in from an `undo` operation.
+     */
+    undo?: boolean
+
+    // value: any;
+    // oldValue: any;
+
+    // [key: string]: any
 }
 
 export interface IObjectProcessor { // todo, should be viewer
@@ -156,7 +265,7 @@ export interface IObject3DUserData extends IImportResultUserData {
     [key: string]: any
 }
 
-export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEventTypes> extends Object3D<E, ET>, IUiConfigContainer, IDisposable {
+export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> extends Object3D<TE>, IUiConfigContainer {
     assetType: 'model' | 'light' | 'camera' | 'widget'
     isLight?: boolean
     isCamera?: boolean
@@ -248,7 +357,8 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
 
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    _onGeometryUpdate?: (e: IGeometryEvent<'geometryUpdate'>) => void
+    _onGeometryUpdate?: EventListener<IGeometryEventMap['geometryUpdate'], 'geometryUpdate', IGeometry>
+
 
     objectProcessor?: IObjectProcessor
 
@@ -276,3 +386,4 @@ export interface IObject3D<E extends Event = IObject3DEvent, ET = IObject3DEvent
     // endregion
 
 }
+

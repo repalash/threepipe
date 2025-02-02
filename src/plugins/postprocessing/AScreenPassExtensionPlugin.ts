@@ -1,4 +1,4 @@
-import {type AViewerPlugin, AViewerPluginSync} from '../../viewer/AViewerPlugin'
+import {type AViewerPlugin, AViewerPluginEventMap, AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import type {ThreeViewer} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {Shader, Vector4, WebGLRenderer} from 'three'
@@ -15,7 +15,7 @@ import {GBufferPlugin, GBufferUpdater, GBufferUpdaterContext} from '../pipeline/
  *
  * @category Plugins
  */
-export abstract class AScreenPassExtensionPlugin<T extends string> extends AViewerPluginSync<T> implements MaterialExtension, GBufferUpdater {
+export abstract class AScreenPassExtensionPlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap> extends AViewerPluginSync<TE> implements MaterialExtension, GBufferUpdater {
     declare ['constructor']: (typeof AScreenPassExtensionPlugin) & (typeof AViewerPluginSync) & (typeof AViewerPlugin)
 
     abstract enabled: boolean

@@ -6,7 +6,7 @@ import {shaderReplaceString} from '../../utils'
 import {uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 
 @uiPanelContainer('HDRi Ground')
-export class HDRiGroundPlugin extends AViewerPluginSync<'', ThreeViewer> {
+export class HDRiGroundPlugin extends AViewerPluginSync {
     static readonly PluginType = 'HDRiGroundPlugin'
 
     @serialize()

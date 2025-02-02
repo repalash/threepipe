@@ -9,8 +9,6 @@ import {now, serialize, timeout, ValOrFunc} from 'ts-browser-helpers'
 import {ProgressivePlugin} from './ProgressivePlugin'
 import {IRenderTarget} from '../../rendering'
 
-export type FrameFadePluginEventTypes = ''
-
 /**
  * FrameFade Plugin
  *
@@ -20,7 +18,7 @@ export type FrameFadePluginEventTypes = ''
  */
 @uiFolderContainer('FrameFade Plugin')
 export class FrameFadePlugin
-    extends PipelinePassPlugin<FrameFadeBlendPass, 'frameFade', FrameFadePluginEventTypes> {
+    extends PipelinePassPlugin<FrameFadeBlendPass, 'frameFade'> {
 
     readonly passId = 'frameFade'
     public static readonly PluginType = 'FrameFadePlugin'
@@ -229,4 +227,10 @@ export class FrameFadeBlendPass extends AddBlendTexturePass implements IPipeline
         this.fadeTimeState -= dt
     }
 
+}
+
+declare module '../../core/IObject'{
+    export interface IObjectSetDirtyOptions{
+        frameFade?: boolean
+    }
 }

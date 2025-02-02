@@ -1,7 +1,6 @@
-import {Event, EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
+import {EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
 import {
     IAssetImporter,
-    IAssetImporterEventTypes,
     IImportResultUserData,
     ImportAssetOptions,
     ImportFilesOptions,
@@ -16,14 +15,41 @@ import {SimpleJSONLoader} from './import'
 import {parseFileExtension} from 'ts-browser-helpers'
 import {IObject3D} from '../core'
 
-export type IAssetImporterEvent = Event&{
-    type: IAssetImporterEventTypes,
-    data?: ImportResult, options?: ProcessRawOptions,
-    path?: string, progress?: number, state?: string, error?: any
-    files?: Map<string, IFile>
-    url?: string, loaded?: number, total?: number
-    loader?: ILoader,
+// export type IAssetImporterEvent = Event&{
+//     type: IAssetImporterEventTypes,
+//     data?: ImportResult, options?: ProcessRawOptions,
+//     path?: string, progress?: number, state?: string, error?: any
+//     files?: Map<string, IFile>
+//     url?: string, loaded?: number, total?: number
+//     loader?: ILoader,
+// }
+
+// export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
+export interface IAssetImporterEventMap {
+    loaderCreate: {type: 'loaderCreate', loader: ILoader}
+    importFile: {type: 'importFile', path: string, state: 'downloading'|'done'|'error'|'adding', progress?: number, loadedBytes?: number, totalBytes?: number, error?: any}
+    importFiles: {type: 'importFiles', files: Map<string, IFile>, state: 'start'|'end'}
+    processRaw: {type: 'processRaw', data: any, options: ProcessRawOptions, path?: string}
+    processRawStart: {type: 'processRawStart', data: any, options: ProcessRawOptions, path?: string}
+
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onLoad: {type: 'onLoad'}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onProgress: {type: 'onProgress', url: string, loaded: number, total: number}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onError: {type: 'onError', url: string}
+    /**
+     * @deprecated use the {@link importFile} event instead
+     */
+    onStart: {type: 'onStart', url: string, loaded: number, total: number}
 }
+
 /**
  * Asset Importer
  *
@@ -32,7 +58,7 @@ export type IAssetImporterEvent = Event&{
  * Acts as a wrapper over three.js LoadingManager and adds support for dynamically loading loaders, caching assets, better event dispatching and file tracking.
  * @category Asset Manager
  */
-export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetImporterEventTypes> implements IAssetImporter {
+export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> implements IAssetImporter {
     private _loadingManager: LoadingManager
 
     private _logger = console.log
@@ -557,7 +583,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEvent, IAssetIm
         return loader
     }
 
-    addEventListener<T extends IAssetImporterEvent['type'] & IAssetImporterEventTypes>(type: T, listener: EventListener<IAssetImporterEvent, T, this>) {
+    addEventListener<T extends keyof IAssetImporterEventMap>(type: T, listener: EventListener<IAssetImporterEventMap[T], T, this>): void {
         super.addEventListener(type, listener)
         if (type === 'loaderCreate') {
             for (const loaderCacheElement of this._loaderCache) {

@@ -75,6 +75,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
             transparentRender: false,
             transmissionRender: false,
             mainRenderPass: false,
+            // @ts-expect-error todo fix render target ts?
         }, ()=> super.render(renderer, null, getOrCall(this.target), deltaTime as any, maskActive as any)) // here this.target is the write-buffer, variable writeBuffer is ignored
 
         this._transparentMats.forEach(m => m.transparent = !m.transparent)

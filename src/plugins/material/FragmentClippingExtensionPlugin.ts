@@ -20,7 +20,7 @@ import FragmentClippingExtensionPluginPatch from './shaders/FragmentClippingExte
  * @category Plugins
  */
 @uiFolderContainer('Fragment Clipping (MatExt)')
-export class FragmentClippingExtensionPlugin extends AViewerPluginSync<''> {
+export class FragmentClippingExtensionPlugin extends AViewerPluginSync {
     static readonly PluginType = 'FragmentClippingExtensionPlugin1'
 
     @uiToggle('Enabled', (that: FragmentClippingExtensionPlugin)=>({onChange: that.setDirty}))

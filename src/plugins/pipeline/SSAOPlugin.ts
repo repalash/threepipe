@@ -13,7 +13,6 @@ import ssaoPatch from './shaders/SSAOPlugin.patch.glsl'
 import {uiConfigMaterialExtension} from '../../materials/MaterialExtender'
 import {GBufferPlugin, GBufferUpdaterContext} from './GBufferPlugin'
 
-export type SSAOPluginEventTypes = ''
 export type SSAOPluginTarget = WebGLRenderTarget
 
 /**
@@ -25,7 +24,7 @@ export type SSAOPluginTarget = WebGLRenderTarget
  */
 @uiFolderContainer('SSAO Plugin')
 export class SSAOPlugin
-    extends PipelinePassPlugin<SSAOPluginPass, 'ssao', SSAOPluginEventTypes> {
+    extends PipelinePassPlugin<SSAOPluginPass, 'ssao'> {
 
     readonly passId = 'ssao'
     public static readonly PluginType = 'SSAOPlugin'

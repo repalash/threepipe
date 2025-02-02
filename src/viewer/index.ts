@@ -1,4 +1,4 @@
-export {AViewerPlugin, AViewerPluginAsync, AViewerPluginSync} from './AViewerPlugin'
+export {AViewerPlugin, AViewerPluginAsync, AViewerPluginSync, type AViewerPluginEventMap} from './AViewerPlugin'
 export {ThreeViewer} from './ThreeViewer'
 export type {IViewerEventTypes, ISerializedViewerConfig, ISerializedConfig, IViewerEvent, ThreeViewerOptions, IConsoleWrapper} from './ThreeViewer'
 export {ViewerRenderManager, type ViewerRenderManagerOptions} from './ViewerRenderManager'

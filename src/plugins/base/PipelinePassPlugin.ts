@@ -1,5 +1,5 @@
 import {IPassID, IPipelinePass} from '../../postprocessing'
-import {AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ISerializedConfig, ThreeViewer} from '../../viewer'
 import {onChange, serialize} from 'ts-browser-helpers'
 import {SerializationMetaType, wrapThisFunction2} from '../../utils'
 import {uiToggle} from 'uiconfig.js'
@@ -12,7 +12,7 @@ import {ICamera, IRenderManager, IScene} from '../../core'
  *
  * @category Plugins
  */
-export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends string, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
+export abstract class PipelinePassPlugin<T extends IPipelinePass, TPassId extends IPassID, TEvent extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer=ThreeViewer> extends AViewerPluginSync<TEvent, TViewer> {
     abstract passId: TPassId
 
     @serialize()

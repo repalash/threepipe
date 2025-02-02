@@ -2,7 +2,7 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {getUrlQueryParam, JSUndoManager, onChange} from 'ts-browser-helpers'
 
 // @uiPanelContainer('Undo Manager')
-export class UndoManagerPlugin extends AViewerPluginSync<''> {
+export class UndoManagerPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'UndoManagerPlugin'
 
     // @uiToggle()

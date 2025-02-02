@@ -21,7 +21,7 @@ import {makeSamplerUi} from '../../ui/image-ui'
  * @category Plugins
  */
 @uiFolderContainer('Custom BumpMap (MatExt)')
-export class CustomBumpMapPlugin extends AViewerPluginSync<''> {
+export class CustomBumpMapPlugin extends AViewerPluginSync {
     static readonly PluginType = 'CustomBumpMapPlugin'
 
     @uiToggle('Enabled', (that: CustomBumpMapPlugin)=>({onChange: that.setDirty}))

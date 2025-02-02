@@ -28,7 +28,7 @@ export interface AnimationResult{
  *
  * @category Plugins
  */
-export class PopmotionPlugin extends AViewerPluginSync<''> {
+export class PopmotionPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'PopmotionPlugin'
     enabled = true
 

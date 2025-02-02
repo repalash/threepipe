@@ -1,5 +1,5 @@
 import {AmbientLight, Color, ColorRepresentation} from 'three'
-import {ILight, ILightEvent} from './ILight'
+import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
 import {uiColor, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
@@ -65,7 +65,7 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     copy: (source: AmbientLight|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
-    dispatchEvent: (event: ILightEvent) => void
+    // dispatchEvent: (event: ILightEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

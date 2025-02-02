@@ -1,12 +1,12 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {IGeometry, iGeometryCommons, IMaterial, ISceneEvent, Mesh2, PhysicalMaterial} from '../../core'
-import {BufferAttribute, BufferGeometry, Euler, InterleavedBufferAttribute, PlaneGeometry, Vector3} from 'three'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {IGeometry, iGeometryCommons, IMaterial, IScene, ISceneEventMap, Mesh2, PhysicalMaterial} from '../../core'
+import {BufferAttribute, BufferGeometry, Euler, InterleavedBufferAttribute, PlaneGeometry, Vector3, Event} from 'three'
 import {onChange, onChange2, serialize} from 'ts-browser-helpers'
 import {bindToValue, OrbitControls3} from '../../three'
 import {uiConfig, uiFolderContainer, uiNumber, uiToggle} from 'uiconfig.js'
 
 @uiFolderContainer('Ground')
-export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginSync<TEvent> {
+export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap> extends AViewerPluginSync<TE> {
     public static readonly PluginType: string = 'BaseGroundPlugin'
     public static readonly OldPluginType: string = 'Ground'
 
@@ -129,7 +129,7 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         this._material = undefined
     }
 
-    protected _onSceneUpdate(event?: ISceneEvent) {
+    protected _onSceneUpdate(event?: ISceneEventMap['addSceneObject' | 'sceneUpdate'] & Event<'addSceneObject' | 'sceneUpdate', IScene>) {
         if (event?.geometryChanged === false) return
         if (event?.updateGround !== false)
             this.refreshTransform()
@@ -321,4 +321,10 @@ export class BaseGroundPlugin<TEvent extends string = ''> extends AViewerPluginS
         return this
     }
 
+}
+
+declare module '../../core/IScene' {
+    interface ISceneSetDirtyOptions {
+        updateGround?: boolean
+    }
 }

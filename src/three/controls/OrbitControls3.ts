@@ -1,12 +1,11 @@
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
+import {OrbitControls, OrbitControlsEventMap} from 'three/examples/jsm/controls/OrbitControls.js'
 import {IUiConfigContainer, uiInput, UiObjectConfig, uiPanelContainer, uiToggle, uiVector} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {ICameraControls} from '../../core'
 import {Vector3} from 'three'
 
-export type TOrbitControlsEvents = 'change' | 'end' | 'start'
 @uiPanelContainer('Orbit Controls')
-export class OrbitControls3 extends OrbitControls implements IUiConfigContainer, ICameraControls<TOrbitControlsEvents> {
+export class OrbitControls3 extends OrbitControls implements IUiConfigContainer, ICameraControls<OrbitControlsEventMap> {
     uiConfig?: UiObjectConfig<void, 'panel'>
 
     @serialize() type = 'OrbitControls'
@@ -47,7 +46,7 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiVector() @serialize() clampMin = new Vector3(-10000, -10000, -10000) // should be -Infinity but this breaks the UI
     @uiVector() @serialize() clampMax = new Vector3(10000, 10000, 10000) // should be Infinity but this breaks the UI
 
-    @uiToggle() @serialize() zoomToCursor = true
+    @uiToggle() @serialize() zoomToCursor = false
 
     // @uiToggle()
     @serialize() screenSpacePanning = true

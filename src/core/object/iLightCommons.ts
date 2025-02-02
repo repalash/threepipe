@@ -7,7 +7,7 @@ export const iLightCommons = {
         if (typeof options === 'string') { // just incase called by decorators
             options = {change: options}
         }
-        this.dispatchEvent({bubbleToParent: true, ...options, type: 'lightUpdate', light: this, object: this, args}) // this sets sceneUpdate in root scene
+        // this.dispatchEvent({bubbleToParent: true, ...options, type: 'lightUpdate', light: this, object: this, args}) // this sets sceneUpdate in root scene
         iObjectCommons.setDirty.call(this, options, ...args)
     },
     upgradeLight: upgradeLight,

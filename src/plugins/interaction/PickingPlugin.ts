@@ -1,13 +1,20 @@
-import {Object3D} from 'three'
+import {EventListener, Object3D} from 'three'
 import {Class, onChange, serialize} from 'ts-browser-helpers'
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
-import {IObject3D, IObject3DEvent, ISceneEvent} from '../../core'
+import {IObject3D, IScene, ISceneEventMap} from '../../core'
 import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import {type UndoManagerPlugin} from './UndoManagerPlugin'
+import {ObjectPickerEventMap} from '../../three/utils/ObjectPicker'
 
-export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'hoverObjectChanged'|'hitObject'> {
+export interface PickingPluginEventMap extends AViewerPluginEventMap{
+    selectedObjectChanged: {object: IObject3D|null}
+    hoverObjectChanged: {object: IObject3D|null}
+    hitObject: {intersects: {selectedObject: IObject3D|null}}
+}
+
+export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     @serialize()
     @onChange(PickingPlugin.prototype.setDirty)
         enabled = true
@@ -179,7 +186,7 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         if (!this._picker || !this._viewer) return
         this._picker.camera = this._viewer.scene.mainCamera
     }
-    private _onSceneUpdate = (e: ISceneEvent)=>{
+    private _onSceneUpdate: EventListener<ISceneEventMap['sceneUpdate'], 'sceneUpdate', IScene> = (e)=>{
         if (!e.hierarchyChanged) return
         const s = this.getSelectedObject()
         let inScene = false
@@ -189,13 +196,13 @@ export class PickingPlugin extends AViewerPluginSync<'selectedObjectChanged'|'ho
         if (!inScene) this.setSelectedObject(undefined)
     }
 
-    private _onObjectSelectEvent = (e: IObject3DEvent)=>{
+    private _onObjectSelectEvent: EventListener<ISceneEventMap['select'], 'select', IScene> = (e)=>{
         if (e.source === PickingPlugin.PluginType) return
         if (e.object === undefined && e.value === undefined) console.error('e.object or e.value must be set for picking, can be null to unselect')
         else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera)
     }
 
-    private _selectedObjectChanged = (e: any) => {
+    private _selectedObjectChanged: EventListener<ObjectPickerEventMap['selectedObjectChanged'], 'selectedObjectChanged', ObjectPicker> = (e: any) => {
         if (!this._viewer) return
         this.dispatchEvent(e)
 
