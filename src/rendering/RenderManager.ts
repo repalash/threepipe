@@ -388,6 +388,9 @@ export class RenderManager<TEvent extends BaseEvent = IRenderManagerEvent, TEven
         return this._renderer
     }
 
+    /**
+     * @deprecated will be removed in the future
+     */
     @serialize()
     get useLegacyLights(): boolean {
         return this._renderer.useLegacyLights

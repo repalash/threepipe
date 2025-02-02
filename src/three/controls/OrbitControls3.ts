@@ -47,6 +47,8 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiVector() @serialize() clampMin = new Vector3(-10000, -10000, -10000) // should be -Infinity but this breaks the UI
     @uiVector() @serialize() clampMax = new Vector3(10000, 10000, 10000) // should be Infinity but this breaks the UI
 
+    @uiToggle() @serialize() zoomToCursor = true
+
     // @uiToggle()
     @serialize() screenSpacePanning = true
     // @uiInput()

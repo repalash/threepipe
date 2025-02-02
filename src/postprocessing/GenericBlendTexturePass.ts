@@ -18,7 +18,7 @@ export class GenericBlendTexturePass extends ExtendedShaderPass implements IPass
                     ${blendFunc}
                     c = clamp(c, vec4(0), vec4(MAX_INTENSITY));
                     gl_FragColor = c;
-                    #include <encodings_fragment>
+                    #include <colorspace_fragment>
                 }
             `,
             uniforms: {

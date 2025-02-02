@@ -15,7 +15,7 @@ export class AddBlendTexturePass extends ExtendedShaderPass implements IPass {
                 void main() {
                     vec4 texel = clamp(weight * tDiffuseTexelToLinear ( texture2D( tDiffuse, vUv ) ) + weight2 * tDiffuse2TexelToLinear ( texture2D( tDiffuse2, vUv ) ), vec4(0), vec4(MAX_INTENSITY));
                     gl_FragColor = texel;
-                    #include <encodings_fragment>
+                    #include <colorspace_fragment>
                 }
             `,
             uniforms: {

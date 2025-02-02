@@ -26,6 +26,7 @@ Key features include:
 - Extendable asset import, export and management pipeline with built-in support for gltf, glb, obj+mtl, fbx, materials(pmat/bmat), json, zip, png, jpeg, svg, webp, ktx2, ply, 3dm and many more.
 - Automatic serialization of all viewer and plugin settings in GLB(with custom extensions) and JSON formats.
 - Automatic disposal of all three.js resources with built-in reference management.
+- Realtime Realistic Rendering with screen-space post-processing effects from [webgi](https://webgi.dev/).
 
 ## Examples
 
@@ -251,7 +252,7 @@ Many features will be added but the core API will not change significantly in fu
   - [Other classes and interfaces](https://threepipe.org/guide/viewer-api.html#other-classes-and-interfaces)
 - [Plugins](https://threepipe.org/guide/core-plugins.html#threepipe-plugins)
   - [TonemapPlugin](https://threepipe.org/plugin/TonemapPlugin.html) - Add tonemap to the final screen pass
-  - [DropzonePlugin](https://threepipe.org/plugin/DropzonePlugin.html - Drag and drop local files to import and load
+  - [DropzonePlugin](https://threepipe.org/plugin/DropzonePlugin.html) - Drag and drop local files to import and load
   - [ProgressivePlugin](https://threepipe.org/plugin/ProgressivePlugin.html) - Post-render pass to blend the last frame with the current frame
   - [SSAAPlugin](https://threepipe.org/plugin/SSAAPlugin.html) - Add Super Sample Anti-Aliasing by applying jitter to the camera.
   - [DepthBufferPlugin](https://threepipe.org/plugin/DepthBufferPlugin.html) - Pre-rendering of depth buffer
@@ -311,6 +312,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-gaussian-splatting](https://threepipe.org/package/plugin-gaussian-splatting.html) - Gaussian Splatting plugin for loading and rendering splat files
   - [@threepipe/plugin-network](https://threepipe.org/package/plugin-network.html) - Network/Cloud related plugin implementations for Threepipe.
   - [@threepipe/plugin-svg-renderer](https://threepipe.org/package/plugin-svg-renderer.html) - Add support for exporting 3d scene as SVG.
+  - [@threepipe/webgi-plugins](https://webgi.dev) - Realistic rendering plugin pack for threepipe (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
 
 ## Documentation
 

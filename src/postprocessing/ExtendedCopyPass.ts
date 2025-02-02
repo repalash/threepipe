@@ -22,7 +22,7 @@ export class ExtendedCopyPass extends ExtendedShaderPass {
                     diffuseColor.a = 1.0;
                     #endif
                     gl_FragColor = diffuseColor;
-                    ${respectColorSpace ? '#include <encodings_fragment>' : ''}
+                    ${respectColorSpace ? '#include <colorspace_fragment>' : ''}
                 }
             `,
         }, 'tDiffuse')

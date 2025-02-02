@@ -46,7 +46,7 @@ export class GaussianSplatMaterialExtension implements MaterialExtension {
         // eslint-disable-next-line no-constant-condition
         if (0)
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-                '#include <output_fragment>',
+                '#include <opaque_fragment>',
                 '\ngl_FragColor=diffuseColor;',
                 // '\ngl_FragColor=vec4(reflectedLight.directDiffuse, 1.);',
                 // '\ngl_FragColor=vec4(geometryNormal, 1.);',

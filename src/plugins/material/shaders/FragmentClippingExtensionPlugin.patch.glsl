@@ -13,7 +13,7 @@ fragClippingDist = fragClippingSphere();
 #if FRAG_CLIPPING_DEBUG
 gl_FragColor = vec4(max(fragClippingDist, 0.0), 0.0, 0.0, 1.0);
 //    gl_FragColor = vec4(vViewPosition.xyz, 1.0);
-#include <encodings_fragment>
+#include <colorspace_fragment>
 return;
 #endif
 

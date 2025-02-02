@@ -39,5 +39,5 @@ void main() {
     gl_FragColor = diffuseColor;
     //gl_FragColor = isBackground ? vec4(0, 0, 0, 1) : gl_FragColor;
 //    gl_FragColor = vec4(depth, 0, 0, 1);
-    #include <encodings_fragment>
+    #include <colorspace_fragment>
 }
