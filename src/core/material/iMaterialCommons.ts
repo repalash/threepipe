@@ -70,6 +70,7 @@ export const threeMaterialPropList = {
     // wireframeLinecap: 'round',
     // wireframeLinejoin: 'round',
     alphaTest: 0,
+    alphaHash: false,
     // fog: true,
 }
 export const iMaterialCommons = {

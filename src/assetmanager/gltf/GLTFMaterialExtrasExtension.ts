@@ -45,6 +45,7 @@ export class GLTFMaterialExtrasExtension {
 
                     if (ext.vertexColors !== undefined) o.vertexColors = ext.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
                     if (ext.alphaTest !== undefined) o.alphaTest = ext.alphaTest
+                    if (ext.alphaHash !== undefined) o.alphaHash = ext.alphaHash
 
                     // if (ext.transparent !== undefined) o.transparent = ext.transparent // this is set by GLTFLoader based on alpha mode
 
@@ -158,6 +159,7 @@ export class GLTFMaterialExtrasExtension {
 
             if (material.vertexColors !== undefined) dat.vertexColors = material.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
             if (material.alphaTest !== undefined) dat.alphaTest = material.alphaTest
+            if (material.alphaHash !== undefined) dat.alphaHash = material.alphaHash
 
             if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
             // if (material.envMapSlotKey !== undefined) dat.envMapSlotKey = material.envMapSlotKey // in userData

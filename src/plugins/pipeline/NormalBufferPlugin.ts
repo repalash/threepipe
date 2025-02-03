@@ -124,7 +124,8 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
         if (material.bumpMap !== undefined) this.bumpMap = material.bumpMap
         if (material.bumpScale !== undefined) this.bumpScale = material.bumpScale
         // if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
-        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest
+        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 
         if (material.normalMap !== undefined) this.normalMap = material.normalMap
         if (material.normalMapType !== undefined) this.normalMapType = material.normalMapType

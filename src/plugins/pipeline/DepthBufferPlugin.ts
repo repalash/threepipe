@@ -196,6 +196,7 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
         if (material.side !== undefined) this.side = material.side ?? FrontSide
         if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 
         if (material.displacementMap !== undefined) this.displacementMap = material.displacementMap
         if (material.displacementScale !== undefined) this.displacementScale = material.displacementScale
@@ -219,6 +220,7 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
         this.side = DoubleSide
         this.alphaMap = null
         this.alphaTest = 0.001
+        this.alphaHash = false
 
         this.displacementMap = null
         this.displacementScale = 1

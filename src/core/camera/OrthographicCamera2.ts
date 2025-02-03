@@ -290,7 +290,6 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         controls.listenToKeyEvents(elem) // optional // todo: make option for this
         // controls.enableKeys = true
         controls.screenSpacePanning = true
-        controls.enableZoom = false
         return controls
     }]])
     setControlsCtor(key: string, ctor: TControlsCtor, replace = false): void {

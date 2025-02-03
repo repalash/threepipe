@@ -124,6 +124,10 @@ export const iMaterialUI = {
                 },
                 {
                     type: 'checkbox',
+                    property: [material, 'alphaHash'],
+                },
+                {
+                    type: 'checkbox',
                     property: [material, 'dithering'],
                 },
                 {

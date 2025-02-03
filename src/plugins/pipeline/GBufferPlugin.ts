@@ -383,6 +383,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         if (material.side !== undefined) this.side = material.side ?? DoubleSide
         setMap('alphaMap')
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 
         setMap('bumpMap')
         if (material.bumpScale !== undefined) this.uniforms.bumpScale.value = material.bumpScale
@@ -464,6 +465,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         this.side = DoubleSide
         this.uniforms.alphaMap.value = null
         this.alphaTest = 0.001
+        this.alphaHash = false
 
         this.uniforms.bumpMap.value = null
         this.uniforms.bumpScale.value = 1
