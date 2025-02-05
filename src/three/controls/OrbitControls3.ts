@@ -13,6 +13,8 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiToggle() enabled = true
 
     @uiToggle() @serialize() dollyZoom = false
+    @uiToggle() @serialize() zoomToCursor = false
+
     @uiToggle() @serialize() enableDamping = true
     @uiInput() @serialize() dampingFactor = 0.08
 
@@ -45,8 +47,6 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
 
     @uiVector() @serialize() clampMin = new Vector3(-10000, -10000, -10000) // should be -Infinity but this breaks the UI
     @uiVector() @serialize() clampMax = new Vector3(10000, 10000, 10000) // should be Infinity but this breaks the UI
-
-    @uiToggle() @serialize() zoomToCursor = false
 
     // @uiToggle()
     @serialize() screenSpacePanning = true

@@ -14,7 +14,7 @@ import {
 } from 'three'
 
 export class Rhino3dmLoader2 extends Rhino3dmLoader {
-    public static LIBRARY_PATH = 'https://cdn.jsdelivr.net/npm/rhino3dm@7.15.0/'
+    public static LIBRARY_PATH = 'https://cdn.jsdelivr.net/npm/rhino3dm@8.9.0/'
 
     constructor(manager?: LoadingManager) {
         super(manager)

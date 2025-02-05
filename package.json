@@ -108,7 +108,7 @@
     "rimraf": "^5.0.1",
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
-    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1003/package.tgz",
+    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1004/package.tgz",
     "tslib": "^2.5.0",
     "typedoc": "^0.27.5",
     "typescript": "5.7.2",
@@ -128,7 +128,7 @@
     "popmotion": "^11.0.5"
   },
   "peerDependencies": {
-    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1003/package.tgz"
+    "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1004/package.tgz"
   },
   "peerDependenciesMeta": {
     "three": {
@@ -139,7 +139,7 @@
     "dependencies": {
       "uiconfig.js": "^0.1.3",
       "ts-browser-helpers": "^0.16.2",
-      "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1003/package.tgz",
+      "three": "https://github.com/repalash/three.js-modded/releases/download/v0.157.1004/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.157.1003.tar.gz",
       "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.157.1003/package.tgz",
       "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.157.1003.tar.gz",

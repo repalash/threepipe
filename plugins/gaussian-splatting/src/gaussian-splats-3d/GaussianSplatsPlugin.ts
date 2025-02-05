@@ -4,7 +4,7 @@
 //
 // // import * as GaussianSplats3D from 'gle-gs3d'
 //
-// export class GaussianSplatsPlugin extends AViewerPluginSync<string> {
+// export class GaussianSplatsPlugin extends AViewerPluginSync {
 //     public static readonly PluginType: string = 'GaussianSplatsPlugin'
 //     enabled = true
 //     dependencies = []

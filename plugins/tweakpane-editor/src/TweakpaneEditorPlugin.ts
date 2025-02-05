@@ -15,7 +15,7 @@ import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
-export class TweakpaneEditorPlugin extends AViewerPluginSync<string> {
+export class TweakpaneEditorPlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'TweakpaneEditorPlugin'
     enabled = true
 
