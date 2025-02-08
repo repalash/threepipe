@@ -30,7 +30,7 @@ import {
     ParallaxMappingPlugin,
     PickingPlugin,
     PLYLoadPlugin,
-    PointerLockControlsPlugin,
+    PointerLockControlsPlugin, PopmotionPlugin,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
@@ -38,7 +38,7 @@ import {
     SSAOPlugin,
     STLLoadPlugin,
     ThreeFirstPersonControlsPlugin,
-    ThreeViewer,
+    ThreeViewer, TransformAnimationPlugin,
     TransformControlsPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
@@ -51,6 +51,8 @@ import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-co
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {AWSClientPlugin} from '@threepipe/plugin-network'
+// @ts-expect-error todo fix import
+import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {
 
@@ -78,11 +80,15 @@ async function init() {
 
     await viewer.addPlugins([
         LoadingScreenPlugin,
+        PopmotionPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
+        TransformAnimationPlugin,
+        new GBufferPlugin(HalfFloatType, true, true, true),
         PickingPlugin,
         new TransformControlsPlugin(false),
+        // OutlinePlugin,
         EditorViewWidgetPlugin,
         CameraViewPlugin,
         ViewerUiConfigPlugin,
@@ -90,13 +96,11 @@ async function init() {
         FragmentClippingExtensionPlugin,
         NoiseBumpMaterialPlugin,
         CustomBumpMapPlugin,
+        AnisotropyPlugin,
         new ParallaxMappingPlugin(false),
         GLTFKHRMaterialVariantsPlugin,
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
-        new GBufferPlugin(HalfFloatType, true, true, true),
-        // new DepthBufferPlugin(HalfFloatType, false, false),
-        // new NormalBufferPlugin(HalfFloatType, false),
         new RenderTargetPreviewPlugin(false),
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
@@ -104,6 +108,13 @@ async function init() {
         new ChromaticAberrationPlugin(false),
         new FilmicGrainPlugin(false),
         new SSAOPlugin(UnsignedByteType, 1),
+        SSReflectionPlugin,
+        new SSContactShadowsPlugin(false),
+        new DepthOfFieldPlugin(false),
+        BloomPlugin,
+        TemporalAAPlugin,
+        new VelocityBufferPlugin(UnsignedByteType, false),
+        new SSGIPlugin(UnsignedByteType, 1, false),
         KTX2LoadPlugin,
         KTXLoadPlugin,
         PLYLoadPlugin,
