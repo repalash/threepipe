@@ -156,6 +156,15 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
      * @param eventOptions
      */
     setViewToMain(eventOptions: Pick<ICameraEventMap['setView'], 'ui'>): void
+
+    /**
+     * Set the canvas which is used as dom element in controls, etc.
+     * This is done by the viewer/scene when main camera is changed
+     * @param canvas
+     * @param refresh
+     */
+    setCanvas(canvas: HTMLCanvasElement|undefined, refresh?: boolean): void; // todo make optional
+
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 

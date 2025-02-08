@@ -19,6 +19,7 @@ import {
     IMaterial,
     IObject3D,
     IObjectProcessor,
+    ISceneEventMap,
     ITexture,
     OrthographicCamera2,
     PerspectiveCamera2,
@@ -68,6 +69,7 @@ import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/Drop
 import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
 import {OrbitControls3} from '../three'
+import {EventListener2} from '../three/Threejs'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
@@ -1266,7 +1268,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         await tr.exportFile(blob, name)
     }
 
-    private _setActiveCameraView(event: any = {}): void {
+    private _setActiveCameraView: EventListener2<'setView'|'activateMain', ISceneEventMap, RootScene> = (event) => {
         if (event.type === 'setView') {
             if (!event.camera) {
                 this.console.warn('Cannot find camera', event)
@@ -1274,8 +1276,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
             const camera = this._scene.mainCamera
             camera.setViewFromCamera(event.camera) // default is worldSpace
-        } else if (event.type === 'activateMain')
+        } else if (event.type === 'activateMain') {
+            event.camera?.setCanvas(this._canvas, false)
+            // this._scene.mainCamera.setCanvas(undefined, false) // todo is this required?
             this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
+        }
+        this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
     }
 
     private _resolvePluginOrClass<T extends IViewerPlugin>(plugin: T | Class<T>, ...args: ConstructorParameters<Class<T>>): T|undefined {

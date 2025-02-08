@@ -312,7 +312,10 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     refreshCameraControls(setDirty = true): void {
         if (!this._controlsCtors) return // class not initialized
         if (this._controls) {
-            if (this._currentControlsMode !== this.controlsMode || this !== this._controls.object) { // in-case camera changed or mode changed
+            if (this._currentControlsMode !== this.controlsMode ||
+                this !== this._controls.object ||
+                this._controls.domElement && this._canvas !== this._controls.domElement
+            ) { // in-case camera changed or mode changed
                 this._disposeCameraControls()
                 this._initCameraControls()
             }
@@ -456,6 +459,13 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         this._disposeCameraControls()
         // todo: anything else?
         // iObjectCommons.dispose and dispatch event dispose is called automatically because of updateObject3d
+    }
+
+    setCanvas(canvas: HTMLCanvasElement|undefined, refresh = true) {
+        this._canvas = canvas
+        if (!refresh) return
+        this.refreshCameraControls()
+        this.refreshAspect(false)
     }
 
     // endregion

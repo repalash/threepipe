@@ -100,7 +100,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         camera?: ICamera | null
         bubbleToParent: boolean
         // object: IObject3D
-        // todo
+
     }
     cameraUpdate: {
         ui?: boolean

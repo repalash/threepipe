@@ -18,7 +18,7 @@ export const iCameraCommons = {
         this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true}) // this sets dirty in the viewer
         iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})
     },
-    activateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true): void {
+    activateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true, canvas?: HTMLCanvasElement): void {
         if (!_internal) {
             if (options.camera === null) return this.deactivateMain(options, _internal, _refresh)
             return this.dispatchEvent({
@@ -31,13 +31,15 @@ export const iCameraCommons = {
         this.userData.__isMainCamera = true
         this.userData.__lastScale = this.scale.clone()
         this.scale.divide(this.getWorldScale(new Vector3())) // make unit scale, for near far and all
-        if (_refresh) {
+        if (canvas) this.setCanvas(canvas, _refresh)
+        else if (_refresh) {
             this.refreshCameraControls(false)
+            this.refreshAspect(false)
         }
         this.setDirty({change: 'activateMain', ...options})
         // console.log({...this._camera.modelObject.position})
     },
-    deactivateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true): void {
+    deactivateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true, clearCanvas = false): void {
         if (!_internal) return this.dispatchEvent({
             type: 'activateMain', ...options,
             camera: null,
@@ -49,6 +51,8 @@ export const iCameraCommons = {
             this.scale.copy(this.userData.__lastScale)
             delete this.userData.__lastScale
         }
+        if (clearCanvas) this.setCanvas(undefined, _refresh)
+        else if (_refresh) this.refreshCameraControls(false)
         if (_refresh) {
             this.refreshCameraControls(false)
         }
