@@ -72,9 +72,11 @@ export interface MaterialExtension{
      * Function to check if this material extension is compatible with the given material.
      * If not compatible, the material extension will not be applied.
      * This is only checked when the extension is registered.
+     *
+     * The extension is assumed to be compatible if this function is not defined
      * @param material
      */
-    isCompatible: (material: IMaterial) => boolean
+    isCompatible?: (material: IMaterial) => boolean|undefined
 
     /**
      * List of shader properties updaters to run on the material.

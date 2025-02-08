@@ -54,9 +54,9 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<VirtualCamerasPlugin
         },
     }
 
-    addCamera(camera: ICamera) {
+    addCamera(camera: ICamera, target?: IRenderTarget): VirtualCamera {
         if (!this._viewer) throw 'Plugin not added to viewer'
-        const target = this._viewer.renderManager.composerTarget.clone(true)
+        target = target ?? this._viewer.renderManager.composerTarget.clone(true)
         target.name = camera.name + '_virtualCamTarget'
         const vCam: VirtualCamera = {camera, target, enabled: true}
         this.cameras.push(vCam)

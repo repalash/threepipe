@@ -142,6 +142,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this._renderer = this._initWebGLRenderer(canvas, alpha)
         this._context = this._renderer.getContext()
         this._isWebGL2 = this._renderer.capabilities.isWebGL2
+        if (!this._isWebGL2) console.error('RenderManager: WebGL 1 is not officially supported anymore. Some features may not work.')
         this.resetShadows()
 
         const composerTarget = this.createTarget<WebGLRenderTarget>(targetOptions, false)
@@ -162,7 +163,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         })
         // renderer.info.autoReset = false // Not supported by ExtendedRenderPass
 
-        renderer.useLegacyLights = false
+        // renderer.useLegacyLights = false
         renderer.setAnimationLoop(this._animationLoop)
         renderer.onContextLost = (event: WebGLContextEvent) => {
             this.dispatchEvent({type: 'contextLost', event})

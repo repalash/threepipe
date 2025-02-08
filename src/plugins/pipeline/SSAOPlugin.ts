@@ -303,9 +303,9 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 material.needsUpdate = true
             }
         },
-        parsFragmentSnippet: (renderer)=>glsl`
+        parsFragmentSnippet: ()=>glsl`
              uniform sampler2D tSSAOMap;
-             ${getTexelDecoding('tSSAOMap', getOrCall(this.target)?.texture, renderer!.capabilities.isWebGL2)}
+             ${getTexelDecoding('tSSAOMap', getOrCall(this.target)?.texture.colorSpace)}
              #include <simpleCameraHelpers>
         `,
         computeCacheKey: () => {

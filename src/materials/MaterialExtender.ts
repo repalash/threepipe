@@ -65,7 +65,8 @@ export class MaterialExtender {
         if (!Array.isArray(material.materialExtensions)) material.materialExtensions = []
         if (customMaterialExtensions)
             for (const ext of customMaterialExtensions) {
-                if (!ext.isCompatible || !ext.isCompatible(material) || material.materialExtensions.includes(ext)) continue
+                if (material.materialExtensions.includes(ext)) continue
+                if (ext.isCompatible !== undefined && (!ext.isCompatible || !ext.isCompatible(material))) continue
                 exts.push(ext)
                 if (!ext.uuid) ext.uuid = generateUUID()
                 if (!ext.__setDirty) ext.__setDirty = ()=>{

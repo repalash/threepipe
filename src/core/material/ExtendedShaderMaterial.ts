@@ -69,7 +69,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
     onBeforeCompile(s: Shader, renderer: WebGLRenderer) {
         const pars = '\n' + this.textures
             .map(t=>`uniform sampler2D ${t.id}; \n`
-                    + getTexelDecoding(t.id ?? 'input', t, renderer.capabilities.isWebGL2)).join('\n')
+                    + getTexelDecoding(t.id ?? 'input', t.colorSpace)).join('\n')
 
         if (s.fragmentShader.includes('#include <encodings_pars_fragment>')) {
             s.fragmentShader = shaderReplaceString(s.fragmentShader, '#include <encodings_pars_fragment>', pars, {append: true})
