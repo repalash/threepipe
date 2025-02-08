@@ -1,4 +1,4 @@
-import {ColorManagement, Event, EventDispatcher, EventListener, Material, Texture} from 'three'
+import {ColorManagement, Event, EventDispatcher, EventListener2, Material, Texture} from 'three'
 import {
     IMaterial,
     iMaterialCommons,
@@ -132,7 +132,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
 
     private _materialMaps = new Map<string, Set<ITexture>>()
 
-    protected _materialUpdate: EventListener<IMaterialEventMap['materialUpdate'], 'materialUpdate', IMaterial> = (e)=>{
+    protected _materialUpdate: EventListener2<'materialUpdate', IMaterialEventMap, IMaterial> = (e)=>{
         const mat = e.material || e.target
         if (!mat || mat.assetType !== 'material') return
         this._refreshTextureRefs(mat)

@@ -10,6 +10,7 @@ import {
     Scene,
     Vector2,
     Vector3,
+    EventListener2,
 } from 'three'
 import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
@@ -69,7 +70,6 @@ import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/Drop
 import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
 import {OrbitControls3} from '../three'
-import {EventListener2} from '../three/Threejs'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {

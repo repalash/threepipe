@@ -234,10 +234,4 @@ export {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter'
 
 export {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
 export * from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-export type {Event, EventListener} from 'three'
-import type {Event} from 'three'
-
-// todo export from three
-export type EventListener2<TEventType extends string, TEventMap extends Record<TEventType, any>, TTarget> = (
-    event: TEventMap[TEventType] & Event<TEventType, TTarget>,
-) => void
+export type {Event, EventListener, EventListener2} from 'three'

@@ -1,4 +1,4 @@
-import {EventListener, Object3D} from 'three'
+import {EventListener2, Object3D} from 'three'
 import {Class, onChange, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
@@ -186,7 +186,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (!this._picker || !this._viewer) return
         this._picker.camera = this._viewer.scene.mainCamera
     }
-    private _onSceneUpdate: EventListener<ISceneEventMap['sceneUpdate'], 'sceneUpdate', IScene> = (e)=>{
+    private _onSceneUpdate: EventListener2<'sceneUpdate', ISceneEventMap, IScene> = (e)=>{
         if (!e.hierarchyChanged) return
         const s = this.getSelectedObject()
         let inScene = false
@@ -196,13 +196,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (!inScene) this.setSelectedObject(undefined)
     }
 
-    private _onObjectSelectEvent: EventListener<ISceneEventMap['select'], 'select', IScene> = (e)=>{
+    private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{
         if (e.source === PickingPlugin.PluginType) return
         if (e.object === undefined && e.value === undefined) console.error('e.object or e.value must be set for picking, can be null to unselect')
         else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera)
     }
 
-    private _selectedObjectChanged: EventListener<ObjectPickerEventMap['selectedObjectChanged'], 'selectedObjectChanged', ObjectPicker> = (e: any) => {
+    private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {
         if (!this._viewer) return
         this.dispatchEvent(e)
 

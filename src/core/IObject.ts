@@ -1,5 +1,5 @@
 import {IMaterial, IMaterialEventMap} from './IMaterial'
-import {EventListener, Object3D, Object3DEventMap, Vector3} from 'three'
+import {EventListener2, Object3D, Object3DEventMap, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEventMap} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
@@ -357,7 +357,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
 
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    _onGeometryUpdate?: EventListener<IGeometryEventMap['geometryUpdate'], 'geometryUpdate', IGeometry>
+    _onGeometryUpdate?: EventListener2<'geometryUpdate', IGeometryEventMap, IGeometry>
 
 
     objectProcessor?: IObjectProcessor

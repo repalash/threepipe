@@ -2,7 +2,7 @@ import {
     BufferGeometry,
     Color,
     EquirectangularReflectionMapping,
-    EventListener,
+    EventListener, EventListener2,
     IUniform,
     Object3D,
     Scene,
@@ -363,7 +363,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     }
 
 
-    private _mainCameraUpdate: EventListener<IObject3DEventMap['cameraUpdate'], 'cameraUpdate', ICamera> = (e) => {
+    private _mainCameraUpdate: EventListener2<'cameraUpdate', IObject3DEventMap, ICamera> = (e) => {
         this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
         if (e.key === 'fov') this.dollyActiveCameraFov()

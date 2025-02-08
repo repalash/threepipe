@@ -1,7 +1,8 @@
 import {
+    AnyOptions,
     AViewerPluginSync,
     createStyles,
-    EventListener,
+    EventListener2,
     ILoader,
     Importer,
     ISceneEventMap,
@@ -10,7 +11,6 @@ import {
 } from 'threepipe'
 import styles from './ThreeGaussianSplatPlugin.css?inline'
 import {GaussianSplatMesh} from './index'
-import {AnyOptions} from 'ts-browser-helpers'
 import {SplatLoader} from './loaders/SplatLoader'
 import {SortWorkerManager} from './cpp-sorter/SortWorkerManager'
 import {GaussianSplatGeometry} from './geometry/GaussianSplatGeometry'
@@ -45,7 +45,7 @@ export class ThreeGaussianSplatPlugin extends AViewerPluginSync {
         this.splats.forEach(async splat=>splat.update(this._viewer!.scene.mainCamera, this._viewer!.renderManager.webglRenderer))
     }
 
-    private _geometryUpdate: EventListener<ISceneEventMap['geometryUpdate'], 'geometryUpdate', Scene> = (event) => {
+    private _geometryUpdate: EventListener2<'geometryUpdate', ISceneEventMap, Scene> = (event) => {
         if (!this._ready || this.isDisabled() || !(event.geometry as GaussianSplatGeometry)?.isGaussianSplatGeometry) return
         event.geometry!.appliedMeshes.forEach(async(splat: GaussianSplatMesh)=>splat.update ? splat.update(this._viewer!.scene.mainCamera, this._viewer!.renderManager.webglRenderer) : undefined)
     }

@@ -1,4 +1,4 @@
-import {Color, Material, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
+import {Color, Material, Texture, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
@@ -53,7 +53,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
      * @param deltaTime
      * @param maskActive
      */
-    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget|WebGLMultipleRenderTargets|null, _1?: WebGLRenderTarget|WebGLMultipleRenderTargets, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget<Texture|Texture[]>|null, _1?: WebGLRenderTarget<Texture|Texture[]>, deltaTime?: number, maskActive?: boolean) {
         if (!this.scene || !this.camera) return
 
         const t = renderer.getRenderTarget()
@@ -75,7 +75,6 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
             transparentRender: false,
             transmissionRender: false,
             mainRenderPass: false,
-            // @ts-expect-error todo fix render target ts?
         }, ()=> super.render(renderer, null, getOrCall(this.target), deltaTime as any, maskActive as any)) // here this.target is the write-buffer, variable writeBuffer is ignored
 
         this._transparentMats.forEach(m => m.transparent = !m.transparent)
