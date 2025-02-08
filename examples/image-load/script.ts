@@ -28,12 +28,12 @@ async function init() {
     viewer.scene.setBackgroundColor('#555555')
 
     const urls = [
-        'https://threejs.org/examples/textures/sprite0.png',
-        'https://threejs.org/examples/textures/uv_grid_opengl.jpg',
-        'https://threejs.org/examples/models/svg/style-css-inside-defs.svg',
-        'https://threejs.org/examples/textures/tiltbrush/Light.webp',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/sprite0.png',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/uv_grid_opengl.jpg',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/svg/style-css-inside-defs.svg',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/tiltbrush/Light.webp',
         // todo: avif
-        'https://threejs.org/favicon.ico',
+        'https://threepipe.org/favicon.ico',
     ]
 
     const geometry = new PlaneGeometry(1, 1)

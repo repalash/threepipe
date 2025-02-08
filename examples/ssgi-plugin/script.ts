@@ -39,7 +39,7 @@ async function init() {
     await viewer.setEnvironmentMap('https://hdrihaven.r2cache.com/hdr/1k/empty_warehouse_01_1k.hdr', {
         setBackground: true,
     })
-    await viewer.load<IObject3D>('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Sponza/glTF/Sponza.gltf', {
+    await viewer.load<IObject3D>('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/d7a3cc8e51d7c573771ae77a57f16b0662a905c6/2.0/Sponza/glTF/Sponza.gltf', {
         autoCenter: false,
         autoScale: true,
         autoScaleRadius: 30,

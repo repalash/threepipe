@@ -7,13 +7,14 @@ import {
     PerspectiveCamera2,
     PlaneGeometry,
     PopmotionPlugin,
-    ProgressivePlugin,
+    ProgressivePlugin, shaderReplaceString,
     Texture,
     ThreeViewer,
     ToneMapping,
     TonemapPlugin,
     UnlitMaterial,
     VirtualCamerasPlugin,
+    ShaderChunk,
 } from 'threepipe'
 
 async function init() {
@@ -21,6 +22,8 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         debug: true,
+        rgbm: true,
+        msaa: true,
         plugins: [new ProgressivePlugin(16), LoadingScreenPlugin],
     })
     const virtualCameras = viewer.addPluginSync(VirtualCamerasPlugin)
@@ -80,6 +83,19 @@ async function init() {
     virtualCameras.addEventListener('postRenderCamera', ()=>{
         tonemap.toneMapping = lastTonemapping
     })
+
+
+    // (Extra optional) extension decoding rgbm render target when using rgbm
+    if (viewer.renderManager.rgbm) {
+        plane.material.registerMaterialExtensions([{
+            shaderExtender: (shader, material) => {
+                if (material.map?.colorSpace !== 'rgbm-16') return
+                shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <map_fragment>', ShaderChunk.map_fragment)
+                shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'texture2D( map, vMapUv )', 'RGBM16ToLinear(texture2D( map, vMapUv ))', {replaceAll: true})
+            },
+            computeCacheKey: (material) => material.map?.colorSpace === 'rgbm-16' ? 'rgbm' : '',
+        }])
+    }
 
 }
 

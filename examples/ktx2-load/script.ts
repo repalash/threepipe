@@ -25,9 +25,9 @@ async function init() {
     viewer.scene.setBackgroundColor('#555555')
 
     const urls = [
-        'https://threejs.org/examples/textures/compressed/sample_etc1s.ktx2',
-        'https://threejs.org/examples/textures/compressed/sample_uastc.ktx2',
-        'https://threejs.org/examples/textures/compressed/sample_uastc_zstd.ktx2',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.153.1001/examples/textures/compressed/sample_etc1s.ktx2',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.153.1001/examples/textures/compressed/sample_uastc.ktx2',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.153.1001/examples/textures/compressed/sample_uastc_zstd.ktx2',
     ]
 
     // PlaneGeometry UVs assume flipY=true, which compressed textures don't support.

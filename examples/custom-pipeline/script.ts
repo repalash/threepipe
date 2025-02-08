@@ -29,7 +29,7 @@ async function init() {
     })
 
     viewer.renderManager.autoBuildPipeline = false
-    viewer.renderManager.pipeline = ['render', 'screen']
+    viewer.renderManager.pipeline = ['depth', 'render', 'screen']
 
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>depth.target, 'depth', false, true)
