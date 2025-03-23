@@ -72,15 +72,15 @@ export abstract class AViewerPlugin<TE extends AViewerPluginEventMap = AViewerPl
     }
 
     private _disabledBy = new Set<any>()
-    disable = (key: any) => {
+    disable = (key: any, setDirty = true) => {
         const size = this._disabledBy.size
         this._disabledBy.add(key)
-        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+        if (setDirty && this.setDirty && size !== this._disabledBy.size) this.setDirty()
     }
-    enable = (key: any) => {
+    enable = (key: any, setDirty = true) => {
         const size = this._disabledBy.size
         this._disabledBy.delete(key)
-        if (this.setDirty && size !== this._disabledBy.size) this.setDirty()
+        if (setDirty && this.setDirty && size !== this._disabledBy.size) this.setDirty()
     }
     isDisabled = () => {
         return this._disabledBy.size > 0 || !this.enabled

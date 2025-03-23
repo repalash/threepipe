@@ -28,10 +28,11 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync {
     protected _selectedType = ''
 
     @uiButton('Generate', {sendArgs: false})
-    generate(type?: string, params?: any, addToScene = true) {
+    generate(type?: string, params?: any, addToScene = true, select = true) {
         if (!this._viewer) throw new Error('No viewer')
         const obj = this.generators[type ?? this._selectedType]?.(params)
         addToScene && obj && this._viewer.scene.addObject(obj)
+        select && obj.dispatchEvent({type: 'select', value: obj, object: obj, ui: true})
         return obj
     }
 

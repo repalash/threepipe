@@ -250,7 +250,7 @@ export const iObjectCommons = {
                 iMaterialCommons.upgradeMaterial.call(mat)
             }
             materials.push(mat)
-            if (mat) {
+            if (mat && mat.appliedMeshes) {
                 mat.appliedMeshes.add(this)
             }
         }
@@ -314,7 +314,7 @@ export const iObjectCommons = {
         if (geometry) {
             this.updateMorphTargets()
             this._onGeometryUpdate && geometry.addEventListener('geometryUpdate', this._onGeometryUpdate)
-            geometry.appliedMeshes.add(this)
+            if (geometry.appliedMeshes) geometry.appliedMeshes.add(this)
         }
         this.dispatchEvent({type: 'geometryChanged', geometry: geometry ?? null, oldGeometry: geom, bubbleToParent: true, object: this})
         this.refreshUi()

@@ -367,7 +367,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._container = container
         this.setDirty = this.setDirty.bind(this)
         this._animationLoop = this._animationLoop.bind(this)
-        this._setActiveCameraView = this._setActiveCameraView.bind(this)
 
         this.renderStats = new GLStatsJS(this._container)
         if (debug) this.renderStats.show()
@@ -785,7 +784,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
         this.plugins[type] = p
         const oldType = p.constructor.OldPluginType
-        if (oldType && this.plugins[oldType]) this.console.error('ThreeViewer: Plugin type mismatch')
+        if (oldType && this.plugins[oldType]) this.console.error(`ThreeViewer: Plugin type mismatch ${oldType}`)
         if (oldType) this.plugins[oldType] = p
 
         await p.onAdded(this)
@@ -819,7 +818,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         try {
             this.plugins[type] = p
             const oldType = p.constructor.OldPluginType
-            if (oldType && this.plugins[oldType]) this.console.error('ThreeViewer: Plugin type mismatch')
+            if (oldType && this.plugins[oldType]) this.console.error(`ThreeViewer: Plugin type mismatch ${oldType}`)
             if (oldType) this.plugins[oldType] = p
             p.onAdded(this)
         } catch (e) {
