@@ -39,7 +39,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
     }
 
     reset(e?: any) {
-        if (e?.source !== HierarchyUiPlugin.PluginType) return // for infinite loop
+        if (e?.source === HierarchyUiPlugin.PluginType) return // for infinite loop
         if (!e?.hierarchyChanged) return
         this._needsReset = true
     }
