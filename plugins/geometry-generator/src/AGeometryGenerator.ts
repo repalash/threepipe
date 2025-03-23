@@ -62,7 +62,7 @@ export function updateUi(geometry: BufferGeometry, childrenUi: () => UiObjectCon
     }
 }
 
-export abstract class AGeometryGenerator<Tp=any> implements GeometryGenerator<Tp> {
+export abstract class AGeometryGenerator<Tp extends object=any> implements GeometryGenerator<Tp> {
     constructor(public type: string) {
     }
 
@@ -122,4 +122,8 @@ export abstract class AGeometryGenerator<Tp=any> implements GeometryGenerator<Tp
         return geometry
     }
 
+    setDefaultParams(params: Partial<Tp>) {
+        Object.assign(this.defaultParams, params)
+        return this
+    }
 }
