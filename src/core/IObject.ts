@@ -208,6 +208,11 @@ export interface IObject3DUserData extends IImportResultUserData {
     userSelectable?: boolean
 
     /**
+     * Disables `bubbleToParent` in setDirty calls on the object. As an effect scene, viewer are not updated on property change. See progressive-hdr-shadows-exp or any baker.
+     */
+    autoUpdateParent?: boolean
+
+    /**
      * For Physics plugins
      */
     physicsMass?: number

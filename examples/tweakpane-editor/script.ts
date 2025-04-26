@@ -54,6 +54,7 @@ import {
     ViewerUiConfigPlugin,
     VignettePlugin,
     VirtualCamerasPlugin,
+    HemisphereLight,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'

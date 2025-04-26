@@ -149,7 +149,6 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     /**
      * Deserializes the material from JSON.
      * Textures should be loaded and in meta.textures before calling this method.
-     * todo - needs to be tested
      * @param data
      * @param meta
      * @param _internal
@@ -159,6 +158,8 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
             ThreeSerialization.Deserialize(data, this, meta, true)
             return this.setValues(data)
         }
+        // this will deserialize the material from the outside because we need access to the viewer to load textures
+        // todo check if the material is in scene? if not, show an error/warning?
         this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true})
         return this
     }

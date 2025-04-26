@@ -151,6 +151,7 @@ function createDirLight(viewer: ThreeViewer) {
     directionalLight.shadowNear = 0.1
     directionalLight.shadowFar = 10
     directionalLight.shadowFrustum = 4
+    directionalLight.userData.autoUpdateParent = false // so that viewer.setDirty is not called when we change any property.
     viewer.scene.addObject(directionalLight, {addToRoot: true})
     // move to index 0 in parent.children, so that directionalLight always has index 0 in shader. required for material extension
     const parent = directionalLight.parent!
@@ -162,6 +163,7 @@ function createDirLight(viewer: ThreeViewer) {
 
     return directionalLight
 }
+
 function updateLight(viewer: ThreeViewer, directionalLight: DirectionalLight, histogram: ReturnType<typeof createHistogramFromImage>) {
     if (viewer.renderManager.frameCount < 1) return
     // if (viewer.renderManager.frameCount > 2) return
@@ -171,7 +173,7 @@ function updateLight(viewer: ThreeViewer, directionalLight: DirectionalLight, hi
 
     const i = viewer.renderManager.frameCount <= 1 ? histogram.brightestI : histogram.sampleIndex()
     histogram.indexToColor(i, directionalLight)
-    directionalLight.intensity = 0 // so it doesnt show in the scene
+    directionalLight.intensity = 0 // so it doesnt show in the scene. Note that setDirty is disabled for this light (autoUpdateParent)
     histogram.indexToPosition(i, directionalLight.position).multiplyScalar(0.5 + size).add(center)
     directionalLight.lookAt(center)
     directionalLight.shadow.camera.near = Math.max(size / 100, 0.1)

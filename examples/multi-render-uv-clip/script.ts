@@ -8,6 +8,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
+// todo make tutorial for this in docs?
 async function init() {
 
     const viewer = new ThreeViewer({
