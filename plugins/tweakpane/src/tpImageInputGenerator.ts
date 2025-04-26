@@ -18,10 +18,10 @@ import {
     ThreeViewer,
     upgradeTexture,
     WebGLRenderTarget,
+    SVGTextureLoader,
 } from 'threepipe'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
-
 
 export const makeTextSvg2 = (text: string): string => {
     return `data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext style='font: 8px "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace; fill: white;' x='9' y='18'%3E${text}%3C/text%3E%3C/svg%3E%0A`
@@ -189,6 +189,15 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
             setterTex(tex, config, renderer)
             return
         }
+
+        // todo do same in blueprint editor
+        if (SVGTextureLoader.USE_CANVAS_TEXTURE && (v.src?.endsWith('.svg') || v.src?.startsWith('data:image/svg'))) {
+            // due to windows bug which cannot load svg files in webgl without a width and height
+            const canvas = document.createElement('canvas')
+            SVGTextureLoader.CopyImageToCanvas(canvas, v)
+            v = canvas
+        }
+
         tex = new Texture(v)
         upgradeTexture.call(tex)
         tex.assetType = 'texture'
@@ -340,7 +349,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
     config.__proxy.value_ = renderer.methods.getRawValue(config)
 
     params = params ?? {}
-    params.extensions = ['.jpg', '.png', '.svg', '.hdr',
+    params.extensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
         '.exr', /* '.mp4', '.ogg', '.mov',*/ '.jpeg',
         '.bmp', '.gif', '.webp', '.cube']
     if (typeof params.imageFit === 'undefined') params.imageFit = 'contain'
