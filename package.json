@@ -9,17 +9,17 @@
   "browser": "dist/index.js",
   "exports": {
     ".": {
-        "import": "./dist/index.mjs",
-        "types": "./dist/index.d.ts",
-        "require": "./dist/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     },
     "./dist/": {
       "import": "./dist/",
       "require": "./dist/"
     },
     "./lib": {
-      "import": "./lib/index.js",
-      "types": "./lib/index.d.ts"
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
     },
     "./lib/": {
       "import": "./lib/",

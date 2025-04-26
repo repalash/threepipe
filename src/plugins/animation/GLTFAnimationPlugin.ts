@@ -1,9 +1,9 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {absMax, now, onChange, onChange2, PointerDragHelper, serialize} from 'ts-browser-helpers'
 import {uiButton, uiDropdown, uiFolderContainer, uiMonitor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
-import {AnimationAction, AnimationClip, AnimationMixer, LoopOnce, LoopRepeat} from 'three'
+import {AnimationAction, AnimationClip, AnimationMixer, EventListener2, LoopOnce, LoopRepeat, Scene} from 'three'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
-import {IObject3D} from '../../core'
+import {IObject3D, ISceneEventMap} from '../../core'
 import {generateUUID} from '../../three'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 
@@ -474,10 +474,11 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         }
     }
 
-    protected _objectAdded = (ev: any)=>{
+    protected _objectAdded: EventListener2<'addSceneObject', ISceneEventMap, Scene> = (ev)=>{
         const object = ev.object as IObject3D
         if (!this._viewer) return
         let changed = false
+        const isInRoot = ev.options?.addToRoot // for model stage etc
 
         object.traverse((obj)=>{
             if (!this._viewer) return
@@ -491,7 +492,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
                 object.userData.gltfAnim_SyncMaxDuration = true
             } // todo: check why do we need to do this? wont this create problems with looping or is it for that so that looping works in sync.
 
-            const mixer = new AnimationMixer(this._viewer.scene.modelRoot) // add to modelRoot so it works with GLTF export...
+            const mixer = new AnimationMixer(isInRoot ? this._viewer.scene : this._viewer.scene.modelRoot) // add to modelRoot so it works with GLTF export...
             const actions = clips.map(an=>mixer.clipAction(an).setLoop(this.loopAnimations ? LoopRepeat : LoopOnce, this.loopRepetitions))
 
             actions.forEach(ac=>ac.clampWhenFinished = true)
@@ -499,7 +500,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             this.animations.push({
                 mixer, clips, actions, duration,
             })
-            // todo remove on object dispose
+            // todo remove on object dispose/remove
 
             changed = true
 

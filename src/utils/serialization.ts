@@ -134,7 +134,7 @@ export class ThreeSerialization {
             isType: (obj: any) => obj.isMaterial || obj.metadata?.type === 'Material',
             serialize: (obj: any, meta?: SerializationMetaType) => {
                 if (!obj?.isMaterial) throw new Error('Expected a material')
-                if (meta?.materials[obj.uuid]) return {uuid: obj.uuid, resource: 'materials'}
+                if (meta?.materials?.[obj.uuid]) return {uuid: obj.uuid, resource: 'materials'}
                 if (obj.userData.rootPath) {
                     // todo
                     // it works for textures because image(Source) are immutable
@@ -163,7 +163,7 @@ export class ThreeSerialization {
                 obj.userData = {}
                 let res = {} as any
                 try {
-                    res = obj.toJSON(meta, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
+                    res = obj.toJSON(meta || meta2, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
                     serializeMaterialUserData(res, userData, meta)
                     res.userData.uuid = userData.uuid
                     // todo: override generator to mention that this is a custom serializer?

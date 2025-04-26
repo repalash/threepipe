@@ -20,8 +20,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
      * @param options waitForProgressive: wait for progressive rendering to finish, default: true
      */
     async getFile(filename?: string, options: CanvasSnapshotOptions&{waitForProgressive?: boolean} = {waitForProgressive: true}): Promise<File|undefined> {
-        options.getDataUrl = false
-        return await this._getFile(filename || this.filename, options) as File
+        return await this._getFile(filename || this.filename, {...options, getDataUrl: false}) as File
     }
 
     /**
@@ -29,11 +28,11 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
      * @param options waitForProgressive: wait for progressive rendering to finish, default: true
      */
     async getDataUrl(options: CanvasSnapshotOptions&{waitForProgressive?: boolean} = {}): Promise<string> {
-        options.getDataUrl = true
-        return await this._getFile('', options) as string ?? ''
+        return await this._getFile('', {...options, getDataUrl: true}) as string ?? ''
     }
 
     private async _getFile(filename: string, options: CanvasSnapshotOptions&{waitForProgressive?: boolean} = {}): Promise<File|string|undefined> {
+        await this._viewer?.doOnce('postFrame')
         const viewer = this._viewer
         const canvas = this._viewer?.canvas
         if (!viewer || !canvas) return undefined
