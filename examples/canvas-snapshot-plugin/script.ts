@@ -18,7 +18,32 @@ async function init() {
     })
 
     createSimpleButtons({
-        ['Download snapshot (rect png)']: async(btn: HTMLButtonElement) => {
+        ['Download snapshot (jpeg)']: async(btn: HTMLButtonElement) => {
+            btn.disabled = true
+            await snapshotPlugin.downloadSnapshot('snapshot.jpeg', {
+                mimeType: 'image/jpeg', // mime type of the image
+                quality: 0.9, // quality of the image (0-1) only for jpeg and webp
+                displayPixelRatio: 2, // render scale
+            })
+            btn.disabled = false
+        },
+        ['Download snapshot (1024x1024 size, png)']: async(btn: HTMLButtonElement) => {
+            btn.disabled = true
+            // save scale
+            const scale = viewer.renderManager.renderScale
+            // set fixed render size
+            viewer.setRenderSize({width: 1024, height: 1024})
+            // (optional) hide the canvas. (not needed if you have an overlay)
+            await snapshotPlugin.downloadSnapshot('snapshot.png', {
+                mimeType: 'image/png', // mime type of the image
+            })
+            // revert scale
+            viewer.renderManager.renderScale = scale
+            // revert render size to fill container
+            viewer.setSize()
+            btn.disabled = false
+        },
+        ['Download snapshot (crop rect, png)']: async(btn: HTMLButtonElement) => {
             btn.disabled = true
             await snapshotPlugin.downloadSnapshot('snapshot.png', {
                 scale: 1, // scale the final image
@@ -30,15 +55,6 @@ async function init() {
                     x: viewer.canvas.clientWidth / 4,
                     y: viewer.canvas.clientHeight / 4,
                 },
-            })
-            btn.disabled = false
-        },
-        ['Download snapshot (jpeg)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await snapshotPlugin.downloadSnapshot('snapshot.jpeg', {
-                mimeType: 'image/jpeg', // mime type of the image
-                quality: 0.9, // quality of the image (0-1) only for jpeg and webp
-                displayPixelRatio: 2, // render scale
             })
             btn.disabled = false
         },
