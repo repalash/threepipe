@@ -10,6 +10,10 @@ export interface ICameraView extends IUiConfigContainer{
     target: Vector3
     quaternion: Quaternion
     zoom: number
+    /*
+     * Duration multiplier when the camera is animating to the view.
+     */
+    duration?: number
     isWorldSpace?: boolean
     animate(camera?: ICamera, duration?: number): void
     set(camera?: ICamera): void
@@ -35,6 +39,10 @@ export class CameraView extends EventDispatcher<CameraViewEventMap> implements I
     @serialize() @uiVector() target = new Vector3()
     @serialize() @uiVector() quaternion = new Quaternion()
     @serialize() @uiNumber() zoom = 1
+    /**
+     * Duration multiplier. Set to 0 for instant camera jump.
+     */
+    @serialize() @uiNumber() duration = 1
     @serialize() isWorldSpace = true
 
     @uiButton() set = (camera?: ICamera) => this.dispatchEvent({type: 'setView', camera, view: this})
@@ -42,13 +50,14 @@ export class CameraView extends EventDispatcher<CameraViewEventMap> implements I
     @uiButton() delete = (camera?: ICamera) => this.dispatchEvent({type: 'deleteView', camera, view: this})
     @uiButton() animate = (camera?: ICamera, duration?: number) => this.dispatchEvent({type: 'animateView', camera, duration, view: this})
 
-    constructor(name?: string, position?: Vector3, target?: Vector3, quaternion?: Quaternion, zoom?: number) {
+    constructor(name?: string, position?: Vector3, target?: Vector3, quaternion?: Quaternion, zoom?: number, duration = 1) {
         super()
         if (name !== undefined) this.name = name
         if (position) this.position.copy(position)
         if (target) this.target.copy(target)
         if (quaternion) this.quaternion.copy(quaternion)
         if (zoom !== undefined) this.zoom = zoom
+        if (duration !== undefined && duration !== 0) this.duration = duration
     }
 
     private _nameChanged() {

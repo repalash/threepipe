@@ -1,6 +1,6 @@
 import type {Driver} from 'popmotion/lib/animations/types'
 import {now} from 'ts-browser-helpers'
-import {animate, type AnimationOptions} from 'popmotion'
+import {animate, type AnimationOptions, KeyframeOptions} from 'popmotion'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
@@ -240,8 +240,8 @@ export class PopmotionPlugin extends AViewerPluginSync {
             animateCameraToViewLinear(camera, view)
         return this.animate({
             ease: EasingFunctions.linear,
-            duration: 1000,
             ...anim, ...options,
+            duration: ((options as KeyframeOptions).duration ?? 1000) * (view.duration ?? 1),
         })
     }
     async animateCameraAsync(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>, animations?: AnimationResult[]) {

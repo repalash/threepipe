@@ -75,8 +75,11 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
      */
     @serialize() @uiDropdown('Ease', Object.keys(EasingFunctions).map((label:string)=>({label}))) animEase: EasingFunctionType = 'easeInOutSine' // ms
     @serialize() @uiSlider('Duration', [10, 10000], 10) animDuration = 1000 // ms
-    @serialize() @uiDropdown('Interpolation', ['spherical', 'linear'].map((label:string)=>({label})))
-        interpolateMode: 'spherical'|'linear' = 'spherical'
+    @serialize() @uiDropdown('Interpolation', ['spherical', 'linear'/* , 'spline (dev)'*/].map((label:string)=>({label, value: label.split(' ')[0]})))
+        interpolateMode: 'spherical'|'linear'|'spline' = 'spherical'
+    // todo spline
+    // @serialize() @uiDropdown('Spline Curve', ['centripetal', 'chordal', 'catmullrom'].map((label:string)=>({label})), (t: CameraViewPlugin)=>({hidden: ()=>t.interpolateMode !== 'spline', onChange: ()=>t.uiConfig?.uiRefresh?.()}))
+    //     splineCurve: 'centripetal'|'chordal'|'catmullrom' = 'chordal'
 
 
     // not used
@@ -286,6 +289,65 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         // const ease = (x:number)=>x
         // const driver = this._driver
         this._popAnimations = []
+
+        // const viewIndex = this.camViews.indexOf(view)
+        // let interpolateMode = this.interpolateMode
+        // if (viewIndex < 0) {
+        //     if (interpolateMode === 'spline') {
+        //         console.warn('CameraViewPlugin - Cannot animate along a spline with external camera view, fallback to spherical')
+        //         interpolateMode = 'spherical'
+        //     }
+        // }
+        //
+        // if (interpolateMode === 'spline') {
+        //     const points = this.camViews.map(c=>c.position.clone())
+        //     const spline = new CatmullRomCurve3(points, true, this.splineCurve)
+        //
+        //     const getPosition = (t: number)=>{
+        //         const v = new Vector3()
+        //         const ip = 1. / points.length
+        //         const i = viewIndex === 0 ? points.length : viewIndex
+        //         const d = (i - 1) * ip
+        //         spline.getPointAt(d + t * ip, v)
+        //         return v
+        //     }
+        //
+        //     pms.push(animateAsync({
+        //         // from: camera.position.clone(),
+        //         // to: view.position.clone(),
+        //         from: 0,
+        //         to: 1,
+        //         duration, ease, driver,
+        //         onUpdate: (v) => camera.position = getPosition(v),
+        //         onComplete: () => camera.position = getPosition(1), // camera.position = view.position,
+        //         onStop: ()=> {
+        //             throw new Error('Animation stopped')
+        //         },
+        //     }, popAnimations))
+        //     // if (new Vector3().subVectors(camera.cameraObject.up, view.up).length() > 0.1)
+        //     // pms.push(animateAsync({
+        //     //     from: camera.cameraObject.up.clone(),
+        //     //     to: view.up.clone(),
+        //     //     duration, ease, driver,
+        //     //     onUpdate: (v) => camera.cameraObject.up.copy(v),
+        //     //     onComplete: () => camera.cameraObject.up.copy(view.up),
+        //     // }))
+        //     // if (new Vector3().subVectors(camera.target, view.target).length() > 0.1)
+        //     pms.push(animateAsync({
+        //         from: camera.target.clone(),
+        //         to: view.target.clone(),
+        //         duration, ease, driver,
+        //         onUpdate: (v) => {
+        //             camera.target = v
+        //             camera.targetUpdated()
+        //         },
+        //         onComplete: () => {
+        //             camera.target = view.target
+        //             camera.targetUpdated()
+        //         },
+        //     }, popAnimations))
+        // }
+
         await popmotion.animateCameraAsync(camera, view, this.interpolateMode === 'spherical', {ease, duration}, this._popAnimations)
             .catch((e)=>{
                 // console.error(e)
@@ -542,11 +604,16 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     //     const recorder = this._viewer?.getPluginByType<CanvasRecorderPlugin>('CanvasRecorder')
     //     if (!recorder || !recorder.enabled) return
     //     if (this._cameraViews.length < 1) return
-    //     await this.resetToFirstView()
     //     if (recorder.isRecording()) {
     //         console.error('CanvasRecorderPlugin is already recording')
     //         return
     //     }
+    //     let looping = false
+    //     if (this.viewLooping) {
+    //         looping = true
+    //         this.viewLooping = false
+    //     }
+    // await this.resetToFirstView()
     //     return new Promise<Blob|undefined>((resolve, reject) => {
     //         const listener2 = ()=>{
     //             recorder.removeEventListener('start', listenerStart)
@@ -558,6 +625,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     //             onStart?.()
     //             await this.animateAllViews()
     //             const blob = await recorder.stopRecording()
+    //             if (looping) this.viewLooping = true
     //             if (downloadOnEnd) {
     //                 const name = await this._viewer?.prompt('Canvas Recorder: Save file as', 'recording.mp4')
     //                 if (name !== null && blob) await this._downloadBlob(blob, name || 'recording.mp4')
