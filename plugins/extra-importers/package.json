@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugins-extra-importers",
     "description": "Extra Threepipe plugins for importing several file types.",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "devDependencies": {
     },
     "dependencies": {
@@ -24,6 +24,7 @@
     },
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
         "./dist/": {

@@ -67,7 +67,7 @@ export class GLTFDracoExporter extends GLTFExporter2 implements IExportParser {
 
     }
 
-    async parseAsync(obj: any, {compress = false, dracoOptions, ...options}: {compress: boolean, dracoOptions?: EncoderOptions} & GLTFExporter2Options): Promise<Blob> {
+    async parseAsync(obj: any, {compress = false, dracoOptions, ...options}: {compress: boolean, dracoOptions?: EncoderOptions} & GLTFExporter2Options, throwOnError = false): Promise<Blob> {
         if (!this.loader) {
             console.error('GLTFDracoExporter: No DRACOLoader2 instance provided')
             return super.parseAsync(obj, options)
@@ -86,42 +86,49 @@ export class GLTFDracoExporter extends GLTFExporter2 implements IExportParser {
         const uncompressedBlob = await super.parseAsync(uncompressed, ops)
         if (!compress) return uncompressedBlob
 
-        if (!uncompressed) throw new Error('GLTFDracoExporter: gltf is null')
+        try {
+            if (!uncompressed) throw new Error('GLTFDracoExporter: gltf is null')
 
-        let gltf = uncompressed
+            let gltf = uncompressed
 
-        const bytes = (gltf as ArrayBuffer).byteLength || Infinity
+            const bytes = (gltf as ArrayBuffer).byteLength || Infinity
 
-        const iDocument = await (typeof gltf === 'object' && !(gltf as any).byteLength ? this._io.readJSON({
-            json: gltf as GLTF.IGLTF,
-            resources: {},
-        }) : this._io.readBinary(new Uint8Array(gltf as ArrayBuffer)))
+            const iDocument = await (typeof gltf === 'object' && !(gltf as any).byteLength ? this._io.readJSON({
+                json: gltf as GLTF.IGLTF,
+                resources: {},
+            }) : this._io.readBinary(new Uint8Array(gltf as ArrayBuffer)))
 
-        // iDocument.createExtension(GLTFViewerConfigExtensionGP)
-        iDocument.createExtension(KHRDracoMeshCompression)
-            .setRequired(true)
-            .setEncoderOptions({...this._encoderOptions, ...dracoOptions ?? {}})
+            // iDocument.createExtension(GLTFViewerConfigExtensionGP)
+            iDocument.createExtension(KHRDracoMeshCompression)
+                .setRequired(true)
+                .setEncoderOptions({...this._encoderOptions, ...dracoOptions ?? {}})
 
-        if (ops.exportExt === 'glb') {
-            gltf = await this._io.writeBinary(iDocument)
-            if (isFinite(bytes)) {
-                console.log('DRACO Compression ratio: ' + ((gltf as ArrayBuffer).byteLength / bytes).toFixed(5))
+            if (ops.exportExt === 'glb') {
+                gltf = await this._io.writeBinary(iDocument)
+                if (isFinite(bytes)) {
+                    console.log('DRACO Compression ratio: ' + ((gltf as ArrayBuffer).byteLength / bytes).toFixed(5))
+                }
+            } else {
+                const jDoc = await this._io.writeJSON(iDocument)
+                gltf = jDoc.json
+                if (Object.values(jDoc.resources).filter(v => v).length > 0) {
+                    console.warn('DRACOExporter: extra resources in resources not supported properly')
+                    ;(gltf as any).resources = jDoc.resources
+                }
             }
-        } else {
-            const jDoc = await this._io.writeJSON(iDocument)
-            gltf = jDoc.json
-            if (Object.values(jDoc.resources).filter(v => v).length > 0) {
-                console.warn('DRACOExporter: extra resources in resources not supported properly')
-                ;(gltf as any).resources = jDoc.resources
-            }
+
+            gltf.__isGLTFOutput = true
+            const blob = await super.parseAsync(gltf, ops) as any // this will just convert it to blob because __isGLTFOutput is set (checked in GLTFExporter2)
+            if (!blob) throw new Error('GLTFDracoExporter: blob is null')
+            blob.ext = 'glb'
+            ;(blob as any).__uncompressed = uncompressedBlob
+            return blob
+        } catch (e) {
+            if (throwOnError) throw e
+            console.error('Unable to compress glb with DRACO extension, fallback to uncompressed')
+            console.error(e)
+            return uncompressedBlob
         }
-
-        gltf.__isGLTFOutput = true
-        const blob = await super.parseAsync(gltf, ops) as any // this will just convert it to blob because __isGLTFOutput is set (checked in GLTFExporter2)
-        if (!blob) throw new Error('GLTFDracoExporter: blob is null')
-        blob.ext = 'glb'
-        ;(blob as any).__uncompressed = uncompressedBlob
-        return blob
     }
 
     addExtension(extension: typeof Extension): this {

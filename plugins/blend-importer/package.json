@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-blend-importer",
     "description": "Basic importer for .blend file",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "devDependencies": {
     },
     "dependencies": {
@@ -9,6 +9,7 @@
     },
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
             "require": "./dist/index.js"
         },

@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-configurator",
     "description": "Plugins for creating material and object configurators in threepipe.",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "devDependencies": {
     },
     "dependencies": {
@@ -23,6 +23,7 @@
     },
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
             "require": "./dist/index.js"
         },
