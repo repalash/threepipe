@@ -12,7 +12,7 @@ import {
     Vector3,
     EventListener2,
 } from 'three'
-import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
+import {Class, createCanvasElement, downloadBlob, onChange, serialize, timeout, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -237,7 +237,7 @@ export interface ThreeViewerOptions {
 export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IViewerEvent>> {
     public static readonly VERSION = VERSION
     public static readonly ConfigTypeSlug = 'vjson'
-    uiConfig!: UiObjectConfig
+    declare uiConfig: UiObjectConfig
 
     static Console: IConsoleWrapper = {
         log: console.log.bind(console),
@@ -887,7 +887,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._canvas.style.height = size?.height ? size.height + 'px' : '100%'
         // this._canvas.style.maxWidth = '100%' // this is upto the app to do.
         // this._canvas.style.maxHeight = '100%'
-        this.resize()
+        // https://stackoverflow.com/questions/21664940/force-browser-to-trigger-reflow-while-changing-css
+        void this._canvas.offsetHeight
+        this.resize() // this is also required in case the browwser doesnt support/fire observer
     }
 
     // todo make an example for this.
@@ -990,6 +992,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._scene.modelRoot.traverse(callback)
     }
 
+    deleteImportedViewerConfigOnLoad = true
+
     /**
      * Add an object to the scene model root.
      * If an imported scene model root is passed, it will be loaded with viewer configuration, unless importConfig is false
@@ -1001,6 +1005,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             const obj = <RootSceneImportResult>imported
             this._scene.loadModelRoot(obj, options)
             if (obj.importedViewerConfig && options?.importConfig !== false) await this.importConfig(obj.importedViewerConfig)
+
+            if (this.deleteImportedViewerConfigOnLoad && obj.importedViewerConfig) {
+                timeout(2000).then(()=>{ // todo timeout time?
+                    delete obj.importedViewerConfig // any useful data in the config should be loaded into userData.__importData by then
+                })
+            }
             return this._scene.modelRoot as T
         }
         this._scene.addObject(imported, options)

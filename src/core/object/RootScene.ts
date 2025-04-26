@@ -2,7 +2,8 @@ import {
     BufferGeometry,
     Color,
     EquirectangularReflectionMapping,
-    EventListener, EventListener2,
+    EventListener,
+    EventListener2,
     IUniform,
     Object3D,
     Scene,
@@ -44,7 +45,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     @serialize() @onChange2(RootScene.prototype.onBackgroundChange)
         backgroundColor: Color | null = null // read in three.js WebGLBackground
 
-    @onChange2(RootScene.prototype.onBackgroundChange)
+    @onChange3(RootScene.prototype.onBackgroundChange)
     @serialize() @uiImage('Background Image')
         background: null | Color | ITexture | 'environment' = null
     /**
@@ -58,7 +59,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * The default environment map used when rendering materials in the scene
      */
     @uiImage('Environment')
-    @serialize() @onChange2(RootScene.prototype._onEnvironmentChange)
+    @serialize() @onChange3(RootScene.prototype._onEnvironmentChange)
         environment: ITexture | null = null
 
     /**
@@ -95,6 +96,12 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * The default camera in the scene
      */
     @uiConfig() @serialize() readonly defaultCamera: ICamera
+
+    /**
+     * Calls dispose on current old environment map, background map when it is changed.
+     * Runtime only (not serialized)
+     */
+    autoDisposeSceneMaps = true
 
     // private _environmentLight?: IEnvironmentLight
 
@@ -308,7 +315,11 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
     }
 
-    private _onEnvironmentChange() {
+    private _onEnvironmentChange(ev?: {value: ITexture|null, oldValue: ITexture|null}) {
+        if (ev?.oldValue && ev.oldValue !== ev.value) {
+            if (this.autoDisposeSceneMaps && typeof ev.oldValue.dispose === 'function') ev.oldValue.dispose()
+        }
+
         // console.warn('environment changed')
         if (this.environment?.mapping === UVMapping) {
             this.environment.mapping = EquirectangularReflectionMapping // for PMREMGenerator
@@ -319,7 +330,11 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.refreshUi?.()
     }
 
-    onBackgroundChange() {
+    onBackgroundChange(ev?: {value: ITexture|null, oldValue: ITexture|null}) {
+        if (ev?.oldValue && ev.oldValue !== ev.value) {
+            if (this.autoDisposeSceneMaps && typeof ev.oldValue.dispose === 'function') ev.oldValue.dispose()
+        }
+
         this.dispatchEvent({type: 'backgroundChanged', background: this.background, backgroundColor: this.backgroundColor})
         this.setDirty({refreshScene: true, geometryChanged: false})
         this.refreshUi?.()

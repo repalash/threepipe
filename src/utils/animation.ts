@@ -32,9 +32,7 @@ declare module 'popmotion'{
 
 export type {AnimationOptions, KeyframeOptions, Easing}
 
-function easeInOutSine(x: number): number {
-    return -(Math.cos(Math.PI * x) - 1) / 2
-}
+const easeInOutSine: Easing = (x) => -(Math.cos(Math.PI * x) - 1) / 2
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const EasingFunctions = {

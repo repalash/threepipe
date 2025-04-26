@@ -1,5 +1,5 @@
 import {BufferGeometry, NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
-import type {IGeometry, IGeometryEventMap} from '../IGeometry'
+import type {IGeometry, IGeometryEventMap, IGeometryUserData} from '../IGeometry'
 import {iGeometryCommons} from './iGeometryCommons'
 import type {IObject3D} from '../IObject'
 
@@ -9,6 +9,7 @@ export class BufferGeometry2<Attributes extends NormalOrGLBufferAttributes = Nor
     setDirty = iGeometryCommons.setDirty
     refreshUi = iGeometryCommons.refreshUi
     appliedMeshes = new Set<IObject3D>()
+    declare userData: IGeometryUserData
 
     constructor() {
         super()
