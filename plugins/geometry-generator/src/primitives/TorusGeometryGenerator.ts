@@ -12,7 +12,12 @@ export interface TorusGeometryGeneratorParams {
 
 export class TorusGeometryGenerator extends AGeometryGenerator<TorusGeometryGeneratorParams> {
 
-    defaultParams = {
+    constructor(type = 'torus', defaultParams?: TorusGeometryGeneratorParams) {
+        super(type)
+        if (defaultParams) Object.assign(this.defaultParams, defaultParams)
+    }
+
+    defaultParams: TorusGeometryGeneratorParams = {
         radius: 1,
         tube: 0.4,
         radialSegments: 12,

@@ -10,7 +10,12 @@ export interface PlaneGeometryGeneratorParams {
 
 export class PlaneGeometryGenerator extends AGeometryGenerator<PlaneGeometryGeneratorParams> {
 
-    defaultParams = {
+    constructor(type = 'plane', defaultParams?: PlaneGeometryGeneratorParams) {
+        super(type)
+        if (defaultParams) Object.assign(this.defaultParams, defaultParams)
+    }
+
+    defaultParams: PlaneGeometryGeneratorParams = {
         width: 1,
         height: 1,
         widthSegments: 2,

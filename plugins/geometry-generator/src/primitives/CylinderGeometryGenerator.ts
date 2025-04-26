@@ -15,7 +15,12 @@ export interface CylinderGeometryGeneratorParams {
 
 export class CylinderGeometryGenerator extends AGeometryGenerator<CylinderGeometryGeneratorParams> {
 
-    defaultParams = {
+    constructor(type = 'cylinder', defaultParams?: CylinderGeometryGeneratorParams) {
+        super(type)
+        if (defaultParams) Object.assign(this.defaultParams, defaultParams)
+    }
+
+    defaultParams: CylinderGeometryGeneratorParams = {
         radiusTop: 1,
         radiusBottom: 1,
         height: 1,

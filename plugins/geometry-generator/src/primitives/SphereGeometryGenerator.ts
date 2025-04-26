@@ -14,7 +14,12 @@ export interface SphereGeometryGeneratorParams {
 
 export class SphereGeometryGenerator extends AGeometryGenerator<SphereGeometryGeneratorParams> {
 
-    defaultParams = {
+    constructor(type = 'sphere', defaultParams?: SphereGeometryGeneratorParams) {
+        super(type)
+        if (defaultParams) Object.assign(this.defaultParams, defaultParams)
+    }
+
+    defaultParams: SphereGeometryGeneratorParams = {
         radius: 1,
         widthSegments: 32,
         heightSegments: 16,

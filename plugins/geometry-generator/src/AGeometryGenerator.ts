@@ -23,7 +23,7 @@ export interface GeometryGenerator<T=any>{
     createUiConfig?(geometry: IGeometry): UiObjectConfig[]
 }
 
-function updateAttribute<T extends BufferAttribute=Float32BufferAttribute>(geometry: BufferGeometry, attribute: string, itemSize: number, array: any[], cls?: Class<T>) {
+function updateAttribute<T extends BufferAttribute=Float32BufferAttribute>(geometry: BufferGeometry, attribute: string, itemSize: number, array: number[], cls?: Class<T>) {
     const attr = geometry.getAttribute(attribute) as T
     const count = array.length / itemSize
     if (attr && attr.count === count) {
@@ -35,7 +35,7 @@ function updateAttribute<T extends BufferAttribute=Float32BufferAttribute>(geome
     return attr
 }
 
-function updateIndices(geometry: BufferGeometry, indices: any[]) {
+function updateIndices(geometry: BufferGeometry, indices: number[]) {
     const index = geometry.index
     if (index && index.count === indices.length) {
         index.set(indices)
@@ -83,16 +83,17 @@ export abstract class AGeometryGenerator<Tp extends object=any> implements Geome
 
     generate(g?: IGeometry, parameters: Partial<Tp> = {}): IGeometry|BufferGeometry2 {
         const geometry: IGeometry = g ?? new BufferGeometry2()
-        if (!geometry.userData.generationParams) geometry.userData.generationParams = {type: this.type}
-        geometry.userData.generationParams.type = this.type
-        if ((parameters as any).type) {
+        if ((parameters as any).type && (parameters as any).type !== this.type) {
             console.error('Cannot change type of generated geometry here, use the plugin instead')
             return geometry
         }
+        if (!geometry.userData.generationParams) geometry.userData.generationParams = {type: this.type}
+        geometry.userData.generationParams.type = this.type
         const params = {
             ...this.defaultParams,
             ...geometry.userData.generationParams,
             ...parameters,
+            type: this.type,
         } as Tp
 
         const {indices, vertices, normals, uvs, groups} = this._generateData(params)
