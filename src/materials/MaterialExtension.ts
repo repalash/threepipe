@@ -69,6 +69,36 @@ export interface MaterialExtension{
     onAfterRender?: (object: Object3D, material: IMaterial, renderer: IWebGLRenderer) => void
 
     /**
+     * Custom callback to run code when the material is updated. (when `materialUpdate` event is dispatched on the material)
+     * @param material - material that was updated
+     */
+    onMaterialUpdate?: (material: IMaterial) => void
+    /**
+     * Custom callback to run code when the material is added/applied to a mesh or any Object3D.
+     * @param mesh - object/mesh applied to
+     * @param material - material that was added
+     */
+    onAddToMesh?: (mesh: Object3D, material: IMaterial) => void
+    /**
+     * Custom callback to run code when the material is removed from a mesh or any Object3D.
+     * @param mesh
+     * @param material
+     */
+    onRemoveFromMesh?: (mesh: Object3D, material: IMaterial) => void
+
+    /**
+     * Custom callback to run code when this material extension is registered to a material.
+     * @param material
+     */
+    onRegister?: (material: IMaterial) => void // when this extension is registered to a material
+    /**
+     * Custom callback to run code when this material extension is unregistered from a material.
+     * @param material
+     */
+    onUnregister?: (material: IMaterial) => void // when this extension is registered to a material
+
+
+    /**
      * Function to check if this material extension is compatible with the given material.
      * If not compatible, the material extension will not be applied.
      * This is only checked when the extension is registered.
