@@ -40,7 +40,7 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
         })
         return super._createMaterial(material)
     }
-    private _compareMaterials!: (material: Material) => Material
+    private declare _compareMaterials: (material: Material) => Material
 
     async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<Object3D> {
         const ret = await super.loadAsync(url, onProgress)

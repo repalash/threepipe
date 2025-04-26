@@ -88,7 +88,7 @@ class GLTFMaterialsAlphaMapExtensionExport {
 
         const extensionDef: any = {}
 
-        if (material.alphaMap) {
+        if (material.alphaMap && writer.checkEmptyMap(material.alphaMap)) {
 
             const alphaMapDef = {index: writer.processTexture(material.alphaMap)}
             writer.applyTextureTransform(alphaMapDef, material.alphaMap)

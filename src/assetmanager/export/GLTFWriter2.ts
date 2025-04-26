@@ -228,6 +228,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         }
         if (textureDef.source < 0) {
             console.error('textureDef.source cannot be saved', textureDef, map)
+            delete textureDef.source // gltf spec allows undefined, not -1
         }
 
         return processed

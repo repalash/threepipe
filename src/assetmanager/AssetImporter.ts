@@ -68,6 +68,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     private _fileDatabase: Map<string, IFile> = new Map<string, IFile>()
     private _cachedAssets: IAsset[] = []
 
+    static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
+
     readonly importers: IImporter[] = [
         // new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'data:video'], false),
         new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),

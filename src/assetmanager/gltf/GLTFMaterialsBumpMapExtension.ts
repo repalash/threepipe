@@ -95,7 +95,7 @@ class GLTFMaterialsBumpMapExtensionExport {
 
         extensionDef.bumpScale = material.bumpScale
 
-        if (material.bumpMap) {
+        if (material.bumpMap && writer.checkEmptyMap(material.bumpMap)) {
 
             const bumpMapDef = {index: writer.processTexture(material.bumpMap)}
             writer.applyTextureTransform(bumpMapDef, material.bumpMap)

@@ -39,9 +39,17 @@ import {
 } from '../core'
 import {Importer} from './Importer'
 import {MaterialManager} from './MaterialManager'
-import {DRACOLoader2, GLTFLoader2, JSONMaterialLoader, MTLLoader2, OBJLoader2, ZipLoader} from './import'
+import {
+    DRACOLoader2,
+    FBXLoader2,
+    GLTFLoader2,
+    JSONMaterialLoader,
+    MTLLoader2,
+    OBJLoader2,
+    SVGTextureLoader,
+    ZipLoader,
+} from './import'
 import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
-import {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js'
 import {EXRLoader} from 'three/examples/jsm/loaders/EXRLoader.js'
 import {Class, ValOrArr} from 'ts-browser-helpers'
 import {ILoader} from './IImporter'
@@ -279,9 +287,12 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
         const viewer = this.viewer
         if (!viewer) return
 
+        // todo fix - loading manager getHandler matches backwards?
         const importers: Importer[] = [
-            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'svg', 'ico', 'data:image', 'avif'], [
-                'image/webp', 'image/png', 'image/jpeg', 'image/svg+xml', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
+            new Importer(SVGTextureLoader, ['svg', 'data:image/svg'], ['image/svg+xml'], false), // todo: use ImageBitmapLoader if supported (better performance)
+
+            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif'], [
+                'image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
             ], false), // todo: use ImageBitmapLoader if supported (better performance)
 
             new Importer<JSONMaterialLoader>(JSONMaterialLoader,
@@ -305,7 +316,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
                 }
             }, ['exr'], ['image/x-exr'], false),
 
-            new Importer(FBXLoader, ['fbx'], ['model/fbx'], true),
+            new Importer(FBXLoader2, ['fbx'], ['model/fbx'], true),
             new Importer(ZipLoader, ['zip', 'glbz', 'gltfz'], ['application/zip', 'model/gltf+zip', 'model/zip'], true), // gltfz and glbz are invented zip files with gltf/glb inside along with resources
 
             new Importer(OBJLoader2 as any as Class<ILoader>, ['obj'], ['model/obj'], true),

@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {LoadingManager, Object3D, OrthographicCamera} from 'three'
+import {LoadingManager, Object3D, OrthographicCamera, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
@@ -27,6 +27,10 @@ import {
     UnlitLineMaterial,
     UnlitMaterial,
 } from '../../core'
+import {AssetImporter} from '../AssetImporter'
+
+// todo move somewhere
+const supportedEmbeddedFiles = ['hdr', 'exr', 'webp', 'avif', 'ktx', 'hdrpng', 'svg', 'cube'] // ktx2, drc handled separately
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
@@ -69,7 +73,18 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 
     parse(data: ArrayBuffer | string, path: string, onLoad: (gltf: GLTF) => void, onError?: (event: ErrorEvent) => void, url?: string) {
         this.preparse.call(this, data, url || path)
-            .then((res: ArrayBuffer | string) => res ? super.parse(res, path, onLoad, onError) : onError && onError(new ErrorEvent('no data')))
+            .then((res: ArrayBuffer|string) => {
+                const val = Texture.DEFAULT_IMAGE
+
+                // this will be used when doing new Texture(). Which is done for not found images or when some error happens in loading. See FBXLoader.
+                // todo save the path of invalid textures, check if they can be found in the loaded libs, and ask the user in UI to remap it to something else manually
+                if (!Texture.DEFAULT_IMAGE) Texture.DEFAULT_IMAGE = AssetImporter.WHITE_IMAGE_DATA
+
+                return res ? super.parse(res, path, (ret)=>{
+                    Texture.DEFAULT_IMAGE = val
+                    onLoad && onLoad(ret)
+                }, onError) : onError && onError(new ErrorEvent('no data'))
+            })
             .catch((e: any) => {
                 console.error(e)
                 if (onError) onError(e ?? new ErrorEvent('unknown error'))
@@ -146,17 +161,27 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                     console.error('Add GLTFMeshOptPlugin(and initialize it) to viewer to enable EXT_meshopt_compression decode')
                 }
             }
-            const needsBasisU = parser.json?.extensionsUsed?.includes?.('KHR_texture_basisu')
-            if (needsBasisU) {
-                const ktx2 = viewer.assetManager.importer.registerFile(tempPathKtx2)
-                if (ktx2) {
-                    this.setKTX2Loader(ktx2 as any) // todo: check class?
-                    parser.options.ktx2Loader = ktx2 as any
-                }
+
+            // create ktx2 loader so it can be used with getHandler, we need to do this even when extension is not used since we dont know
+            const ktx2 = viewer.assetManager.importer.registerFile(tempPathKtx2)
+            // const needsBasisU = parser.json?.extensionsUsed?.includes?.('KHR_texture_basisu')
+            // if (needsBasisU) {
+            // const ktx2 = viewer.assetManager.importer.registerFile(tempPathKtx2)
+            if (ktx2) {
+                this.setKTX2Loader(ktx2 as any) // todo: check class?
+                parser.options.ktx2Loader = ktx2 as any
             }
+            // }
+
+            // registering temp file creates and makes a loader available to the loading manager of that type
+            const tempFiles = supportedEmbeddedFiles.map(f=>generateUUID() + '.' + f)
+            tempFiles.forEach(f=>viewer.assetManager.importer.registerFile(f))
+
             return {name: 'GLTF2_HELPER_PLUGIN', afterRoot: async(result: GLTF) => {
                 if (needsDrc) viewer.assetManager.importer.unregisterFile(tempPathDrc)
-                if (needsBasisU) viewer.assetManager.importer.unregisterFile(tempPathKtx2)
+                if (ktx2) viewer.assetManager.importer.unregisterFile(tempPathKtx2)
+                tempFiles.forEach(f=>viewer.assetManager.importer.unregisterFile(f))
+
                 await GLTFViewerConfigExtension.ImportViewerConfig(parser, viewer, result.scenes || [result.scene])
             }}
         }

@@ -90,7 +90,7 @@ class GLTFMaterialsDisplacementMapExtensionExport {
         extensionDef.displacementScale = material.displacementScale
         extensionDef.displacementBias = material.displacementBias
 
-        if (material.displacementMap) {
+        if (material.displacementMap && writer.checkEmptyMap(material.displacementMap)) {
 
             const displacementMapDef = {index: writer.processTexture(material.displacementMap)}
             writer.applyTextureTransform(displacementMapDef, material.displacementMap)

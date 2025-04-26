@@ -95,7 +95,7 @@ class GLTFMaterialsLightMapExtensionExport {
 
         extensionDef.lightMapIntensity = material.lightMapIntensity
 
-        if (material.lightMap) {
+        if (material.lightMap && writer.checkEmptyMap(material.lightMap)) {
 
             const lightMapDef = {index: writer.processTexture(material.lightMap)}
             writer.applyTextureTransform(lightMapDef, material.lightMap)

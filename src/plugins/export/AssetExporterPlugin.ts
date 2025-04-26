@@ -61,6 +61,8 @@ export class AssetExporterPlugin extends AViewerPluginSync {
         embedUrlImages: false,
         encrypt: false,
         encryptKey: '',
+        ignoreInvalidMorphTargetTracks: true,
+        ignoreEmptyTextures: true,
     }
 
     async exportScene(options?: ExportAssetOptions): Promise<BlobExt | undefined> {
@@ -129,6 +131,16 @@ export class AssetExporterPlugin extends AViewerPluginSync {
                     //     label: 'Convert to indexed',
                     //     property: [this.exportOptions, 'convertMeshToIndexed'],
                     // },
+                    {
+                        type: 'checkbox',
+                        label: 'Ignore invalid animations',
+                        property: [this.exportOptions, 'ignoreInvalidMorphTargetTracks'],
+                    },
+                    {
+                        type: 'checkbox',
+                        label: 'Ignore invalid textures',
+                        property: [this.exportOptions, 'ignoreInvalidTextures'],
+                    },
                     {
                         type: 'button',
                         label: 'Export GLB',

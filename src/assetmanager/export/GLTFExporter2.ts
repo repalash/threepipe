@@ -158,8 +158,10 @@ export class GLTFExporter2 extends GLTFExporter implements IExportParser {
             maxTextureSize: options.maxTextureSize ?? Infinity,
             animations: options.animations ?? [],
             includeCustomExtensions: options.includeCustomExtensions ?? true,
-            forceIndices: options.forceIndices ?? false,
+            forceIndices: options.forceIndices ?? false, // todo implement
             exporterOptions: options,
+            ignoreInvalidMorphTargetTracks: options.ignoreInvalidMorphTargetTracks,
+            ignoreEmptyTextures: options.ignoreEmptyTextures,
         }
         if (options.exportExt === 'glb') {
             gltfOptions.binary = true

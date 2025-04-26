@@ -281,7 +281,7 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2)=> ({
 
         extensionDef.customBumpScale = material.userData._customBumpScale || 1.0
 
-        if (material.userData._customBumpMap) {
+        if (w.checkEmptyMap(material.userData._customBumpMap)) {
 
             const customBumpMapDef = {index: w.processTexture(material.userData._customBumpMap)}
             w.applyTextureTransform(customBumpMapDef, material.userData._customBumpMap)
