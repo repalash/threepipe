@@ -16,6 +16,12 @@ export class KTX2LoadPlugin extends BaseImporterPlugin {
 
     public static TRANSCODER_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/BinomialLLC/basis_universal@1.16.4/webgl/transcoder/build/'
 
+    /**
+     * Flag to save the source buffer data in the texture object, it can be used later when downloading/serializing
+     * the texture like when downloading glb with embedded textures.
+     */
+    public static SAVE_SOURCE_BLOBS = false
+
     onAdded(viewer: ThreeViewer) {
         this._importer.onCtor = (l: KTX2Loader2) => l
             .setTranscoderPath(KTX2LoadPlugin.TRANSCODER_LIBRARY_PATH)
@@ -35,6 +41,7 @@ export class KTX2LoadPlugin extends BaseImporterPlugin {
 }
 
 export class KTX2Loader2 extends KTX2Loader implements ILoader {
+
     private _initTexture(t: CompressedTexture & ITexture) {
         upgradeTexture.call(t)
         t.userData.mimeType = 'image/ktx2'
@@ -51,14 +58,19 @@ export class KTX2Loader2 extends KTX2Loader implements ILoader {
         return t
     }
     async createTexture(buffer: ArrayBuffer, config: any): Promise<CompressedTexture> {
-        const buffer2 = new Uint8Array(buffer.slice(0)) // clones the buffer
+        const buffer2 = KTX2LoadPlugin.SAVE_SOURCE_BLOBS ? new Uint8Array(buffer.slice(0)) : undefined // clones the buffer
         const texture = (await super.createTexture(buffer, config)) as CompressedTexture & ITexture
-        texture.source._sourceImgBuffer = buffer2 // keep the same buffer when cloned and all, used in serializeTextureInExtras
+        // todo check if rootPath is set?
+        if (KTX2LoadPlugin.SAVE_SOURCE_BLOBS && buffer2) {
+            texture.source._sourceImgBuffer = buffer2 // keep the same buffer when cloned and all, used in serializeTextureInExtras
+            texture.source._canSerialize = true
+        }
         this._initTexture(texture)
         return texture
     }
 
 }
+
 
 export const KHR_TEXTURE_BASISU = 'KHR_texture_basisu'
 

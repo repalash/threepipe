@@ -54,6 +54,20 @@ export interface IMaterialEventMap extends MaterialEventMap{
         object: Object3D
     }
     /**
+     * Fires when the material is set/added to a mesh
+     * This is applicable of all types of Object3D, like Line etc, not just Mesh
+     */
+    addToMesh: {
+        object: Object3D
+    }
+    /**
+     * Fires when the material is changed/removed to a mesh
+     * This is applicable of all types of Object3D, like Line etc, not just Mesh
+     */
+    removeFromMesh: {
+        object: Object3D
+    }
+    /**
      * For internal use
      */
     beforeDeserialize: {
@@ -67,6 +81,7 @@ export interface IMaterialEventMap extends MaterialEventMap{
 declare module 'three'{
     export interface MaterialEventMap{
         materialUpdate: {
+            // These are handled in dispatchEvent override in iMaterialCommons
             bubbleToObject?: boolean
             bubbleToParent?: boolean
             uiChangeEvent?: ChangeEvent

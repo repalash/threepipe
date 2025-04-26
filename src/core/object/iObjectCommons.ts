@@ -232,13 +232,18 @@ export const iObjectCommons = {
         // Remove old material listeners
         const oldMats = this.material
         const mats = Array.isArray(oldMats) ? [...oldMats] : [oldMats!]
+
+        let removed = []
+        const added = []
+
         for (const mat of mats) {
             if (!mat) continue
-            if (mat.appliedMeshes) {
-                mat.appliedMeshes.delete(this)
-                // if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
-                mat.dispose(false) // this will dispose textures(if they are idle) if the material is registered in the material manager
-            }
+            removed.push(mat)
+            // if (mat.appliedMeshes) {
+            //     mat.appliedMeshes.delete(this)
+            //     // if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
+            //     mat.dispose(false) // this will dispose textures(if they are idle) if the material is registered in the material manager
+            // }
         }
 
         const materials = []
@@ -249,11 +254,31 @@ export const iObjectCommons = {
                 console.warn('Upgrading Material', mat)
                 iMaterialCommons.upgradeMaterial.call(mat)
             }
+            if (removed.includes(mat)) removed = removed.filter(m=>m !== mat)
+            else added.push(mat)
             materials.push(mat)
-            if (mat && mat.appliedMeshes) {
+            // if (mat && mat.appliedMeshes) {
+            //     mat.appliedMeshes.add(this)
+            // }
+        }
+
+        // todo should these be before or after `materialChanged` event? right now its before, also .material will return the old one since _currentMaterial is old
+        for (const mat of removed) {
+            if (mat.appliedMeshes) {
+                mat.appliedMeshes.delete(this)
+                // if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
+                mat.dispose(false) // this will dispose textures(if they are idle) if the material is registered in the material manager
+            }
+            mat.dispatchEvent({type: 'removeFromMesh', object: this})
+        }
+        for (const mat of added) {
+            if (mat.appliedMeshes) {
                 mat.appliedMeshes.add(this)
             }
+            mat.dispatchEvent({type: 'addToMesh', object: this})
+            // note - material bubbleToObject is handled in dispatchEvent override in iMaterialCommons
         }
+
         this._currentMaterial = !materials.length ? null : materials.length !== 1 ? materials : materials[0] || null
 
         this.dispatchEvent({type: 'materialChanged', material: this._currentMaterial ?? null, oldMaterial: oldMats ?? null, object: this, bubbleToParent: true})

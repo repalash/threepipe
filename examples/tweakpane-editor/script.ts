@@ -23,7 +23,6 @@ import {
     GLTFMeshOptDecodePlugin,
     HalfFloatType,
     HDRiGroundPlugin,
-    HemisphereLight,
     InteractionPromptPlugin,
     KTX2LoadPlugin,
     KTXLoadPlugin,
@@ -167,6 +166,8 @@ async function init() {
         AWSClientPlugin,
         TransfrSharePlugin,
     ])
+
+    KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported. todo - add this to blueprint editor init as well
 
     // to show more details in the UI and allow to edit changes in title etc.
     viewer.getPlugin(MaterialConfiguratorPlugin)!.enableEditContextMenus = true

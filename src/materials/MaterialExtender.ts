@@ -39,7 +39,7 @@ export class MaterialExtender {
             updateMaterialDefines(materialExtension.extraDefines, material)
 
         // Call shaderExtender if defined
-        materialExtension.shaderExtender?.(shader as any, material, renderer)
+        materialExtension.shaderExtender && materialExtension.shaderExtender(shader as any, material, renderer)
         // Save last shader so that it can be used to check if shader has changed in extensions
         material.lastShader = shader
     }
@@ -89,7 +89,22 @@ export class MaterialExtender {
             (material as any).__ext_afterRenderListen = true
             material.addEventListener('afterRender', materialAfterRender)
         }
+        if (!(material as any).__ext_addToMeshListen) {
+            (material as any).__ext_addToMeshListen = true
+            material.addEventListener('addToMesh', materialAddToMesh)
+        }
+        if (!(material as any).__ext_removeFromMeshListen) {
+            (material as any).__ext_removeFromMeshListen = true
+            material.addEventListener('removeFromMesh', materialRemovedFromMesh)
+        }
+        if (!(material as any).__ext_materialUpdateListen) {
+            (material as any).__ext_materialUpdateListen = true
+            material.addEventListener('materialUpdate', materialUpdate)
+        }
 
+        for (const ext of exts) {
+            ext.onRegister && ext.onRegister(material)
+        }
         material.needsUpdate = true
         return exts
     }
@@ -97,12 +112,23 @@ export class MaterialExtender {
     static UnregisterExtensions(material: IMaterial, customMaterialExtensions?: MaterialExtension[]) {
         if (customMaterialExtensions) {
             material.materialExtensions = material.materialExtensions?.filter((v)=>!customMaterialExtensions.includes(v)) || []
+            for (const ext of customMaterialExtensions) {
+                ext.onUnregister && ext.onUnregister(material)
+            }
         }
+
         if (!material.materialExtensions?.length) {
             material.removeEventListener('beforeRender', materialBeforeRender)
             material.removeEventListener('afterRender', materialAfterRender)
+            material.removeEventListener('addToMesh', materialAddToMesh)
+            material.removeEventListener('removeFromMesh', materialRemovedFromMesh)
+            material.removeEventListener('materialUpdate', materialUpdate)
+
             ;(material as any).__ext_beforeRenderListen = false
             ;(material as any).__ext_afterRenderListen = false
+            ;(material as any).__ext_addToMeshListen = false
+            ;(material as any).__ext_removeFromMeshListen = false
+            ;(material as any).__ext_materialUpdateListen = false
         }
     }
 }
@@ -134,7 +160,7 @@ function materialBeforeRender({target, object, renderer}:{object?: Object3D, ren
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return
     for (const value of material.materialExtensions) {
-        value.onObjectRender?.(object, material, renderer)
+        value.onObjectRender && value.onObjectRender(object, material, renderer)
 
         if ((material as any).lastShader) {
             const updater = getOrCall(value.updaters) || []
@@ -153,7 +179,34 @@ function materialAfterRender({target, object, renderer}:{object?: Object3D, rend
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return
     for (const value of material.materialExtensions) {
-        value.onAfterRender?.(object, material, renderer)
+        value.onAfterRender && value.onAfterRender(object, material, renderer)
+    }
+}
+
+function materialAddToMesh({target, object}:{object?: Object3D, target: IMaterial}) {
+    const material = target
+    if (!material || !object) throw new Error('Invalid material or object')
+    if (!material.materialExtensions) return
+    for (const value of material.materialExtensions) {
+        value.onAddToMesh && value.onAddToMesh(object, material)
+    }
+}
+
+function materialRemovedFromMesh({target, object}:{object?: Object3D, target: IMaterial}) {
+    const material = target
+    if (!material || !object) throw new Error('Invalid material or object')
+    if (!material.materialExtensions) return
+    for (const value of material.materialExtensions) {
+        value.onRemoveFromMesh && value.onRemoveFromMesh(object, material)
+    }
+}
+
+function materialUpdate({target}:{target: IMaterial}) {
+    const material = target
+    if (!material) throw new Error('Invalid material')
+    if (!material.materialExtensions) return
+    for (const value of material.materialExtensions) {
+        value.onMaterialUpdate && value.onMaterialUpdate(material)
     }
 }
 

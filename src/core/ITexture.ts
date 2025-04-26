@@ -36,6 +36,7 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
 
     source: Source & {
         _sourceImgBuffer?: ArrayBuffer|Uint8Array // see KTX2LoadPlugin and serializeTextureInExtras
+        _canSerialize?: boolean // see KTX2LoadPlugin and GLTFExporter.js. Disables auto decompress for glTF export
     }
 
     _appliedMaterials?: Set<IMaterial> // for internal use only. refers to the materials that this texture is applied to
