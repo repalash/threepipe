@@ -47,7 +47,8 @@
     "update-version": "node scripts/update-version.mjs",
     "website:dev": "vitepress dev website",
     "website:build": "vitepress build website",
-    "website:preview": "vitepress preview website"
+    "website:preview": "vitepress preview website",
+    "buid-site": "bash ./scripts/build-site.sh"
   },
   "clean-package": {
     "remove": [

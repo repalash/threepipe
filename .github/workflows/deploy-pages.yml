@@ -43,12 +43,7 @@ jobs:
         cache: 'npm'
         cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
     - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
-    - run: npm run docs
-    - run: mkdir _site
-    - run: mv -t _site src docs dist examples README.md LICENSE
-    - run: cp -r website/.vitepress/dist/* _site
-    - run: mkdir -p _site/plugins
-    - run: find plugins -maxdepth 2 -type d \( -name dist -o -name docs -o -name src \) -exec sh -c "mkdir -p _site/{} && cp -r {} _site/{}/.." \;
+    - run: npm run build-site # builds to _site
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
@@ -56,4 +51,5 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
+
 
