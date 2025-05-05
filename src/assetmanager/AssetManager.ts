@@ -84,8 +84,8 @@ export interface AddAssetOptions extends AddObjectOptions{
      */
     autoSetBackground?: boolean
 }
-export type ImportAddOptions = ImportAssetOptions & AddAssetOptions
-export type AddRawOptions = ProcessRawOptions & AddAssetOptions
+export interface ImportAddOptions extends ImportAssetOptions, AddAssetOptions{}
+export interface AddRawOptions extends ProcessRawOptions, AddAssetOptions{}
 
 export interface AssetManagerEventMap{
     loadAsset: {data: ImportResult}

@@ -6,6 +6,7 @@ import {
     Color,
     Group,
     ILoader,
+    ImportAddOptions,
     Importer,
     Mesh,
     Object3D,
@@ -149,7 +150,7 @@ export class MDDLoadPlugin extends BaseImporterPlugin {
 export class PCDLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'PCDLoadPlugin'
     protected _importer = new Importer(class extends PCDLoader implements ILoader {
-        transform(points: Points, options: AnyOptions): any {
+        transform(points: Points, options: ImportAddOptions): any {
             if (options.autoCenter) points.geometry.center()
             points.geometry.rotateX(Math.PI)
             return points
@@ -215,7 +216,7 @@ export class VTKLoadPlugin extends BaseImporterPlugin {
 export class XYZLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'XYZLoadPlugin'
     protected _importer = new Importer(class extends XYZLoader implements ILoader {
-        transform(res: BufferGeometry, options: AnyOptions): Points|undefined {
+        transform(res: BufferGeometry, options: ImportAddOptions): Points|undefined {
             if (!res.attributes?.normal) res.computeVertexNormals()
             if (options.autoCenter) res.center()
             return res ? new Points(res, new PointsMaterial({

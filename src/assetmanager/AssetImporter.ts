@@ -302,7 +302,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 // baseUrl: LoaderUtils.extractUrlBase(url),
             }
 
-            loader.loadFileOptions = options
+            loader.importOptions = options
             res = await loader.loadAsync(path + (options.queryString ? (path.includes('?') ? '&' : '?') + options.queryString : ''), (e)=>{
                 if (onDownloadProgress) onDownloadProgress(e)
                 const total = e.lengthComputable ? e.total : undefined
@@ -315,7 +315,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 })
             })
             if (loader.transform) res = await loader.transform(res, options)
-            delete loader.loadFileOptions
+            delete loader.importOptions
 
             this._rootContext = undefined
 

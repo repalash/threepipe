@@ -42,11 +42,11 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiInput() @serialize() minPolarAngle = 0
     @uiInput() @serialize() maxPolarAngle = Math.PI
 
-    @uiInput() @serialize() minAzimuthAngle = -10000 // should be -Infinity but this breaks the UI
-    @uiInput() @serialize() maxAzimuthAngle = 10000 // should be Infinity but this breaks the UI
+    @uiInput() @serialize() minAzimuthAngle = -1e6 // should be -Infinity but this breaks the UI
+    @uiInput() @serialize() maxAzimuthAngle = 1e6 // should be Infinity but this breaks the UI
 
-    @uiVector() @serialize() clampMin = new Vector3(-10000, -10000, -10000) // should be -Infinity but this breaks the UI
-    @uiVector() @serialize() clampMax = new Vector3(10000, 10000, 10000) // should be Infinity but this breaks the UI
+    @uiVector() @serialize() clampMin = new Vector3(-1e6, -1e6, -1e6) // should be -Infinity but this breaks the UI
+    @uiVector() @serialize() clampMax = new Vector3(1e6, 1e6, 1e6) // should be Infinity but this breaks the UI
 
     // @uiToggle()
     @serialize() screenSpacePanning = true
