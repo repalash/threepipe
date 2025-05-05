@@ -1,11 +1,18 @@
-import {_testFinish, CanvasSnapshotPlugin, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    CanvasSnapshotPlugin,
+    isWebpExportSupported,
+    LoadingScreenPlugin,
+    SSAAPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     renderScale: 'auto',
-    plugins: [LoadingScreenPlugin],
+    plugins: [LoadingScreenPlugin, SSAAPlugin],
 })
 
 async function init() {
@@ -24,6 +31,8 @@ async function init() {
                 mimeType: 'image/jpeg', // mime type of the image
                 quality: 0.9, // quality of the image (0-1) only for jpeg and webp
                 displayPixelRatio: 2, // render scale
+                waitForProgressive: true,
+                progressiveFrames: 64, // wait for 64 frames of ProgressivePlugin/SSAA before exporting
             })
             btn.disabled = false
         },
@@ -70,6 +79,18 @@ async function init() {
                 scale: 1, // scale the final image
                 quality: 0.9, // quality of the image (0-1) only for jpeg and webp
                 displayPixelRatio: 2, // render scale
+            })
+            btn.disabled = false
+        },
+        ['Download 3x3 Tiles (png zip)']: async(btn: HTMLButtonElement) => {
+            btn.disabled = true
+            await snapshotPlugin.downloadSnapshot('snapshot', {
+                mimeType: 'image/png', // mime type of the image
+                // scale: 1, // scale the final image
+                // quality: 0.9, // quality of the image (0-1) only for jpeg and webp
+                displayPixelRatio: 4, // render scale
+                tileRows: 3,
+                tileColumns: 3,
             })
             btn.disabled = false
         },

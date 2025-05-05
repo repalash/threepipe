@@ -3,8 +3,8 @@ import {AViewerPluginEventMap, type ThreeViewer} from '../../viewer/'
 import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {Dropzone} from '../../utils'
 import {uiButton, uiConfig, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
-import type {AddAssetOptions, ImportFilesOptions, ImportResult} from '../../assetmanager'
-import {serialize} from 'ts-browser-helpers'
+import type {AddAssetOptions, ImportFilesOptions, ImportResult, ImportAddOptions} from '../../assetmanager'
+import {parseFileExtension, serialize} from 'ts-browser-helpers'
 
 export interface DropzonePluginOptions {
     /**
@@ -112,11 +112,51 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     /**
      * Prompt for file selection using the browser file dialog.
      */
-    @uiButton('Select files')
+    @uiButton('Select Local files')
     public promptForFile(): void {
         if (this.isDisabled()) return
         this.allowedExtensions = this._allowedExtensions
         this._inputEl?.click()
+    }
+
+    /**
+     * Prompt for file url.
+     */
+    @uiButton('Import from URL')
+    public async promptForUrl(): Promise<void> {
+        if (this.isDisabled() || !this._viewer) return
+        const res = await this._viewer.dialog.prompt('Enter URL: Enter a public URL for a 3d file with extension', '', true)
+        if (!res || !res.length) return
+        await this.load(res, {}, true)
+    }
+
+    async load(res: string, options?: ImportAddOptions, dialog = false) {
+        if (!this._viewer) {
+            console.warn('DropzonePlugin: viewer not set')
+            return
+        }
+        if (this.autoImport) {
+            const manager = this._viewer.assetManager
+            const ext = parseFileExtension(res)
+            if (this._allowedExtensions && !this._allowedExtensions.includes(ext)) {
+                dialog && await this._viewer.dialog.alert(`DropzonePlugin: file extension ${ext} not allowed`)
+                return
+            }
+            const imported = await manager.importer.import(res, {
+                ...this.importOptions,
+                ...options ?? {},
+            })
+            const toAdd = [...imported ?? []].flat(2).filter(v => !!v) ?? []
+            if (this.autoAdd) {
+                return await manager.loadImported(toAdd, {
+                    ...this.addOptions,
+                    ...options ?? {},
+                })
+            }
+            return toAdd
+        } else {
+            dialog && await this._viewer.dialog.alert('DropzonePlugin: autoImport is disabled, file was not imported')
+        }
     }
 
     private _domElement?: HTMLElement

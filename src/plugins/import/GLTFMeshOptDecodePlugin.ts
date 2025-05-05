@@ -7,7 +7,7 @@ import {SimpleEventDispatcher} from 'ts-browser-helpers'
  *
  * The plugin name includes GLTF, but its not really GLTF specific, it can be used to decode any meshopt compressed files.
  */
-export class GLTFMeshOptDecodePlugin extends SimpleEventDispatcher<''> implements IViewerPluginSync {
+export class GLTFMeshOptDecodePlugin extends SimpleEventDispatcher<'initialized'> implements IViewerPluginSync {
     declare ['constructor']: typeof GLTFMeshOptDecodePlugin
     public static readonly PluginType = 'GLTFMeshOptDecodePlugin'
     enabled = true
@@ -48,7 +48,8 @@ window.dispatchEvent(new CustomEvent('${ev}'))
             this.rootNode.appendChild(s)
             this._script = s
         })
-        return await this._initializing
+        await this._initializing
+        this.dispatchEvent({type: 'initialized'})
     }
 
     dispose() {

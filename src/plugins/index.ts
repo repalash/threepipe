@@ -48,7 +48,7 @@ export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 
 // export
 export {AssetExporterPlugin, type ExportAssetOptions} from './export/AssetExporterPlugin'
-export {CanvasSnapshotPlugin, CanvasSnipperPlugin} from './export/CanvasSnapshotPlugin'
+export {CanvasSnapshotPlugin, CanvasSnipperPlugin, type CanvasSnapshotPluginOptions} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
 
 // postprocessing
