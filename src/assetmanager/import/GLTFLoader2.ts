@@ -158,7 +158,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                     this.setMeshoptDecoder(window.MeshoptDecoder)
                     parser.options.meshoptDecoder = window.MeshoptDecoder
                 } else {
-                    console.error('Add GLTFMeshOptPlugin(and initialize it) to viewer to enable EXT_meshopt_compression decode')
+                    console.error('Add GLTFMeshOptDecodePlugin(and initialize it) to viewer to enable EXT_meshopt_compression decode')
                 }
             }
 

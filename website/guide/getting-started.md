@@ -186,9 +186,9 @@ Check it in action: [vue-html-sample](https://threepipe.org/examples/#vue-html-s
 
 Another example with Vue SFC(Single file component): [Example: vue-sfc-sample](https://threepipe.org/examples/#vue-sfc-sample/)
 
-### Svelte
+### Svelte 4
 
-A sample [svelte](https://svelte.dev/) component in js to render a model with an environment map.
+A sample [svelte](https://svelte.dev/) 4 component in js to render a model with an environment map.
 
 ```html
 <script>

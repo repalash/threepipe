@@ -4,13 +4,13 @@ import {
     Color,
     Event,
     EventDispatcher,
+    EventListener2,
     LinearSRGBColorSpace,
     Object3D,
     Quaternion,
     Scene,
     Vector2,
     Vector3,
-    EventListener2,
 } from 'three'
 import {Class, createCanvasElement, downloadBlob, onChange, serialize, timeout, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
@@ -135,6 +135,8 @@ export interface ThreeViewerOptions {
      * Use rendered gbuffer as depth-prepass / z-prepass. (Requires DepthBufferPlugin/GBufferPlugin).
      * Set it to true if you only have opaque objects in the scene to get better performance.
      *
+     * @default false
+     *
      * todo fix: It should be disabled when there are any transparent/transmissive objects with render to depth buffer enabled, see forceZPrepass
      */
     zPrepass?: boolean
@@ -157,6 +159,12 @@ export interface ThreeViewerOptions {
      * @default 2
      */
     maxRenderScale?: number
+
+    /**
+     * Model Root Scale
+     * @default 1
+     */
+    modelRootScale?: number
 
     debug?: boolean
 
@@ -400,7 +408,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
 
         // if camera position or target changed in last frame, call setDirty on camera
-        this.addEventListener('preFrame', () => { // todo: move inside RootScene.
+        this.addEventListener('preFrame', () => { // todo: move inside RootScene. and maybe check the world matrix and target vector change
             const cam = this._scene.mainCamera
             if (
                 cam.getWorldPosition(this._tempVec).sub(this._lastCameraPosition).lengthSq() // position is in local space
@@ -430,6 +438,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._lastCameraTarget.copy(this._scene.mainCamera.target)
             this._scene.mainCamera.getWorldQuaternion(this._lastCameraQuat)
         })
+        this._scene.modelRoot.scale.setScalar(options.modelRootScale ?? 1)
 
 
         // render manager
@@ -892,7 +901,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.resize() // this is also required in case the browwser doesnt support/fire observer
     }
 
-    // todo make an example for this.
     // todo make a constructor parameter for renderSize
     // todo make getRenderSize or get renderSize
     /**
@@ -916,6 +924,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * 'fill': The canvas is stretched to completely fill the container, ignoring its aspect ratio.
      * 'scale-down': The canvas is scaled down to fit within the container while maintaining its aspect ratio, but it won't be scaled up if it's smaller than the container.
      * 'none': container size is ignored, but devicePixelRatio is used
+     *
+     * Check the example for more details - https://threepipe.org/examples/#viewer-render-size/
      * @param size - The size to set the render to. The canvas will render to this size.
      * @param mode - 'contain', 'cover', 'fill', 'scale-down' or 'none'. Default is 'contain'.
      * @param devicePixelRatio - typically set to `window.devicePixelRatio`, or `Math.min(1.5, window.devicePixelRatio)` for performance. Use this only when size is derived from dom elements.
@@ -1343,7 +1353,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.enabled = false
     }
 
-    // private _addSceneObject = (e: IEvent<any>) => {
+    // private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
     //     if (!e || !e.object) return
     //     const config = e.object.__importedViewerConfig // this is set in gltf.ts when gltf file is imported. This is done here so that scene settings are applied whenever the imported object is added to scene.
     //     if (!config) return

@@ -1,8 +1,8 @@
-import {Quaternion, Vector3} from 'three'
+import {EventListener2, Quaternion, Vector3} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {UiObjectConfig} from 'uiconfig.js'
 import {PopmotionPlugin} from './PopmotionPlugin'
-import {IObject3D} from '../../core'
+import {IObject3D, IScene, ISceneEventMap} from '../../core'
 
 // todo make a serializable object like CameraView for proper ui state management
 export interface TSavedTransform {
@@ -40,8 +40,8 @@ export class TransformAnimationPlugin extends AViewerPluginSync {
         viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)
         return super.onRemove(viewer)
     }
-    private _addSceneObject = (e: any)=>{
-        const object = e.object as IObject3D
+    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
+        const object = e.object
         object?.traverse && object.traverse((o: IObject3D)=>{
             if (!o.userData[TransformAnimationPlugin.PluginType]) {
                 o.userData[TransformAnimationPlugin.PluginType] = {

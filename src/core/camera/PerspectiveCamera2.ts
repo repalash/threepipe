@@ -1,5 +1,5 @@
 import {Camera, IUniform, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {generateUiConfig, uiInput, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
@@ -46,7 +46,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     @serialize() declare focus: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('FoV Zoom', [0.001, 10], 0.001)
+    @uiNumber('FoV Zoom')
     @serialize() declare zoom: number
 
     @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
@@ -218,7 +218,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         this.getWorldPosition(this._positionWorld)
 
         iCameraCommons.setDirty.call(this, options)
-        
+
         if (options?.last !== false)
             this._camUi.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
     }

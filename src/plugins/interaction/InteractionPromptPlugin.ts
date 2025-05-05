@@ -1,8 +1,9 @@
-import {Spherical, Vector3} from 'three'
+import {EventListener2, Spherical, Vector3} from 'three'
 import {IEvent, now, objectHasOwn, onChange, serialize} from 'ts-browser-helpers'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiButton, uiFolderContainer, uiInput, uiMonitor, uiToggle} from 'uiconfig.js'
 import {OrbitControls3} from '../../three'
+import {IScene, ISceneEventMap} from '../../core'
 
 /**
  * Interaction Prompt Plugin
@@ -174,7 +175,7 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
             this.lastActionTime = now()
         }
     }
-    private _addSceneObject = ()=>{
+    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = ()=>{
         if (this.autoStartOnObjectLoad) {
             this.lastActionTime = now() - this.autoStartDelay + this.autoStartOnObjectLoadDelay
         }

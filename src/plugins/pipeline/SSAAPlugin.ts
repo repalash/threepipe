@@ -1,8 +1,8 @@
-import {OrthographicCamera, PerspectiveCamera} from 'three'
+import {EventListener2, OrthographicCamera, PerspectiveCamera} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
-import {IEvent, onChange, serialize} from 'ts-browser-helpers'
-import {ICamera, ILight} from '../../core'
+import {onChange, serialize} from 'ts-browser-helpers'
+import {ICamera, ILight, IScene, ISceneEventMap} from '../../core'
 import {ProgressivePlugin} from './ProgressivePlugin'
 
 export type TCamera = ICamera & (PerspectiveCamera|OrthographicCamera)
@@ -68,7 +68,7 @@ export class SSAAPlugin extends AViewerPluginSync {
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
-    private _addSceneObject = (event: IEvent<string>)=> {
+    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (event)=>{
         event.object?.traverse((o: ILight)=>{
             if (o && o.shadow && o.shadow.camera && o.shadow.mapSize) {
                 this.trackedJitterCameras.add([o.shadow.camera as TCamera, o.shadow.mapSize])

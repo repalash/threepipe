@@ -26,6 +26,6 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-gltf-transform](../package/plugin-gltf-transform) - Plugin to transform gltf models like adding draco compression while exporting gltf files.
 - [@threepipe/plugins-extra-importers](../package/plugins-extra-importers) - Plugin for loading more file types supported by various types of loaders in three.js.
 - [@threepipe/plugin-network](../package/plugin-network) - Network/Cloud related plugin implementations for Threepipe - `AWSClientPlugin` and `TransfrSharePlugin`.
-- [@threepipe/plugin-blend-importer](../package/plugin-blend-importer) - Blender to add support for loading .blend file (WIP)
-- [@threepipe/plugin-gaussian-splatting](../package/plugin-gaussian-splatting) - Gaussian Splatting plugin for loading and rendering splat files (WIP)
+- [@threepipe/plugin-blend-importer](../package/plugin-blend-importer) - Add support for loading .blend file. (Partial/WIP) ([Blender](https://www.blender.org/))
+- [@threepipe/plugin-gaussian-splatting](../package/plugin-gaussian-splatting) - [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) plugin for loading and rendering splat files
 - [@threepipe/plugin-svg-renderer](../package/plugin-svg-renderer) - Add support for exporting 3d scene as SVG (WIP) using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer).

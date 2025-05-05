@@ -18,18 +18,24 @@ export class Box3B extends Box3 {
         object.updateWorldMatrix(false, false)
 
         // InstancedMesh has boundingBox = null, so it can be computed
-        if ((object as any).boundingBox !== undefined) {
+        if ((object as IObject3D).boundingBox !== undefined) {
 
-            if ((object as any).boundingBox === null) {
+            if ((object as IObject3D).boundingBox === null && typeof (object as IObject3D).computeBoundingBox === 'function') {
 
-                (object as any).computeBoundingBox()
+                (object as IObject3D).computeBoundingBox!()
 
             }
 
-            Box3B._box.copy((object as any).boundingBox)
-            Box3B._box.applyMatrix4(object.matrixWorld)
+            if ((object as IObject3D).boundingBox !== null) {
 
-            this.union(Box3B._box)
+                Box3B._box.copy((object as IObject3D).boundingBox!)
+                Box3B._box.applyMatrix4(object.matrixWorld)
+
+                this.union(Box3B._box)
+
+            } else {
+                console.warn('Box3B - Unable to compute bounds for', object)
+            }
 
         } else {
 

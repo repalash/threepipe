@@ -117,9 +117,13 @@ export interface ProcessRawOptions {
 
 export interface LoadFileOptions {
     /**
+     * The file extension to use for the file. If not specified, the importer will try to determine the file extension from the file name/url.
+     */
+    fileExtension?: string,
+    /**
      * The custom {@link ILoader} to use for the file. If not specified, the importer will try to determine the loader from the file extension.
      */
-    fileHandler?: any,
+    fileHandler?: ILoader,
     /**
      * Query string to add to the url. Default = undefined
      */
@@ -233,6 +237,9 @@ export interface IAssetImporter<TE extends IAssetImporterEventMap = IAssetImport
      * @param options
      */
     processRaw(res: any, options: ProcessRawOptions): Promise<any[]>
+
+    addURLModifier(modifier: (url: string) => string): void
+    removeURLModifier(modifier: (url: string) => string): void
 
 }
 

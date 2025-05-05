@@ -267,22 +267,26 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         if (addToRoot) this.add(obj)
         else this.modelRoot.add(obj)
 
-        if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered) { // pseudoCentered is legacy
-            obj.autoCenter?.()
-        } else {
-            obj.userData.isCentered = true // mark as centered, so that autoCenter is not called again when file is reloaded.
+        const process = () => {
+            if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered) { // pseudoCentered is legacy
+                obj.autoCenter && obj.autoCenter()
+            } else {
+                obj.userData.isCentered = true // mark as centered, so that autoCenter is not called again when file is reloaded.
+            }
+            if (autoScale && !obj.userData.autoScaled) {
+                obj.autoScale && obj.autoScale(obj.userData.autoScaleRadius || autoScaleRadius)
+            } else {
+                obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
+            }
+            if (centerGeometries && !obj.userData.geometriesCentered) {
+                this.centerAllGeometries(centerGeometriesKeepPosition, obj)
+                obj.userData.geometriesCentered = true
+            } else {
+                obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
+            }
         }
-        if (autoScale && !obj.userData.autoScaled) {
-            obj.autoScale?.(obj.userData.autoScaleRadius || autoScaleRadius)
-        } else {
-            obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
-        }
-        if (centerGeometries && !obj.userData.geometriesCentered) {
-            this.centerAllGeometries(centerGeometriesKeepPosition, obj)
-            obj.userData.geometriesCentered = true
-        } else {
-            obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
-        }
+        if (obj._loadingPromise) obj._loadingPromise.finally(process)
+        else process()
 
         if (license) obj.userData.license = [obj.userData.license, license].filter(v=>v).join(', ')
 
@@ -502,19 +506,29 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
         // todo check if this takes too much time with large scenes(when moving the camera and not animating), but we also need to support animations
         const bbox = this.getBounds(false) // todo: can we use this._sceneBounds or will it have some issue with animation?
+        const size = bbox.getSize(this._v2).length()
+        if (size < 0.001) {
+            camera.near = camera.userData.minNearPlane ?? 0.5
+            camera.far = camera.userData.maxFarPlane ?? 1000
+            return
+        }
+
         camera.getWorldPosition(this._v1).sub(bbox.getCenter(this._v2))
-        const radius = 1.5 * bbox.getSize(this._v2).length() / 2.
+        const radius = 1.5 * Math.max(0.25, size) / 2.
         const dist = this._v1.length()
 
         // new way
         const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
         const near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
-        const far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
+        let far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
 
         // old way, has issues when panning very far from the camera target
         // const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
         // const far = Math.min(Math.max(near + 1, dist + radius), camera.userData.maxFarPlane ?? 1000)
 
+        if (far < near || far - near < 0.1) {
+            far = near + 0.1
+        }
         camera.near = near
         camera.far = far
 

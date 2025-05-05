@@ -235,7 +235,9 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.renderCamera, this)
         }
         this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
+        this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
         this._composer.render()
+        this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
         this._composer.renderToScreen = true
         if (renderToScreen) {
             this._frameCount += 1
@@ -699,7 +701,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             // required for uiconfig.js. see UiConfigMethods.getValue
             // eslint-disable-next-line @typescript-eslint/naming-convention
             _ui_isPrimitive = true
-            
+
         }(this, ...size, options)
     }
 

@@ -1,8 +1,8 @@
 import {UiObjectConfig} from 'uiconfig.js'
-import {IWidget} from '../../core'
+import {IScene, ISceneEventMap, IWidget} from '../../core'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IEvent, onChange} from 'ts-browser-helpers'
-import {Object3D} from 'three'
+import {EventListener2, Object3D} from 'three'
 import {CameraHelper2, DirectionalLightHelper2, PointLightHelper2, SpotLightHelper2} from '../../three'
 
 export interface IObject3DHelper<T extends Object3D&IWidget = Object3D&IWidget>{
@@ -54,7 +54,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         this._widgetRoot.clear()
         super.onRemove(viewer)
     }
-    private _addSceneObject = (e: any)=>{
+    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
         this._createWidgets(e.object)
     }
 

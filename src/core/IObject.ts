@@ -1,5 +1,5 @@
 import {IMaterial, IMaterialEventMap} from './IMaterial'
-import {EventListener2, Object3D, Object3DEventMap, Vector3} from 'three'
+import {Box3, EventListener2, Object3D, Object3DEventMap, Sphere, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEventMap} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
@@ -372,6 +372,43 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
      * @param removeFromParent - remove from parent. Default true
      */
     dispose(removeFromParent?: boolean): void;
+
+    /**
+     * A promise can be set by the object to indicate that the object is loading.
+     * This can be used by the scene, viewer, plugins to defer actions until the object is loaded.
+     */
+    _loadingPromise?: Promise<void>
+
+    /**
+     * For InstancedMesh, SkinnedMesh etc
+     */
+    boundingBox?: Box3 | null
+    /**
+     * For InstancedMesh, SkinnedMesh etc
+     */
+    boundingSphere?: Sphere | null
+    /**
+     * For InstancedMesh, SkinnedMesh etc
+     * Computes bounding box, updating {@link boundingBox | .boundingBox} attribute.
+     * @remarks Bounding boxes aren't computed by default. They need to be explicitly computed, otherwise they are `null`.
+     */
+    computeBoundingBox?(): void;
+
+    /**
+     * For InstancedMesh, SkinnedMesh etc
+     * Computes bounding sphere, updating {@link boundingSphere | .boundingSphere} attribute.
+     * @remarks bounding spheres aren't computed by default. They need to be explicitly computed, otherwise they are `null`.
+     */
+    computeBoundingSphere?(): void;
+
+    /**
+     * Set to `false` to disable propagation of any events from its children.
+     */
+    acceptChildEvents?: boolean
+    /**
+     * Set to `false` to disable automatic call of `upgradeObject3D` when a child is added.
+     */
+    autoUpgradeChildren?: boolean
 
     // region inherited type fixes
 

@@ -29,6 +29,14 @@ export interface IRenderManagerEventMap {
     contextLost: {
         event: WebGLContextEvent
     }
+    preRender: {
+        scene: IScene
+        renderToScreen: boolean
+    }
+    postRender: {
+        scene: IScene
+        renderToScreen: boolean
+    }
 }
 
 export interface RendererBlitOptions {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean}

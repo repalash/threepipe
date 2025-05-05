@@ -1,6 +1,6 @@
 import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
-import {objectHasOwn} from 'ts-browser-helpers'
+import {IEvent, objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEventMap, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData} from '../../utils'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
@@ -24,8 +24,10 @@ export const iObjectCommons = {
     makeUiConfig: makeIObject3DUiConfig,
 
     autoCenter: function<T extends IObject3D>(this: T, setDirty = true, undo = false): T {
+        // todo use bounding sphere?
         if (undo) {
             if (!this.userData.autoCentered || !this.userData._lastCenter) return this
+            if (!isFinite(this.userData._lastCenter.lengthSq())) return this
             this.position.add(this.userData._lastCenter)
             delete this.userData.autoCentered
             delete this.userData.isCentered
@@ -33,6 +35,7 @@ export const iObjectCommons = {
         } else {
             const bb = new Box3B().expandByObject(this, true, true)
             const center = bb.getCenter(new Vector3())
+            if (!isFinite(center.lengthSq())) return this
             this.userData._lastCenter = center/* .clone()*/
             this.position.sub(center)
             this.userData.autoCentered = true
@@ -352,6 +355,7 @@ export const iObjectCommons = {
 
     dispatchEvent: (superDispatch: IObject3D['dispatchEvent']): IObject3D['dispatchEvent'] =>
         function(this: IObject3D, event): void {
+            if ((event as IEvent<any>).target && (event as IEvent<any>).target !== this && this.acceptChildEvents === false) return
             if ((event as IObject3DEventMap['objectUpdate']).bubbleToParent || this.userData?.__autoBubbleToParentEvents?.includes(event.type)) {
                 // console.log('parent dispatch', e, this.parentRoot, this.parent)
                 const pRoot = this.parentRoot || this.parent
@@ -398,7 +402,9 @@ export const iObjectCommons = {
         },
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
         function(this: IObject3D, ...args): IObject3D {
-            for (const a of args) iObjectCommons.upgradeObject3D.call(a, this.parentRoot || this, this.objectProcessor)
+            if (this.autoUpgradeChildren !== false) {
+                for (const a of args) iObjectCommons.upgradeObject3D.call(a, this.parentRoot || this, this.objectProcessor)
+            }
             return superAdd.call(this, ...args)
         },
     dispose: (superDispose?: IObject3D['dispose']) =>
@@ -432,8 +438,8 @@ export const iObjectCommons = {
  * @param parent
  * @param objectProcessor
  */
-function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): void {
-    if (!this) return
+function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): IObject3D {
+    if (!this) return this
     // console.log('upgradeObject3D', this, parent, objectProcessor)
     // if (this.__disposed) {
     //     console.warn('re-init/re-add disposed object, things might not work as intended', this)
@@ -443,9 +449,9 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     this.userData.uuid = this.uuid
 
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
-    // if (this.assetType) return
+    // if (this.assetType) return this
 
-    if (this.userData.__objectSetup) return
+    if (this.userData.__objectSetup) return this
     this.userData.__objectSetup = true
 
     if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
@@ -540,8 +546,10 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     // todo: serialization?
 
-    const children = [...this.children]
-    for (const c of children) upgradeObject3D.call(c, this)
+    if (this.autoUpgradeChildren !== false) {
+        const children = [...this.children]
+        for (const c of children) upgradeObject3D.call(c, this)
+    }
 
     // region Legacy
 
@@ -567,4 +575,5 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     this.objectProcessor?.processObject(this)
 
+    return this
 }

@@ -286,7 +286,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 0})
         let res: ImportResult | ImportResult[] | undefined
         try {
-            const loader = this.registerFile(path, file)
+            const loader = this.registerFile(path, file, options.fileExtension, options.fileHandler)
 
             // const url = this.resolveURL(path) // todo: why is this required? maybe for query string?
             // const path2 = path.replace(/\?.*$/, '') // remove query string to find the handler properly
@@ -302,17 +302,20 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 // baseUrl: LoaderUtils.extractUrlBase(url),
             }
 
+            loader.loadFileOptions = options
             res = await loader.loadAsync(path + (options.queryString ? (path.includes('?') ? '&' : '?') + options.queryString : ''), (e)=>{
                 if (onDownloadProgress) onDownloadProgress(e)
+                const total = e.lengthComputable ? e.total : undefined
                 this.dispatchEvent({
                     type: 'importFile', path,
                     state:'downloading',
                     loadedBytes: e.loaded || undefined,
-                    totalBytes: e.total || undefined,
-                    progress: e.total > 0 ? e.loaded / e.total : 1,
+                    totalBytes: total && total < e.loaded ? e.loaded : e.total || undefined, // sometimes total is more than e.loaded
+                    progress: total && total > 0 && total > e.loaded ? e.loaded / total : 1,
                 })
             })
             if (loader.transform) res = await loader.transform(res, options)
+            delete loader.loadFileOptions
 
             this._rootContext = undefined
 
@@ -369,12 +372,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
      * Register a file in the database and return a loader for it. If the loader does not exist, it will be created.
      * @param path
      * @param file
+     * @param extension
+     * @param loader
      */
-    registerFile(path: string, file?: IFile): ILoader | undefined {
+    registerFile(path: string, file?: IFile, extension?: string, loader?: ILoader): ILoader | undefined {
         const isData = path.startsWith('data:') || false
         if (!isData) path = path.replace(/\?.*$/, '') // remove query string
 
-        const ext = isData ? undefined : file?.ext ?? parseFileExtension(file?.name ?? path.trim())?.toLowerCase()
+        const ext = extension || (isData ? undefined : file?.ext ?? parseFileExtension(file?.name ?? path.trim())?.toLowerCase())
         const mime = file?.mime ?? isData ? path.slice(0, path.indexOf(';')).split(':')[1] || undefined : undefined
 
         if (file) {
@@ -388,7 +393,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             this._fileDatabase.set(path, file)
         }
 
-        return this._getLoader(path) || this._createLoader(path, ext, mime)
+        return loader || this._getLoader(path, ext, mime) || this._createLoader(path, ext, mime)
     }
 
     /**
@@ -513,7 +518,17 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         return this._loadingManager.resolveURL(url)
     }
 
+    protected _urlModifiers: ((url: string) => string)[] = []
+    addURLModifier(modifier: (url: string) => string) {
+        this._urlModifiers.push(modifier)
+    }
+    removeURLModifier(modifier: (url: string) => string) {
+        const index = this._urlModifiers.indexOf(modifier)
+        if (index >= 0) this._urlModifiers.splice(index, 1)
+    }
+
     protected _urlModifier(url: string) {
+        url = this._urlModifiers.reduce((acc, modifier) => modifier(acc), url)
         let normalizedURL = decodeURI(url)
         const rootUrl = this._rootContext?.rootUrl
         if (!normalizedURL.includes('://') && rootUrl && !normalizedURL.startsWith(rootUrl))
@@ -551,8 +566,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (isRoot && !importer.root) return false
             if (mime && importer.mime?.find(m => mime === m)) return true
             if (importer.ext.find(iext =>
-                ext && iext === ext
-                || name?.toLowerCase()?.endsWith('.' + iext)
+                ext ? iext === ext : name?.toLowerCase()?.endsWith('.' + iext)
                 || iext?.startsWith('data:') && name?.startsWith(iext))) return true
             return false
         })
