@@ -8,8 +8,8 @@ import {
     SRGBColorSpace,
     ThreeViewer,
     UnlitMaterial,
+    BufferGeometry,
 } from 'threepipe'
-import {BufferGeometry} from 'three'
 
 async function init() {
 

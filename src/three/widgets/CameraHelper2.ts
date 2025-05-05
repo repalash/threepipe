@@ -1,8 +1,15 @@
-import {Camera, Color, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
+import {
+    Camera,
+    Color,
+    InterleavedBufferAttribute,
+    Object3D,
+    OrthographicCamera,
+    PerspectiveCamera,
+    Vector3,
+} from 'three'
 import {ACameraHelperWidget} from './ACameraHelperWidget'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
-import {InterleavedBufferAttribute} from 'three/src/core/InterleavedBufferAttribute'
 import {LineMaterial2} from '../../core'
 
 /**

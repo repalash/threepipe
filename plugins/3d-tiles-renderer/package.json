@@ -6,7 +6,7 @@
         "3d-tiles-renderer": "^0.4.8"
     },
     "dependencies": {
-        "three": "file:./../../src/",
+        "three": "file:./../../node_modules/three",
         "threepipe": "file:./../../src/"
     },
     "overrides": {

@@ -17,6 +17,7 @@
         "removeComments": false,
         "preserveConstEnums": true,
         "moduleResolution": "node",
+        "skipDefaultLibCheck": true,
         "emitDecoratorMetadata": true,
         "sourceMap": false,
         "paths": {
@@ -24,6 +25,7 @@
             "@threepipe/plugins-*": ["../plugins/*/src"],
             "threepipe": ["../src/"]
         },
+        "esModuleInterop": true,
         "target": "ES2020",
         "strictNullChecks": true,
         "lib": [

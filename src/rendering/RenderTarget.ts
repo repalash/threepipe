@@ -2,6 +2,7 @@ import {
     ColorSpace,
     DepthFormat,
     DepthStencilFormat,
+    DepthTexture,
     FloatType,
     MagnificationTextureFilter,
     MinificationTextureFilter,
@@ -11,10 +12,9 @@ import {
     UnsignedInt248Type,
     UnsignedIntType,
     UnsignedShortType,
+    Vector4,
     Wrapping,
 } from 'three'
-import {Vector4} from 'three/src/math/Vector4'
-import {DepthTexture} from 'three/src/textures/DepthTexture'
 import type {IRenderManager, IWebGLRenderer} from '../core'
 import {ValOrArr} from 'ts-browser-helpers'
 
