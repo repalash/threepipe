@@ -51,26 +51,44 @@ import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-co
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {AWSClientPlugin} from '@threepipe/plugin-network'
+import {
+    B3DMLoadPlugin,
+    CMPTLoadPlugin,
+    DeepZoomImageLoadPlugin,
+    I3DMLoadPlugin,
+    PNTSLoadPlugin,
+    TilesRendererPlugin,
+} from '@threepipe/plugin-3d-tiles-renderer'
 // @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
+
+function checkQuery(key: string, def = true) {
+    return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
+}
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         renderScale: 'auto',
-        msaa: true,
-        rgbm: true,
-        zPrepass: false, // set it to true if you only have opaque objects in the scene to get better performance.
+        msaa: checkQuery('msaa', true),
+        rgbm: checkQuery('rgbm', true),
+        debug: checkQuery('debug', false),
+        assetManager: {
+            storage: checkQuery('cache', true),
+        },
+        // set it to true if you only have opaque objects in the scene to get better performance.
+        zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
+        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')),
         dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
             // allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
             addOptions: {
                 disposeSceneObjects: true, // auto dispose of old scene objects
                 autoSetEnvironment: true, // when hdr is dropped
                 autoSetBackground: true, // when any image is dropped
-                autoCenter: true, // auto center the object
-                autoScale: true, // auto scale according to radius
-                autoScaleRadius: 2,
+                autoScale: checkQuery('autoScale', true), // auto scale according to radius
+                autoCenter: checkQuery('autoCenter', true), // auto center the object
+                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')),
                 // license: 'Imported from dropzone', // Any license to set on imported objects
                 importConfig: true, // import config from file
             },
@@ -138,6 +156,8 @@ async function init() {
         MaterialConfiguratorPlugin,
         SwitchNodePlugin,
         AWSClientPlugin,
+        B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
+        TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
     ])
 
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
@@ -147,7 +167,10 @@ async function init() {
 
     const model = getUrlQueryParam('m') || getUrlQueryParam('model')
     if (model) {
-        await viewer.load(model)
+        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension')
+        const loader = viewer.getPlugin(DropzonePlugin) ?? viewer
+        const obj = await loader.load(model, {fileExtension: ext})
+        console.log(obj)
         const promptDiv = document.getElementById('prompt-div')!
         promptDiv.style.display = 'none'
     }

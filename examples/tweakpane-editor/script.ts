@@ -65,11 +65,19 @@ import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
+import {
+    B3DMLoadPlugin,
+    CMPTLoadPlugin,
+    DeepZoomImageLoadPlugin,
+    I3DMLoadPlugin,
+    PNTSLoadPlugin,
+    TilesRendererPlugin,
+} from '@threepipe/plugin-3d-tiles-renderer'
 // @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
-    return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
+    return !['false', 'no', 'f', '0'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
 }
 
 async function init() {
@@ -85,11 +93,16 @@ async function init() {
         },
         // set it to true if you only have opaque objects in the scene to get better performance.
         zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
+        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')),
         dropzone: {
             autoImport: true,
             autoAdd: true,
             addOptions: {
-                clearSceneObjects: false, // clear the scene before adding new objects on drop.
+                autoScale: checkQuery('autoScale', true),
+                autoCenter: checkQuery('autoCenter', true),
+                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')),
+                clearSceneObjects: checkQuery('clearSceneObjectsOnDrop', false), // clear the scene before adding new objects on drop.
+                license: getUrlQueryParam('licenseText') ?? undefined, // Any license to set on imported objects
             },
         },
     })
@@ -166,6 +179,10 @@ async function init() {
         SwitchNodePlugin,
         AWSClientPlugin,
         TransfrSharePlugin,
+
+        // todo add these to blueprint editor, 3dviewer.xyz
+        B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
+        TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
     ])
 
     KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported. todo - add this to blueprint editor init as well
@@ -210,7 +227,10 @@ async function init() {
 
     const model = getUrlQueryParam('m') || getUrlQueryParam('model')
     if (model) {
-        await viewer.load(model)
+        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension')
+        const loader = viewer.getPlugin(DropzonePlugin) ?? viewer
+        const obj = await loader.load(model, {fileExtension: ext})
+        console.log(obj)
     }
 
     // const result = await viewer.load<IObject3D>('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {

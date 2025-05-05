@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CMPT (Composite 3D Model, OGC Tiles) Load</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-3d-tiles-renderer": "./../../plugins/3d-tiles-renderer/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module">
+        import {_testFinish, LoadingScreenPlugin, ThreeViewer, Vector3, Box3B} from 'threepipe'
+        import {CMPTLoadPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+
+        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
+        viewer.addPluginsSync([CMPTLoadPlugin, LoadingScreenPlugin])
+
+        async function init() {
+
+            viewer.scene.backgroundColor.set(0)
+            //
+            // viewer.scene.mainCamera.position.set(2,2,3)
+            // viewer.scene.mainCamera.setDirty()
+
+            await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+
+            // https://github.com/CesiumGS/3d-tiles-tools
+            // https://github.com/NASA-AMMOS/3DTilesRendererJS/blob/master/example/data/root.b3dm
+            const result2 = await viewer.load('https://raw.githubusercontent.com/CesiumGS/3d-tiles-tools/main/specs/data/contentTypes/content.cmpt', {
+                autoCenter: true,
+                autoScale: true,
+                // autoScaleRadius: 1.5,
+            })
+            console.log(result2)
+            result2.setDirty()
+            console.log(new Box3B(result2).getCenter(new Vector3())) // todo why is this is NaN?
+        }
+
+        init().finally(_testFinish)
+    </script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+</body>

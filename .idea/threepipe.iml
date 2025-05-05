@@ -23,6 +23,8 @@
       <excludeFolder url="file://$MODULE_DIR$/plugins/svg-renderer/docs" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/tweakpane-editor/docs" />
       <excludeFolder url="file://$MODULE_DIR$/website/.vitepress/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/3d-tiles-renderer/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/3d-tiles-renderer/docs" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

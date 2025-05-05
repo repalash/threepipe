@@ -1,0 +1,10 @@
+{
+    "extends": [
+        "../../typedoc.json"
+    ],
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "name": "Threepipe 3D Tiles Renderer and Importer Plugins",
+    "readme": "none"
+}

@@ -3,7 +3,10 @@ prev:
     text: '@threepipe/plugin-gaussian-splatting'
     link: './plugin-gaussian-splatting'
 
-next: false
+next:
+    text: '@threepipe/plugin-3d-tiles-renderer'
+    link: './plugin-3d-tiles-renderer'
+
 ---
 
 # @threepipe/plugin-svg-renderer
