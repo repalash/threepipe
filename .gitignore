@@ -3,6 +3,8 @@ lib
 docs
 examples/**/*.js
 examples/**/*.js.map
+examples/globals.js
+examples/.env
 
 # Logs
 logs

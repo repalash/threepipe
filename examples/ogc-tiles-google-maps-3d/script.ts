@@ -1,5 +1,6 @@
 import {_testFinish, LoadingScreenPlugin, MathUtils, OrbitControls3, ThreeViewer} from 'threepipe'
 import {TilesRendererPlugin, UnloadTilesPlugin, TileCompressionPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+import {CESIUM_ION_API_TOKEN} from '../globals.js'
 
 async function init() {
 
@@ -32,7 +33,7 @@ async function init() {
 
     const result = await tiles.loadCesiumIon({
         assetId: '2275207',
-        apiToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0M2VkOWIxYy00NGEyLTQ1N2QtOWYxYy01ZDNlYjdkN2U4N2MiLCJpZCI6Mjk5NTY5LCJpYXQiOjE3NDY0MzE1NTl9.iOdIsjY4zSnTfIXBx0Pl-yfsG24OuHTt2CQnIP5JRrQ',
+        apiToken: CESIUM_ION_API_TOKEN,
         autoRefreshToken: true,
     }, {
         autoCenter: false,
