@@ -10,6 +10,8 @@ next: false
 
 Exports 
 - [TilesRendererPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/TilesRendererPlugin.html) - adds support for loading and rendering [OGC 3D Tiles](https://www.ogc.org/standards/3dtiles/) json files.
+- [EnvironmentControlsPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/EnvironmentControlsPlugin.html) - adds support for using `EnvironmentControls` with the `mainCamera` as a `controlsMode`
+- [GlobeControlsPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/GlobeControlsPlugin.html) - adds support for using `EnvironmentControls` with the `mainCamera` as a `controlsMode`
 - [B3DMLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/B3DMLoadPlugin.html) - adds support for loading b3dm(Batched 3D Model) files using the Asset Manager.
 - [CMPTLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/CMPTLoadPlugin.html) - adds support for loading cmpt(Composite Model) files using the Asset Manager.
 - [I3DMLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/I3DMLoadPlugin.html) - adds support for loading i3dm(Instanced 3D Model) files using the Asset Manager.
@@ -45,9 +47,11 @@ import {ThreeViewer} from 'threepipe'
 import {TilesRendererPlugin, TilesRendererGroup} from '@threepipe/plugin-3d-tiles-renderer'
 
 const viewer = new ThreeViewer({...})
-viewer.addPluginSync(TilesRendererPlugin)
+const tiles = viewer.addPluginSync(TilesRendererPlugin)
 
 viewer.scene.mainCamera.position.set(300, 300, 300)
+
+// optional. (Required for GlobeControls)
 viewer.scene.mainCamera.autoNearFar = false
 viewer.scene.mainCamera.minNearPlane = 1
 viewer.scene.mainCamera.maxFarPlane = 1000
@@ -71,7 +75,32 @@ const group1 = await viewer.load<TilesRendererGroup>('https://raw.githubusercont
 
 Check the [3d-tiles-renderer](https://threepipe.com/examples/#3d-tiles-renderer/), [ogc-tiles-mars](https://threepipe.com/examples/#ogc-tiles-mars/) examples for a live demo.
 
-### Add TilesRenderer Plugins
+### Use `EnvironmentControls` with `TilesRendererPlugin`
+
+```typescript
+import {TilesRendererPlugin, TilesRendererGroup, EnvironmentControlsPlugin, EnvironmentControls2, GlobeControlsPlugin, GlobeControls2} from '@threepipe/plugin-3d-tiles-renderer'
+const viewer = new ThreeViewer({...})
+const tiles = viewer.addPluginSync(TilesRendererPlugin)
+const group = await tiles.load('...')
+
+viewer.addPluginSync(EnvironmentControlsPlugin) 
+viewer.addPluginSync(GlobeControlsPlugin) 
+
+viewer.scene.mainCamera.controlsMode = 'environment'
+viewer.scene.mainCamera.lookAt(0, 0, 0)
+let controls = viewer.scene.mainCamera.controls as EnvironmentControls2
+controls.minDistance = 0.25;
+
+// For globe controls
+viewer.scene.mainCamera.controlsMode = 'globe'
+viewer.scene.mainCamera.lookAt(0, 0, 0)
+controls = viewer.scene.mainCamera.controls as GlobeControls2
+
+// optional. (Required for GlobeControls)
+controls.setTilesRenderer(group.tilesRenderer)
+```
+
+### Additional `TilesRenderer` Plugins
 
 Some plugins are used by default in the `TilesRendererPlugin` to load and render the tileset. These can be disabled/configured when loading a file and more can be added. 
 Custom plugins can be added to the individual `TilesRenderer` when loading a tileset file.
