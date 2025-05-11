@@ -351,7 +351,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
     params = params ?? {}
     params.extensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
         '.exr', /* '.mp4', '.ogg', '.mov',*/ '.jpeg',
-        '.bmp', '.gif', '.webp', '.cube']
+        '.bmp', '.gif', '.webp', '.cube', '.ktx2', '.avif', '.ico', '.tiff'] // todo update blueprint editor with this list
     if (typeof params.imageFit === 'undefined') params.imageFit = 'contain'
     if (typeof params.clickCallback === 'undefined') params.clickCallback = (ev: MouseEvent, inp: HTMLInputElement) => {
         const target = ev?.target as HTMLElement

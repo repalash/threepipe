@@ -18,6 +18,9 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
 
+Some examples requires env variables. 
+- Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file.
+
 ## Testing
 
 TBD

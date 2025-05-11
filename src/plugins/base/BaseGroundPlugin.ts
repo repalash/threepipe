@@ -217,7 +217,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
             // this._mesh.lookAt(new Vector3().fromArray(this._options.up))
             this._mesh.setRotationFromEuler(new Euler(-Math.PI / 2., 0, this._mesh.rotation.z))
             this._mesh.matrixWorldNeedsUpdate = true
-            this._mesh.setDirty()
+            this._mesh.setDirty({refreshScene: false, source: BaseGroundPlugin.PluginType})
             // this._viewer.scene.setDirty()
         }
         this._transformNeedRefresh = false

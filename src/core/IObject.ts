@@ -32,7 +32,7 @@ declare module 'three'{
             value?: IObject3D /* | Material*/ // todo is this required?
 
             source?: string // who is triggering the event. so that recursive events can be prevented
-        }
+        } /* & IObjectSetDirtyOptions*/
     }
 }
 // [key: keyof Object3DEventMap]: Object3DEventMap[key] & {
@@ -139,20 +139,40 @@ export interface ISetDirtyCommonOptions {
 }
 
 export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
-    bubbleToParent?: boolean // bubble event to parent root
-    change?: string
-    refreshScene?: boolean // update scene after setting dirty
-
-    geometryChanged?: boolean // whether to refresh stuff like ground.
+    /**
+     * Bubble event to parent root(scene).
+     */
+    bubbleToParent?: boolean
+    /**
+     * Change identifier that triggered the setDirty call.
+     */
+    change?: string | keyof IObject3D
+    /**
+     * Update scene(bounds, shadows, plugins, etc) after setting dirty.
+     */
+    refreshScene?: boolean
 
     /**
+     * Indicate whether the geometry has been changed to properly refresh plugins like ground, shadows.
+     */
+    geometryChanged?: boolean
+
+    /**
+     * update scene after setting dirty
+     *
      * @deprecated use {@link refreshScene} instead
      */
-    sceneUpdate?: boolean // update scene after setting dirty
+    sceneUpdate?: boolean
 
-    source?: string // who is triggering the event. so that recursive events can be prevented
+    /**
+     * Source identifier of who is triggering the event. so that recursive events can be prevented
+     */
+    source?: string
 
-    // from onChange3 etc.
+    /**
+     * Key to identify the change. This is used to identify the change in the event. Can be used interchangeably with {@link change}.
+     * Set from `onChange3` etc.
+     */
     key?: string
 
     /**
@@ -275,8 +295,11 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
     isLight?: boolean
     isCamera?: boolean
     isMesh?: boolean
+    isMeshLine?: boolean
     isLine?: boolean
+    isLine2?: boolean
     isLineSegments?: boolean
+    isLineSegments2?: boolean
     // isGroup?: boolean
     isScene?: boolean
     // isHelper?: boolean
@@ -400,6 +423,11 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
      * @remarks bounding spheres aren't computed by default. They need to be explicitly computed, otherwise they are `null`.
      */
     computeBoundingSphere?(): void;
+
+    /**
+     * For LineSegments, Line2 etc
+     */
+    computeLineDistances?(): void
 
     /**
      * Set to `false` to disable propagation of any events from its children.
