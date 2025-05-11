@@ -7,13 +7,21 @@ if (fs.existsSync(envFilePath)) {
     dotenv.config({ path: envFilePath })
 }
 
+// Parse DOT_ENV_CONTENT environment variable as .env file if it exists(for ci)
+if (process.env.DOT_ENV_CONTENT) {
+    const envConfig = dotenv.parse(process.env.TP_EX)
+    for (const key in envConfig) {
+        process.env[key] = envConfig[key]
+    }
+}
+
 // Filter EX_ variables from environment
 const envVars = Object.entries(process.env)
     .filter(([key]) => key.startsWith('TP_EX_'))
     .reduce((acc, [key, value]) => {
         acc[key.replace('TP_EX_', '')] = value
         return acc
-    }, {})
+    }, {'DUMMY': '1'}) // dummy to prevent empty file which is not a module apparently
 
 // Generate globals.js
 const jsOutput = Object.entries(envVars)
