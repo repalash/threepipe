@@ -18,8 +18,14 @@ import {
     UiObjectConfig,
     uploadFile,
     Vector2,
-    Vector3, Texture,
-    Vector4, UndoManagerPlugin, WebGLRenderTarget, WebGLCubeRenderTarget, WebGLMultipleRenderTargets,
+    Vector3,
+    Texture,
+    Vector4,
+    UndoManagerPlugin,
+    WebGLRenderTarget,
+    WebGLCubeRenderTarget,
+    WebGLMultipleRenderTargets,
+    mobileAndTabletCheck,
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
@@ -36,7 +42,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     @uiDropdown('Color Mode', ['black', 'white', 'blue'].map(label=>({label})))
         colorMode: 'black'|'white'|'blue'
 
-    constructor(expanded = false, bigTheme = true, container?: HTMLElement, colorMode?: 'black'|'white'|'blue') {
+    constructor(expanded = !mobileAndTabletCheck(), bigTheme = true, container?: HTMLElement, colorMode?: 'black'|'white'|'blue') {
         super(container ?? document.getElementById(TweakpaneUiPlugin.CONTAINER_SLOT) ?? document.getElementById('tweakpaneMainPanelSlot') ?? document.body, {
             expanded, autoPostFrame: false,
         }, false)
