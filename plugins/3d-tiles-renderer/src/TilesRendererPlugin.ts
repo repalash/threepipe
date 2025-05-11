@@ -16,13 +16,12 @@ import {
     Loader,
     ImportAddOptions,
     LoadingManager,
-    ThreeViewer,
+    ThreeViewer, Sphere,
 } from 'threepipe'
 import {TilesGroup, TilesRenderer} from '3d-tiles-renderer'
 import {gltfCesiumRTCExtension, gltfMeshFeaturesExtension, gltfStructuralMetadataExtension} from './gltf'
 // @ts-expect-error moduleResolution issue
 import {ImplicitTilingPlugin, TilesFadePlugin, UpdateOnChangePlugin, CesiumIonAuthPlugin} from '3d-tiles-renderer/plugins'
-import {Sphere} from 'three'
 
 export type TilesRendererGroup = TilesGroup & IObject3D
 
@@ -259,6 +258,16 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
             group.computeBoundingSphere!()
         })
 
+        // const sup = group.updateWorldMatrix
+        // todo remove in next version
+        group.updateWorldMatrix = (updateParents) => {
+            if (group.parent && updateParents) {
+                group.parent.updateWorldMatrix(updateParents, false)
+            }
+            // run the normal update function to ensure children and inverse matrices are in sync
+            group.updateMatrixWorld(true)
+        }
+
         // Save promise to tell the viewer/scene when the load is finished, it can then autoScale, autoCenter etc
         let resolve: any
         // let reject: any
@@ -304,9 +313,9 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
         }
         tiles.addEventListener('load-content', setDirty)
         tiles.addEventListener('load-tile-set', setDirty)
-        tiles.addEventListener('force-rerender', setDirty)
+        tiles.addEventListener('needs-update', setDirty)
 
-        // tiles.update()
+        tiles.update()
         onLoad(group)
 
     }

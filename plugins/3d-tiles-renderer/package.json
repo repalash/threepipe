@@ -1,9 +1,9 @@
 {
     "name": "@threepipe/plugin-3d-tiles-renderer",
     "description": "Interface for 3d-tiles-renderer",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "devDependencies": {
-        "3d-tiles-renderer": "^0.4.8"
+        "3d-tiles-renderer": "^0.4.9"
     },
     "dependencies": {
         "three": "file:./../../node_modules/three",
@@ -25,7 +25,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.41"
+                "threepipe": "^0.0.43"
             }
         }
     },

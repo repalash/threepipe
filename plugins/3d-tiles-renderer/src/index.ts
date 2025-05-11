@@ -5,6 +5,8 @@ export {PNTSLoadPlugin} from './PNTSLoadPlugin'
 export {CMPTLoadPlugin} from './CMPTLoadPlugin'
 export {DeepZoomImageLoadPlugin} from './DeepZoomImageLoadPlugin'
 export {SlippyMapTilesLoadPlugin} from './SlippyMapTilesLoadPlugin'
+export {EnvironmentControlsPlugin, EnvironmentControls2} from './EnvironmentControlsPlugin'
+export {GlobeControlsPlugin, GlobeControls2} from './GlobeControlsPlugin'
 export {
     CesiumIonAuthPlugin,
     ReorientationPlugin,
