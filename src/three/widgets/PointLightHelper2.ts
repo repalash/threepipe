@@ -41,6 +41,8 @@ export class PointLightHelper2 extends ALightHelperWidget {
             depthTest: false,
             depthWrite: false,
         })
+        this.material.userData.renderToGBuffer = false
+        this.material.userData.renderToDepth = false
 
         this.lightSphere = new Wireframe(geometry, this.material)
         this.lightSphere.computeLineDistances()

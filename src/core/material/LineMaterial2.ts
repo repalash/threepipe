@@ -1,7 +1,26 @@
 import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
-import {BaseEvent, Color, IUniform, Material, Shader, Vector2, WebGLRenderer} from 'three'
+import {
+    BaseEvent,
+    BufferGeometry,
+    Camera,
+    Color,
+    IUniform,
+    Material,
+    Object3D,
+    Scene,
+    Shader,
+    Vector2,
+    WebGLRenderer,
+} from 'three'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
-import {IMaterial, IMaterialEventMap, IMaterialGenerator, IMaterialParameters, IMaterialTemplate} from '../IMaterial'
+import {
+    IMaterial,
+    IMaterialEventMap,
+    IMaterialGenerator,
+    IMaterialParameters,
+    IMaterialTemplate,
+    IMaterialUserData,
+} from '../IMaterial'
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
@@ -19,12 +38,14 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     public static readonly TYPE = 'LineMaterial2' // not using .type because it is used by three.js
     assetType = 'material' as const
 
+    declare userData: IMaterialUserData
+
     public readonly isLineMaterial2 = true
 
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
-    clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
+    clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
     dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
@@ -36,6 +57,8 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
         this.setValues(parameters)
+        // this.userData.renderToGBuffer = false
+        // this.userData.renderToDepth = false
     }
 
     // region Material Extension
@@ -65,7 +88,18 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         super.onBeforeCompile(shader, renderer)
     }
 
-    onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
+    autoUpdateResolution = true
+
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
+        if (this.autoUpdateResolution) renderer.getSize(this.resolution)
+        super.onBeforeRender(renderer, scene, camera, geometry, object)
+        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object)
+    }
+
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
+        super.onAfterRender(renderer, scene, camera, geometry, object)
+        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object)
+    }
 
     // endregion
 
@@ -94,6 +128,12 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
+            // this.uniformsNeedUpdate = true
+            // this.appliedMeshes.forEach(m=>{
+            //     if ((m.isLineSegments2 || m.isLineSegments) && m.computeLineDistances) {
+            //         m.computeLineDistances()
+            //     }
+            // })
             // todo set needsUpdate true only for properties that require it like maps.
             this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
         },
@@ -119,7 +159,7 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     setValues(parameters: Material|(LineMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE].includes(parameters.type) && !(parameters as LineMaterial2).isLineMaterial && !(parameters as LineMaterial2).isLineMaterial2) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }

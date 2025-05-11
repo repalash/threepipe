@@ -5,11 +5,20 @@ import {Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {UnlitMaterial} from '../material/UnlitMaterial'
 import {PhysicalMaterial} from '../material/PhysicalMaterial'
+import {LineMaterial2} from '../material/LineMaterial2'
+import {UnlitLineMaterial} from '../material/UnlitLineMaterial'
+import {IMaterial} from '../IMaterial'
 
 // todo move somewhere?
 const defaultMaterial = new UnlitMaterial()
 defaultMaterial.name = 'Default Unlit Material'
 defaultMaterial.uiConfig = undefined as any
+const defaultUnlitLineMaterial = new UnlitLineMaterial()
+defaultUnlitLineMaterial.name = 'Default Unlit Line Material'
+defaultUnlitLineMaterial.uiConfig = undefined as any
+const defaultLineMaterial = new LineMaterial2()
+defaultLineMaterial.name = 'Default Line Material'
+defaultLineMaterial.uiConfig = undefined as any
 
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
@@ -67,6 +76,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'checkbox',
                 label: 'Visible',
                 property: [this, 'visible'],
+                onChange: (e)=>{
+                    this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'visible'})
+                },
             },
             {
                 type: 'button',
@@ -90,21 +102,27 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 label: 'Name',
                 property: [this, 'name'],
-                onChange: (e: any)=>{
-                    if (e.last) this.setDirty?.({refreshScene: true, frameFade: false, refreshUi: true})
+                onChange: (e)=>{
+                    if (e.last) this.setDirty?.({uiChangeEvent: e, refreshScene: true, frameFade: false, refreshUi: true})
                 },
             },
             {
                 type: 'checkbox',
                 label: 'Casts Shadow',
-                hidden: () => !(this as any).isMesh,
+                hidden: () => !this.isMesh,
                 property: [this, 'castShadow'],
+                onChange: (e)=>{
+                    this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'castShadow'})
+                },
             },
             {
                 type: 'checkbox',
                 label: 'Receive Shadow',
-                hidden: () => !(this as any).isMesh,
+                hidden: () => !this.isMesh,
                 property: [this, 'receiveShadow'],
+                onChange: (e)=>{
+                    this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'receiveShadow'})
+                },
             },
             {
                 type: 'checkbox',
@@ -235,17 +253,39 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 label: 'Remove Material(s)',
                 type: 'button',
-                hidden: ()=>!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial,
+                hidden: ()=>!this.materials?.length || this.materials.length === 1 && (<IMaterial[]>[defaultMaterial, defaultLineMaterial, defaultUnlitLineMaterial]).includes(this.materials[0]),
                 value: ()=>{
                     const mat = this.materials
-                    this.material = [defaultMaterial]
+                    this.material = this.isLineSegments2 ?
+                        [defaultLineMaterial] : this.isLineSegments ?
+                            [defaultUnlitLineMaterial] : [defaultMaterial]
+                    return ()=> this.material = mat
+                },
+            },
+            {
+                label: 'New Line Material',
+                type: 'button',
+                hidden: ()=>!this.isLineSegments2 || !(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultLineMaterial),
+                value: ()=>{
+                    const mat = this.materials
+                    this.material = [new LineMaterial2()]
+                    return ()=> this.material = mat
+                },
+            },
+            {
+                label: 'New Unlit Line Material',
+                type: 'button',
+                hidden: ()=>!this.isLineSegments || !(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultUnlitLineMaterial),
+                value: ()=>{
+                    const mat = this.materials
+                    this.material = [new UnlitLineMaterial()]
                     return ()=> this.material = mat
                 },
             },
             {
                 label: 'New Physical Material',
                 type: 'button',
-                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial),
+                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial) || !!this.isLineSegments2 || !!this.isLineSegments,
                 value: ()=>{
                     const mat = this.materials
                     this.material = [new PhysicalMaterial()]
@@ -255,7 +295,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 label: 'New Unlit Material',
                 type: 'button',
-                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial),
+                hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial) || !!this.isLineSegments2 || !!this.isLineSegments,
                 value: ()=>{
                     const mat = this.materials
                     this.material = [new UnlitMaterial()]

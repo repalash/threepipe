@@ -12,9 +12,12 @@ export class BoxSelectionWidget extends SelectionWidget {
             color: '#ff2222' as any, transparent: true, opacity: 0.9,
             linewidth: 5, // in pixels
             resolution: new Vector2(1024, 1024), // to be set by renderer, eventually
+            worldUnits: false,
             dashed: false,
             toneMapped: false,
         })
+        matLine.userData.renderToGBuffer = false
+        matLine.userData.renderToDepth = false
         this.lineMaterial = matLine
 
         const ls = new LineSegmentsGeometry()
@@ -33,7 +36,7 @@ export class BoxSelectionWidget extends SelectionWidget {
         if (selected) {
             const bbox = new Box3B().expandByObject(selected, false)
             // const scale = bbox.getBoundingSphere(new Sphere()).radius
-            bbox.getSize(this.scale).multiplyScalar(this.boundingScaleMultiplier).clampScalar(0.1, 100)
+            bbox.getSize(this.scale).multiplyScalar(this.boundingScaleMultiplier).clampScalar(0.1, 1e8)
             this.setVisible(true)
         }
     }

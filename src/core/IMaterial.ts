@@ -249,6 +249,14 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     dispose(force?: boolean): void
 
+    /**
+     * Clones the Material.
+     * This is a shallow clone, so the properties are copied by reference.
+     *
+     * @param track - if true, the clone id and count will be tracked in the userData and a suffix will be appended to the name. default - false
+     */
+    clone(track?: boolean): this;
+
     // optional from subclasses, added here for autocomplete
     flatShading?: boolean
     map?: ITexture | null
@@ -276,8 +284,11 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     isRawShaderMaterial?: boolean
     isPhysicalMaterial?: boolean
+    isLineMaterial?: boolean
     isUnlitMaterial?: boolean
     isGBufferMaterial?: boolean
+    isLineMaterial2?: boolean
+    isUnlitLineMaterial?: boolean
 
     // [key: string]: any
 }

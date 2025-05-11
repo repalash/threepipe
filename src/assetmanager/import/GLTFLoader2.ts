@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {LoadingManager, Object3D, OrthographicCamera, Texture} from 'three'
+import {Line, LineLoop, LineSegments, LoadingManager, Object3D, OrthographicCamera, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
@@ -20,6 +20,11 @@ import {ILoader} from '../IImporter'
 import {ThreeSerialization} from '../../utils'
 import {
     DirectionalLight2,
+    LineGeometry2,
+    LineMaterial2,
+    LineSegmentsGeometry2,
+    MeshLine,
+    MeshLineSegments,
     PerspectiveCamera0,
     PhysicalMaterial,
     PointLight2,
@@ -28,12 +33,15 @@ import {
     UnlitMaterial,
 } from '../../core'
 import {AssetImporter} from '../AssetImporter'
+import {ImportAddOptions} from '../AssetManager'
 
 // todo move somewhere
-const supportedEmbeddedFiles = ['hdr', 'exr', 'webp', 'avif', 'ktx', 'hdrpng', 'svg', 'cube'] // ktx2, drc handled separately
+const supportedEmbeddedFiles = ['hdr', 'exr', 'webp', 'avif', 'ktx', 'hdrpng', 'svg', 'cube', 'ico', 'bmp', 'gif', 'tiff'] // ktx2, drc handled separately
 
 export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|undefined> {
     isGLTFLoader2 = true
+    importOptions?: ImportAddOptions
+
     constructor(manager: LoadingManager) {
         super(manager)
         this.preparsers.push(glbEncryptionPreparser)
@@ -60,6 +68,15 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     ]
 
     /**
+     * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width and other properties.
+     *
+     * This is the default value for the flag, it can also be controlled by using the `useMeshLines` in the import options.
+     *
+     * Note - Lines may not export correctly when loaded with this.
+     */
+    static UseMeshLines = false
+
+    /**
      * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data
      */
     preparsers: GLTFPreparser[] = []
@@ -80,8 +97,12 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 // todo save the path of invalid textures, check if they can be found in the loaded libs, and ask the user in UI to remap it to something else manually
                 if (!Texture.DEFAULT_IMAGE) Texture.DEFAULT_IMAGE = AssetImporter.WHITE_IMAGE_DATA
 
+                const useMeshLines = this.importOptions?.useMeshLines ?? GLTFLoader2.UseMeshLines
+                GLTFLoader.ObjectConstructors.LineBasicMaterial = useMeshLines ? LineMaterial2 as any : UnlitLineMaterial as any
+
                 return res ? super.parse(res, path, (ret)=>{
                     Texture.DEFAULT_IMAGE = val
+                    GLTFLoader.ObjectConstructors.LineBasicMaterial = useMeshLines ? LineMaterial2 as any : UnlitLineMaterial as any
                     onLoad && onLoad(ret)
                 }, onError) : onError && onError(new ErrorEvent('no data'))
             })
@@ -101,12 +122,25 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         const scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
         if (!scene) return undefined
         if (res.animations.length > 0) scene.animations = res.animations
-        scene.traverse((node: Object3D) => {
-            if (node.userData.gltfUUID) { // saved in GLTFExporter2
-                safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
-                delete node.userData.gltfUUID // have issue with cloning if we don't dispose.
+
+        const useMeshLines = this.importOptions?.useMeshLines ?? GLTFLoader2.UseMeshLines
+        // todo: move out and put the chosen setting in userData.
+        if (useMeshLines) {
+            const lines: Line[] = []
+            scene.traverse((node: Object3D) => {
+                if (node.userData.gltfUUID) { // saved in GLTFExporter2
+                    safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
+                    delete node.userData.gltfUUID // have issue with cloning if we don't dispose.
+                }
+                if ((node as Line).isLine) lines.push(node as Line)
+            })
+
+            // convert lines to mesh/fat lines
+            for (const line of lines) {
+                convertToFatLine(line)
             }
-        })
+        }
+
         // todo: replacing lights and camera, todo: remove and change constructors in GLTFLoader.js
         if (!scene.userData) scene.userData = {}
         if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
@@ -191,4 +225,50 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 export interface GLTFPreparser{
     process(data: string | ArrayBuffer, path: string): Promise<string | ArrayBuffer>
     [key: string]: any
+}
+
+// sample test model - https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/refs/heads/main/Models/MeshPrimitiveModes/glTF/MeshPrimitiveModes.gltf
+// todo maybe do the same as others inside GLTFLoader.js
+function convertToFatLine(line: Line) {
+    const parent = line.parent
+    if (!parent) {
+        console.warn('GLTFLoader2: Line has no parent', line)
+        return
+    }
+    if (line.geometry.index) line.geometry = line.geometry.toNonIndexed() // Line2 requires non indexed
+    const line2 =
+        (line as LineSegments).isLineSegments ?
+            new MeshLineSegments(new LineSegmentsGeometry2(), line.material as LineMaterial2) :
+            new MeshLine(new LineGeometry2(), line.material as LineMaterial2)
+    let positions = line.geometry.attributes.position.array as Float32Array
+    if ((line as LineLoop).isLineLoop) {
+        // add first pos as last.
+        const pos = new Float32Array(positions.length + 3)
+        pos.set(positions)
+        pos.set(positions.subarray(0, 3), positions.length)
+        positions = pos
+    }
+    line2.geometry.setPositions(positions)
+    line2.computeLineDistances()
+    const index = parent.children.indexOf(line)
+    parent.add(line2)
+    const {geometry, material} = line2
+    const ud = line.userData
+    line.userData = {}
+    line2.copy(line as any, false)
+    line2.geometry = geometry
+    line2.material = material
+    ;[...line.children].map(c => {
+        line2.add(c)
+    })
+    line2.userData = {...line2.userData, ...ud}
+    material.userData.renderToGBuffer = false // this is set in LineMaterial2
+    material.userData.renderToDepth = false
+    line.removeFromParent()
+    // put at the same index
+    const index2 = parent.children.indexOf(line2)
+    if (index2 >= 0 && index2 !== index) {
+        parent.children.splice(index2, 1)
+        parent.children.splice(index, 0, line2)
+    }
 }

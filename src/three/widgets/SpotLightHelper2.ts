@@ -1,5 +1,4 @@
 import {ColorRepresentation, Object3D, SpotLight, Vector3} from 'three'
-import {LineGeometry} from 'three/examples/jsm/lines/LineGeometry.js'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import {onChange} from 'ts-browser-helpers'
@@ -24,7 +23,7 @@ export class SpotLightHelper2 extends ALightHelperWidget {
 
         if (size === undefined) size = 0.5
 
-        let geometry = new LineSegmentsGeometry()
+        const geometry = new LineSegmentsGeometry()
         const positions = [
             0, 0, 0, 	0, 0, 1,
             0, 0, 0, 	1, 0, 1,
@@ -59,12 +58,11 @@ export class SpotLightHelper2 extends ALightHelperWidget {
             depthTest: false,
             depthWrite: false,
         })
+        this.material.userData.renderToGBuffer = false
+        this.material.userData.renderToDepth = false
 
         this.cone = new LineSegments2(geometry, this.material)
         this.add(this.cone)
-
-        geometry = new LineGeometry()
-        geometry.setPositions([0, 0, 0, 0, 0, 1])
 
         this.update()
 

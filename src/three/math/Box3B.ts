@@ -1,4 +1,14 @@
-import {Box2, Box3, BufferAttribute, Camera, InterleavedBufferAttribute, Mesh, Object3D, Vector3} from 'three'
+import {
+    Box2,
+    Box3,
+    BufferAttribute,
+    BufferGeometry,
+    Camera,
+    InterleavedBufferAttribute,
+    Mesh,
+    Object3D,
+    Vector3,
+} from 'three'
 import type {IObject3D} from '../../core'
 
 export class Box3B extends Box3 {
@@ -10,7 +20,7 @@ export class Box3B extends Box3 {
         if (!object.visible && ignoreInvisible) return this
         if (ignoreObject && ignoreObject(object)) return this
 
-        // copied the whole function from three.js to pass in ignoreInvisible
+        // copied the whole function from three.js to pass in ignoreInvisible, support precise
 
         // Computes the world-axis-aligned bounding box of an object (including its children),
         // accounting for both the object's, and children's, world transforms
@@ -20,7 +30,7 @@ export class Box3B extends Box3 {
         // InstancedMesh has boundingBox = null, so it can be computed
         if ((object as IObject3D).boundingBox !== undefined) {
 
-            if ((object as IObject3D).boundingBox === null && typeof (object as IObject3D).computeBoundingBox === 'function') {
+            if (/* (object as IObject3D).boundingBox === null && */typeof (object as IObject3D).computeBoundingBox === 'function') {
 
                 (object as IObject3D).computeBoundingBox!()
 
@@ -42,7 +52,10 @@ export class Box3B extends Box3 {
             const geometry = (object as Mesh).geometry
 
             if (geometry !== undefined) {
-                if (precise && geometry.attributes != undefined && geometry.attributes.position !== undefined) {
+                // checking for computeBoundingBox to support when overridden in subclass.
+                if (precise && geometry.attributes != undefined && geometry.attributes.position !== undefined && Object.getPrototypeOf(geometry).computeBoundingBox === BufferGeometry.prototype.computeBoundingBox) {
+                    // in case of precise, apply the matrix to positions before expanding the box
+                    // todo add precise option to computeBoundingBox
                     const position = geometry.attributes.position as any as BufferAttribute | InterleavedBufferAttribute
                     for (let i = 0, l = position.count; i < l; i++) {
                         this._vector.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld)
@@ -51,10 +64,14 @@ export class Box3B extends Box3 {
                 } else {
                     if (geometry.boundingBox === null)
                         geometry.computeBoundingBox()
-                    Box3B._box.copy(geometry.boundingBox!)
-                    Box3B._box.applyMatrix4(object.matrixWorld)
+                    if (geometry.boundingBox) {
+                        Box3B._box.copy(geometry.boundingBox)
+                        Box3B._box.applyMatrix4(object.matrixWorld)
 
-                    this.union(Box3B._box)
+                        this.union(Box3B._box)
+                    } else {
+                        console.warn('Box3B - Unable to compute bounds for', object, geometry)
+                    }
 
                 }
             }

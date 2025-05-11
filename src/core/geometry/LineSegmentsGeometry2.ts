@@ -1,9 +1,10 @@
-import {BufferGeometry, NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
+import {NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
 import type {IGeometry, IGeometryEventMap, IGeometryUserData} from '../IGeometry'
+import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry'
 import {iGeometryCommons} from './iGeometryCommons'
 import type {IObject3D} from '../IObject'
 
-export class BufferGeometry2<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE> implements IGeometry<Attributes, TE> {
+export class LineSegmentsGeometry2<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends LineSegmentsGeometry<Attributes, TE> implements IGeometry<Attributes, TE> {
     assetType: 'geometry' // dont set the value here since its checked in upgradeGeometry
     center2 = iGeometryCommons.center2
     setDirty = iGeometryCommons.setDirty
@@ -15,6 +16,4 @@ export class BufferGeometry2<Attributes extends NormalOrGLBufferAttributes = Nor
         super()
         iGeometryCommons.upgradeGeometry.call(this)
     }
-
 }
-

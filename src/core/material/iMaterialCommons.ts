@@ -113,20 +113,25 @@ export const iMaterialCommons = {
             superDispose.call(this)
         },
     clone: (superClone: Material['clone']): IMaterial['clone'] =>
-        function(this: IMaterial): IMaterial {
-            if (!this.userData.cloneId) {
-                this.userData.cloneId = '0'
+        function(this: IMaterial, track = false): IMaterial {
+            if (track) {
+                if (!this.userData.cloneId) {
+                    this.userData.cloneId = '0'
+                }
+                if (!this.userData.cloneCount) {
+                    this.userData.cloneCount = 0
+                }
+                this.userData.cloneCount += 1
             }
-            if (!this.userData.cloneCount) {
-                this.userData.cloneCount = 0
-            }
-            this.userData.cloneCount += 1
 
             const material: IMaterial = this.generator?.({})?.setValues(this, false) ?? superClone.call(this)
 
-            material.userData.cloneId = material.userData.cloneId + '_' + this.userData.cloneCount
-            material.userData.cloneCount = 0
-            material.name = material.name + '_' + material.userData.cloneId
+            if (track) {
+
+                material.userData.cloneId = material.userData.cloneId + '_' + this.userData.cloneCount
+                material.userData.cloneCount = 0
+                material.name = (material.name || 'mat') + '_' + material.userData.cloneId
+            }
 
             return material
         },

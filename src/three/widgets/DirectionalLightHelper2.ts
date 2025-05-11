@@ -43,6 +43,8 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
             depthTest: false,
             depthWrite: false,
         })
+        this.material.userData.renderToGBuffer = false
+        this.material.userData.renderToDepth = false
 
         this.lightPlane = new Line2(geometry, this.material)
         this.add(this.lightPlane)

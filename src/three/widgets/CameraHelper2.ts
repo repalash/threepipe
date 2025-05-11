@@ -43,6 +43,8 @@ export class CameraHelper2 extends ACameraHelperWidget {
             depthTest: false,
             depthWrite: false,
         })
+        material.userData.renderToGBuffer = false
+        material.userData.renderToDepth = false
 
         const {vertices, colors, pointMap} = generateVertices()
 

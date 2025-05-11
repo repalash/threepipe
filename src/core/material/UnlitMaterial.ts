@@ -44,7 +44,7 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     readonly appliedMeshes: Set<IObject3D> = new Set()
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
-    clone(): this {return iMaterialCommons.clone(super.clone).call(this)}
+    clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
     dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator

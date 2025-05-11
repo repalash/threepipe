@@ -1,17 +1,20 @@
-import {Mesh} from 'three'
+import {LineSegmentsGeometry2} from '../geometry/LineSegmentsGeometry2'
+import {LineMaterial2} from '../material/LineMaterial2'
 import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
+import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
-import {IGeometry} from '../IGeometry'
+import {MeshLine} from './MeshLine'
 
-export class Mesh2<
-    TGeometry extends IGeometry = IGeometry,
-    TMaterial extends IMaterial | IMaterial[] = IMaterial | IMaterial[],
+export class MeshLineSegments<
+    TGeometry extends LineSegmentsGeometry2 = LineSegmentsGeometry2,
+    TMaterial extends LineMaterial2= LineMaterial2,
     TE extends IObject3DEventMap = IObject3DEventMap
-> extends Mesh<TGeometry, TMaterial, TE> implements IObject3D<TE> {
+> extends LineSegments2<TGeometry, TMaterial, TE> implements IObject3D<TE> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
+    public readonly isMeshLineSegments = true
 
     declare material: TMaterial
     declare readonly materials: IMaterial[]
@@ -40,7 +43,7 @@ export class Mesh2<
     getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
     getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
     getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: Mesh2|IObject3D, recursive?: boolean, ...args: any[]) => this
+    copy: (source: MeshLine | IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     declare parent: IObject3D | null
@@ -50,4 +53,3 @@ export class Mesh2<
     // endregion
 
 }
-
