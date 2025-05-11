@@ -6,4 +6,5 @@ export function _testFinish(): void {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export function _testStart(): void {
     window.dispatchEvent(new Event('threepipe-test-started'))
+    document.body.classList.add('_testStarted')
 }

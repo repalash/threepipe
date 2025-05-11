@@ -30,7 +30,7 @@ export class Box3B extends Box3 {
         // InstancedMesh has boundingBox = null, so it can be computed
         if ((object as IObject3D).boundingBox !== undefined) {
 
-            if (/* (object as IObject3D).boundingBox === null && */typeof (object as IObject3D).computeBoundingBox === 'function') {
+            if ((precise || (object as IObject3D).boundingBox === null) && typeof (object as IObject3D).computeBoundingBox === 'function') {
 
                 (object as IObject3D).computeBoundingBox!()
 
