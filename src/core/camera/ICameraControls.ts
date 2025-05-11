@@ -5,7 +5,7 @@ export interface ICameraControlsEventMap {
     change: object
 }
 
-export interface ICameraControls<TE extends ICameraControlsEventMap = ICameraControlsEventMap> extends IUiConfigContainer<void, 'panel'>, EventDispatcher<TE> {
+export interface ICameraControls<TE extends ICameraControlsEventMap = ICameraControlsEventMap> extends IUiConfigContainer<void, 'panel'|'folder'>, EventDispatcher<TE> {
     object: Object3D
     enabled: boolean
     domElement?: HTMLElement | Document;

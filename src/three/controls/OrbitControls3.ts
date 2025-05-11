@@ -34,10 +34,10 @@ export class OrbitControls3 extends OrbitControls implements IUiConfigContainer,
     @uiInput() @serialize() autoPushTarget = false
     @uiInput() @serialize() autoPullTarget = false
     @uiInput() @serialize() minDistance = 0.35
-    @uiInput() @serialize() maxDistance = 1000
+    @uiInput() @serialize() maxDistance = 1e6 // should be Infinity but this breaks the UI
 
     @uiInput() @serialize() minZoom = 0.01
-    @uiInput() @serialize() maxZoom = 1000
+    @uiInput() @serialize() maxZoom = 1e6 // should be Infinity but this breaks the UI
 
     @uiInput() @serialize() minPolarAngle = 0
     @uiInput() @serialize() maxPolarAngle = Math.PI

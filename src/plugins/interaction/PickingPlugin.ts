@@ -2,11 +2,12 @@ import {EventListener2, Object3D} from 'three'
 import {Class, onChange, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
-import {IObject3D, IScene, ISceneEventMap} from '../../core'
-import {IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
+import {IMaterial, IObject3D, IScene, ISceneEventMap} from '../../core'
+import {UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import {type UndoManagerPlugin} from './UndoManagerPlugin'
 import {ObjectPickerEventMap} from '../../three/utils/ObjectPicker'
+import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap{
     selectedObjectChanged: {object: IObject3D|null}
@@ -28,6 +29,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _widget?: SelectionWidget
     private _hoverWidget?: SelectionWidget
     private _pickUi: boolean
+
+    dependencies = [CameraViewPlugin]
 
     get hoverEnabled() {
         return this._picker?.hoverEnabled ?? false
@@ -217,10 +220,48 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._viewer.scene.autoNearFarEnabled = !selected // for widgets etc, this can be removed when they are rendered in a separate pass
 
         if (this._pickUi) {
-            const sUiConfig = (selected as IUiConfigContainer)?.uiConfig
             const ui = this.uiConfig
             ui.children = [...this._uiConfigChildren]
-            if (sUiConfig) ui.children.push(sUiConfig)
+            if (selected) {
+                ui.children.push(
+                    {
+                        type: 'button',
+                        label: 'Focus',
+                        value: ()=>{
+                            // const selected = this.getSelectedObject()
+                            if (selected.assetType && selected.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                                selected.dispatchEvent({type: 'select', ui: true, object: selected, bubbleToParent: true, focusCamera: true})
+                            else
+                                this.setSelectedObject(selected, true)
+                        },
+                    },
+                    {
+                        type: 'button',
+                        label: 'Select Parent',
+                        hidden: ()=>!selected.parent,
+                        value: ()=>{
+                            const parent = selected.parent
+                            if (parent) {
+                                if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                                    parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, object: parent})
+                                else
+                                    this.setSelectedObject(parent, false)
+                            }
+                        },
+                    },
+                )
+                let c = selected.uiConfig
+                if (c) ui.children.push(c)
+                else {
+                    // check materials
+                    const mats = selected.materials ?? [selected.material as IMaterial]
+                    for (const m of mats) {
+                        c = m?.uiConfig
+                        if (c) ui.children.push(c)
+                    }
+                }
+            }
+
             ui.uiRefresh?.()
         }
 

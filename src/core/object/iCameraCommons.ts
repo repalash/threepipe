@@ -10,7 +10,7 @@ export const iCameraCommons = {
             // this.controls.update() // this should be done automatically postFrame
         }
         // if (!this.controls || !this.controls.enabled) {
-        if (this.userData.autoLookAtTarget) {
+        else if (this.userData.autoLookAtTarget) {
             this.lookAt(this.target)
         }
         // }
