@@ -1,5 +1,5 @@
-import {_testFinish, FrameFadePlugin, LoadingScreenPlugin, SSAAPlugin, ThreeViewer} from 'threepipe'
-import {TilesRendererPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+import {_testFinish, _testStart, FrameFadePlugin, LoadingScreenPlugin, SSAAPlugin, ThreeViewer} from 'threepipe'
+import {EnvironmentControlsPlugin, TilesRendererPlugin} from '@threepipe/plugin-3d-tiles-renderer'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -17,10 +17,13 @@ async function init() {
                 autoSetBackground: false,
             },
         },
-        plugins: [LoadingScreenPlugin, FrameFadePlugin, SSAAPlugin],
+        plugins: [LoadingScreenPlugin, FrameFadePlugin, SSAAPlugin, EnvironmentControlsPlugin],
     })
 
+    viewer.scene.mainCamera.controlsMode = 'environment'
+    viewer.scene.mainCamera.controls!.minDistance = 0.25
     viewer.scene.mainCamera.position.set(30, 30, 40)
+    viewer.scene.mainCamera.lookAt(0, 0, 0)
     // viewer.scene.mainCamera.position.set(300, 300, 300)
     // viewer.scene.mainCamera.autoNearFar = false
     // viewer.scene.mainCamera.minNearPlane = 1
@@ -64,4 +67,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

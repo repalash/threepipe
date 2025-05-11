@@ -16,7 +16,7 @@ import {
     Loader,
     ImportAddOptions,
     LoadingManager,
-    ThreeViewer, Sphere,
+    ThreeViewer, Sphere, uiButton,
 } from 'threepipe'
 import {TilesGroup, TilesRenderer} from '3d-tiles-renderer'
 import {gltfCesiumRTCExtension, gltfMeshFeaturesExtension, gltfStructuralMetadataExtension} from './gltf'
@@ -197,6 +197,12 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
         this.dispatchEvent({type: 'addTile', group})
     }
 
+    @uiButton()
+    async promptForURL() {
+        const url = await this._viewer?.dialog.prompt('TilesRendererPlugin: Enter URL for the root tileset', '', true)
+        if (!url) return
+        return this.load(url)
+    }
 }
 
 export class TilesRendererLoader extends Loader implements ILoader<TilesRendererGroup> {

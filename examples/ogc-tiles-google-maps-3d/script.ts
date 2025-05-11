@@ -1,4 +1,4 @@
-import {_testFinish, LoadingScreenPlugin, MathUtils, OrbitControls3, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, LoadingScreenPlugin, MathUtils, OrbitControls3, ThreeViewer} from 'threepipe'
 import {TilesRendererPlugin, UnloadTilesPlugin, TileCompressionPlugin} from '@threepipe/plugin-3d-tiles-renderer'
 import {CESIUM_ION_API_TOKEN} from '../globals.js'
 
@@ -55,4 +55,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

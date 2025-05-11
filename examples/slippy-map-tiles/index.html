@@ -25,17 +25,19 @@
             overflow: hidden;
         }
     </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module" lang="ts">
-        import {_testFinish, LoadingScreenPlugin, ThreeViewer, SSAAPlugin} from 'threepipe'
-        import {SlippyMapTilesLoadPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer, SSAAPlugin} from 'threepipe'
+        import {SlippyMapTilesLoadPlugin, EnvironmentControlsPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+
 
         const viewer = new ThreeViewer({
             canvas: document.getElementById('mcanvas'),
             msaa: true, renderScale: window.devicePixelRatio,
             tonemap: false,
         })
-        viewer.addPluginsSync([SlippyMapTilesLoadPlugin, LoadingScreenPlugin, SSAAPlugin])
+        viewer.addPluginsSync([EnvironmentControlsPlugin, SlippyMapTilesLoadPlugin, LoadingScreenPlugin, SSAAPlugin])
 
         // todo once loaded small tiles, its not loading back the bigger ones on zoom out
         //   also getting weird behaviour sometimes
@@ -43,8 +45,12 @@
         async function init() {
 
             viewer.scene.mainCamera.position.set(0,0, 20)
+            viewer.scene.mainCamera.lookAt(0,0, 0)
             viewer.scene.mainCamera.minNearPlane = 0.1
             viewer.scene.mainCamera.setDirty()
+            viewer.scene.mainCamera.controlsMode = 'environment'
+            viewer.scene.mainCamera.controls.minDistance = 0.3
+            viewer.scene.mainCamera.controls.maxDistance = 30
 
             // https://github.com/CesiumGS/3d-tiles-samples
             // from https://github.com/NASA-AMMOS/3DTilesRendererJS/blob/master/example/data/root.b3dm
@@ -61,10 +67,9 @@
                     },
                 }
             })
-            viewer.setDirty()
-            console.log(result)
             // result.rotation.x = - Math.PI / 2;
         }
+        _testStart()
         init().finally(_testFinish)
     </script>
 </head>
