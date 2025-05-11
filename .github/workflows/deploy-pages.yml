@@ -43,9 +43,9 @@ jobs:
         cache: 'npm'
         cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
     - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
-    - run: npm run build-site # builds to _site
       env:
         DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }}
+    - run: npm run build-site # builds to _site
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:

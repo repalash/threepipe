@@ -23,22 +23,22 @@ export class EnvironmentControlsPlugin extends ACameraControlsPlugin {
 
 @uiFolderContainer('Environment Controls')
 export class EnvironmentControls2 extends EnvironmentControls {
-    @uiToggle() @serialize() enabled: boolean
-    @uiInput() @serialize() cameraRadius: number
-    @uiInput() @serialize() rotationSpeed: number
-    @uiInput() @serialize() minAltitude: number
-    @uiInput() @serialize() maxAltitude: number
-    @uiInput() @serialize() minDistance: number
+    @uiToggle() @serialize() declare enabled: boolean
+    @uiInput() @serialize() declare cameraRadius: number
+    @uiInput() @serialize() declare rotationSpeed: number
+    @uiInput() @serialize() declare minAltitude: number
+    @uiInput() @serialize() declare maxAltitude: number
+    @uiInput() @serialize() declare minDistance: number
     @uiInput() @serialize() maxDistance = 1e9 // should be Infinity but this breaks the UI
-    @uiInput() @serialize() minZoom: number
+    @uiInput() @serialize() declare minZoom: number
     @uiInput() @serialize() maxZoom = 1e9 // should be Infinity but this breaks the UI
-    @uiInput() @serialize() zoomSpeed: number
-    @uiToggle() @serialize() adjustHeight: boolean
-    @uiToggle() @serialize() enableDamping: boolean
-    @uiInput() @serialize() dampingFactor: number
-    @uiToggle() @serialize() useFallbackPlane: boolean
+    @uiInput() @serialize() declare zoomSpeed: number
+    @uiToggle() @serialize() declare adjustHeight: boolean
+    @uiToggle() @serialize() declare enableDamping: boolean
+    @uiInput() @serialize() declare dampingFactor: number
+    @uiToggle() @serialize() declare useFallbackPlane: boolean
 
-    @uiVector() @serialize() pivotPoint: Vector3
+    @uiVector() @serialize() declare pivotPoint: Vector3
 
     // does nothing right now, required so autoLookAtTarget is not used
     target = new Vector3()
