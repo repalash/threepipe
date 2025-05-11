@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -33,4 +33,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

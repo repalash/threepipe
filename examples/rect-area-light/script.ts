@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     Box3B,
     IObject3D,
     LoadingScreenPlugin,
@@ -54,4 +54,5 @@ async function init() {
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 
+_testStart()
 init().finally(_testFinish)

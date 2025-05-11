@@ -1,4 +1,11 @@
-import {_testFinish, ChromaticAberrationPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    ChromaticAberrationPlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -19,4 +26,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

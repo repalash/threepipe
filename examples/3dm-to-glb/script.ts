@@ -1,4 +1,12 @@
-import {_testFinish, downloadBlob, IObject3D, LoadingScreenPlugin, Rhino3dmLoadPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    downloadBlob,
+    IObject3D,
+    LoadingScreenPlugin,
+    Rhino3dmLoadPlugin,
+    ThreeViewer,
+} from 'threepipe'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -47,4 +55,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

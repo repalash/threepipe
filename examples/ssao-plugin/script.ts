@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     LoadingScreenPlugin,
     RenderTargetPreviewPlugin,
     SSAAPlugin,
@@ -44,4 +44,5 @@ async function init() {
     ui.setupPluginUi(SSAOPlugin)
 }
 
+_testStart()
 init().finally(_testFinish)

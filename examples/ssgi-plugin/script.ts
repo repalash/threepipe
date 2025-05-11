@@ -5,7 +5,7 @@ import {
     IObject3D, LoadingScreenPlugin, PhysicalMaterial,
     PickingPlugin,
     RenderTargetPreviewPlugin, SSAAPlugin,
-    ThreeViewer, Object3DWidgetsPlugin, TransformControlsPlugin, AssetExporterPlugin, OrbitControls3,
+    ThreeViewer, Object3DWidgetsPlugin, TransformControlsPlugin, AssetExporterPlugin, OrbitControls3, _testStart,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 // @ts-expect-error todo fix
@@ -88,4 +88,5 @@ async function init() {
     ui.appendChild(light.uiConfig)
 }
 
+_testStart()
 init().then(_testFinish)

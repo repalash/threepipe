@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     downloadBlob,
     HalfFloatType,
     LoadingScreenPlugin,
@@ -56,4 +56,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

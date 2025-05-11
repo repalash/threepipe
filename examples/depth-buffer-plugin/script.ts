@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     DepthBufferPlugin,
     downloadBlob,
     HalfFloatType,
@@ -60,4 +60,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

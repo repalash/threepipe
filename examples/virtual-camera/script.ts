@@ -14,7 +14,7 @@ import {
     TonemapPlugin,
     UnlitMaterial,
     VirtualCamerasPlugin,
-    ShaderChunk,
+    ShaderChunk, _testStart,
 } from 'threepipe'
 
 async function init() {
@@ -99,4 +99,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

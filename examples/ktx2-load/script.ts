@@ -8,7 +8,7 @@ import {
     SRGBColorSpace,
     ThreeViewer,
     UnlitMaterial,
-    BufferGeometry,
+    BufferGeometry, _testStart,
 } from 'threepipe'
 
 async function init() {
@@ -66,6 +66,7 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)
 
 /** Correct UVs to be compatible with `flipY=false` textures. */

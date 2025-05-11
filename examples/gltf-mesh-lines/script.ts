@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     BufferGeometry,
     BufferGeometry2,
     Color,
@@ -81,4 +81,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

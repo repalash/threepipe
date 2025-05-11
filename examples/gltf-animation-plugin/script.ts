@@ -1,4 +1,4 @@
-import {_testFinish, GLTFAnimationPlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, GLTFAnimationPlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
@@ -27,4 +27,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

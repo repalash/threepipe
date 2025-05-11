@@ -1,4 +1,12 @@
-import {_testFinish, AssetExporterPlugin, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    AssetExporterPlugin,
+    downloadBlob,
+    IObject3D,
+    LoadingScreenPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
@@ -69,4 +77,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

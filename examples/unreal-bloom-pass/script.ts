@@ -6,7 +6,7 @@ import {
     PhysicalMaterial,
     SSAAPlugin,
     ThreeViewer, uiFolderContainer, uiSlider,
-    Vector2, UiObjectConfig,
+    Vector2, UiObjectConfig, _testStart,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
@@ -76,4 +76,5 @@ async function init() {
 
 }
 
+_testStart()
 init().then(_testFinish)

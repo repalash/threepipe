@@ -1,4 +1,4 @@
-import {_testFinish, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const models = [
     'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
@@ -35,4 +35,5 @@ async function init(i: number) {
 
 }
 
+_testStart()
 Promise.all(new Array(4).fill(0).map(async(_, i) => init(i))).then(_testFinish)

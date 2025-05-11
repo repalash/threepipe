@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     DropzonePlugin,
     EditorViewWidgetPlugin,
     GBufferPlugin,
@@ -90,4 +90,5 @@ async function init() {
     ui.setupPlugins(GLTFAnimationPlugin, PickingPlugin, DropzonePlugin)
 }
 
+_testStart()
 init().finally(_testFinish)

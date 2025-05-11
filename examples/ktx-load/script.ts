@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     ITexture,
     KTXLoadPlugin,
     LoadingScreenPlugin,
@@ -84,4 +84,5 @@ async function init() {
     })
 }
 
+_testStart()
 init().finally(_testFinish)

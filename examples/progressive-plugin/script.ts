@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     BasicShadowMap,
     Box3B,
     DirectionalLight2,
@@ -88,4 +88,5 @@ async function init() {
     console.log('converged')
 }
 
+_testStart()
 init().finally(_testFinish)

@@ -12,6 +12,7 @@
         }
     </style>
 
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
 </head>
 <body>
@@ -20,9 +21,10 @@
 </div>
 <script id="example-script" type="module" data-scripts="./index.html">
     // import { ThreeViewer, LoadingScreenPlugin } from 'https://unpkg.com/threepipe@latest/dist/index.mjs'
-    import { ThreeViewer, LoadingScreenPlugin } from './../../dist/index.mjs'
+    import { ThreeViewer, LoadingScreenPlugin, _testStart, _testFinish } from './../../dist/index.mjs'
     import { createApp, ref, onMounted, onBeforeUnmount } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
+    _testStart()
     const ThreeViewerComponent = {
         setup() {
             const canvasRef = ref(null);
@@ -42,6 +44,7 @@
 
                 Promise.all([envPromise, modelPromise]).then(([env, model]) => {
                     console.log('Loaded', model, env, viewer);
+                    _testFinish()
                 });
 
                 onBeforeUnmount(() => {

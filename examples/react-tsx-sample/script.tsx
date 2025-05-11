@@ -1,4 +1,4 @@
-import {_testFinish, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 // @ts-expect-error no need react here
 import React from 'react'
 // @ts-expect-error no need react-dom here
@@ -41,4 +41,5 @@ async function init() {
     )
 }
 
+_testStart()
 init().finally(_testFinish)

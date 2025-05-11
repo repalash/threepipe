@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     IObject3D,
     LoadingScreenPlugin,
     PhysicalMaterial,
@@ -49,4 +49,5 @@ async function init() {
     viewer.scene.mainCamera.setDirty()
 }
 
+_testStart()
 init().then(_testFinish)

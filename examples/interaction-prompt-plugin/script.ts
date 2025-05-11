@@ -1,4 +1,4 @@
-import {_testFinish, InteractionPromptPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, InteractionPromptPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -29,4 +29,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

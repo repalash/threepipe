@@ -3,7 +3,7 @@
 </template>
 
 <script>
-import {LoadingScreenPlugin, ThreeViewer} from "threepipe";
+import {LoadingScreenPlugin, ThreeViewer, _testFinish, _testStart} from "threepipe";
 import {onBeforeUnmount, onMounted, ref} from "vue"
 
 export default {
@@ -11,6 +11,7 @@ export default {
 
     const canvasRef = ref(null);
 
+    _testStart()
     onMounted(() => {
       const viewer = new ThreeViewer({
         canvas: canvasRef.value,
@@ -26,6 +27,7 @@ export default {
 
       Promise.all([envPromise, modelPromise]).then(([env, model]) => {
         console.log('Loaded', model, env, viewer);
+        _testFinish()
       });
 
       onBeforeUnmount(() => {

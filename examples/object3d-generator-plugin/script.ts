@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     CameraViewPlugin,
     LoadingScreenPlugin,
     Object3DGeneratorPlugin,
@@ -41,5 +41,6 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)
 

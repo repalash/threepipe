@@ -25,9 +25,10 @@
             overflow: hidden;
         }
     </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, LoadingScreenPlugin, ThreeViewer, Vector3, Box3B} from 'threepipe'
+        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer, Vector3, Box3B} from 'threepipe'
         import {CMPTLoadPlugin} from '@threepipe/plugin-3d-tiles-renderer'
 
         const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
@@ -54,6 +55,7 @@
             console.log(new Box3B(result2).getCenter(new Vector3())) // todo why is this is NaN?
         }
 
+        _testStart()
         init().finally(_testFinish)
     </script>
 </head>

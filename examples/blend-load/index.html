@@ -25,9 +25,10 @@
             overflow: hidden;
         }
     </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
         import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 
         const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
@@ -43,6 +44,7 @@
             console.log(result)
         }
 
+        _testStart()
         init().finally(_testFinish)
     </script>
 </head>

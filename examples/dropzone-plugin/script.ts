@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     DropzonePlugin,
     LoadingScreenPlugin,
     PickingPlugin,
@@ -45,4 +45,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

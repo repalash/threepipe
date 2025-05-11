@@ -1,4 +1,12 @@
-import {_testFinish, IObject3D, LoadingScreenPlugin, PickingPlugin, SSAAPlugin, ThreeViewer} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    IObject3D,
+    LoadingScreenPlugin,
+    PickingPlugin,
+    SSAAPlugin,
+    ThreeViewer,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 // @ts-expect-error todo fix
 import {AnisotropyPlugin, BloomPlugin, OutlinePlugin, SSContactShadowsPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
@@ -45,4 +53,5 @@ async function init() {
 
 }
 
+_testStart()
 init().then(_testFinish)

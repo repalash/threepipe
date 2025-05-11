@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     generateUiFolder,
     IGeometry,
     IMaterial,
@@ -61,4 +61,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

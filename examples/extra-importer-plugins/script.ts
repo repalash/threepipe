@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     GLTFAnimationPlugin,
     HemisphereLight,
     ImportAddOptions,
@@ -62,24 +62,24 @@ async function init() {
 
     viewer.scene.setBackgroundColor('#555555')
     viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2))
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/equirectangular/venice_sunset_1k.hdr')
 
     const urls = [
-        'https://threejs.org/examples/models/3ds/portalgun/portalgun.3ds',
-        'https://threejs.org/examples/models/3mf/cube_gears.3mf',
-        'https://threejs.org/examples/models/collada/elf/elf.dae',
-        'https://threejs.org/examples/models/amf/rook.amf',
-        'https://threejs.org/examples/models/gcode/benchy.gcode',
-        'https://threejs.org/examples/models/bvh/pirouette.bvh',
-        'https://threejs.org/examples/models/vox/monu10.vox',
-        'https://threejs.org/examples/models/mdd/cube.mdd',
-        'https://threejs.org/examples/models/pcd/binary/Zaghetto.pcd',
-        'https://threejs.org/examples/models/tilt/BRUSH_DOME.tilt',
-        'https://threejs.org/examples/models/ldraw/officialLibrary/models/car.ldr_Packed.mpd',
-        'https://threejs.org/examples/models/vtk/bunny.vtk',
-        'https://threejs.org/examples/models/vtk/cube_binary.vtp',
-        'https://threejs.org/examples/models/xyz/helix_201.xyz',
-        'https://threejs.org/examples/models/vrml/meshWithTexture.wrl',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3ds/portalgun/portalgun.3ds', // todo - to load textures there should be a way to set basepath to portalgun/textures
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3mf/cube_gears.3mf',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/collada/elf/elf.dae',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/amf/rook.amf',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/gcode/benchy.gcode',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/bvh/pirouette.bvh',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/vox/monu10.vox',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/mdd/cube.mdd',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/pcd/binary/Zaghetto.pcd',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/tilt/BRUSH_DOME.tilt',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/ldraw/officialLibrary/models/car.ldr_Packed.mpd',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/vtk/bunny.vtk',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/vtk/cube_binary.vtp',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/xyz/helix_201.xyz',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/vrml/meshWithTexture.wrl',
     ]
 
     const options: ImportAddOptions = {
@@ -102,5 +102,6 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)
 

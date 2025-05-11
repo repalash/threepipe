@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
@@ -185,4 +185,6 @@ async function init() {
 
 }
 
+console.log('here')
+_testStart()
 init().finally(_testFinish)

@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     BaseGroundPlugin,
     BasicShadowMap,
     Color,
@@ -261,4 +261,5 @@ function createHistogramFromImage(image: {data: Uint16Array, width: number, heig
     }
 }
 
+_testStart()
 init().finally(_testFinish)

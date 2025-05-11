@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     CanvasSnapshotPlugin,
     isWebpExportSupported,
     LoadingScreenPlugin,
@@ -98,4 +98,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

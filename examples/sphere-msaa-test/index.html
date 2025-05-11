@@ -24,9 +24,12 @@
             overflow: hidden;
         }
     </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, Mesh, SphereGeometry, ThreeViewer, UnlitMaterial} from 'threepipe'
+        import {_testFinish, _testStart, Mesh, SphereGeometry, ThreeViewer, UnlitMaterial} from 'threepipe'
+
+        _testStart()
 
         const viewer = new ThreeViewer({
             canvas: document.getElementById('mcanvas'),

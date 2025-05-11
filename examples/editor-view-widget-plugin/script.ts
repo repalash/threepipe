@@ -1,4 +1,12 @@
-import {_testFinish, EditorViewWidgetPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer, timeout} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    EditorViewWidgetPlugin,
+    IObject3D,
+    LoadingScreenPlugin,
+    ThreeViewer,
+    timeout,
+} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -33,4 +41,5 @@ async function init() {
     plugin.setOrientation('+z')
 }
 
+_testStart()
 init().finally(_testFinish)

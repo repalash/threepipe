@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     AssetExporterPlugin,
     getUrlQueryParam,
     IObject3D,
@@ -49,4 +49,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

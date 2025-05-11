@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     AssetExporterPlugin,
     GBufferPlugin,
     IObject3D,
@@ -60,4 +60,5 @@ async function init() {
 // todo: inline = false has a bug, not clearing maybe?
 const ssrInline = true
 
+_testStart()
 init().then(_testFinish)

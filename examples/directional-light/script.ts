@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     Box3B,
     DirectionalLight2,
     IObject3D,
@@ -66,4 +66,5 @@ async function init() {
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 
+_testStart()
 init().finally(_testFinish)

@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     GLTFMeshOptDecodePlugin,
     IObject3D,
     KTX2LoadPlugin,
@@ -36,4 +36,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

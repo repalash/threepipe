@@ -1,4 +1,4 @@
-import {_testFinish, downloadBlob, IMaterial, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, downloadBlob, IMaterial, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
@@ -64,4 +64,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

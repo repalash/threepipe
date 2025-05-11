@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     IObject3D,
     LoadingScreenPlugin,
     PhysicalMaterial,
@@ -65,4 +65,5 @@ async function init() {
     console.log('converged')
 }
 
+_testStart()
 init().finally(_testFinish)

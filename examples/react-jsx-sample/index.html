@@ -12,6 +12,7 @@
         }
     </style>
 
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <!-- Include Babel for JSX transformation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -20,7 +21,7 @@
 <div id="root"></div>
 <script id="example-script" type="text/babel" data-scripts="./index.html" data-type="module">
     // import {ThreeViewer, LoadingScreenPlugin} from 'https://unpkg.com/threepipe@latest/dist/index.mjs'
-    import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
+    import {ThreeViewer, LoadingScreenPlugin, _testFinish, _testStart} from './../../dist/index.mjs'
     import React from 'https://esm.sh/react@18'
     import ReactDOM from 'https://esm.sh/react-dom@18'
 
@@ -40,6 +41,7 @@
 
             Promise.all([envPromise, modelPromise]).then(([env, model])=>{
                 console.log('Loaded', model, env, viewer)
+                _testFinish()
             })
             return () => {
                 viewer.dispose()
@@ -50,6 +52,7 @@
       )
     }
 
+    _testStart()
     ReactDOM.render(
         <ThreeViewerComponent
             src={'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}

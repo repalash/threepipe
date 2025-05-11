@@ -1,4 +1,4 @@
-import {_testFinish, DirectionalLight2, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, DirectionalLight2, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {BasicSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 
@@ -38,4 +38,5 @@ async function init() {
     ui.appendChild(l.uiConfig)
 }
 
+_testStart()
 init().finally(_testFinish)

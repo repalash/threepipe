@@ -1,4 +1,4 @@
-import {_testFinish, downloadBlob, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, downloadBlob, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
@@ -51,4 +51,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     BaseGroundPlugin,
     Color,
     GBufferPlugin,
@@ -60,4 +60,5 @@ async function init() {
 
 }
 
+_testStart()
 init().then(_testFinish)

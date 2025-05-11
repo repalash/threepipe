@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     IObject3D,
     LoadingScreenPlugin,
     PopmotionPlugin,
@@ -64,4 +64,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

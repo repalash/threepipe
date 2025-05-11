@@ -1,4 +1,4 @@
-import {_testFinish, IObject3D, LoadingScreenPlugin, STLLoadPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, IObject3D, LoadingScreenPlugin, STLLoadPlugin, ThreeViewer} from 'threepipe'
 
 async function init() {
 
@@ -31,4 +31,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

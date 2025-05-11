@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     IObject3D,
     LoadingScreenPlugin,
     PickingPlugin,
@@ -38,4 +38,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

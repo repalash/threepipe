@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     BoxGeometry,
     ITexture,
     LoadingScreenPlugin,
@@ -92,4 +92,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)

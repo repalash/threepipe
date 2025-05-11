@@ -1,13 +1,14 @@
 <script>
     import {onDestroy, onMount} from 'svelte';
 
-    const {ThreeViewer, LoadingScreenPlugin} = window.threepipe; // umd imported from unpkg in index.html
+    const {ThreeViewer, LoadingScreenPlugin, _testFinish, _testStart} = window.threepipe; // umd imported from unpkg in index.html
     // or
     // import {ThreeViewer, LoadingScreenPlugin} from 'threepipe'; // esm imported from npm
 
     let canvasRef;
     let viewer;
 
+    _testStart()
     onMount(() => {
         viewer = new ThreeViewer({canvas: canvasRef,
             plugins: [LoadingScreenPlugin],
@@ -22,6 +23,7 @@
 
         Promise.all([envPromise, modelPromise]).then(([env, model]) => {
             console.log('Loaded', model, env, viewer);
+            _testFinish()
         });
     });
     onDestroy(() => viewer.dispose())

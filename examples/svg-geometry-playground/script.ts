@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     EditorViewWidgetPlugin,
     GBufferPlugin,
     LoadingScreenPlugin,
@@ -89,4 +89,5 @@ async function init() {
     ui.setupPlugins(TransformControlsPlugin)
 }
 
+_testStart()
 init().finally(_testFinish)

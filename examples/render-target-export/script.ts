@@ -1,5 +1,5 @@
 import {
-    _testFinish,
+    _testFinish, _testStart,
     DepthBufferPlugin,
     downloadBlob,
     isWebpExportSupported,
@@ -68,4 +68,5 @@ async function init() {
 
 }
 
+_testStart()
 init().finally(_testFinish)
