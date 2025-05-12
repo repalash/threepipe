@@ -30,6 +30,9 @@ import {
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
 
+const themeColors = ['black', 'white', 'blue', 'light', 'dark'] as const
+type ThemeColors = typeof themeColors[number]
+
 @uiFolderContainer('Tweakpane UI')
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
     declare ['constructor']: typeof TweakpaneUiPlugin
@@ -39,17 +42,17 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     static CONTAINER_SLOT = 'uiconfigMainPanelSlot'
 
     @onChange(TweakpaneUiPlugin.prototype._colorModeChanged)
-    @uiDropdown('Color Mode', ['black', 'white', 'blue'].map(label=>({label})))
-        colorMode: 'black'|'white'|'blue'
+    @uiDropdown('Color Mode', themeColors.map(label=>({label})))
+        colorMode: ThemeColors
 
-    constructor(expanded = !mobileAndTabletCheck(), bigTheme = true, container?: HTMLElement, colorMode?: 'black'|'white'|'blue') {
+    constructor(expanded = !mobileAndTabletCheck(), bigTheme = true, container?: HTMLElement, colorMode?: ThemeColors) {
         super(container ?? document.getElementById(TweakpaneUiPlugin.CONTAINER_SLOT) ?? document.getElementById('tweakpaneMainPanelSlot') ?? document.body, {
             expanded, autoPostFrame: false,
         }, false)
         this.THREE = {Color, Vector4, Vector3, Vector2} as any
         this._root!.registerPlugin(TweakpaneImagePlugin as any)
         if (bigTheme) createStyles(styles, container)
-        this.colorMode = colorMode ?? (localStorage ? localStorage.getItem('tpTheme') as any : 'blue') ?? 'blue'
+        this.colorMode = colorMode ?? getThemeColor()
 
         // @ts-expect-error required for tpTextureInputComponent so that it doesn't clone it. todo check others as well like object3d etc
         Texture.prototype._ui_isPrimitive = true
@@ -186,10 +189,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     prompt = async(message?: string, _default?: string, cancel = true): Promise<string | null> =>this._viewer ? this._viewer.dialog.prompt(message, _default, cancel) : window?.prompt(message, _default)
 
     protected _colorModeChanged() {
-        document.body.classList.remove('tpTheme-black', 'tpTheme-white', 'tpTheme-blue')
-        document.body.classList.add('tpTheme-' + this.colorMode)
-        if (!localStorage) return
-        localStorage.setItem('tpTheme', this.colorMode)
+        setThemeColor(this.colorMode)
     }
 
     dispose() {
@@ -197,4 +197,16 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         this.unmount()
     }
 
+}
+
+function getThemeColor(): ThemeColors {
+    const c = localStorage ? localStorage.getItem('tpTheme') as ThemeColors : undefined
+    if (c && themeColors.includes(c)) return c
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+function setThemeColor(color: ThemeColors) {
+    document.body.classList.remove(...themeColors.map(t=>'tpTheme-' + t))
+    document.body.classList.add('tpTheme-' + color)
+    if (!localStorage) return
+    localStorage.setItem('tpTheme', color)
 }

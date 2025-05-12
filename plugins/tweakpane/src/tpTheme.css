@@ -27,6 +27,7 @@
     --tp-container-background-color-hover: rgba(32, 32, 32, 0.3);
     --tp-container-background-color-active: rgba(50, 50, 50, 0.8);
     --tp-container-background-color-focus: rgba(50, 50, 50, 1.0);
+    --tp-container-border-color: rgba(50, 50, 50, 1.0);
     /*--tp-base-border-radius: 0.4rem;*/
 
     /*--tp-button-background-color: hsla(0, 0%, 70%, 1.00);*/
@@ -64,6 +65,7 @@
     --tp-container-background-color-active: hsla(230, 25%, 31%, 0.65);
     --tp-container-background-color-focus: hsla(230, 25%, 26%, 0.65);
     --tp-container-background-color-hover: hsla(230, 25%, 21%, 0.65);
+    --tp-container-border-color: hsla(230, 36%, 25%, 1);
     --tp-container-foreground-color: hsl(240, 10%, 92%);
     --tp-groove-foreground-color: hsla(230, 20%, 8%, 1.00);
     --tp-input-background-color: hsla(230, 20%, 8%, 1.00);
@@ -92,6 +94,7 @@
     --tp-container-background-color-active: hsla(230, 15%, 70%, 0.32);
     --tp-container-background-color-focus: hsla(230, 15%, 70%, 0.28);
     --tp-container-background-color-hover: hsla(230, 15%, 70%, 0.24);
+    --tp-container-border-color: hsla(230, 15%, 70%, 0.6);
     --tp-container-foreground-color: hsla(230, 10%, 30%, 1.00);
     --tp-groove-foreground-color: hsla(230, 15%, 20%, 0.10);
     --tp-input-background-color: hsla(230, 15%, 30%, 0.10);
@@ -105,18 +108,84 @@
 
 }
 
+:root .tpTheme-light {
+    --tp-base-background-color: #E7EFF8;
+    --tp-base-shadow-color: rgba(0, 0, 0, 0.1);
+    --tp-button-background-color: #dae1ea;
+    --tp-button-background-color-active: #c3d4e7;
+    --tp-button-background-color-focus: #c3d4e7;
+    --tp-button-background-color-hover: #c3d4e7;
+    --tp-button-foreground-color: #1C2026;
+    --tp-container-background-color: #dae1ea22;
+    --tp-container-background-color-active: #c3d4e766;
+    --tp-container-background-color-focus: #c3d4e766;
+    --tp-container-background-color-hover: #c3d4e766;
+    --tp-container-border-color: #c3d4e799;
+    --tp-container-foreground-color: #1C2026;
+    --tp-groove-foreground-color: #6d7a8c;
+    --tp-input-background-color: #dae1ea;
+    --tp-input-background-color-active: #c3d4e7;
+    --tp-input-background-color-focus: #c3d4e7;
+    --tp-input-background-color-hover: #c3d4e7;
+    --tp-input-foreground-color: #1C2026;
+    --tp-label-foreground-color: #2b313a;
+    --tp-monitor-background-color: #dae1ea;
+    --tp-monitor-foreground-color: #6d7a8c;
+}
+
+:root .tpTheme-dark {
+    --tp-base-background-color: #1C2026;
+    --tp-base-shadow-color: rgba(0, 0, 0, 0.2);
+    --tp-button-background-color: #3e4550;
+    --tp-button-background-color-active: #555e6b;
+    --tp-button-background-color-focus: #555e6b;
+    --tp-button-background-color-hover: #555e6b;
+    --tp-button-foreground-color: #F6F7F9;
+    --tp-container-background-color: #3e455022;
+    --tp-container-background-color-active: #555e6b66;
+    --tp-container-background-color-focus: #555e6b66;
+    --tp-container-background-color-hover: #555e6b66;
+    --tp-container-border-color: #555e6b99;
+    --tp-container-foreground-color: #F6F7F9;
+    --tp-groove-foreground-color: #b6bfcb;
+    --tp-input-background-color: #3e4550;
+    --tp-input-background-color-active: #555e6b;
+    --tp-input-background-color-focus: #555e6b;
+    --tp-input-background-color-hover: #555e6b;
+    --tp-input-foreground-color: #F6F7F9;
+    --tp-label-foreground-color: #d2d3d5;
+    --tp-monitor-background-color: #3e4550;
+    --tp-monitor-foreground-color: #b6bfcb;
+}
+
 .tp-fldv {
-    margin-top: 0.25rem;
-    margin-bottom: 0.25rem;
+    /*margin-top: 0.25rem;*/
+    /*margin-bottom: 0.25rem;*/
     background-blend-mode: luminosity;
     position: relative;
+    /*outline: 1px solid var(--tp-input-foreground-color);*/
+    /*outline-offset: -1px;*/
+    border: 1px solid var(--tp-container-border-color);
+    /*border: 2px solid #c3d4e799;*/
+    /*border: 2px solid black;*/
+    /*border-left: 0px;*/
+    box-sizing: border-box;
 }
 
-.tp-fldv .tp-fldv {
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-}
+/*.tp-fldv.tp-v-vlst{*/
+/*}*/
 
+/*.tp-fldv .tp-fldv {*/
+/*    margin-top: 0.5rem;*/
+/*    margin-bottom: 0.5rem;*/
+/*}*/
+
+/*.tp-rotv.tp-rotv-expanded .tp-rotv_c, .tp-fldv.tp-fldv-expanded>.tp-fldv_c{*/
+/*    padding-top: 0;*/
+/*}*/
+.tp-tabv_c .tp-brkv>.tp-cntv, .tp-fldv_c>.tp-cntv {
+    margin-left: 0;
+}
 .tp-fldv .tp-brkv {
     /*background-color: #ddddddcc;*/
 }
@@ -199,3 +268,4 @@
 .tp-rotv{
     font-size: 13px !important;
 }
+

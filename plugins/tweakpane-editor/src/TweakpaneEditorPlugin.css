@@ -312,7 +312,14 @@ body {
     transition: background-color 0.5s ease;
     background-color: #D1D4E7;
 }
-body .tpTheme-blue{
+/*other vars in tpTheme.css*/
+body.tpTheme-light{
+    background-color: #E7EFF8;
+}
+body.tpTheme-dark{
+    background-color: #424852;
+}
+body.tpTheme-blue{
     background-color: #D1D4E7;
 }
 body.tpTheme-white{
