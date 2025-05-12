@@ -9,7 +9,7 @@ if (fs.existsSync(envFilePath)) {
 
 // Parse DOT_ENV_CONTENT environment variable as .env file if it exists(for ci)
 if (process.env.DOT_ENV_CONTENT) {
-    const envConfig = dotenv.parse(process.env.TP_EX)
+    const envConfig = dotenv.parse(process.env.DOT_ENV_CONTENT)
     for (const key in envConfig) {
         process.env[key] = envConfig[key]
     }
