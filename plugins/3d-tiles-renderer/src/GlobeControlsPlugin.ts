@@ -28,25 +28,25 @@ export class GlobeControlsPlugin extends ACameraControlsPlugin {
 
 @uiFolderContainer('Globe Controls')
 export class GlobeControls2 extends GlobeControls {
-    @uiToggle() @serialize() enabled: boolean
-    @uiInput() @serialize() cameraRadius: number
-    @uiInput() @serialize() rotationSpeed: number
-    @uiInput() @serialize() minAltitude: number
-    @uiInput() @serialize() maxAltitude: number
-    @uiInput() @serialize() minDistance: number
+    @uiToggle() @serialize() declare enabled: boolean
+    @uiInput() @serialize() declare cameraRadius: number
+    @uiInput() @serialize() declare rotationSpeed: number
+    @uiInput() @serialize() declare minAltitude: number
+    @uiInput() @serialize() declare maxAltitude: number
+    @uiInput() @serialize() declare minDistance: number
     @uiInput() @serialize() maxDistance = 1e9 // should be Infinity but this breaks the UI
-    @uiInput() @serialize() minZoom: number
+    @uiInput() @serialize() declare minZoom: number
     @uiInput() @serialize() maxZoom = 1e9 // should be Infinity but this breaks the UI
-    @uiInput() @serialize() zoomSpeed: number
-    @uiToggle() @serialize() adjustHeight: boolean
-    @uiToggle() @serialize() enableDamping: boolean
-    @uiInput() @serialize() dampingFactor: number
-    @uiToggle() @serialize() useFallbackPlane: boolean
+    @uiInput() @serialize() declare zoomSpeed: number
+    @uiToggle() @serialize() declare adjustHeight: boolean
+    @uiToggle() @serialize() declare enableDamping: boolean
+    @uiInput() @serialize() declare dampingFactor: number
+    @uiToggle() @serialize() declare useFallbackPlane: boolean
 
-    @uiToggle() @serialize() nearMargin: number
-    @uiToggle() @serialize() farMargin: number
+    @uiToggle() @serialize() declare nearMargin: number
+    @uiToggle() @serialize() declare farMargin: number
 
-    @uiVector() @serialize() pivotPoint: Vector3
+    @uiVector() @serialize() declare pivotPoint: Vector3
 
     declare camera: PerspectiveCamera2 | OrthographicCamera2
     // does nothing right now, required so autoLookAtTarget is not used
