@@ -44,8 +44,11 @@
             viewer.scene.mainCamera.setDirty()
             viewer.scene.mainCamera.controlsMode = 'environment'
             viewer.scene.mainCamera.controls.minDistance = 0.3
-            viewer.scene.mainCamera.controls.maxDistance = 30
-            viewer.scene.mainCamera.controls.maxZoom = 30
+            viewer.scene.mainCamera.controls.maxDistance = 50
+            viewer.scene.mainCamera.controls.enableDamping = true
+            viewer.scene.mainCamera.controls.cameraRadius = 0.25
+            viewer.scene.mainCamera.controls.fallbackPlane.normal.set( 0,0 , 1 );
+            viewer.scene.mainCamera.controls.up.set( 0, 0, 1 );
 
             // https://github.com/CesiumGS/3d-tiles-samples
             // from https://github.com/NASA-AMMOS/3DTilesRendererJS/blob/master/example/data/root.b3dm

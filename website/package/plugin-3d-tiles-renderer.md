@@ -35,6 +35,13 @@ npm install @threepipe/plugin-3d-tiles-renderer
 This is still a WIP.
 :::
 
+:::tip Editor
+Any tileset can also be loaded into the tweakpane editor by adding the url and extension to the query params like -
+https://threepipe.org/examples/tweakpane-editor/?m=https://raw.githubusercontent.com/NASA-AMMOS/3DTilesRendererJS/c7a9a7f7607e8759d16c26fb83815ad1cd1fd865/example/data/tileset.json&ext=tileset
+
+The controls(environment, globe) can be picked from the UI above by going to Viewer -> Scene -> Camera -> Controls
+:::
+
 ## Sample Usage 
 
 ### Load and render tileset
