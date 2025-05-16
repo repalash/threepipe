@@ -5,7 +5,8 @@ import type {ICamera, ICameraEventMap, ICameraSetDirtyOptions} from '../ICamera'
 export const iCameraCommons = {
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {
         // console.log('target', target, this._controls, this._camera)
-        if (this.controls && this.controls.target && this.target !== this.controls.target) {
+        // noinspection PointlessBooleanExpressionJS
+        if (this.controls && this.controls.target && this.controls.enabled !== false && this.target !== this.controls.target) {
             this.controls.target.copy(this.target)
             // this.controls.update() // this should be done automatically postFrame
         }
