@@ -587,11 +587,11 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         const loader = importer.ctor(this)
         if (!loader) return undefined
         importer.ext.forEach(iext => {
-            const regex = new RegExp(iext.startsWith('data:') ? '^' + iext + '\\/' : '\\.' + iext + '$', 'i')
+            const regex = new RegExp(iext.startsWith('data:') ? '^' + escapeRegExp(iext) + '[\\/\\+\\:\\,\\;]' : '\\.' + iext + '$', 'i')
             this._loadingManager.addHandler(regex, loader)
         })
         importer.mime?.forEach(imime => {
-            const regex = new RegExp('^data:' + imime + '$', 'i')
+            const regex = new RegExp('^data:' + escapeRegExp(imime) + '[\\/\\+\\:\\,\\;]', 'i')
             this._loadingManager.addHandler(regex, loader)
         })
         this._loaderCache.push({loader, ext: importer.ext, mime: importer.mime})
@@ -644,3 +644,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
 
 }
+
+function escapeRegExp(str: string) {
+    // @ts-expect-error new browser feature
+    return RegExp.escape ? RegExp.escape(str) :
+        str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
+}
+// function escapeReplacement(str: string) {
+//     return str.replace(/\$/g, '$$$$')
+// }
