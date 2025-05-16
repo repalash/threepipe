@@ -111,7 +111,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this.size = 2
 
         this.addEventListener('objectChange', () => {
-            this?.object?.setDirty({frameFade: false})
+            this?.object?.setDirty && this.object.setDirty({frameFade: false})
             // todo: do this.setDirty?
         })
         this.addEventListener('change', () => {
