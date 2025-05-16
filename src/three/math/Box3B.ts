@@ -1,14 +1,4 @@
-import {
-    Box2,
-    Box3,
-    BufferAttribute,
-    BufferGeometry,
-    Camera,
-    InterleavedBufferAttribute,
-    Mesh,
-    Object3D,
-    Vector3,
-} from 'three'
+import {Box2, Box3, BufferGeometry, Camera, Mesh, Object3D, Vector3} from 'three'
 import type {IObject3D} from '../../core'
 
 export class Box3B extends Box3 {
@@ -20,22 +10,102 @@ export class Box3B extends Box3 {
         if (!object.visible && ignoreInvisible) return this
         if (ignoreObject && ignoreObject(object)) return this
 
-        // copied the whole function from three.js to pass in ignoreInvisible, support precise
+        // copied the whole function from three.js to pass in ignoreInvisible. add else block to support custom computeBoundingBox without BufferGeometry
 
         // Computes the world-axis-aligned bounding box of an object (including its children),
         // accounting for both the object's, and children's, world transforms
 
         object.updateWorldMatrix(false, false)
 
-        // InstancedMesh has boundingBox = null, so it can be computed
-        if ((object as IObject3D).boundingBox !== undefined) {
+        const geometry = (object as IObject3D).geometry
 
-            if ((precise || (object as IObject3D).boundingBox === null) && typeof (object as IObject3D).computeBoundingBox === 'function') {
+        if (geometry !== undefined) {
 
-                (object as IObject3D).computeBoundingBox!()
+            const positionAttribute = geometry.getAttribute('position')
+
+            // precise AABB computation based on vertex data requires at least a position attribute.
+            // instancing isn't supported so far and uses the normal (conservative) code path.
+
+            if (precise === true && positionAttribute !== undefined && Object.getPrototypeOf(geometry).computeBoundingBox === BufferGeometry.prototype.computeBoundingBox) {
+
+                for (let i = 0, l = positionAttribute.count; i < l; i++) {
+
+                    if ((object as Mesh).isMesh === true) {
+
+                        (object as Mesh).getVertexPosition(i, this._vector)
+
+                    } else {
+
+                        this._vector.fromBufferAttribute(positionAttribute, i)
+
+                    }
+
+                    this._vector.applyMatrix4(object.matrixWorld)
+                    this.expandByPoint(this._vector)
+
+                }
+
+            } else {
+
+                if ((object as IObject3D).boundingBox !== undefined) {
+
+                    // object-level bounding box
+
+                    if ((precise || (object as IObject3D).boundingBox === null) && typeof (object as IObject3D).computeBoundingBox === 'function') {
+
+                        // @ts-expect-error why?
+                        (object as IObject3D).computeBoundingBox()
+
+                    }
+
+                    // _box.copy(object.boundingBox)
+                    if ((object as IObject3D).boundingBox !== null) {
+
+                        Box3B._box.copy((object as IObject3D).boundingBox!)
+                        Box3B._box.applyMatrix4(object.matrixWorld)
+
+                        this.union(Box3B._box)
+
+                    } else {
+                        console.warn('Box3B - Unable to compute bounds for', object)
+                    }
+
+
+                } else {
+
+                    // geometry-level bounding box
+
+                    if (geometry.boundingBox === null) {
+
+                        geometry.computeBoundingBox()
+
+                    }
+
+                    if (geometry.boundingBox) {
+                        Box3B._box.copy(geometry.boundingBox)
+                        Box3B._box.applyMatrix4(object.matrixWorld)
+
+                        this.union(Box3B._box)
+                    } else {
+                        console.warn('Box3B - Unable to compute bounds for', object, geometry)
+                    }
+
+                }
 
             }
 
+        } else if ((object as IObject3D).boundingBox !== undefined) {
+
+            // object-level bounding box
+
+            if ((precise || (object as IObject3D).boundingBox === null) && typeof (object as IObject3D).computeBoundingBox === 'function') {
+
+                // @ts-expect-error why?
+                (object as IObject3D).computeBoundingBox()
+
+            }
+
+            // _box.copy(object.boundingBox)
             if ((object as IObject3D).boundingBox !== null) {
 
                 Box3B._box.copy((object as IObject3D).boundingBox!)
@@ -47,35 +117,9 @@ export class Box3B extends Box3 {
                 console.warn('Box3B - Unable to compute bounds for', object)
             }
 
-        } else {
 
-            const geometry = (object as Mesh).geometry
-
-            if (geometry !== undefined) {
-                // checking for computeBoundingBox to support when overridden in subclass.
-                if (precise && geometry.attributes != undefined && geometry.attributes.position !== undefined && Object.getPrototypeOf(geometry).computeBoundingBox === BufferGeometry.prototype.computeBoundingBox) {
-                    // in case of precise, apply the matrix to positions before expanding the box
-                    // todo add precise option to computeBoundingBox
-                    const position = geometry.attributes.position as any as BufferAttribute | InterleavedBufferAttribute
-                    for (let i = 0, l = position.count; i < l; i++) {
-                        this._vector.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld)
-                        this.expandByPoint(this._vector)
-                    }
-                } else {
-                    if (geometry.boundingBox === null)
-                        geometry.computeBoundingBox()
-                    if (geometry.boundingBox) {
-                        Box3B._box.copy(geometry.boundingBox)
-                        Box3B._box.applyMatrix4(object.matrixWorld)
-
-                        this.union(Box3B._box)
-                    } else {
-                        console.warn('Box3B - Unable to compute bounds for', object, geometry)
-                    }
-
-                }
-            }
         }
+
         const children = object.children
 
         for (let i = 0, l = children.length; i < l; i++) {
