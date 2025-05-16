@@ -5,7 +5,7 @@ import {
     AdditiveBlending,
     AlwaysDepth,
     BackSide,
-    Blending,
+    Blending, CustomBlending,
     DepthModes,
     DoubleSide,
     EqualDepth,
@@ -21,9 +21,24 @@ import {
     NormalMapTypes,
     NotEqualDepth,
     ObjectSpaceNormalMap,
+    OneFactor,
+    OneMinusDstAlphaFactor,
+    OneMinusDstColorFactor,
+    OneMinusSrcAlphaFactor,
+    OneMinusSrcColorFactor,
     Side,
+    SrcAlphaFactor,
+    SrcAlphaSaturateFactor,
+    SrcColorFactor,
     SubtractiveBlending,
     TangentSpaceNormalMap,
+    ZeroFactor,
+    BlendingEquation,
+    BlendingSrcFactor,
+    MinEquation,
+    ConstantAlphaFactor, ConstantColorFactor, OneMinusConstantAlphaFactor, OneMinusConstantColorFactor,
+    ReverseSubtractEquation,
+    SubtractEquation, AddEquation, MaxEquation, DstAlphaFactor, DstColorFactor,
 } from 'three'
 import {downloadBlob, uploadFile} from 'ts-browser-helpers'
 import {PhysicalMaterial} from './PhysicalMaterial'
@@ -140,10 +155,107 @@ export const iMaterialUI = {
                         ['Additive', AdditiveBlending],
                         ['Subtractive', SubtractiveBlending],
                         ['Multiply', MultiplyBlending],
+                        ['Custom', CustomBlending],
                     ] as [string, Blending][]).map(value => ({
                         label: value[0],
                         value: value[1],
                     })),
+                },
+                {
+                    type: 'dropdown',
+                    hidden: ()=>material.blending !== CustomBlending,
+                    property: [material, 'blendingEquation'],
+                    children: ([
+                        ['Add', AddEquation],
+                        ['Subtract', SubtractEquation],
+                        ['Reverse Subtract', ReverseSubtractEquation],
+                        ['Min', MinEquation],
+                        ['Max', MaxEquation],
+                    ] as [string, BlendingEquation][]).map(value => ({
+                        label: value[0],
+                        value: value[1],
+                    })),
+                },
+                {
+                    type: 'dropdown',
+                    property: [material, 'blendSrc'],
+                    hidden: ()=>material.blending !== CustomBlending,
+                    children: ([
+                        ['Zero', ZeroFactor],
+                        ['One', OneFactor],
+                        ['Src Color', SrcColorFactor],
+                        ['One Minus Src Color', OneMinusSrcColorFactor],
+                        ['Src Alpha', SrcAlphaFactor],
+                        ['One Minus Src Alpha', OneMinusSrcAlphaFactor],
+                        ['Dst Alpha', DstAlphaFactor],
+                        ['One Minus Dst Alpha', OneMinusDstAlphaFactor],
+                        ['Dst Color', DstColorFactor],
+                        ['One Minus Dst Color', OneMinusDstColorFactor],
+                        ['Src Alpha Saturate', SrcAlphaSaturateFactor],
+                        ['Constant Color', ConstantColorFactor],
+                        ['One Minus Constant Color', OneMinusConstantColorFactor],
+                        ['Constant Alpha', ConstantAlphaFactor],
+                        ['One Minus Constant Alpha', OneMinusConstantAlphaFactor],
+                    ] as [string, BlendingSrcFactor][]).map(value => ({
+                        label: value[0],
+                        value: value[1],
+                    })),
+                },
+                {
+                    type: 'dropdown',
+                    property: [material, 'blendDst'],
+                    hidden: ()=>material.blending !== CustomBlending,
+                    children: ([
+                        ['Zero', ZeroFactor],
+                        ['One', OneFactor],
+                        ['Src Color', SrcColorFactor],
+                        ['One Minus Src Color', OneMinusSrcColorFactor],
+                        ['Src Alpha', SrcAlphaFactor],
+                        ['One Minus Src Alpha', OneMinusSrcAlphaFactor],
+                        ['Dst Alpha', DstAlphaFactor],
+                        ['One Minus Dst Alpha', OneMinusDstAlphaFactor],
+                        ['Dst Color', DstColorFactor],
+                        ['One Minus Dst Color', OneMinusDstColorFactor],
+                        // ['Src Alpha Saturate', SrcAlphaSaturateFactor],
+                        ['Constant Color', ConstantColorFactor],
+                        ['One Minus Constant Color', OneMinusConstantColorFactor],
+                        ['Constant Alpha', ConstantAlphaFactor],
+                        ['One Minus Constant Alpha', OneMinusConstantAlphaFactor],
+                    ] as [string, BlendingSrcFactor][]).map(value => ({
+                        label: value[0],
+                        value: value[1],
+                    })),
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 1],
+                    hidden: ()=>material.blending !== CustomBlending,
+                    property: [material, 'blendSrcAlpha'],
+                },
+                {
+                    type: 'slider',
+                    bounds: [0, 1],
+                    hidden: ()=>material.blending !== CustomBlending,
+                    property: [material, 'blendDstAlpha'],
+                },
+                {
+                    type: 'color',
+                    hidden: ()=>material.blending !== CustomBlending ||
+                        material.blendSrc !== ConstantColorFactor &&
+                        material.blendSrc !== OneMinusConstantColorFactor &&
+                        material.blendDst !== ConstantColorFactor &&
+                        material.blendDst !== OneMinusConstantColorFactor,
+                    property: [material, 'blendColor'],
+                },
+                {
+                    type: 'slider',
+                    hidden: ()=>material.blending !== CustomBlending ||
+                        material.blendSrc !== ConstantAlphaFactor &&
+                        material.blendSrc !== OneMinusConstantAlphaFactor &&
+                        material.blendDst !== ConstantAlphaFactor &&
+                        material.blendDst !== OneMinusConstantAlphaFactor,
+                    bounds: [0, 1],
+                    property: [material, 'blendAlpha'],
                 },
                 material.alphaMap !== undefined ? {
                     type: 'image',
@@ -246,7 +358,7 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     label: 'Override Environment',
-                    // property: [this.userData, 'separateEnvMapIntensity'],
+                    // property: [material.userData, 'separateEnvMapIntensity'],
                     getValue: ()=>material.userData.separateEnvMapIntensity === true,
                     setValue: (v: boolean)=>{
                         material.userData.separateEnvMapIntensity = v
@@ -362,7 +474,7 @@ export const iMaterialUI = {
             children: [
                 {
                     type: 'slider',
-                    bounds: [-1, 1],
+                    bounds: [-500, 500],
                     stepSize: 0.001,
                     property: [material, 'bumpScale'],
                     hidden: ()=>!material.bumpMap,

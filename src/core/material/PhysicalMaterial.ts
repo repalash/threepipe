@@ -312,7 +312,9 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         specularColor: new Color(1, 1, 1),
         specularColorMap: null,
 
-
+        anisotropy: 0,
+        anisotropyRotation: 0,
+        anisotropyMap: null,
     }
 
     static MaterialTemplate: IMaterialTemplate<PhysicalMaterial, Partial<typeof PhysicalMaterial.MaterialProperties>> = {

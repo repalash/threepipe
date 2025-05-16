@@ -71,8 +71,9 @@ vec2 dHdxy_fwd_cb() {
 #ifndef USE_BUMPMAP
 vec3 perturbNormalArb( vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection ) {
 
-    vec3 vSigmaX = dFdx( surf_pos.xyz );
-    vec3 vSigmaY = dFdy( surf_pos.xyz );
+    // normalize is done to ensure that the bump map looks the same regardless of the texture's scale
+    vec3 vSigmaX = normalize( dFdx( surf_pos.xyz ) );
+    vec3 vSigmaY = normalize( dFdy( surf_pos.xyz ) );
     vec3 vN = surf_norm; // normalized
 
     vec3 R1 = cross( vSigmaY, vN );

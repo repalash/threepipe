@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
 import {ThreeSerialization} from '../../utils/serialization'
-import {DoubleSide, Material} from 'three'
+import {Color, DoubleSide, Material} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
 import {ITexture} from '../../core'
 
@@ -51,6 +51,15 @@ export class GLTFMaterialExtrasExtension {
 
                     if (ext.envMapIntensity !== undefined) o.envMapIntensity = ext.envMapIntensity // for when separateEnvMapIntensity is true
                     // if (ext.envMapSlotKey !== undefined) o.envMapSlotKey = ext.envMapSlotKey // in userdata
+
+                    if (ext.blendSrc !== undefined) o.blendSrc = ext.blendSrc
+                    if (ext.blendDst !== undefined) o.blendDst = ext.blendDst
+                    if (ext.blendEquation !== undefined) o.blendEquation = ext.blendEquation
+                    if (ext.blendSrcAlpha !== undefined) o.blendSrcAlpha = ext.blendSrcAlpha
+                    if (ext.blendDstAlpha !== undefined) o.blendDstAlpha = ext.blendDstAlpha
+                    if (ext.blendEquationAlpha !== undefined) o.blendEquationAlpha = ext.blendEquationAlpha
+                    if (ext.blendColor !== undefined && o.blendColor !== undefined) (o.blendColor as Color).setHex(ext.blendColor)
+                    if (ext.blendAlpha !== undefined) o.blendAlpha = ext.blendAlpha
 
                     // if (ext.stencilWrite !== undefined) o.stencilWrite = ext.stencilWrite
                     // if (ext.stencilWriteMask !== undefined) o.stencilWriteMask = ext.stencilWriteMask
@@ -163,6 +172,15 @@ export class GLTFMaterialExtrasExtension {
 
             if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
             // if (material.envMapSlotKey !== undefined) dat.envMapSlotKey = material.envMapSlotKey // in userData
+
+            if (material.blendSrc !== undefined) dat.blendSrc = material.blendSrc
+            if (material.blendDst !== undefined) dat.blendDst = material.blendDst
+            if (material.blendEquation !== undefined) dat.blendEquation = material.blendEquation
+            if (material.blendSrcAlpha !== undefined) dat.blendSrcAlpha = material.blendSrcAlpha
+            if (material.blendDstAlpha !== undefined) dat.blendDstAlpha = material.blendDstAlpha
+            if (material.blendEquationAlpha !== undefined) dat.blendEquationAlpha = material.blendEquationAlpha
+            if (material.blendColor !== undefined) dat.blendColor = (material.blendColor as Color).getHex()
+            if (material.blendAlpha !== undefined) dat.blendAlpha = material.blendAlpha
 
             // if (material.stencilWrite !== undefined) dat.stencilWrite = material.stencilWrite
             // if (material.stencilWriteMask !== undefined) dat.stencilWriteMask = material.stencilWriteMask

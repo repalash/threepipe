@@ -40,6 +40,8 @@ export const threeMaterialPropList = {
     blendSrcAlpha: null,
     blendDstAlpha: null,
     blendEquationAlpha: null,
+    blendColor: '#000000',
+    blendAlpha: 0,
     depthFunc: LessEqualDepth,
     depthTest: true,
     depthWrite: true,

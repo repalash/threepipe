@@ -1,9 +1,7 @@
 import {IGeometry, IMaterial, IObject3D} from '../../core'
-import {BufferAttribute, InstancedMesh, Matrix4, Quaternion, Vector3} from 'three'
+import {BufferAttribute, InstancedMesh} from 'three'
 // noinspection ES6PreferShortImport
 import {copyObject3DUserData} from '../../utils/serialization'
-import {GLTFWriter2} from '../../assetmanager'
-import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter'
 
 export function autoGPUInstanceMeshes(matOrGeom: IMaterial|IGeometry) {
     if (!(<IMaterial>matOrGeom).isMaterial && !(<IGeometry>matOrGeom).isBufferGeometry) return
@@ -87,60 +85,61 @@ export function autoGPUInstanceMeshes(matOrGeom: IMaterial|IGeometry) {
     }
 }
 
-export class GLTFMeshGpuInstancingExporter implements GLTFExporterPlugin {
-    name = 'EXT_mesh_gpu_instancing'
-    constructor(public writer: GLTFWriter2) {
-    }
-
-    writeNode(object: any, nodeDef: any): void {
-        if (!object.isInstancedMesh) return
-
-        const writer = this.writer
-
-        const mesh = object as InstancedMesh
-
-        // @ts-expect-error not in ts
-        let attributes: any = mesh.sourceTrs
-        if (!attributes) {
-            const translationAttr = new Float32Array(mesh.count * 3)
-            const rotationAttr = new Float32Array(mesh.count * 4)
-            const scaleAttr = new Float32Array(mesh.count * 3)
-
-            const matrix = new Matrix4()
-            const position = new Vector3()
-            const quaternion = new Quaternion()
-            const scale = new Vector3()
-
-            for (let i = 0; i < mesh.count; i++) {
-                mesh.getMatrixAt(i, matrix)
-                matrix.decompose(position, quaternion, scale)
-
-                position.toArray(translationAttr, i * 3)
-                quaternion.toArray(rotationAttr, i * 4)
-                scale.toArray(scaleAttr, i * 3)
-            }
-            attributes = {
-                TRANSLATION: new BufferAttribute(translationAttr, 3),
-                ROTATION: new BufferAttribute(rotationAttr, 4),
-                SCALE: new BufferAttribute(scaleAttr, 3),
-            }
-        }
-
-        attributes = {
-            // @ts-expect-error todo add to ts
-            TRANSLATION: writer.processAccessor(attributes.TRANSLATION),
-            ROTATION: (writer as any).processAccessor(attributes.ROTATION),
-            SCALE: (writer as any).processAccessor(attributes.SCALE),
-        }
-
-        if (mesh.instanceColor)
-            attributes._COLOR_0 = (writer as any).processAccessor(mesh.instanceColor)
-
-        writer.extensionsUsed[ this.name ] = true
-        // @ts-expect-error todo add to ts
-        writer.extensionsRequired[ this.name ] = true
-
-        nodeDef.extensions = nodeDef.extensions || {}
-        nodeDef.extensions[ this.name ] = {attributes}
-    }
-}
+// added to three.js
+// export class GLTFMeshGpuInstancingExporter implements GLTFExporterPlugin {
+//     name = 'EXT_mesh_gpu_instancing'
+//     constructor(public writer: GLTFWriter2) {
+//     }
+//
+//     writeNode(object: any, nodeDef: any): void {
+//         if (!object.isInstancedMesh) return
+//
+//         const writer = this.writer
+//
+//         const mesh = object as InstancedMesh
+//
+//         // @ts-expect-error not in ts
+//         let attributes: any = mesh.sourceTrs
+//         if (!attributes) {
+//             const translationAttr = new Float32Array(mesh.count * 3)
+//             const rotationAttr = new Float32Array(mesh.count * 4)
+//             const scaleAttr = new Float32Array(mesh.count * 3)
+//
+//             const matrix = new Matrix4()
+//             const position = new Vector3()
+//             const quaternion = new Quaternion()
+//             const scale = new Vector3()
+//
+//             for (let i = 0; i < mesh.count; i++) {
+//                 mesh.getMatrixAt(i, matrix)
+//                 matrix.decompose(position, quaternion, scale)
+//
+//                 position.toArray(translationAttr, i * 3)
+//                 quaternion.toArray(rotationAttr, i * 4)
+//                 scale.toArray(scaleAttr, i * 3)
+//             }
+//             attributes = {
+//                 TRANSLATION: new BufferAttribute(translationAttr, 3),
+//                 ROTATION: new BufferAttribute(rotationAttr, 4),
+//                 SCALE: new BufferAttribute(scaleAttr, 3),
+//             }
+//         }
+//
+//         attributes = {
+//             // @ts-expect-error todo add to ts
+//             TRANSLATION: writer.processAccessor(attributes.TRANSLATION),
+//             ROTATION: (writer as any).processAccessor(attributes.ROTATION),
+//             SCALE: (writer as any).processAccessor(attributes.SCALE),
+//         }
+//
+//         if (mesh.instanceColor)
+//             attributes._COLOR_0 = (writer as any).processAccessor(mesh.instanceColor)
+//
+//         writer.extensionsUsed[ this.name ] = true
+//         // @ts-expect-error todo add to ts
+//         writer.extensionsRequired[ this.name ] = true
+//
+//         nodeDef.extensions = nodeDef.extensions || {}
+//         nodeDef.extensions[ this.name ] = {attributes}
+//     }
+// }
