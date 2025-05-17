@@ -1,4 +1,4 @@
-import {ColorManagement, Event, EventDispatcher, EventListener2, Material, Texture} from 'three'
+import {ColorManagement, Event, EventDispatcher, EventListener2, Material, ShaderChunk, Texture} from 'three'
 import {
     IMaterial,
     iMaterialCommons,
@@ -16,6 +16,7 @@ import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID, isInScene} from '../three'
 import {IMaterialEventMap} from '../core/IMaterial'
+import {shaderReplaceString} from '../utils'
 
 /**
  * Material Manager
@@ -38,6 +39,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
 
     constructor() {
         super()
+        legacyBumpScaleFixSetup()
     }
 
     /**
@@ -82,20 +84,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         const legacyColors = (oldMaterial as any)?.metadata && (oldMaterial as any)?.metadata.version <= 4.5
         const lastColorManagementEnabled = ColorManagement.enabled
         if (legacyColors) ColorManagement.enabled = false
-
-        // bump map scale fix
-        // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
-        const legacyBumpScale = (oldMaterial as any)?.metadata && (oldMaterial as any)?.metadata.version <= 4.6
-        if (legacyBumpScale && (oldMaterial as any)?.bumpScale !== undefined && (oldMaterial as any)?.bumpMap) {
-            // if (Math.abs((oldMaterial as any).bumpScale) > 0.01) {
-            //     (oldMaterial as any).bumpScale *= 430 // test model - http://asset-samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
-            //     console.warn('MaterialManager: Old format material loaded, bump map scaled by 430, it might be incorrect.', (oldMaterial as any).bumpScale)
-            // } else {
-            console.warn('MaterialManager: Old format material loaded, bump map might be incorrect.', oldMaterial, (oldMaterial as any).bumpScale)
-            // }
-        }
-
-
 
         const material = template.generator(template.params || {})
         if (oldMaterial && material) material.setValues(oldMaterial, true)
@@ -391,3 +379,16 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
 
 }
 
+function legacyBumpScaleFixSetup() {
+    const a = `
+		vec3 vSigmaX = normalize( dFdx( surf_pos.xyz ) );
+		vec3 vSigmaY = normalize( dFdy( surf_pos.xyz ) );
+`
+    ShaderChunk.bumpmap_pars_fragment = shaderReplaceString(ShaderChunk.bumpmap_pars_fragment, a, `
+    #ifdef BUMP_MAP_SCALE_LEGACY
+        ${a.replace(/normalize/g, '')}
+    #else
+        ${a}
+    #endif
+    `)
+}

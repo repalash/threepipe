@@ -147,31 +147,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
         if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
 
-        // todo
-        if (res.asset?.version) {
-            const version = parseFloat(res.asset.version)
-            if (version <= 2.0) {
-                // bump map scale fix
-                // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
-                // const bounds = new Box3B().expandByObject(scene)
-                // const size = bounds.getSize(new Vector3()).length() / 2
-                const fixBump = (material: any) => {
-                    if (!material || !material.bumpMap || material.bumpScale === undefined) return
-                    // if (Math.abs(material.bumpScale) > 0.01) {
-                    //     material.bumpScale *= 430 / Math.max(size, 0.1) // test model - http://asset-samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
-                    //     console.warn(`GLTFLoader2: Old format material loaded, bump map scaled by ${430 / Math.max(size, 0.1)}, it might be incorrect.`, material, material.bumpScale)
-                    // } else {
-                    console.warn('GLTFLoader2: Old format material loaded, bump map might be incorrect.', material, material.bumpScale)
-                    // }
-                }
-                scene?.traverse((obj: any)=>{
-                    if (!obj?.material) return
-                    const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
-                    mats.forEach(fixBump)
-                })
-            }
-        }
-
         return scene
     }
 

@@ -12,9 +12,14 @@ uniform vec3 flakeFallOffParams; // useFallOff, fallOffFactor
 
 vec3 perturbNormalArb_nb( vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection ) {
 
+    #ifdef BUMP_MAP_SCALE_LEGACY
+    vec3 vSigmaX = ( dFdx( surf_pos.xyz ) );
+    vec3 vSigmaY = ( dFdy( surf_pos.xyz ) );
+    #else
     // normalize is done to ensure that the bump map looks the same regardless of the texture's scale
     vec3 vSigmaX = normalize( dFdx( surf_pos.xyz ) );
     vec3 vSigmaY = normalize( dFdy( surf_pos.xyz ) );
+    #endif
     vec3 vN = surf_norm; // normalized
 
     vec3 R1 = cross( vSigmaY, vN );

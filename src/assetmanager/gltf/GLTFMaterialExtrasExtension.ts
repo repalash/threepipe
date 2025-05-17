@@ -12,7 +12,7 @@ export class GLTFMaterialExtrasExtension {
      * Also {@link Export}
      * @param loadConfigResources
      */
-    static Import = (loadConfigResources: (res: any)=>any)=> (_: GLTFParser): GLTFLoaderPlugin=>({
+    static Import = (loadConfigResources: (res: any)=>any)=> (parser: GLTFParser): GLTFLoaderPlugin=>({
         name: '__' + GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension, // __ is prefix so that the extension is added to userdata, and we can process later in afterRoot
         afterRoot: async(result: GLTF) => {
             const scenes = result.scenes || (result.scene ? [result.scene] : [])
@@ -22,7 +22,7 @@ export class GLTFMaterialExtrasExtension {
 
                 s.traverse((obj: any)=>{
                     const o = obj?.material
-                    if (!o?.isMaterial) return
+                    if (!o?.isMaterial) return // todo array materials
                     const ext = o.userData?.gltfExtensions?.[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
                     if (!ext) return
 
@@ -119,6 +119,16 @@ export class GLTFMaterialExtrasExtension {
                     })
 
                     delete o.userData.gltfExtensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
+
+                    // legacy bump map scale fix, test model - test model - http://asset-samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
+                    const assetVersion = parser.json?.asset?.version ? parseFloat(parser.json?.asset?.version) : null
+                    // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
+                    if ((o.userData.legacyBumpScale || assetVersion && assetVersion <= 2.0) && (o as any)?.bumpScale !== undefined && o?.bumpMap && o.defines) {
+                        console.warn('MaterialManager: Old format material loaded, bump map might be incorrect.', o, (o as any).bumpScale)
+                        o.defines.BUMP_MAP_SCALE_LEGACY = '1'
+                        o.userData.legacyBumpScale = true
+                        o.needsUpdate = true
+                    }
 
                 })
 
