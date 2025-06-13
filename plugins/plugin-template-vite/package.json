@@ -8,22 +8,6 @@
         "threepipe": "file:./../../src/",
         "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
     },
-    "clean-package": {
-        "remove": [
-            "clean-package",
-            "scripts",
-            "devDependencies",
-            "//",
-            "markdown-to-html"
-        ],
-        "replace": {
-            "dependencies": {},
-            "peerDependencies": {
-                "threepipe": "^0.0.26",
-                "@threepipe/plugin-tweakpane": "^0.2.0"
-            }
-        }
-    },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
@@ -68,5 +52,21 @@
         "type": "git",
         "url": "git://github.com/repalash/threepipe.git",
         "directory": "plugins/plugin-template-vite"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "//",
+            "markdown-to-html"
+        ],
+        "replace": {
+            "dependencies": {},
+            "peerDependencies": {
+                "threepipe": "^0.0.26",
+                "@threepipe/plugin-tweakpane": "^0.2.0"
+            }
+        }
     }
 }

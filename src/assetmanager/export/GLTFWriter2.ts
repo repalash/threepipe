@@ -7,14 +7,11 @@ import {ThreeSerialization} from '../../utils'
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
 
-    protected _assetVersion: number
     readonly TPAssetVersion = 1
 
     constructor() {
         super()
-        // slightly increment the version to be safe if three.js forgot to update the version
-        this._assetVersion = parseFloat(this.json.asset.version) + 0.001 * this.TPAssetVersion
-        this.json.asset.version = this._assetVersion.toString()
+        this.json.asset.subversion = this.TPAssetVersion
     }
 
     declare options: GLTFExporterOptions & {

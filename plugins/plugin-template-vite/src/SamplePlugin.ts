@@ -4,7 +4,7 @@ import styles from './SamplePlugin.css?inline'
 
 console.log(TweakpaneUiPlugin)
 
-export class SamplePlugin extends AViewerPluginSync<string> {
+export class SamplePlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'SamplePlugin'
     enabled = true
     dependencies = []

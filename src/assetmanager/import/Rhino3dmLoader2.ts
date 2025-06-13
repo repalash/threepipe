@@ -12,9 +12,12 @@ import {
     Object3D,
     Points,
 } from 'three'
+import {getUrlQueryParam} from 'ts-browser-helpers'
 
 export class Rhino3dmLoader2 extends Rhino3dmLoader {
-    public static LIBRARY_PATH = 'https://cdn.jsdelivr.net/npm/rhino3dm@8.9.0/'
+    // todo since 8.4.0(next version) it's not able to load some files like https://drive.google.com/file/d/1mWOCGIOWmaC4L7IxCvWM9dgeVYeDl8L-/view (request for access)
+    //  gets stuck at `rhino.File3dm.fromByteArray` call in the worker. Note three.js uses 8.4.0 version of rhino3dm.
+    public static LIBRARY_PATH = `https://cdn.jsdelivr.net/npm/rhino3dm@${getUrlQueryParam('rhino3dm', '8.0.1')}/`
 
     constructor(manager?: LoadingManager) {
         super(manager)
