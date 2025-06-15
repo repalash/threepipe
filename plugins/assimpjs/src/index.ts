@@ -1,0 +1,1 @@
+export {AssimpJsPlugin} from './AssimpJsPlugin'

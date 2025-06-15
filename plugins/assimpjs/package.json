@@ -1,0 +1,71 @@
+{
+    "name": "@threepipe/plugin-assimpjs",
+    "description": "Assimp.js Plugin for ThreePipe",
+    "version": "0.1.0",
+    "devDependencies": {
+    },
+    "dependencies": {
+        "threepipe": "file:./../../src/",
+        "assimpjs": "^0.0.10"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
+        "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish --access public && clean-package restore && git tag $npm_package_name-$npm_package_version",
+        "prepare": "npm run build && npm run docs",
+        "build": "rimraf dist && vite build",
+        "dev": "NODE_ENV=development vite build --watch",
+        "docs": "rimraf docs && npx typedoc"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "three.js",
+        "threepipe",
+        "vite",
+        "plugin"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://github.com/repalash/threepipe#readme",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/plugin-template-vite"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "//",
+            "markdown-to-html"
+        ],
+        "replace": {
+            "dependencies": {},
+            "peerDependencies": {
+                "threepipe": "^0.0.46"
+            }
+        }
+    }
+}

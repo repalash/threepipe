@@ -18,6 +18,7 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 
 ## List of all the packages
 
+- [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
 - [@threepipe/plugin-tweakpane](../package/plugin-tweakpane) Tweakpane UI Plugin. Renders a [tweakpane](https://tweakpane.github.io/docs/) UI attached to the viewer for any ui config object.
 - [@threepipe/plugin-blueprintjs](../package/plugin-blueprintjs) BlueprintJs UI Plugin. Renders a [blueprintjs](https://blueprintjs.com/) ([React](https://react.dev/)) UI attached to the viewer for any ui config object.
 - [@threepipe/plugin-tweakpane-editor](../package/plugin-tweakpane-editor) - Tweakpane Editor Plugin. Uses the tweakpane ui plugin to create a [full editor](https://threepipe.org/examples/tweakpane-editor). 
@@ -30,4 +31,4 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-gaussian-splatting](../package/plugin-gaussian-splatting) - [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) plugin for loading and rendering splat files
 - [@threepipe/plugin-svg-renderer](../package/plugin-svg-renderer) - Add support for exporting 3d scene as SVG (WIP) using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer).
 - [@threepipe/plugin-3d-tiles-renderer](https://threepipe.org/package/plugin-3d-tiles-renderer.html) - Plugins for [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS), b3dm, i3dm, cmpt, pnts importers.
-- [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
+- [@threepipe/plugin-assimpjs](https://threepipe.org/package/plugin-assimpjs.html) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.

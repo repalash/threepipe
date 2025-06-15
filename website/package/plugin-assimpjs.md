@@ -1,49 +1,24 @@
 ---
 prev: 
-    text: '@threepipe/plugin-svg-renderer'
-    link: './plugin-svg-renderer'
+    text: '@threepipe/plugin-3d-tiles-renderer'
+    link: './plugin-3d-tiles-renderer'
 
-next:
-  text: '@threepipe/plugin-assimpjs'
-  link: './plugin-assimpjs'
-
+next: false
 ---
 
-# @threepipe/plugin-3d-tiles-renderer
+# @threepipe/plugin-assimpjs
+ 
+This package exports [AssimpJsPlugin](https://threepipe.org/plugins/assimpjs/docs/classes/AssimpJsPlugin.html) which loads the assimpjs library and provides `ajs` interface.
 
-Exports 
-- [TilesRendererPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/TilesRendererPlugin.html) - adds support for loading and rendering [OGC 3D Tiles](https://www.ogc.org/standards/3dtiles/) json files.
-- [EnvironmentControlsPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/EnvironmentControlsPlugin.html) - adds support for using `EnvironmentControls` with the `mainCamera` as a `controlsMode`
-- [GlobeControlsPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/GlobeControlsPlugin.html) - adds support for using `EnvironmentControls` with the `mainCamera` as a `controlsMode`
-- [B3DMLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/B3DMLoadPlugin.html) - adds support for loading b3dm(Batched 3D Model) files using the Asset Manager.
-- [CMPTLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/CMPTLoadPlugin.html) - adds support for loading cmpt(Composite Model) files using the Asset Manager.
-- [I3DMLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/I3DMLoadPlugin.html) - adds support for loading i3dm(Instanced 3D Model) files using the Asset Manager.
-- [PNTSLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/PNTSLoadPlugin.html) - adds support for loading pnts(Point Cloud) files using the Asset Manager.
-- [DeepZoomImageLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/DeepZoomImageLoadPlugin.html) - adds support for loading dzi(Deep Zoom Image) files.
-- [SlippyMapTilesLoadPlugin](https://threepipe.org/plugins/3d-tiles-renderer/docs/classes/SlippyMapTilesLoadPlugin.html) - adds support for loading slippy map tiles (open street map).
+[Example](https://threepipe.org/examples/#assimpjs-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/assimpjs/src/index.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/assimpjs/docs)
 
-This package acts as an interface to the [`3d-tiles-renderer`](https://github.com/NASA-AMMOS/3DTilesRendererJS) package.
-
-[Example](https://threepipe.org/examples/#3d-tiles-renderer/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/3d-tiles-renderer/src/index.ts) &mdash;
-[API Reference](https://threepipe.org/plugins/3d-tiles-renderer/docs)
-
-[![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-3d-tiles-renderer.svg)](https://www.npmjs.com/package/@threepipe/plugin-3d-tiles-renderer)
+[![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-assimpjs.svg)](https://www.npmjs.com/package/@threepipe/plugin-assimpjs)
 
 ```bash
-npm install @threepipe/plugin-3d-tiles-renderer
+npm install @threepipe/plugin-assimpjs
 ```
-
-::: warning Note
-This is still a WIP.
-:::
-
-:::tip Editor
-Any tileset can also be loaded into the tweakpane editor by adding the url and extension to the query params like -
-https://threepipe.org/examples/tweakpane-editor/?m=https://raw.githubusercontent.com/NASA-AMMOS/3DTilesRendererJS/c7a9a7f7607e8759d16c26fb83815ad1cd1fd865/example/data/tileset.json&ext=tileset
-
-The controls(environment, globe) can be picked from the UI above by going to Viewer -> Scene -> Camera -> Controls
-:::
 
 ## Sample Usage 
 
@@ -54,7 +29,7 @@ The near, far plane of the camera can be set based on the file.
 
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {TilesRendererPlugin, TilesRendererGroup} from '@threepipe/plugin-3d-tiles-renderer'
+import {TilesRendererPlugin, TilesRendererGroup} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({...})
 const tiles = viewer.addPluginSync(TilesRendererPlugin)
@@ -83,12 +58,12 @@ const group1 = await viewer.load<TilesRendererGroup>('https://raw.githubusercont
 
 ```
 
-Check the [3d-tiles-renderer](https://threepipe.com/examples/#3d-tiles-renderer/), [ogc-tiles-mars](https://threepipe.com/examples/#ogc-tiles-mars/) examples for a live demo.
+Check the [assimpjs](https://threepipe.com/examples/#assimpjs/), [ogc-tiles-mars](https://threepipe.com/examples/#ogc-tiles-mars/) examples for a live demo.
 
 ### Use `EnvironmentControls` with `TilesRendererPlugin`
 
 ```typescript
-import {TilesRendererPlugin, TilesRendererGroup, EnvironmentControlsPlugin, EnvironmentControls2, GlobeControlsPlugin, GlobeControls2} from '@threepipe/plugin-3d-tiles-renderer'
+import {TilesRendererPlugin, TilesRendererGroup, EnvironmentControlsPlugin, EnvironmentControls2, GlobeControlsPlugin, GlobeControls2} from '@threepipe/plugin-assimpjs'
 const viewer = new ThreeViewer({...})
 const tiles = viewer.addPluginSync(TilesRendererPlugin)
 const group = await tiles.load('...')
@@ -115,7 +90,7 @@ controls.setTilesRenderer(group.tilesRenderer)
 Some plugins are used by default in the `TilesRendererPlugin` to load and render the tileset. These can be disabled/configured when loading a file and more can be added. 
 Custom plugins can be added to the individual `TilesRenderer` when loading a tileset file.
 ```typescript
-import {UnloadTilesPlugin, TileCompressionPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+import {UnloadTilesPlugin, TileCompressionPlugin} from '@threepipe/plugin-assimpjs'
 const result = await tiles.load('url', {
     autoCenter: true,
     autoScale: false,
@@ -183,7 +158,7 @@ Check the Google Maps examples - [ogc-tiles-google-maps](https://threepipe.com/e
 To load any individual tile file format, add the plugin to the viewer and load the file directly as you would with any other file. The plugin will automatically detect the type of the file and load it.
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+import {B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({...})
 viewer.addPluginsSync([B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, LoadingScreenPlugin])
@@ -218,7 +193,7 @@ The plugins can be added to the viewer and files can be loaded directly from the
 
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {TilesRendererPlugin, DeepZoomImageLoadPlugin, SlippyMapTilesLoadPlugin} from '@threepipe/plugin-3d-tiles-renderer'
+import {TilesRendererPlugin, DeepZoomImageLoadPlugin, SlippyMapTilesLoadPlugin} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({...})
 

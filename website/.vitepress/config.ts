@@ -175,7 +175,8 @@ export default defineConfig({
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},
           {text: 'Gaussian Splatting Plugin', link: 'package/plugin-gaussian-splatting'},
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
-          {text: 'Tiles (OGC) Renderer Plugin', link: 'package/plugin-3d-tiles-renderer'},
+          {text: '3D Tiles (OGC) Renderer Plugin', link: 'package/plugin-3d-tiles-renderer'},
+          {text: 'Assimpjs Plugin', link: 'package/plugin-assimpjs'},
         ]
       },
     ],

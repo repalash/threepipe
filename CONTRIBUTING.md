@@ -78,6 +78,6 @@ Checklist
 - Add example and any other tests to `tests/`
 - Add info to `README.md`
 - Add info to `./website/guide/threepipe-packages.md`
-- Add info to `./website/packages/PluginName.md`
+- Add info to `./website/package/plugin-name.md` and add to `./website/.vitepress/config.ts`
 - `npm run build` and test with example
-- Publish package with `npm run new:publish`. Add tag to git like `plugin-name-v0.0.1`
+- Publish package with `npm run new:publish`. Check that tag is added to git like `plugin-name-v0.0.1`

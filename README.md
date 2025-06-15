@@ -315,6 +315,7 @@ Many features will be added but the core API will not change significantly in fu
   - [SimplifyModifierPlugin](https://threepipe.org/plugin/SimplifyModifierPlugin.html) - Boilerplate for plugin to simplify geometries
   - [MeshOptSimplifyModifierPlugin](https://threepipe.org/plugin/MeshOptSimplifyModifierPlugin.html) - Simplify geometries using [meshoptimizer](https://github.com/zeux/meshoptimizer) library
 - [Packages](https://threepipe.org/guide/threepipe-packages.html)
+  - [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
   - [@threepipe/plugin-tweakpane](https://threepipe.org/package/plugin-tweakpane.html) [Tweakpane](https://tweakpane.github.io/docs/) UI Plugin
   - [@threepipe/plugin-blueprintjs](https://threepipe.org/package/plugin-blueprintjs.html) [BlueprintJs](https://blueprintjs.com/) UI Plugin
   - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Editor Plugin using Tweakpane for plugin UI
@@ -327,7 +328,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-network](https://threepipe.org/package/plugin-network.html) - Network/Cloud related plugin implementations for Threepipe
   - [@threepipe/plugin-svg-renderer](https://threepipe.org/package/plugin-svg-renderer.html) - Add support for exporting a 3d scene as SVG using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer)
   - [@threepipe/plugin-3d-tiles-renderer](https://threepipe.org/package/plugin-3d-tiles-renderer.html) - Plugins for [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS), b3dm, i3dm, cmpt, pnts, dzi, slippy maps importers.
-  - [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
+  - [@threepipe/plugin-assimpjs](https://threepipe.org/package/plugin-assimpjs.html) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.
 
 ## Documentation
 
