@@ -83,7 +83,7 @@ const group1 = await viewer.load<TilesRendererGroup>('https://raw.githubusercont
 
 ```
 
-Check the [3d-tiles-renderer](https://threepipe.com/examples/#3d-tiles-renderer/), [ogc-tiles-mars](https://threepipe.com/examples/#ogc-tiles-mars/) examples for a live demo.
+Check the [3d-tiles-renderer](https://threepipe.org/examples/#3d-tiles-renderer/), [ogc-tiles-mars](https://threepipe.org/examples/#ogc-tiles-mars/) examples for a live demo.
 
 ### Use `EnvironmentControls` with `TilesRendererPlugin`
 
@@ -176,7 +176,7 @@ Note - `TilesRendererPlugin.DUMMY_EXT` = `tileset`
 Get the `CESIUM_ION_API_TOKEN` for free from [cesium ion](https://ion.cesium.com/)
 :::
 
-Check the Google Maps examples - [ogc-tiles-google-maps](https://threepipe.com/examples/#ogc-tiles-google-maps/), [ogc-tiles-google-maps-3d](https://threepipe.com/examples/#ogc-tiles-google-maps-3d/) examples for sample usage
+Check the Google Maps examples - [ogc-tiles-google-maps](https://threepipe.org/examples/#ogc-tiles-google-maps/), [ogc-tiles-google-maps-3d](https://threepipe.org/examples/#ogc-tiles-google-maps-3d/) examples for sample usage
 
 ### Loading 3d tiles files
 

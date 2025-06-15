@@ -42,7 +42,7 @@ To make changes and run the example, click on the CodePen button on the top righ
 
 ## Getting Started
 
-Checkout the full [Getting Started Guide](https://threepipe.org/guide/getting-started.html) on [threepipe.com](https://threepipe.com)
+Checkout the full [Getting Started Guide](https://threepipe.org/guide/getting-started.html) on [threepipe.org](https://threepipe.org)
 
 ### Local Setup
 

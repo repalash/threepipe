@@ -22,210 +22,69 @@ npm install @threepipe/plugin-assimpjs
 
 ## Sample Usage 
 
-### Load and render tileset
-To import a tileset, simply add the `TilesRendererPlugin` and load the root json with the plugin or the viewer.
-
-The near, far plane of the camera can be set based on the file.
+### Convert any format to glTF/glb and load in viewer
+Any set of 3d files can be loaded into assimp, and converted to glTF/glb format. The converted files can then be loaded into the viewer as blobs.
 
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {TilesRendererPlugin, TilesRendererGroup} from '@threepipe/plugin-assimpjs'
+import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({...})
-const tiles = viewer.addPluginSync(TilesRendererPlugin)
+const assimpjs = viewer.addPluginSync(AssimpJsPlugin)
+await assimp.init() // load the assimpjs library and wait for it to be ready. It also loads automatically when plugin is added to the viewer if autoInit is true.
 
-viewer.scene.mainCamera.position.set(300, 300, 300)
+// Prepare a list of files to load
+const files = [
+    'https://threejs.org/examples/models/obj/male02/male02.obj',
+]
+// Download the files
+const fe = files.map(async f=>fetch(`${f}`).then(async t=>t.arrayBuffer()))
+const responses = await Promise.all(fe)
+const fileList: Record<string, ArrayBuffer> = {}
+for (let i = 0; i < files.length; i++) {
+    fileList[files[i]] = responses[i]
+}
+const fbx = assimp.convertFiles(fileList, 'glb2')
+if (!fbx) {
+    console.error('Failed to convert files to glb')
+    return
+}
 
-// optional. (Required for GlobeControls)
-viewer.scene.mainCamera.autoNearFar = false
-viewer.scene.mainCamera.minNearPlane = 1
-viewer.scene.mainCamera.maxFarPlane = 1000
-
-// Now load any tileset json file.
-const group = await tiles.load('https://raw.githubusercontent.com/NASA-AMMOS/3DTilesRendererJS/c7a9a7f7607e8759d16c26fb83815ad1cd1fd865/example/data/tileset.json', {
-    autoScale: true,
-    autoCenter: true,
-    autoScaleRadius: 100,
-})
-
-// or load directly from the viewer. A custom fileExtension or fileHandler must be passed, to tell the viewer the type of the json file.
-const group1 = await viewer.load<TilesRendererGroup>('https://raw.githubusercontent.com/NASA-AMMOS/3DTilesRendererJS/c7a9a7f7607e8759d16c26fb83815ad1cd1fd865/example/data/tileset.json', {
-    fileExtension: TilesRendererPlugin.DUMMY_EXT,
-    autoScale: true,
-    autoCenter: true,
-    autoScaleRadius: 100,
-})
-
+// load the glb file
+await viewer.load<IObject3D>({path: 'file.glb', file: glb})
 ```
 
-Check the [assimpjs](https://threepipe.com/examples/#assimpjs/), [ogc-tiles-mars](https://threepipe.com/examples/#ogc-tiles-mars/) examples for a live demo.
+Check the [assimpjs-plugin](https://threepipe.org/examples/#assimpjs-plugin/) example for a live demo.
 
-### Use `EnvironmentControls` with `TilesRendererPlugin`
+### Export to FBX / Convert to FBX
 
-```typescript
-import {TilesRendererPlugin, TilesRendererGroup, EnvironmentControlsPlugin, EnvironmentControls2, GlobeControlsPlugin, GlobeControls2} from '@threepipe/plugin-assimpjs'
-const viewer = new ThreeViewer({...})
-const tiles = viewer.addPluginSync(TilesRendererPlugin)
-const group = await tiles.load('...')
-
-viewer.addPluginSync(EnvironmentControlsPlugin) 
-viewer.addPluginSync(GlobeControlsPlugin) 
-
-viewer.scene.mainCamera.controlsMode = 'environment'
-viewer.scene.mainCamera.lookAt(0, 0, 0)
-let controls = viewer.scene.mainCamera.controls as EnvironmentControls2
-controls.minDistance = 0.25;
-
-// For globe controls
-viewer.scene.mainCamera.controlsMode = 'globe'
-viewer.scene.mainCamera.lookAt(0, 0, 0)
-controls = viewer.scene.mainCamera.controls as GlobeControls2
-
-// optional. (Required for GlobeControls)
-controls.setTilesRenderer(group.tilesRenderer)
-```
-
-### Additional `TilesRenderer` Plugins
-
-Some plugins are used by default in the `TilesRendererPlugin` to load and render the tileset. These can be disabled/configured when loading a file and more can be added. 
-Custom plugins can be added to the individual `TilesRenderer` when loading a tileset file.
-```typescript
-import {UnloadTilesPlugin, TileCompressionPlugin} from '@threepipe/plugin-assimpjs'
-const result = await tiles.load('url', {
-    autoCenter: true,
-    autoScale: false,
-    tiles: {
-        TilesFadePlugin: {
-            fadeDuration: 0.5,
-        },
-        plugins: [
-            ()=>new UnloadTilesPlugin(),
-            ()=>new TileCompressionPlugin(),
-        ],
-    },
-})
-```
-
-### Loading Cesium Ion Assets
-
-Cesium Ion assets like Google Maps can be loaded with the `loadCesiumIon` function in the plugin, or by passing a custom plugin in the viewer.
+Assimp includes a FBX exporter, which can be used to convert any 3D file format to FBX. 
+To export the current scene to FBX, the scene can be exported to glTF/glb format, and then converted to FBX using the `AssimpJsPlugin`'s `convertFiles` function.
 
 ```typescript
-const tiles = viewer.getPlugin(TilesRendererPlugin)
-const result = await tiles.loadCesiumIon({
-    assetId: '2275207',
-    apiToken: CESIUM_ION_API_TOKEN,
-    autoRefreshToken: true,
-}, {
-    autoCenter: false,
-    // more options
-    tiles: {
-        TilesFadePlugin: true,
-        plugins: [
-            ()=>new TileCompressionPlugin(),
-            ()=>new UnloadTilesPlugin(),
-        ],
-    },
-})
-
-// or 
-const result2 = await viewer.load('file.tileset', {
-    tiles: {
-        CesiumIonAuthPlugin: {
-            assetId: '2275207',
-            apiToken: CESIUM_ION_API_TOKEN,
-            autoRefreshToken: true,
-        },
-        TilesFadePlugin: true,
-        plugins: [
-            ()=>new TileCompressionPlugin(),
-            ()=>new UnloadTilesPlugin(),
-        ],
-    },
-})
-```
-
-Note - `TilesRendererPlugin.DUMMY_EXT` = `tileset`
-
-:::info
-Get the `CESIUM_ION_API_TOKEN` for free from [cesium ion](https://ion.cesium.com/)
-:::
-
-Check the Google Maps examples - [ogc-tiles-google-maps](https://threepipe.com/examples/#ogc-tiles-google-maps/), [ogc-tiles-google-maps-3d](https://threepipe.com/examples/#ogc-tiles-google-maps-3d/) examples for sample usage
-
-### Loading 3d tiles files
-
-To load any individual tile file format, add the plugin to the viewer and load the file directly as you would with any other file. The plugin will automatically detect the type of the file and load it.
-```typescript
-import {ThreeViewer} from 'threepipe'
-import {B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin} from '@threepipe/plugin-assimpjs'
+import {ThreeViewer, downloadBlob} from 'threepipe'
+import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({...})
-viewer.addPluginsSync([B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, LoadingScreenPlugin])
+const assimpjs = viewer.addPluginSync(AssimpJsPlugin)
+await assimp.init() // load the assimpjs library and wait for it to be ready. It also loads automatically when plugin is added to the viewer if autoInit is true.
 
-// Now load any file
-const b3dm = await viewer.load<IObject3D>('https://example.com/file.b3dm')
-const cmpt = await viewer.load<IObject3D>('https://example.com/file.cmpt')
-const i3dm = await viewer.load<IObject3D>('https://example.com/file.i3dm')
-const pnts = await viewer.load<IObject3D>('https://example.com/file.pnts')
+// load some models
+const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf')
 
-// Load file by data url
-const model = await viewer.load<IObject3D>('data:application/octet-stream;base64,...', {
-    fileExtension: 'b3dm',
+// export to glb
+const blob = await viewer.export(result, {
+    embedUrlImages: true,
 })
-// or by using `model/<extension>` mime type
-const model2 = await viewer.load<IObject3D>('data:model/b3dm;base64,...')
+
+fbxBlob = assimp.convertFiles({['file.glb']: await blob.arrayBuffer()}, 'fbx')
+if (!fbxBlob) {
+    console.error('Failed to convert files to fbx')
+    return
+}
+
+// download the fbx file
+downloadBlob(fbxBlob, 'model.fbx')
 ```
 
-The asset importer will automatically detect the type of the file and load it. 
-
-Checkout the examples [b3dm-load](https://threepipe.org/examples/#b3dm-load/),
-[cmpt-load](https://threepipe.org/examples/#cmpt-load/),
-[pnts-load](https://threepipe.org/examples/#pnts-load/),
-[i3dm-load](https://threepipe.org/examples/#i3dm-load/) for more details.
-
-### Loading Image tiles
-
-The package exports plugins `DeepZoomImageLoadPlugin` and `SlippyMapTilesLoadPlugin` to load deep zoom images and slippy map tiles respectively. 
-They add and use the `TilesRendererPlugin` automatically.
-
-The plugins can be added to the viewer and files can be loaded directly from the viewer or asset manager.
-
-```typescript
-import {ThreeViewer} from 'threepipe'
-import {TilesRendererPlugin, DeepZoomImageLoadPlugin, SlippyMapTilesLoadPlugin} from '@threepipe/plugin-assimpjs'
-
-const viewer = new ThreeViewer({...})
-
-viewer.addPluginsSync([TilesRendererPlugin, DeepZoomImageLoadPlugin, SlippyMapTilesLoadPlugin])
-
-// Load deep zoom image
-const result = await viewer.load('https://openseadragon.github.io/example-images/duomo/duomo.dzi', {
-    autoCenter: true,
-    autoScale: true,
-    autoScaleRadius: 30,
-    tiles: {
-        DeepZoomImagePlugin: {
-            center: true
-        },
-        errorTarget: 1,
-    }
-})
-
-const result2 = await viewer.load('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    autoCenter: true,
-    autoScale: true,
-    autoScaleRadius: 30,
-    fileExtension: SlippyMapTilesLoadPlugin.DUMMY_EXT,
-    tiles: {
-        errorTarget: 1,
-        XYZTilesPlugin: {
-            projection: 'planar',
-            center: true
-        },
-    }
-})
-```
-
-Checkout the examples [dzi-load](https://threepipe.org/examples/#dzi-load/),
-[slippy-map-tiles](https://threepipe.org/examples/#slippy-map-tiles/) for a demo.
+Check full example - [fbx-export](https://threepipe.org/examples/#fbx-export/).
