@@ -6,7 +6,7 @@ export {MaterialManager} from './MaterialManager'
 export type {AssetManagerOptions, AddRawOptions, ImportAddOptions, AddAssetOptions} from './AssetManager'
 export type {IAsset, IFile, IAssetID, IAssetList} from './IAsset'
 export type {ImportResult, IImportResultUserData, ImportResultObject, IAssetImporter, IAssetImporterEventMap, ImportAssetOptions, ImportFilesOptions, LoadFileOptions, ProcessRawOptions, RootSceneImportResult, ImportResultExtras} from './IAssetImporter'
-export type {IAssetExporter, IExporter, IExportParser, ExportFileOptions, BlobExt} from './IExporter'
+export type {IAssetExporter, IExporter, IExportWriter, ExportFileOptions, BlobExt} from './IExporter'
 export type {IImporter, ILoader} from './IImporter'
 
 export * from './import/index'

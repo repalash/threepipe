@@ -1,5 +1,5 @@
 import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
-import {IExportParser} from '../IExporter'
+import {IExportWriter} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
 import {AnimationClip, Object3D} from 'three'
 import {ThreeViewer} from '../../viewer'
@@ -109,7 +109,7 @@ export interface GLTFExporter2Options {
     [key: string]: any
 }
 
-export class GLTFExporter2 extends GLTFExporter implements IExportParser {
+export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
     constructor() {
         super()

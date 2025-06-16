@@ -14,14 +14,14 @@ import {
 } from '@gltf-transform/core'
 import {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
 import {ALL_EXTENSIONS, KHRDracoMeshCompression} from '@gltf-transform/extensions'
-import {DRACOLoader2, GLTFExporter2, GLTFExporter2Options, GLTFViewerConfigExtension, IExportParser} from 'threepipe'
+import {DRACOLoader2, GLTFExporter2, GLTFExporter2Options, GLTFViewerConfigExtension, IExportWriter} from 'threepipe'
 
 /**
  * GLTF Draco Exporter
  *
  * Extension of GLTFExporter2 that runs the output through gltf-transform for draco compression.
  */
-export class GLTFDracoExporter extends GLTFExporter2 implements IExportParser {
+export class GLTFDracoExporter extends GLTFExporter2 implements IExportWriter {
     public loader?: DRACOLoader2 // required for loading draco libs.
     private _io: WebIO
     private _loadedLibs = false

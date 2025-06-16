@@ -4,14 +4,14 @@ import {GLTFExporter2Options} from './export/GLTFExporter2'
 
 export type BlobExt = Blob&{ext:string}
 
-export interface IExportParser {
+export interface IExportWriter {
     // parse(obj: any, options: AnyOptions): any;
     parseAsync(obj: any, options: AnyOptions): Promise<Blob>
 }
 export interface IExporter {
     extensions?: any[]
     ext: string[];
-    ctor: (assetExporter: IAssetExporter, exporter: IExporter)=>IExportParser|undefined;
+    ctor: (assetExporter: IAssetExporter, exporter: IExporter)=>IExportWriter|undefined;
 }
 
 export type ExportFileOptions = {

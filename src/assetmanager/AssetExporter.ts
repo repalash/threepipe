@@ -1,11 +1,11 @@
 import {EventDispatcher, WebGLRenderTarget} from 'three'
 import {IMaterial, IObject3D, ITexture} from '../core'
-import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportParser} from './IExporter'
+import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportWriter} from './IExporter'
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
 
 export interface AssetExporterEventMap {
-    exporterCreate: {exporter: IExporter, parser: IExportParser}
+    exporterCreate: {exporter: IExporter, parser: IExportWriter} // todo rename parser to writer
     exportFile: {
         obj: IObject3D|IMaterial|ITexture|IRenderTarget,
         state: 'processing'|'exporting'|'done'|'error',
@@ -94,7 +94,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             }
             if (processed.blob) res = processed.blob
             else {
-                const parser = this._getParser(ext)
+                const parser = this._getWriter(ext)
 
                 this.dispatchEvent({type: 'exportFile', obj, state:'exporting', exportOptions: options})
                 res = await parser.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
@@ -116,19 +116,19 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         return res
     }
 
-    private _createParser(ext: string): IExportParser {
+    private _createParser(ext: string): IExportWriter {
         const exporter = this.exporters.find(e => e.ext.includes(ext))
         if (!exporter)
             throw new Error(`No exporter found for extension ${ext}`)
         const parser = exporter?.ctor(this, exporter)
         if (!parser) throw new Error(`Unable to create parser for extension ${ext}`)
-        this._cachedParsers.push({ext: exporter.ext, parser})
+        this._cachedWriters.push({ext: exporter.ext, parser})
         this.dispatchEvent({type: 'exporterCreate', exporter, parser})
         return parser
     }
-    private _cachedParsers: {parser: IExportParser, ext: string[]}[] = []
-    private _getParser(ext: string): IExportParser {
-        return this._cachedParsers.find(e => e.ext.includes(ext))?.parser ?? this._createParser(ext)
+    private _cachedWriters: {parser: IExportWriter, ext: string[]}[] = []
+    private _getWriter(ext: string): IExportWriter {
+        return this._cachedWriters.find(e => e.ext.includes(ext))?.parser ?? this._createParser(ext)
     }
 
     public async processBeforeExport(obj: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<{obj:any, ext:string, typeExt?:string, blob?: BlobExt}|undefined> {

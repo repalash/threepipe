@@ -1,9 +1,9 @@
 import {DataTexture, WebGLRenderTarget} from 'three'
 import {EXRExporter, EXRExporterParseOptions} from 'three/examples/jsm/exporters/EXRExporter.js'
-import {IExportParser} from '../IExporter'
+import {IExportWriter} from '../IExporter'
 import {IRenderTarget} from '../../rendering'
 
-export class EXRExporter2 extends EXRExporter implements IExportParser {
+export class EXRExporter2 extends EXRExporter implements IExportWriter {
     async parseAsync(obj: IRenderTarget|DataTexture, options: EXRExporterParseOptions): Promise<Blob> {
         const target = <IRenderTarget>obj
         if (target.isWebGLRenderTarget && !target.renderManager) throw new Error('No renderManager on renderTarget')
