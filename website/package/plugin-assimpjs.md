@@ -16,6 +16,8 @@ This package exports [AssimpJsPlugin](https://threepipe.org/plugins/assimpjs/doc
 
 [![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-assimpjs.svg)](https://www.npmjs.com/package/@threepipe/plugin-assimpjs)
 
+This package uses a custom fork of [assimpjs](https://github.com/kovacsv/assimpjs) with custom build to support fbx export etc - https://github.com/repalash/assimpjs
+
 ```bash
 npm install @threepipe/plugin-assimpjs
 ```
@@ -72,16 +74,9 @@ await assimp.init() // load the assimpjs library and wait for it to be ready. It
 // load some models
 const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf')
 
-// export to glb
-const blob = await viewer.export(result, {
+const fbxBlob = await assimp.exportModel('fbx', result, {
     embedUrlImages: true,
 })
-
-fbxBlob = assimp.convertFiles({['file.glb']: await blob.arrayBuffer()}, 'fbx')
-if (!fbxBlob) {
-    console.error('Failed to convert files to fbx')
-    return
-}
 
 // download the fbx file
 downloadBlob(fbxBlob, 'model.fbx')

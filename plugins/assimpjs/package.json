@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-assimpjs",
     "description": "Assimp.js Plugin for ThreePipe",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "devDependencies": {
     },
     "dependencies": {
@@ -51,7 +51,7 @@
     "repository": {
         "type": "git",
         "url": "git://github.com/repalash/threepipe.git",
-        "directory": "plugins/plugin-template-vite"
+        "directory": "plugins/assimpjs"
     },
     "clean-package": {
         "remove": [

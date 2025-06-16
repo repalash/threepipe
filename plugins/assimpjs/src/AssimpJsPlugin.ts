@@ -1,4 +1,11 @@
-import {AViewerPluginSync, ThreeViewer, getUrlQueryParam, createScriptFromURL} from 'threepipe'
+import {
+    AViewerPluginSync,
+    ThreeViewer,
+    getUrlQueryParam,
+    createScriptFromURL,
+    IObject3D,
+    ExportFileOptions, uiButton, uiToggle, PickingPlugin, uiFolderContainer,
+} from 'threepipe'
 
 interface AssimpJsInterface{
     [key: string]: any
@@ -12,18 +19,23 @@ interface AssimpJsInterface{
  * Assimpjs - https://github.com/kovacsv/assimpjs
  * Fork with a custom build to support fbx export - https://github.com/repalash/assimpjs
  */
+@uiFolderContainer('Assimp')
 export class AssimpJsPlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'SamplePlugin'
     enabled = true
     dependencies = []
 
+    initOnAdd: boolean
+
     // public static LIBRARY_PATH = `https://cdn.jsdelivr.net/npm/assimpjs@${getUrlQueryParam('assimpjs', '0.0.10')}/`
     // adds fbx export support
     public static LIBRARY_PATH = `https://cdn.jsdelivr.net/gh/repalash/assimpjs@${getUrlQueryParam('assimpjs', 'main')}/`
 
-    constructor() {
+    constructor(initOnAdd = true) {
         super()
+        this.initOnAdd = initOnAdd
     }
+
     protected _scriptElement?: HTMLScriptElement
     private _initing: Promise<void>|undefined
 
@@ -56,8 +68,6 @@ export class AssimpJsPlugin extends AViewerPluginSync {
 
     }
     ajs?: AssimpJsInterface
-
-    initOnAdd = true
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -92,5 +102,50 @@ export class AssimpJsPlugin extends AViewerPluginSync {
         const resultFile = result.GetFile(0)
         const blob = new Blob([resultFile.GetContent()], {type: 'application/octet-stream'})
         return blob
+    }
+
+    async exportModel(format: 'fbx'|'gltf2'|'glb2'|'assjson' = 'glb2', object?: IObject3D, options: ExportFileOptions = {embedUrlImages: true}) {
+        if (!this._viewer) {
+            console.error('AssimpJsPlugin - No viewer attached, please add the plugin to a viewer instance.')
+            return
+        }
+        const initing = this.init()
+        const selected = this.exportSelected ? this._viewer.getPlugin(PickingPlugin)?.getSelectedObject() : undefined
+        object = object || selected || this._viewer.scene.modelRoot
+
+        // export to glb
+        const blob = await this._viewer.export(object, options)
+        if (!blob || blob.ext !== 'glb') {
+            console.error('AssimpJsPlugin - Unable to export model, no blob returned.')
+            return
+        }
+        await initing // wait for assimp.js to be initialized
+        const blob2 = this.convertFiles({['file.glb']: await blob.arrayBuffer()}, format)
+        if (!blob2) {
+            console.error('AssimpJsPlugin - Unable to convert model to format:', format)
+            return
+        }
+        // convert to ArrayBuffer
+        return new File([blob2], 'model.' + format.replace(/2$/, ''), {type: 'application/octet-stream'})
+    }
+
+    @uiToggle('Export Selected')
+        exportSelected = true
+
+    @uiButton('Download FBX')
+    async exportAsFbx(object?: IObject3D) {
+        if (!object?.isObject3D) object = undefined
+        const blob = await this.exportModel('fbx', object)
+        if (blob) {
+            await this._viewer?.exportBlob(blob, blob.name)
+        }
+    }
+    @uiButton('Download Assimp JSON')
+    async exportAsGlb(object?: IObject3D) {
+        if (!object?.isObject3D) object = undefined
+        const blob = await this.exportModel('assjson', object)
+        if (blob) {
+            await this._viewer?.exportBlob(blob, blob.name)
+        }
     }
 }

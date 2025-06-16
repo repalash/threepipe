@@ -74,6 +74,7 @@ import {
     EnvironmentControlsPlugin,
     GlobeControlsPlugin,
 } from '@threepipe/plugin-3d-tiles-renderer'
+import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 // @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
@@ -138,6 +139,7 @@ export class ThreeEditor extends ThreeViewer {
         EnvironmentControlsPlugin, GlobeControlsPlugin,
         B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
         TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
+        new AssimpJsPlugin(false),
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
@@ -146,7 +148,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
-        ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin],
+        ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin],

@@ -40,18 +40,10 @@ async function init() {
         converting = true
 
         // export to glb
-        const blob = await viewer.export(result, {
+        fbxBlob = await assimp.exportModel('fbx', result, {
             embedUrlImages: true,
         })
         // const blob = await viewer.exportScene(); // its possible to export the whole scene also
-
-        if (!blob || blob.ext !== 'glb') {
-            alert('Unable to export scene')
-            converting = false
-            return
-        }
-
-        fbxBlob = assimp.convertFiles({['file.glb']: await blob.arrayBuffer()}, 'fbx')
         if (!fbxBlob) {
             alert('Failed to convert glb to fbx')
             converting = false
