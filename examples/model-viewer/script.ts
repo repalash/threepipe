@@ -30,7 +30,8 @@ import {
     ParallaxMappingPlugin,
     PickingPlugin,
     PLYLoadPlugin,
-    PointerLockControlsPlugin, PopmotionPlugin,
+    PointerLockControlsPlugin,
+    PopmotionPlugin,
     ProgressivePlugin,
     RenderTargetPreviewPlugin,
     Rhino3dmLoadPlugin,
@@ -99,6 +100,7 @@ async function init() {
     await viewer.addPlugins([
         LoadingScreenPlugin,
         PopmotionPlugin,
+        CameraViewPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
@@ -108,7 +110,6 @@ async function init() {
         new TransformControlsPlugin(false),
         // OutlinePlugin,
         EditorViewWidgetPlugin,
-        CameraViewPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
         FragmentClippingExtensionPlugin,
@@ -185,6 +186,5 @@ async function init() {
 
 }
 
-console.log('here')
 _testStart()
 init().finally(_testFinish)
