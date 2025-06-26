@@ -407,7 +407,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
           x : Empty
           y : first 3 bits lut index, second 5 bits bevel radius
           z : material id (userData.gBufferData?.materialId, userData.matId)
-          w : this field is for setting bits - lutEnable-0, tonemap-1, bloom-2, ssao(cast)-3, dof-4
+          w : this field is for setting bits - lutEnable-0, tonemap-1, bloom-2, ssao(cast)-3, dof-4, diamondMask-5
         */
 
         this.uniforms.flags.value.set(255, 255, 255, 255)

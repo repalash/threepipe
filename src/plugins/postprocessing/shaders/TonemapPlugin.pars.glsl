@@ -1,5 +1,9 @@
 int getToneMapBit(in int number) {
-    return (number/2) % 2; // 2nd bit
+    #ifdef WebGL2Context
+    return (number/2) % 2;
+    #else
+    return int(mod(floor(float(number)/2.), 2.));
+    #endif
 }
 
 vec3 TonemappingSaturation(vec3 rgb) {
