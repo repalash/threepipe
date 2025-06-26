@@ -75,6 +75,7 @@ import {
     GlobeControlsPlugin,
 } from '@threepipe/plugin-3d-tiles-renderer'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
+import {ThreeGpuPathTracerPlugin} from '@threepipe/plugin-path-tracing'
 // @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
@@ -140,10 +141,11 @@ export class ThreeEditor extends ThreeViewer {
         B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
         TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
         new AssimpJsPlugin(false),
+        new ThreeGpuPathTracerPlugin(false),
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin],
         ['Scene']: [SSAAPlugin, BaseGroundPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],

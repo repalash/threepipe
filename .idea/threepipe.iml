@@ -26,6 +26,7 @@
       <excludeFolder url="file://$MODULE_DIR$/plugins/3d-tiles-renderer/dist" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/3d-tiles-renderer/docs" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/assimpjs/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/path-tracing/docs" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
