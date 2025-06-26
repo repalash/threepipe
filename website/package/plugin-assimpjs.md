@@ -3,7 +3,10 @@ prev:
     text: '@threepipe/plugin-3d-tiles-renderer'
     link: './plugin-3d-tiles-renderer'
 
-next: false
+next:
+  text: '@threepipe/plugin-path-tracing'
+  link: './plugin-path-tracing'
+
 ---
 
 # @threepipe/plugin-assimpjs

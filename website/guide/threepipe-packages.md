@@ -31,4 +31,5 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-gaussian-splatting](../package/plugin-gaussian-splatting) - [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) plugin for loading and rendering splat files
 - [@threepipe/plugin-svg-renderer](../package/plugin-svg-renderer) - Add support for exporting 3d scene as SVG (WIP) using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer).
 - [@threepipe/plugin-3d-tiles-renderer](https://threepipe.org/package/plugin-3d-tiles-renderer.html) - Plugins for [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS), b3dm, i3dm, cmpt, pnts importers.
+- [@threepipe/plugin-path-tracing](https://threepipe.org/package/plugin-path-tracing.html) - Plugins for [path-tracing](https://en.wikipedia.org/wiki/Path_tracing). Using [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
 - [@threepipe/plugin-assimpjs](https://threepipe.org/package/plugin-assimpjs.html) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.

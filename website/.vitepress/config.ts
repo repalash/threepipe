@@ -177,6 +177,7 @@ export default defineConfig({
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
           {text: '3D Tiles (OGC) Renderer Plugin', link: 'package/plugin-3d-tiles-renderer'},
           {text: 'Assimpjs Plugin', link: 'package/plugin-assimpjs'},
+          {text: 'Path Tracing', link: 'package/plugin-path-tracing'},
         ]
       },
     ],

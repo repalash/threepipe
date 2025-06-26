@@ -328,6 +328,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-network](https://threepipe.org/package/plugin-network.html) - Network/Cloud related plugin implementations for Threepipe
   - [@threepipe/plugin-svg-renderer](https://threepipe.org/package/plugin-svg-renderer.html) - Add support for exporting a 3d scene as SVG using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer)
   - [@threepipe/plugin-3d-tiles-renderer](https://threepipe.org/package/plugin-3d-tiles-renderer.html) - Plugins for [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS), b3dm, i3dm, cmpt, pnts, dzi, slippy maps importers.
+  - [@threepipe/plugin-path-tracing](https://threepipe.org/package/plugin-path-tracing.html) - Plugins for [path-tracing](https://en.wikipedia.org/wiki/Path_tracing). Using [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
   - [@threepipe/plugin-assimpjs](https://threepipe.org/package/plugin-assimpjs.html) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.
 
 ## Documentation
