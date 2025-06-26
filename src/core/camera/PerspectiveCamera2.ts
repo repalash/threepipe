@@ -188,14 +188,14 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         return this._interactionsDisabledBy.size === 0
     }
 
-    setInteractions(enabled: boolean, by: string): void {
+    setInteractions(enabled: boolean, by: string, setDirty = true): void {
         const size = this._interactionsDisabledBy.size
         if (enabled) {
             this._interactionsDisabledBy.delete(by)
         } else {
             this._interactionsDisabledBy.add(by)
         }
-        if (size !== this._interactionsDisabledBy.size) this.refreshCameraControls(true)
+        if (size !== this._interactionsDisabledBy.size) this.refreshCameraControls(setDirty)
     }
 
     get canUserInteract() {

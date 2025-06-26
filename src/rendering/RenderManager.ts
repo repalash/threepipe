@@ -240,10 +240,15 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
         this._composer.renderToScreen = true
         if (renderToScreen) {
-            this._frameCount += 1
-            this._totalFrameCount += 1
+            this.incRenderToScreen()
         }
         this._dirty = false
+    }
+
+    // todo better name
+    incRenderToScreen() {
+        this._frameCount += 1
+        this._totalFrameCount += 1
     }
 
     onPostFrame = () => {

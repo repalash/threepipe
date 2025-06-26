@@ -86,7 +86,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     position: Vector3,
 
     readonly interactionsEnabled: boolean;
-    setInteractions(enabled: boolean, by: string): void;
+    setInteractions(enabled: boolean, by: string, setDirty?: boolean): void;
 
     /**
      * Check whether user can interact with this camera.

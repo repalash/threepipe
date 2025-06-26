@@ -1,10 +1,9 @@
 import {serialize, timeout} from 'ts-browser-helpers'
 import {AViewerPluginSync} from '../../viewer'
-import {uiButton, uiConfig, uiFolderContainer, uiInput, uiVector} from 'uiconfig.js'
+import {uiButton, uiConfig, uiFolderContainer, uiInput} from 'uiconfig.js'
 import {CanvasSnapshot, CanvasSnapshotOptions} from '../../utils/canvas-snapshot'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {Zippable, zipSync} from 'three/examples/jsm/libs/fflate.module.js'
-import {Vector4} from 'three'
 
 export interface CanvasSnapshotPluginOptions extends CanvasSnapshotOptions{
     /**
@@ -33,7 +32,7 @@ export interface CanvasSnapshotPluginOptions extends CanvasSnapshotOptions{
     tileColumns?: number
 }
 
-@uiFolderContainer('Canvas Snapshot (Image Export)')
+@uiFolderContainer('Image Export (Canvas Snapshot)')
 export class CanvasSnapshotPlugin extends AViewerPluginSync {
     static readonly PluginType = 'CanvasSnapshotPlugin'
     enabled = true
@@ -140,7 +139,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
         if (progressive && lastMaxFrames !== undefined) {
             progressive.maxFrameCount = lastMaxFrames
         }
-        viewer.scene.mainCamera.setInteractions(true, CanvasSnapshotPlugin.PluginType)
+        viewer.scene.mainCamera.setInteractions(true, CanvasSnapshotPlugin.PluginType, false)
         viewer.renderManager.renderScale = dpr
 
         return file
@@ -150,21 +149,21 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
     @serialize()
         filename = 'snapshot'
 
-    @uiInput('Frame Count')
-    @serialize()
-        progressiveFrames = 64
-
-    @uiInput('Tile Rows')
-    @serialize()
-        tileRows = 1
-
-    @uiInput('Tile Columns')
-    @serialize()
-        tileColumns = 1
-
-    @uiVector('Crop Rect (x, y, w, h)', [0, 1], 0.001)
-    @serialize()
-        rect = new Vector4(0, 0, 1, 1)
+    // @uiInput('Frame Count')
+    // @serialize()
+    //     progressiveFrames = 64
+    //
+    // @uiInput('Tile Rows')
+    // @serialize()
+    //     tileRows = 1
+    //
+    // @uiInput('Tile Columns')
+    // @serialize()
+    //     tileColumns = 1
+    //
+    // @uiVector('Crop Rect (x, y, w, h)', [0, 1], 0.001)
+    // @serialize()
+    //     rect = new Vector4(0, 0, 1, 1)
 
     private _downloading = false
 
