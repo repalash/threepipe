@@ -121,7 +121,7 @@
     "vitepress-plugin-nprogress": "^0.0.4"
   },
   "dependencies": {
-    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.158.1003/package.tgz",
+    "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.158.1004/package.tgz",
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "popmotion": "^11.0.5",
@@ -143,8 +143,8 @@
       "ts-browser-helpers": "^0.16.2",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.158.1004/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.158.1004.tar.gz",
-      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.158.1003/package.tgz",
-      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.158.1003.tar.gz",
+      "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.158.1004/package.tgz",
+      "@types/three-f": "https://github.com/repalash/three-ts-types/archive/refs/tags/v0.158.1004.tar.gz",
       "@types/three-pkg": "https://gitpkg.now.sh/repalash/three-ts-types/types/three?modded_three"
     },
     "local_dependencies": {

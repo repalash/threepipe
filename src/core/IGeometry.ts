@@ -31,7 +31,7 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
      * @param keepWorldPosition - Updates the attached meshes, so that the world position of the geometry remains the same.
      * @param setDirty
      */
-    center(offset?: Vector3, keepWorldPosition?: boolean, setDirty?: boolean): this
+    center(offset?: Vector3, keepWorldPosition?: boolean, setDirty?: boolean): BufferGeometry
 
     /**
      * Same as center but returns a function to undo the centering
