@@ -1,2 +1,3 @@
 export {GLTFDracoExporter, createGenericExtensionClass} from './GLTFDracoExporter'
-export {GLTFDracoExportPlugin} from './GLTFDracoExportPlugin'
+export {GLTFDracoExportPlugin, EncoderMethod} from './GLTFDracoExportPlugin'
+export {GLTFSpecGlossinessConverterPlugin, gltfKhrPbrSpecularGlossinessConverter} from './GLTFSpecGlossinessConverterPlugin'

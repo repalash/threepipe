@@ -34,9 +34,6 @@ export class GLTFDracoExporter extends GLTFExporter2 implements IExportWriter {
             encodeSpeed: 5,
         }
         this._io = new WebIO().registerExtensions(ALL_EXTENSIONS)
-            .registerExtensions([
-                GLTFViewerConfigExtensionGP,
-            ])
         this._encoderOptions = encoderOptions
 
         if (loader) {
@@ -131,12 +128,15 @@ export class GLTFDracoExporter extends GLTFExporter2 implements IExportWriter {
         }
     }
 
-    addExtension(extension: typeof Extension): this {
-        this._io.registerExtensions([extension])
+    addExtension(...extension: (typeof Extension)[]): this {
+        this._io.registerExtensions(extension)
         return this
     }
     createAndAddExtension(name: string, textures?: Record<string, string|number>): this {
         return this.addExtension(createGenericExtensionClass(name, textures))
+    }
+    createAndAddExtensions(extensions: [string, Record<string, string|number>|undefined][]): this {
+        return this.addExtension(...extensions.map(e=> createGenericExtensionClass(e[0], e[1])))
     }
 }
 
@@ -157,7 +157,7 @@ class ViewerJSONExtensionProperty extends ExtensionProperty {
     protected init(): void {return}
 
 }
-class GLTFViewerConfigExtensionGP extends Extension {
+export class GLTFViewerConfigExtensionGP extends Extension {
     public readonly extensionName = GLTFViewerConfigExtension.ViewerConfigGLTFExtension
     public static readonly EXTENSION_NAME = GLTFViewerConfigExtension.ViewerConfigGLTFExtension
     private _viewerConfig: any = {}

@@ -17,9 +17,14 @@ import {
     noiseBumpMaterialGLTFExtension,
     fragmentClippingGLTFExtension,
 } from 'threepipe'
-import {GLTFDracoExporter} from './GLTFDracoExporter'
+import {
+    createGenericExtensionClass,
+    GLTFDracoExporter,
+    GLTFViewerConfigExtensionGP,
+} from './GLTFDracoExporter'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
+import {Extension} from '@gltf-transform/core'
 
 export enum EncoderMethod {
     EDGEBREAKER = 1,
@@ -42,7 +47,7 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
      * These are added here, but also added as plugins. Added here by default so that the data is not lost if some plugin is not added in an app.
      * To explicitly remove the data, use `removeExtension` with the name of the extension
      */
-    extraExtensions = [
+    extraExtensions = [ // its array because we want to keep the order of extensions
         [GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension, GLTFMaterialsBumpMapExtension.Textures],
         [GLTFMaterialsLightMapExtension.WebGiMaterialsLightMapExtension, GLTFMaterialsLightMapExtension.Textures],
         [GLTFMaterialsAlphaMapExtension.WebGiMaterialsAlphaMapExtension, GLTFMaterialsAlphaMapExtension.Textures],
@@ -68,6 +73,10 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
         // TriplanarMappingMaterialExtension
         // SSBevelMaterialExtension
     ] as [string, Record<string, string|number>|undefined][]
+
+    get gltfTransformExtensions(): (typeof Extension)[] {
+        return [GLTFViewerConfigExtensionGP, ...this.extraExtensions.map(e => createGenericExtensionClass(e[0], e[1]))]
+    }
 
     addExtension(name: string, textures?: Record<string, string|number>) {
         const ext = this.extraExtensions.findIndex(e => e[0] === name)
@@ -95,9 +104,7 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
             // todo unregister on dispose
             this._viewer.assetManager.importer.registerFile(tempFile) as DRACOLoader2)
         ex.setup(this._viewer, _exporter.extensions)
-        for (const [ext, config] of this.extraExtensions) {
-            ex.createAndAddExtension(ext, config)
-        }
+        ex.addExtension(...this.gltfTransformExtensions)
         return ex
     }
 

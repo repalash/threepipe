@@ -63,7 +63,7 @@ import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
-import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
+import {GLTFDracoExportPlugin, GLTFSpecGlossinessConverterPlugin} from '@threepipe/plugin-gltf-transform'
 import {
     B3DMLoadPlugin,
     CMPTLoadPlugin,
@@ -85,6 +85,7 @@ export class ThreeEditor extends ThreeViewer {
         LoadingScreenPlugin,
         AssetExporterPlugin,
         GLTFDracoExportPlugin,
+        GLTFSpecGlossinessConverterPlugin,
         PopmotionPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
