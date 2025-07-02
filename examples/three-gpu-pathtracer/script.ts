@@ -31,6 +31,8 @@ async function init() {
         plugins: [LoadingScreenPlugin, PickingPlugin, ProgressivePlugin, BaseGroundPlugin, CanvasSnapshotPlugin, ThreeGpuPathTracerPlugin],
     })
 
+    viewer.getPlugin(ProgressivePlugin)!.maxFrameCount = 500
+
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {setBackground: true})
     const modelUrl = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
     const result = await viewer.load<IObject3D>(modelUrl, {
