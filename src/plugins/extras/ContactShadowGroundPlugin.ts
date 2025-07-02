@@ -118,7 +118,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
 
         const target = getOrCall(this._depthPass.target)
         if (!target) return
-        
+
         const blurTarget = this._viewer.renderManager.getTempTarget<IRenderTarget & WebGLRenderTarget>({
             type: UnsignedByteType,
             format: RGBAFormat,
@@ -136,10 +136,10 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     }
 
     protected _refreshTransform() {
-        super._refreshTransform()
+        if (!super._refreshTransform()) return false
 
-        if (!this._mesh) return
-        if (!this._viewer) return
+        if (!this._mesh) return false
+        if (!this._viewer) return false
 
         this.shadowCamera.position.copy(this._mesh.getWorldPosition(new Vector3()))
         this.shadowCamera.setRotationFromEuler(new Euler(Math.PI / 2., 0, 0))
@@ -147,6 +147,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         this._refreshShadowCameraFrustum()
 
         this._mesh.scale.y = -this.size
+        return true
     }
 
     private _refreshShadowCameraFrustum() {

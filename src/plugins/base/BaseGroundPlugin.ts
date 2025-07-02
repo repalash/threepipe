@@ -182,8 +182,8 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     useModelBounds = false
 
     protected _refreshTransform() {
-        if (!this._mesh) return
-        if (!this._viewer) return
+        if (!this._mesh) return false
+        if (!this._viewer) return false
         let updated = false
         if (this.visible !== this._mesh.visible) {
             this._mesh.visible = this.visible
@@ -191,7 +191,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         }
         if (this.isDisabled()) {
             if (updated) this._viewer?.scene.setDirty()
-            return
+            return false
         }
         if (this.autoAdjustTransform) {
             this._mesh.userData.bboxVisible = false
@@ -221,6 +221,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
             // this._viewer.scene.setDirty()
         }
         this._transformNeedRefresh = false
+        return true
     }
 
 
