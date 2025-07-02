@@ -7,6 +7,7 @@ import {PhysicalMaterial} from '../../core'
 export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry, Mesh|undefined> {
     public encoderPending: Promise<any>|null = null
     public encoderConfig: any = {type: 'js'}
+    readonly isDRACOLoader2 = true
 
     public static DRACO_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/' // https://github.com/google/draco
     // public static DRACO_LIBRARY_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/'

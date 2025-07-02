@@ -180,6 +180,8 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
 
         if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
         if (clearCurrentUserData) this.userData = {}
+
+        if ((parameters as any).ior !== undefined) this.ior = (parameters as any).ior // ior is not serialized in MeshPhysicalMaterial.toJSON, so we need to set it here
         iMaterialCommons.setValues(super.setValues).call(this, parameters)
 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui

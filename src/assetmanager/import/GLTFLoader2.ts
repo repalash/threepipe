@@ -169,6 +169,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     // loads the viewer config and handles loading the draco loader for extension
     gltfViewerParser = (viewer: ThreeViewer): (p: GLTFParser)=>GLTFLoaderPlugin => {
         return (parser: GLTFParser) => {
+            parser.importOptions = this.importOptions || undefined
             const getDependency = parser.getDependency
             parser.getDependency = async(type: string, index: number) => {
                 const res = await getDependency.call(parser, type, index)
@@ -271,5 +272,12 @@ function convertToFatLine(line: Line) {
     if (index2 >= 0 && index2 !== index) {
         parent.children.splice(index2, 1)
         parent.children.splice(index, 0, line2)
+    }
+}
+
+declare module 'three/examples/jsm/loaders/GLTFLoader.js'{
+    export interface GLTFParser {
+        importOptions?: ImportAddOptions
+        // getDependency(type: string, index: number): Promise<Object3D|Texture|Line|LineSegments|LineLoop>
     }
 }
