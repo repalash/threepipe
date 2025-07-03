@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.47",
+  "version": "0.0.48",
   "description": "A modern 3D viewer framework built on top of three.js, written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -42,7 +42,7 @@
     "docs": "npx typedoc && npm run website:build",
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
-    "build-plugins": "node scripts/each-plugin.mjs install",
+    "build-plugins": "node scripts/each-plugin.mjs install -p",
     "prepare": "npm run build && npm run build-plugins && npm run build-examples",
     "update-version": "node scripts/update-version.mjs",
     "website:dev": "vitepress dev website",
