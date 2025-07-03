@@ -32,8 +32,9 @@ export class CameraHelper2 extends ACameraHelperWidget {
         const geometry = new LineSegmentsGeometry()
         const material = new LineMaterial2({
             color: 0xffffff,
-            linewidth: 0.005, // in world units with size attenuation, pixels otherwise
+            linewidth: 5, // in world units with size attenuation, pixels otherwise
             vertexColors: true,
+            worldUnits: false,
 
             dashed: false,
             alphaToCoverage: true,

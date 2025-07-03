@@ -30,8 +30,9 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
         this.material = new LineMaterial2({
             color: 0xff0000,
-            linewidth: 0.005, // in world units with size attenuation, pixels otherwise
+            linewidth: 5, // in world units with size attenuation, pixels otherwise
             vertexColors: false,
+            worldUnits: false,
 
             dashed: false,
             alphaToCoverage: true,
@@ -70,7 +71,7 @@ export class PointLightHelper2 extends ALightHelperWidget {
         if (!this.light || !this.lightSphere) return
 
         this.material.color.set(this.color ?? this.light.color)
-        this.material.linewidth = this.lineWidth * 0.001
+        this.material.linewidth = this.lineWidth
         this.lightSphere.scale.setScalar(this.size)
 
         super.update()
