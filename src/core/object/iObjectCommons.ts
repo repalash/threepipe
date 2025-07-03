@@ -509,7 +509,8 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
         // from GLTFObject3DExtrasExtension
         if (!this.userData.__keepShadowDef) {
-            this.castShadow = true
+            const mat = Array.isArray(this.material) ? this.material[0] : this.material
+            this.castShadow = !mat || !mat.transparent && !mat.transmission
             this.receiveShadow = true
             this.userData.__keepShadowDef = true
         }

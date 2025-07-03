@@ -88,7 +88,7 @@ features:
     target: _blank
   - title: Advanced Rendering
     details: Supports advanced rendering plugins like SSAO, WebGi plugins(SSR, Bloom, GI), path tracing, etc for industry specific apps.
-    link: https://webgi.xyz/
+    link: https://webgi.dev/
     rel: external
     target: _blank
     linkText: Checkout WebGi

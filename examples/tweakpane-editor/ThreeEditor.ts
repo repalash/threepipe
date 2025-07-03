@@ -179,7 +179,7 @@ export class ThreeEditor extends ThreeViewer {
         fade && (fade.isEditor = true)
 
         const taa = this.getPlugin(TemporalAAPlugin)
-        taa && (taa.enableStableNoise = true)
+        taa && (taa.stableNoise = true)
 
         const rt = this.getPlugin(RenderTargetPreviewPlugin)
         if (rt) {

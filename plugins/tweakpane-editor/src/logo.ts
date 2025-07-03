@@ -11,7 +11,7 @@ export function setupWebGiLogo(viewer: ThreeViewer) {
         webgiLogo.style.backgroundImage = `url(${getUrlQueryParam('logo-img')})`
     }
     webgiLogo.onclick = () => {
-        window.open(getUrlQueryParam('logo-link') || 'https://webgi.xyz', '_blank')
+        window.open(getUrlQueryParam('logo-link') || 'https://webgi.dev', '_blank')
     }
     viewer.container.appendChild(webgiLogo)
     tippy(webgiLogo, {
