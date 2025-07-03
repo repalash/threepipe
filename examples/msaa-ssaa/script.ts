@@ -24,6 +24,7 @@ async function init() {
         },
         plugins: [LoadingScreenPlugin],
     })
+
     viewer.addPluginSync(new SSAAPlugin())
 
     await Promise.all([

@@ -247,3 +247,5 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     }
 
 }
+
+export class MeshLineMaterial extends LineMaterial2 {}

@@ -14,6 +14,8 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
+// Read more about the example - https://threepipe.org/notes/gltf-mesh-lines
+
 async function init() {
 
     const viewer = new ThreeViewer({

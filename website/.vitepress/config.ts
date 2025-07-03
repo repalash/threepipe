@@ -42,6 +42,13 @@ export default defineConfig({
         ]
       },
       {
+        text: 'Articles', collapsed: false,
+        items: [
+          {text: 'Mesh Lines (Spiral)', link: 'notes/fat-lines'},
+          {text: 'glTF Mesh Lines', link: 'notes/gltf-mesh-lines'},
+        ]
+      },
+      {
         text: 'Core Plugins', collapsed: false,
         items: [
           {
@@ -164,6 +171,7 @@ export default defineConfig({
       {
         text: 'Packages', collapsed: false,
         items: [
+          {text: 'WebGi Rendering Plugins', link: 'https://webgi.dev/'},
           {text: 'Tweakpane Plugin', link: 'package/plugin-tweakpane'},
           {text: 'Blueprint.js Plugin', link: 'package/plugin-blueprintjs'},
           {text: 'Tweakpane Editor Plugin', link: 'package/plugin-tweakpane-editor'},

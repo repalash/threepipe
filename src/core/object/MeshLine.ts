@@ -4,6 +4,7 @@ import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 import {Line2} from 'three/examples/jsm/lines/Line2'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
+import {UiObjectConfig} from 'uiconfig.js'
 
 export class MeshLine<
     TGeometry extends LineGeometry2 = LineGeometry2,
@@ -18,6 +19,7 @@ export class MeshLine<
     declare material: TMaterial
     declare readonly materials: IMaterial[]
     declare geometry: TGeometry
+    declare uiConfig: UiObjectConfig
 
     /**
      * @deprecated use `this` instead
