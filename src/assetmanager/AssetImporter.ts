@@ -68,6 +68,11 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     private _fileDatabase: Map<string, IFile> = new Map<string, IFile>()
     private _cachedAssets: IAsset[] = []
 
+    /**
+     * If true, imported assets are cached in memory(as js/three.js objects) and can be reused later. They will be cleared when dispose event is fired on the object or {@link clearCache} is called.
+     */
+    cacheImportedAssets = true
+
     static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
 
     readonly importers: IImporter[] = [
@@ -196,11 +201,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         asset.preImportedRaw = this._loadFile(path, typeof asset.file?.arrayBuffer === 'function' ? asset.file : undefined, options, onDownloadProgress)
         result = await asset.preImportedRaw
 
+        if (!this.cacheImportedAssets) asset.preImportedRaw = undefined
+
         if (result) result = await this.processRaw(result, options, path)
         if (result) {
-            if (options.processRaw !== false) asset.preImported = result
-            // asset.preImportedRaw = undefined
-            // asset.preImported = undefined
+            if (options.processRaw !== false && this.cacheImportedAssets) asset.preImported = result
+
             const arrs: any[] = []
             const push = (r: typeof result)=>{
                 if (r.userData?.rootSceneModelRoot) arrs.push(...r.children)
@@ -208,8 +214,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             }
             if (Array.isArray(result)) result.map(push)
             else push(result)
+
             // remove preImportedRaw when any one of the assets is disposed. todo maybe do when ALL are dispoed?
-            arrs.forEach(r=>r.addEventListener?.('dispose', () => { // todo: recheck after dispose logic change
+            arrs.forEach(r=>r?.addEventListener && r.addEventListener('dispose', () => { // todo: recheck after dispose logic change
                 if (asset?.preImportedRaw) asset.preImportedRaw = undefined
                 if (asset?.preImported) asset.preImported = undefined
             }))
@@ -497,7 +504,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
      */
     clearCache(): void {
         this._cachedAssets = []
-        this.unregisterAllFiles()
+        this.unregisterAllFiles() // todo should this be done here?
         this.clearLoaderCache()
     }
 

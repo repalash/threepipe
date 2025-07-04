@@ -57,6 +57,11 @@
             await timeout(500)
             viewer.scene.disposeSceneModels()
             await timeout(500)
+            // readd model2 which is disposed
+            viewer.addSceneObject(model2)
+            await timeout(500)
+            viewer.scene.disposeSceneModels()
+            await timeout(500)
             const model3 = await load()
             console.log(model3.uuid)
             if(model2 === model3) throw new Error('Error in Test - Models should not be the same after disposing scene models');
