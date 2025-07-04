@@ -137,7 +137,7 @@ export class ThreeEditor extends ThreeViewer {
         MaterialConfiguratorPlugin, SwitchNodePlugin,
         AWSClientPlugin, TransfrSharePlugin,
 
-        // todo add these to blueprint editor, 3dviewer.xyz
+        // todo add these to 3dviewer.xyz
         EnvironmentControlsPlugin, GlobeControlsPlugin,
         B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
         TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
@@ -161,7 +161,7 @@ export class ThreeEditor extends ThreeViewer {
     async init() {
         await this.addPlugins(this.editorPlugins)
 
-        KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported. todo - add this to blueprint editor init as well
+        KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported.
 
         // to show more details in the UI and allow to edit changes in title etc.
         const mat = this.getPlugin(MaterialConfiguratorPlugin)
@@ -169,10 +169,8 @@ export class ThreeEditor extends ThreeViewer {
         const swi = this.getPlugin(SwitchNodePlugin)
         swi && (swi.enableEditContextMenus = true)
 
-        // todo do same in blueprint editor
-        // disable fading on update
         const loading = this.getPlugin(LoadingScreenPlugin)
-        loading && (loading.isEditor = true) // disable fading on update
+        loading && (loading.isEditor = true)
 
         // disable fading on update
         const fade = this.getPlugin(FrameFadePlugin)

@@ -23,13 +23,14 @@ async function init() {
                 disposeSceneObjects: true,
             },
         },
-        plugins: [LoadingScreenPlugin, GBufferPlugin, SSAAPlugin, TemporalAAPlugin],
+        plugins: [LoadingScreenPlugin, GBufferPlugin, SSAAPlugin, TemporalAAPlugin, SSReflectionPlugin],
         // rgbm: false,
     })
     viewer.renderManager.stableNoise = true
 
     const ground = viewer.addPluginSync(AdvancedGroundPlugin)
-    ground.planarReflections = true
+    ground.groundReflection = true
+    ground.material!.roughness = 0.2
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
