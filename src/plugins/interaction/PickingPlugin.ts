@@ -189,14 +189,31 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (!this._picker || !this._viewer) return
         this._picker.camera = this._viewer.scene.mainCamera
     }
+
+    private _sceneUpdated = false
     private _onSceneUpdate: EventListener2<'sceneUpdate', ISceneEventMap, IScene> = (e)=>{
         if (!e.hierarchyChanged) return
+        this._sceneUpdated = true
+    }
+
+    private _checkSelectedInScene() {
+        if (this.isDisabled()) return
         const s = this.getSelectedObject()
         let inScene = false
-        s?.traverseAncestors((o)=>{
+        s?.traverseAncestors((o) => {
             if (o === this._viewer?.scene) inScene = true
         })
         if (!inScene) this.setSelectedObject(undefined)
+    }
+
+    protected _viewerListeners = {
+        preFrame: ()=>{
+            if (!this._viewer || !this._picker) return
+            if (this._sceneUpdated) {
+                this._checkSelectedInScene()
+                this._sceneUpdated = false
+            }
+        },
     }
 
     private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{
