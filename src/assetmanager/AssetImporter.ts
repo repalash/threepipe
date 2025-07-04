@@ -6,14 +6,14 @@ import {
     ImportFilesOptions,
     ImportResult,
     LoadFileOptions,
-    ProcessRawOptions, RootSceneImportResult,
+    ProcessRawOptions,
+    RootSceneImportResult,
 } from './IAssetImporter'
 import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
 import {Importer} from './Importer'
 import {SimpleJSONLoader} from './import'
 import {parseFileExtension} from 'ts-browser-helpers'
-import {IObject3D} from '../core'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -126,7 +126,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         console.error('AssetImporter: Invalid asset or path', assetOrPath)
         return []
     }
-    async importSingle<T extends ImportResult|undefined = ImportResult>(asset?: IAsset | string, options?: ImportAssetOptions): Promise<T|undefined> {
+    async importSingle<T extends ImportResult|undefined = ImportResult>(asset?: string | IAsset | File, options?: ImportAssetOptions): Promise<T|undefined> {
         return (await this.import<T>(asset, options))?.[0]
     }
 
@@ -283,7 +283,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
     // load a single file
     private async _loadFile(path: string, file?: IFile, options: LoadFileOptions = {}, onDownloadProgress?: (e: ProgressEvent)=>void): Promise<ImportResult | ImportResult[] | undefined> {
-        if (file?.__loadedAsset) return file.__loadedAsset
+        // if (file?.__loadedAsset) return file.__loadedAsset
 
         this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 0})
         let res: ImportResult | ImportResult[] | undefined
@@ -343,21 +343,21 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             return []
         }
         this.dispatchEvent({type: 'importFile', path, state: 'done'}) // todo: do this after processing?
-        if (file) {
-            file.__loadedAsset = res
-
-
-            // todo: recheck below code after dispose logic change
-
-            // Clear the reference __loadedAsset when any one asset is disposed.
-            // it's a bit hacky to do this here, but it works for now. todo: move to a better place
-            let ress: any[] = []
-            if (Array.isArray(res)) ress = res.flat(2)
-            else if ((<RootSceneImportResult>res)?.userData?.rootSceneModelRoot) ress.push(...(<IObject3D>res).children)
-            else ress.push(res)
-            for (const r of ress) r?.addEventListener?.('dispose', () => file.__loadedAsset = undefined)
-
-        }
+        // if (file) {
+        //     file.__loadedAsset = res
+        //
+        //
+        //     // todo: recheck below code after dispose logic change
+        //
+        //     // Clear the reference __loadedAsset when any one asset is disposed.
+        //     // it's a bit hacky to do this here, but it works for now. todo: move to a better place
+        //     let ress: any[] = []
+        //     if (Array.isArray(res)) ress = res.flat(2)
+        //     else if ((<RootSceneImportResult>res)?.userData?.rootSceneModelRoot) ress.push(...(<IObject3D>res).children)
+        //     else ress.push(res)
+        //     for (const r of ress) r?.addEventListener?.('dispose', () => file.__loadedAsset = undefined)
+        //
+        // }
         if (res && typeof res === 'object' && !Array.isArray(res)) {
             res.__rootPath = path
             const f = file || this._fileDatabase.get(path)

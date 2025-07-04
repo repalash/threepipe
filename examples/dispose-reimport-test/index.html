@@ -31,31 +31,33 @@
 
         const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
 
-        async function init() {
+        async function init(loadAsFile = true) {
+            const url = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+            let file
+            if(loadAsFile){
+                file = new File([await (await fetch(url)).blob()], url)
+            }
+            const load = async ()=> {
+                return viewer.load(file ?? url, {
+                    autoCenter: true,
+                    autoScale: true,
+                })
+            }
 
             await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
             viewer.scene.background = viewer.scene.environment
-            const model = await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-                autoCenter: true,
-                autoScale: true,
-            })
+            const model = await load()
             console.log(model.uuid)
             await timeout(500)
             viewer.scene.clearSceneModels(false)
             await timeout(500)
-            const model2 = await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-                autoCenter: true,
-                autoScale: true,
-            })
+            const model2 = await load()
             console.log(model2.uuid)
             if(model !== model2) throw new Error('Error in Test - Models should be the same after clearing scene models');
             await timeout(500)
             viewer.scene.disposeSceneModels()
             await timeout(500)
-            const model3 = await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-                autoCenter: true,
-                autoScale: true,
-            })
+            const model3 = await load()
             console.log(model3.uuid)
             if(model2 === model3) throw new Error('Error in Test - Models should not be the same after disposing scene models');
             await timeout(500)
@@ -64,10 +66,12 @@
             viewer.scene.addObject(model.translateX(-0.5)) // add back cleared model
             viewer.scene.addObject(model2.translateX(-0.5)) // again, shouldn't change anything
             viewer.scene.addObject(model3.translateX(1)) // add back disposed model
+            await timeout(1000)
+            viewer.scene.disposeSceneModels()
         }
 
         _testStart()
-        init().finally(_testFinish)
+        init(false).then(()=>init(true)).finally(_testFinish)
     </script>
 </head>
 <body>

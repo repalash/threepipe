@@ -14,8 +14,12 @@ ThreePipe uses the [AssetManager](https://threepipe.org/docs/classes/AssetManage
 The AssetManager has support for loading files from URLs, local files and data URLs.
 The AssetManager also adds support for loading files from a zip archive. The zip files are automatically unzipped, and the files are loaded from the zip archive.
 
-[`viewer.load()`](https://threepipe.org/docs/classes/ThreeViewer.html#load) is a simple wrapper for loading files from the AssetManager.
-It automatically adds the loaded object to the scene(if possible) and returns a promise that resolves to the loaded object, the materials are also automatically registered to the material manager.
+[`viewer.load()`](https://threepipe.org/docs/classes/ThreeViewer.html#load) is a simple helper for loading files from the AssetManager. It accepts urls, local `File`/`Blob`, data URLs, zip files, `IAsset`.
+It automatically adds the loaded object to the scene(if possible) and returns a promise that resolves to the loaded object/texture/material/etc, the materials are also automatically registered to the material manager.
+
+```typescript
+const object = await viewer.load<IObject3D>('https://example.com/file.glb')
+```
 
 ::: details AssetManager
 AssetManager internally uses [AssetImporter](https://threepipe.org/docs/classes/AssetImporter.html), which provides an API for managing three.js [LoadingManager](https://threejs.org/docs/#api/en/loaders/LoadingManager) and adding and registering loaders for different file types.
@@ -185,7 +189,8 @@ Local files can be loaded using the `viewer.load` method by passing a [IAsset](h
 
 ```typescript
 const file: File|Blob = fileObject // create a new file, blob or get from input element 
-const text = await viewer.load<IObject>({
+const res = await viewer.load(file)
+const res2 = await viewer.load<IObject>({
   // a path/name is required to determine the proper importer by extension. `file.name` can also be used if available
   path: 'file.glb', 
   file
@@ -194,6 +199,22 @@ const text = await viewer.load<IObject>({
 The same can be done for any file type.
 
 To load a `Map` of files(like when multiple files are dragged and dropped on the webpage) with internal references to other files, use `viewer.assetManager.importer.importFiles` method. Check the source for [DropzonePlugin](../plugin/DropzonePlugin) for an example.
+
+## File/Blob with URL
+
+Files with references can be loaded with path, by setting the path as the name of the `File` object, or by specifying the `path` parameter.
+
+```typescript
+const url = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+const blob = await fetch(url).then(res => res.blob())
+const file = new File([blob], url)  // Set the file name to the URL, so that internal textures can be resolved correctly from the base path
+const result = await viewer.load(file, {
+    autoCenter: true,
+    autoScale: true,
+})
+```
+
+Check the complete example - [file-load](https://threepipe.org/examples/#file-load/)
 
 ## Background, Environment maps
 
