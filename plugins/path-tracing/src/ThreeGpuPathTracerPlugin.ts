@@ -46,8 +46,6 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
     @onChange(ThreeGpuPathTracerPlugin.prototype._enableChange)
         enabled = true
 
-
-
     // public ptMaterial: any
     // public ptGenerator: any
     // public sceneInfo: any
@@ -91,7 +89,7 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
     @uiSlider('samplesPerFrame', [1, 5], 1)
         samplesPerFrame = 1
 
-    @uiConfig()
+    @uiConfig(undefined, {expanded: true})
     @serialize()
         tracer: WebGLPathTracer | undefined
 
@@ -114,13 +112,16 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
     }
 
     private async _enableChange() {
-        if (this.enabled) this.refreshScene()
+        if (!this.isDisabled()) this.refreshScene()
 
-        if (this._viewer) {
-            this._viewer.renderManager.defaultRenderToScreen = !this.enabled
-        }
+        this.setDirty()
+    }
 
-        this._viewer?.setDirty()
+    setDirty() {
+        if (!this._viewer) return
+
+        this._viewer.renderManager.defaultRenderToScreen = this.isDisabled()
+        this._viewer.setDirty()
     }
 
     // todo: onremove and ondispose (dispose sceneInfo in that and remove event listeners)
@@ -154,17 +155,17 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
             this.refreshScene()
         })
         viewer.scene.addEventListener('materialUpdate', () => {
-            if (!this.enabled || !this.tracer || this._refreshing) return
+            if (this.isDisabled() || !this.tracer || this._refreshing) return
             this.tracer.updateMaterials() // todo do post frame?
             this.reset()
         })
         viewer.scene.addEventListener('environmentChanged', () => {
-            if (!this.enabled || !this.tracer || this._refreshing) return
+            if (this.isDisabled() || !this.tracer || this._refreshing) return
             this.tracer.updateEnvironment() // todo do post frame?
             this.reset()
         })
         viewer.renderManager.addEventListener('resize', () => {
-            if (!this.enabled || !this.tracer || this._refreshing) return
+            if (this.isDisabled() || !this.tracer || this._refreshing) return
             // this.ptRenderer.setSize(viewer.renderer.renderSize.width, viewer.renderer.renderSize.height)
             // if (this._refreshing) return
             // console.log('resize')
@@ -172,12 +173,12 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
             this.reset()
         })
         viewer.scene.mainCamera.addEventListener('update', () => {
-            if (!this.enabled || !this.tracer || this._refreshing) return
+            if (this.isDisabled() || !this.tracer || this._refreshing) return
             this.tracer.updateCamera()// todo do post frame?
             this.reset()
         })
         viewer.addEventListener('preFrame', () => {
-            if (!this.enabled || this._refreshing || !this._viewer || !this.tracer) return
+            if (this.isDisabled() || this._refreshing || !this._viewer || !this.tracer) return
             // if (viewer.getPlugin(ProgressivePlugin)?.isConverged(true)) {
 
             // todo on no rasterize don't render rasterize pipeline
@@ -283,7 +284,7 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
     // private _modelRoot = ()=>this._viewer?.scene.modelRoot.modelObject
     private async _refreshScene() {
         if (!this._viewer) return
-        if (!this.enabled || !this.tracer) return
+        if (this.isDisabled() || !this.tracer) return
         if (!this._sceneNeedsRefresh) return
 
         if (this._refreshing) {
@@ -401,9 +402,9 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
     // private _diamondMaterialKey = (mat: any)=>mat.color.getHexString() + mat.refractiveIndex
 
     reset() {
-        if (!this.enabled || !this.tracer) return
+        if (this.isDisabled() || !this.tracer) return
         this.tracer.reset()
-        this._viewer?.setDirty()
+        this.setDirty()
     }
 
     dispose() {
