@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dispose + Reimport Test with config</title>
+    <title>Clear + Reimport Test with config</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
@@ -33,13 +33,23 @@
 
         async function init() {
 
-            const model = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            viewer.deleteImportedViewerConfigOnLoad = true
+            viewer.deleteImportedViewerConfigOnLoadWait = 2000
+            const model3 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            console.log(model3.children.length)
             viewer.scene.backgroundColor = new Color(0x000000)
             await timeout(500)
-            viewer.scene.disposeSceneModels()
+            viewer.scene.clearSceneModels()
             await timeout(500)
             // should load white bg
-            const model2 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model4 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            console.log(model3.children.length, model4.children.length)
+            viewer.scene.backgroundColor = new Color(0xff0000)
+            await timeout(500)
+            viewer.scene.clearSceneModels()
+            await timeout(500)
+            // should not change bg with console warn
+            const model5 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
         }
 
         _testStart()
