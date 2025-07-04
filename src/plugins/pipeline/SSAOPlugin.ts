@@ -33,7 +33,7 @@ export class SSAOPlugin
     dependencies = [GBufferPlugin]
 
     target?: SSAOPluginTarget
-    @uiImage('SSAO Buffer' /* {readOnly: true}*/) texture?: Texture
+    @uiImage('SSAO Buffer', {readOnly: true}) texture?: Texture
 
     @uiConfig() declare protected _pass?: SSAOPluginPass
 

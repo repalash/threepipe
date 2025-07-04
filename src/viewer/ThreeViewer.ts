@@ -266,7 +266,13 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         renderEnabled = true
     renderStats: GLStatsJS
     readonly assetManager: AssetManager
-    @uiConfig() @serialize('renderManager')
+    /**
+     * The Scene attached to the viewer, this cannot be changed.
+     * @type {RootScene}
+     */
+    @uiConfig(undefined, {label: 'Scene', expanded: true}) @serialize('scene')
+    private readonly _scene: RootScene
+    @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
     get materialManager() {
         return this.assetManager.materials
@@ -328,12 +334,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private readonly _canvas: HTMLCanvasElement
     // this can be used by other plugins to add ui elements alongside the canvas
     private readonly _container: HTMLElement // todo: add a way to move the canvas to a new container... and dispatch event...
-    /**
-     * The Scene attached to the viewer, this cannot be changed.
-     * @type {RootScene}
-     */
-    @uiConfig() @serialize('scene')
-    private readonly _scene: RootScene
     private _needsResize = false
     private _isRenderingFrame = false
     private _objectProcessor: IObjectProcessor = {

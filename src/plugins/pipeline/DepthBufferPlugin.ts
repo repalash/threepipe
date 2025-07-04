@@ -47,7 +47,7 @@ export class DepthBufferPlugin
 
     target?: DepthBufferPluginTarget
 
-    @uiImage('Depth Buffer' /* {readOnly: true}*/) texture?: Texture
+    @uiImage('Depth Buffer', {readOnly: true}) texture?: Texture
 
     // @uiConfig() // not supported in this material yet
     readonly material: MeshDepthMaterial = new MeshDepthMaterialOverride({

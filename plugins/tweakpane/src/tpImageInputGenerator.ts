@@ -190,7 +190,6 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
             return
         }
 
-        // todo do same in blueprint editor
         if (SVGTextureLoader.USE_CANVAS_TEXTURE && (v.src?.endsWith('.svg') || v.src?.startsWith('data:image/svg'))) {
             // due to windows bug which cannot load svg files in webgl without a width and height
             const canvas = document.createElement('canvas')

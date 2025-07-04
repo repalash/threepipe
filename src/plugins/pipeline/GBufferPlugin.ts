@@ -74,20 +74,20 @@ export class GBufferPlugin
 
     target?: GBufferPluginTarget
 
-    // @uiConfig(/* {readOnly: true}*/) //  todo: fix bug in uiconfig or tpImageGenerator because of which 0 index is not showing in the UI, when we uncomment this
+    // @uiConfig({readOnly: true}) //  todo: fix bug in uiconfig or tpImageGenerator because of which 0 index is not showing in the UI, when we uncomment this
     textures: Texture[] = []
 
-    @uiImage(/* {readOnly: true}*/)
+    @uiImage(undefined, {readOnly: true})
     get normalDepthTexture(): ITexture|undefined {
         return this.textures[0]
     }
 
-    @uiImage(/* {readOnly: true}*/)
+    @uiImage(undefined, {readOnly: true})
     get flagsTexture(): ITexture|undefined {
         return this.textures[1]
     }
 
-    @uiImage(/* {readOnly: true}*/)
+    @uiImage(undefined, {readOnly: true})
     get depthTexture(): (ITexture&DepthTexture)|undefined {
         return this.target?.depthTexture
     }

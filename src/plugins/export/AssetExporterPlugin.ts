@@ -88,6 +88,7 @@ export class AssetExporterPlugin extends AViewerPluginSync {
     uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Asset Export',
+        expanded: true,
         children: [
             {
                 type: 'input',
@@ -96,6 +97,7 @@ export class AssetExporterPlugin extends AViewerPluginSync {
             {
                 type: 'folder',
                 label: 'GLB Export',
+                expanded: true,
                 children: [
                     {
                         type: 'checkbox',

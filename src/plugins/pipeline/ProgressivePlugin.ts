@@ -36,7 +36,7 @@ export class ProgressivePlugin
 
     @serialize() @uiInput('Frame count') maxFrameCount: number
 
-    // @uiImage('Last Texture' /* {readOnly: true}*/) texture?: Texture
+    // @uiImage('Last Texture', {readOnly: true}) texture?: Texture
 
     get texture(): Texture | undefined {
         return this.target?.texture
@@ -54,7 +54,7 @@ export class ProgressivePlugin
         return this._viewer ? Array.from(this._targets.values()).map(t => t.texture) : []
     }
 
-    @uiImage('Last Texture' /* {readOnly: true}*/)
+    @uiImage('Last Texture', {readOnly: true})
     get mainTexture() {
         return this._viewer ? this.getTarget(this._viewer.scene.mainCamera)?.texture : undefined
     }

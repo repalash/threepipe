@@ -68,7 +68,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     @serialize()
-    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})))
+    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})), {tags: ['advanced']})
     @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged})
         shadowMapType: ShadowMapType
 
@@ -80,7 +80,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.reset()
     }
 
-    @uiConfig(undefined, {label: 'Passes'})
+    @uiConfig(undefined, {label: 'Passes', tags: ['advanced'], order: 1000})
     private _passes: IPipelinePass[] = []
     private _pipeline: IPassID[] = []
     private _passesNeedsUpdate = true
@@ -108,7 +108,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     @onChange2(RenderManager.prototype.rebuildPipeline)
     public autoBuildPipeline = true
 
-    @uiButton('Rebuild Pipeline', {sendArgs: false})
+    @uiButton('Rebuild Pipeline', {sendArgs: false, tags: ['advanced']})
     rebuildPipeline(setDirty = true): void {
         this._passesNeedsUpdate = true
         if (setDirty) this._updated({change: 'rebuild'})

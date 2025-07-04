@@ -40,7 +40,7 @@ export class NormalBufferPlugin
     public static readonly PluginType = 'NormalBufferPlugin'
 
     target?: NormalBufferPluginTarget
-    @uiImage('Normal Buffer' /* {readOnly: true}*/) texture?: Texture
+    @uiImage('Normal Buffer', {readOnly: true}) texture?: Texture
     readonly material: MeshNormalMaterial = new MeshNormalMaterialOverride({
         blending: NoBlending,
     })
