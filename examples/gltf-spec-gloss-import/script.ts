@@ -18,9 +18,6 @@ async function init() {
     viewer.addPluginSync(GLTFDracoExportPlugin)
     viewer.addPluginSync(GLTFSpecGlossinessConverterPlugin)
 
-    // Note: see asset-exporter-plugin example as well
-
-    // load obj + mtl
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://asset-samples.threepipe.org/tests/SpecGlossVsMetalRough.glb', {
         autoCenter: true,
