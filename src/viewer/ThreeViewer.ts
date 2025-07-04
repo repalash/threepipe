@@ -12,7 +12,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {Class, createCanvasElement, downloadBlob, onChange, serialize, timeout, ValOrArr} from 'ts-browser-helpers'
+import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
@@ -1003,6 +1003,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     }
 
     deleteImportedViewerConfigOnLoad = true
+    deleteImportedViewerConfigOnLoadWait = 2000 // ms
 
     /**
      * Add an object to the scene model root.
@@ -1014,12 +1015,23 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (imported.userData?.rootSceneModelRoot) {
             const obj = <RootSceneImportResult>imported
             this._scene.loadModelRoot(obj, options)
-            if (obj.importedViewerConfig && options?.importConfig !== false) await this.importConfig(obj.importedViewerConfig)
+            if (options?.importConfig !== false) {
+                if (obj.importedViewerConfig) {
+                    await this.importConfig(obj.importedViewerConfig)
+                    // @ts-expect-error no type for this
+                    if (obj._deletedImportedViewerConfig) delete obj._deletedImportedViewerConfig
+                // @ts-expect-error no type for this
+                } else if (obj._deletedImportedViewerConfig)
+                    this.console.error('ThreeViewer - Imported viewer config was deleted, cannot import it again. Set `viewer.deleteImportedViewerConfigOnLoad` to `false` to keep it in the object for reuse workflows.')
+            }
 
             if (this.deleteImportedViewerConfigOnLoad && obj.importedViewerConfig) {
-                timeout(2000).then(()=>{ // todo timeout time?
+                setTimeout(()=>{
+                    if (!obj.importedViewerConfig) return
                     delete obj.importedViewerConfig // any useful data in the config should be loaded into userData.__importData by then
-                })
+                    // @ts-expect-error no type for this
+                    obj._deletedImportedViewerConfig = true // for console warning above
+                }, this.deleteImportedViewerConfigOnLoadWait)
             }
             return this._scene.modelRoot as T
         }

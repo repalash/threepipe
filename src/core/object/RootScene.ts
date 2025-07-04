@@ -224,7 +224,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             this.clearSceneModels(options.disposeSceneObjects)
         }
         if (!obj.userData?.rootSceneModelRoot) {
-            console.error('Invalid model root scene object. Trying to add anyway.', obj)
+            console.error('RootScene: Invalid model root scene object. Trying to add anyway.', obj)
         }
         if (obj.userData) {
             // todo deep merge all userdata?
@@ -253,8 +253,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
                 this.modelRoot.animations.push(animation)
             }
         }
-        return [...obj.children] // need to clone
-            .map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
+        const children = obj._childrenCopy || [...obj.children]
+        return children.map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }
 
     private _addObject3D(model: IObject3D|null, {autoCenter = false, centerGeometries = false, centerGeometriesKeepPosition = true, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
@@ -311,11 +311,15 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     disposeSceneModels(setDirty = true, clear = true) {
         if (clear) {
-            [...this.modelRoot.children].forEach(child => child.dispose ? child.dispose() : child.removeFromParent())
+            for (const child of [...this.modelRoot.children]) {
+                child.dispose ? child.dispose() : child.removeFromParent()
+            }
             this.modelRoot.clear()
             if (setDirty) this.setDirty({refreshScene: true})
         } else {
-            this.modelRoot.children.forEach(child => child.dispose && child.dispose())
+            for (const child of this.modelRoot.children) {
+                child.dispose && child.dispose(false)
+            }
         }
     }
 

@@ -6,7 +6,7 @@ import {
     ImportFilesOptions,
     ImportResult,
     LoadFileOptions,
-    ProcessRawOptions,
+    ProcessRawOptions, RootSceneImportResult,
 } from './IAssetImporter'
 import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
@@ -199,14 +199,16 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         if (result) result = await this.processRaw(result, options, path)
         if (result) {
             if (options.processRaw !== false) asset.preImported = result
-
+            // asset.preImportedRaw = undefined
+            // asset.preImported = undefined
             const arrs: any[] = []
-            if (Array.isArray(result)) arrs.push(...result)
-            else {
-                if (result.userData?.rootSceneModelRoot) arrs.push(...result.children)
-                else arrs.push(result)
+            const push = (r: typeof result)=>{
+                if (r.userData?.rootSceneModelRoot) arrs.push(...r.children)
+                else arrs.push(r)
             }
-            // remove preImportedRaw when any of the assets is disposed. This is to prevent memory leaks
+            if (Array.isArray(result)) result.map(push)
+            else push(result)
+            // remove preImportedRaw when any one of the assets is disposed. todo maybe do when ALL are dispoed?
             arrs.forEach(r=>r.addEventListener?.('dispose', () => { // todo: recheck after dispose logic change
                 if (asset?.preImportedRaw) asset.preImportedRaw = undefined
                 if (asset?.preImported) asset.preImported = undefined
@@ -351,7 +353,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             // it's a bit hacky to do this here, but it works for now. todo: move to a better place
             let ress: any[] = []
             if (Array.isArray(res)) ress = res.flat(2)
-            else if ((<IObject3D>res)?.userData?.rootSceneModelRoot) ress.push(...(<IObject3D>res).children)
+            else if ((<RootSceneImportResult>res)?.userData?.rootSceneModelRoot) ress.push(...(<IObject3D>res).children)
             else ress.push(res)
             for (const r of ress) r?.addEventListener?.('dispose', () => file.__loadedAsset = undefined)
 
@@ -425,7 +427,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
         if (Array.isArray(res)) {
             const r: any[] = []
-            for (const re of res) { // todo: can we parallelize?
+            for (const re of res) { // todo: should we parallelize?
                 r.push(...await this.processRaw(re, options, path))
             }
             return r
@@ -456,6 +458,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                     delete userData.__needsSourceBuffer
                 }
             }
+        }
+        if ((res as RootSceneImportResult).userData.rootSceneModelRoot) {
+            res._childrenCopy = [...res.children]
         }
 
         // if (res.assetType) // todo: why if?

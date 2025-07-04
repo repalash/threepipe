@@ -16,6 +16,12 @@ export interface RootSceneImportResult extends Object3D {
         gltfAsset?: GLTF['asset']
         [key: string]: any
     }
+
+    /**
+     * copy of children to use after import, set in processRaw
+     * @internal
+     */
+    _childrenCopy?: Object3D[]
 }
 
 export type ImportResultObject = IObject3D | ITexture | ICamera | ISerializedConfig | ISerializedViewerConfig | RootSceneImportResult | IMaterial
