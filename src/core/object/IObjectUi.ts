@@ -190,6 +190,20 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 },
             },
             {
+                type: 'button',
+                label: 'Delete Object',
+                tags: ['context-menu'],
+                value: async()=>{
+                    const res = await ThreeViewer.Dialog.confirm('Delete Object: Are you sure you want to delete this object?')
+                    if (!res) return
+                    const parent = this.parent
+                    this.dispose(true)
+                    return ()=>{ // undo
+                        if (parent) parent.add(this)
+                    }
+                },
+            },
+            {
                 type: 'folder',
                 label: 'Rotate model',
                 children: [

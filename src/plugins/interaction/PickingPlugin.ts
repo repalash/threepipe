@@ -86,13 +86,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         return this._picker?.selectedObject as T || undefined
     }
 
-    setSelectedObject(object: IObject3D|undefined, focusCamera = false) { // todo: listen to object disposed
+    setSelectedObject(object: IObject3D|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
         const disabled = this.isDisabled()
         if (disabled && !object) return
         if (!this._picker) return
         const t = this.autoFocus
         this.autoFocus = false
-        this._picker.selectedObject = object || null
+        this._picker.setSelected(object || null, trackUndo)
         this.autoFocus = t
         if (!disabled && object && (t || focusCamera)) this.focusObject(object)
     }
@@ -203,7 +203,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         s?.traverseAncestors((o) => {
             if (o === this._viewer?.scene) inScene = true
         })
-        if (!inScene) this.setSelectedObject(undefined)
+        if (!inScene) this.setSelectedObject(undefined, false, false)
     }
 
     protected _viewerListeners = {
@@ -219,7 +219,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{
         if (e.source === PickingPlugin.PluginType) return
         if (e.object === undefined && e.value === undefined) console.error('e.object or e.value must be set for picking, can be null to unselect')
-        else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera)
+        else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, true)
     }
 
     private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {

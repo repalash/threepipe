@@ -99,17 +99,17 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     }
 
     set selectedObject(object) {
-        this._setSelected(object)
+        this.setSelected(object)
     }
 
-    private _setSelected(object: IObject3D|null, record = true) {
+    setSelected(object: IObject3D|null, record = true) {
         if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object) return
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
         this.dispatchEvent({type: 'selectedObjectChanged', object: this.selectedObject})
         record && this.undoManager?.record({
-            undo: () => this._setSelected(current.length ? current[0] : null, false),
-            redo: () => this._setSelected(object, false),
+            undo: () => this.setSelected(current.length ? current[0] : null, false),
+            redo: () => this.setSelected(object, false),
         })
     }
 
