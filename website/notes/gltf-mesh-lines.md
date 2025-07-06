@@ -3,7 +3,10 @@ prev:
   text: 'Fat Lines'
   link: './fat-lines'
 
-next: false
+next: 
+  text: 'Setting Background Color and Images'
+  link: './scene-background'
+
 aside: false
 ---
 

@@ -46,6 +46,7 @@ export default defineConfig({
         items: [
           {text: 'Mesh Lines (Spiral)', link: 'notes/fat-lines'},
           {text: 'glTF Mesh Lines', link: 'notes/gltf-mesh-lines'},
+          {text: 'Setting Background', link: 'notes/scene-background'},
         ]
       },
       {
