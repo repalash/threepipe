@@ -2,10 +2,10 @@ import {AmbientLight, Color, ColorRepresentation} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiColor, uiFolderContainer, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 
-@uiPanelContainer('Ambient Light')
+@uiFolderContainer('Ambient Light')
 export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty

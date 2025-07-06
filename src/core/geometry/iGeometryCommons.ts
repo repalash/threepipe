@@ -172,7 +172,7 @@ export const iGeometryCommons = {
                     hidden: () => !this.hasAttribute('color'),
                     value: async() => {
                         if (!this.hasAttribute('color')) {
-                            await ThreeViewer.Dialog.prompt('No color attribute found')
+                            await ThreeViewer.Dialog.alert('No color attribute found')
                             return
                         }
                         if (!await ThreeViewer.Dialog.confirm('Remove color attribute?')) return

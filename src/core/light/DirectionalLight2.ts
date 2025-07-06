@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Eu
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiFolderContainer, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange2, onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 
@@ -15,7 +15,7 @@ import {bindToValue} from '../../three'
  * @category Lights
  */
 // todo: add Light section in the readme detailing these ...2 lights
-@uiPanelContainer('Directional Light')
+@uiFolderContainer('Directional Light')
 export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty

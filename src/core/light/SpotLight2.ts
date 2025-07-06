@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector2, 
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiInput, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiFolderContainer, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 
@@ -11,7 +11,7 @@ import {bindToValue} from '../../three'
  *
  * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
  */
-@uiPanelContainer('Spot Light')
+@uiFolderContainer('Spot Light')
 export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty

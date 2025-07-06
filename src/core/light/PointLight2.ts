@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, PointLight, PointLightShadow, Vector2, Vecto
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiNumber, UiObjectConfig, uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiColor, uiFolderContainer, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 
@@ -11,7 +11,7 @@ import {bindToValue} from '../../three'
  *
  * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
  */
-@uiPanelContainer('Point Light')
+@uiFolderContainer('Point Light')
 export class PointLight2 extends PointLight implements ILight<PointLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
