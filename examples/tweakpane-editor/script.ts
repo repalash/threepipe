@@ -15,14 +15,14 @@ async function init() {
         },
         // set it to true if you only have opaque objects in the scene to get better performance.
         zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
-        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')),
+        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')!),
         dropzone: {
             autoImport: true,
             autoAdd: true,
             addOptions: {
                 autoScale: checkQuery('autoScale', true),
                 autoCenter: checkQuery('autoCenter', true),
-                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')),
+                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')!),
                 clearSceneObjects: checkQuery('clearSceneObjectsOnDrop', false), // clear the scene before adding new objects on drop.
                 license: getUrlQueryParam('licenseText') ?? undefined, // Any license to set on imported objects
             },
@@ -40,7 +40,7 @@ async function init() {
 
     const model = getUrlQueryParam('m') || getUrlQueryParam('model')
     if (model) {
-        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension')
+        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension') || undefined
         const loader = viewer.getPlugin(DropzonePlugin) ?? viewer
         const obj = await loader.load(model, {fileExtension: ext})
         console.log(obj)
@@ -52,5 +52,5 @@ _testStart()
 init().finally(_testFinish)
 
 function checkQuery(key: string, def = true) {
-    return !['false', 'no', 'f', '0'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
+    return !['false', 'no', 'f', '0'].includes(getUrlQueryParam(key, def ? 'yes' : 'no')!.toLowerCase())
 }

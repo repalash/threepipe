@@ -64,7 +64,7 @@ import {
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
-    return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no').toLowerCase())
+    return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no')!.toLowerCase())
 }
 
 async function init() {
@@ -80,7 +80,7 @@ async function init() {
         },
         // set it to true if you only have opaque objects in the scene to get better performance.
         zPrepass: checkQuery('depthPrepass', checkQuery('zPrepass', false)),
-        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')),
+        modelRootScale: parseFloat(getUrlQueryParam('modelRootScale', '1')!),
         dropzone: { // this can also be set to true and configured by getting a reference to the DropzonePlugin
             // allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'fbx', 'obj'], // only allow these file types. If undefined, all files are allowed.
             addOptions: {
@@ -89,7 +89,7 @@ async function init() {
                 autoSetBackground: true, // when any image is dropped
                 autoScale: checkQuery('autoScale', true), // auto scale according to radius
                 autoCenter: checkQuery('autoCenter', true), // auto center the object
-                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')),
+                autoScaleRadius: parseFloat(getUrlQueryParam('autoScaleRadius', '2')!),
                 // license: 'Imported from dropzone', // Any license to set on imported objects
                 importConfig: true, // import config from file
             },
@@ -168,7 +168,7 @@ async function init() {
 
     const model = getUrlQueryParam('m') || getUrlQueryParam('model')
     if (model) {
-        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension')
+        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension') || undefined
         const loader = viewer.getPlugin(DropzonePlugin) ?? viewer
         const obj = await loader.load(model, {fileExtension: ext})
         console.log(obj)
