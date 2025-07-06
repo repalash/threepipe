@@ -451,53 +451,53 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 
 [`renderManager.context`](https://threepipe.org/docs/classes/ViewerRenderManager.html#context) - Access  the WebGL rendering context for the canvas.
 
-[`renderManager.renderPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#renderPass) - The main render pass used in the render pipeline. Instance of three.js [RenderPass](https://threejs.org/docs/#api/en/postprocessing/RenderPass) with extra features like z-prepass, RGBM rendering, blurred transmission, msaa and other optimizations.
+[`renderManager.renderPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#renderpass) - The main render pass used in the render pipeline. Instance of three.js [RenderPass](https://threejs.org/docs/#api/en/postprocessing/RenderPass) with extra features like z-prepass, RGBM rendering, blurred transmission, msaa and other optimizations.
 
-[`renderManager.screenPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#screenPass) - The main screen pass used in the render pipeline. Instance of three.js [ShaderPass](https://threejs.org/docs/#api/en/postprocessing/ShaderPass) with extra features like material extension, custom fragment, overriding read buffer, re-render to screen on change, etc
+[`renderManager.screenPass`](https://threepipe.org/docs/classes/ViewerRenderManager.html#screenpass) - The main screen pass used in the render pipeline. Instance of three.js [ShaderPass](https://threejs.org/docs/#api/en/postprocessing/ShaderPass) with extra features like material extension, custom fragment, overriding read buffer, re-render to screen on change, etc
 
-[`renderManager.renderScale`](https://threepipe.org/docs/classes/RenderManager.html#renderScale) - Sets the render scale. All targets are scaled by this factor. This is equivalent to calling `EffectComposer.setPixelRatio` and `WebGLRenderer.setPixelRatio` in three.js.
+[`renderManager.renderScale`](https://threepipe.org/docs/classes/RenderManager.html#renderscale) - Sets the render scale. All targets are scaled by this factor. This is equivalent to calling `EffectComposer.setPixelRatio` and `WebGLRenderer.setPixelRatio` in three.js.
 
-[`renderManager.resetShadows`](https://threepipe.org/docs/classes/RenderManager.html#resetShadows) - Resets all shadow maps in the scene. This is useful when some object is moved and the shadows need to be updated. This is automatically called when `scene.setDirty` or any `object.setDirty` is called, and during animation with plugins.
+[`renderManager.resetShadows`](https://threepipe.org/docs/classes/RenderManager.html#resetshadows) - Resets all shadow maps in the scene. This is useful when some object is moved and the shadows need to be updated. This is automatically called when `scene.setDirty` or any `object.setDirty` is called, and during animation with plugins.
 
 ### Rendering Pipeline
 
-[`renderManager.registerPass`](https://threepipe.org/docs/classes/RenderManager.html#registerPass) - Registers a custom composer pass to the render pipeline. See [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) interface.
+[`renderManager.registerPass`](https://threepipe.org/docs/classes/RenderManager.html#registerpass) - Registers a custom composer pass to the render pipeline. See [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) interface.
 
-[`renderManager.unregisterPass`](https://threepipe.org/docs/classes/RenderManager.html#unregisterPass) - Unregisters a custom composer pass from the render pipeline.
+[`renderManager.unregisterPass`](https://threepipe.org/docs/classes/RenderManager.html#unregisterpass) - Unregisters a custom composer pass from the render pipeline.
 
 [`renderManager.pipeline`](https://threepipe.org/docs/classes/RenderManager.html#pipeline) - The render pipeline array. The array is automatically sorted based on dependencies in the pipeline passes.
 
-[`renderManager.autoBuildPipeline`](https://threepipe.org/docs/classes/RenderManager.html#autoBuildPipeline) - If `true`, the pipeline is automatically created and sorted based on dependencies in pipeline pass. If `false`, the pipeline is built only once and is not changed after that. The default value is `true`.
+[`renderManager.autoBuildPipeline`](https://threepipe.org/docs/classes/RenderManager.html#autobuildpipeline) - If `true`, the pipeline is automatically created and sorted based on dependencies in pipeline pass. If `false`, the pipeline is built only once and is not changed after that. The default value is `true`.
 
-[`renderManager.totalFrameCount`](https://threepipe.org/docs/classes/RenderManager.html#totalFrameCount) - The total frames rendered since the render manager was created.
+[`renderManager.totalFrameCount`](https://threepipe.org/docs/classes/RenderManager.html#totalframecount) - The total frames rendered since the render manager was created.
 
-[`renderManager.frameCount`](https://threepipe.org/docs/classes/RenderManager.html#frameCount) - The current frame count in progressive rendering. This is useful for progressive rendering effects like progressive shadows, gi, denoising, baking, antialiasing, and many other effects.
+[`renderManager.frameCount`](https://threepipe.org/docs/classes/RenderManager.html#framecount) - The current frame count in progressive rendering. This is useful for progressive rendering effects like progressive shadows, gi, denoising, baking, antialiasing, and many other effects.
 
 ### Render Targets management
 
-[`renderManager.composerTarget`](https://threepipe.org/docs/classes/RenderManager.html#composerTarget), [`renderManager.composerTarget1`](https://threepipe.org/docs/classes/RenderManager.html#composerTarget1) - The main targets used in [EffectComposer2](https://threepipe.org/docs/classes/EffectComposer2)
+[`renderManager.composerTarget`](https://threepipe.org/docs/classes/RenderManager.html#composertarget), [`renderManager.composerTarget1`](https://threepipe.org/docs/classes/RenderManager.html#composertarget1) - The main targets used in [EffectComposer2](https://threepipe.org/docs/classes/EffectComposer2)
 
-[`renderManager.createTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#createTarget) - Creates a render target with the given options. The render target is automatically resized when the canvas is resized if `sizeMultiplier` is used. See [CreateRenderTargetOptions](https://threepipe.org/docs/interfaces/CreateRenderTargetOptions.html) for options
+[`renderManager.createTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#createtarget) - Creates a render target with the given options. The render target is automatically resized when the canvas is resized if `sizeMultiplier` is used. See [CreateRenderTargetOptions](https://threepipe.org/docs/interfaces/CreateRenderTargetOptions.html) for options
 
-[`renderManager.disposeTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#disposeTarget) - Disposes a render target and removes it from the render target manager.
+[`renderManager.disposeTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#disposetarget) - Disposes a render target and removes it from the render target manager.
 
-[`renderManager.getTempTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#getTempTarget) - Gets a temporary render target with the given options. The render target is automatically resized when the canvas is resized if `sizeMultiplier` is used. See [CreateRenderTargetOptions](https://threepipe.org/docs/interfaces/CreateRenderTargetOptions.html) for options
+[`renderManager.getTempTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#gettemptarget) - Gets a temporary render target with the given options. The render target is automatically resized when the canvas is resized if `sizeMultiplier` is used. See [CreateRenderTargetOptions](https://threepipe.org/docs/interfaces/CreateRenderTargetOptions.html) for options
 
-[`renderManager.releaseTempTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#releaseTempTarget) - Releases a temporary render target and adds it back to the render target manager.
+[`renderManager.releaseTempTarget`](https://threepipe.org/docs/classes/RenderTargetManager.html#releasetemptarget) - Releases a temporary render target and adds it back to the render target manager.
 
-[`renderManager.maxTempPerKey`](https://threepipe.org/docs/classes/RenderTargetManager.html#maxTempPerKey) - Sets how many temporary targets can remain in memory for a specific set of options. The default value is `5`.
+[`renderManager.maxTempPerKey`](https://threepipe.org/docs/classes/RenderTargetManager.html#maxtempperkey) - Sets how many temporary targets can remain in memory for a specific set of options. The default value is `5`.
 
 ### Helpers
 
 [`renderManager.blit`](https://threepipe.org/docs/classes/RenderManager.html#blit) - Copy a texture to the canvas or another render target with standard or a custom material. See [RendererBlitOptions](https://threepipe.org/docs/interfaces/RendererBlitOptions.html) for options.
 
-[`renderManager.clearColor`](https://threepipe.org/docs/classes/RenderManager.html#clearColor) - Clears the color of the canvas or a render target.
+[`renderManager.clearColor`](https://threepipe.org/docs/classes/RenderManager.html#clearcolor) - Clears the color of the canvas or a render target.
 
-[`renderManager.exportRenderTarget`](https://threepipe.org/docs/classes/RenderManager.html#exportRenderTarget) - Exports a render target to a blob. The type is automatically picked from exr to png based on the render target.
+[`renderManager.exportRenderTarget`](https://threepipe.org/docs/classes/RenderManager.html#exportrendertarget) - Exports a render target to a blob. The type is automatically picked from exr to png based on the render target.
 
-[`renderManager.renderTargetToDataUrl`](https://threepipe.org/docs/classes/RenderManager.html#renderTargetToDataUrl) - Exports a render target to png/jpeg data url string. This will clamp any floating point targets to fit in png/jpeg. See [RenderTargetToDataUrlOptions](https://threepipe.org/docs/interfaces/RenderTargetToDataUrlOptions.html) for options.
+[`renderManager.renderTargetToDataUrl`](https://threepipe.org/docs/classes/RenderManager.html#rendertargettodataurl) - Exports a render target to png/jpeg data url string. This will clamp any floating point targets to fit in png/jpeg. See [RenderTargetToDataUrlOptions](https://threepipe.org/docs/interfaces/RenderTargetToDataUrlOptions.html) for options.
 
-[`renderManager.renderTargetToBuffer`](https://threepipe.org/docs/classes/RenderManager.html#renderTargetToBuffer) - Reads render target pixels to a Uint8Array|Uint16Array|Float32Array array buffer.
+[`renderManager.renderTargetToBuffer`](https://threepipe.org/docs/classes/RenderManager.html#rendertargettobuffer) - Reads render target pixels to a Uint8Array|Uint16Array|Float32Array array buffer.
 
 ## RootScene
 
@@ -507,7 +507,7 @@ API Reference: [RootScene](https://threepipe.org/docs/classes/RootScene.html)
 
 RootScene is the main scene that is rendered in the canvas.
 It is an instance of three.js [Scene](https://threejs.org/docs/#api/en/scenes/Scene) with extra features including separation between model root and others,
-backgroundColor, background map and background intensity,
+`backgroundColor`, `background` map and `backgroundIntensity`,
 environment map rotation and intensity, fixed env map direction patch, event bubbling in the scene hierarchy, scene config serialization, main camera management,
 automatic active near far management based on scene bounds, disposing complete scene hierarchy, etc
 
@@ -600,45 +600,45 @@ scene.refreshScene({geometryChanged: false})
 scene.refreshActiveNearFar()
 ```
 
-[`scene.modelRoot`](https://threepipe.org/docs/classes/RootScene.html#modelRoot) - The root object. All the objects loaded in the viewer are added to this object. And this is exported when exporting the gltf. Everything else like meta or UI objects can be added outside this.
+[`scene.modelRoot`](https://threepipe.org/docs/classes/RootScene.html#modelroot) - The root object. All the objects loaded in the viewer are added to this object. And this is exported when exporting the gltf. Everything else like meta or UI objects can be added outside this.
 
-[`scene.backgroundColor`](https://threepipe.org/docs/classes/RootScene.html#backgroundColor) - The background color of the scene. Can be a `Color | null`. This is not the same as `scene.background`. When both backgroundColor and background are set, they are multiplied.
+[`scene.backgroundColor`](https://threepipe.org/docs/classes/RootScene.html#backgroundcolor) - The background color of the scene. Can be a `Color | null`. This is not the same as `scene.background`. When both backgroundColor and background are set, they are multiplied.
 
 [`scene.background`](https://threepipe.org/docs/classes/RootScene.html#background) - The background of the scene. This is the same as `scene.background` in three.js. This can be a texture or a color or null, but it's preferred to use `scene.backgroundColor` for color, and this for texture, then both can be used together.
 
-[`scene.setBackgroundColor`](https://threepipe.org/docs/classes/RootScene.html#setBackgroundColor) - Set the background color from a string, number or color. Same as setting `backgroundColor` to a new color value.
+[`scene.setBackgroundColor`](https://threepipe.org/docs/classes/RootScene.html#setbackgroundcolor) - Set the background color from a string, number or color. Same as setting `backgroundColor` to a new color value.
 
-[`scene.backgroundIntensity`](https://threepipe.org/docs/classes/RootScene.html#backgroundIntensity) - The background intensity of the scene. This is the same as `scene.backgroundIntensity` in three.js.
+[`scene.backgroundIntensity`](https://threepipe.org/docs/classes/RootScene.html#backgroundintensity) - The background intensity of the scene. This is the same as `scene.backgroundIntensity` in three.js.
 
 [`scene.environment`](https://threepipe.org/docs/classes/RootScene.html#environment) - The environment map of the scene. This is the same as `scene.environment` in three.js.
 
-`scene.environment.rotation` - The rotation of the environment map around the y-axis.
+`scene.environment.rotation` - The rotation of the environment map around the y-axis(number).
 
-[`scene.envMapIntensity`](https://threepipe.org/docs/classes/RootScene.html#envMapIntensity) - The environment intensity of the scene.
+[`scene.envMapIntensity`](https://threepipe.org/docs/classes/RootScene.html#envmapintensity) - The environment intensity of the scene.
 
 [`scene.fixedEnvMapDirection`](https://threepipe.org/docs/classes/RootScene.html#fixedEnvMapDirection) - If `true`, the environment map is rotated according to the camera. This is the same as `scene.fixedEnvMapDirection` in three.js.
 
-[`scene.mainCamera`](https://threepipe.org/docs/classes/RootScene.html#mainCamera) - The main camera used for rendering. This is the same as `scene.mainCamera` in three.js.
+[`scene.mainCamera`](https://threepipe.org/docs/classes/RootScene.html#maincamera) - The main camera used for rendering. This is the same as `scene.mainCamera` in three.js.
 
-[`scene.defaultCamera`](https://threepipe.org/docs/classes/RootScene.html#defaultCamera) - The default camera used for rendering. This is the same as `scene.defaultCamera` in three.js.
+[`scene.defaultCamera`](https://threepipe.org/docs/classes/RootScene.html#defaultcamera) - The default camera used for rendering. This is the same as `scene.defaultCamera` in three.js.
 
-[`scene.disposeSceneModels`](https://threepipe.org/docs/classes/RootScene.html#disposeSceneModels) - Disposes all assets in the modelRoot.
+[`scene.disposeSceneModels`](https://threepipe.org/docs/classes/RootScene.html#disposescenemodels) - Disposes all assets in the modelRoot.
 
-[`scene.clearSceneModels`](https://threepipe.org/docs/classes/RootScene.html#clearSceneModels) - Removes all objects from the modelRoot.
+[`scene.clearSceneModels`](https://threepipe.org/docs/classes/RootScene.html#clearscenemodels) - Removes all objects from the modelRoot.
 
 [`scene.dispose`](https://threepipe.org/docs/classes/RootScene.html#dispose) - Disposes the scene and all its resources and children.
 
-[`scene.getBounds`](https://threepipe.org/docs/classes/RootScene.html#getBounds) - Gets the bounds of the scene model root. Returns an instance of three.js [Box3](https://threejs.org/docs/#api/en/math/Box3) with min and max bounds according to parameters.
+[`scene.getBounds`](https://threepipe.org/docs/classes/RootScene.html#getbounds) - Gets the bounds of the scene model root. Returns an instance of three.js [Box3](https://threejs.org/docs/#api/en/math/Box3) with min and max bounds according to parameters.
 
-[`scene.addObject`](https://threepipe.org/docs/classes/RootScene.html#addObject) - Adds an object to the scene or its model root depending on the options. If `addToRoot` is `true`, the object is added to the model root, else it is added to the scene directly.
+[`scene.addObject`](https://threepipe.org/docs/classes/RootScene.html#addobject) - Adds an object to the scene or its model root depending on the options. If `addToRoot` is `true`, the object is added to the model root, else it is added to the scene directly.
 
-[`scene.setDirty`](https://threepipe.org/docs/classes/RootScene.html#setDirty) - Notifies that something has changed in the scene for re-render.
+[`scene.setDirty`](https://threepipe.org/docs/classes/RootScene.html#setdirty) - Notifies that something has changed in the scene for re-render.
 
-[`scene.refreshScene`](https://threepipe.org/docs/classes/RootScene.html#refreshScene) - Notifies that some object has changed in the scene for scene refresh(like shadow refresh, ground etc.) and re-render. Slower than `setDirty`, as it refreshes shadows, updates bounds, etc.
+[`scene.refreshScene`](https://threepipe.org/docs/classes/RootScene.html#refreshscene) - Notifies that some object has changed in the scene for scene refresh(like shadow refresh, ground etc.) and re-render. Slower than `setDirty`, as it refreshes shadows, updates bounds, etc.
 
-[`scene.refreshActiveNearFar`](https://threepipe.org/docs/classes/RootScene.html#refreshActiveNearFar) - Refreshes active near far. (in most cases this is done automatically and need not be called)
+[`scene.refreshActiveNearFar`](https://threepipe.org/docs/classes/RootScene.html#refreshactivenearfar) - Refreshes active near far. (in most cases this is done automatically and need not be called)
 
-[`scene.loadModelRoot`](https://threepipe.org/docs/classes/RootScene.html#loadModelRoot) - Loads an imported model root from the asset importer. This is used internally and in most cases, you don't need to call this.
+[`scene.loadModelRoot`](https://threepipe.org/docs/classes/RootScene.html#loadmodelroot) - Loads an imported model root from the asset importer. This is used internally and in most cases, you don't need to call this.
 
 ### Scene Events
 
