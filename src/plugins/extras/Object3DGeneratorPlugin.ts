@@ -4,6 +4,8 @@ import {
     DirectionalLight2,
     HemisphereLight2,
     IObject3D,
+    Object3D2,
+    OrthographicCamera2,
     PerspectiveCamera2,
     PointLight2,
     RectAreaLight2,
@@ -37,6 +39,15 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync {
     }
 
     generators: Record<string, (params?: any)=>IObject3D> = {
+        ['object-empty']: (params: {
+            position?: Vector3,
+            name?: string,
+        } = {})=>{
+            const obj = new Object3D2()
+            params.position ? obj.position.copy(params.position) : obj.position.set(0, 0, 0)
+            obj.name = params.name ?? 'New Object'
+            return obj
+        },
         ['camera-perspective']: (params: {
             controlsMode?: string,
             autoAspect?: boolean,
@@ -59,6 +70,28 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync {
             camera.autoLookAtTarget = params.autoLookAtTarget ?? true
             camera.setDirty()
             camera.name = params.name ?? 'Perspective Camera'
+            return camera
+        },
+        ['camera-orthographic']: (params: {
+            controlsMode?: string,
+            autoAspect?: boolean,
+            frustumSize?: number,
+            position?: Vector3,
+            target?: Vector3,
+            autoLookAtTarget?: boolean,
+            name?: string,
+        } = {})=>{
+            const camera = new OrthographicCamera2(
+                params.controlsMode ?? '',
+                this._viewer?.canvas,
+                params.autoAspect,
+                params.frustumSize,
+            )
+            params.position ? camera.position.copy(params.position) : camera.position.set(0, 0, 5)
+            params.target ? camera.target.copy(params.target) : camera.target.set(0, 0, 0)
+            camera.autoLookAtTarget = params.autoLookAtTarget ?? true
+            camera.setDirty()
+            camera.name = params.name ?? 'Orthographic Camera'
             return camera
         },
         ['light-directional']: (params: {
