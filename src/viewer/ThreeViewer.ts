@@ -1164,6 +1164,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @returns {any} - Serializable JSON object.
      */
     toJSON(binary = true, pluginFilter?: string[]): ISerializedViewerConfig {
+        if (typeof binary !== 'boolean') binary = true // its a meta, ignore it
+        if (pluginFilter !== undefined && !Array.isArray(pluginFilter)) pluginFilter = undefined // non standard param.
         const meta = getEmptyMeta()
         const data: ISerializedViewerConfig = Object.assign({
             ...this._defaultConfig,
