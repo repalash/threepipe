@@ -8,7 +8,7 @@ import {
     NoBlending,
     NoColorSpace,
     OrthographicCamera,
-    RGBAFormat,
+    RGBAFormat, Texture,
     UnsignedByteType,
     Vector3,
     WebGLRenderTarget,
@@ -44,7 +44,6 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     @serialize()
     @onChange(ContactShadowGroundPlugin.prototype._setDirty)
         blurAmount = 1
-
 
     shadowCamera = new OrthographicCamera(-1, 1, 1, -1, 0.001, this.shadowHeight)
     private _depthPass?: GBufferRenderPass<'contactShadowGround', WebGLRenderTarget|undefined>
@@ -110,7 +109,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
 
     protected _preRender() {
         super._preRender()
-        if (!this._viewer || !this._depthPass || !this._blurHelper) return
+        if (!this._viewer || !this._depthPass || !this._blurHelper || !this.contactShadows || !this.visible) return
 
         this._depthPass.scene = this._viewer.scene
         this._depthPass.camera = this.shadowCamera
@@ -172,9 +171,23 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         super._removeMaterial()
     }
 
+    private _depthTex: Texture|null = null
     public refresh(): void {
         if (!this._viewer) return
-        // todo: shadow enabled check
+        if (!this.contactShadows) {
+            if (this._material?.alphaMap === this._depthTex) {
+                this._material.alphaMap = null
+                this._material.setDirty()
+            }
+            if (this._material?.userData.__csgpParamsSet) {
+                delete this._material.userData.__csgpParamsSet
+                delete this._material.userData.ssreflDisabled
+                delete this._material.userData.ssreflNonPhysical
+            }
+            this._depthTex = null
+        } else {
+            this._depthTex = getOrCall(this._depthPass?.target)?.texture || null
+        }
         super.refresh()
     }
 
@@ -184,8 +197,6 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         mat.metalness = 0
         mat.color.set(0x111111)
         mat.transparent = true
-        mat.userData.ssreflDisabled = true
-        mat.userData.ssreflNonPhysical = false
         // mat.userData.inverseAlphaMap = false // this must be false, if getting inverted colors, check clear color of gbuffer render pass.
         return mat
     }
@@ -194,7 +205,13 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         if (!this._viewer) return false
         const isNewMaterial = super._refreshMaterial()
         if (!this._material) return isNewMaterial
-        this._material.alphaMap = getOrCall(this._depthPass?.target)?.texture || null
+        if (this.contactShadows) {
+            this._material.userData.ssreflDisabled = true
+            this._material.userData.ssreflNonPhysical = false
+            this._material.userData.__csgpParamsSet = true
+            this._material.alphaMap = this._depthTex || null
+            this._material.setDirty()
+        }
         return isNewMaterial
     }
 
