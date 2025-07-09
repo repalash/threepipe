@@ -19,6 +19,7 @@ import {
     upgradeTexture,
     WebGLRenderTarget,
     SVGTextureLoader,
+    uploadFile,
 } from 'threepipe'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
@@ -39,6 +40,10 @@ const staticData = {
     imageMap: {} as any,
     tempMap: {} as any,
 }
+
+const allowedImageExtensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
+    '.exr', /* '.mp4', '.ogg', '.mov',*/ '.jpeg',
+    '.bmp', '.gif', '.webp', '.cube', '.ktx2', '.avif', '.ico', '.tiff'] // todo update blueprint editor with this list
 
 function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
     if (cc?.get) cc = cc.get()
@@ -138,6 +143,22 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
     config.uiRefresh?.(false, 'postFrame')
 }
 
+function setterFile(viewer: ThreeViewer, file: File, path: string | undefined, config: UiObjectConfig, renderer: TweakpaneUiPlugin) {
+    path = path || file.webkitRelativePath || file.name
+    viewer.assetManager.importer.importSingle<ITexture>({file, path: path}).then(texture => {
+        if (!texture) {
+            console.warn('Failed to load texture', file)
+            return
+        }
+        const ext = path?.split('?')?.[0]?.split('.').pop() ?? ''
+        if ((texture as any).userData) { // todo why is this required?
+            if (!(texture as any).userData.mimeType)
+                (texture as any).userData.mimeType = 'image/' + (['jpg', 'jpeg'].includes(ext) ? 'jpeg' : 'png')
+        }
+        setterTex(texture, config, renderer)
+    })
+}
+
 function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeViewer, renderer: TweakpaneUiPlugin) {
     if (typeof v === 'string') {
         if (typeof cc === 'string') setterTex(v, config, renderer)
@@ -171,16 +192,7 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
     )) return
 
     if (v instanceof File) { // v.src must be from createObjectURL.
-        viewer.assetManager.importer.importSingle<ITexture>({file: v, path: (v as any).src}).then(texture => {
-            if (!texture) return
-            if (texture.isDataTexture) texture.needsUpdate = true
-            const ext = (v as any).src?.split('?')?.[0]?.split('.').pop()
-            if ((texture as any).userData) {
-                if (!(texture as any).userData.mimeType)
-                    (texture as any).userData.mimeType = 'image/' + (['jpg', 'jpeg'].includes(ext) ? 'jpeg' : 'png')
-            }
-            setterTex(texture, config, renderer)
-        })
+        setterFile(viewer, v, (v as any).src, config, renderer)
     } else if (v.isTexture) {
         setterTex(v, config, renderer)
     } else { // HTMLImageElement, ImageBitmap, HTMLVideoElement
@@ -202,7 +214,7 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
         tex.assetType = 'texture'
         tex.needsUpdate = true
         // set userData.mimeType for GLTFExporter
-        const ext = v.src?.split('?')?.[0]?.split('.').pop()
+        const ext = v.src?.split('?')?.[0]?.split('.').pop() ?? ''
         if (!tex.userData.mimeType)
             tex.userData.mimeType = 'image/' + (['jpg', 'jpeg'].includes(ext) ? 'jpeg' : 'png')
         setterTex(tex, config, renderer)
@@ -301,8 +313,8 @@ async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig,
     } else {
         url = url.trim()
     }
-    const cc = config.__proxy.value_
-    const isStr = typeof cc === 'string'
+    const last = config.__proxy.value_
+    const isStr = typeof last === 'string'
     if (isStr) {
         setterTex(url, config, renderer)
     } else { // texture
@@ -314,6 +326,20 @@ async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig,
             setterTex(texture, config, renderer)
         })
     }
+}
+
+async function imageFromFile(renderer: TweakpaneUiPlugin, config: UiObjectConfig, viewer: ThreeViewer, inp: HTMLInputElement, params: any) {
+    const last = config.__proxy.value_
+    const isStr = typeof last === 'string'
+    if (isStr) {
+        inp.click()
+        return
+    }
+    const files = await uploadFile(false, false, params.extensions?.map((ext: string) => `image/${ext.replace(/^\./, '')}`).join(', ') ?? 'image/*')
+    if (!files.length) return
+    const file = files[0]
+
+    setterFile(viewer, file, undefined, config, renderer)
 }
 
 export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => any = (viewer: ThreeViewer) => (parent: any /* FolderApi */, config: UiObjectConfig, renderer: TweakpaneUiPlugin, params?: any) => {
@@ -348,9 +374,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
     config.__proxy.value_ = renderer.methods.getRawValue(config)
 
     params = params ?? {}
-    params.extensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
-        '.exr', /* '.mp4', '.ogg', '.mov',*/ '.jpeg',
-        '.bmp', '.gif', '.webp', '.cube', '.ktx2', '.avif', '.ico', '.tiff'] // todo update blueprint editor with this list
+    params.extensions = allowedImageExtensions
     if (typeof params.imageFit === 'undefined') params.imageFit = 'contain'
     if (typeof params.clickCallback === 'undefined') params.clickCallback = (ev: MouseEvent, inp: HTMLInputElement) => {
         const target = ev?.target as HTMLElement
@@ -369,7 +393,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
             ['remove image']: () => removeImage(config, renderer),
         })
         if (!readOnly) Object.assign(items, {
-            ['set/replace image']: () => inp.click(),
+            ['set/replace image']: async() => imageFromFile(renderer, config, viewer, inp, params),
             ['from url']: async() => imageFromUrl(renderer, config, viewer),
         })
         const menu = CustomContextMenu.Create({
