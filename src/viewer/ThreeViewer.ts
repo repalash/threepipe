@@ -264,7 +264,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
         renderEnabled = true
-    renderStats: GLStatsJS
+    renderStats?: GLStatsJS
     readonly assetManager: AssetManager
     /**
      * The Scene attached to the viewer, this cannot be changed.
@@ -376,8 +376,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.setDirty = this.setDirty.bind(this)
         this._animationLoop = this._animationLoop.bind(this)
 
-        this.renderStats = new GLStatsJS(this._container)
-        if (debug) this.renderStats.show()
+        if (debug && (options as any).statsJS !== false) {
+            this.renderStats = new GLStatsJS(this._container)
+            this.renderStats.show()
+        }
 
         if (!(window as any).threeViewers) (window as any).threeViewers = [];
         (window as any).threeViewers.push(this)
@@ -446,7 +448,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (options.isAntialiased !== undefined || options.useRgbm !== undefined || options.useGBufferDepth !== undefined) {
             this.console.warn('isAntialiased, useRgbm and useGBufferDepth are deprecated, use msaa, rgbm and zPrepass instead.')
         }
-        this.renderManager = new ViewerRenderManager({
+        const rmClass: Class<ViewerRenderManager> = (options as any).rmClass ?? ViewerRenderManager
+        this.renderManager = new rmClass({
             canvas: this._canvas,
             msaa: options.msaa ?? options.isAntialiased ?? false,
             rgbm: options.rgbm ?? options.useRgbm ?? true,
@@ -653,7 +656,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
         this._isRenderingFrame = true
 
-        this.renderStats.begin()
+        this.renderStats?.begin()
 
         for (let i = 0; i < this.maxFramePerLoop; i++) {
 
@@ -702,17 +705,22 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 for (let j = 0; j < this.rendersPerFrame; j++) {
                     this.dispatchEvent({type: 'preRender', target: this})
 
-                    try {
+                    const render = ()=>{
                         const cam = this._scene.mainCamera
                         this._scene.renderCamera = cam
                         if (cam.visible) this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
-                    } catch (e) {
-                        this.console.error('ThreeViewer: Error while rendering frame. Enable debug mode to check the errors.')
-                        if (this.debug) {
+                    }
+                    if (this.debug) {
+                        render()
+                    } else {
+                        try {
+                            render()
+                        } catch (e) {
+                            this.console.error('ThreeViewer: Error while rendering frame. Enable debug mode for more information.')
                             this.console.error(e)
-                            throw e
+                            if (this.debug) throw e
+                            // this.enabled = false
                         }
-                        // this.enabled = false
                     }
 
                     this.dispatchEvent({type: 'postRender', target: this})
@@ -728,7 +736,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         }
 
-        this.renderStats.end()
+        this.renderStats?.end()
 
         this._isRenderingFrame = false
 
@@ -824,15 +832,22 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this.console.error(`ThreeViewer: Plugin of type ${type} already exists, removing and disposing old plugin. This might break functionality, ensure only one plugin of a type is added`, this.plugins[type], p)
             this.removePluginSync(this.plugins[type])
         }
-        try {
+        const add = ()=>{
             this.plugins[type] = p
             const oldType = p.constructor.OldPluginType
             if (oldType && this.plugins[oldType]) this.console.error(`ThreeViewer: Plugin type mismatch ${oldType}`)
             if (oldType) this.plugins[oldType] = p
             p.onAdded(this)
-        } catch (e) {
-            this.console.error('ThreeViewer: Error adding plugin, check console for details', e)
-            delete this.plugins[type]
+        }
+        if (this.debug) {
+            add()
+        } else {
+            try {
+                add()
+            } catch (e) {
+                this.console.error('ThreeViewer: Error adding plugin, check console for details', e)
+                delete this.plugins[type]
+            }
         }
         this._onPluginAdd(p)
         return p
@@ -939,8 +954,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         const containerRect = containerSize || this.container.getBoundingClientRect()
         const containerHeight = containerRect.height
         const containerWidth = containerRect.width
-        const width = size.width
-        const height = size.height
+        const width = Math.floor(size.width)
+        const height = Math.floor(size.height)
         const aspect = width / height
         const containerAspect = containerWidth / containerHeight
         const dpr = devicePixelRatio
