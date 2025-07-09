@@ -97,7 +97,7 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     property: [material, 'transparent'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'transparent'}),
                 },
                 {
                     type: 'dropdown',
@@ -119,17 +119,17 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     property: [material, 'depthTest'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'depthTest'}),
                 },
                 {
                     type: 'checkbox',
                     property: [material, 'depthWrite'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'depthWrite'}),
                 },
                 {
                     type: 'checkbox',
                     property: [material, 'colorWrite'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'colorWrite'}),
                 },
                 {
                     type: 'slider',
@@ -270,7 +270,7 @@ export const iMaterialUI = {
                     setValue: (v: boolean)=>{
                         if (!v && !material.userData.renderToGBuffer) return
                         material.userData.renderToGBuffer = v
-                        material.setDirty()
+                        material.setDirty({change: 'userData', key: 'renderToGBuffer'})
                     },
                 },
                 {
@@ -281,7 +281,7 @@ export const iMaterialUI = {
                     setValue: (v: boolean)=>{
                         if (!v && !material.userData.renderToDepth) return
                         material.userData.renderToDepth = v
-                        material.setDirty()
+                        material.setDirty({change: 'userData', key: 'renderToDepth'})
                     },
                 },
                 material.isPhysicalMaterial ? {
@@ -291,7 +291,7 @@ export const iMaterialUI = {
                     getValue: ()=>material.userData.inverseAlphaMap === true,
                     setValue: (v: boolean)=>{
                         material.userData.inverseAlphaMap = v ? v : undefined
-                        material.setDirty()
+                        material.setDirty({change: 'userData', key: 'inverseAlphaMap'})
                     },
                 } : {},
             ],
@@ -382,7 +382,7 @@ export const iMaterialUI = {
                     setValue: (v: string)=>{
                         material.userData.envMapSlotKey = v
                         if (!v) delete material.userData.envMapSlotKey
-                        material.setDirty()
+                        material.setDirty({change: 'userData', key: 'envMapSlotKey'})
                     },
                 },
             ],
@@ -654,14 +654,14 @@ export const iMaterialUI = {
                     bounds: [0, 500],
                     label: 'Thickness0',
                     property: [material.iridescenceThicknessRange, '0'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'iridescenceThicknessRange', key: '0'}),
                 },
                 {
                     type: 'slider',
                     bounds: [0, 500],
                     label: 'Thickness1',
                     property: [material.iridescenceThicknessRange, '1'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev}),
+                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'iridescenceThicknessRange', key: '1'}),
                 },
                 {
                     type: 'image',

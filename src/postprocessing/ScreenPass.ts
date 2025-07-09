@@ -86,9 +86,11 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     @uiToggle() clipBackground = false
 
     beforeRender(_: IScene, _1: ICamera, renderManager: ViewerRenderManager) {
-        this.material.uniforms.tTransparent.value = renderManager.renderPass.preserveTransparentTarget ? renderManager.renderPass.transparentTarget?.texture || null : null
-        this.material.defines.HAS_TRANSPARENT_TARGET = this.material.uniforms.tTransparent.value ? 1 : undefined
-        if (!this.material.defines.HAS_TRANSPARENT_TARGET) delete this.material.defines.HAS_TRANSPARENT_TARGET
+        if (this.material.uniforms.tTransparent) {
+            this.material.uniforms.tTransparent.value = renderManager.renderPass.preserveTransparentTarget ? renderManager.renderPass.transparentTarget?.texture || null : null
+            this.material.defines.HAS_TRANSPARENT_TARGET = this.material.uniforms.tTransparent.value ? 1 : undefined
+            if (!this.material.defines.HAS_TRANSPARENT_TARGET) delete this.material.defines.HAS_TRANSPARENT_TARGET
+        }
     }
 
     setDirty() {

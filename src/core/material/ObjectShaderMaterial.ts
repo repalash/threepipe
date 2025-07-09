@@ -158,8 +158,10 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
+            let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
+            key = typeof key === 'string' ? key : undefined
             // todo set needsUpdate true only for properties that require it like maps.
-            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last, change: key})
         },
         children: [
             ...generateUiConfig(this),

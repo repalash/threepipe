@@ -80,7 +80,7 @@ export const iMaterialCommons = {
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         if (options?.needsUpdate !== false) this.needsUpdate = true
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
-        if (options?.last !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
+        if (options?.last !== false && options?.refreshUi !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
     setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
         function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string})): IMaterial {
@@ -152,7 +152,7 @@ export const iMaterialCommons = {
             superDispatchEvent.call(this, event)
             const type = event.type
             if ((event as IMaterialEventMap['materialUpdate']).bubbleToObject && (
-                type === 'beforeDeserialize' || type === 'materialUpdate' || type === 'textureUpdate' // todo - add more events
+                type === 'beforeDeserialize' || type === 'materialUpdate' || type === 'textureUpdate' || type === 'select' // todo - add more events
             )) {
                 this.appliedMeshes.forEach(m => m.dispatchEvent({...event, material: this, type}))
             }

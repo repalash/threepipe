@@ -134,8 +134,10 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
             //         m.computeLineDistances()
             //     }
             // })
+            let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
+            key = typeof key === 'string' ? key : undefined
             // todo set needsUpdate true only for properties that require it like maps.
-            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last})
+            this.setDirty({uiChangeEvent: ev, needsUpdate: !!ev.last, refreshUi: !!ev.last, change: key})
         },
         children: [
             ...generateUiConfig(this) || [],

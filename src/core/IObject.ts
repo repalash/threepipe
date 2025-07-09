@@ -1,7 +1,7 @@
-import {IMaterial, IMaterialEventMap} from './IMaterial'
+import {IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from './IMaterial'
 import {Box3, EventListener2, Object3D, Object3DEventMap, Sphere, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
-import {IGeometry, IGeometryEventMap} from './IGeometry'
+import {IGeometry, IGeometryEventMap, IGeometrySetDirtyOptions} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
@@ -24,12 +24,12 @@ import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
 
 declare module 'three'{
     export interface Object3DEventMap{
-        select: { // todo
+        select: { // todo remove?
             ui?: boolean
             focusCamera?: boolean
             bubbleToParent?: boolean
             object: IObject3D
-            value?: IObject3D /* | Material*/ // todo is this required?
+            value?: IObject3D|null /* | Material*/ // todo is this required?
 
             source?: string // who is triggering the event. so that recursive events can be prevented
         } /* & IObjectSetDirtyOptions*/
@@ -47,13 +47,12 @@ export interface IObject3DEventMap extends Object3DEventMap{
     materialUpdate: {
         // object: IObject3D
         material: IMaterial|IMaterial[]
-    }
+    } & IMaterialSetDirtyOptions
     objectUpdate: {
         object: IObject3D
-        change?: string
         args?: any[]
         bubbleToParent: boolean
-    }
+    } & Omit<IObjectSetDirtyOptions, 'bubbleToParent'>
     textureUpdate: {
         // object: IObject3D
         // todo
@@ -75,7 +74,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         geometry: IGeometry
         // oldGeometry: IGeometry
         bubbleToParent: boolean
-    }
+    } & IGeometrySetDirtyOptions
     added: {
         // object: IObject3D
         // todo
@@ -100,7 +99,6 @@ export interface IObject3DEventMap extends Object3DEventMap{
         camera?: ICamera | null
         bubbleToParent: boolean
         // object: IObject3D
-
     }
     cameraUpdate: {
         ui?: boolean
@@ -108,7 +106,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         // object: IObject3D
         bubbleToParent: boolean
         // todo
-    } & ICameraSetDirtyOptions
+    } & Omit<ICameraSetDirtyOptions, 'bubbleToParent'>
 }
 // Record<keyof IObject3DEventMap0, IObject3DEventMap0[keyof IObject3DEventMap0] & {
 //     // bubbleToParent?: boolean
@@ -304,6 +302,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
     isScene?: boolean
     // isHelper?: boolean
     isWidget?: boolean
+    isPoints?: boolean
     readonly isObject3D: true
 
     material?: IMaterial | IMaterial[]

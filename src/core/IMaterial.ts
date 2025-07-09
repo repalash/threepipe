@@ -92,6 +92,16 @@ declare module 'three'{
             bubbleToParent?: boolean
             uiChangeEvent?: ChangeEvent
         }
+        select: { // todo remove?
+            ui?: boolean
+            // focusCamera?: boolean // todo ?
+            bubbleToObject?: boolean
+            bubbleToParent?: boolean
+            material: IMaterial
+            value?: /* IObject3D | */ IMaterial | null // todo is this required?
+
+            source?: string // who is triggering the event. so that recursive events can be prevented
+        } /* & IObjectSetDirtyOptions*/
     }
 }
 
@@ -104,6 +114,8 @@ export interface IMaterialSetDirtyOptions extends ISetDirtyCommonOptions{
      * @default true
      */
     needsUpdate?: boolean,
+
+    change?: string | keyof IMaterial
 
     [key: string]: any
 }

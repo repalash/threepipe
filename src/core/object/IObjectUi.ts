@@ -69,7 +69,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
-            this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: true})
+            let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
+            key = typeof key === 'string' ? key : undefined
+            this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: !!ev.last, change: key})
         },
         children: [
             {
@@ -104,7 +106,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Name',
                 property: [this, 'name'],
                 onChange: (e)=>{
-                    if (e.last) this.setDirty?.({uiChangeEvent: e, refreshScene: true, frameFade: false, refreshUi: true})
+                    if (e.last) this.setDirty?.({uiChangeEvent: e, refreshScene: true, frameFade: false, refreshUi: true, change: 'name'})
                 },
             },
             {
@@ -183,10 +185,31 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Pivot to Node Center',
+                tags: ['context-menu', 'interaction'],
                 value: async()=>{
                     const res = await ThreeViewer.Dialog.confirm('Pivot to Center: Adjust the pivot to bounding box center. The object will rotate around the new pivot, are you sure you want to proceed?')
                     if (!res) return
                     return this.pivotToBoundsCenter?.(true) // return value is the undo function
+                },
+            },
+            {
+                type: 'button',
+                label: 'Duplicate Object',
+                tags: ['context-menu'],
+                value: async()=>{
+                    const parent = this.parent
+                    const clone = this.clone(true) as IObject3D
+                    clone.name = this.name + ' (copy)'
+                    return {
+                        action: ()=>{
+                            if (parent && !clone.parent)
+                                parent.add(clone) // todo same index?
+                        },
+                        undo: ()=>{
+                            if (clone.parent === parent)
+                                clone.removeFromParent()
+                        },
+                    }
                 },
             },
             {
