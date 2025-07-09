@@ -16,12 +16,6 @@ import {
 import {WebGLPathTracer} from 'three-gpu-pathtracer'
 import {WebGLPathTracer2} from './WebGLPathTracer2'
 
-
-// @ts-expect-error polyfill for new threejs
-Scene.prototype.backgroundRotation = new Euler(0, 0, 0, 'XYZ')
-// @ts-expect-error polyfill
-Scene.prototype.environmentRotation = new Euler(0, 0, 0, 'XYZ')
-
 /**
  * ThreeGpuPathTracerPlugin
  *
@@ -413,6 +407,13 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
             this.tracer.dispose()
             // this.tracer = undefined
         }
+    }
+
+    static {
+        // @ts-expect-error polyfill for new threejs
+        Scene.prototype.backgroundRotation = new Euler(0, 0, 0, 'XYZ')
+        // @ts-expect-error polyfill
+        Scene.prototype.environmentRotation = new Euler(0, 0, 0, 'XYZ')
     }
 }
 

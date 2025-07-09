@@ -8,24 +8,26 @@ import {
     CustomContextMenu,
     downloadBlob,
     getOrCall,
+    htmlDialogWrapper,
     IEvent,
     IViewerPlugin,
     IViewerPluginSync,
+    mobileAndTabletCheck,
     onChange,
+    Texture,
     ThreeViewer,
     uiDropdown,
     uiFolderContainer,
     UiObjectConfig,
+    UndoManagerPlugin,
     uploadFile,
     Vector2,
     Vector3,
-    Texture,
     Vector4,
-    UndoManagerPlugin,
-    WebGLRenderTarget,
     WebGLCubeRenderTarget,
     WebGLMultipleRenderTargets,
-    mobileAndTabletCheck,
+    WebGLRenderTarget,
+    windowDialogWrapper,
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
@@ -75,6 +77,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         viewer.addEventListener('postRender', this._postRender)
         viewer.addEventListener('preFrame', this._preFrame)
         viewer.addEventListener('postFrame', this._postFrame)
+        if (ThreeViewer.Dialog === windowDialogWrapper) ThreeViewer.Dialog = htmlDialogWrapper
         const undo = viewer.getOrAddPluginSync(UndoManagerPlugin) // yes, manual dependency
         if (undo?.undoManager) {
             this._lastManager?.dispose()

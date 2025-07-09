@@ -10,11 +10,18 @@ import {
     IViewerPlugin,
     IViewerPluginSync,
     Texture,
-    ThreeViewer, UndoManagerPlugin,
+    ThreeViewer,
+    UndoManagerPlugin,
     uploadFile,
     Vector2,
     Vector3,
-    Vector4, UiObjectConfig, WebGLCubeRenderTarget, WebGLMultipleRenderTargets, WebGLRenderTarget,
+    Vector4,
+    UiObjectConfig,
+    WebGLCubeRenderTarget,
+    WebGLMultipleRenderTargets,
+    WebGLRenderTarget,
+    windowDialogWrapper,
+    htmlDialogWrapper,
 } from 'threepipe'
 
 export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IViewerPluginSync {
@@ -49,6 +56,7 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
         viewer.addEventListener('postRender', this._postRender)
         viewer.addEventListener('preFrame', this._preFrame)
         viewer.addEventListener('postFrame', this._postFrame)
+        if (ThreeViewer.Dialog === windowDialogWrapper) ThreeViewer.Dialog = htmlDialogWrapper
         const undo = viewer.getOrAddPluginSync(UndoManagerPlugin) // yes, manual dependency
         const manager = undo?.undoManager
         if (manager) {
