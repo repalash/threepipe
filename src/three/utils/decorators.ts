@@ -43,6 +43,7 @@ export function uniform({uniforms, propKey, thisTarget = false, onChange}: {unif
         if (descriptor) {
             if (objectHasOwn(descriptor, 'value')) delete descriptor.value
             if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            // @ts-expect-error not in ts? old prop?
             if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
             return Object.assign(descriptor, prop)
         }
@@ -102,6 +103,7 @@ export function matDefine(key?: string|symbol, customDefines?: any, thisMat = fa
         if (descriptor) {
             if (objectHasOwn(descriptor, 'value')) delete descriptor.value
             if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            // @ts-expect-error not in ts? old prop?
             if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
             return Object.assign(descriptor, prop)
         }
@@ -175,6 +177,7 @@ export function bindToValue({obj, key, processVal, invProcessVal, onChange, onCh
         if (descriptor) {
             if (objectHasOwn(descriptor, 'value')) delete descriptor.value
             if (objectHasOwn(descriptor, 'writable')) delete descriptor.writable
+            // @ts-expect-error not in ts? old prop?
             if (objectHasOwn(descriptor, 'initializer')) delete (descriptor as any).initializer
             return Object.assign(descriptor, prop)
         }

@@ -30,3 +30,5 @@ export {pathJoin, getUrlQueryParam, setUrlQueryParam, remoteWorkerURL} from 'ts-
 export {css, glsl, html, svgUrl} from 'ts-browser-helpers'
 export {Serialization} from 'ts-browser-helpers'
 export {FnCaller} from 'ts-browser-helpers'
+export {windowDialogWrapper, type IDialogWrapper} from 'ts-browser-helpers'
+export {htmlDialogWrapper} from 'ts-browser-helpers'

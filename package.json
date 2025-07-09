@@ -35,6 +35,7 @@
     "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish && clean-package restore && git tag v$npm_package_version",
     "build": "npm run update-version && npm run compile && vite build",
     "dev": "NODE_ENV=development vite build --watch",
+    "vite": "NODE_ENV=development vite --config vite.examples.config.js",
     "build-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json",
     "dev-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
@@ -126,7 +127,7 @@
     "@types/wicg-file-system-access": "^2020.9.5",
     "popmotion": "^11.0.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.16.2",
+    "ts-browser-helpers": "^0.17.1",
     "uiconfig.js": "^0.1.5"
   },
   "peerDependencies": {
@@ -140,7 +141,7 @@
   "//": {
     "dependencies": {
       "uiconfig.js": "^0.1.5",
-      "ts-browser-helpers": "^0.16.2",
+      "ts-browser-helpers": "^0.17.1",
       "three": "https://github.com/repalash/three.js-modded/releases/download/v0.158.1004/package.tgz",
       "three-f": "https://github.com/repalash/three.js-modded/archive/refs/tags/v0.158.1004.tar.gz",
       "@types/three": "https://github.com/repalash/three-ts-types/releases/download/v0.158.1004/package.tgz",
