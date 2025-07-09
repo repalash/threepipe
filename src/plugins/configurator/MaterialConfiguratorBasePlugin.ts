@@ -2,7 +2,7 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from '../interaction/PickingPlugin'
 import {imageBitmapToBase64, makeColorSvgCircle, serialize} from 'ts-browser-helpers'
 import {UiObjectConfig} from 'uiconfig.js'
-import {IMaterial, PhysicalMaterial} from '../../core'
+import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialPreviewGenerator} from '../../three'
 import {Color} from 'three'
 
@@ -160,7 +160,16 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
     @serialize()
         variations: MaterialVariations[] = []
 
-    private _selectedMaterial = () => (this._picking?.getSelectedObject()?.material || undefined) as IMaterial | undefined
+    private _selectedMaterial = () => {
+        const selected = this._picking?.getSelectedObject()
+        if (!selected) return undefined
+        if ((selected as IMaterial).isMaterial) return selected as IMaterial
+        else {
+            const mat = ((selected as IObject3D)?.material || undefined) as IMaterial | undefined
+            if (Array.isArray(mat)) return mat[0]
+            return mat
+        }
+    }
     uiConfig: UiObjectConfig = {
         label: 'Material Configurator',
         type: 'folder',

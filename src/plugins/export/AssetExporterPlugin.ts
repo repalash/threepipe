@@ -77,11 +77,12 @@ export class AssetExporterPlugin extends AViewerPluginSync {
     async exportSelected(options?: ExportAssetOptions, download = true) {
         const selected = this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')?.getSelectedObject() as any
         if (!selected) {
-            alert('Nothing selected')
+            this._viewer?.dialog.alert('Export Selected: Nothing selected')
             return
         }
+        const name = selected.name || 'selected'
         const blob = await this._viewer!.assetManager.exporter.exportObject(selected, options ?? this.exportOptions)
-        if (blob && download) await this._viewer?.exportBlob(blob, 'object.' + blob.ext)
+        if (blob && download) await this._viewer?.exportBlob(blob, name + '.' + blob.ext)
         return blob
     }
 

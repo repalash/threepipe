@@ -4,7 +4,7 @@ import {OrbitControls3, TransformControls2} from '../../three'
 import {PickingPlugin} from './PickingPlugin'
 import {JSUndoManager, onChange} from 'ts-browser-helpers'
 import {TransformControls} from '../../three/controls/TransformControls'
-import {UnlitLineMaterial, UnlitMaterial} from '../../core'
+import {IObject3D, UnlitLineMaterial, UnlitMaterial} from '../../core'
 import {Euler, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
@@ -29,7 +29,7 @@ export class TransformControlsPlugin extends AViewerPluginSync {
             this._pickingWidgetDisabled = false
         }
         if (this.transformControls) {
-            if (enabled && picking.getSelectedObject()) this.transformControls.attach(picking.getSelectedObject()!)
+            if (enabled && picking.getSelectedObject<IObject3D>()?.isObject3D) this.transformControls.attach(picking.getSelectedObject<IObject3D>()!)
             else this.transformControls.detach()
         }
         this._viewer.setDirty()

@@ -170,7 +170,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
     /**
      * Only for {@link downloadSnapshot} and functions using that
      */
-    @uiConfig()
+    @uiConfig(undefined, {label: 'Options'})
     @serialize()
         defaultOptions: CanvasSnapshotPluginOptions = {
             waitForProgressive: true,

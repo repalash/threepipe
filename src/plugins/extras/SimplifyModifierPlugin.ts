@@ -61,7 +61,8 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
 
     simplifyGeometries(geometry?: ValOrArr<IGeometry>, options?: SimplifyOptions) {
         if (!geometry) {
-            const selected = this._pickingPlugin?.getSelectedObject()
+            const selected = this._pickingPlugin?.getSelectedObject<IObject3D>()
+            if (!selected?.isObject3D) return
             const geom: IGeometry[] = []
             selected?.traverse((o) => {
                 if (o.geometry && !geom.includes(o.geometry)) geom.push(o.geometry)
@@ -84,7 +85,7 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
         disposeOnReplace = false,
     }: SimplifyOptions = {}): IGeometry|undefined {
         if (!geometry) {
-            const selected = this._pickingPlugin?.getSelectedObject()
+            const selected = this._pickingPlugin?.getSelectedObject<IObject3D>()
             geometry = selected?.geometry
             if (!geometry) return undefined
         }
@@ -184,9 +185,9 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
                 return
             }
         }
-        const selected = this._pickingPlugin?.getSelectedObject()
-        if (!selected) {
-            await this._viewer.dialog.alert('Simplify: Nothing Selected')
+        const selected = this._pickingPlugin?.getSelectedObject<IObject3D>()
+        if (!selected?.isObject3D) {
+            await this._viewer.dialog.alert('Simplify: No Object Selected')
             return
         }
         let doAll = false

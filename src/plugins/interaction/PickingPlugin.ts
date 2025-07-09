@@ -1,7 +1,7 @@
 import {EventListener2, Object3D} from 'three'
 import {Class, onChange, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
+import {bindToValue, BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
 import {IMaterial, IObject3D, IScene, ISceneEventMap} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
@@ -9,10 +9,7 @@ import {type UndoManagerPlugin} from './UndoManagerPlugin'
 import {ObjectPickerEventMap} from '../../three/utils/ObjectPicker'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 
-export interface PickingPluginEventMap extends AViewerPluginEventMap{
-    selectedObjectChanged: {object: IObject3D|null}
-    hoverObjectChanged: {object: IObject3D|null}
-    hitObject: {intersects: {selectedObject: IObject3D|null}}
+export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
 
 export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
@@ -41,6 +38,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.uiConfig && this.uiConfig.uiRefresh?.()
     }
 
+    @bindToValue({obj: '_picker', key: 'selectionMode'})
+        selectionMode: 'object' | 'material' = 'object'
+
     @serialize()
         autoFocus
 
@@ -54,10 +54,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         widgetEnabled = true
 
     protected _widgetEnabledChange() {
-        if (this.widgetEnabled && this._picker?.selectedObject)
-            this._widget?.attach(this._picker.selectedObject)
+        if (!this._widget) return
+        if (this.widgetEnabled && (this._picker?.selectedObject as IObject3D)?.isObject3D)
+            this._widget.attach(this._picker!.selectedObject as IObject3D)
         else
-            this._widget?.detach()
+            this._widget.detach()
         this.uiConfig?.uiRefresh?.(true)
     }
 
@@ -81,12 +82,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.dispatchEvent = this.dispatchEvent.bind(this)
     }
 
-    getSelectedObject<T extends IObject3D = IObject3D>(): T|undefined {
+    getSelectedObject<T extends IObject3D|IMaterial = IObject3D|IMaterial>(): T|undefined {
         if (this.isDisabled()) return
         return this._picker?.selectedObject as T || undefined
     }
 
-    setSelectedObject(object: IObject3D|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
+    setSelectedObject(object: IObject3D|IMaterial|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
         const disabled = this.isDisabled()
         if (disabled && !object) return
         if (!this._picker) return
@@ -94,7 +95,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.autoFocus = false
         this._picker.setSelected(object || null, trackUndo)
         this.autoFocus = t
-        if (!disabled && object && (t || focusCamera)) this.focusObject(object)
+        if (!disabled && object && this.selectionMode === 'object' && (t || focusCamera)) this.focusObject(object as IObject3D)
     }
 
     onAdded(viewer: ThreeViewer): void {
@@ -121,6 +122,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('selectedObjectChanged', this._selectedObjectChanged)
         this._picker.addEventListener('hoverObjectChanged', this._hoverObjectChanged)
         this._picker.addEventListener('hitObject', this._onObjectHit)
+        this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
 
         // on material drop on selected object
         // viewer.scene.addEventListener('addSceneObject', async(e) => {
@@ -172,6 +174,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             this._picker.removeEventListener('selectedObjectChanged', this._selectedObjectChanged)
             this._picker.removeEventListener('hoverObjectChanged', this._hoverObjectChanged)
             this._picker.removeEventListener('hitObject', this._onObjectHit)
+            this._picker.removeEventListener('selectionModeChanged', this._selectionModeChanged)
             this._picker.dispose()
             this._picker.undoManager = undefined // because setting above
             this._picker = undefined
@@ -197,11 +200,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     private _checkSelectedInScene() {
-        if (this.isDisabled()) return
+        if (this.isDisabled() || !this._viewer) return
         const s = this.getSelectedObject()
+        if (!s || !(s as IObject3D).isObject3D) return // ignoring checking for materials in scene
         let inScene = false
-        s?.traverseAncestors((o) => {
-            if (o === this._viewer?.scene) inScene = true
+        ;(s as IObject3D).traverseAncestors((o) => {
+            if (inScene || o !== this._viewer!.scene) return
+            inScene = true
         })
         if (!inScene) this.setSelectedObject(undefined, false, false)
     }
@@ -218,7 +223,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{
         if (e.source === PickingPlugin.PluginType) return
-        if (e.object === undefined && e.value === undefined) console.error('e.object or e.value must be set for picking, can be null to unselect')
+        if (e.object === undefined && e.value === undefined) console.error('PickingPlugin - Error handling object/material `select` event `e.object` or `e.value` must be set for picking, `value` can be null to unselect')
         else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, true)
     }
 
@@ -240,38 +245,54 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             const ui = this.uiConfig
             ui.children = [...this._uiConfigChildren]
             if (selected) {
-                ui.children.push(
-                    {
-                        type: 'button',
-                        label: 'Focus',
-                        value: ()=>{
-                            // const selected = this.getSelectedObject()
-                            if (selected.assetType && selected.parentRoot) // todo also check if acceptChildEvents is set on some parent?
-                                selected.dispatchEvent({type: 'select', ui: true, object: selected, bubbleToParent: true, focusCamera: true})
-                            else
-                                this.setSelectedObject(selected, true)
-                        },
-                    },
-                    {
-                        type: 'button',
-                        label: 'Select Parent',
-                        hidden: ()=>!selected.parent,
-                        value: ()=>{
-                            const parent = selected.parent
-                            if (parent) {
-                                if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
-                                    parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, object: parent})
+                if ((selected as IObject3D).isObject3D) {
+                    const obj = (selected as IObject3D)
+                    ui.children.push(
+                        {
+                            type: 'button',
+                            label: 'Focus',
+                            value: () => {
+                                if (!obj.isObject3D) return
+                                // const selected = this.getSelectedObject()
+                                if (selected.assetType && obj.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                                    obj.dispatchEvent({
+                                        type: 'select',
+                                        ui: true,
+                                        object: obj,
+                                        bubbleToParent: true,
+                                        focusCamera: true,
+                                    })
                                 else
-                                    this.setSelectedObject(parent, false)
-                            }
+                                    this.setSelectedObject(obj, true)
+                            },
                         },
-                    },
-                )
+                        {
+                            type: 'button',
+                            label: 'Select Parent',
+                            hidden: () => !obj.parent,
+                            value: () => {
+                                if (!obj.isObject3D) return
+                                const parent = obj.parent
+                                if (parent) {
+                                    if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                                        parent.dispatchEvent({
+                                            type: 'select',
+                                            ui: true,
+                                            bubbleToParent: true,
+                                            object: parent,
+                                        })
+                                    else
+                                        this.setSelectedObject(parent, false)
+                                }
+                            },
+                        },
+                    )
+                }
                 let c = selected.uiConfig
                 if (c) ui.children.push(c)
                 else {
                     // check materials
-                    const mats = selected.materials ?? [selected.material as IMaterial]
+                    const mats = (selected as IObject3D).materials ?? [(selected as IObject3D).material as IMaterial]
                     for (const m of mats) {
                         c = m?.uiConfig
                         if (c) ui.children.push(c)
@@ -284,7 +305,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
         const widget = this._widget
         if (widget && this.widgetEnabled) {
-            if (selected) widget.attach(selected)
+            if ((selected as IObject3D)?.isObject3D) widget.attach((selected as IObject3D))
             else widget.detach()
         }
 
@@ -292,20 +313,21 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
         this._viewer.setDirty()
 
-        if (this.autoFocus) {
+        if (this.autoFocus && this.selectionMode === 'object') {
             // this._viewer.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
-            this.focusObject(selected)
+            this.focusObject(selected as IObject3D | undefined)
         }
 
     }
 
     private _hoverObjectChanged = (e: any) => {
+        if (!this._viewer) return
         this.dispatchEvent(e)
         const selected = this._picker?.hoverObject || undefined
 
         const widget = this._hoverWidget
         if (widget && this.widgetEnabled) {
-            if (selected) widget.attach(selected)
+            if ((selected as IObject3D)?.isObject3D) widget.attach((selected as IObject3D))
             else widget.detach()
         }
 
@@ -313,9 +335,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
         this._viewer?.setDirty()
 
-        if (this.autoFocusHover) {
+        if (this.autoFocusHover && this.selectionMode === 'object') {
             // this._viewer?.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
-            this.focusObject(selected)
+            this.focusObject(selected as IObject3D | undefined)
         }
 
 
@@ -329,9 +351,15 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }
         this.dispatchEvent(e)
     }
+    private _selectionModeChanged = (e: any)=>{
+        if (!this._viewer) return
+        this.dispatchEvent(e)
+        if (this.isDisabled()) return
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
+    }
 
-    public async focusObject(selected?: Object3D) {
-        this._viewer?.fitToView(selected, 1.25, 1000, 'easeOut')
+    public async focusObject(selected?: Object3D|null) {
+        this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
     }
 
     private _uiConfigChildren: UiObjectConfig[] = [
@@ -346,6 +374,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             property: [this, 'hoverEnabled'],
             onChange: ()=>this.uiConfig.uiRefresh?.(true), // for autoFocusHover
         },
+        // {
+        //     label: 'Selection Mode',
+        //     type: 'dropdown',
+        //     children: ['object', 'material'].map(v=>({label: v, value: v})),
+        //     onChange: ()=>this.uiConfig.uiRefresh?.(true),
+        // },
         {
             label: 'Auto Focus',
             type: 'checkbox',

@@ -1,17 +1,21 @@
 import {EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
-import {JSUndoManager, now} from 'ts-browser-helpers'
-import {ICamera, IObject3D} from '../../core'
+import {JSUndoManager, now, onChangeDispatchEvent} from 'ts-browser-helpers'
+import {ICamera, IMaterial, IObject3D} from '../../core'
 
 export interface ObjectPickerEventMap{
-    hoverObjectChanged: {object: IObject3D | null}
-    selectedObjectChanged: {object: IObject3D | null}
+    hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: IObject3D | IMaterial | null},
+    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: IObject3D | IMaterial | null},
     hitObject: {time: number, intersects: {selectedObject: IObject3D | null, intersect: Intersection<IObject3D> | null, intersects: Intersection<IObject3D>[]}}
+    selectionModeChanged: {detail: {key: 'selectionMode', value: 'object' | 'material', oldValue: 'object' | 'material'}}
 }
 
 export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _firstHit: IObject3D | undefined
 
     hoverEnabled = false
+    @onChangeDispatchEvent('selectionModeChanged')
+        selectionMode: 'object' | 'material' = 'object'
+
     /**
      * Time threshold for a pointer click event
      */
@@ -31,8 +35,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     public selectionCondition: (o: IObject3D) => boolean
     public raycaster: Raycaster
     public mouse: Vector2
-    private _selected: IObject3D[]
-    private _hovering: IObject3D[]
+    private _selected: IObject3D[] | IMaterial[]
+    private _hovering: IObject3D[] | IMaterial[]
     public cursorStyles: {default: string; down: string}
     public domElement: HTMLElement
     constructor(root: IObject3D, domElement: HTMLElement, camera: ICamera, selectionCondition?: (o:IObject3D)=>boolean) {
@@ -74,7 +78,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     }
 
     dispose() {
-        this.selectedObject = null
+        this.setSelected(null)
         this.hoverObject = null
 
         this.domElement.removeEventListener('pointermove', this._onPointerMove)
@@ -94,33 +98,52 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         this._camera = value
     }
 
-    get selectedObject(): IObject3D | null {
+    get selectedObject(): IObject3D | IMaterial | null {
         return this._selected.length > 0 ? this._selected[0] : null
     }
 
-    set selectedObject(object) {
-        this.setSelected(object)
-    }
+    // set selectedObject(object) {
+    //     this.setSelected(object)
+    // }
 
-    setSelected(object: IObject3D|null, record = true) {
+    setSelected(object: IObject3D | IMaterial | null, record = true) {
+        if ((object as IObject3D)?.isObject3D && this.selectionMode === 'material' ||
+            (object as IMaterial)?.isMaterial && this.selectionMode === 'object') {
+            this.selectionMode = (object as IMaterial)?.isMaterial ? 'material' : 'object'
+        }
         if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object) return
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
-        this.dispatchEvent({type: 'selectedObjectChanged', object: this.selectedObject})
+
+        const obj = this.selectedObject
+        this.dispatchEvent({
+            type: 'selectedObjectChanged',
+            object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
+            material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
+            value: obj,
+        })
+
         record && this.undoManager?.record({
             undo: () => this.setSelected(current.length ? current[0] : null, false),
             redo: () => this.setSelected(object, false),
         })
     }
 
-    get hoverObject(): IObject3D | null {
+    get hoverObject(): IObject3D | IMaterial | null {
         return this._hovering.length > 0 ? this._hovering[0] : null
     }
 
-    set hoverObject(object: IObject3D | IObject3D[] | null) {
+    set hoverObject(object: IObject3D | IObject3D[] | IMaterial | IMaterial[] | null) {
         if (!this._hovering.length && !object || this._hovering.length === 1 && this._hovering[0] === object) return
-        this._hovering = object ? Array.isArray(object) ? [...object] : [object] : []
-        this.dispatchEvent({type: 'hoverObjectChanged', object: this.hoverObject})
+        this._hovering = (object ? Array.isArray(object) ? [...object] : [object] : []) as (IObject3D[] | IMaterial[])
+
+        const obj = this.hoverObject
+        this.dispatchEvent({
+            type: 'hoverObjectChanged',
+            object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
+            material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
+            value: obj,
+        })
     }
 
     get time() {
@@ -202,7 +225,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         const intersects = this.checkIntersection()
         if (intersects) this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects})
         else this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects: {selectedObject: null, intersect: null, intersects: []}})
-        this.selectedObject = intersects?.selectedObject || null
+
+        let obj: IObject3D|IMaterial|null = intersects?.selectedObject || null
+        if (this.selectionMode === 'material' && obj && obj.material) {
+            obj = Array.isArray(obj.material) ? obj.material[0] : obj.material
+        }
+        this.setSelected(obj)
     }
 
     checkIntersection() {

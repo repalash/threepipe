@@ -4,6 +4,7 @@ import {PickingPlugin} from '../interaction/PickingPlugin'
 import {UiObjectConfig} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {snapObject} from '../../three'
+import {IObject3D} from '../../core'
 
 /**
  * Switch Node Plugin (Base)
@@ -131,8 +132,8 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
     @serialize() variations: ObjectSwitchNode[] = []
 
     protected _selectedSwitchNode = (): Object3D | undefined => {
-        const obj = this._picking?.getSelectedObject() // (?.material || undefined) as IMaterial | undefined
-        if (!obj) return undefined
+        const obj = this._picking?.getSelectedObject<IObject3D>() // (?.material || undefined) as IMaterial | undefined
+        if (!obj?.isObject3D) return undefined
         const nodes = this.variations.map(v => v.name)
         let found: Object3D | undefined = undefined
         obj.traverseAncestors(a => {

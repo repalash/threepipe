@@ -110,8 +110,8 @@ export class AssimpJsPlugin extends AViewerPluginSync {
             return
         }
         const initing = this.init()
-        const selected = this.exportSelected ? this._viewer.getPlugin(PickingPlugin)?.getSelectedObject() : undefined
-        object = object || selected || this._viewer.scene.modelRoot
+        const selected = this.exportSelected ? this._viewer.getPlugin(PickingPlugin)?.getSelectedObject<IObject3D>() : undefined
+        object = object || (selected?.isObject3D ? selected : this._viewer.scene.modelRoot)
 
         // export to glb
         const blob = await this._viewer.export(object, options)
