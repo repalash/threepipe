@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-path-tracing",
     "description": "Path tracing plugin interfaces for Threepipe",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "devDependencies": {
         "three-gpu-pathtracer": "^0.0.23"
     },
