@@ -39,6 +39,7 @@ export default defineConfig({
           {text: 'UI Configuration', link: 'guide/ui-config'},
           {text: 'Serialization', link: 'guide/serialization'},
           {text: 'Plugin System', link: 'guide/plugin-system'},
+          {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
         ]
       },
       {
@@ -47,6 +48,7 @@ export default defineConfig({
           {text: 'Mesh Lines (Spiral)', link: 'notes/fat-lines'},
           {text: 'glTF Mesh Lines', link: 'notes/gltf-mesh-lines'},
           {text: 'Setting Background', link: 'notes/scene-background'},
+          {text: 'ShaderToy Shader Tutorial', link: 'notes/shadertoy-player'},
         ]
       },
       {

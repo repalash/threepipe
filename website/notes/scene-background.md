@@ -3,7 +3,9 @@ prev:
   text: 'GLTF Fat/Mesh Lines'
   link: './gltf-mesh-lines'
 
-next: false
+next: 
+  text: 'ShaderToy Shaders in Three.js'
+  link: './shadertoy-player'
 aside: false
 ---
 

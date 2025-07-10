@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Blend Load</title>
+    <title>Screen Shader</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
@@ -11,8 +11,7 @@
     <script type="importmap">
     {
         "imports": {
-          "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-blend-importer": "./../../plugins/blend-importer/dist/index.mjs"
+          "threepipe": "./../../dist/index.mjs"
         }
     }
 
@@ -28,22 +27,29 @@
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-        import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+        import {_testFinish, _testStart, ThreeViewer} from 'threepipe'
 
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas'), dropzone: {
-            addOptions: {clearSceneObjects: true}
-            }})
-        viewer.addPluginsSync([BlendLoadPlugin, LoadingScreenPlugin])
+        // Set a custom screen shader snippet to modify the final rendered image.
+        // Here, `diffuseColor` is the final color of the pixel which can be modified.
+        // This happens before the final post-processing effects(like tonemap, vignette, film-grain etc.) are applied.
+        // Checkout the ScreenPass guide for more details: https://threepipe.org/docs/guides/screen-pass
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            screenShader: `
+            // add a basic red tint
+            diffuseColor *= vec4(1.0, 0.0, 0.0, 1.0);
+            `
+        })
 
         async function init() {
+            viewer.scene.backgroundColor.set(0)
 
             await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-            const result = await viewer.load('https://asset-samples.threepipe.org/minimal/default-cube.blend', {
+
+            await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
                 autoCenter: true,
-                autoScale: false,
+                autoScale: true,
             })
-            console.log(result)
         }
 
         _testStart()

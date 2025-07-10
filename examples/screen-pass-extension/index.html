@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Pass Extension</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module">
+        import {_testFinish, _testStart, ThreeViewer, Color, shaderReplaceString} from 'threepipe'
+        import {TweakpaneUiPlugin} from "@threepipe/plugin-tweakpane"
+
+        // Add a material extension to the screen shader material to modify the final rendered image.
+        // Here, `#glMarker` patched in the screen shader material will be replaced with a custom function that applies a tint color to the final rendered image.
+        // Checkout the ScreenPass guide for more details: https://threepipe.org/docs/guides/screen-pass
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            tonemap: true, // also tonemap (this is also added as an extension)
+        })
+
+        const extension = {
+            extraUniforms: {
+                tintColor: {value: new Color(0, 1, 1)} // cyan tint
+            },
+            parsFragmentSnippet: ` // this is added before the main function
+                uniform vec3 tintColor;
+                vec4 applyTint(vec4 color) {
+                    return vec4(color.rgb * tintColor, color.a);
+                }
+                `,
+            shaderExtender: (shader, material, renderer)=>{
+                console.log('Patching shader')
+                shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
+                    '#glMarker', `
+                    diffuseColor = applyTint(diffuseColor);
+                    `,
+                    {prepend: true} // (prepend, not replace)
+                )
+            },
+            // add other properties like computeCacheKey etc
+        } /*as MaterialExtension */
+        viewer.renderManager.screenPass.material.registerMaterialExtensions([extension])
+
+        async function init() {
+            viewer.scene.backgroundColor.set(0)
+
+            await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+
+            await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+                autoCenter: true,
+                autoScale: true,
+            })
+
+            // Add the color to the UI
+            const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+            ui.appendChild({
+                type: 'color',
+                property: [extension.extraUniforms.tintColor, 'value'],
+                label: 'Tint Color',
+                description: 'Change the tint color applied to the final rendered image.',
+                onChange: ()=>{
+                    viewer.setDirty()
+                }
+            })
+
+        }
+
+        _testStart()
+        init().finally(_testFinish)
+    </script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+</body>

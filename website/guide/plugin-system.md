@@ -3,9 +3,9 @@ prev:
     text: 'Serialization'
     link: './serialization'
 
-#next:
-#    text: 'UI Configuration'
-#    link: './ui-config'
+next:
+    text: 'Screen Pass'
+    link: './screen-pass'
 ---
 
 # Plugin System
@@ -123,8 +123,8 @@ Notes:
 * To the viewer render the next frame, `viewer.setDirty()` can be called, or set `this.dirty = true` in preFrame and reset in postFrame to stop the rendering. (Note that rendering may continue if some other plugin sets the viewer dirty like `ProgressivePlugin` or any of the animation plugins). Check `isConverged` in `ProgressivePlugin` to check if it's the final frame.
 * All Plugins which inherit from AViewerPlugin support serialisation. Create property `serializeWithViewer = false` to disable serialisation with the viewer in config and glb or `toJSON: any = undefined` to disable serialisation entirely
 * `plugin.toJSON()` and `plugin.fromJSON()` or `ThreeSerialization` can be used to serialize and deserialize plugins. `viewer.exportPluginConfig` and `viewer.importPluginConfig` also exist for this.
-* @serialize('label') decorator can be used to mark any public/private variable as serializable. label (optional) corresponds to the key in JSON.
-* @serialize supports instances of ITexture, IMaterial, all primitive types, simple JS objects, three.js math classes(Vector2, Vector3, Matrix3...), and some more.
-* uiDecorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when TweakpaneUiPlugin/BlueprintJsUiPlugin is added to the viewer. Plugins have special features in the UI for download preset and saving state.
+* `@serialize('label')` decorator can be used to mark any public/private variable as serializable. label (optional) corresponds to the key in JSON.
+* `@serialize` supports instances of ITexture, IMaterial, all primitive types, simple JS objects, three.js math classes(`Vector2`, `Vector3`, `Matrix3`...), and some more.
+* `@ui...` decorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when `TweakpaneUiPlugin`/`BlueprintJsUiPlugin` is added to the viewer. Plugins have special features in the UI for download preset and saving state.
 
 Check various plugins in the source code for more examples.

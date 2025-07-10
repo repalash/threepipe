@@ -70,8 +70,7 @@ Render targets created with a `sizeMultiplier` are automatically resized when th
 ## Passes
 
 By default, the render pipeline([`ViewerRenderManager`](https://threepipe.org/docs/classes/ViewerRenderManager.html) includes 2 passes -
-[RenderPass](https://threepipe.org/docs/classes/ExtendedRenderPass.html) for rendering the scene hierarchy and [ScreenPass](https://threepipe.org/docs/classes/ShaderPass)
-for rendering the final output on the canvas.
+[RenderPass](https://threepipe.org/docs/classes/ExtendedRenderPass.html) for rendering the scene hierarchy and [ScreenPass](https://threepipe.org/docs/classes/ScreenPass.html) for rendering the final output on the canvas.
 
 More passes can be added and removed from the pipeline
 using the [registerPass](https://threepipe.org/docs/classes/RenderManager.html#registerPass) and [unregisterPass](https://threepipe.org/docs/classes/RenderManager.html#unregisterPass) methods.

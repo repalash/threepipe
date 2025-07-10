@@ -20,6 +20,15 @@ import {shaderReplaceString} from '../utils'
 export type TViewerScreenShaderFrag = string | [string, string] | {pars?: string, main: string}
 export type TViewerScreenShader = TViewerScreenShaderFrag | ShaderMaterialParameters | ShaderMaterial2
 
+/**
+ * Screen Pass
+ *
+ * This pass renders the final scene to the screen.
+ * It can be extended by Screen Pass Extensions to apply post-processing effects, such as tonemapping, color grading, etc.
+ *
+ * It is used by default in {@link ViewerRenderManager} to render the final scene.
+ * A custom material/shader can be passed to the constructor to use a custom base fragment shader.
+ */
 @uiFolderContainer('Screen Pass')
 export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'screen'> {
     declare uiConfig: UiObjectConfig
@@ -100,12 +109,21 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
 }
 
 function makeScreenShader(shader: string | [string, string] | {pars?: string; main: string} | ShaderMaterialParameters | ShaderMaterial2) {
+    const baseShader = shaderReplaceString(
+        ScreenPassShader,
+        'void main()',
+        (Array.isArray(shader) ? shader[0] : (<any>shader)?.pars || '') + '\n',
+        {prepend: true}
+    )
+    const finalShader = baseShader.includes('#glMarker') ? shaderReplaceString(
+        baseShader,
+        '#glMarker',
+        (Array.isArray(shader) ? shader[1] : typeof shader === 'string' ? shader : (shader as any)?.main || '') + '\n',
+        {prepend: true}
+    ) : baseShader
     return {
         ...CopyShader,
-        fragmentShader:
-            shaderReplaceString(shaderReplaceString(ScreenPassShader,
-                'void main()', (Array.isArray(shader) ? shader[0] : (<any>shader)?.pars || '') + '\n', {prepend: true}),
-            '#glMarker', (Array.isArray(shader) ? shader[1] : typeof shader === 'string' ? shader : (shader as any)?.main || '') + '\n', {prepend: true}),
+        fragmentShader: finalShader,
         uniforms: {
             tDiffuse: {value: null},
             tTransparent: {value: null},

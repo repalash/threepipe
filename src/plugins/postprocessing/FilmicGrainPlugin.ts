@@ -52,10 +52,16 @@ export class FilmicGrainPlugin extends AScreenPassExtensionPlugin {
 
     protected _shaderPatch = 'diffuseColor = FilmicGrain(diffuseColor);'
 
+    /**
+     * @deprecated
+     */
     get grainIntensity() {
         console.warn('FilmicGrainPlugin.grainIntensity is deprecated, use FilmicGrainPlugin.intensity instead')
         return this.intensity
     }
+    /**
+     * @deprecated
+     */
     set grainIntensity(v) {
         console.warn('FilmicGrainPlugin.grainIntensity is deprecated, use FilmicGrainPlugin.intensity instead')
         this.intensity = v

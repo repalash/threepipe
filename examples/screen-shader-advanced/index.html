@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Shader Advanced</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module">
+        import {_testFinish, _testStart, ThreeViewer, Color} from 'threepipe'
+        import {TweakpaneUiPlugin} from "@threepipe/plugin-tweakpane"
+
+        // Set a custom screen shader snippet to modify the final rendered image.
+        // Here, `diffuseColor` is the final color of the pixel which can be modified.
+        // This happens before the final post-processing effects(like tonemap, vignette, film-grain etc.) are applied.
+        // Checkout the ScreenPass guide for more details: https://threepipe.org/docs/guides/screen-pass
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            screenShader: {
+                pars: ` // this is added before the main function
+                uniform vec3 tintColor;
+                vec4 applyTint(vec4 color) {
+                    return vec4(color.rgb * tintColor, color.a);
+                }
+                `,
+                main: ` // this is added inside the main function
+                diffuseColor = applyTint(diffuseColor);
+                `
+            }
+        })
+        // add the uniform js reference to the screen pass material
+        viewer.renderManager.screenPass.material.uniforms.tintColor = {
+            value: new Color(0, 0, 1) // blue tint
+        }
+
+        async function init() {
+            viewer.scene.backgroundColor.set(0)
+
+            await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+
+            await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+                autoCenter: true,
+                autoScale: true,
+            })
+
+            // Add the color to the UI
+            const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+            ui.appendChild({
+                type: 'color',
+                property: [viewer.renderManager.screenPass.material.uniforms.tintColor, 'value'],
+                label: 'Tint Color',
+                description: 'Change the tint color applied to the final rendered image.',
+                onChange: ()=>{
+                    viewer.setDirty()
+                }
+            })
+
+        }
+
+        _testStart()
+        init().finally(_testFinish)
+    </script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+</body>
