@@ -366,6 +366,9 @@ function worker_code () {
                 blen_struct.prototype.__pointers = [];
                 blen_struct.prototype.__list__ = [];
 
+                const DNA = this.SDNA[name] = {
+                    constructor: blen_struct,
+                };
                 let offset = 0;
                 // Create properties of struct
                 for (let i = 0; i < struct.length; i += 3) {
@@ -379,9 +382,6 @@ function worker_code () {
                         Suparray_match = 1,
                         PointerToArray = false,
                         Pointer_Match = 0;
-                    const DNA = this.SDNA[name] = {
-                        constructor: blen_struct,
-                    };
 
 
                     let original_name = _name;
@@ -726,10 +726,21 @@ function worker_code () {
             }
 
             data_offset = offset;
+
+            if (offset + pointer_size + 12 >= data.byteLength) {
+                return ERROR = 'Unexpected end of file while parsing';
+            }
+
             sdna_index = data.getInt32(offset + pointer_size + 8, BIG_ENDIAN);
             let code_uint = data.getUint32(offset, BIG_ENDIAN);
             offset2 = offset + 16 + (pointer_size);
-            offset += data.getInt32(offset + 4, true) + 16 + (pointer_size);
+
+            const blockLength = data.getInt32(offset + 4, true);
+            if (blockLength < 0 || offset + blockLength + 16 + pointer_size > data.byteLength) {
+                return ERROR = 'Invalid block length detected';
+            }
+
+            offset += blockLength + 16 + (pointer_size);
 
             if (code_uint === DNA1); // skip - already processed at this point
             else if (code_uint === ENDB) break; // end of __blender_file__ found
