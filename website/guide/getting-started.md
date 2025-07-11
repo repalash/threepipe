@@ -16,9 +16,9 @@ Getting started with Threepipe is easy. You can use it in your HTML/JS, React, V
 
 ## What you need
 
-- A 3D Model (GLTF, GLB, OBJ, FBX, etc). Optionally, the model, scene, and plugins can be configured, compressed and exported using the [Threepipe Editor](https://editor.threepipe.org) or [Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/). A sample is used in examples below.
+- A 3D Model (GLTF, GLB, OBJ, FBX, etc). Optionally, the model, scene, and plugins can be configured, compressed and exported using the [Threepipe Editor](https://editor.threepipe.org) or [Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/). Here is a sample model with configured settings - [classic-watch.glb](https://asset-samples.threepipe.org/demos/classic-watch.glb)
 - A modern browser that supports [WebGL2](https://caniuse.com/webgl2) and [WebAssembly](https://caniuse.com/webassembly) (for some plugins).
-- Node.js (for local development). Node 18+ is recommended.
+- Node.js (optional, only for local development). Node 18+ is recommended.
 - An existing project or willingness to start a new one
 - Basic knowledge of JavaScript/TypeScript
 

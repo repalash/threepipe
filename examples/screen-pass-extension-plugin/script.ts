@@ -21,7 +21,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 @uiFolderContainer('Custom Tint Extension')
 export class CustomScreenPassExtensionPlugin extends AScreenPassExtensionPlugin {
-    static readonly PluginType = 'Vignette'
+    static readonly PluginType = 'CustomScreenPassExtensionPlugin'
 
     readonly extraUniforms = {
         intensity: {value: 1},
@@ -74,16 +74,16 @@ const viewer = new ThreeViewer({
 })
 
 async function init() {
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-
-    await viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-        autoCenter: true,
-        autoScale: true,
-    })
+    await Promise.all([
+        viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'),
+        viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+            autoCenter: true,
+            autoScale: true,
+        })])
 
     // Add the color to the UI
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
-    ui.setupPluginUi(CustomScreenPassExtensionPlugin)
+    ui.setupPluginUi(CustomScreenPassExtensionPlugin, {expanded: true})
 
 }
 

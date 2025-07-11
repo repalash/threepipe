@@ -10,7 +10,7 @@ next:
 
 # Screen Pass - Extensions and Shaders
 
-The Screen Pass is the final rendering stage in Threepipe that outputs the rendered scene to the screen or a render target. It provides multiple ways to customize the final image through custom shaders, material extensions, and shader snippets.
+The `ScreenPass` is the final rendering stage in Threepipe that outputs the rendered scene to the screen or a render target. It provides multiple ways to customize the final image through custom shaders, material extensions, and shader snippets.
 
 ## Overview
 
@@ -21,6 +21,10 @@ The Screen Pass renders the final scene by processing the diffuse and transparen
 - Built-in features like tonemapping, background clipping, and transparency handling
 
 Check out the [ScreenPass.glsl](https://github.com/repalash/threepipe/blob/master/src/postprocessing/ScreenPass.glsl) for the default fragment shader code used in the screen pass.
+
+Let's explore how to customize the screen pass using different methods to achieve a color tint effect as an example.
+
+<iframe src="https://threepipe.org/examples/screen-pass-extension-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Screen Pass Extension Example"></iframe>
 
 ## Basic Screen Shader
 
@@ -136,9 +140,8 @@ void main() {
 ## Screen Pass Material Extensions
 
 Material extensions provide the most flexible way to modify the screen pass. They allow you to:
-- Add custom uniforms
-- Inject shader code
-- Add defines
+- Add custom uniforms, defines
+- Inject/modify shader code
 - Hook into render events
 
 ```typescript

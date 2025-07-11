@@ -24,7 +24,16 @@ ShaderToy is a popular online shader editor that uses a specific format for frag
 
 ## Step 1: Setting Up the Basic Structure
 
-First, import the necessary modules from threepipe:
+First, let's create a new project or install `threepipe`, `@threepipe/plugin-tweakpane`(into existing project) and import the necessary modules in your project:
+
+```bash
+# If you are starting a new project, use the following command to create a new threepipe project
+npm create threepipe@latest
+# If you are adding to an existing project, install threepipe and the Tweakpane UI plugin
+npm install threepipe @threepipe/plugin-tweakpane
+```
+
+Import the required modules in your JavaScript or TypeScript file:
 
 ```typescript
 import {
@@ -40,6 +49,10 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 ```
+
+::: tip
+Checkout the [Quickstart section](./../guide/getting-started#quickstart) for more details on how to set up a basic threepipe project.
+:::
 
 ## Step 2: Define ShaderToy Uniforms
 
