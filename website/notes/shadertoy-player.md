@@ -9,9 +9,9 @@ aside: false
 
 # ShaderToy Shaders in Three.js
 
-<iframe src="https://threepipe.org/examples/shadertoy-player/" style="width:100%;height:600px;border:none;"></iframe>
-
 This tutorial shows how to use shaders from ShaderToy in a Three.js scene by using them as custom screen shaders. You'll learn how to run ShaderToy shaders in a Three.js context, pass uniforms, and create interactive controls.
+
+<iframe src="https://threepipe.org/examples/shadertoy-player/" style="width:100%;height:600px;border:none;"></iframe>
 
 ## Overview
 

@@ -15,6 +15,8 @@ import {
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 // import {BlueprintJsUiPlugin} from '@threepipe/plugin-blueprintjs'
 
+// Checkout the code breakup and explanation here - https://threepipe.org/notes/shadertoy-player.html
+
 async function init() {
 
     const material = new ExtendedShaderMaterial({
