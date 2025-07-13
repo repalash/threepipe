@@ -228,7 +228,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         this.getWorldPosition(this._positionWorld)
 
         iCameraCommons.setDirty.call(this, options)
-        
+
         if (options?.last !== false)
             this._camUi.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
     }
@@ -359,11 +359,14 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     /**
      * Serializes this camera with controls to JSON.
      * @param meta - metadata for serialization
-     * @param baseOnly - Calls only super.toJSON, does internal three.js serialization. Set it to true only if you know what you are doing.
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer
      */
-    toJSON(meta?: any, baseOnly = false): any {
-        if (baseOnly) return super.toJSON(meta)
-        return ThreeSerialization.Serialize(this, meta, true)
+    toJSON(meta?: any, _internal = false): any {
+        if (_internal) return {
+            ...super.toJSON(meta),
+            ...ThreeSerialization.Serialize(this, meta, true), // this will serialize the properties of this class(like defined with @serialize and @serialize attribute)
+        }
+        return ThreeSerialization.Serialize(this, meta, false) // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
     }
 
     fromJSON(data: any, meta?: any): this | null {

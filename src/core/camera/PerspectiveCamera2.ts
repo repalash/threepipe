@@ -341,12 +341,15 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     /**
      * Serializes this camera with controls to JSON.
      * @param meta - metadata for serialization
-     * @param baseOnly - Calls only super.toJSON, does internal three.js serialization. Set it to true only if you know what you are doing.
+     * @param _internal - Calls only super.toJSON, does internal three.js serialization and `@serialize` tags. Set it to true only if you know what you are doing. This is used in Serialization->serializer
      */
-    toJSON(meta?: any, baseOnly = false): any {
-        if (baseOnly) return super.toJSON(meta)
+    toJSON(meta?: any, _internal = false): any {
+        if (_internal) return {
+            ...super.toJSON(meta),
+            ...ThreeSerialization.Serialize(this, meta, true), // this will serialize the properties of this class(like defined with @serialize and @serialize attribute)
+        }
         // todo add camOptions for backwards compatibility?
-        return ThreeSerialization.Serialize(this, meta, true)
+        return ThreeSerialization.Serialize(this, meta, false) // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
     }
 
     fromJSON(data: any, meta?: any): this | null {
@@ -376,6 +379,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         // todo: add check for OrbitControls being not deserialized(inited properly) if it doesn't exist yet (if it is not inited properly)
         // console.log(JSON.parse(JSON.stringify(data)))
         ThreeSerialization.Deserialize(data, this, meta, true)
+        this.refreshAspect(false)
         this.setDirty({change: 'deserialize'})
         return this
     }
