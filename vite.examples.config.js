@@ -12,6 +12,7 @@ const { name, version, author } = packageJson
 const {main, module, browser} = packageJson
 
 const alias = {
+    'uiconfig-tweakpane': path.resolve(__dirname, './../uiconfig-tweakpane/'),
     'three': path.resolve(__dirname, './node_modules/three/'),
     'threepipe': path.resolve(__dirname, './src/index.ts'),
     '@threepipe/plugin-network': path.resolve(__dirname, './plugins/network/src/index.ts'),
@@ -28,6 +29,7 @@ const alias = {
     '@threepipe/plugin-assimpjs': path.resolve(__dirname, './plugins/assimpjs/src/index.ts'),
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
+    '@threepipe/plugin-theatrejs': path.resolve(__dirname, './plugins/theatrejs/src/index.ts'),
     '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.4.1/dist/index.mjs',
     'react': 'https://esm.sh/react@18',
     'react-dom': 'https://esm.sh/react-dom@18',
@@ -82,4 +84,5 @@ export default defineConfig({
             },
         },
     ],
+
 })

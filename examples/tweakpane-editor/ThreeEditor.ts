@@ -64,18 +64,19 @@ import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
 import {GLTFDracoExportPlugin, GLTFSpecGlossinessConverterPlugin} from '@threepipe/plugin-gltf-transform'
-import {
-    B3DMLoadPlugin,
-    CMPTLoadPlugin,
-    DeepZoomImageLoadPlugin,
-    I3DMLoadPlugin,
-    PNTSLoadPlugin,
-    TilesRendererPlugin,
-    EnvironmentControlsPlugin,
-    GlobeControlsPlugin,
-} from '@threepipe/plugin-3d-tiles-renderer'
+// import {
+//     B3DMLoadPlugin,
+//     CMPTLoadPlugin,
+//     DeepZoomImageLoadPlugin,
+//     I3DMLoadPlugin,
+//     PNTSLoadPlugin,
+//     TilesRendererPlugin,
+//     EnvironmentControlsPlugin,
+//     GlobeControlsPlugin,
+// } from '@threepipe/plugin-3d-tiles-renderer'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
-import {ThreeGpuPathTracerPlugin} from '@threepipe/plugin-path-tracing'
+// import {ThreeGpuPathTracerPlugin} from '@threepipe/plugin-path-tracing'
+import {TheatreJsPlugin} from '@threepipe/plugin-theatrejs'
 // @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
@@ -139,16 +140,17 @@ export class ThreeEditor extends ThreeViewer {
         MaterialConfiguratorPlugin, SwitchNodePlugin,
         AWSClientPlugin, TransfrSharePlugin,
 
-        // todo add these to 3dviewer.xyz
-        EnvironmentControlsPlugin, GlobeControlsPlugin,
-        B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
-        TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
+        // // todo add these to 3dviewer.xyz
+        // EnvironmentControlsPlugin, GlobeControlsPlugin,
+        // B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
+        // TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
         new AssimpJsPlugin(false),
-        new ThreeGpuPathTracerPlugin(false),
+        // new ThreeGpuPathTracerPlugin(false),
+        TheatreJsPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin],
+        ['Viewer']: [TheatreJsPlugin, ViewerUiConfigPlugin, DropzonePlugin, FullScreenPlugin, TweakpaneUiPlugin, LoadingScreenPlugin, InteractionPromptPlugin/* , ThreeGpuPathTracerPlugin*/],
         ['Scene']: [SSAAPlugin, BaseGroundPlugin, SceneUiConfigPlugin, ContactShadowGroundPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['GBuffer']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin],
@@ -156,7 +158,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin/* , TilesRendererPlugin*/],
         ['Debug']: [RenderTargetPreviewPlugin],
     }
 
