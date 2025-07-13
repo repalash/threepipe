@@ -108,7 +108,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this.visible = false
         this.userData.bboxVisible = false
 
-        this.size = 2
+        this.size = 1.5
 
         this.addEventListener('objectChange', () => {
             this?.object?.setDirty && this.object.setDirty({frameFade: false})

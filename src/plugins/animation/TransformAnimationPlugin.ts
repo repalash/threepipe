@@ -42,7 +42,8 @@ export class TransformAnimationPlugin extends AViewerPluginSync {
     }
     private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
         const object = e.object
-        object?.traverse && object.traverse((o: IObject3D)=>{
+        object?.traverse && !object.isWidget && object.traverse((o: IObject3D)=>{
+            if (o.isWidget) return
             if (!o.userData[TransformAnimationPlugin.PluginType]) {
                 o.userData[TransformAnimationPlugin.PluginType] = {
                     transforms: [] as TSavedTransform[],
