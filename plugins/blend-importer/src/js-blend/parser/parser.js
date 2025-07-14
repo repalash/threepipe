@@ -144,6 +144,7 @@ function worker_code () {
                     this.__blender_file__.dv.setFloat64(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -159,6 +160,7 @@ function worker_code () {
                     this.__blender_file__.dv.setFloat32(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -174,6 +176,7 @@ function worker_code () {
                     this.__blender_file__.dv.setInt32(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -189,6 +192,7 @@ function worker_code () {
                     this.__blender_file__.dv.setUint32(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -204,6 +208,7 @@ function worker_code () {
                     this.__blender_file__.dv.setInt16(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -220,6 +225,7 @@ function worker_code () {
                     this.__blender_file__.dv.setUint16(this.__data_address__ + offset, float, this.__blender_file__.template.endianess);
                 }
             },
+            enumerable: true,
         };
     };
 
@@ -254,6 +260,7 @@ function worker_code () {
                     this.__blender_file__.byte[(this.__data_address__ + offset)] = byte | 0;
                 }
             },
+            enumerable: true,
         };
     }
 
@@ -281,6 +288,7 @@ function worker_code () {
                 return results;
             },
             set: function () {},
+            enumerable: true,
         };
     }
 
@@ -306,6 +314,7 @@ function worker_code () {
                 }
             },
             set: function () {},
+            enumerable: true,
         };
     }
 
@@ -445,6 +454,7 @@ function worker_code () {
                                     return array;
                                 };
                             })(array_names),
+                            enumerable: true,
                         });
                     } else {
                         offset = compileProp(blen_struct.prototype, _name, type, offset, Blender_Array_Length, Pointer_Match, pointer_size, length);
@@ -755,7 +765,7 @@ function worker_code () {
 
                 count = data.getInt32(data_offset + 12 + pointer_size, BIG_ENDIAN);
 
-                if (count > 0) {
+                if (count > 0 && constructor) {
                     let obj = new constructor();
 
                     const length = constructor.prototype._length;
