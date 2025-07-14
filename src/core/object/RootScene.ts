@@ -362,7 +362,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * @param color
      */
     setBackgroundColor(color: string | number | Color | null) {
-        this.backgroundColor = color ? new Color(color) : null
+        this.backgroundColor = color || typeof color === 'number' ? new Color(color) : null
     }
 
     /**
