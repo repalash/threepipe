@@ -57,6 +57,7 @@ export abstract class RenderTargetManager<TE extends object = object> extends Ev
         colorSpace = NoColorSpace,
         type = UnsignedByteType,
         format = RGBAFormat,
+        stencilBuffer = false,
         depthBuffer = true,
         depthTexture = false,
         depthTextureType = UnsignedIntType,
@@ -78,7 +79,7 @@ export abstract class RenderTargetManager<TE extends object = object> extends Ev
             height: size.height,
             count: textureCount,
         } : size,
-        {samples, colorSpace, type, format, depthBuffer, depthTexture: depthTex},
+        {samples, colorSpace, type, format, depthBuffer, depthTexture: depthTex, stencilBuffer},
         textureCount > 1 ? WebGLMultipleRenderTargets as any : WebGLRenderTarget)
         this._processNewTarget(target, sizeMultiplier, trackTarget)
         this._setTargetOptions(target, op)

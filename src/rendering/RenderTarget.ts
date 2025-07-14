@@ -80,7 +80,14 @@ export interface CreateRenderTargetOptions {
     colorSpace?: ColorSpace
     type?: TextureDataType
     format?: number
+    /**
+     * @default true
+     */
     depthBuffer?: boolean
+    /**
+     * @default false
+     */
+    stencilBuffer?: boolean
     depthTexture?: boolean
     depthTextureType?: typeof UnsignedShortType | typeof UnsignedInt248Type | typeof UnsignedIntType | typeof FloatType
     depthTextureFormat?: typeof DepthFormat | typeof DepthStencilFormat

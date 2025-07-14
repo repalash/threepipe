@@ -11,6 +11,7 @@ export interface ViewerRenderManagerOptions extends IRenderManagerOptions {
     rgbm?: boolean,
     msaa?: boolean | number,
     depthBuffer?: boolean,
+    stencilBuffer?: boolean,
     zPrepass?: boolean,
     screenShader?: TViewerScreenShader
     maxHDRIntensity?: number
@@ -38,7 +39,7 @@ export class ViewerRenderManager extends RenderManager<ViewerRenderManagerEventM
 
     static DEFAULT_MSAA_SAMPLES = 4
 
-    constructor({rgbm = true, msaa = false, depthBuffer = false, ...options}: ViewerRenderManagerOptions) {
+    constructor({rgbm = true, msaa = false, depthBuffer = true, stencilBuffer = false, ...options}: ViewerRenderManagerOptions) {
         super({
             ...options,
             targetOptions: {
@@ -47,6 +48,7 @@ export class ViewerRenderManager extends RenderManager<ViewerRenderManagerEventM
                 colorSpace: rgbm ? RGBM16ColorSpace : NoColorSpace,
                 type: rgbm ? UnsignedByteType : HalfFloatType,
                 depthBuffer: depthBuffer,
+                stencilBuffer: stencilBuffer,
                 generateMipmaps: /* msaa ? true : */false, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
                 minFilter: /* msaa ? LinearMipMapLinearFilter : */LinearFilter, // todo: hack for now, fix blurTransmissionTarget in ExtendedRenderPass
             },

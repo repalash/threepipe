@@ -165,6 +165,11 @@ export interface ThreeViewerOptions {
      * @default 1
      */
     modelRootScale?: number
+    /**
+     * Enable stencil in renderer and stencilBuffer in composer render targets.
+     * @default false
+     */
+    stencil?: boolean
 
     debug?: boolean
 
@@ -455,6 +460,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             rgbm: options.rgbm ?? options.useRgbm ?? true,
             zPrepass: options.zPrepass ?? options.useGBufferDepth ?? false,
             depthBuffer: !(options.zPrepass ?? options.useGBufferDepth ?? false),
+            stencilBuffer: options.stencil,
             screenShader: options.screenShader,
             renderScale: typeof options.renderScale === 'string' ? options.renderScale === 'auto' ?
                 Math.min(options.maxRenderScale || 2, window.devicePixelRatio) : parseFloat(options.renderScale) :

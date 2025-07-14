@@ -139,7 +139,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         // this._xrPreAnimationLoop = this._xrPreAnimationLoop.bind(this)
         this._renderSize = new Vector2(canvas.clientWidth, canvas.clientHeight)
         this._renderScale = renderScale
-        this._renderer = this._initWebGLRenderer(canvas, alpha)
+        this._renderer = this._initWebGLRenderer(canvas, alpha, targetOptions?.stencilBuffer ?? false)
         this._context = this._renderer.getContext()
         this._isWebGL2 = this._renderer.capabilities.isWebGL2
         if (!this._isWebGL2) console.error('RenderManager: WebGL 1 is not officially supported anymore. Some features may not work.')
@@ -152,7 +152,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         // if (animationLoop) this.addEventListener('animationLoop', animationLoop) // todo: from viewer
     }
 
-    protected _initWebGLRenderer(canvas: HTMLCanvasElement, alpha: boolean): IWebGLRenderer<this> {
+    protected _initWebGLRenderer(canvas: HTMLCanvasElement, alpha: boolean, stencil: boolean): IWebGLRenderer<this> {
         const renderer = new WebGLRenderer({
             canvas,
             antialias: false,
@@ -160,6 +160,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             premultipliedAlpha: false, // todo: see this, maybe use this with rgbm mode.
             preserveDrawingBuffer: true,
             powerPreference: RenderManager.POWER_PREFERENCE,
+            stencil,
         })
         // renderer.info.autoReset = false // Not supported by ExtendedRenderPass
 
