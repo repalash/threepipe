@@ -62,6 +62,7 @@ Check packages for more advanced post-processing effects.
 Plugins to add/configure interaction and user editable elements to the viewer.
 
 - [DropzonePlugin](../plugin/DropzonePlugin) - Drag and drop local files to import and automatically load. Also provides hooks for custom processing.
+- [UndoManagerPlugin](../plugin/UndoManagerPlugin) - Adds support for undo/redo operations in the viewer. It can be used to manage the history of changes made to the scene, objects, materials, etc.
 - [PickingPlugin](../plugin/PickingPlugin) - Adds support for selecting objects in the viewer with user interactions(click and hover) and shows selection widgets.
 - [LoadingScreenPlugin](../plugin/LoadingScreenPlugin) - Shows a configurable loading screen overlay over the canvas which can be extended to show a loader during any kind of processing.
 - [FullScreenPlugin](../plugin/FullScreenPlugin) - Provides helpers for entering the fullscreen mode in browsers.

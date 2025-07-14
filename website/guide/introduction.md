@@ -33,6 +33,7 @@ Key features include:
 - Modular rendering pipeline with built-in deferred rendering, post-processing, RGBM HDR rendering, etc.
 - Material extension framework to modify/inject/build custom shader code into existing materials at runtime from plugins.
 - Extendable asset import, export and management pipeline with built-in support for gltf, glb, obj+mtl, fbx, materials(pmat/bmat), json, zip, png, jpeg, svg, webp, ktx2, ply, 3dm and many more.
+- Built-in undo/redo support for user actions.
 - Automatic serialization of all viewer and plugin settings in GLB(with custom extensions) and JSON formats.
 - Automatic disposal of all three.js resources with built-in reference management.
 

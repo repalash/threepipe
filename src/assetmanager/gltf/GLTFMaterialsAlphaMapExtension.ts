@@ -8,7 +8,7 @@ import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/
  * alphaTexture is added to the material
  * This is separate from the alpha in base color texture. This is used when that is not supported in the viewer
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_alphamap.html
+ * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_alphamap.html
  */
 export class GLTFMaterialsAlphaMapExtension {
     static readonly WebGiMaterialsAlphaMapExtension = 'WEBGI_materials_alphamap'

@@ -112,6 +112,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 if (o.assetType === 'widget') return false
                 if (o.userData.userSelectable === false) return false
                 if (o.userData.bboxVisible === false) return false
+                // todo colorwrite?
                 o = o.parent
             }
             return ret

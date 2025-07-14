@@ -49,6 +49,8 @@ export default defineConfig({
           {text: 'glTF Mesh Lines', link: 'notes/gltf-mesh-lines'},
           {text: 'Setting Background', link: 'notes/scene-background'},
           {text: 'ShaderToy Shader Tutorial', link: 'notes/shadertoy-player'},
+          {text: 'Using Vanilla Three.js code', link: 'notes/vanilla-threejs'},
+          {text: 'Three.js properties in glTF', link: 'notes/gltf-three-extras-ext'},
         ]
       },
       {

@@ -10,7 +10,11 @@ next:
 
 # Serialization
 
-Easy serialization of all threepipe and most three.js objects are supported out of the box using the Asset Manager. Fine control over serialization is also supported using the [ThreeSerialization](https://threepipe.org/docs/classes/ThreeSerialization.html) class
+Easy serialization of all threepipe and most three.js objects are supported out of the box using the Asset Manager. 
+
+Complete scene, and 3D objects, can be serialized in glTF format, which saves the 3D data is a standardized format supported by the industry. Custom data like three.js properties, plugin configurations, and viewer configurations are also automatically serialized in glTF format using custom extensions. Read the [glTF Extras Extensions note](./../notes/gltf-three-extras-ext) for more details.
+
+Fine control over serialization is also supported using the [ThreeSerialization](https://threepipe.org/docs/classes/ThreeSerialization.html) class
 
 Call `ThreeSerialization.serialize` on any object to serialize it.
 and `ThreeSerialization.deserialize` to deserialize the serialized object.

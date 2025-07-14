@@ -7,7 +7,7 @@ import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/
  *
  * lightMapTexture and lightMapIntensity are added to the material
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_lightmap.html
+ * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_lightmap.html
  */
 export class GLTFMaterialsLightMapExtension {
     static readonly WebGiMaterialsLightMapExtension = 'WEBGI_materials_lightmap'

@@ -238,7 +238,7 @@ export enum FragmentClippingMode {
 /**
  * FragmentClipping Materials Extension
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_fragment_clipping_extension.html
+ * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_fragment_clipping_extension.html
  */
 class GLTFMaterialsFragmentClippingExtensionImport implements GLTFLoaderPlugin {
     public name: string

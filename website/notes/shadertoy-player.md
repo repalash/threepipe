@@ -3,7 +3,9 @@ prev:
   text: 'Setting Background Color and Images'
   link: './scene-background'
 
-next: false
+next: 
+  text: 'Using Vanilla Three.js style code'
+  link: './vanilla-threejs'
 aside: false
 ---
 

@@ -57,6 +57,7 @@ Now, code from any of the examples on the [Threepipe Examples](https://threepipe
 <script type="module">
   const {ThreeViewer, DepthBufferPlugin} = threepipe
   // import {ThreeViewer, DepthBufferPlugin} from 'threepipe' // using npm or importmaps
+  window.THREE = threepipe // optional (if using THREE.Xyz style code)
 
   const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas')})
 
@@ -78,6 +79,30 @@ Now, code from any of the examples on the [Threepipe Examples](https://threepipe
 Check it in action: [html-js-sample](https://threepipe.org/examples/#html-js-sample/)
 
 Check out the details about [ThreeViewer API](../guide/viewer-api) and more [plugins](../guide/core-plugins.md).
+
+::: details Import Maps
+Import maps are an upcoming feature in browsers that allows you to import modules using a simple JSON format. This is useful for loading modules without needing a bundler or package manager.
+
+Threepipe can be used with import maps to load modules directly from a CDN like unpkg or jsdelivr.
+```html
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+<script type="importmap">{
+  "imports": {
+    "threepipe": "https://unpkg.com/threepipe/dist/index.mjs",
+    "@threepipe/plugin-tweakpane": "https://unpkg.com/@threepipe/plugin-tweakpane/dist/index.mjs"
+    "three": "https://unpkg.com/threepipe/dist/index.mjs",
+  }
+}</script>
+<script type="module">
+    import {ThreeViewer} from 'threepipe'
+    // your code
+</script>
+```
+
+In the above code, we are adding `es-module-shims` script to support import maps in browsers that do not support it natively. Then, we define an import map with the `threepipe` module pointing to the latest version on `unpkg`. Finally, we can import `ThreeViewer` from `threepipe` and use it in our code.
+
+A reference to "three" is also added to be same as threepipe, this way any libraries/addons that import from three will now import from threepipe instead.
+:::
 
 ### NPM
 

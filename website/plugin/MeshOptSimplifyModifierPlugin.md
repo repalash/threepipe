@@ -1,9 +1,11 @@
 ---
 prev: 
-    text: 'SimplifyModifierPlugin'
-    link: './SimplifyModifierPlugin'
+  text: 'SimplifyModifierPlugin'
+  link: './SimplifyModifierPlugin'
 
-next: false
+next:
+  text: 'UndoManagerPlugin'
+  link: './UndoManagerPlugin'
 ---
 
 # MeshOptSimplifyModifierPlugin

@@ -25,6 +25,7 @@ Key features include:
 - Material extension framework to modify/inject/build custom shader code into existing materials at runtime from plugins.
 - Extendable asset import, export and management pipeline with built-in support for gltf, glb, obj+mtl, fbx, materials(pmat/bmat), json, zip, png, jpeg, svg, webp, ktx2, ply, 3dm and many more.
 - Automatic serialization of all viewer and plugin settings in GLB(with custom extensions) and JSON formats.
+- Built-in undo/redo support for user actions.
 - Automatic disposal of all three.js resources with built-in reference management.
 - Realtime Realistic Rendering with screen-space post-processing effects from [webgi](https://webgi.dev/).
 
@@ -314,6 +315,7 @@ Many features will be added but the core API will not change significantly in fu
   - [GLTFMeshOptDecodePlugin](https://threepipe.org/plugin/GLTFMeshOptDecodePlugin.html) - Decode glTF files with [EXT_meshopt_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md) extension.
   - [SimplifyModifierPlugin](https://threepipe.org/plugin/SimplifyModifierPlugin.html) - Boilerplate for plugin to simplify geometries
   - [MeshOptSimplifyModifierPlugin](https://threepipe.org/plugin/MeshOptSimplifyModifierPlugin.html) - Simplify geometries using [meshoptimizer](https://github.com/zeux/meshoptimizer) library
+  - [UndoManagerPlugin](https://threepipe.org/plugin/UndoManagerPlugin.html) - Adds support for undo/redo operations in the viewer. Used by other plugins to manage undo history.
 - [Packages](https://threepipe.org/guide/threepipe-packages.html)
   - [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
   - [@threepipe/plugin-tweakpane](https://threepipe.org/package/plugin-tweakpane.html) [Tweakpane](https://tweakpane.github.io/docs/) UI Plugin

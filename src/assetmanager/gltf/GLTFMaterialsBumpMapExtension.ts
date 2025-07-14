@@ -7,7 +7,7 @@ import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/
  *
  * bumpTexture and bumpScale are added to the material
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_bumpmap.html
+ * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_bumpmap.html
  */
 export class GLTFMaterialsBumpMapExtension {
     static readonly WebGiMaterialsBumpMapExtension = 'WEBGI_materials_bumpmap'

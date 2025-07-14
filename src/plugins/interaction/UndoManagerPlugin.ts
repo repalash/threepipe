@@ -1,6 +1,10 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {getUrlQueryParam, JSUndoManager, onChange} from 'ts-browser-helpers'
 
+/**
+ * UndoManagerPlugin is a plugin for ThreeViewer that provides undo/redo functionality.
+ * It uses the JSUndoManager(from ts-browser-helpers) library to maintain a common undo/redo history across the viewer and other plugins.
+ */
 // @uiPanelContainer('Undo Manager')
 export class UndoManagerPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'UndoManagerPlugin'

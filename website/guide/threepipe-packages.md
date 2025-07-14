@@ -6,6 +6,8 @@ prev:
 #next:
 #    text: '@threepipe Packages'
 #    link: './threepipe-packages'
+next: false
+aside: false
 ---
 
 # @threepipe Packages

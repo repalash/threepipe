@@ -7,7 +7,7 @@ import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/
  *
  * displacementTexture and displacementScale are added to the material
  *
- * Specification: https://webgi.xyz/docs/gltf-extensions/WEBGI_materials_displacementmap.html
+ * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_displacementmap.html
  */
 export class GLTFMaterialsDisplacementMapExtension {
     static readonly WebGiMaterialsDisplacementMapExtension = 'WEBGI_materials_displacementmap'

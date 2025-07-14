@@ -6,6 +6,7 @@ prev:
 next:
     text: 'Serialization'
     link: './serialization'
+aside: false
 ---
 
 # UI Configuration
@@ -16,9 +17,11 @@ In some classes, the ui configs are also generated using typescript decorators.
 
 The `uiConfig` is also added to all three.js objects and materials when they are added to the scene.
 
-The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](../package/plugin-tweakpane), [BlueprintJsUiPlugin](../package/plugin-blueprintjs)
+The UIs can be generated at runtime using any of the UI plugins like [TweakpaneUIPlugin](../package/plugin-tweakpane), [BlueprintJsUiPlugin](../package/plugin-blueprintjs). They have full undo/redo support and interface with `UndoMangerPlugin` to maintain a common history with the rest of the viewer.
 
 An example showing how to create a UI for a material
+
+<iframe src="https://threepipe.org/examples/material-uiconfig/" style="width:100%;height:600px;border:none;"></iframe>
 
 ```typescript
 const ui = viewer.addPluginSync(TweakpaneUiPlugin)
@@ -29,9 +32,7 @@ const material = object.material as PhysicalMaterial;
 ui.appendChild(material.uiConfig)
 ```
 
-See it in action: https://threepipe.org/examples/#material-uiconfig/
-
-Check more examples showing [Viewer UI](https://threepipe.org/examples/#viewer-uiconfig/), [Scene UI](https://threepipe.org/examples/#scene-uiconfig/), [Object UI](https://threepipe.org/examples/#object-uiconfig/), [Camera UI](https://threepipe.org/examples/#camera-uiconfig/)
+Check more examples showing [Viewer UI](https://threepipe.org/examples/#viewer-uiconfig/), [Scene UI](https://threepipe.org/examples/#scene-uiconfig/), [Object UI](https://threepipe.org/examples/#object-uiconfig/), [Camera UI](https://threepipe.org/examples/#camera-uiconfig/), [Material UI](https://threepipe.org/examples/#material-uiconfig/)
 
 ::: info
 [TweakpaneEditorPlugin](../package/plugin-tweakpane-editor) further uses the Tweakpane configuration panel along with various plugins to create a 3d editor.
