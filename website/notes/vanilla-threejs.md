@@ -75,7 +75,7 @@ If you are using packages that depend on `three`, override in package.json to us
 {
   "dependencies": {
     "three": "./node_modules/threepipe/",
-    "threepipe": "^0.0.51"
+    "threepipe": "^0.0.52"
   },
   "overrides": {
     "three": "$three"
