@@ -29,7 +29,7 @@ export interface AWSClientPluginEventMap extends AViewerPluginEventMap {
  * This is useful for connecting to AWS services like S3 directly from the client.
  * It also interfaces with the {@link FileTransferPlugin} to directly upload file when exported with the viewer or the plugin.
  * Note: Make sure to use keys with limited privileges and correct CORS settings.
- * All the keys will be stored in plain text if `serializeSettings` is set to true
+ * All the keys will be stored in plain text if `serializeSettings` is set to `true` (default = `false`).
  *
  * {@todo Make an example for AWSClient Plugin}
  */
