@@ -31,12 +31,17 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     preserveTransparentTarget = false
     private _transparentTarget?: IRenderTarget
 
+    /**
+     * A render target to render transparent, transmissive objects to.
+     * Note that it is only used when {@link renderManager.rgbm} is true
+     */
     get transparentTarget(): IRenderTarget {
         if (!this._transparentTarget) {
             const msaa = this.renderManager.msaa
             this._transparentTarget = this.renderManager.getTempTarget({
                 sizeMultiplier: 1,
                 samples: msaa ? typeof msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : msaa : 0,
+                stencilBuffer: this.renderManager.composerTarget.stencilBuffer,
                 colorSpace: NoColorSpace,
                 type: this.renderManager.renderer.extensions.has('EXT_color_buffer_half_float') ? HalfFloatType : UnsignedByteType,
                 format: RGBAFormat,
@@ -54,9 +59,16 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         this._transparentTarget = undefined
     }
 
-    readonly preserveOpaqueTarget = false
+    /**
+     * Preserve the {@link opaqueTarget} after rendering.
+     */
+    /* readonly */ preserveOpaqueTarget = false
     private _opaqueTarget?: WebGLRenderTarget
 
+    /**
+     * A render target to render opaque objects to.
+     * Note that it is only used when {@link renderManager.msaa} is true
+     */
     get opaqueTarget(): WebGLRenderTarget {
         if (!this._opaqueTarget) {
             const composerTarget = this.renderManager.composerTarget as WebGLRenderTarget
@@ -64,6 +76,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             this._opaqueTarget = this.renderManager.getTempTarget({
                 sizeMultiplier: 1,
                 samples: msaa ? typeof msaa !== 'number' ? ViewerRenderManager.DEFAULT_MSAA_SAMPLES : msaa : 0,
+                stencilBuffer: this.renderManager.composerTarget.stencilBuffer,
                 colorSpace: composerTarget.texture.colorSpace,
                 type: this.renderManager.rgbm ? UnsignedByteType : HalfFloatType,
                 format: composerTarget.texture.format,
