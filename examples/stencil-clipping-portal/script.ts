@@ -15,7 +15,7 @@ async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
-        msaa: false, // todo this is not working here, but its working in the other stencil example.
+        msaa: true,
         rgbm: true,
         plugins: [LoadingScreenPlugin, PickingPlugin, TransformControlsPlugin],
         stencil: true,
@@ -56,7 +56,7 @@ async function init() {
         depthTest: true,
         stencilFunc: THREE.AlwaysStencilFunc,
         stencilZPass: THREE.ReplaceStencilOp,
-        colorWrite:false,
+        colorWrite: false,
     }))
     maskCube.userData.bboxVisible = false
     maskCube.userData.userSelectable = false

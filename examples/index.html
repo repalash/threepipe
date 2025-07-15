@@ -278,8 +278,9 @@
                 }
             });
 
-            const hash = window.location.hash.slice(1);
+            let hash = window.location.hash.slice(1);
             if(hash){
+                if(!hash.endsWith('/')) hash += '/';
                 const target = document.querySelector(`a[href="./${hash}"]`);
                 selectTarget(target || selected, true);
             }
@@ -564,6 +565,8 @@
             <li><a href="./dispose-reimport-test/">Dispose + Reimport (URL)</a></li>
             <li><a href="./dispose-reimport-test-2/">Dispose + Reimport (URL, Root)</a></li>
             <li><a href="./clear-reimport-test/">Clear + Reimport (URL, Root)</a></li>
+            <li><a href="./clear-reimport-test-2/">Clear + Reimport 2 (URL, Root)</a></li>
+            <li><a href="./theatrejs-plugin/">TheatreJs Plugin (Incomplete)</a></li>
         </ul>
     </div>
     <div class="iframe-container">
