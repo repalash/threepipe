@@ -1,6 +1,6 @@
 import {_testFinish, _testStart, DropzonePlugin, getUrlQueryParam, HemisphereLight} from 'threepipe'
 import {TransfrSharePlugin} from '@threepipe/plugin-network'
-import {ThreeEditor} from './ThreeEditor.js'
+import {ThreeEditor} from './ThreeEditor'
 
 async function init() {
 

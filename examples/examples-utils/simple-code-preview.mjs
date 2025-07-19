@@ -11,9 +11,11 @@ const exampleStyle = document.querySelector('#example-style')
 const css = exampleStyle ? exampleStyle.textContent : ''
 const importMap = document.querySelector('script[type="importmap"]')
 const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {}
-Object.keys(imports).forEach((k)=>(k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://unpkg.com/' + k + '/dist/index.mjs') : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
+Object.entries(imports).forEach(([k, v])=>(k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://unpkg.com/' + k + '/dist/' + v.split('/dist/').pop()) : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
 Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\/\.\.\/\.\.\//, rootPath)) // ./../../ -> rootPath
-
+const ex = window.location.pathname.split('/examples/').pop().replace('index.html', '')
+Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\//, rootPath + 'examples/' + ex)) // ./../../ -> rootPath
+// console.log(imports)
 // function replaceImports(code) {
 //     for (const [name, link] of Object.entries(imports)) code = code.replaceAll(` from '${name}'`, ` from '${link}'`)
 //     return code
@@ -24,7 +26,7 @@ scripts.length && setupCodePreview(
     document.querySelector('.code-preview-container') || document.getElementById('canvas-container') || document.body,
     scripts,
     scripts.map(s=>s.textContent ? 'js' : s.split('.').pop()), // title
-    scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : (codePath + examplePath + window.location.pathname.split('/examples/').pop().replace('index.html', '') + (s.textContent ? 'index.html' : s))), // todo: github link
+    scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : (codePath + examplePath + ex + (s.textContent ? 'index.html' : s))), // todo: github link
     (c) => '// Threepipe example: ' + window.location.href + '\n' + (c),
     {
         title: 'ThreePipe: ' + document.title,
