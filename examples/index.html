@@ -61,19 +61,22 @@
             color: var(--text-color-hover);
         }
 
-        .sidebar {
-            width: min(320px, 30%);
+        .sidebar, .codebar {
             height: 100%;
             background: var(--background-color);
             color: var(--text-color);
-            padding: 1rem 1rem;
             box-sizing: border-box;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
             position: relative;
+        }
+
+        .sidebar {
+            padding: 1rem 1rem;
             transition: width 0s ease-in-out;
+            width: min(320px, 30%);
         }
 
         .sidebar h1 {
@@ -160,8 +163,9 @@
         .closed:before{
             content: attr(data-selected-example);
             position: absolute;
-            top: 0; left: 0;
-            height: 100%; width: 3.3rem;
+            top: 40px; left: 0;
+            height: calc(100% - 40px);
+            width: 3.3rem;
             color: var(--primary-color);
             font-size: 1.25rem;
             text-align: center; vertical-align: middle;
@@ -244,11 +248,35 @@
         }
 
     </style>
+<!--    <script src="https://unpkg.com/onigasm@2.2.5/lib/index.js"></script>-->
+<!--    <script src="https://unpkg.com/monaco-textmate@3.0.1/dist/main.js"></script>-->
+<!--    <script src="https://unpkg.com/monaco-editor-textmate@4.0.0/dist/index.js"></script>-->
+<!--    <script src="./_index/monacoThemes.mjs" type="module"></script>-->
+
+    <link rel="stylesheet" href="./_index/editor/editor.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.0/build/dist/untar.min.js"></script>
+
+    <!-- https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-amd.md -->
+    <script src="https://unpkg.com/monaco-editor@0.52.2/min/vs/loader.js"></script>
+
+    <script type="module">
+
+
+    </script>
     <script>
+    </script>
+    <script type="module">
+        import {createEditor2} from "./_index/editor/monaco.mjs";
+        import {setupCodeEditor} from "./_index/editor/setup.mjs";
+
         window.addEventListener('DOMContentLoaded', () => {
             const hamburger = document.querySelector('.hamburger');
             const sidebar = document.querySelector('.sidebar');
+            const codebar = document.querySelector('.codebar');
             hamburger.addEventListener('click', () => {
+                codebar.classList.toggle('closed');
                 sidebar.classList.toggle('closed');
             });
 
@@ -256,11 +284,14 @@
             const links = document.querySelectorAll('li>a');
             let selected = document.querySelector('a.selected');
 
+            createEditor2()
+            setupCodeEditor(iframe)
+
             function selectTarget(target, scroll = false) {
                 selected.classList.remove('selected');
                 target.classList.add('selected');
                 selected = target;
-                iframe.src = target.href;
+                if(iframe.src !== target.href) iframe.src = target.href;
                 sidebar.dataset.selectedExample = target.innerText;
                 window.location.hash = "#" + target.getAttribute("href").slice(2);
                 if(scroll){
@@ -330,6 +361,7 @@
             updateSearch()
         });
     </script>
+
 </head>
 <body>
 <div class="root-container">
@@ -570,6 +602,15 @@
             <li><a href="./clear-reimport-test-2/">Clear + Reimport 2 (URL, Root)</a></li>
             <li><a href="./theatrejs-plugin/">TheatreJs Plugin (Incomplete)</a></li>
         </ul>
+    </div>
+    <div class="codebar closed">
+        <div class="codefiles"><div class="codefiles-tabs"></div>
+            <div class="codefiles-actions">
+                <div class="codefiles-action" id="codefiles-action-format">F</div>
+                <div class="codefiles-action" id="codefiles-action-run">R</div>
+            </div>
+        </div>
+        <div class="codebox"></div>
     </div>
     <div class="iframe-container">
         <!-- TODO: allow only threepipe and localhost domains -->
