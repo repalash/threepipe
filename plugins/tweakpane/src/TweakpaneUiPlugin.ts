@@ -95,7 +95,6 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         viewer.removeEventListener('postFrame', this._postFrame)
         this.undoManager = this._lastManager
         this._lastManager = undefined
-        this.dispose()
     }
 
     private _plugins: IViewerPlugin[] = []
