@@ -466,7 +466,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 }
             }
         }
-        if ((res as RootSceneImportResult).userData.rootSceneModelRoot) {
+        if ((res as RootSceneImportResult)?.userData && (res as RootSceneImportResult).userData.rootSceneModelRoot) {
             res._childrenCopy = [...res.children]
         }
 

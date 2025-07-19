@@ -614,7 +614,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     public dispose(clear = true): void {
         // todo: dispose stuff from constructor etc
         if (clear) {
-            for (const plugin of [...Object.values(this.plugins)]) {
+            for (const [key, plugin] of [...Object.entries(this.plugins)]) {
+                if (key === plugin.constructor.OldPluginType) return
                 this.removePlugin(plugin, true)
             }
         }
@@ -694,7 +695,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
             this.dispatchEvent({...event, type: 'preFrame', target: this}) // event will have time, deltaTime and xrFrame
 
-            const dirtyPlugins = Object.values(this.plugins).filter(value => value.dirty)
+            const dirtyPlugins = Object.entries(this.plugins).filter(([key, plugin]) => plugin.dirty && key !== plugin.constructor.OldPluginType)
             if (dirtyPlugins.length > 0) {
                 // console.log('dirty plugins', dirtyPlugins)
                 this.setDirty(dirtyPlugins)
@@ -898,9 +899,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (!this.plugins[type]) return
         p.onRemove(this)
         this._onPluginRemove(p, dispose)
-        delete this.plugins[type]
-        if (dispose) p.dispose()
-        this.setDirty(p)
     }
 
     /**
@@ -1070,6 +1068,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (filter && filter.length === 0) return []
         return Object.entries(this.plugins).map(p=> {
             if (filter && !filter.includes(p[1].constructor.PluginType)) return
+            if (p[0] === p[1].constructor.OldPluginType) return
             if (this.serializePluginsIgnored.includes((p[1].constructor as any).PluginType)) return
             // if (!p[1].toJSON) this.console.log(`Plugin of type ${p[0]} is not serializable`)
             return p[1].serializeWithViewer !== false ? p[1].toJSON?.(meta) : undefined
@@ -1512,6 +1511,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.dispatchEvent(ev)
         this._pluginListeners.remove.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
         delete this.plugins[p.constructor.PluginType]
+        if (p.constructor.OldPluginType) delete this.plugins[p.constructor.OldPluginType]
         if (dispose) p.dispose() // todo await?
         this.setDirty(p)
     }
