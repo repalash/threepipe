@@ -1,6 +1,7 @@
 /* global monaco */
-import {loadTypesFromTarGz} from './loadTypes.mjs';
+import {loadTypesFromTarGz, urlToUri} from './loadTypes.mjs';
 import {getFile, saveFile} from './fileStore.mjs';
+import {createEditor2} from './monaco.mjs';
 
 let tsWorkerClient = null;
 export const getTsWorker = async () => {
@@ -25,26 +26,13 @@ export const getCompiledJs = async (uri)=>{
     }
 }
 
-function patchScript (iframe, content, exampleScript) {
-    if(!content) return
-    if(iframe.contentWindow.threeViewers) [...iframe.contentWindow.threeViewers].forEach((elem)=>{
-        elem && elem.dispose()
-    })
-    const type = exampleScript.type
-    const dataset = exampleScript.dataset
-    const newScript = document.createElement('script');
-    newScript.type = type;
-    newScript.textContent = content;
-    for(const key of Object.keys(dataset)) {
-        newScript.dataset[key] = dataset[key];
-    }
-    exampleScript.remove();
-    (iframe.contentDocument || iframe.contentWindow?.document)?.head.appendChild(newScript);
-    console.log('patched')
-    return newScript;
+
+const exampleState = {
 }
 
+
 export function setupCodeEditor (iframe) {
+    createEditor2()
     const codebar = document.querySelector('.codebar');
     const codefiles = document.querySelector('.codefiles-tabs');
 
@@ -121,116 +109,209 @@ export function setupCodeEditor (iframe) {
         window.monacoEditor.setModel(model);
     }
 
-    window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
+    async function createFile (absUrl, example, getContent) {
+        const uris = urlToUri(absUrl)
+        const tab = createCodefileTab(uris, false);
 
-    iframe.addEventListener('load', async ()=>{
-        // remove tabs
-        codefiles.innerHTML = '';
-        monaco && monaco.editor && monaco.editor.getModels().forEach(model => model.dispose());
-
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if(!doc) {
-            // codebar.sty
-            return
-        }
-        // codebar.style.display = 'flex'
-        const rootPath = 'https://threepipe.org/'
-        const examplePath = 'examples/'
-        const codePath = 'https://github.com/repalash/threepipe/tree/master/'
-
-        let exampleScript = doc.getElementById('example-script')
-        const scripts = exampleScript && exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : []
-        if(!scripts.length || !exampleScript) return
-        if(exampleScript.textContent) scripts.push(exampleScript)
-        const exampleStyle = doc.querySelector('#example-style')
-        const css = exampleStyle ? exampleStyle.textContent : ''
-        const importMap = doc.querySelector('script[type="importmap"]')
-        const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {}
-
-        Object.keys(imports).forEach((k)=>(k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://unpkg.com/' + k + '/dist/index.mjs') : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
-        Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\/\.\.\/\.\.\//, rootPath)) // ./../../ -> rootPath
-
-        console.log(imports)
-
-        // scripts.map(async (script)=>{
-        //     if(script.endsWith('.js')) return
-        //     // const uri = new monaco.Uri(absUrl.protocol.replace(':', '')||'file', absUrl.host, absUrl.pathname, absUrl.search, absUrl.hash);
-        // })
-        const script = scripts.find(s=>s.endsWith('script.ts'));
-        if(!script) return
-
+        tab.classList.add('codefile-disabled');
         const editor = await window.monacoPromise
 
-        async function createFile (absUrl) {
-            const uri = (new monaco.Uri('file', '', absUrl.pathname, absUrl.search, absUrl.hash));
-            const tab = createCodefileTab(uri.toString(), false);
+        const currentFile = getFile(uris) || 'export {}'
 
-            tab.classList.add('codefile-disabled');
-            const currentFile = getFile(uri.toString()) || 'export {}'
+        const model = monaco.editor.createModel(currentFile, undefined, monaco.Uri.parse(uris));
 
-            const model = monaco.editor.createModel(currentFile, undefined, uri);
-
-            model.refreshJsContent = async ()=>{
-                if(model._refreshingJs) return
-                if(!uri.toString().endsWith('.ts')) return
-                model._refreshingJs = (async ()=> {
-                    const jsFile = await getCompiledJs(uri.toString()).catch(e=>{
-                        console.error(e)
-                        return null
-                    })
-                    if (jsFile && model.lastJsContent !== jsFile.text) {
-                        console.log(jsFile)
-                        model.lastJsContent = jsFile.text;
+        model.refreshJsContent = async ()=>{
+            if(model._refreshingJs) return model._refreshingJs
+            let changed = false
+            model._refreshingJs = (async ()=> {
+                if(!uris.endsWith('.ts')) {
+                    const v = model.getValue()
+                    if(v !== model.compiledContent) {
+                        model.compiledContent = v
+                        changed = true
                     }
-                })()
-                await model._refreshingJs
-            }
-
-            model.refreshSavedState = () => {
-                let value = model.getValue()
-                const savedVal = getFile(uri.toString())
-                if(value === savedVal) tab.classList.remove('codefile-unsaved');
-                else tab.classList.add('codefile-unsaved');
-            }
-
-            model.onDidChangeContent(()=>{
-                model.refreshSavedState()
-            })
-
-            model._onSave = async ()=> {
-                saveFile(uri.toString(), model.getValue());
-                model.refreshSavedState()
-                await model.refreshJsContent()
-            }
-
-            editor.onKeyDown(async (e) => {
-                if(editor.getModel() !== model) return
-                if (e.keyCode === monaco.KeyCode.KeyS && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    model._onSave && await model._onSave()
+                    return
                 }
-            });
-
-            // const refreshJs = model.refreshJsContent()
-
-            const content = await (await fetch(absUrl.href + '?raw')).text()
-
-            // await refreshJs
-
-            if(content !== currentFile) {
-                model.setValue(content)
+                const jsFile = await getCompiledJs(uris).catch(e=>{
+                    console.error(e)
+                    return null
+                })
+                if (jsFile && model.compiledContent !== jsFile.text) {
+                    console.log(jsFile)
+                    model.compiledContent = jsFile.text;
+                    changed = true
+                }
+            })()
+            await model._refreshingJs
+            model._refreshingJs = undefined
+            if(!changed) return
+            const onChange = exampleState[example]?.onChange
+            if(onChange && model.compiledContent !== undefined) {
+                onChange(model, uris, model.compiledContent ?? model.getValue())
             }
-
-            model._onSave() // no await
-
-            tab.classList.remove('codefile-disabled');
-
-            return tab
         }
 
-        const absUrl = (new URL(script, iframe.src))
-        createFile(absUrl).then(tab=>tab.click())
-        createFile(new URL('index.html', iframe.src)).then(tab=>tab.click())
+        model.refreshSavedState = () => {
+            let value = model.getValue()
+            const savedVal = getFile(uris)
+            if(value === savedVal) tab.classList.remove('codefile-unsaved');
+            else tab.classList.add('codefile-unsaved');
+            return value
+        }
+
+        model.onDidChangeContent(()=>{
+            model.refreshSavedState()
+        })
+
+        model._onSave = async ()=> {
+            saveFile(uris, model.getValue());
+            model.refreshSavedState()
+            await model.refreshJsContent()
+        }
+
+        editor.onKeyDown(async (e) => {
+            if(editor.getModel() !== model) return
+            if (e.keyCode === monaco.KeyCode.KeyS && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                model._onSave && await model._onSave()
+            }
+        });
+
+        // const refreshJs = model.refreshJsContent()
+
+        const content = await getContent(absUrl)
+
+        // await refreshJs
+
+        if(content !== null && content !== currentFile) {
+            model.setValue(content)
+        }
+
+        saveFile(uris, model.getValue());
+        model.refreshSavedState()
+
+        // model._onSave() // no await
+
+        tab.classList.remove('codefile-disabled');
+
+        return tab
+    }
+
+    window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
+
+    async function setEditorExample (example111, examples111, customContent, createNew, saveExample) {
+        // remove existing tabs
+        codefiles.innerHTML = '';
+        // console.log(example111)
+        window.monaco && monaco.editor && monaco.editor.getModels().forEach(model => model.dispose());
+        const example = example111.split('/examples/').pop().split('/index.html')[0].split('/')[0];
+        const examples = examples111.map(e=>e.split('/examples/').pop().split('/index.html')[0].split('/')[0])
+        console.warn(example)
+        const htmlPath = new URL('./' + example + '/index.html', window.location.href)
+        const htmlContent = customContent || await (fetch(htmlPath.href + '?raw')).then(res=>res.text()).catch(e=>{
+            console.error('Error fetching example:', e);
+            return '';
+        });
+        if(!htmlContent) {
+            return;
+        }
+        const parsed = new DOMParser().parseFromString(htmlContent, 'text/html');
+        const scripts = parsed.querySelectorAll('script');
+        const styles = parsed.querySelectorAll('style');
+        const exampleScript = Array.from(scripts).find(s=>s.id === 'example-script');
+        if(!exampleScript) {
+            console.warn('No example script found in the example HTML');
+            return;
+        }
+        const exampleStyle = parsed.querySelector('#example-style');
+        const importMap = parsed.querySelector('script[type="importmap"]');
+        const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {};
+        const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : [];
+        const mainSource = sources.find(s=>s.endsWith('/script.ts'));
+        if(!mainSource) {
+            console.warn('No main source script found in the example script dataset');
+            return;
+        }
+        let exampleId2 = example
+        if(!customContent) {
+            while (examples.includes(exampleId2)) {
+                exampleId2 = nextName(exampleId2);
+            }
+        }
+
+        const state = {
+            id: exampleId2,
+            changed: false,
+            html: htmlContent,
+            js: exampleScript.textContent || '',
+            onChange: (model, uris, content)=>{
+                if(uris.endsWith('.ts')) {
+                    state.js = content;
+                }else if(uris.endsWith('.html')) {
+                    state.html = content;
+                } else {
+                    console.warn('Unknown file type for onChange:', uris);
+                }
+                const parsedHtml = new DOMParser().parseFromString(state.html, 'text/html');
+                // replace script
+                const existingScript = parsedHtml.querySelector('#example-script');
+                if(existingScript) {
+                    existingScript.removeAttribute('src');
+                    existingScript.textContent = state.js;
+                }
+                let baseTag = parsedHtml.querySelector('base');
+                if (!baseTag) {
+                    baseTag = parsedHtml.createElement('base');
+                    parsedHtml.head.prepend(baseTag);
+                }
+                const url = new URL(window.location.href)
+                url.pathname += example + '/';
+                url.hash = ''
+                url.search = ''
+                baseTag.href = url.href; // or any specific base URL you want
+
+                if(!state.changed) {
+                    state.changed = true
+                    if(exampleId2 !== example) {
+                        createNew(exampleId2, example, parsedHtml.documentElement.outerHTML);
+                    }
+                }else {
+                    saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
+                }
+
+                // const iframe = document.querySelector('.codebox iframe');
+                if(iframe) {
+                    iframe.removeAttribute('src')
+                    // const doc = iframe.contentDocument || iframe.contentWindow.document;
+                    // doc.open();
+                    // doc.write(parsedHtml.documentElement.outerHTML);
+                    // doc.close();
+                    // console.log(parsedHtml.documentElement.outerHTML)
+                    iframe.srcdoc = parsedHtml.documentElement.outerHTML;
+                } else {
+                    console.warn('No iframe found to update with the new HTML content');
+                }
+            },
+        }
+        exampleState[exampleId2] = state
+
+        const getContent = async (absUrl) => {
+            if(exampleId2 === example) return null
+            const url = new URL(absUrl)
+            if(url.pathname.endsWith('.ts')) url.search = '?raw' // vite
+            url.pathname = url.pathname.replace(exampleId2, example);
+            const content = await (await fetch(url.href)).text()
+            return content
+        }
+
+        if(exampleId2 !== example) {
+            htmlPath.pathname = htmlPath.pathname.replace(example, exampleId2);
+        }
+
+        const mainScriptUrl = new URL(mainSource, htmlPath.href);
+
+        createFile(mainScriptUrl.href, exampleId2, getContent).then(tab=>tab.click())
+        createFile(htmlPath.href, exampleId2, getContent)
 
         for (let key of Object.keys(imports)) {
             if(!key.startsWith('./'))
@@ -239,26 +320,23 @@ export function setupCodeEditor (iframe) {
 
             }
         }
-        // console.log(uri, content)
+    }
 
-        const res = setInterval(()=>{
-            // todo clear interval
-            // if(!exampleScript.parentElement) {
-            //     clearInterval(res)
-            //     console.warn('Example script not found in document, patching stopped');
-            //     return
-            // }
-            // if(model.lastJsContent && exampleScript.textContent !== model.lastJsContent) {
-            //     exampleScript = patchScript(iframe, model.lastJsContent, exampleScript)
-            // }
-        }, 2000)
+    return setEditorExample
+}
 
-        // if(currentFile && currentFile !== content) {
-        //     await triggerRun()
-        //     exampleScript = patchScript(iframe, model.lastJsContent, exampleScript);
-        // }else {
-        // }
-        // editor.setModel(model);
-
-    }, true)
+function nextName (n) {
+    if(n.endsWith('-copy')) {
+        return n + '-1'
+    }
+    const parts = n.split('-');
+    const lastPart = parts[parts.length - 1];
+    const isNumber = /^\d+$/.test(lastPart);
+    if (isNumber) {
+        const newNumber = parseInt(lastPart, 10) + 1;
+        parts[parts.length - 1] = newNumber.toString();
+    } else {
+        parts.push('copy');
+    }
+    return parts.join('-');
 }

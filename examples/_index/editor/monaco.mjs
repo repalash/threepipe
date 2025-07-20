@@ -1,5 +1,7 @@
 /* global monaco */
 
+import {loadFileFromPath} from './loadTypes.mjs';
+
 function getCssColorVar (name) {
     const rootStyles = getComputedStyle(document.documentElement);
     const color = rootStyles.getPropertyValue(name).trim();
@@ -155,6 +157,12 @@ export async function createEditor2 () {
 
     window.monacoPromise = new Promise(createEditor)
     window.monacoEditor = await window.monacoPromise
+
+    loadFileFromPath(new URL('./examples-utils/simple-bottom-buttons.js', window.location.href).href)
+    loadFileFromPath(new URL('./tweakpane-editor/ThreeEditor.ts?raw', window.location.href).href)
+    // loadFileFromPath(new URL('./examples-utils/global-loading.mjs', window.location.href).href)
+    // loadFileFromPath(new URL('./examples-utils/simple-code-preview.mjs', window.location.href).href)
+
 }
 
 

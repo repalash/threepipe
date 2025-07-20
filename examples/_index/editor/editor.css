@@ -5,8 +5,6 @@
     --tab-inactiveBackground: var(--background-color-search);
     --foreground-alt: hsl(0, 0%, 41%);
     --tab-activeBackground: #FFFFFE;
-    --foreground-active: hsl(0, 1%, 17%);
-    --luminosity-hover: hsl(220 60% 95% / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -14,8 +12,6 @@
         --tab-inactiveBackground: hsl(220 10% 16.5%);
         --foreground-alt: hsl(0 0% 62%);
         --tab-activeBackground: #15181E;
-        --foreground-active: hsl(0 0% 94%);
-        --luminosity-hover: hsl(220 60% 95% / 0.1);
     }
 }
 
