@@ -216,7 +216,6 @@ export {ImageUtils} from 'three'
 export {ShapeUtils} from 'three'
 export {PMREMGenerator} from 'three'
 export {WebGLUtils} from 'three'
-export {createCanvasElement} from 'three'
 
 export type {ColorRepresentation, HSL, RGB} from 'three'
 export type {ShaderMaterialParameters} from 'three'
