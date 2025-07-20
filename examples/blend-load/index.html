@@ -12,7 +12,9 @@
     {
         "imports": {
           "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-blend-importer": "./../../plugins/blend-importer/dist/index.mjs"
+          "@threepipe/plugin-blend-importer": "./../../plugins/blend-importer/dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
         }
     }
 
@@ -28,13 +30,15 @@
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer, PickingPlugin} from 'threepipe'
         import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+        import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+        import {HierarchyUiPlugin} from '@threepipe/plugin-tweakpane-editor'
 
         const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas'), dropzone: {
             addOptions: {clearSceneObjects: true}
             }})
-        viewer.addPluginsSync([BlendLoadPlugin, LoadingScreenPlugin])
+        viewer.addPluginsSync([BlendLoadPlugin, LoadingScreenPlugin, PickingPlugin, HierarchyUiPlugin])
 
         async function init() {
 
@@ -44,6 +48,9 @@
                 autoScale: false,
             })
             // console.log(result)
+            const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+            ui.setupPluginUi(HierarchyUiPlugin)
+            ui.setupPluginUi(PickingPlugin)
         }
 
         _testStart()

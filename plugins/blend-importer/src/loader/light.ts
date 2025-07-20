@@ -1,4 +1,4 @@
-import {PointLight} from 'threepipe'
+import {PointLight, Light} from 'threepipe'
 
 const blenderLightTypes = {
     point: 0,
@@ -17,7 +17,7 @@ export function createLight(lamp: any) {
     const intensity = ldata.energy
     const distance = 0
 
-    let light = null
+    let light: Light | undefined = undefined
 
     switch (ldata.type) {
     case blenderLightTypes.point:
@@ -29,10 +29,14 @@ export function createLight(lamp: any) {
         light = new PointLight(color, intensity, distance)
         light.position.fromArray(position, 0)
         light.castShadow = true
-        light.shadow.mapSize.width = 1024
-        light.shadow.mapSize.height = 1024
-        light.shadow.camera.near = 0.01
-        light.shadow.camera.far = 500
+        if (light.shadow) {
+            light.shadow.mapSize.width = 1024
+            light.shadow.mapSize.height = 1024
+            // @ts-expect-error ??/
+            light.shadow.camera.near = 0.01
+            // @ts-expect-error ??/
+            light.shadow.camera.far = 500
+        }
         break
     default:
         console.warn('Unsupported light type', ldata.type)
