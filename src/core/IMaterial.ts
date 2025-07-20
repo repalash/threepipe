@@ -8,7 +8,7 @@ import {
     MaterialParameters,
     Object3D,
     Scene,
-    Shader,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import type {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
@@ -36,7 +36,7 @@ export type IMaterialParameters = MaterialParameters & {customMaterialExtensions
 
 export interface IMaterialEventMap extends MaterialEventMap{
     beforeCompile: {
-        shader: Shader
+        shader: WebGLProgramParametersWithUniforms
         renderer: WebGLRenderer
     }
     beforeRender: {
@@ -248,7 +248,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      * Managed internally, do not change manually
      */
     appliedMeshes: Set<IObject3D>
-    lastShader?: Shader
+    lastShader?: WebGLProgramParametersWithUniforms
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IMaterialUserData

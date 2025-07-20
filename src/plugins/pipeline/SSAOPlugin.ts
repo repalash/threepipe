@@ -287,7 +287,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
             tSSAOMap: ()=>({value: getOrCall(this.target)?.texture ?? null}),
         },
         shaderExtender: (shader, _material, _renderer) => {
-            if (!shader.defines.SSAO_ENABLED) return
+            if (!shader.defines?.SSAO_ENABLED) return
             // todo: only SSAO_PACKING = 1 and 2 is supported. Not 3 and 4 right now.
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <aomap_fragment>', ssaoPatch)
         },

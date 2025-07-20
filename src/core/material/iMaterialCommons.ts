@@ -10,8 +10,8 @@ import {
     NormalBlending,
     OneMinusSrcAlphaFactor,
     Scene,
-    Shader,
     SrcAlphaFactor,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import {copyProps} from 'ts-browser-helpers'
@@ -66,6 +66,7 @@ export const threeMaterialPropList = {
     alphaToCoverage: false,
     premultipliedAlpha: false,
     forceSinglePass: false,
+    allowOverride: true,
     visible: true,
     toneMapped: true,
     userData: {},
@@ -169,7 +170,7 @@ export const iMaterialCommons = {
     },
 
     // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
-    onBeforeCompile: function(this: IMaterial, shader: Shader, renderer: WebGLRenderer): void {
+    onBeforeCompile: function(this: IMaterial, shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void {
         if (this.materialExtensions) MaterialExtender.ApplyMaterialExtensions(this, shader, this.materialExtensions, renderer)
 
         this.dispatchEvent({type: 'beforeCompile', shader, renderer})
@@ -204,7 +205,7 @@ export const iMaterialCommons = {
     } as IMaterial['onAfterRender'],
 
     onBeforeCompileOverride: (superOnBeforeCompile: Material['onBeforeCompile']): IMaterial['onBeforeCompile'] =>
-        function(this: IMaterial, shader: Shader, renderer: WebGLRenderer): void {
+        function(this: IMaterial, shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void {
             iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
             superOnBeforeCompile.call(this, shader, renderer)
         },

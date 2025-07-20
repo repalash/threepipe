@@ -2,6 +2,7 @@
 import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {
     ACESFilmicToneMapping,
+    AgXToneMapping,
     CineonToneMapping,
     CustomToneMapping,
     LinearToneMapping,
@@ -59,6 +60,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
         ['Cineon', CineonToneMapping],
         ['ACESFilmic', ACESFilmicToneMapping],
         ['Uncharted2', Uncharted2Tonemapping],
+        ['AgX', AgXToneMapping],
     ] as [string, ToneMapping][]).map(value => ({
         label: value[0],
         value: value[1],

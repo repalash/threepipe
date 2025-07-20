@@ -8,9 +8,9 @@ import {
     LinearSRGBColorSpace,
     Object3D,
     Scene,
-    Shader,
     ShaderMaterialParameters,
     Vector2,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import {shaderReplaceString} from '../../utils'
@@ -66,7 +66,7 @@ export class ExtendedShaderMaterial extends ShaderMaterial2 {
         super.onBeforeRender(renderer, scene, camera, geometry, object)
     }
 
-    onBeforeCompile(s: Shader, renderer: WebGLRenderer) {
+    onBeforeCompile(s: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer) {
         const pars = '\n' + this.textures
             .map(t=>`uniform sampler2D ${t.id}; \n`
                     + getTexelDecoding(t.id ?? 'input', t.colorSpace)).join('\n')

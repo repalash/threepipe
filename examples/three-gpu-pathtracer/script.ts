@@ -46,7 +46,7 @@ async function init() {
         // make reflective
         ground.roughness = 0.1
         ground.metalness = 0.9
-        ground.color.set(0xffffff)
+        ground.color?.set(0xffffff)
         ground.setDirty()
     }
 

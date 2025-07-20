@@ -682,7 +682,7 @@ class OBJLoader2 extends Loader implements ILoader{
                 }
 
                 if (!handler) {
-                    console.warn("OBJLoader2: Regiser MTLLoader2 or any other material loader to loading manager to load the material file:", mtl_file)
+                    console.warn("OBJLoader2: Register MTLLoader2 or any other material loader to loading manager to load the material file:", mtl_file)
                 } else {
                     const materials = await handler.loadAsync(mtl_file).catch(reason => {
                         console.warn(reason)

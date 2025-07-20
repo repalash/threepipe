@@ -78,7 +78,8 @@ export default defineConfig({
             name: 'transform-html-replace-js-to-ts',
             apply: 'serve',
             transformIndexHtml (html) {
-                return html.replace('src="./script.js"', 'src="./script.ts"');
+                const res = html.replace('src="./script.js"', 'src="./script.ts"');
+                return res
             },
         },
     ],

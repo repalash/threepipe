@@ -171,10 +171,14 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         if (!material) return
         if (this._materials.includes(material)) return
         const mat = this.findMaterial(material.uuid)
+        // todo make an option to return the same material instance and replace it, instead of replacing uuid
         if (mat) {
-            console.warn('Material UUID already exists', material, mat)
-            return
+            console.warn('MaterialManager: imported material uuid already exists, creating new uuid')
+            material.uuid = generateUUID()
+            if (material.userData.uuid) material.userData.uuid = material.uuid
         }
+        // todo: check for name exists also
+
         // console.warn('Registering material', material)
         material.addEventListener('dispose', this._disposeMaterial)
         material.addEventListener('materialUpdate', this._materialUpdate) // from set dirty

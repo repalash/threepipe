@@ -21,6 +21,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     protected _geometry: IGeometry&PlaneGeometry
 
     protected _mesh: Mesh2<IGeometry&PlaneGeometry, IMaterial>
+    protected _defaultMaterial: IMaterial
     private _transformNeedRefresh = true
 
     constructor() {
@@ -37,6 +38,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
         this._geometry.attributes.uv2.needsUpdate = true
         this._mesh = this._createMesh()
+        this._defaultMaterial = this._mesh.material
         this.refresh()
     }
 
@@ -78,8 +80,8 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
 
     @serialize('material')
     @uiConfig()
-    @bindToValue({obj: 'mesh', key: 'material'})
-    protected _material?: PhysicalMaterial
+    @bindToValue({obj: 'mesh', key: 'material', allowUndefined: true})
+    protected _material?: IMaterial
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
@@ -121,12 +123,12 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     }
 
     protected _removeMaterial() {
-        if (!this._material) return
+        if (!this._material || this._material === this._defaultMaterial) return
         // this._manager?.materials?.unregisterMaterial(this._material)
         this._material.userData.renderToDepth = this._material.userData.__renderToDepth
         this._material.userData.__renderToDepth = undefined
         // todo reset gBufferData.tonemapEnabled also
-        this._material = undefined
+        this._material = this._defaultMaterial
     }
 
     protected _onSceneUpdate(event?: ISceneEventMap['addSceneObject' | 'sceneUpdate'] & Event<'addSceneObject' | 'sceneUpdate', IScene>) {
@@ -251,6 +253,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         if (this._mesh) this._mesh.geometry = this._geometry
     }
 
+
     protected _createMaterial(material?: PhysicalMaterial): PhysicalMaterial {
         if (!material) material = new PhysicalMaterial({
             name: 'BaseGroundMaterial',
@@ -267,7 +270,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         if (this.isDisabled()) return
         if (!this._material) { // new material
             // this._removeMaterial()
-            this._material = this._createMaterial()
+            this._material = this._defaultMaterial
             // const id = this._material?.uuid
             // if (!id) console.warn('No material found for ground')
             this._viewer.scene.setDirty()
@@ -275,30 +278,28 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
             //     this._mesh.material = this._material // must be set even if same, for update event handlers.
             // }
         }
-        if (this._material) {
-            if (this._material.userData.__renderToDepth === undefined) {
-                this._material.userData.__renderToDepth = this._material.userData.renderToDepth
-            }
-            if (this._material.userData.renderToDepth !== this.renderToDepth) {
-                this._material.userData.renderToDepth = this.renderToDepth // required to work with SSR, SSAO etc when the ground is transparent / transmissive
-            }
-            if (!this._material.userData.gBufferData) this._material.userData.gBufferData = {}
-            if (this._material.userData.gBufferData.__tonemapEnabled === undefined) {
-                this._material.userData.gBufferData.__tonemapEnabled = this._material.userData.gBufferData.tonemapEnabled
-            }
-            if (this._material.userData.gBufferData.tonemapEnabled !== this.tonemapGround) {
-                this._material.userData.gBufferData.tonemapEnabled = this.tonemapGround
-            }
-            // this._material.userData.ssaoDisabled = true //todo should be in BakedGroundPlugin
-            // this._material.userData.sscsDisabled = true //todo should be in BakedGroundPlugin
-
-            // if (this._material.userData.__postTonemap === undefined) {
-            //     this._material.userData.__postTonemap = this._material.userData.postTonemap
-            // }
-            // if (this._material.userData.postTonemap !== this.tonemapGround) {
-            //     this._material.userData.postTonemap = this.tonemapGround
-            // }
+        if (this._material.userData.__renderToDepth === undefined) {
+            this._material.userData.__renderToDepth = this._material.userData.renderToDepth
         }
+        if (this._material.userData.renderToDepth !== this.renderToDepth) {
+            this._material.userData.renderToDepth = this.renderToDepth // required to work with SSR, SSAO etc when the ground is transparent / transmissive
+        }
+        if (!this._material.userData.gBufferData) this._material.userData.gBufferData = {}
+        if (this._material.userData.gBufferData.__tonemapEnabled === undefined) {
+            this._material.userData.gBufferData.__tonemapEnabled = this._material.userData.gBufferData.tonemapEnabled
+        }
+        if (this._material.userData.gBufferData.tonemapEnabled !== this.tonemapGround) {
+            this._material.userData.gBufferData.tonemapEnabled = this.tonemapGround
+        }
+        // this._material.userData.ssaoDisabled = true //todo should be in BakedGroundPlugin
+        // this._material.userData.sscsDisabled = true //todo should be in BakedGroundPlugin
+
+        // if (this._material.userData.__postTonemap === undefined) {
+        //     this._material.userData.__postTonemap = this._material.userData.postTonemap
+        // }
+        // if (this._material.userData.postTonemap !== this.tonemapGround) {
+        //     this._material.userData.postTonemap = this.tonemapGround
+        // }
         this._viewer.setDirty(this) // todo: something else also?
         return
     }

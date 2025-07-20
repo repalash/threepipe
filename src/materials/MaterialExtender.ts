@@ -1,8 +1,8 @@
 import {IMaterial, IMaterialUserData, IWebGLRenderer} from '../core'
 import {getOrCall, objectMap} from 'ts-browser-helpers'
 import {shaderReplaceString, shaderUtils} from '../utils'
-import {Object3D, Shader, ShaderChunk, WebGLRenderer} from 'three'
-import {MaterialExtension} from './MaterialExtension'
+import {Object3D, ShaderChunk, WebGLRenderer} from 'three'
+import {MaterialExtension, MaterialExtensionShader} from './MaterialExtension'
 import {generateUUID} from '../three/utils'
 
 export class MaterialExtender {
@@ -13,13 +13,13 @@ export class MaterialExtender {
 
     static VoidMain = 'void main()'
 
-    static ApplyMaterialExtensions(material: IMaterial, shader: Shader, materialExtensions: MaterialExtension[], renderer: WebGLRenderer) {
+    static ApplyMaterialExtensions(material: IMaterial, shader: MaterialExtensionShader, materialExtensions: MaterialExtension[], renderer: WebGLRenderer) {
         for (const materialExtension of materialExtensions) {
             this.ApplyMaterialExtension(material, shader, materialExtension, renderer)
         }
     }
 
-    static ApplyMaterialExtension(material: IMaterial, shader: Shader, materialExtension: MaterialExtension, renderer: WebGLRenderer) {
+    static ApplyMaterialExtension(material: IMaterial, shader: MaterialExtensionShader, materialExtension: MaterialExtension, renderer: WebGLRenderer) {
         // Add parsFragmentSnippet just before void main in fragment shader
         let a = getOrCall(materialExtension.parsFragmentSnippet, renderer, material) ?? ''
         if (a.length) {

@@ -8,8 +8,8 @@ import {
     Material,
     Object3D,
     Scene,
-    Shader,
     Vector2,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
@@ -72,7 +72,7 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
-    onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
+    onBeforeCompile(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         const f = [
             ['vec4 diffuseColor = ', 'beforeAccumulation'],
             ['#include <clipping_planes_fragment>', 'mainStart'],

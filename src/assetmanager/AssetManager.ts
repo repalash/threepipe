@@ -14,7 +14,7 @@ import {
 } from 'three'
 import {ISerializedConfig, IViewerPlugin, ThreeViewer} from '../viewer'
 import {AssetImporter} from './AssetImporter'
-import {generateUUID, getTextureDataType, overrideThreeCache} from '../three'
+import {getTextureDataType, overrideThreeCache} from '../three'
 import {IAsset} from './IAsset'
 import {
     AddObjectOptions,
@@ -374,12 +374,6 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             // console.log('preprocess mat', mat)
             const mat = event.data as IMaterial
             if (!mat || !mat.isMaterial || !mat.uuid) return
-            if (this.materials?.findMaterial(mat.uuid)) {
-                console.warn('imported material uuid already exists, creating new uuid')
-                mat.uuid = generateUUID()
-                if (mat.userData.uuid) mat.userData.uuid = mat.uuid
-            }
-            // todo: check for name exists also
             this.materials.registerMaterial(mat)
         })
 

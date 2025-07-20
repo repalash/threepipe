@@ -53,7 +53,7 @@ async function init() {
 
     viewer.scene.backgroundColor = new Color(0x1B1B1F)
     ground.tonemapGround = false
-    ground.material!.color.set(0x1B1B1F)
+    ground.material!.color!.set(0x1B1B1F)
     ground.material!.roughness = 0.2
     ground.material!.userData.separateEnvMapIntensity = true
     ground.material!.envMapIntensity = 0
