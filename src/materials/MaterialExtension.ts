@@ -1,7 +1,14 @@
-import {IUniform, Object3D, Shader, WebGLRenderer} from 'three'
+import {IUniform, Object3D, WebGLProgramParametersWithUniforms, WebGLRenderer} from 'three'
 import {IMaterial, IWebGLRenderer} from '../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ValOrFunc} from 'ts-browser-helpers'
+
+export type MaterialExtensionShader = WebGLProgramParametersWithUniforms // ShaderLibShader & {defines: any} // todo
+
+/**
+ * @deprecated use {@link MaterialExtensionShader} or {@link WebGLProgramParametersWithUniforms} instead
+ */
+export type Shader = WebGLProgramParametersWithUniforms // ShaderLibShader & {defines: any} // todo
 
 /**
  * Material extension interface
@@ -25,7 +32,7 @@ export interface MaterialExtension{
      * @param material
      * @param renderer
      */
-    shaderExtender?: (shader: Shader&{defines: any; extensionDerivatives?: boolean}, material: IMaterial, renderer: WebGLRenderer) => void,
+    shaderExtender?: (shader: MaterialExtensionShader, material: IMaterial, renderer: WebGLRenderer) => void,
     /**
      * Extra code to add to the top of the fragment shader
      * Value can be a string or a function that returns a string

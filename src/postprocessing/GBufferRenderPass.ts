@@ -24,6 +24,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
     private _transparentMats = new Set<IMaterial>()
     private _transmissiveMats = new Set<[IMaterial, number]>()
 
+    // todo make a global parameter in the viewer to be able to render all transparent and transmissive materials to gbuffer by default
     preprocessMaterial = (material: IMaterial, renderToGBuffer?: boolean) => {
         renderToGBuffer = renderToGBuffer ?? material.userData.renderToGBuffer
         if (material.userData.pluginsDisabled) renderToGBuffer = false

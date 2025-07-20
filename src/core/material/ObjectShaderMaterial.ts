@@ -1,4 +1,12 @@
-import {BaseEvent, IUniform, Material, Shader, ShaderMaterial, ShaderMaterialParameters, WebGLRenderer} from 'three'
+import {
+    BaseEvent,
+    IUniform,
+    Material,
+    ShaderMaterial,
+    ShaderMaterialParameters,
+    WebGLProgramParametersWithUniforms,
+    WebGLRenderer,
+} from 'three'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
@@ -61,7 +69,7 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
         return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
-    onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
+    onBeforeCompile(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         // const f = [
         //     ['vec3 outgoingLight = ', 'afterModulation'], // added markers before found substring
         //     ['#include <aomap_fragment>', 'beforeModulation'],

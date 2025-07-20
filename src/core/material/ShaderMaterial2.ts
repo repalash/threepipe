@@ -6,9 +6,9 @@ import {
     Material,
     Object3D,
     Scene,
-    Shader,
     ShaderMaterial,
     ShaderMaterialParameters,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import {IMaterial, IMaterialEventMap, IMaterialParameters, IMaterialUserData} from '../IMaterial'
@@ -76,7 +76,7 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
         return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
-    onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
+    onBeforeCompile(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
         super.onBeforeCompile(shader, renderer)
     }

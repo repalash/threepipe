@@ -6,7 +6,7 @@ import {
     MeshBasicMaterial,
     MeshBasicMaterialParameters,
     MultiplyOperation,
-    Shader,
+    WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
@@ -72,7 +72,7 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
         return super.customProgramCacheKey() + iMaterialCommons.customProgramCacheKey.call(this)
     }
 
-    onBeforeCompile(shader: Shader, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
+    onBeforeCompile(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         const f = [
             ['vec3 outgoingLight = ', 'afterModulation'], // added markers before found substring
             ['#include <aomap_fragment>', 'beforeModulation'],

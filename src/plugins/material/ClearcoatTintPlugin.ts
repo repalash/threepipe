@@ -75,7 +75,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
                 'outgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + clearcoatSpecular * material.clearcoat;',
                 'outgoingLight *= clearcoatTint(dotNVcc, dotNVcc, material.clearcoat);\n', {prepend: true})
 
-            shader.defines.USE_UV = ''
+            shader.defines && (shader.defines.USE_UV = '')
 
         },
         onObjectRender: (_, material) => {

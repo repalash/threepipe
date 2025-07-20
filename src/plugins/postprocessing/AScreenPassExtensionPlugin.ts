@@ -1,7 +1,7 @@
 import {type AViewerPlugin, AViewerPluginEventMap, AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import type {ThreeViewer} from '../../viewer'
-import {MaterialExtension} from '../../materials'
-import {Shader, Vector4, WebGLRenderer} from 'three'
+import {MaterialExtension, MaterialExtensionShader} from '../../materials'
+import {Vector4, WebGLRenderer} from 'three'
 import {IMaterial} from '../../core'
 import {shaderReplaceString} from '../../utils'
 import {GBufferPlugin, GBufferUpdater, GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
@@ -38,7 +38,7 @@ export abstract class AScreenPassExtensionPlugin<TE extends AViewerPluginEventMa
 
     protected _shaderPatch = ''
 
-    shaderExtender(shader: Shader, _: IMaterial, _1: WebGLRenderer): void {
+    shaderExtender(shader: MaterialExtensionShader, _: IMaterial, _1: WebGLRenderer): void {
         if (this.isDisabled()) return
 
         shader.fragmentShader = shaderReplaceString(

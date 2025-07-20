@@ -1,7 +1,7 @@
 import {IPass} from './Pass'
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import {ExtendedShaderMaterial, IWebGLRenderer, ShaderMaterial2} from '../core'
-import {Shader, ShaderMaterialParameters, Texture, WebGLRenderTarget} from 'three'
+import {ShaderLibShader, ShaderMaterialParameters, Texture, WebGLRenderTarget} from 'three'
 import {uiToggle} from 'uiconfig.js'
 import {onChange2, serialize} from 'ts-browser-helpers'
 import {IShaderPropertiesUpdater} from '../materials'
@@ -76,7 +76,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
  * @deprecated renamed to {@link ExtendedShaderPass}
  */
 export class ShaderPass2 extends ExtendedShaderPass {
-    constructor(shader: Shader|ShaderMaterial2, ...textureID: string[]) {
+    constructor(shader: ShaderLibShader|ShaderMaterial2, ...textureID: string[]) {
         console.error('ShaderPass2 is renamed to ExtendedShaderPass')
         super(shader, ...textureID)
     }

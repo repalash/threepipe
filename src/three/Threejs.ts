@@ -20,6 +20,7 @@ export {Skeleton} from 'three'
 export {Bone} from 'three'
 export {Mesh} from 'three'
 export {InstancedMesh} from 'three'
+export {BatchedMesh} from 'three'
 export {LineSegments} from 'three'
 export {LineLoop} from 'three'
 export {Line} from 'three'
@@ -33,7 +34,7 @@ export {DataArrayTexture} from 'three'
 export {Data3DTexture} from 'three'
 export {CompressedTexture} from 'three'
 export {CompressedArrayTexture} from 'three'
-// export {CompressedCubeTexture} from 'three'
+export {CompressedCubeTexture} from 'three'
 export {CubeTexture} from 'three'
 export {CanvasTexture} from 'three'
 export {DepthTexture} from 'three'
@@ -45,7 +46,7 @@ export {BoxGeometry,
     CylinderGeometry,
     DodecahedronGeometry,
     EdgesGeometry,
-    ExtrudeGeometry,
+    ExtrudeGeometry, type ExtrudeGeometryOptions,
     IcosahedronGeometry,
     LatheGeometry,
     OctahedronGeometry,
@@ -221,10 +222,6 @@ export type {ColorRepresentation, HSL, RGB} from 'three'
 export type {ShaderMaterialParameters} from 'three'
 
 export * from 'three/src/constants.js'
-
-export type {Shader} from 'three'
-export type {IUniform} from 'three'
-
 export * from 'three/examples/jsm/libs/fflate.module.js'
 
 export {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
@@ -244,6 +241,10 @@ export {Wireframe} from 'three/examples/jsm/lines/Wireframe.js'
 export {WireframeGeometry2} from 'three/examples/jsm/lines/WireframeGeometry2.js'
 export {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
 export * from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+
+export type {MaterialEventMap, BufferGeometryEventMap, Object3DEventMap, BaseEvent, AnimationMixerEventMap, TextureEventMap, InstancedMeshEventMap, WebXRManagerEventMap, WebXRSpaceEventMap, XRControllerEventType} from 'three'
 export type {Event, EventListener, EventListener2, Event2} from 'three'
 export type {MeshPhysicalMaterialParameters, MeshBasicMaterialParameters, MaterialParameters} from 'three'
-export type {TypedArray} from 'three'
+export type {TypedArray, WebXRArrayCamera} from 'three'
+export type {WebGLProgramParametersWithUniforms, WebGLProgramParameters, WebGL1PixelFormat, WebGLCapabilitiesParameters, WebGL2PixelFormat, WebGLDebug, WebGLRendererParameters, WebGLRenderTargetOptions, WebGLLightsState} from 'three'
+export type {ShaderLibShader, IUniform} from 'three'
