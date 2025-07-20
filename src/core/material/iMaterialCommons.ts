@@ -66,6 +66,7 @@ export const threeMaterialPropList = {
     alphaToCoverage: false,
     premultipliedAlpha: false,
     forceSinglePass: false,
+    allowOverride: true,
     visible: true,
     toneMapped: true,
     userData: {},

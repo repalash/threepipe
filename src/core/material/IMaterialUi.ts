@@ -268,7 +268,7 @@ export const iMaterialUI = {
                     // hidden: ()=>!material.transparent && material.transmission < 0.001,
                     getValue: ()=>material.userData.renderToGBuffer === true,
                     setValue: (v: boolean)=>{
-                        if (!v && !material.userData.renderToGBuffer) return
+                        if (!v && material.userData.renderToGBuffer === false) return
                         material.userData.renderToGBuffer = v
                         material.setDirty({change: 'userData', key: 'renderToGBuffer'})
                     },
@@ -276,10 +276,10 @@ export const iMaterialUI = {
                 {
                     type: 'checkbox',
                     label: 'Render to Depth',
-                    hidden: ()=>material.userData.renderToDepth !== undefined,
+                    hidden: ()=>material.userData.renderToDepth === undefined,
                     getValue: ()=>material.userData.renderToDepth === true,
                     setValue: (v: boolean)=>{
-                        if (!v && !material.userData.renderToDepth) return
+                        if (!v && material.userData.renderToDepth === false) return
                         material.userData.renderToDepth = v
                         material.setDirty({change: 'userData', key: 'renderToDepth'})
                     },
