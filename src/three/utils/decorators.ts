@@ -133,8 +133,9 @@ export function matDefineBool(key?: string|symbol, customDefines?: any, thisMat 
  * @param onChangeParams - if true, the parameters passed to the onChange function are [key, newVal]. If false, no parameters are passed. Default = `true`
  * @param processVal - function that processes the value before setting it.
  * @param invProcessVal - function that processes the value before returning it.
+ * @param allowUndefined - if `false` - when setting the value to `undefined`, the property will be `delete`d. (this could throw an error if it cant be deleted, set to `true` then).
  */
-export function bindToValue({obj, key, processVal, invProcessVal, onChange, onChangeParams = true}: {obj?: ValOrFunc<any>, key?: ValOrFunc<ValOrArr<string | symbol>>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any, onChangeParams?: boolean}): PropertyDecorator {
+export function bindToValue({obj, key, processVal, invProcessVal, onChange, onChangeParams = true, allowUndefined = false}: {obj?: ValOrFunc<any>, key?: ValOrFunc<ValOrArr<string | symbol>>, onChange?: ((...args: any[]) => any)|string, processVal?: (newVal: any) => any, invProcessVal?: (val: any) => any, onChangeParams?: boolean, allowUndefined?: boolean}): PropertyDecorator {
     const cPropKey = !!key
 
     return (targetPrototype: any, propertyKey: string|symbol, descriptor?: TypedPropertyDescriptor<any>) => {
@@ -164,8 +165,8 @@ export function bindToValue({obj, key, processVal, invProcessVal, onChange, onCh
                 const {t, p} = getTarget(this)
                 if (!t || typeof t !== 'object') return
                 if (processVal) newVal = processVal(newVal)
-                safeSetProperty(t, p, newVal, true)
-                if (newVal === undefined) delete t[p]
+                const r = safeSetProperty(t, p, newVal, true)
+                if (r && newVal === undefined && !allowUndefined) delete t[p]
                 let oc = onChange
                 if (oc && (typeof oc === 'string' || typeof oc === 'symbol')) oc = this[oc] // todo just call it here directly
                 if (oc && typeof oc === 'function') FnCaller.callFunction(oc, this, onChangeParams ? [p, newVal] : [])

@@ -612,10 +612,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * TODO - return promise?
      */
     public dispose(clear = true): void {
+        this.renderEnabled = false
+
         // todo: dispose stuff from constructor etc
         if (clear) {
             for (const [key, plugin] of [...Object.entries(this.plugins)]) {
-                if (key === plugin.constructor.OldPluginType) return
+                if (key === plugin.constructor.OldPluginType) continue
                 this.removePlugin(plugin, true)
             }
         }
@@ -627,7 +629,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._canvas.removeEventListener('webglcontextrestored', this._onContextRestore, false)
             this._canvas.removeEventListener('webglcontextlost', this._onContextLost, false)
 
-            ;(window as any).threeViewers?.splice((window as any).threeViewers.indexOf(this), 1)
+            ;((window as any).threeViewers as any[])?.splice((window as any).threeViewers.indexOf(this), 1)
 
             if (this.resizeObserver) this.resizeObserver.unobserve(this._canvas)
             window.removeEventListener('resize', this.resize)
