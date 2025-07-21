@@ -1,10 +1,12 @@
 import {
-    _testFinish, _testStart,
+    _testFinish,
+    _testStart,
     IObject3D,
     LoadingScreenPlugin,
     PhysicalMaterial,
     shaderReplaceString,
-    ThreeViewer, Vector2,
+    ThreeViewer,
+    Vector2,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
@@ -62,7 +64,7 @@ async function init() {
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'void main() {', `
             if(vUv.x > clipVec.x) discard;
             `, {append: true})
-            shader.defines.USE_UV = ''
+            shader.defines && (shader.defines.USE_UV = '')
         },
         isCompatible: (mat)=>(mat as any).isMeshStandardMaterial,
         computeCacheKey: ()=>clipVec.x + ' ' + clipVec.y,
@@ -76,7 +78,7 @@ async function init() {
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'void main() {', `
             if(vUv.x < clipVec.x) discard;
             `, {append: true})
-            shader.defines.USE_UV = ''
+            shader.defines && (shader.defines.USE_UV = '')
         },
         isCompatible: (mat)=>(mat as any).isMeshStandardMaterial,
         computeCacheKey: ()=>clipVec.x + ' ' + clipVec.y,
