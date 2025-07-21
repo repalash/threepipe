@@ -21,7 +21,7 @@ export function sortPasses(ps: IPipelinePass<IPassID>[]) {
             if (!dPass) return
             if (dPass.dependencies.has(passId)) {
                 console.error('cyclic', passId, value)
-                throw 'Cyclic dependency'
+                throw 'Encountered cyclic dependency when sorting passes' // todo better error
             }
             pass.dependencies.add(value)
         })
@@ -41,7 +41,8 @@ export function sortPasses(ps: IPipelinePass<IPassID>[]) {
                 }))
                 if (afterIndex >= beforeIndex) {
                     console.error(pass, ps, pipeline, afterIndex, beforeIndex)
-                    throw 'Not possible'
+                    // throw 'Not possible' // todo better error
+                    throw 'Unknown error when sorting passes' // todo better error
                 }
                 pipeline.splice(pass.after.length > 0 ? afterIndex + 1 : beforeIndex, 0, passId)
                 // console.log(pipeline, passId, afterIndex, beforeIndex)
@@ -52,7 +53,7 @@ export function sortPasses(ps: IPipelinePass<IPassID>[]) {
         if (Object.keys(dict).length < 1) break
         if (!updated) {
             console.error(entries, dict, pipeline)
-            throw 'Not possible 2' // when some dependency(required) doesnt exist. todo: show better error.
+            throw 'Required pass dependency removed unexpectedly' // when some dependency(required) doesnt exist. todo: show better error.
             break
         }
     }

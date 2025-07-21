@@ -121,7 +121,12 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     private _refreshPipeline(): IPassID[] {
         if (!this.autoBuildPipeline) return this._pipeline
         const ps = this._passes
-        return this._pipeline = sortPasses(ps)
+        try {
+            this._pipeline = sortPasses(ps)
+        } catch (e) {
+            console.error('RenderManager: Unable to sort rendering passes', e)
+        }
+        return this._pipeline
     }
 
     private _animationLoop(time: number, frame?:XRFrame) {
