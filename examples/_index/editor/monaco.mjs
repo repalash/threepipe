@@ -1,4 +1,4 @@
-/* global monaco */
+/* global monaco, monacoTM */
 
 import {loadFileFromPath} from './loadTypes.mjs';
 
@@ -20,18 +20,6 @@ const MonacoThemeLight = {
     },
     inherit: true,
     rules: [
-        //     token("attribute.name", Colors.ORANGE3),
-        //     token("attribute.value", Colors.LIME2),
-        //     token("comment", Colors.GRAY2),
-        //     token("delimiter", Colors.DARK_GRAY5),
-        //     token("function", Colors.BLUE3),
-        //     token("identifier", Colors.TURQUOISE2),
-        //     token("keyword", Colors.VIOLET4),
-        //     token("number", Colors.ROSE2),
-        //     token("operator", Colors.VIOLET4),
-        //     token("string", Colors.LIME2),
-        //     token("tag", Colors.FOREST3),
-        //     token("type.identifier", Colors.GOLD2),
     ],
 };
 
@@ -44,18 +32,6 @@ const MonacoThemeDark = {
     },
     inherit: true,
     rules: [
-        // token("attribute.name", Colors.ORANGE4),
-        // token("attribute.value", Colors.LIME4),
-        // token("comment", Colors.GRAY2),
-        // token("delimiter", Colors.LIGHT_GRAY3),
-        // token("function", Colors.BLUE4),
-        // token("identifier", Colors.TURQUOISE3),
-        // token("keyword", Colors.VIOLET4),
-        // token("number", Colors.ROSE4),
-        // token("operator", Colors.VIOLET5),
-        // token("string", Colors.LIME4),
-        // token("tag", Colors.FOREST3),
-        // token("type.identifier", Colors.GOLD5),
     ],
 };
 
@@ -89,11 +65,32 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
             esModuleInterop: true,
         });
 
-        monaco.editor.defineTheme('tp-light', MonacoThemeLight);
-        monaco.editor.defineTheme('tp-dark', MonacoThemeDark);
-        // monaco.editor.defineTheme('light-plus', fetchTheme('light-plus'));
-        // monaco.editor.defineTheme('dark-plus', fetchTheme('dark-plus'));
-        // console.log(fetchTheme('dark-plus'))
+        const lightPlus = monacoTM.fetchTheme('light-plus');
+        const darkPlus = monacoTM.fetchTheme('dark-plus');
+        monaco.editor.defineTheme('tp-light', {
+            ...lightPlus,
+            ...MonacoThemeLight,
+            colors: {
+                ...lightPlus.colors,
+                ...MonacoThemeLight.colors,
+            },
+            rules: [
+                ...lightPlus.rules,
+                ...MonacoThemeLight.rules,
+            ],
+        });
+        monaco.editor.defineTheme('tp-dark', {
+            ...darkPlus,
+            ...MonacoThemeDark,
+            colors: {
+                ...darkPlus.colors,
+                ...MonacoThemeDark.colors,
+            },
+            rules: [
+                ...darkPlus.rules,
+                ...MonacoThemeDark.rules,
+            ],
+        });
 
         const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -142,12 +139,43 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
             // source.revealRangeInCenterIfOutsideViewport(input.options.selection)
             return result; // always return the base result
         };
+        editor._onSaveActions = []
+        editor.onSaveAction = (action)=>{
+            editor._onSaveActions.push(action);
+        }
+        editor.doSaveAction = ()=>{
+            const actions = editor._onSaveActions;
+            for (const action of actions) {
+                action();
+            }
+        }
+        // editor.onKeyDown(async (e) => {
+        //     if (e.keyCode === monaco.KeyCode.KeyS && (e.ctrlKey || e.metaKey)) {
+        //         e.preventDefault();
+        //         model._onSave && await model._onSave()
+        //     }
+        // });
+        editor.addAction({
+            id: 'threepipe.saveAndRun',
+            label: 'Save And Run',
+            keybindings: [
+                monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+            ],
+            contextMenuGroupId: 'navigation', // or 'modification'
+            contextMenuOrder: 1.5,
+            run: editor.doSaveAction,
+        });
+
+        // editor.addCommand(
+        //     monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+        //     editor.doSaveAction,
+        // );
 
         resolve(editor);
     });
 }
 
-export async function createEditor2 () {
+export async function createMonacoEditor () {
     // in general ignore as its annoying
     window.addEventListener('keydown', (e) => {
         if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) {
@@ -162,8 +190,29 @@ export async function createEditor2 () {
     loadFileFromPath(new URL('./tweakpane-editor/ThreeEditor.ts?raw', window.location.href).href)
     // loadFileFromPath(new URL('./examples-utils/global-loading.mjs', window.location.href).href)
     // loadFileFromPath(new URL('./examples-utils/simple-code-preview.mjs', window.location.href).href)
-
+    return window.monacoEditor;
 }
 
 
-
+window.tsWorkerClient = null;
+export async function getTsWorker () {
+    await window.monacoPromise
+    if(window.tsWorkerClient) return window.tsWorkerClient;
+    const worker = await monaco.languages.typescript.getTypeScriptWorker();
+    window.tsWorkerClient = await worker();
+    return window.tsWorkerClient;
+}
+export async function getCompiledJs (uri) {
+    const client = await getTsWorker()
+    const diagnostics = await client.getSyntacticDiagnostics(uri);
+    if(diagnostics.length > 0) { // syntax error
+        const diagnostics2 = await client.getSemanticDiagnostics(uri);
+        console.warn('Syntactic diagnostics found:', diagnostics);
+        console.warn('Semantic diagnostics found:', diagnostics2);
+        return;
+    }
+    const result = await client.getEmitOutput(uri)
+    if(result.outputFiles.length > 0) {
+        return result.outputFiles[0]
+    }
+}

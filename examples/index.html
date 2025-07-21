@@ -288,13 +288,9 @@
 
     <!-- https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-amd.md -->
     <script src="https://unpkg.com/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script src="https://unpkg.com/monacopilot@1.2.7/dist/index.global.js"></script>
+    <script src="https://unpkg.com/monaco-tm@0.1.0/dist/index.global.js"></script>
 
-    <script type="module">
-
-
-    </script>
-    <script>
-    </script>
     <script type="module">
         import {setupCodeEditor} from "./_index/editor/setup.mjs";
 
@@ -385,6 +381,7 @@
             }
 
             const setEditorExample = setupCodeEditor(iframe)
+
             function selectTarget(target, scroll = false) {
                 selected.classList.remove('selected');
                 selected.parentElement && selected.parentElement.classList.remove('selected-li');
