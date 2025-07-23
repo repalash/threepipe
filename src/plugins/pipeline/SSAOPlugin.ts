@@ -7,7 +7,7 @@ import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMate
 import {getOrCall, glsl, onChange2, serialize, updateBit, ValOrFunc} from 'ts-browser-helpers'
 import {MaterialExtension} from '../../materials'
 import {shaderReplaceString, shaderUtils} from '../../utils'
-import {getTexelDecoding, matDefine, matDefineBool} from '../../three'
+import {getTexelDecoding, matDefine, matDefineBool, uniform} from '../../three'
 import ssaoPass from './shaders/SSAOPlugin.pass.glsl'
 import ssaoPatch from './shaders/SSAOPlugin.patch.glsl'
 import {uiConfigMaterialExtension} from '../../materials/MaterialExtender'
@@ -167,7 +167,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     //     falloff: 1.3,
     // }
     @serialize()
-    @uiSlider('Intensity', [0, 4], 0.01)
+    @uiSlider('Intensity', [0, 4], 0.0001)
     @onChange2(SSAOPluginPass.prototype.setDirty)
         intensity = 0.25
 
@@ -187,7 +187,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         falloff = 1.3
 
     @serialize()
-    @uiSlider('Num Samples', [1, 11], 1)
+    @uiSlider('Num Samples', [1, 11], 1, {tags: ['performance']})
     @matDefine('NUM_SAMPLES', undefined, undefined, SSAOPluginPass.prototype.setDirty)
         numSamples = 8
 
@@ -204,6 +204,10 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     // todo after bilateralPass is implemented
     // @bindToValue({obj: 'bilateralPass', key: 'enabled', onChange: 'setDirty'})
     // smoothEdgeSharpness = true
+
+    @uiSlider('Split', [0, 1], 0.01, {tags: ['debug']})
+    @serialize() @uniform({propKey: 'ssaoSplitX', onChange: SSAOPluginPass.prototype.setDirty})
+        split = 0
 
     constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>) {
         super({
@@ -223,6 +227,9 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 cameraNearFar: {value: new Vector2(0.1, 1000)}, // set in PerspectiveCamera2
                 projection: {value: new Matrix4()}, // set in PerspectiveCamera2
                 saoBiasEpsilon: {value: new Vector3(1, 1, 1)},
+
+                // split mode
+                ssaoSplitX: {value: 0.5},
             },
 
             vertexShader: shaderUtils.defaultVertex,
@@ -285,6 +292,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     readonly materialExtension: MaterialExtension = {
         extraUniforms: {
             tSSAOMap: ()=>({value: getOrCall(this.target)?.texture ?? null}),
+            ssaoSplitX: this.material.uniforms.ssaoSplitX,
         },
         shaderExtender: (shader, _material, _renderer) => {
             if (!shader.defines?.SSAO_ENABLED) return
@@ -296,7 +304,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
             const x: any = this.enabled && // opaque &&
             renderer.userData.screenSpaceRendering !== false &&
             !material.userData?.pluginsDisabled &&
-            !material.userData?.ssaoDisabled ? 1 : 0
+            !material.userData?.ssaoDisabled ? this.split > 0 ? 2 : 1 : 0
 
             if (material.defines!.SSAO_ENABLED !== x) {
                 material.defines!.SSAO_ENABLED = x
@@ -305,6 +313,9 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         },
         parsFragmentSnippet: ()=>glsl`
              uniform sampler2D tSSAOMap;
+            #if defined(SSAO_ENABLED) && SSAO_ENABLED == 2
+            uniform float ssaoSplitX;
+            #endif
              ${getTexelDecoding('tSSAOMap', getOrCall(this.target)?.texture.colorSpace)}
              #include <simpleCameraHelpers>
         `,

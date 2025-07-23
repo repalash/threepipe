@@ -11,15 +11,15 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 
 1. If changing the `src/` folder - Run `npm run dev` to start the development in watch mode
 2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to start the development in watch mode for the package.
-3. Run `npm run dev-examples` to start the examples build in watch mode
-4. Run `npm run serve` to start the development server
-5. Navigate to `http://localhost:9229/index.html` to see the examples and pick the one you are working on.
+3. Run `npm run dev-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+4. OR run `npm run vite` to run vite dev server and navigate to http://localhost:4173/examples/index.html
+5. Test the examples and pick the one you are working on.
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
 
 Some examples requires env variables. 
-- Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file.
+- Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file, and build the examples again.
 
 ## Testing
 

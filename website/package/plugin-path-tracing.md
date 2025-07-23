@@ -40,7 +40,9 @@ This is still a WIP.
 :::
 
 :::tip Editor
-Path tracing rendering can be done directly in the tweakpane editor. Simply enable the plugin from the UI.
+Path tracing rendering can be done directly in the [tweakpane editor](https://threepipe.org/examples/tweakpane-editor/) or [threepipe editor](https://editor.threepipe.org/). 
+
+Simply enable the plugin from the UI.
 :::
 
 ## Sample Usage 
