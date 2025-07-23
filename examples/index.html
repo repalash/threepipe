@@ -45,6 +45,7 @@
         }
 
         .root-container {
+            position: relative;
             display: flex;
             flex-direction: row;
             width: 100%;
@@ -286,7 +287,6 @@
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.0/build/dist/untar.min.js"></script>
 
-    <!-- https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-amd.md -->
     <script src="https://unpkg.com/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="https://unpkg.com/monacopilot@1.2.7/dist/index.global.js"></script>
     <script src="https://unpkg.com/monaco-tm@0.1.0/dist/index.global.js"></script>
@@ -336,7 +336,8 @@
             function createExample(example) {
                 const li = document.createElement('li');
                 const a = document.createElement('a');
-                const loc = window.location.origin + window.location.pathname;
+                const loc = window.location.origin + window.location.pathname.replace('/index.html', '/');
+                console.log(loc, example.href)
                 a.href = example.href.replace(loc, './');
                 a.textContent = example.label;
                 a.dataset.customId = example.id;
@@ -368,7 +369,7 @@
                     selectTarget(ev.target);
                 }
                 allExamples.push(a.href)
-                selectTarget(a, true)
+                selectTarget(a, true, false)
                 updateSearch()
             }
             function saveExample(exampleId, content) {
@@ -382,7 +383,7 @@
 
             const setEditorExample = setupCodeEditor(iframe)
 
-            function selectTarget(target, scroll = false) {
+            function selectTarget(target, scroll = false, updateFrame = true) {
                 selected.classList.remove('selected');
                 selected.parentElement && selected.parentElement.classList.remove('selected-li');
                 target.classList.add('selected');
@@ -391,6 +392,12 @@
                 window.location.hash = "#" + target.getAttribute("href").slice(2);
                 if(selected === target) return
                 selected = target;
+                if(scroll){
+                    setTimeout(() => { // this is required because of autofocus
+                        target.scrollIntoView({behavior: "smooth", block: "center"});
+                    }, 100);
+                }
+                if(!updateFrame) return;
                 const custom = !!target.dataset.customId
                 const customContent = custom ? localStorage.getItem(`tp-examples-custom-${target.dataset.customId}`) : null
                 if(!custom) {
@@ -408,11 +415,6 @@
                         label: target.textContent + newName.replace(oldName, '').replace(/-/g, ' '),
                         href: target.href.replace(oldName, newName),
                     }, content), saveExample)
-                if(scroll){
-                    setTimeout(() => { // this is required because of autofocus
-                        target.scrollIntoView({behavior: "smooth", block: "center"});
-                    }, 100);
-                }
             }
 
             hamburger.addEventListener('click', () => {
@@ -702,23 +704,29 @@
             <li><a href="./gltf-transmission-test-msaa-zprepass/">glTF Transmission Test + MSAA + zPrepass</a></li>
             <li><a href="./dispose-reimport-test/">Dispose + Reimport (URL)</a></li>
             <li><a href="./dispose-reimport-test-2/">Dispose + Reimport (URL, Root)</a></li>
-            <li><a href="./dispose-reimport-test-3/">Dispose + Reimport (URL, Root, BUG)</a></li>
-            <li><a href="./reimport-duplicate-test/">Reimport Duplicate (URL, Root, BUG)</a></li>
+            <li><a href="./dispose-reimport-test-3/">Dispose + Reimport 2 (URL, Root)</a></li>
+            <li><a href="./reimport-duplicate-test/">Reimport Duplicate (URL, Root)</a></li>
             <li><a href="./clear-reimport-test/">Clear + Reimport (URL, Root)</a></li>
             <li><a href="./clear-reimport-test-2/">Clear + Reimport 2 (URL, Root)</a></li>
             <li><a href="./theatrejs-plugin/">TheatreJs Plugin (Incomplete)</a></li>
         </ul>
     </div>
-    <div class="codebar closed">
-        <div class="codefiles"><div class="codefiles-tabs"></div>
+    <div class="codebar closed left-pane">
+        <div class="codefiles">
+            <div class="codefiles-tabs"></div>
             <div class="codefiles-actions">
-                <div class="codefiles-action" id="codefiles-action-format">F</div>
-                <div class="codefiles-action" id="codefiles-action-run">R</div>
+                <div class="codefiles-action" id="codefiles-action-format">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" width="1em" height="1em"><path d="M10.33 1.67h-8c-.45-.02-.43-.67 0-.67h8c.44 0 .46.64 0 .67m-8 2.66c-.45-.02-.43-.66 0-.66H7c.44 0 .45.64 0 .66zM5.67 3c-.46-.02-.44-.66 0-.67h6.66c.44.01.46.65 0 .67zm5.33.67c.44 0 .45.64 0 .66H8.33c-.45-.02-.43-.66 0-.66zm1.33.66c-.45-.02-.43-.66 0-.66H13c.44 0 .45.64 0 .66zm-10 1.34c-.45-.02-.43-.67 0-.67h1.34c.43 0 .45.64 0 .67zm8 0c-.45-.02-.43-.67 0-.67h3.34c.43 0 .45.64 0 .67zM5 5.67C4.55 5.65 4.57 5 5 5h.67c.43 0 .45.64 0 .67zm-2.67 8c-.45-.02-.43-.67 0-.67h1.34c.43 0 .45.64 0 .67zm2.67 0c-.45-.02-.43-.67 0-.67h.67c.43 0 .45.64 0 .67zM10.33 7c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm-8 0c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm0 5.33c-.45-.02-.43-.66 0-.66h3.34c.43 0 .45.64 0 .66zm0 2.67c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm0-6.67c-.45-.02-.43-.66 0-.66H3c.44 0 .45.64 0 .66zm2 0c-.45-.02-.43-.66 0-.66h2c.44 0 .46.64 0 .66zm3.34 0c-.46-.02-.44-.66 0-.66H13c.44 0 .45.64 0 .66zm2.66 1.34c-.45-.02-.43-.67 0-.67h2c.44 0 .46.64 0 .67zm-4 0c-.45-.02-.43-.67 0-.67H9c.44 0 .45.64 0 .67zm-4 0c-.45-.02-.43-.67 0-.67H5c.44 0 .45.64 0 .67zm0 1.33c-.45-.02-.43-.66 0-.67H3c.44.01.45.65 0 .67zm2 0c-.45-.02-.43-.66 0-.67h6c.44.01.46.65 0 .67zm-2-8c-.45-.02-.43-.66 0-.67h2c.44.01.46.65 0 .67z"></path></svg>
+                </div>
+                <div class="codefiles-action" id="codefiles-action-run">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.681 3H2V2h3.5l.5.5V6H5V4a5 5 0 1 0 4.53-.761l.302-.954A6 6 0 1 1 4.681 3" clip-rule="evenodd"></path></svg>
+                </div>
             </div>
         </div>
         <div class="codebox"></div>
     </div>
-    <div class="iframe-container">
+    <div class="panes-separator"><div class="panes-separator-line"></div></div>
+    <div class="iframe-container right-pane">
         <!-- TODO: allow only threepipe and localhost domains -->
         <iframe id="example-iframe" src="./tweakpane-editor/" frameborder="0" allowfullscreen="allowfullscreen"
                 allow="accelerometer *; ambient-light-sensor *; autoplay *; camera *; clipboard-read *; clipboard-write *; encrypted-media *; fullscreen *; geolocation *; gyroscope *; magnetometer *; microphone *; midi *; payment *; picture-in-picture *; screen-wake-lock *; speaker *; sync-xhr *; usb *; web-share *; vibrate *; vr *">

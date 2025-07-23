@@ -26,7 +26,7 @@ export function urlToUri (absUrl) {
 
 export async function loadFileFromPath (path) {
     if(fileLoadState.packages.has(path)) {
-        // const version = fileLoadState.packages.get(path).version ?? '0.0.0';
+        // const version = fileLoadState.packages.get(path).version || '0.0.0';
         // console.warn('File already loaded');
         return;
     }
@@ -44,7 +44,7 @@ export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0)
 
     // console.log('Loading package', packageName, 'version', version1, 'at level', level);
     if(fileLoadState.packages.has(packageName)) {
-        const version = fileLoadState.packages.get(packageName).version ?? '0.0.0';
+        const version = fileLoadState.packages.get(packageName).version || '0.0.0';
         if(version1 !== 'latest' && version1 !== version) {
             console.warn('Package already loaded with another version', packageName, 'current:', version, 'requested:', version1);
         }

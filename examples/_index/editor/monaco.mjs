@@ -171,6 +171,9 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
         //     editor.doSaveAction,
         // );
 
+        document.getElementById('codefiles-action-run').onclick = () => editor.doSaveAction()
+        document.getElementById('codefiles-action-format').onclick = () => editor.getAction('editor.action.formatDocument').run()
+
         resolve(editor);
     });
 }

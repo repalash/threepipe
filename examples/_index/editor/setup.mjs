@@ -13,11 +13,17 @@ export function setupCodeEditor (iframe) {
 
     // const codebar = document.querySelector('.codebar');
     const codefiles = document.querySelector('.codefiles-tabs');
+    const codefilesActions = document.querySelector('.codefiles-actions');
     const exampleState = {};
 
-    function getIcon () {
-        const tsIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="1.414" clip-rule="evenodd" viewBox="0 0 500 500" class="FileName-icon-i4M61"><g fill="#0288d1"><path d="M454 454H46V46h408zM66 66v368h368V66z"></path><path d="M349.8 237.85c-2.347-.007-4.503.053-6.114.205-12.593 1.095-24.356 6.595-32.407 15.153-4.033 4.288-7.687 10.436-9.472 15.939-1.967 6.065-1.953 5.949-1.943 15.45.01 12.139.627 15.146 4.757 23.219 4.153 8.118 10.48 14.749 19.608 20.55 4 2.542 14.245 7.65 22.611 11.275 18.211 7.889 23.972 11.528 26.645 16.835l1.104 2.19v4.59c0 4.427-.018 4.655-.918 6.48-2.054 4.224-6.903 7.683-13.112 9.354-2.348.63-3.424.72-8.671.722-5.136 0-6.383-.106-8.737-.692-4.11-1.04-7.573-2.478-10.28-4.271-3.315-2.195-9.832-8.775-12.483-12.603-1.17-1.69-2.345-3.075-2.609-3.075-.436 0-22.907 12.847-26.829 15.338-1.322.84-1.657 1.223-1.657 1.896 0 1.396 5.25 9.332 9.363 14.152 8.379 9.822 25.182 18.481 40.066 20.65 5.884.856 15.657 1.133 22.485.63 4.474-.328 8.996-1.177 13.855-2.602 17.58-5.157 29.575-16.112 34.02-31.074 1.813-6.103 2.546-13.61 1.947-19.943-1.228-12.994-5.222-22.18-13.106-30.137-7.321-7.388-17.372-13.341-37.209-22.04-17.199-7.54-21.688-10.47-24.167-15.767-2.14-4.573-1.732-10.867.96-14.778 3.15-4.578 9.58-6.84 16.751-5.89 6.668.88 10.98 3.523 15.205 9.313 2.194 3.006 3.717 4.572 4.447 4.572.72 0 3.822-1.914 13.451-8.307 9.802-6.506 12.884-8.714 13.095-9.38.328-1.031-1.208-3.445-5.702-8.958-9.023-11.067-19.63-16.942-33.25-18.416-3.344-.363-7.79-.564-11.702-.576zm-108.35 1.878c-8.085-.005-17.321 0-27.583.01-53.219.052-65.571.14-65.904.483-.324.324-.408 3.587-.408 15.766v15.357l24.2.088 24.202.087.005 68.503c.002 37.677.087 68.822.205 69.212l.182.712h17.588c15.747 0 17.607-.035 17.779-.498.105-.275.182-31.42.182-69.212v-68.714l24.201-.087 24.201-.088v-15.542c0-13.47-.052-15.58-.473-15.842-.222-.14-14.127-.224-38.383-.236z"></path></g></svg>'
-        return tsIcon;
+    setupPaneSep();
+
+    const updateDisabledActions = (editor) => {
+        const model = editor.getModel()
+        if(model && model._isSaved)
+            codefilesActions.classList.add('codefile-actions-disabled')
+        else
+            codefilesActions.classList.remove('codefile-actions-disabled')
     }
 
     async function disposeTab (uri) {
@@ -38,23 +44,24 @@ export function setupCodeEditor (iframe) {
         model && model.dispose()
     }
 
-    function createCodefileTab (uri, close = true) {
+    function createCodefileTab (uri, close = true, formatOnLoad = false) {
         const tab = document.createElement('div')
         const filename = uri.split('/').pop()
+        const ext = filename.split('.').pop().toLowerCase()
 
         tab.className = 'codefile';
         tab.title = uri.replace('file:///', '')
         // tab.textContent = uri.split('/').pop();
         tab.innerHTML = `
                         <div class="codefile-name">
+                        ${icons[extIcos[ext] || ''] || ''}
                         <div class="codefile-name1">${filename}</div></div>
-                        ${getIcon && getIcon()}
                         <div class="codefile-button ${close ? 'can-close' : ''}" title="Close" aria-label="Close ${filename}"></div>
                         `
         tab.dataset.path = uri
         tab.onclick = () => {
             if(tab.classList.contains('codefile-disabled')) return
-            window.monacoEditor && window.monacoEditor.setFileUri(uri);
+            window.monacoEditor && window.monacoEditor.setFileUri(uri, formatOnLoad);
         };
         const closeBtn = tab.querySelector('.codefile-button')
         closeBtn.onclick = (e)=>{
@@ -67,9 +74,10 @@ export function setupCodeEditor (iframe) {
         return tab;
     }
 
-    async function setFileUri (uri) {
-        if(!uri || !window.monacoEditor) {
-            window.monacoEditor && window.monacoEditor.setModel(null)
+    async function setFileUri (uri, formatOnLoad = false) {
+        const editor = window.monacoEditor
+        if(!uri || !editor) {
+            editor && editor.setModel(null)
             return
         }
 
@@ -88,12 +96,20 @@ export function setupCodeEditor (iframe) {
         }
         tab.classList.add('codefile-selected');
 
-        window.monacoEditor.setModel(model);
+        editor.setModel(model);
+
+        updateDisabledActions(editor)
+
+        if(formatOnLoad) {
+            setTimeout(() => {
+                editor.getAction('editor.action.formatDocument').run();
+            }, 100)
+        }
     }
 
-    async function createFile (absUrl, example, getContent) {
+    async function createFile (absUrl, example, getContent, format) {
         const uris = urlToUri(absUrl)
-        const tab = createCodefileTab(uris, false);
+        const tab = createCodefileTab(uris, false, format);
 
         tab.classList.add('codefile-disabled');
         const editor = await window.monacoPromise
@@ -136,8 +152,10 @@ export function setupCodeEditor (iframe) {
         model.refreshSavedState = () => {
             let value = model.getValue()
             const savedVal = getFile(uris)
-            if(value === savedVal) tab.classList.remove('codefile-unsaved');
+            model._isSaved = value === savedVal
+            if(model._isSaved) tab.classList.remove('codefile-unsaved');
             else tab.classList.add('codefile-unsaved');
+            updateDisabledActions(editor)
             return value
         }
 
@@ -186,7 +204,8 @@ export function setupCodeEditor (iframe) {
         const example = example111.split('/examples/').pop().split('/index.html')[0].split('/')[0];
         const examples = examples111.map(e=>e.split('/examples/').pop().split('/index.html')[0].split('/')[0])
         console.warn(example)
-        const htmlPath = new URL('./' + example + '/index.html', window.location.href)
+        const indexFilename = 'index.html';
+        const htmlPath = new URL('./' + example + '/' + indexFilename, window.location.href)
         const htmlContent = customContent || await (fetch(htmlPath.href + '?raw')).then(res=>res.text()).catch(e=>{
             console.error('Error fetching example:', e);
             return '';
@@ -197,6 +216,7 @@ export function setupCodeEditor (iframe) {
         const parsed = new DOMParser().parseFromString(htmlContent, 'text/html');
         const scripts = parsed.querySelectorAll('script');
         const styles = parsed.querySelectorAll('style');
+        // console.log(htmlContent)
         const exampleScript = Array.from(scripts).find(s=>s.id === 'example-script');
         if(!exampleScript) {
             console.warn('No example script found in the example HTML');
@@ -206,7 +226,8 @@ export function setupCodeEditor (iframe) {
         const importMap = parsed.querySelector('script[type="importmap"]');
         const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {};
         const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : [];
-        const mainSource = sources.find(s=>s.endsWith('/script.ts'));
+        const hasContent = exampleScript.textContent
+        const mainSource = hasContent ? './script.js' : sources.find(s=>s.endsWith('/script.ts')) || sources[0];
         if(!mainSource) {
             console.warn('No main source script found in the example script dataset');
             return;
@@ -224,7 +245,7 @@ export function setupCodeEditor (iframe) {
             html: htmlContent,
             js: exampleScript.textContent || '',
             onChange: (model, uris, content)=>{
-                if(uris.endsWith('.ts')) {
+                if(uris.endsWith('.ts') || uris.endsWith('.js')) {
                     state.js = content;
                 }else if(uris.endsWith('.html')) {
                     state.html = content;
@@ -274,14 +295,6 @@ export function setupCodeEditor (iframe) {
         }
         exampleState[exampleId2] = state
 
-        const getContent = async (absUrl) => {
-            if(exampleId2 === example) return null
-            const url = new URL(absUrl)
-            if(url.pathname.endsWith('.ts')) url.search = '?raw' // vite
-            url.pathname = url.pathname.replace(exampleId2, example);
-            const content = await (await fetch(url.href)).text()
-            return content
-        }
 
         if(exampleId2 !== example) {
             htmlPath.pathname = htmlPath.pathname.replace(example, exampleId2);
@@ -289,9 +302,37 @@ export function setupCodeEditor (iframe) {
 
         const mainScriptUrl = new URL(mainSource, htmlPath.href);
 
-        createFile(mainScriptUrl.href, exampleId2, getContent).then(tab=>tab.click())
-        createFile(htmlPath.href, exampleId2, getContent)
+        const getContent = async (absUrl) => {
+            if(exampleId2 === example) return null
+            if(absUrl === mainScriptUrl.href && hasContent) {
+                const lines = hasContent.split('\n')
+                if(!lines.length) return ''
+                let ts = 0
+                while(lines[ts].trim() === '' && ts < lines.length - 1) ts++
+                lines.splice(0, ts)
+                if(!lines.length) return ''
+                const indent = lines[0].match(/^\s*/)[0]
+                console.log(`:${indent}:`)
+                const content = lines.map(line => line.startsWith(indent) ? line.slice(indent.length) : line).join('\n')
+                return content
+            }
+            const url = new URL(absUrl)
+            // if(url.pathname.endsWith('.ts') || url.pathname.endsWith('.html'))
+            url.search = 'raw'
+            url.pathname = url.pathname.replace(exampleId2, example);
+            const content = await (await fetch(url.href)).text()
+            return content
+        }
 
+        // console.log(hasContent, !!hasContent)
+        createFile(mainScriptUrl.href, exampleId2, getContent, false).then(tab=>{
+            setTimeout(()=>{
+                tab.click()
+            }, 100)
+        })
+        createFile(htmlPath.href, exampleId2, getContent, false)
+
+        const editor = await window.monacoPromise
         for (let key of Object.keys(imports)) {
             if(!key.startsWith('./'))
                 loadTypesFromTarGz(key)
@@ -318,4 +359,140 @@ function nextName (n) {
         parts.push('copy');
     }
     return parts.join('-');
+}
+
+/**
+ * Simple Drag - https://github.com/lingtalfi/simpledrag/blob/master/simpledrag.js
+ */
+function simpleDrag (el, onDrag, onStop, direction) {
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+
+    function move (e) {
+
+        const fix = {};
+        onDrag && onDrag(el, e.pageX, startX, e.pageY, startY, fix);
+        if ('vertical' !== direction) {
+            const pageX = ('pageX' in fix) ? fix.pageX : e.pageX;
+            if ('startX' in fix) {
+                startX = fix.startX;
+            }
+            if (false === ('skipX' in fix)) {
+                el.style.left = (pageX - startX) + 'px';
+            }
+        }
+        if ('horizontal' !== direction) {
+            const pageY = ('pageY' in fix) ? fix.pageY : e.pageY;
+            if ('startY' in fix) {
+                startY = fix.startY;
+            }
+            if (false === ('skipY' in fix)) {
+                el.style.top = (pageY - startY) + 'px';
+            }
+        }
+    }
+
+    function startDragging (e) {
+        if (e.currentTarget instanceof HTMLElement || e.currentTarget instanceof SVGElement) {
+            dragging = true;
+            const left = el.style.left ? parseInt(el.style.left) : 0;
+            const top = el.style.top ? parseInt(el.style.top) : 0;
+            startX = e.pageX - left;
+            startY = e.pageY - top;
+            window.addEventListener('mousemove', move);
+        }
+        else {
+            throw new Error('Your target must be an html element');
+        }
+    }
+
+    function mouseUp (e) {
+        if (true === dragging) {
+            dragging = false;
+            window.removeEventListener('mousemove', move);
+            onStop && onStop(el, e.pageX, startX, e.pageY, startY);
+        }
+    }
+
+    el.addEventListener('mousedown', startDragging);
+    window.addEventListener('mouseup', mouseUp);
+
+    return ()=>{
+        el.removeEventListener('mousedown', startDragging);
+        window.removeEventListener('mouseup', mouseUp);
+        window.removeEventListener('mousemove', move);
+    }
+}
+
+function setupPaneSep () {
+    const sidebar = document.querySelector('.sidebar');
+    const leftPane = document.querySelector('.left-pane');
+    const rightPane = document.querySelector('.right-pane');
+    const paneSep = document.querySelector('.panes-separator');
+
+    // The script below constrains the target to move horizontally between a left and a right virtual boundaries.
+    // - the left limit is positioned at 10% of the screen width
+    // - the right limit is positioned at 90% of the screen width
+    const leftLimit = 20;
+    const rightLimit = 80;
+
+    simpleDrag(paneSep, function (el, pageX, startX, pageY, startY, fix) {
+        const sidebarW = sidebar.getBoundingClientRect().width
+
+        fix.skipX = true;
+        if (pageX - sidebarW < window.innerWidth * leftLimit / 100) {
+            pageX = sidebarW + window.innerWidth * leftLimit / 100;
+            fix.pageX = pageX;
+        }
+        if (pageX > window.innerWidth * rightLimit / 100) {
+            pageX = window.innerWidth * rightLimit / 100;
+            fix.pageX = pageX;
+        }
+
+        let cur = pageX// / window.innerWidth * 100;
+        if (cur < 0) {
+            cur = 0;
+        }
+        if (cur > window.innerWidth) {
+            cur = window.innerWidth;
+        }
+
+        // const right = (100 - cur - 2);
+        const paneSepW = paneSep.getBoundingClientRect().width / 2
+        leftPane.style.width = `${100 * (cur - sidebarW - paneSepW) / window.innerWidth}%`
+        rightPane.style.width = `${100 * (window.innerWidth - cur - paneSepW) / window.innerWidth}%`
+
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+        sidebar.style.pointerEvents = 'none'
+        leftPane.style.pointerEvents = 'none'
+        rightPane.style.pointerEvents = 'none'
+        paneSep.classList.add('pane-sep-dragging')
+    }, () => {
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        sidebar.style.pointerEvents = ''
+        leftPane.style.pointerEvents = ''
+        rightPane.style.pointerEvents = ''
+        paneSep.classList.remove('pane-sep-dragging')
+    }, 'horizontal');
+}
+
+const icons = {
+    'javascript': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="#E79627" viewBox="-40 -40 586 586" class="file-icon"><path d="M412.226 385.563c28.065 37.511-46.893 64.77-77.11 10.559l-41.05 23.822 2.516 4.167c15.464 26.04 39.62 41.294 72.27 45.673 71.481 8.55 118.148-37.034 92.817-101.767C443.667 331 396.5 324 369 305.75c-16.172-9.422-12.806-29.364.183-37.365 10.102-6.222 33.317-7.01 45.274 17.786l39.28-25.317C422.75 205 349.5 216.25 327.544 241.627 297.688 276.702 306.228 315.85 332.5 341c20.434 19.561 52.501 26.202 79.726 44.563m-185.588 79.069c22.63-9.153 35.904-28.074 39.416-56.202.305-2.848.508-184.599.508-184.599h-49.788l-.36 179.779c-1.164 11.64-8.122 19.983-18.289 21.619-17.347 2.791-28.911-2.26-40.963-24.826l-40.535 24.508c17.373 40.839 69.745 55.838 110.011 39.72M44.873 0h422.254C491.987 0 512 20.013 512 44.873v422.254c0 24.86-20.013 44.873-44.873 44.873H44.873C20.013 512 0 491.987 0 467.127V44.873C0 20.013 20.013 0 44.873 0"></path></svg>',
+    'typescript': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 -1 16 16" class="file-icon"><path fill="#1E9CEF" d="M10.771 10.992a2.28 2.28 0 0 1-1.632-.759v1.29c1.055.686 2.87.56 3.5-.264a1.9 1.9 0 0 0 .253-1.889c-.656-1.321-2.214-1.4-2.668-2.238-.5-1.351 1.564-1.6 2.557-.685V5.234a2.85 2.85 0 0 0-1.566-.277 1.92 1.92 0 0 0-2.067 1.867c-.054 1.5 1.663 1.891 2.525 2.586.586.498.544 1.703-.902 1.582m-4.913.862V6.016H3.977v-.965h4.8v.965H6.9v5.838zM14.125.875v12.25H1.875V.875zM15 0H1v14h14z" class="typeScript_svg__i-color"></path></svg>',
+    'html5': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" class="file-icon"><path fill="#F4BF75" d="m11.631 5.1.136-1.531H4.233l.4 4.672h5.216l-.187 2-1.679.459-1.67-.464L6.2 9.015H4.71l.19 2.433 3.085.875h.032v-.009l3.06-.866.423-4.76H6.014L5.886 5.1h5.744ZM2 1h12l-1.091 12.583L7.983 15l-4.892-1.417Z" class="html_svg__i-color"></path></svg>',
+    'css3': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 -1 16 16" class="file-icon"><path fill="#1E9CEF" d="M3.785 2H14l-1.805 9.164L6.738 13 2 11.164l.482-2.447H4.5l-.2 1.011 2.864 1.107 3.3-1.107.461-2.328h-8.2l.395-2.045h8.206l.258-1.313h-8.2Z" class="css_svg__i-color"></path></svg>',
+    'json': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="file-icon"><path fill="#92AA5D" d="M5 3h2v2H5v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5h2v2H5c-1.07-.27-2-.9-2-2v-4a2 2 0 0 0-2-2H0v-2h1a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2m14 0a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1v2h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2v-2h2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5h-2V3zm-7 12a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m-4 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m8 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1"></path></svg>',
+    'folder-fill': '<svg xmlns="http://www.w3.org/2000/svg" fill="#2196F3" viewBox="0 0 16 16" width="1em" height="1em" class="file-icon"><path d="M6.56 2.48H2.24c-.8 0-1.44.64-1.44 1.44v8.64c0 .79.65 1.44 1.44 1.44h11.52c.79 0 1.44-.65 1.44-1.44v-7.2c0-.8-.65-1.44-1.44-1.44H8z"></path></svg>',
+    'folder': '<svg xmlns="http://www.w3.org/2000/svg" fill="#2196F3" viewBox="0 0 16 16" width="1em" height="1em" class="file-icon"><path d="M13.66 12.46H2.34v-7h11.32zm.1-8.54H8L6.56 2.48H2.24c-.8 0-1.44.64-1.44 1.44v8.64c0 .8.64 1.44 1.44 1.44h11.52c.8 0 1.44-.64 1.44-1.44v-7.2c0-.8-.65-1.44-1.44-1.44"></path></svg>',
+}
+
+const extIcos = {
+    'ts': 'typescript',
+    'js': 'typescript',
+    'html': 'html5',
+    'css': 'css3',
+    'json': 'json',
 }

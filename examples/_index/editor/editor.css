@@ -1,7 +1,6 @@
 
 :root {
-
-    //--page-background: hsl(220 10% 14%);
+    /*--page-background: hsl(220 10% 14%);*/
     --tab-inactiveBackground: var(--background-color-search);
     --foreground-alt: hsl(0, 0%, 41%);
     --tab-activeBackground: #FFFFFE;
@@ -47,6 +46,12 @@
     align-items: center;
     display: flex;
     flex-shrink: 0;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+.codefile-actions-disabled .codefiles-action{
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 .codefiles-action {
@@ -54,8 +59,8 @@
     --iconSize: 14px;
     width: 30px !important;
     cursor: pointer;
-//--size: 32px;
-//--iconSize: 16px;
+    /*--size: 32px;*/
+    /*--iconSize: 16px;*/
     align-items: center;
     color: inherit;
     display: flex;
@@ -65,8 +70,12 @@
     justify-content: center;
     max-height: 100%;
     padding: 0;
-    transition: all .1s ease;
-//width: var(--size);
+    transition: all .3s ease;
+    /*width: var(--size);*/
+}
+.codefiles-action:hover{
+    background-color: var(--luminosity-hover);
+    color: var(--foreground-active);
 }
 
 .codefile{
@@ -137,7 +146,7 @@
     height: 16px;
     width: 16px;
     justify-content: center;
-    content: '✕';
+    content: "\2715";
     opacity: 0.2;
     cursor: default;
 }
@@ -147,7 +156,7 @@
 }
 
 .codefile-unsaved > .codefile-button::before{
-    content: '●';
+    content: "\25CF";
     opacity: 1;
 }
 
@@ -163,3 +172,52 @@
 }
 
 .monaco-editor { position: absolute !important; }
+
+.left-pane {
+    /*width: 18%;*/
+    /*background: #ccc;*/
+}
+
+/*.panes-separator,*/
+/*.left-pane,*/
+/*.right-pane {*/
+/*    margin: 0;*/
+/*    padding: 0;*/
+/*    height: 100%;*/
+/*}*/
+.right-pane{
+    margin-left: -4px;
+}
+
+.panes-separator {
+    height: 100%;
+    width: 8px;
+    position: relative;
+    cursor: col-resize;
+    margin-left: -4px;
+    background: transparent;
+}
+.panes-separator .panes-separator-line{
+    position: absolute;
+    width: 4px;
+    height: 100%;
+    left: 2px;
+    background: transparent;
+}
+.panes-separator.pane-sep-dragging .panes-separator-line{
+    background: #1389fd;
+}
+.panes-separator:hover .panes-separator-line{
+    background: #1389fd;
+}
+
+.right-pane {
+    flex: auto;
+    /*background: #eee;*/
+}
+
+.file-icon{
+    flex-shrink: 0;
+    height: 15px;
+    width: 15px;
+}
