@@ -24,7 +24,28 @@ Getting started with Threepipe is easy. You can use it in your HTML/JS, React, V
 
 ## Quickstart
 
+### Stackblitz
+
+Get started with pre-ready templates with model viewer and plugins that run locally directly in your browser - 
+
+- **javascript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **typescript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **javascript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **typescript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
 ### Codepen
+
 You can quickly prototype in JavaScript on Codepen. Here is a starter pen with the basic setup: [Threepipe Starter Codepen](https://codepen.io/repalash/pen/GRbEONZ?editors=0010) (with JS scripts), or [with import maps](https://codepen.io/repalash/pen/poXpKEQ?editors=0010)
 
 Simply fork the pen and start coding.
@@ -39,9 +60,9 @@ A new project can be quickly created using the `npm create` command. Open your t
 ```bash
 npm create threepipe@latest
 ```
-and follow the prompts to pick a project name, select a template/framework and pick between JavaScript or TypeScript. Supported templates - 
-- `vanilla`
-- `vanilla-ts`
+and follow the prompts to pick a project name, select a template/framework and pick between JavaScript or TypeScript. 
+
+[Supported templates](https://github.com/repalash/create-threepipe) - `vanilla`, `vanilla-ts`, `vanilla-webgi`, `vanilla-webgi-ts`
 
 This will create a ready-to-use project with all the necessary dependencies and configurations.
 
@@ -211,7 +232,7 @@ Check it in action: [vue-html-sample](https://threepipe.org/examples/#vue-html-s
 
 Another example with Vue SFC(Single file component): [Example: vue-sfc-sample](https://threepipe.org/examples/#vue-sfc-sample/)
 
-### Svelte 4
+### Svelte
 
 A sample [svelte](https://svelte.dev/) 4 component in js to render a model with an environment map.
 
@@ -239,3 +260,8 @@ A sample [svelte](https://svelte.dev/) 4 component in js to render a model with 
 ```
 
 Check it in action: [svelte-sample](https://threepipe.org/examples/#svelte-sample/)
+
+For Svelte 5, simply initialize `canvasRef` to `$state()` -
+```js
+let canvasRef = $state();
+```
