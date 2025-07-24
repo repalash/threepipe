@@ -8,7 +8,6 @@ import {
     ThreeViewer, Object3DWidgetsPlugin, TransformControlsPlugin, AssetExporterPlugin, OrbitControls3, _testStart,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-// @ts-expect-error todo fix
 import {BloomPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

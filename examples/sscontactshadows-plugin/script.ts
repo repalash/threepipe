@@ -11,7 +11,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-// @ts-expect-error todo fix
 import {SSContactShadowsPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

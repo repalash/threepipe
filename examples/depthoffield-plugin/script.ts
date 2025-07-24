@@ -9,7 +9,6 @@ import {
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-// @ts-expect-error todo fix
 import {BloomPlugin, DepthOfFieldPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

@@ -9,7 +9,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-// @ts-expect-error todo fix import
 import {AdvancedGroundPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

@@ -60,7 +60,6 @@ import {
     PNTSLoadPlugin,
     TilesRendererPlugin,
 } from '@threepipe/plugin-3d-tiles-renderer'
-// @ts-expect-error todo fix import
 import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {

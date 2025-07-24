@@ -10,7 +10,6 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-// @ts-expect-error todo fix ts import
 import {TemporalAAPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

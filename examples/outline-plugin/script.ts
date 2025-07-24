@@ -15,7 +15,6 @@ import {
     SSReflectionPlugin,
     TemporalAAPlugin,
     VelocityBufferPlugin,
-// @ts-expect-error todo fix
 } from '@threepipe/webgi-plugins'
 
 async function init() {
