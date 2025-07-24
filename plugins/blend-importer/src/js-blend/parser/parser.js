@@ -88,7 +88,7 @@ function worker_code () {
             Export object for a parsed __blender_file__.
         */
 
-    var BLENDER_FILE = function (AB) {
+    const BLENDER_FILE = function (AB) {
         this.AB = AB;
         // this.double = new Float64Array(AB);
         this.byte = new Uint8Array(AB);
@@ -145,6 +145,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -161,6 +162,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -177,6 +179,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -193,6 +196,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -209,6 +213,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -226,6 +231,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     };
 
@@ -261,6 +267,7 @@ function worker_code () {
                 }
             },
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -289,6 +296,7 @@ function worker_code () {
             },
             set: function () {},
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -315,6 +323,7 @@ function worker_code () {
             },
             set: function () {},
             enumerable: true,
+            configurable: true,
         };
     }
 
@@ -332,8 +341,10 @@ function worker_code () {
                 Object.defineProperty(obj, name, intProp(offset, array_size, length >> 2));
                 break;
             case 'short':
-            case 'ushort':
                 Object.defineProperty(obj, name, shortProp(offset, array_size, length >> 1));
+                break;
+            case 'ushort':
+                Object.defineProperty(obj, name, uShortProp(offset, array_size, length >> 1));
                 break;
             case 'char':
             case 'uchar':
@@ -348,6 +359,7 @@ function worker_code () {
             offset += length;
         } else {
             Object.defineProperty(obj, name, pointerProp(offset, array_size, pointer_size));
+            obj._length += pointer_size * array_size;
             offset += pointer_size * array_size;
         }
 
@@ -368,7 +380,10 @@ function worker_code () {
     MASTER_SDNA_SCHEMA.prototype = {
         getSDNAStructureConstructor: function (name, struct) {
             if (struct) {
-                const blen_struct = Function('function ' + name + '(){}; return ' + name)();
+                const jsName = name === 'void' ? 'void_' : name
+                const blen_struct = Function('function ' + jsName + '(){}; return ' + jsName)();
+
+                // if(name === 'CustomDataLayer') debugger
 
                 blen_struct.prototype = new BLENDER_STRUCTURE();
                 blen_struct.prototype.blender_name = name;
@@ -455,6 +470,7 @@ function worker_code () {
                                 };
                             })(array_names),
                             enumerable: true,
+                            configurable: true,
                         });
                     } else {
                         offset = compileProp(blen_struct.prototype, _name, type, offset, Blender_Array_Length, Pointer_Match, pointer_size, length);
@@ -472,7 +488,7 @@ function worker_code () {
         },
     };
 
-    var BLENDER_STRUCTURE = function () {
+    const BLENDER_STRUCTURE = function () {
         this.__blender_file__ = null;
         this.__list__ = null;
         this.__super_array_list__ = null;
@@ -522,6 +538,8 @@ function worker_code () {
                 type, length, Blender_Array_Length, Pointer_Match, offset, constructor;
 
             this.__data_address__ = _data_offset;
+
+            // if(this.blender_name === 'CustomDataLayer') debugger
 
             if (struct === null) return this;
 
@@ -584,9 +602,11 @@ function worker_code () {
         struct_names = [];
         offset = 0;
 
+        // todo gzip, zstd(28 b5 2f fd, https://projects.blender.org/archive/blender-file/issues/93858)
         // Make sure we have a .blend __blender_file__. All blend files have the first 12bytes
         // set with BLENDER-v### in Utf-8
-        if (toString(_data, offset, 7) !== 'BLENDER') return ERROR = 'File supplied is not a .blend compatible Blender file.';
+        const magic = toString(_data, offset, 7)
+        if (magic !== 'BLENDER') return ERROR = 'File supplied is not a .blend compatible Blender file.';
 
         // otherwise get templete from save version.
 
@@ -654,13 +674,23 @@ function worker_code () {
                         curr_count++;
                     }
 
-
-                    // Adjust for 4byte alignment
-                    if ((offset2 % 4) > 0) offset2 = (4 - (offset2 % 4)) + offset2;
+                    // todo fix seek logic
+                    // Adjust for 4byte alignment TYPE
+                    if (toString(_data, offset2, offset2 + 4) !== 'TYPE'
+                    ) {
+                        for (let j = 0; j < 8; j++) {
+                            if(toString(_data, offset2, offset2 + 4) === 'TYPE') break
+                            offset2++;
+                        }
+                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    }
+                    if(toString(_data, offset2, offset2 + 4) !== 'TYPE') {
+                        debugger
+                    }
                     offset2 += 4;
 
                     // Number of struct types
-                    count = data.getInt32(offset2, true);
+                    count = data.getUint32(offset2, true);
                     offset2 += 4;
                     curr_count = 0;
 
@@ -676,8 +706,19 @@ function worker_code () {
                         curr_count++;
                     }
 
+                    // todo fix seek logic
                     // Adjust for 4byte alignment
-                    if ((offset2 % 4) > 0) offset2 = (4 - (offset2 % 4)) + offset2;
+                    if (toString(_data, offset2, offset2 + 4) !== 'TLEN'
+                    ) {
+                        for (let j = 0; j < 8; j++) {
+                            if(toString(_data, offset2, offset2 + 4) === 'TLEN') break
+                            offset2++;
+                        }
+                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    }
+                    if(toString(_data, offset2, offset2 + 4) !== 'TLEN') {
+                        debugger
+                    }
                     offset2 += 4;
                     curr_count = 0;
 
@@ -688,8 +729,19 @@ function worker_code () {
                         curr_count++;
                     }
 
-                    // Adjust for 4byte alignment
-                    if ((offset2 % 4) > 0) offset2 = (4 - (offset2 % 4)) + offset2;
+                    // todo fix seek logic
+                    // Adjust for 4byte alignment STRC
+                    if (toString(_data, offset2, offset2 + 4) !== 'STRC'
+                    ) {
+                        for (let j = 0; j < 8; j++) {
+                            if(toString(_data, offset2, offset2 + 4) === 'STRC') break
+                            offset2++;
+                        }
+                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    }
+                    if(toString(_data, offset2, offset2 + 4) !== 'STRC') {
+                        debugger
+                    }
                     offset2 += 4;
 
                     // Number of structures
@@ -709,6 +761,11 @@ function worker_code () {
 
                         // Fill an array with name, type, and length for each SDNA struct property
                         while (curr_count2 < count) {
+
+                            // const n = names[data.getInt16(offset2 + 2, BIG_ENDIAN)]
+                            // if(obj.find((o, i)=>i%3===0 && o===n)){
+                            //     debugger
+                            // }
                             obj.push(names[data.getInt16(offset2 + 2, BIG_ENDIAN)], types[data.getInt16(offset2, BIG_ENDIAN)], lengths[data.getInt16(offset2, BIG_ENDIAN)]);
                             offset2 += 4;
                             curr_count2++;
@@ -730,30 +787,55 @@ function worker_code () {
 
         // TODO: turn into "on-demand" parsing.
 
+        // https://github.com/fschutt/mystery-of-the-blend-backup
         while (true) {
-            if ((offset % 4) > 0) {
-                offset = (4 - (offset % 4)) + offset;
+            // todo fix cleanup
+            // this is not the case, see blend-load-test.blend and Ruins_Assets.blend
+            // if ((offset % 4) > 0) {
+            //     console.log('fix', offset, offset % 4)
+            //     debugger
+            //     offset = (4 - (offset % 4)) + offset;
+            // }
+            for (let j = 0; j < 8; j++) {
+                if(data.getInt8(offset) === 0) {
+                    offset++
+                    continue
+                }
+                break
+            }
+            if(data.getInt8(offset) === 0) {
+                debugger
             }
 
             data_offset = offset;
 
             if (offset + pointer_size + 12 >= data.byteLength) {
-                return ERROR = 'Unexpected end of file while parsing';
+                ERROR = 'Unexpected end of file while parsing';
+                break
             }
 
             sdna_index = data.getInt32(offset + pointer_size + 8, BIG_ENDIAN);
-            let code_uint = data.getUint32(offset, BIG_ENDIAN);
+            // let code_uint = data.getUint32(offset, BIG_ENDIAN);
+            const code_str = toString(_data, offset, offset + 4) // data.getUint32(offset, BIG_ENDIAN);
+
             offset2 = offset + 16 + (pointer_size);
+            // console.log(code_str, code_str.length, data.getInt8(offset))
 
             const blockLength = data.getInt32(offset + 4, true);
             if (blockLength < 0 || offset + blockLength + 16 + pointer_size > data.byteLength) {
-                return ERROR = 'Invalid block length detected';
+                ERROR = 'Invalid block length detected';
+                break
             }
+            // if(blockLength === 1) {
+            //     debugger
+            // }
+
+            // last_offset = offset
 
             offset += blockLength + 16 + (pointer_size);
 
-            if (code_uint === DNA1); // skip - already processed at this point
-            else if (code_uint === ENDB) break; // end of __blender_file__ found
+            if (code_str === 'DNA1') {} // skip - already processed at this point
+            else if (code_str === 'ENDB') break; // end of __blender_file__ found
             else {
                 // Create a Blender object using a constructor template from current_SDNA_template
                 const data_start = data_offset + pointer_size + 16;
@@ -797,8 +879,14 @@ function worker_code () {
 
 worker = new worker_code();
 
-worker.postMessage = function (message) {
-    return_object.onParseReady(message);
+worker.postMessage = function (message, err) {
+    return_object.onParseReady(message, err);
 };
 
 export default return_object;
+
+// window.prettyPrintHex = function (view, offset = 0, length = view.byteLength - offset) {
+//     const bytes = Array.from({ length }, (_, i) => view.getUint8(offset + i));
+//     console.log(bytes.map((b, i) => (i % 16 === 0 ? '\n' : '') + b.toString(16).padStart(2, '0')).join(' '));
+//     console.log(bytes.map((b, i) => (i % 16 === 0 ? '\n' : '') + String.fromCharCode(b)).join(''));
+// }
