@@ -159,8 +159,7 @@
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",
     "three": "$three",
-    "@types/three": "$@types/three",
-    "stylus": "0.0.1-security"
+    "@types/three": "$@types/three"
   },
   "optionalDependencies": {
     "win-node-env": "^0.6.1"
