@@ -836,6 +836,25 @@ function worker_code () {
 
             if (code_str === 'DNA1') {} // skip - already processed at this point
             else if (code_str === 'ENDB') break; // end of __blender_file__ found
+            else if (code_str === 'TEST') { // snapshot
+                const data_start = data_offset + pointer_size + 16;
+                const width = data.getInt32(data_start, BIG_ENDIAN);
+                const height = data.getInt32(data_start + 4, BIG_ENDIAN);
+                if ((width * height > 0)) {
+                    const data_len = width * height * 4; // RGBA
+                    if(blockLength < data_len + 8) {
+                        ERROR = 'Invalid TEST block length detected';
+                        break;
+                    }
+                    const image_data = new Uint32Array(_data, data_start + 8, data_len >> 2);
+                    const image = {
+                        width: width,
+                        height: height,
+                        data: image_data,
+                    };
+                    FILE.thumbnail = image
+                }
+            }
             else {
                 // Create a Blender object using a constructor template from current_SDNA_template
                 const data_start = data_offset + pointer_size + 16;

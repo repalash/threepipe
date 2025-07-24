@@ -15,6 +15,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             this.setResponseType('arraybuffer')
             const res = (await super.loadAsync(url, onProgress)) as ArrayBuffer
             const blend = await parseBlend(res)
+            // console.log(bakeGetters(blend))
             const objects = await createObjects(blend)
             const root = new Object3D()
             root.add(...objects)
@@ -23,10 +24,13 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             return blend
         }
 
-        transform(res: any, _: AnyOptions): Scene {
+        transform(res: any, options: AnyOptions): Scene {
             // console.log(res)
             // res.scene.userData.kinematics = res.kinematics
             // res.scene.userData.library = res.library
+            if (typeof options.onBlendLoad === 'function') {
+                options.onBlendLoad(res)
+            }
             return res.scene
         }
     }, ['blend'], ['application/x-blender'], true)
