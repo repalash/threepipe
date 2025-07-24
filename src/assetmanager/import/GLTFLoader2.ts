@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {Line, LineLoop, LineSegments, LoadingManager, Object3D, OrthographicCamera, Texture} from 'three'
+import {Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
@@ -25,6 +25,7 @@ import {
     LineSegmentsGeometry2,
     MeshLine,
     MeshLineSegments,
+    OrthographicCamera0,
     PerspectiveCamera0,
     PhysicalMaterial,
     PointLight2,
@@ -55,7 +56,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         GLTFLoader.ObjectConstructors.LineBasicMaterial = UnlitLineMaterial as any
         // GLTFLoader.ObjectConstructors.PointsMaterial = PointsMaterial2
         GLTFLoader.ObjectConstructors.PerspectiveCamera = PerspectiveCamera0 // todo set domElement in the AssetManager during process
-        GLTFLoader.ObjectConstructors.OrthographicCamera = OrthographicCamera // todo
+        GLTFLoader.ObjectConstructors.OrthographicCamera = OrthographicCamera0 // todo
     }
 
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [

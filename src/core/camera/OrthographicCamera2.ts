@@ -1,4 +1,4 @@
-import {Camera, IUniform, Object3D, OrthographicCamera, Vector3} from 'three'
+import {Camera, Object3D, OrthographicCamera, Vector3} from 'three'
 import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
@@ -10,7 +10,6 @@ import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig} from '../object/IObjectUi'
-import {CameraView, ICameraView} from './CameraView'
 
 // todo: extract out common functions with perspective camera into iCameraCommons
 // todo: maybe change domElement to some wrapper/base class of viewer
@@ -24,14 +23,10 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
 
     @serialize('camControls')
     private _controls?: ICameraControls
-    private _currentControlsMode: TCameraControlsMode = ''
+    private _currentControlsMode: TCameraControlsMode = '';
+    ['_canvas']?: HTMLCanvasElement
     @onChange2(OrthographicCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
-    /**
-     * It should be the canvas actually
-     * @private
-     */
-    private _canvas?: HTMLCanvasElement
     get isMainCamera(): boolean {
         return this.userData ? this.userData.__isMainCamera || false : false
     }
@@ -99,7 +94,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * Defaults to `true` if {@link domElement}(canvas) is set.
      */
     @serialize()
-    @onChange2(OrthographicCamera2.prototype.refreshAspect)
+    @onChange2('refreshAspect')
     @uiToggle('Auto Aspect')
         autoAspect: boolean
 
@@ -107,7 +102,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * Aspect ratio to use when {@link frustumSize} is defined
      */
     @serialize()
-    @onChange2(OrthographicCamera2.prototype.refreshAspect)
+    @onChange2('refreshAspect')
     @uiToggle<OrthographicCamera2>('Aspect Ratio', (t)=>({disabled: ()=>t.autoAspect}))
         aspect: number
 
@@ -215,41 +210,17 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     // region refreshing
 
     setDirty(options?: ICameraSetDirtyOptions): void {
-        if (!this._positionWorld) return // class not initialized
-
-        // noinspection SuspiciousTypeOfGuard it can be string when called from bindToValue
-        const changeKey = typeof options === 'string' ? options : options?.key
-        if (!changeKey || ['zoom', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize'].includes(changeKey)) {
-            this.updateProjectionMatrix()
-        }
-
-        if (typeof options === 'string') options = undefined
-
-        this.getWorldPosition(this._positionWorld)
-
         iCameraCommons.setDirty.call(this, options)
 
         if (options?.last !== false)
-            this._camUi.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
+            this._camUi?.forEach(u=>u?.uiRefresh?.(false, 'postFrame', 1)) // because camera changes a lot. so we dont want to deep refresh ui on every change
     }
 
     /**
      * when aspect ratio is set to auto it must be refreshed on resize, this is done by the viewer for the main camera.
      * @param setDirty
      */
-    refreshAspect(setDirty = true): void {
-        if (this.autoAspect) {
-            if (!this._canvas) console.error('OrthographicCamera2: cannot calculate aspect ratio without canvas/container')
-            else {
-                let aspect = this._canvas.clientWidth / this._canvas.clientHeight
-                if (!isFinite(aspect)) aspect = 1
-                this.aspect = aspect
-                this.refreshFrustum(false)
-            }
-        }
-        if (setDirty) this.setDirty()
-        // console.log('refreshAspect', this._options.aspect)
-    }
+    refreshAspect = iCameraCommons.refreshAspect
 
     protected _nearFarChanged() {
         if (this.view === undefined) return // not initialized yet
@@ -260,6 +231,8 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     refreshTarget = iCameraCommons.refreshTarget
     activateMain = iCameraCommons.activateMain
     deactivateMain = iCameraCommons.deactivateMain
+    // @ts-expect-error ts issue
+    updateShaderProperties = iCameraCommons.updateShaderProperties
 
     refreshFrustum(setDirty = true) {
         if (this._frustumSize === undefined) return
@@ -379,76 +352,17 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
 
     // region camera views
 
-    getView<T extends ICameraView = CameraView>(worldSpace = true, _view?: T) {
-        const up = new Vector3()
-        this.updateWorldMatrix(true, false)
-        const matrix = this.matrixWorld
-        up.x = matrix.elements[4]
-        up.y = matrix.elements[5]
-        up.z = matrix.elements[6]
-        up.normalize()
-        const view = _view || new CameraView()
-        view.name = this.name
-        view.position.copy(this.position)
-        view.target.copy(this.target)
-        view.quaternion.copy(this.quaternion)
-        view.zoom = this.zoom
-        // view.up.copy(up)
-        const parent = this.parent
-        if (parent) {
-            if (worldSpace) {
-                view.position.applyMatrix4(parent.matrixWorld)
-                this.getWorldQuaternion(view.quaternion)
-                // target, up is already in world space
-            } else {
-                up.transformDirection(parent.matrixWorld.clone().invert())
-                // pos is already in local space
-                // target should always be in world space
-            }
-        }
-        view.isWorldSpace = worldSpace
-        view.uiConfig?.uiRefresh?.(true, 'postFrame')
-        return view as T
-    }
-
-    setView(view: ICameraView) {
-        this.position.copy(view.position)
-        this.target.copy(view.target)
-        // this.up.copy(view.up)
-        this.quaternion.copy(view.quaternion)
-        this.zoom = view.zoom
-        this.setDirty()
-    }
-
-    setViewFromCamera(camera: Camera|ICamera, distanceFromTarget?: number, worldSpace = true) {
-        // todo: getView, setView can also be used, do we need copy? as that will copy all the properties
-        this.copy(camera, undefined, distanceFromTarget, worldSpace)
-    }
-
-    setViewToMain(eventOptions: Omit<ICameraEventMap['setView'], 'camera'|'bubbleToParent'>) {
-        this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
-    }
+    getView = iCameraCommons.getView
+    setView = iCameraCommons.setView
+    setViewFromCamera = iCameraCommons.setViewFromCamera
+    setViewToMain = iCameraCommons.setViewToMain;
 
     // endregion
 
     // region utils/others
 
     // for shader prop updater
-    private _positionWorld = new Vector3()
-
-    /**
-     * See also cameraHelpers.glsl
-     * @param material
-     */
-    updateShaderProperties(material: {defines: Record<string, string | number | undefined>; uniforms: {[p: string]: IUniform}}): this {
-        material.uniforms.cameraPositionWorld?.value?.copy(this._positionWorld)
-        material.uniforms.cameraNearFar?.value?.set(this.near, this.far)
-        if (material.uniforms.projection) material.uniforms.projection.value = this.projectionMatrix // todo: rename to projectionMatrix2?
-        material.defines.PERSPECTIVE_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0'
-        material.defines.ORTHOGRAPHIC_CAMERA = this.type === 'OrthographicCamera' ? '1' : '0'
-        return this
-    }
-
+    ['_positionWorld'] = new Vector3()
 
     dispose(): void {
         this._disposeCameraControls()

@@ -140,6 +140,12 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     updateProjectionMatrix(): void
     fov?: number
 
+    /**
+     * Refresh the camera frustum planes from frustumSize. Only for orthographic cameras.
+     * @param setDirty
+     */
+    refreshFrustum?(setDirty?: boolean): void
+
     getView<T extends ICameraView = CameraView>(worldSpace?: boolean, cameraView?: T): T
     setView(view: ICameraView): void
 
@@ -174,7 +180,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     getObjectById<T extends IObject3D = IObject3D>(id: number): T | undefined
     getObjectByName<T extends IObject3D = IObject3D>(name: string): T | undefined
     getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
-    copy(source: this, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean, ...args: any[]): this
+    copy(source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean, ...args: any[]): this
     clone(recursive?: boolean): this
     add(...object: IObject3D[]): this
     remove(...object: IObject3D[]): this
@@ -182,6 +188,16 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     children: IObject3D[]
 
     // endregion
+
+    /**
+     * @internal world position cache for shader updates and other purposes
+     */
+    _positionWorld: Vector3
+
+    /**
+     * @internal reference to the canvas element used for rendering. (for aspect ratio, etc.)
+     */
+    _canvas?: HTMLCanvasElement
 }
 
 

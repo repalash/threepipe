@@ -1336,7 +1336,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             // this._scene.mainCamera.setCanvas(undefined, false) // todo is this required?
             this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
         }
-        this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
     }
 
     private _resolvePluginOrClass<T extends IViewerPlugin>(plugin: T | Class<T>, ...args: ConstructorParameters<Class<T>>): T|undefined {

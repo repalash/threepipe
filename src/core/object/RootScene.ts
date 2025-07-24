@@ -123,6 +123,10 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             this._mainCamera = camera
             camera.addEventListener('cameraUpdate', this._mainCameraUpdate)
             camera.activateMain(undefined, true)
+
+            if (!camera._canvas) {
+                console.warn('RootScene: mainCamera does not have a canvas set, some controls might not work properly.')
+            }
         } else {
             this._mainCamera = null
         }
