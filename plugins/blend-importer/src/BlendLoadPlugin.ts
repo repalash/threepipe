@@ -1,4 +1,22 @@
-import {AnyOptions, BaseImporterPlugin, FileLoader, ILoader, Importer, Object3D, Scene} from 'threepipe'
+import {
+    AnyOptions,
+    BaseImporterPlugin,
+    BufferAttribute,
+    BufferGeometry2,
+    DirectionalLight2,
+    FileLoader,
+    ILoader,
+    Importer,
+    Mesh2,
+    Object3D,
+    Object3D2,
+    OrthographicCamera0,
+    PerspectiveCamera0,
+    PhysicalMaterial,
+    PointLight2,
+    Scene,
+    UnlitMaterial,
+} from 'threepipe'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 
@@ -16,7 +34,19 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             const res = (await super.loadAsync(url, onProgress)) as ArrayBuffer
             const blend = await parseBlend(res)
             // console.log(bakeGetters(blend))
-            const objects = await createObjects(blend)
+            const ctx = {
+                Object3D: Object3D2,
+                Mesh: Mesh2,
+                MeshPhysicalMaterial: PhysicalMaterial,
+                MeshBasicMaterial: UnlitMaterial,
+                PerspectiveCamera: PerspectiveCamera0,
+                OrthographicCamera: OrthographicCamera0,
+                PointLight: PointLight2,
+                DirectionalLight: DirectionalLight2,
+                BufferGeometry: BufferGeometry2,
+                BufferAttribute: BufferAttribute,
+            }
+            const objects = await createObjects(blend, ctx)
             const root = new Object3D()
             root.add(...objects)
             // console.log(res, blend, root)

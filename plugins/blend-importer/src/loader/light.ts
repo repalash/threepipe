@@ -1,4 +1,4 @@
-import {PointLight, Light} from 'threepipe'
+import {Light} from 'threepipe'
 
 const blenderLightTypes = {
     point: 0,
@@ -8,7 +8,7 @@ const blenderLightTypes = {
     area: 0,
 }
 
-export function createLight(lamp: any) {
+export function createLight(lamp: any, ctx: any) {
     const ldata = lamp.data
 
     const position = [lamp.loc[0], lamp.loc[2], -lamp.loc[1]]
@@ -21,21 +21,21 @@ export function createLight(lamp: any) {
 
     switch (ldata.type) {
     case blenderLightTypes.point:
-        light = new PointLight(color, intensity, distance)
-        light.position.fromArray(position, 0)
-        light.castShadow = true
+        light = new ctx.PointLight(color, intensity, distance)
+        light!.position.fromArray(position, 0)
+        light!.castShadow = true
         break
     case blenderLightTypes.sun:
-        light = new PointLight(color, intensity, distance)
-        light.position.fromArray(position, 0)
-        light.castShadow = true
-        if (light.shadow) {
-            light.shadow.mapSize.width = 1024
-            light.shadow.mapSize.height = 1024
+        light = new ctx.PointLight(color, intensity, distance)
+        light!.position.fromArray(position, 0)
+        light!.castShadow = true
+        if (light!.shadow) {
+            light!.shadow.mapSize.width = 1024
+            light!.shadow.mapSize.height = 1024
             // @ts-expect-error ??/
-            light.shadow.camera.near = 0.01
+            light!.shadow.camera.near = 0.01
             // @ts-expect-error ??/
-            light.shadow.camera.far = 500
+            light!.shadow.camera.far = 500
         }
         break
     default:

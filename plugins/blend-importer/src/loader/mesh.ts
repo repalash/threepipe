@@ -1,4 +1,4 @@
-import {Mesh, Object3D, PhysicalMaterial} from 'threepipe'
+import {Object3D} from 'threepipe'
 import {createBufferGeometry} from './geometry'
 import {createMaterial} from './material'
 
@@ -14,20 +14,23 @@ export function setCreateTransform(object: any, obj: Object3D) {
     obj.updateMatrix()
 }
 
-export function createMesh(object: any) {
+export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: any) {
     if (!object.data) {
-        return
+        return undefined
     }
 
-    const geometry = createBufferGeometry(object.data)
+    const geometry = loaded.get(object.data) ?? createBufferGeometry(object.data, ctx)
+    loaded.set(object.data, geometry)
 
     const mat = object.data.mat[0]
 
     // const material = mat ? createMaterial(mat) : undefined
-    const material = mat ? createMaterial(mat) : new PhysicalMaterial()
+    const material = mat ? loaded.get(mat) ?? createMaterial(mat, ctx) : new ctx.MeshPhysicalMaterial()
+    if (mat) loaded.set(mat, material)
+
     // console.log(material, mat)
     // material.side = DoubleSide
-    const mesh = new Mesh(geometry, material)
+    const mesh = new ctx.Mesh(geometry, material)
 
     mesh.castShadow = true
     mesh.receiveShadow = true

@@ -1,5 +1,3 @@
-import {BufferAttribute, BufferGeometry} from 'threepipe'
-
 function getLayer(layers: any, i: number) {
     if (!Array.isArray(layers)) return layers
     return layers[i]
@@ -13,10 +11,10 @@ function getLayer(layers: any, i: number) {
 // https://projects.blender.org/blender/blender/pulls/106638
 
 // https://github.com/blender/blender/blob/55e2fd2929b7577e0785c128c8f8069efd990c07/source/blender/blenkernel/intern/mesh.cc#L413
-export function createBufferGeometry(meshData: any) {
+export function createBufferGeometry(meshData: any, ctx: any) {
 
-    if (meshData.mpoly) return createBufferGeometryOld(meshData)
-    const geometry = new BufferGeometry()
+    if (meshData.mpoly) return createBufferGeometryOld(meshData, ctx)
+    const geometry = new ctx.BufferGeometry()
     geometry.name = meshData.aname || ''
 
     // console.log(bakeGetters(meshData))
@@ -32,13 +30,11 @@ export function createBufferGeometry(meshData: any) {
             const layer = getLayer(meshData.vdata.layers, i)
             // if (layer.type === 0) {
             // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L1575
-            // todo __set_morph_locs_attribute
-            // todo __set_morph_tangent_attribute
             const data = layer.data || []
             // if (layer.name === 'position') { // type = 48 (custom vec3)
             if (data.length === meshData.totvert) {
                 if (vertices && (layer.name !== 'position' || vertices.name === 'position')) {
-                    console.warn('BlendLoader - multiple vertices, ignoring', layer)
+                    // console.warn('BlendLoader - multiple vertices, ignoring', layer)
                     continue
                 }
                 vertices = layer
@@ -59,7 +55,7 @@ export function createBufferGeometry(meshData: any) {
             // if (layer.name === '.corner_vert') { // type = 11
             if (data.length === meshData.totloop) { // type = 11
                 if (indices && (layer.name !== '.corner_vert' || indices.name === '.corner_vert')) {
-                    console.warn('BlendLoader - multiple indices, ignoring', layer)
+                    // console.warn('BlendLoader - multiple indices, ignoring', layer)
                     continue
                 }
                 indices = layer
@@ -128,7 +124,7 @@ export function createBufferGeometry(meshData: any) {
                 break
             }
         }
-        geometry.setAttribute('position', new BufferAttribute(positions, 3))
+        geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
     }
 
     if (indices?.data && indices.data.length > 0 && vertices?.data?.length) {
@@ -163,7 +159,7 @@ export function createBufferGeometry(meshData: any) {
             }
 
             // console.log(indexes)
-            geometry.setIndex(new BufferAttribute(indexes, 1))
+            geometry.setIndex(new ctx.BufferAttribute(indexes, 1))
         } else if (faceSize === 3 || faceSize === 4) {
             // Fall back to uniform face size approach
             const isQuad = faceSize === 4
@@ -186,7 +182,7 @@ export function createBufferGeometry(meshData: any) {
                     indexes[t++] = d
                 }
             }
-            geometry.setIndex(new BufferAttribute(indexes, 1))
+            geometry.setIndex(new ctx.BufferAttribute(indexes, 1))
         }
     } else if (faceIndices) {
         console.error('BlendLoader - no indices data found, but face indices are present', faceIndices)
@@ -216,14 +212,14 @@ export function createBufferGeometry(meshData: any) {
 //     // meshData.eData = domain edge - https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L189
 //     // todo normals, tangents
 
-export function createBufferGeometryOld(mesh: any) {
+export function createBufferGeometryOld(mesh: any, ctx: any) {
     const
         faces = Array.isArray(mesh.mpoly) ? mesh.mpoly as any[] : [mesh.mpoly],
         loops = mesh.mloop,
         uv = mesh.mloopuv,
         vertices = mesh.mvert
 
-    const geometry = new BufferGeometry()
+    const geometry = new ctx.BufferGeometry()
 
     if (!faces) return geometry
 
@@ -280,10 +276,10 @@ export function createBufferGeometryOld(mesh: any) {
         }
     }
 
-    geometry.setAttribute('position', new BufferAttribute(positions, 3))
-    geometry.setIndex(new BufferAttribute(indices, 1))
-    geometry.setAttribute('normal', new BufferAttribute(normals, 3))
-    geometry.setAttribute('uv', new BufferAttribute(uvs, 2))
+    geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
+    geometry.setIndex(new ctx.BufferAttribute(indices, 1))
+    geometry.setAttribute('normal', new ctx.BufferAttribute(normals, 3))
+    geometry.setAttribute('uv', new ctx.BufferAttribute(uvs, 2))
 
     if (computeNormals) {
         geometry.computeVertexNormals()
