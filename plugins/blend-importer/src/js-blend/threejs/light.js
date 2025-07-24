@@ -11,7 +11,7 @@ const blender_light_types = {
 
 export function createThreeJSLamp (blend_lamp) {
 
-    console.log(blend_lamp)
+    // console.log(blend_lamp)
 
     let ldata = blend_lamp.data;
 

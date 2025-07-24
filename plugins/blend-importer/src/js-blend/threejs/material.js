@@ -118,7 +118,7 @@ function applyTexture (blender_texture, material) {
 
 export function createThreeJSMaterial (blend_mat) {
 
-    console.log(blend_mat)
+    // console.log(blend_mat)
 
     let material = new MeshPhysicalMaterial();
     material.color.setRGB(blend_mat.r, blend_mat.g, blend_mat.b);

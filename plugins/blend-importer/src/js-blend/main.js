@@ -13,8 +13,9 @@ import parser from './parser/parser.js';
 export async function parseBlend (buffer, name = '') {
     return new Promise((res, rej) => {
         parser.onParseReady = (file, error) => {
-            if (error) rej(error)
-            else res(file)
+            // todo throw error if no objects?
+            if (error) console.error(error)
+            res(file)
         }
         parser.loadBlendFromArrayBuffer(buffer, name)
     })

@@ -7,7 +7,8 @@ export function createMaterial(mat: any) {
     material.color.setRGB(mat.r, mat.g, mat.b)
     material.roughness = mat.roughness !== undefined ? mat.roughness : 0.4
     material.metalness = mat.metallic !== undefined ? mat.metallic : 0.0
-    material.opacity = mat.alpha !== undefined ? mat.alpha : 0.0
+    // material.opacity = mat.alpha !== undefined ? mat.alpha : 0.0
+    material.opacity = 1
     material.transparent = material.opacity < 1.0
     return material
 }

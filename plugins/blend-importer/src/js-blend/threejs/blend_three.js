@@ -15,7 +15,7 @@ function createObject (blender_file, object) {
         // get the mesh
         const buffered_geometry = createThreeJSBufferGeometry(object.data, [0, 0, 0]);
 
-        console.log(object)
+        // console.log(object)
         const blend_material = object.data.mat[0];
 
         const material = blend_material ? createThreeJSMaterial(blend_material) : null;
