@@ -1,4 +1,5 @@
 import {Light} from 'threepipe'
+import {Ctx} from './ctx'
 
 const blenderLightTypes = {
     point: 0,
@@ -8,7 +9,7 @@ const blenderLightTypes = {
     area: 0,
 }
 
-export function createLight(lamp: any, ctx: any) {
+export function createLight(lamp: any, ctx: Ctx) {
     const ldata = lamp.data
 
     const position = [lamp.loc[0], lamp.loc[2], -lamp.loc[1]]

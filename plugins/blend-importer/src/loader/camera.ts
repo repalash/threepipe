@@ -1,6 +1,7 @@
 import {Object3D} from 'threepipe'
+import {Ctx} from './ctx'
 
-export function createCamera(object: any, ctx: any): Object3D | undefined {
+export function createCamera(object: any, ctx: Ctx): Object3D | undefined {
     const cdata = object.data
     // console.log(bakeGetters(object))
     if (!cdata) return undefined
@@ -10,14 +11,19 @@ export function createCamera(object: any, ctx: any): Object3D | undefined {
     let camera: Object3D
     if (type === 0) {
         // Perspective
+        // Convert lens (mm) to field of view (fov) in degrees (vfov)
+        const sensorWidth = cdata.sensor_x || 36
+        const sensorHeight = cdata.sensor_y || 24
+        const lens = cdata.lens || 50
+        const fov = 2 * Math.atan(sensorHeight / (2 * lens)) * (180 / Math.PI)
+
         camera = new ctx.PerspectiveCamera(
-            cdata.lens || 50, // fov or lens
-            (cdata.sensor_x || 36) / (cdata.sensor_y || 24), // aspect
-            cdata.clipsta || 0.1, // near
-            cdata.clipend || 1000 // far
+            fov,
+            sensorWidth / sensorHeight,
+            cdata.clipsta || 0.1,
+            cdata.clipend || 1000
         )
-        // Set additional properties if needed
-        camera.position.set(0, 0, 0)
+        if ('shiftx' in cdata) camera.userData.shiftX = cdata.shiftx // todo?
         if ('shiftx' in cdata) camera.userData.shiftX = cdata.shiftx // todo?
         if ('shifty' in cdata) camera.userData.shiftY = cdata.shifty
     } else if (type === 1) {
@@ -33,7 +39,6 @@ export function createCamera(object: any, ctx: any): Object3D | undefined {
             cdata.clipsta || 0.1,
             cdata.clipend || 1000
         )
-        camera.position.set(0, 0, 0)
         if ('shiftx' in cdata) camera.userData.shiftX = cdata.shiftx
         if ('shifty' in cdata) camera.userData.shiftY = cdata.shifty
     } else {
@@ -41,6 +46,10 @@ export function createCamera(object: any, ctx: any): Object3D | undefined {
         camera = new ctx.PerspectiveCamera()
         console.warn('Unsupported camera type', type)
     }
+
+    // const obj = new Object3D()
+    // camera.rotation.x = -Math.PI / 2
+    // obj.add(camera)
 
     return camera
 }

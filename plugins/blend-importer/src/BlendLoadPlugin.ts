@@ -1,4 +1,5 @@
 import {
+    AmbientLight2,
     AnyOptions,
     BaseImporterPlugin,
     BufferAttribute,
@@ -6,7 +7,7 @@ import {
     DirectionalLight2,
     FileLoader,
     ILoader,
-    Importer,
+    Importer, Mesh,
     Mesh2,
     Object3D,
     Object3D2,
@@ -14,7 +15,7 @@ import {
     PerspectiveCamera0,
     PhysicalMaterial,
     PointLight2,
-    Scene,
+    Scene, SpotLight2,
     UnlitMaterial,
 } from 'threepipe'
 import {parseBlend} from './js-blend/main.js'
@@ -36,19 +37,23 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             // console.log(bakeGetters(blend))
             const ctx = {
                 Object3D: Object3D2,
-                Mesh: Mesh2,
+                Mesh: Mesh2 as typeof Mesh,
                 MeshPhysicalMaterial: PhysicalMaterial,
                 MeshBasicMaterial: UnlitMaterial,
                 PerspectiveCamera: PerspectiveCamera0,
                 OrthographicCamera: OrthographicCamera0,
                 PointLight: PointLight2,
                 DirectionalLight: DirectionalLight2,
+                SpotLight: SpotLight2,
+                AmbientLight: AmbientLight2,
                 BufferGeometry: BufferGeometry2,
                 BufferAttribute: BufferAttribute,
             }
             const objects = await createObjects(blend, ctx)
             const root = new Object3D()
             root.add(...objects)
+            root.userData.autoScaled = true
+            root.userData.autoCentered = true
             // console.log(res, blend, root)
             blend.scene = root
             return blend

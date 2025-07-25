@@ -1,3 +1,5 @@
+import {Ctx} from './ctx'
+
 function getLayer(layers: any, i: number) {
     if (!Array.isArray(layers)) return layers
     return layers[i]
@@ -11,7 +13,7 @@ function getLayer(layers: any, i: number) {
 // https://projects.blender.org/blender/blender/pulls/106638
 
 // https://github.com/blender/blender/blob/55e2fd2929b7577e0785c128c8f8069efd990c07/source/blender/blenkernel/intern/mesh.cc#L413
-export function createBufferGeometry(meshData: any, ctx: any) {
+export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
     if (meshData.mpoly) return createBufferGeometryOld(meshData, ctx)
     const geometry = new ctx.BufferGeometry()
@@ -212,7 +214,7 @@ export function createBufferGeometry(meshData: any, ctx: any) {
 //     // meshData.eData = domain edge - https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L189
 //     // todo normals, tangents
 
-export function createBufferGeometryOld(mesh: any, ctx: any) {
+export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
     const
         faces = Array.isArray(mesh.mpoly) ? mesh.mpoly as any[] : [mesh.mpoly],
         loops = mesh.mloop,
