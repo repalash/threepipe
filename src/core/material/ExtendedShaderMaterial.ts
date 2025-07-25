@@ -14,10 +14,10 @@ import {
     WebGLRenderer,
 } from 'three'
 import {shaderReplaceString} from '../../utils'
-import {IMaterialUserData} from '../IMaterial'
+import {IMaterialEventMap, IMaterialUserData} from '../IMaterial'
 
 // earlier it was ShaderMaterialEncodingSupport
-export class ExtendedShaderMaterial extends ShaderMaterial2 {
+export class ExtendedShaderMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial2<TE & IMaterialEventMap> {
     declare ['constructor']: (typeof ExtendedShaderMaterial) & (typeof ShaderMaterial2)
 
     textures: {colorSpace: ColorSpace, id: string}[] = []

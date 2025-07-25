@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     BufferGeometry,
     Camera,
     IUniform,
@@ -15,7 +14,7 @@ import {IMaterial, IMaterialEventMap, IMaterialParameters, IMaterialUserData} fr
 import {MaterialExtension} from '../../materials'
 import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
 
-export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE> implements IMaterial<TE> {
+export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof ShaderMaterial2
 
     static readonly TypeSlug = 'shaderMat'
@@ -48,7 +47,6 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     readonly isRawShaderMaterial: boolean
 

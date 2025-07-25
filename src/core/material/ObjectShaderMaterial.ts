@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     IUniform,
     Material,
     ShaderMaterial,
@@ -27,7 +26,7 @@ import {iMaterialUI} from './IMaterialUi'
  *
  * @category Materials
  */
-export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE> implements IMaterial<TE> {
+export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof ObjectShaderMaterial
 
     public static readonly TypeSlug = 'shmat'
@@ -42,7 +41,6 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

@@ -241,6 +241,10 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     if (!this.userData) this.userData = {}
     this.userData.uuid = this.uuid // for serialization
 
+    if (!(this as any).__upgradeSetup) {
+        this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
+        ;(this as any).__upgradeSetup = true
+    }
     // legacy
     if (!this.userData.setDirty) this.userData.setDirty = (e: any) => {
         console.warn('userData.setDirty is deprecated. Use setDirty instead.')
@@ -252,7 +256,6 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     this.setValues = iMaterialCommons.setValues(this.setValues)
     this.dispose = iMaterialCommons.dispose(this.dispose)
     this.clone = iMaterialCommons.clone(this.clone)
-    this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
 
     // material extensions
     if (!this.extraUniformsToUpload) this.extraUniformsToUpload = {}

@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     Color,
     IUniform,
     Material,
@@ -30,7 +29,7 @@ import {iMaterialUI} from './IMaterialUi'
  *
  * @category Materials
  */
-export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshBasicMaterial<TE> implements IMaterial<TE> {
+export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshBasicMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof UnlitMaterial
 
     public static readonly TypeSlug = 'bmat'
@@ -45,7 +44,6 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

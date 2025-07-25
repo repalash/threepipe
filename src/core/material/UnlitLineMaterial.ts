@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     Color,
     IUniform,
     LineBasicMaterial,
@@ -29,7 +28,7 @@ import {iMaterialUI} from './IMaterialUi'
  *
  * @category Materials
  */
-export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends LineBasicMaterial<TE> implements IMaterial<TE> {
+export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends LineBasicMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof UnlitLineMaterial
 
     public static readonly TypeSlug = 'blmat'
@@ -44,7 +43,6 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

@@ -1,5 +1,4 @@
 import {
-    BaseEvent,
     Color,
     IUniform,
     Material,
@@ -27,7 +26,7 @@ import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 import {makeSamplerUi} from '../../ui/image-ui'
 
-export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshPhongMaterial<TE> implements IMaterial<TE> {
+export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends MeshPhongMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof LegacyPhongMaterial
 
     public static readonly TypeSlug = 'phongmat'
@@ -42,7 +41,6 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
     generator?: IMaterialGenerator
 
     envMap: ITexture | null = null

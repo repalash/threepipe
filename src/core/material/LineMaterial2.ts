@@ -1,6 +1,5 @@
 import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {
-    BaseEvent,
     BufferGeometry,
     Camera,
     Color,
@@ -32,7 +31,7 @@ import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/line
  *
  * @category Materials
  */
-export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends LineMaterial<TE> implements IMaterial<TE> {
+export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends LineMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof LineMaterial2
     public static readonly TypeSlug = 'lmat'
     public static readonly TYPE = 'LineMaterial2' // not using .type because it is used by three.js
@@ -46,7 +45,6 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 

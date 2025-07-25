@@ -1,6 +1,5 @@
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
-    BaseEvent,
     BufferGeometry,
     Camera,
     Color,
@@ -49,7 +48,6 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    dispatchEvent<T extends Extract<keyof (TE&IMaterialEventMap), string>>(event: BaseEvent<T> & (TE&IMaterialEventMap)[T]): void {iMaterialCommons.dispatchEvent(super.dispatchEvent).call(this, event)}
 
     generator?: IMaterialGenerator
 
