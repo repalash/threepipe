@@ -246,6 +246,7 @@ export class Dropzone {
         this._emit('droperror', {message: message})
     }
 }
+
 export type DropEventType = 'drop'|'dropstart'|'droperror'
 export type ListenerCallback = ((data?:{files?:Map<string, DropFile>, message?:string})=>void)
 export interface DropFile extends File{

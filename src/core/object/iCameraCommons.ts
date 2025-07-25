@@ -26,7 +26,8 @@ export const iCameraCommons = {
         else if (this.userData.autoLookAtTarget) {
             this.lookAt(this.target)
         }
-        // }
+        // todo refresh target on rotation change if autoLookAtTarget is false? (calculate distanceToTarget from the current/prev target and position
+
         this.dispatchEvent({...options, type: 'update', bubbleToParent: false, camera: this}) // does not bubble
         this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true, camera: this}) // this sets dirty in the viewer
         iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})

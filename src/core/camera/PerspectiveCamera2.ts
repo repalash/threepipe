@@ -1,4 +1,4 @@
-import {Camera, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {Camera, Euler, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
@@ -49,6 +49,16 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
 
     @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
     @serialize() declare readonly position: Vector3
+
+    @uiVector('Up', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @serialize() declare readonly up: Vector3
+
+    // todo serialize?
+    // @uiVector('Quaternion', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    /* @serialize() */declare readonly quaternion: Quaternion
+
+    @uiVector('Rotation', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    /* @serialize()*/ declare readonly rotation: Euler
 
     /**
      * The target position of the camera (where the camera looks at). Also syncs with the controls.target, so it's not required to set that separately.

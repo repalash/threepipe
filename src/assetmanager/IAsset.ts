@@ -6,6 +6,7 @@ export type IFile = Blob & Partial<File> & {
     objectUrl?: string, // URL created from URL.createObjectURL, used to revoke the objectUrl with URL.revokeObjectURL
     ext?: string // extension of the file without the dot
     mime?: string // mime type of the file
+    filePath?: string // from Dropzone, the path of the file in the zip or folder
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
     __loadedAsset?: ImportResult | ImportResult[] // used by asset manager to store the loaded asset

@@ -452,16 +452,17 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (res.isDataTexture && res.image?.data) res.image.complete = true
             if (res.image?.complete) res.needsUpdate = true
         }
+        const rootPath = res.__rootPath
+        const rootBlob = res.__rootBlob
 
         if (res.userData) {
             const userData: IImportResultUserData = res.userData
-            const rootPath = res.__rootPath
             if (!userData.rootPath && rootPath && !rootPath.startsWith('blob:') && !rootPath.startsWith('/'))
                 userData.rootPath = rootPath
-            if (res.__rootBlob) {
-                userData.__sourceBlob = res.__rootBlob
+            if (rootBlob) {
+                userData.__sourceBlob = rootBlob
                 if (userData.__needsSourceBuffer) { // set __sourceBuffer here if required during serialize later on, __needsSourceBuffer can be set in asset loaders
-                    userData.__sourceBuffer = await res.__rootBlob.arrayBuffer()
+                    userData.__sourceBuffer = await rootBlob.arrayBuffer()
                     delete userData.__needsSourceBuffer
                 }
             }
@@ -469,6 +470,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         if ((res as RootSceneImportResult)?.userData && (res as RootSceneImportResult).userData.rootSceneModelRoot) {
             res._childrenCopy = [...res.children]
         }
+
+        if (res.name === '') res.name = (rootPath || rootBlob?.filePath || rootBlob?.name || '').replace(/^\//, '')
 
         // if (res.assetType) // todo: why if?
         res.assetImporterProcessed = true // this should not be put in userData
