@@ -583,6 +583,15 @@ function worker_code () {
     function toString (buffer, _in, _out) {
         return String.fromCharCode.apply(String, new Uint8Array(buffer, _in, _out - _in));
     }
+    function seekCheck (buffer, _in, str) {
+        const length = str.length;
+        for (let i = 0; i < length; i++) {
+            if (buffer.getUint8(_in + i) !== str.charCodeAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     // Begin parsing blender __blender_file__
 
@@ -674,19 +683,16 @@ function worker_code () {
                         curr_count++;
                     }
 
-                    // todo fix seek logic
-                    // Adjust for 4byte alignment TYPE
-                    if (toString(_data, offset2, offset2 + 4) !== 'TYPE'
-                    ) {
-                        for (let j = 0; j < 8; j++) {
-                            if(toString(_data, offset2, offset2 + 4) === 'TYPE') break
-                            offset2++;
-                        }
-                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    // Adjust for alignment TYPE
+                    for (let j = 0; j < 8; j++) {
+                        if(seekCheck(data, offset2, 'TYPE')) break
+                        offset2++;
                     }
-                    if(toString(_data, offset2, offset2 + 4) !== 'TYPE') {
-                        debugger
+                    if(!seekCheck(data, offset2, 'TYPE')) {
+                        ERROR = 'Unexpected alignment error in SDNA parsing';
+                        break
                     }
+
                     offset2 += 4;
 
                     // Number of struct types
@@ -706,18 +712,14 @@ function worker_code () {
                         curr_count++;
                     }
 
-                    // todo fix seek logic
-                    // Adjust for 4byte alignment
-                    if (toString(_data, offset2, offset2 + 4) !== 'TLEN'
-                    ) {
-                        for (let j = 0; j < 8; j++) {
-                            if(toString(_data, offset2, offset2 + 4) === 'TLEN') break
-                            offset2++;
-                        }
-                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    // Adjust for alignment
+                    for (let j = 0; j < 8; j++) {
+                        if(seekCheck(data, offset2, 'TLEN')) break
+                        offset2++;
                     }
-                    if(toString(_data, offset2, offset2 + 4) !== 'TLEN') {
-                        debugger
+                    if(!seekCheck(data, offset2, 'TLEN')) {
+                        ERROR = 'Unexpected alignment error in SDNA parsing';
+                        break
                     }
                     offset2 += 4;
                     curr_count = 0;
@@ -729,18 +731,14 @@ function worker_code () {
                         curr_count++;
                     }
 
-                    // todo fix seek logic
-                    // Adjust for 4byte alignment STRC
-                    if (toString(_data, offset2, offset2 + 4) !== 'STRC'
-                    ) {
-                        for (let j = 0; j < 8; j++) {
-                            if(toString(_data, offset2, offset2 + 4) === 'STRC') break
-                            offset2++;
-                        }
-                        // offset2 = (4 - (offset2 % 4)) + offset2;
+                    // Adjust for alignment
+                    for (let j = 0; j < 8; j++) {
+                        if(seekCheck(data, offset2, 'STRC')) break
+                        offset2++;
                     }
-                    if(toString(_data, offset2, offset2 + 4) !== 'STRC') {
-                        debugger
+                    if(!seekCheck(data, offset2, 'STRC')) {
+                        ERROR = 'Unexpected alignment error in SDNA parsing';
+                        break
                     }
                     offset2 += 4;
 

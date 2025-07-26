@@ -24,7 +24,9 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
     // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L19
 
     let vertices
+    let verticesData
     let indices
+    let indicesData
 
     // Extract vertex positions from vdata layers
     if (meshData.vdata && meshData.vdata.layers && meshData.vdata.totlayer > 0) {
@@ -40,6 +42,7 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
                     continue
                 }
                 vertices = layer
+                verticesData = data
             } else {
                 // console.log('unknown vdata', layer)
             }
@@ -61,6 +64,7 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
                     continue
                 }
                 indices = layer
+                indicesData = data
             } else {
                 // console.log('unknown ldata', layer)
             }
@@ -106,30 +110,30 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
     //     return geometry
     // }
 
-    if (vertices?.data && vertices.data.length > 0) {
-        const positions = new Float32Array(vertices.data.length * 3)
-        for (let j = 0; j < vertices.data.length; j++) {
-            const vertex = vertices.data[j]
-            if (vertex.x !== undefined) {
-                positions[j * 3] = vertex.x
-                positions[j * 3 + 1] = vertex.z
-                positions[j * 3 + 2] = -vertex.y
-            } else if (vertex.co !== undefined) {
-                positions[j * 3] = vertex.co[0]
-                positions[j * 3 + 1] = vertex.co[2]
-                positions[j * 3 + 2] = -vertex.co[1]
+    if (verticesData && verticesData.length > 0) {
+        const positions = new Float32Array(verticesData.length * 3)
+        for (let j = 0; j < verticesData.length; j++) {
+            const {x, y, z, co} = verticesData[j] || {}
+            if (x !== undefined) {
+                positions[j * 3] = x
+                positions[j * 3 + 1] = z
+                positions[j * 3 + 2] = -y
+            } else if (co !== undefined) {
+                positions[j * 3] = co[0]
+                positions[j * 3 + 1] = co[2]
+                positions[j * 3 + 2] = -co[1]
             } else {
                 // console.log(bakeGetters(meshData))
                 // const t = [...new Int32Array(vertex.__blender_file__.AB, vertex.__data_address__, 8)]
                 // debugger
-                console.error('BlendLoader - unknown vertex', vertex)
+                console.error('BlendLoader - unknown vertex', verticesData[j])
                 break
             }
         }
         geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
     }
 
-    if (indices?.data && indices.data.length > 0 && vertices?.data?.length) {
+    if (indicesData && indicesData.length > 0 && verticesData?.length) {
         const faceSize = meshData.totloop / meshData.totpoly
         if (faceIndices.length > 0) {
             // Use face offset indices for variable-sized faces
@@ -149,11 +153,11 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
                 if (faceVertCount >= 3) {
                     // todo better Triangulate the face using fan triangulation
-                    const firstVert = indices.data[faceStart].i
+                    const firstVert = indicesData[faceStart].i
                     for (let k = 1; k < faceVertCount - 1; k++) {
                         indexes[t++] = firstVert
-                        indexes[t++] = indices.data[faceStart + k].i
-                        indexes[t++] = indices.data[faceStart + k + 1].i
+                        indexes[t++] = indicesData[faceStart + k].i
+                        indexes[t++] = indicesData[faceStart + k + 1].i
                     }
                 } else {
                     // debugger
@@ -251,24 +255,27 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
                     index += indexi - 1 + l
 
                 const loop = loops[index]
-                const vert = vertices[loop.v]
+                const {co, no} = vertices[loop.v] || {}
                 indices[currentIndex] = currentIndex
 
-                positions[currentIndex * 3 + 0] = vert.co[0]
-                positions[currentIndex * 3 + 1] = vert.co[2]
-                positions[currentIndex * 3 + 2] = -vert.co[1]
+                if (co) {
+                    positions[currentIndex * 3 + 0] = co[0]
+                    positions[currentIndex * 3 + 1] = co[2]
+                    positions[currentIndex * 3 + 2] = -co[1]
+                }
 
-                if (vert.no) {
-                    normals[currentIndex * 3 + 0] = vert.no[0]
-                    normals[currentIndex * 3 + 1] = vert.no[2]
-                    normals[currentIndex * 3 + 2] = -vert.no[1]
+                if (no) {
+                    normals[currentIndex * 3 + 0] = no[0]
+                    normals[currentIndex * 3 + 1] = no[2]
+                    normals[currentIndex * 3 + 2] = -no[1]
                 } else {
                     computeNormals = true
                 }
 
                 if (uv) {
-                    uvs[currentIndex * 2 + 0] = uv[index].uv[0]
-                    uvs[currentIndex * 2 + 1] = uv[index].uv[1]
+                    const uv1 = uv[index].uv
+                    uvs[currentIndex * 2 + 0] = uv1[0]
+                    uvs[currentIndex * 2 + 1] = uv1[1]
                 }
 
                 currentIndex++
