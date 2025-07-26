@@ -58,6 +58,12 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
     }
 
     /**
+     * Whether refreshScene should be called when a node is selected. Refreshing scene will notify the plugins about the update, like shadows can be baked.
+     * Disable this when nothing significant geometry/node changes happen when switch nodes are changed.
+     */
+    @serialize() refreshScene = true
+
+    /**
      * Select a switch node variation with name or uuid.
      * @param node
      * @param nameOrUuid
@@ -80,7 +86,7 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
             child1.visible = (child1.name || child1.uuid) === node.selected
             changed = changed || visible !== child1.visible
         }
-        if (changed && setDirty) this._viewer!.scene.setDirty({refreshScene: true, frameFade: true})
+        if (changed && setDirty) this._viewer!.scene.setDirty({refreshScene: this.refreshScene, frameFade: true})
         return changed
     }
 
