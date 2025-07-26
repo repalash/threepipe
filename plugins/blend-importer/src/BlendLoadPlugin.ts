@@ -52,8 +52,8 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             const objects = await createObjects(blend, ctx)
             const root = new Object3D()
             root.add(...objects)
-            root.userData.autoScaled = true
-            root.userData.autoCentered = true
+            // root.userData.autoScaled = true
+            // root.userData.autoCentered = true
             // console.log(res, blend, root)
             blend.scene = root
             return blend
