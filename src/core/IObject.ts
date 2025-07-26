@@ -5,6 +5,7 @@ import {IGeometry, IGeometryEventMap, IGeometrySetDirtyOptions} from './IGeometr
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
+import {ValOrArr} from 'ts-browser-helpers'
 
 // export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'textureUpdate' | 'geometryChanged' |
 //     'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
@@ -134,34 +135,6 @@ export interface ISetDirtyCommonOptions {
      */
     uiChangeEvent?: ChangeEvent,
 
-}
-
-export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
-    /**
-     * Bubble event to parent root(scene).
-     */
-    bubbleToParent?: boolean
-    /**
-     * Change identifier that triggered the setDirty call.
-     */
-    change?: string | keyof IObject3D
-    /**
-     * Update scene(bounds, shadows, plugins, etc) after setting dirty.
-     */
-    refreshScene?: boolean
-
-    /**
-     * Indicate whether the geometry has been changed to properly refresh plugins like ground, shadows.
-     */
-    geometryChanged?: boolean
-
-    /**
-     * update scene after setting dirty
-     *
-     * @deprecated use {@link refreshScene} instead
-     */
-    sceneUpdate?: boolean
-
     /**
      * Source identifier of who is triggering the event. so that recursive events can be prevented
      */
@@ -184,6 +157,36 @@ export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
 
     // value: any;
     // oldValue: any;
+}
+
+export interface IObjectSetDirtyOptions extends ISetDirtyCommonOptions{
+    /**
+     * Bubble event to parent root(scene).
+     */
+    bubbleToParent?: boolean
+
+    /**
+     * Change identifier that triggered the `setDirty` call.
+     * This is different from `key` in that it is used to identify the property/key that is changed. In many cases these could be same, but they could also be different eg, key might be x, with change being position.
+     */
+    change?: string | keyof IObject3D
+
+    /**
+     * Update scene(bounds, shadows, plugins, etc) after setting dirty.
+     */
+    refreshScene?: boolean
+
+    /**
+     * Indicate whether the geometry has been changed to properly refresh plugins like ground, shadows.
+     */
+    geometryChanged?: boolean
+
+    /**
+     * update scene after setting dirty
+     *
+     * @deprecated use {@link refreshScene} instead
+     */
+    sceneUpdate?: boolean
 
     // [key: string]: any
 }
@@ -241,6 +244,13 @@ export interface IObject3DUserData extends IImportResultUserData {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     gltfAnim_SyncMaxDuration?: boolean
 
+    /**
+     * Automatically register this object in the {@link AssetManager} when added to the scene.
+     * This provides hook to other plugins to extend the object, add uiconfig, etc.
+     * @default true
+     */
+    autoRegisterInManager?: boolean
+
     // region root scene model root
 
     /**
@@ -286,6 +296,28 @@ export interface IObject3DUserData extends IImportResultUserData {
     __autoBubbleToParentEvents?: string[]
 
     [key: string]: any
+}
+
+
+export interface IObjectExtension {
+    uuid: string
+    /**
+     * Function to check if this object extension is compatible with the given object.
+     * If not compatible, the object extension will not be added to the object.
+     * This is only checked when the extension is registered.
+     *
+     * The extension is assumed to be compatible if this function is not defined
+     * @param object
+     */
+    isCompatible?: (object: IObject3D) => boolean|undefined
+
+    /**
+     * Function to return the UI config for this material extension.
+     * This is called once when the material extension is registered.
+     * @param material
+     */
+    getUiConfig?: (material: IObject3D, refreshUi?: UiObjectConfig['uiRefresh']) => (ValOrArr<UiObjectConfig | undefined>)
+
 }
 
 export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> extends Object3D<TE>, IUiConfigContainer {
@@ -388,6 +420,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
 
 
     objectProcessor?: IObjectProcessor
+    objectExtensions?: IObjectExtension[]
 
     // __disposed?: boolean
     /**

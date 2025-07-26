@@ -104,10 +104,9 @@ export interface MaterialExtension{
      */
     onUnregister?: (material: IMaterial) => void // when this extension is registered to a material
 
-
     /**
      * Function to check if this material extension is compatible with the given material.
-     * If not compatible, the material extension will not be applied.
+     * If not compatible, the material extension will not be added to the material.
      * This is only checked when the extension is registered.
      *
      * The extension is assumed to be compatible if this function is not defined
@@ -129,7 +128,7 @@ export interface MaterialExtension{
     getUiConfig?: (material: IMaterial, refreshUi?: UiObjectConfig['uiRefresh']) => UiObjectConfig | undefined
 
     /**
-     * Higher priority extensions are applied first.
+     * Higher priority extensions are applied first. (or as they are added, depends on the type of extension)
      */
     priority?: number // default 0
 

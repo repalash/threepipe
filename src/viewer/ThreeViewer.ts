@@ -71,6 +71,8 @@ import {TonemapPlugin} from '../plugins/postprocessing/TonemapPlugin'
 import {VERSION} from './version'
 import {OrbitControls3} from '../three'
 
+import {Object3DManager} from '../assetmanager/Object3DManager'
+
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
     type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
@@ -227,6 +229,14 @@ export interface ThreeViewerOptions {
     dropzone?: boolean|DropzonePluginOptions
 
     /**
+     * If true, will stop event propagation on all pointer events on the viewer container (when camera interactions are enabled).
+     *
+     * Set this to true when the viewer is inside a carousel or similar component that might interfere with pointer events.
+     * @default false
+     */
+    stopPointerEventPropagation?: boolean
+
+    /**
      * @deprecated use {@link msaa} instead
      */
     isAntialiased?: boolean,
@@ -238,6 +248,7 @@ export interface ThreeViewerOptions {
      * @deprecated use {@link zPrepass} instead
      */
     useGBufferDepth?: boolean
+
 }
 
 /**
@@ -271,6 +282,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         renderEnabled = true
     renderStats?: GLStatsJS
     readonly assetManager: AssetManager
+    readonly object3dManager: Object3DManager
     /**
      * The Scene attached to the viewer, this cannot be changed.
      * @type {RootScene}
@@ -343,9 +355,18 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _isRenderingFrame = false
     private _objectProcessor: IObjectProcessor = {
         processObject: (object: IObject3D)=>{
+            if (object.userData.autoRegisterInManager === false) return
+            this.object3dManager.registerObject(object)
             if (object.material) {
-                if (Array.isArray(object.material)) this.assetManager.materials.registerMaterials(object.material)
-                else this.assetManager.materials.registerMaterial(object.material)
+                if (!this.assetManager) {
+                    console.error('AssetManager is not initialized yet, cannot register object', object)
+                    return
+                }
+                const mats = Array.isArray(object.material) ? object.material : [object.material]
+                for (const mat of mats) {
+                    if (mat.userData.autoRegisterInManager === false) continue
+                    this.assetManager.materials.registerMaterial(mat)
+                }
             }
         },
     }
@@ -426,6 +447,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         // scene
 
+        this.object3dManager = new Object3DManager()
         this._scene = new RootScene(camera, this._objectProcessor)
         this._scene.setBackgroundColor('#ffffff')
         // this._scene.addEventListener('addSceneObject', this._addSceneObject)
@@ -446,7 +468,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._scene.mainCamera.getWorldQuaternion(this._lastCameraQuat)
         })
         this._scene.modelRoot.scale.setScalar(options.modelRootScale ?? 1)
-
+        this.object3dManager.setRoot(this._scene)
 
         // render manager
 
@@ -503,6 +525,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             if (options.load.background) promises.push(this.setBackgroundMap(options.load.background))
             Promise.all(promises).then(options.onLoad)
         }
+
+        if (options.stopPointerEventPropagation) {
+            // Stop event propagation in the viewer to prevent flickity etc. from dragging
+            this._canvas.addEventListener('pointerdown', this._stopPropagation)
+            this._canvas.addEventListener('touchstart', this._stopPropagation)
+            this._canvas.addEventListener('mousedown', this._stopPropagation)
+        }
+
     }
 
     /**
@@ -607,12 +637,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * Disposes the viewer and frees up all resource and events. Do not use the viewer after calling dispose.
-     * NOTE - If you want to reuse the viewer, set viewer.enabled to false instead, then set it to true again when required. To dispose all the objects, materials in the scene use `viewer.scene.disposeSceneModels()`
-     * This function is not fully implemented yet. There might be some leaks.
-     * TODO - return promise?
+     * NOTE - If you want to reuse the viewer, set viewer.enabled to false instead, then set it to true again when required.
+     * To dispose all the objects, materials in the scene, but not the viewer itself, use `viewer.scene.disposeSceneModels()`
      */
     public dispose(clear = true): void {
         this.renderEnabled = false
+        // TODO - return promise?
 
         // todo: dispose stuff from constructor etc
         if (clear) {
@@ -626,6 +656,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.renderManager.dispose(clear)
 
         if (clear) {
+            this.object3dManager.dispose()
             this._canvas.removeEventListener('webglcontextrestored', this._onContextRestore, false)
             this._canvas.removeEventListener('webglcontextlost', this._onContextLost, false)
 
@@ -1417,6 +1448,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._canvasTexture.needsUpdate = true
         }
         return this._canvasTexture
+    }
+
+
+    private _stopPropagation = (e: PointerEvent | MouseEvent | TouchEvent) => {
+        if (!this.scene.mainCamera.canUserInteract) return
+        e.stopPropagation()
     }
 
     // todo: create/load texture utils

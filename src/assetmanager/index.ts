@@ -1,6 +1,7 @@
 export {AssetImporter} from './AssetImporter'
 export {AssetExporter} from './AssetExporter'
 export {AssetManager} from './AssetManager'
+export {Object3DManager} from './Object3DManager'
 export {Importer} from './Importer'
 export {MaterialManager} from './MaterialManager'
 export type {AssetManagerOptions, AddRawOptions, ImportAddOptions, AddAssetOptions} from './AssetManager'

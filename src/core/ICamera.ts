@@ -85,6 +85,12 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
      */
     position: Vector3,
 
+    /**
+     * If interactions are enabled for this camera. It can be disabled by some code or plugin.
+     * see also {@link setInteractions}
+     * @deprecated use {@link canUserInteract} to check if the user can interact with this camera
+     * @readonly
+     */
     readonly interactionsEnabled: boolean;
     setInteractions(enabled: boolean, by: string, setDirty?: boolean): void;
 

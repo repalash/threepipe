@@ -9,7 +9,7 @@ import {IObject3D} from '../IObject'
 import {ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
-import {makeICameraCommonUiConfig} from '../object/IObjectUi'
+import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 /**
@@ -47,17 +47,17 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     @uiNumber('FoV Zoom')
     @serialize() declare zoom: number
 
-    @uiVector('Position', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @uiVector<PerspectiveCamera2>('Position', undefined, undefined, (t)=>({onChange: ()=>t.setDirty({change: 'position'})}))
     @serialize() declare readonly position: Vector3
 
-    @uiVector('Up', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @uiVector<PerspectiveCamera2>('Up', undefined, undefined, (t)=>({onChange: ()=>t.setDirty({change: 'up'})}))
     @serialize() declare readonly up: Vector3
 
     // todo serialize?
-    // @uiVector('Quaternion', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    // @uiVector<PerspectiveCamera2>('Quaternion', undefined, undefined, (t)=>({onChange: ()=>t.setDirty({change: 'quaternion'}), disabled: ()=>t.autoLookAtTarget}))
     /* @serialize() */declare readonly quaternion: Quaternion
 
-    @uiVector('Rotation', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @uiVector<PerspectiveCamera2>('Rotation', undefined, undefined, (t)=>({onChange: ()=>t.setDirty({change: 'rotation'}), disabled: ()=>t.autoLookAtTarget}))
     /* @serialize()*/ declare readonly rotation: Euler
 
     /**
@@ -65,7 +65,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
      * Note: this is always in world-space
      * Note: {@link autoLookAtTarget} must be set to `true` to make the camera look at the target when no controls are enabled
      */
-    @uiVector('Target', undefined, undefined, (that:PerspectiveCamera2)=>({onChange: ()=>that.setDirty()}))
+    @uiVector<PerspectiveCamera2>('Target', undefined, undefined, (t)=>({onChange: ()=>t.setDirty({change: 'target'}), disabled: ()=>!t.autoLookAtTarget}))
     @serialize() readonly target: Vector3 = new Vector3(0, 0, 0)
 
     /**
@@ -76,6 +76,11 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     @onChange2('refreshAspect')
     @uiToggle('Auto Aspect')
         autoAspect: boolean
+
+    @serialize()
+    @onChange2('refreshAspect')
+    @uiNumber<PerspectiveCamera2>('Aspect Ratio', (t)=>({hidden: ()=>t.autoAspect}))
+    declare aspect: number
 
     /**
      * Near clipping plane.
@@ -435,6 +440,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
             onChange: () => this.refreshCameraControls(),
         }),
         ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
+        objectExtensionsUiConfig.call(this),
     ]
 
     uiConfig: UiObjectConfig = {

@@ -108,7 +108,7 @@ export class ThreeEditor extends ThreeViewer {
         GLTFKHRMaterialVariantsPlugin,
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
-        new RenderTargetPreviewPlugin(false),
+        new RenderTargetPreviewPlugin(true),
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
         new VignettePlugin(false),
@@ -181,7 +181,7 @@ export class ThreeEditor extends ThreeViewer {
         taa && (taa.stableNoise = true)
 
         const rt = this.getPlugin(RenderTargetPreviewPlugin)
-        if (rt) {
+        if (rt && this.debug) {
             const gbuffer = this.getPlugin(GBufferPlugin)
             if (gbuffer) {
                 rt.addTarget({texture: this.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')

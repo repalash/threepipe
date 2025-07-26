@@ -9,7 +9,6 @@ import {
     LinearMipmapLinearFilter,
     LoadingManager,
     Object3D,
-    PerspectiveCamera,
     TextureLoader,
 } from 'three'
 import {ISerializedConfig, IViewerPlugin, ThreeViewer} from '../viewer'
@@ -31,6 +30,7 @@ import {
     iObjectCommons,
     ISceneEventMap,
     ITexture,
+    OrthographicCamera2,
     PerspectiveCamera2,
     PointLight2,
     RectAreaLight2,
@@ -368,7 +368,6 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
         this._storage = typeof storage === 'boolean' ? undefined : storage
     }
 
-
     protected _setupObjectProcess() {
         this.importer.addEventListener('processRaw', (event) => {
             // console.log('preprocess mat', mat)
@@ -408,13 +407,15 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
                     if (obj.isLight) lights.push(obj)
                 })
                 for (const camera of cameras) {
-                    if ((camera as PerspectiveCamera2).assetType === 'camera') continue
+                    if ((camera as Partial<ICamera>).assetType === 'camera') continue
                     // todo: OrthographicCamera
-                    if (!(camera as PerspectiveCamera).isPerspectiveCamera || !camera.parent || options.replaceCameras === false) {
+                    if (!camera.parent || options.replaceCameras === false) {
                         iCameraCommons.upgradeCamera.call(camera)
                     } else {
                         const newCamera: ICamera = (camera as any).iCamera ??
-                            new PerspectiveCamera2('', this.viewer.canvas)
+                            !(camera as Partial<ICamera>).isOrthographicCamera ?
+                            new PerspectiveCamera2('', this.viewer.canvas) :
+                            new OrthographicCamera2('', this.viewer.canvas)
                         if (camera === newCamera) continue
                         camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
                         newCamera.parent = camera.parent as any
@@ -452,7 +453,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
                 iObjectCommons.upgradeObject3D.call(res)
             } else if (res.isMaterial) {
-                iMaterialCommons.upgradeMaterial.call(res)
+                if (!res.assetType) iMaterialCommons.upgradeMaterial.call(res)
                 // todo update res by generating new material?
             } else if (res.isTexture) {
                 upgradeTexture.call(res)
@@ -563,6 +564,9 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
     // endregion
 
+    // region object extensions
+
+    // endregion
 
     // region deprecated
 
@@ -662,3 +666,4 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     // endregion
 
 }
+

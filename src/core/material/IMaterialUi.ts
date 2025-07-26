@@ -391,6 +391,7 @@ export const iMaterialUI = {
     misc: (material: IMaterial): UiObjectConfig[] => [
         ()=>material.materialExtensions?.map(v=>{
             v.uuid = v.uuid || generateUUID()
+            // caching the uiconfig here. todo: reset the uiconfig when cache key changes? or we could just return a dynamic/function uiconfig from getUiConfig
             material.__matExtUiConfigs = material.__matExtUiConfigs || {}
             if (!material.__matExtUiConfigs[v.uuid]) material.__matExtUiConfigs[v.uuid] = v.getUiConfig?.(material, material.uiConfig?.uiRefresh)
             return material.__matExtUiConfigs[v.uuid]

@@ -115,6 +115,10 @@ export interface IMaterialSetDirtyOptions extends ISetDirtyCommonOptions{
      */
     needsUpdate?: boolean,
 
+    /**
+     * Change identifier that triggered the `setDirty` call.
+     * This is different from `key` in that it is used to identify the property/key that is changed. In many cases these could be same, but they could also be different eg, key might be x, with change being position.
+     */
     change?: string | keyof IMaterial
 
     [key: string]: any
@@ -144,6 +148,13 @@ export interface IMaterialUserData extends IImportResultUserData{
      * only for materials that have envMap
      */
     envMapSlotKey?: string
+
+    /**
+     * Automatically register this material in the {@link MaterialManager} when added to the scene.
+     * This provides hook to other plugins to extend the material, add uiconfig etc.
+     * @default true
+     */
+    autoRegisterInManager?: boolean
 
     cloneId?: string
     cloneCount?: number

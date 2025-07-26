@@ -455,6 +455,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     this.userData.__objectSetup = true
 
     if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
+    if (!this.objectExtensions) this.objectExtensions = []
 
     if (!this.userData.__autoBubbleToParentEvents) this.userData.__autoBubbleToParentEvents = ['select']
     // Event bubbling. todo: set bubbleToParent in these events when dispatched from child and remove from here?

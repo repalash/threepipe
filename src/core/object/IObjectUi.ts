@@ -8,6 +8,13 @@ import {PhysicalMaterial} from '../material/PhysicalMaterial'
 import {LineMaterial2} from '../material/LineMaterial2'
 import {UnlitLineMaterial} from '../material/UnlitLineMaterial'
 import {IMaterial} from '../IMaterial'
+import {generateUUID} from '../../three'
+
+declare module '../IObject' {
+    interface IObject3D {
+        __objExtUiConfigs?: Record<string, UiObjectConfig|undefined>
+    }
+}
 
 // todo move somewhere?
 const defaultMaterial = new UnlitMaterial()
@@ -19,6 +26,16 @@ defaultUnlitLineMaterial.uiConfig = undefined as any
 const defaultLineMaterial = new LineMaterial2()
 defaultLineMaterial.name = 'Default Line Material'
 defaultLineMaterial.uiConfig = undefined as any
+
+export function objectExtensionsUiConfig(this: IObject3D) {
+    return () => this.objectExtensions?.flatMap(v => {
+        v.uuid = v.uuid || generateUUID()
+        // caching the uiconfig here. todo: reset the uiconfig when cache key changes? or we could just return a dynamic/function uiconfig from getUiConfig
+        this.__objExtUiConfigs = this.__objExtUiConfigs || {}
+        if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig?.(this, this.uiConfig?.uiRefresh)
+        return this.__objExtUiConfigs[v.uuid]
+    }).filter(v => v)
+}
 
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
@@ -348,6 +365,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         const ui: UiObjectConfig[] = makeICameraCommonUiConfig.call(this as ICamera, config)
         ;(config.children as UiObjectConfig[]).push(...ui)
     }
+    (config.children as UiObjectConfig[]).push(objectExtensionsUiConfig.call(this))
 
     // todo: lights?
 

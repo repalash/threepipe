@@ -129,6 +129,7 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
         this.mainDiv.appendChild(div)
         this.targetBlocks.push(targetDef)
         this.refreshUi()
+        // todo auto remove target on dispose?
         return this
     }
 
