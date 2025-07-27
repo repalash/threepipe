@@ -2,27 +2,35 @@ import {
     AViewerPluginEventMap,
     AViewerPluginSync,
     Box3B,
+    DropzonePlugin,
     EventListener2,
     generateUUID,
     IAssetImporter,
     ILoader,
+    ImportAddOptions,
     Importer,
     IObject3D,
     iObjectCommons,
     IRenderManager,
     IRenderManagerEventMap,
-    IScene,
-    ISceneEventMap,
     Loader,
-    ImportAddOptions,
     LoadingManager,
-    ThreeViewer, Sphere, uiButton,
-    uiFolderContainer, DropzonePlugin,
+    Object3D,
+    Sphere,
+    ThreeViewer,
+    uiButton,
+    uiFolderContainer,
+    IObjectExtension,
 } from 'threepipe'
 import {TilesGroup, TilesRenderer} from '3d-tiles-renderer'
 import {gltfCesiumRTCExtension, gltfMeshFeaturesExtension, gltfStructuralMetadataExtension} from './gltf'
+import {
+    CesiumIonAuthPlugin,
+    ImplicitTilingPlugin,
+    TilesFadePlugin,
+    UpdateOnChangePlugin,
 // @ts-expect-error moduleResolution issue
-import {ImplicitTilingPlugin, TilesFadePlugin, UpdateOnChangePlugin, CesiumIonAuthPlugin} from '3d-tiles-renderer/plugins'
+} from '3d-tiles-renderer/plugins'
 
 export type TilesRendererGroup = TilesGroup & IObject3D
 
@@ -93,7 +101,8 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
         viewer.assetManager.registerGltfExtension(gltfStructuralMetadataExtension)
         viewer.assetManager.registerGltfExtension(gltfMeshFeaturesExtension)
         viewer.assetManager.importer.addImporter(this._importer)
-        viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
+        viewer.object3dManager.registerObjectExtension(this._objectExt)
+        // viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
         // viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
         // viewer.scene.addEventListener('mainCameraUpdate', this._mainCameraUpdate)
         viewer.renderManager.addEventListener('preRender', this._preRender) // note - adding to renderManager preRender, not viewer. So its fired for each camera render
@@ -105,7 +114,8 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
         viewer.assetManager.unregisterGltfExtension(gltfCesiumRTCExtension.name)
         viewer.assetManager.unregisterGltfExtension(gltfStructuralMetadataExtension.name)
         viewer.assetManager.unregisterGltfExtension(gltfMeshFeaturesExtension.name)
-        viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)
+        viewer.object3dManager.unregisterObjectExtension(this._objectExt)
+        // viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)
         // viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         // viewer.scene.removeEventListener('mainCameraUpdate', this._mainCameraUpdate)
         viewer.renderManager.removeEventListener('preRender', this._preRender)
@@ -159,46 +169,47 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
 
     private _cachedRefs?: Pick<TilesRenderer, 'lruCache' | 'downloadQueue' | 'parseQueue'/* | 'processNodeQueue'*/>
 
-    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
-        const object = e.object
-        const group = object as TilesRendererGroup
-        // console.log(e)
-        if (!group || !group.tilesRenderer || !this._viewer) return
+    private _objectExt: IObjectExtension = {
+        uuid: 'TilesRendererPluginObjectExt',
+        isCompatible: (o)=>!!(o as TilesRendererGroup).tilesRenderer,
+        onRegister: (group: TilesRendererGroup)=>{
+            if (!group || !group.tilesRenderer || !this._viewer) return
 
-        // set the second renderer to share the cache and queues from the first
-        if (!this._cachedRefs) {
-            this._cachedRefs = {
-                lruCache: group.tilesRenderer.lruCache,
-                downloadQueue: group.tilesRenderer.downloadQueue,
-                parseQueue: group.tilesRenderer.parseQueue,
+            // set the second renderer to share the cache and queues from the first
+            if (!this._cachedRefs) {
+                this._cachedRefs = {
+                    lruCache: group.tilesRenderer.lruCache,
+                    downloadQueue: group.tilesRenderer.downloadQueue,
+                    parseQueue: group.tilesRenderer.parseQueue,
+                    // @ts-expect-error not in ts
+                    processNodeQueue: group.tilesRenderer.processNodeQueue,
+                }
+            } else {
+                group.tilesRenderer.lruCache = this._cachedRefs.lruCache
+                group.tilesRenderer.downloadQueue = this._cachedRefs.downloadQueue
+                group.tilesRenderer.parseQueue = this._cachedRefs.parseQueue
                 // @ts-expect-error not in ts
-                processNodeQueue: group.tilesRenderer.processNodeQueue,
+                group.tilesRenderer.processNodeQueue = this._cachedRefs.processNodeQueue
             }
-        } else {
-            group.tilesRenderer.lruCache = this._cachedRefs.lruCache
-            group.tilesRenderer.downloadQueue = this._cachedRefs.downloadQueue
-            group.tilesRenderer.parseQueue = this._cachedRefs.parseQueue
-            // @ts-expect-error not in ts
-            group.tilesRenderer.processNodeQueue = this._cachedRefs.processNodeQueue
-        }
 
-        this.objects.push(group)
+            this.objects.push(group)
 
-        group.tilesRenderer.registerPlugin({
-            dispose: () => {
-                const index = this.objects.indexOf(group)
-                if (index !== -1) this.objects.splice(index, 1)
-                this.dispatchEvent({type: 'removeTile', group})
-            },
-        })
-        group.tilesRenderer.setCamera(this._viewer.scene.mainCamera)
-        group.tilesRenderer.setResolutionFromRenderer(this._viewer.scene.mainCamera, this._viewer.renderManager.webglRenderer)
-        group.tilesRenderer.update()
-        group.addEventListener('dispose', ()=>{
-            group.tilesRenderer.dispose()
-        })
+            group.tilesRenderer.registerPlugin({
+                dispose: () => {
+                    const index = this.objects.indexOf(group)
+                    if (index !== -1) this.objects.splice(index, 1)
+                    this.dispatchEvent({type: 'removeTile', group})
+                },
+            })
+            group.tilesRenderer.setCamera(this._viewer.scene.mainCamera)
+            group.tilesRenderer.setResolutionFromRenderer(this._viewer.scene.mainCamera, this._viewer.renderManager.webglRenderer)
+            group.tilesRenderer.update()
+            group.addEventListener('dispose', ()=>{
+                group.tilesRenderer.dispose()
+            })
 
-        this.dispatchEvent({type: 'addTile', group})
+            this.dispatchEvent({type: 'addTile', group})
+        },
     }
 
     @uiButton()
@@ -288,7 +299,20 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
         })
         tiles.addEventListener('load-tile-set', (e) => {
             const isRoot = e.tileSet === tiles.rootTileSet
-            if (isRoot && resolve) resolve()
+            if (isRoot && resolve) {
+                resolve()
+            }
+        })
+
+        group.userData.rootPathRefresh = true // when next loaded from gltf, the object will be refreshed based on rootPath
+        group._rootPathRefreshed = true // so that it doesn't do it this time
+        group._sChildren = [] // so that it's children are not saved in the gltf exporter.
+        tiles.registerPlugin({
+            processTileModel: (model: Object3D, tile: any) => {
+                if (tile === (tiles.rootTileSet as any)?.root) {
+                    group._sChildren = [model] // the root tileset will be saved inside the gltf on export
+                }
+            },
         })
 
         const ai = this.ai
