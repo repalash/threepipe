@@ -14,7 +14,7 @@ import {
 } from '../core'
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
-import {generateUUID, isInScene} from '../three'
+import {generateUUID} from '../three'
 import {IMaterialEventMap} from '../core/IMaterial'
 import {shaderReplaceString} from '../utils'
 
@@ -99,7 +99,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             || this.templates.find(v => v.alias?.includes(nameOrType) && (!withGenerator || v.generator))
     }
 
-    protected _getMapsForMaterial(material: IMaterial) {
+    static GetMapsForMaterial(material: IMaterial) {
         const maps = new Set<ITexture>()
         // todo use MaterialProperties or similar to find the maps in the material. This is a bit hacky
         for (const val of Object.values(material)) {
@@ -119,16 +119,17 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
         mat.setDirty()
-        for (const map of this._getMapsForMaterial(mat)) {
+        for (const map of MaterialManager.GetMapsForMaterial(mat)) {
             const dispose = !map.isRenderTargetTexture
                 && map.userData.disposeOnIdle !== false
-                && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
+                // && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
 
             if (dispose && typeof map.dispose === 'function') {
                 // console.log('disposing texture', map)
                 map.dispose()
             }
         }
+        this._materialMaps.delete(mat.uuid)
         // this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly. todo: make an easy way to do that.
     }
 
@@ -147,7 +148,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
 
     private _refreshTextureRefs(mat: any) {
         if (!mat.__textureUpdate) mat.__textureUpdate = this._textureUpdate.bind(mat)
-        const newMaps = this._getMapsForMaterial(mat)
+        const newMaps = MaterialManager.GetMapsForMaterial(mat)
         const oldMaps = this._materialMaps.get(mat.uuid) || new Set<ITexture>()
         for (const map of newMaps) {
             if (oldMaps.has(map)) continue
