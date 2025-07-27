@@ -20,11 +20,14 @@ export class TransfrSharePlugin extends AViewerPluginSync {
     dependencies = [AssetExporterPlugin]
 
     @uiInput('Server URL')
-        serverUrl = 'https://bee.transfr.one/scene.glb'
+        serverUrl = 'https://transfr.one/scene.glb'
     @uiInput()
         queryParam = 'm'
     @uiInput()
         pageUrl = window.location.href
+    // @uiInput()
+    rawSuffix = '?raw'
+    processStateKey = 'transfr.one/scene.glb'
 
     baseUrls: Record<string, string> = {
         'editor': '',
@@ -48,7 +51,7 @@ export class TransfrSharePlugin extends AViewerPluginSync {
         if (!obj) {
             throw new Error('Failed to export object or scene')
         }
-        const path = 'transfr.one/scene.glb'
+        const path = this.processStateKey
         this._viewer!.assetManager.setProcessState(path, {
             state: 'Uploading',
             // progress: data.progress ? data.progress * 100 : undefined,
@@ -68,7 +71,7 @@ export class TransfrSharePlugin extends AViewerPluginSync {
         } catch (e) {
             throw new Error('Invalid URL ' + data)
         }
-        return data
+        return data + this.rawSuffix
     }
     private _exporting = false
 
@@ -102,7 +105,7 @@ export class TransfrSharePlugin extends AViewerPluginSync {
             } catch (e) {
                 console.error('Failed to copy link', e)
             }
-            this._viewer?.dialog.alert('Link' + (copied ? ' Copied' : '') + ': ' + link + '\n\nNote: File will be deleted in 1 days')
+            this._viewer?.dialog.alert('Link' + (copied ? ' Copied' : '') + ': ' + link + '\n\nNote: File will be deleted in 5-7 days')
         }
         this._exporting = false
         return link
