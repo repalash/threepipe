@@ -264,6 +264,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     get needsRender(): boolean {
+        if (this.renderSize.x < 1 || this.renderSize.y < 1) return false
         this._dirty = this._dirty || this._passes.findIndex(value => getOrCall(value.dirty)) >= 0 // todo: check for enabled passes only.
         return this._dirty
     }

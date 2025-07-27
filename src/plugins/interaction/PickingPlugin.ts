@@ -1,5 +1,5 @@
 import {EventListener2, Object3D} from 'three'
-import {Class, onChange, serialize} from 'ts-browser-helpers'
+import {Class, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {bindToValue, BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
 import {IMaterial, IObject3D, IScene, ISceneEventMap} from '../../core'
@@ -290,8 +290,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                     )
                 }
                 let c = selected.uiConfig
-                if (c) ui.children.push(c)
-                else {
+                if (c) {
+                    if (c.type === 'folder') safeSetProperty(c, 'expanded', true, true)
+                    ui.children.push(c)
+                } else {
                     // check materials
                     const mats = (selected as IObject3D).materials ?? [(selected as IObject3D).material as IMaterial]
                     for (const m of mats) {

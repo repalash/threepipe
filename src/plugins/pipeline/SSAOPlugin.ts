@@ -33,9 +33,9 @@ export class SSAOPlugin
     dependencies = [GBufferPlugin]
 
     target?: SSAOPluginTarget
-    @uiImage('SSAO Buffer', {readOnly: true}) texture?: Texture
+    @uiImage('SSAO Buffer', {readOnly: true, tags: ['debug']}) texture?: Texture
 
-    @uiConfig() declare protected _pass?: SSAOPluginPass
+    @uiConfig(undefined, {unwrapContents: true}) declare protected _pass?: SSAOPluginPass
 
     // @onChange2(SSAOPlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)

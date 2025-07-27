@@ -17,6 +17,7 @@ import {
     ImportAddOptions,
     LoadingManager,
     ThreeViewer, Sphere, uiButton,
+    uiFolderContainer, DropzonePlugin,
 } from 'threepipe'
 import {TilesGroup, TilesRenderer} from '3d-tiles-renderer'
 import {gltfCesiumRTCExtension, gltfMeshFeaturesExtension, gltfStructuralMetadataExtension} from './gltf'
@@ -35,6 +36,7 @@ export interface TilesRendererPluginEventMap extends AViewerPluginEventMap {
  *
  * Specification - https://www.ogc.org/standards/3dtiles/
  */
+@uiFolderContainer('3D Tiles')
 export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEventMap> {
     public static readonly PluginType: string = 'TilesRendererPlugin'
     enabled = true
@@ -65,6 +67,8 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
             ...options,
             fileExtension: TilesRendererPlugin.DUMMY_EXT,
             fileHandler: importer,
+        }).finally(() => {
+            this._viewer?.assetManager.importer.unregisterFile(temp)
         })
     }
 
@@ -201,7 +205,8 @@ export class TilesRendererPlugin extends AViewerPluginSync<TilesRendererPluginEv
     async promptForURL() {
         const url = await this._viewer?.dialog.prompt('TilesRendererPlugin: Enter URL for the root tileset', '', true)
         if (!url) return
-        return this.load(url)
+        const loader = this._viewer?.getPlugin(DropzonePlugin) ?? this._viewer ?? this
+        return await loader.load(url, {fileExtension: TilesRendererPlugin.DUMMY_EXT})
     }
 }
 

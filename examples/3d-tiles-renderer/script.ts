@@ -47,6 +47,7 @@ async function init() {
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(controls.uiConfig)
+    ui.setupPluginUi(TilesRendererPlugin)
     ui.setupPluginUi(PickingPlugin)
 
 }

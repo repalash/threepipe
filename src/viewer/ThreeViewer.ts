@@ -55,7 +55,7 @@ import {
     RootSceneImportResult,
 } from '../assetmanager'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
-import {uiConfig, UiObjectConfig, uiPanelContainer} from 'uiconfig.js'
+import {uiConfig, UiObjectConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
 import {
     AssetExporterPlugin,
@@ -75,8 +75,8 @@ import {Object3DManager} from '../assetmanager/Object3DManager'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
-    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
-    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
     [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
@@ -279,8 +279,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
-        renderEnabled = true
-    renderStats?: GLStatsJS
+    @uiToggle('Enable Rendering', {tags: ['advanced']})
+        renderEnabled = true // todo rename to animation loop enabled?
     readonly assetManager: AssetManager
     readonly object3dManager: Object3DManager
     /**
@@ -341,6 +341,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         return ThreeViewer.Dialog
     }
     @serialize() readonly type = 'ThreeViewer'
+
+    /**
+     * Helper to track and visualize rendering performance while in debug mode.
+     */
+    renderStats?: GLStatsJS
 
     /**
      * The ResizeObserver observing the canvas element. Add more elements to this observer to resize viewer on their size change.
@@ -756,10 +761,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                         try {
                             render()
                         } catch (e) {
-                            this.console.error('ThreeViewer: Error while rendering frame. Enable debug mode for more information.')
+                            this.console.error('ThreeViewer: Uncaught error while rendering frame.')
                             this.console.error(e)
                             if (this.debug) throw e
-                            // this.enabled = false
+                            this.renderEnabled = false
+                            this.dispatchEvent({type: 'renderError', error: e})
                         }
                     }
 

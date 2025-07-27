@@ -83,7 +83,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
     const config: UiObjectConfig = {
         type: 'folder',
         label: ()=>this.name || 'unnamed',
-        expanded: true,
         onChange: (ev)=>{
             if (!ev.config || ev.config.onChange) return
             let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
