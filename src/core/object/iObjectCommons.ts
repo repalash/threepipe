@@ -149,6 +149,27 @@ export const iObjectCommons = {
         }
     },
 
+    traverseModels: function<T extends IObject3D>(this: T, callback: (object: IObject3D) => boolean|void, {
+        visible = false,
+        widgets = false,
+        ...ops
+    }): void {
+        if (!this.assetType) return
+        if (!widgets && this.assetType === 'widget') return
+        if (visible && !this.visible) return
+
+        const res = callback(this)
+        if (res === false) return
+
+        const children = this.children
+
+        for (let i = 0, l = children.length; i < l; i++) {
+            const child = children[ i ]
+            if (!child.assetType || !child.traverseModels) continue
+            child.traverseModels(callback, {visible, widgets, ...ops})
+        }
+    },
+
     eventCallbacks: {
         onAddedToParent: function(this: IObject3D, e: Event): void {
             // added to some parent
@@ -489,6 +510,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     if (!this.autoCenter) this.autoCenter = iObjectCommons.autoCenter.bind(this)
     if (!this.pivotToBoundsCenter) this.pivotToBoundsCenter = iObjectCommons.pivotToBoundsCenter.bind(this)
     if (!this.pivotToPoint) this.pivotToPoint = iObjectCommons.pivotToPoint.bind(this)
+    if (!this.traverseModels) this.traverseModels = iObjectCommons.traverseModels.bind(this)
 
     // fired from Object3D.js
     this.addEventListener('added', iObjectCommons.eventCallbacks.onAddedToParent)

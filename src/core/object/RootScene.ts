@@ -300,7 +300,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     @uiButton('Center All Geometries', {sendArgs: false})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         const geoms = new Set<IGeometry>()
-        ;(obj ?? this.modelRoot).traverse((o) => o.geometry && geoms.add(o.geometry))
+        obj = obj ?? this.modelRoot
+        obj.traverseModels && obj.traverseModels((o) => {o.geometry && geoms.add(o.geometry)}, {visible: false, widgets: false})
         const undos: (()=>void)[] = []
         geoms.forEach(g => undos.push(g.center2(undefined, keepPosition)))
         return ()=>undos.forEach(u=>u())
@@ -423,6 +424,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     }
 
     refreshUi = iObjectCommons.refreshUi.bind(this)
+    traverseModels = iObjectCommons.traverseModels.bind(this)
 
     /**
      * Dispose the scene and clear all resources.
@@ -484,7 +486,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     @uiButton('Auto GPU Instance Meshes')
     autoGPUInstanceMeshes() {
         const geoms = new Set<BufferGeometry>()
-        this.modelRoot.traverse((o) => o.geometry && geoms.add(o.geometry))
+        this.modelRoot.traverseModels!((o) => {o.geometry && geoms.add(o.geometry)}, {visible: false, widgets: false})
         geoms.forEach((g: any) => autoGPUInstanceMeshes(g))
     }
 
@@ -608,7 +610,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         super.addEventListener(type, listener)
     }
 
-
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
@@ -673,11 +674,14 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * @param parent - optional root node to start search from
      * @returns Array of found objects
      */
-    public findObjectsByName(name: string, parent?: IObject3D): IObject3D[] {
-        const o: IObject3D[] = [];
-        (parent ?? this).traverse(object => {
+    public findObjectsByName(name: string, parent?: IObject3D, upgradedOnly = false): IObject3D[] {
+        const o: IObject3D[] = []
+        const fn = (object: IObject3D) => {
             if (object.name === name) o.push(object)
-        })
+        }
+        const obj: IObject3D = parent ?? this
+        if (upgradedOnly && obj.traverseModels) obj.traverseModels(fn, {visible: false, widgets: true})
+        else obj.traverse(fn)
         return o
     }
 

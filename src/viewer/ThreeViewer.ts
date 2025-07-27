@@ -20,6 +20,7 @@ import {
     IMaterial,
     IObject3D,
     IObjectProcessor,
+    IScene,
     ISceneEventMap,
     ITexture,
     OrthographicCamera2,
@@ -260,7 +261,9 @@ export interface ThreeViewerOptions {
 @uiPanelContainer('Viewer')
 export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IViewerEvent>> {
     public static readonly VERSION = VERSION
+
     public static readonly ConfigTypeSlug = 'vjson'
+
     declare uiConfig: UiObjectConfig
 
     static Console: IConsoleWrapper = {
@@ -268,7 +271,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         warn: console.warn.bind(console),
         error: console.error.bind(console),
     }
+
     static Dialog: IDialogWrapper = windowDialogWrapper
+
+    @serialize() readonly type = 'ThreeViewer'
 
     /**
      * If the viewer is enabled. Set this `false` to disable RAF loop.
@@ -279,34 +285,43 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
+
     @uiToggle('Enable Rendering', {tags: ['advanced']})
         renderEnabled = true // todo rename to animation loop enabled?
+
     readonly assetManager: AssetManager
     readonly object3dManager: Object3DManager
+
     /**
      * The Scene attached to the viewer, this cannot be changed.
      * @type {RootScene}
      */
     @uiConfig(undefined, {label: 'Scene', expanded: true}) @serialize('scene')
     private readonly _scene: RootScene
+
     @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
+
     get materialManager() {
         return this.assetManager.materials
     }
+
     public readonly plugins: Record<string, IViewerPlugin> = {}
+
     /**
      * Scene with object hierarchy used for rendering
      */
     get scene(): RootScene&Scene {
         return this._scene as RootScene&Scene
     }
+
     /**
      * Specifies how many frames to render in a single request animation frame. Keep to 1 for realtime rendering.
      * Note: should be max (screen refresh rate / animation frame rate) like 60Hz / 30fps
      * @type {number}
      */
     maxFramePerLoop = 1
+
     readonly debug: boolean
 
     /**
@@ -337,10 +352,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     get console(): IConsoleWrapper {
         return ThreeViewer.Console
     }
+
     get dialog(): IDialogWrapper {
         return ThreeViewer.Dialog
     }
-    @serialize() readonly type = 'ThreeViewer'
 
     /**
      * Helper to track and visualize rendering performance while in debug mode.
@@ -389,6 +404,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * This is required for debugging/logging in some cases.
      */
     public static ViewerDebugging = false // todo use in shaderReplaceString
+
+    /**
+     * plugins that are not serialized/deserialized with the viewer from config. useful when loading files exported from the editor, etc
+     * (runtime only, not serialized itself)
+     */
+    serializePluginsIgnored: string[] = []
 
     /**
      * Create a viewer instance for using the webgi viewer SDK.
@@ -455,7 +476,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.object3dManager = new Object3DManager()
         this._scene = new RootScene(camera, this._objectProcessor)
         this._scene.setBackgroundColor('#ffffff')
-        // this._scene.addEventListener('addSceneObject', this._addSceneObject)
+        this._scene.addEventListener('addSceneObject', this._onAddSceneObject)
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
         this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
@@ -1070,6 +1091,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param options
      */
     async addSceneObject<T extends IObject3D|Object3D|RootSceneImportResult = RootSceneImportResult>(imported: T, options?: AddObjectOptions): Promise<T> {
+        let res = imported
         if (imported.userData?.rootSceneModelRoot) {
             const obj = <RootSceneImportResult>imported
             this._scene.loadModelRoot(obj, options)
@@ -1082,7 +1104,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 } else if (obj._deletedImportedViewerConfig)
                     this.console.error('ThreeViewer - Imported viewer config was deleted, cannot import it again. Set `viewer.deleteImportedViewerConfigOnLoad` to `false` to keep it in the object for reuse workflows.')
             }
-
             if (this.deleteImportedViewerConfigOnLoad && obj.importedViewerConfig) {
                 setTimeout(()=>{
                     if (!obj.importedViewerConfig) return
@@ -1091,10 +1112,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                     obj._deletedImportedViewerConfig = true // for console warning above
                 }, this.deleteImportedViewerConfigOnLoadWait)
             }
-            return this._scene.modelRoot as T
+            res = this._scene.modelRoot as T
+        } else {
+            this._scene.addObject(imported, options)
         }
-        this._scene.addObject(imported, options)
-        return imported
+        return res
     }
 
     /**
@@ -1425,13 +1447,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.enabled = false
     }
 
-    // private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
-    //     if (!e || !e.object) return
-    //     const config = e.object.__importedViewerConfig // this is set in gltf.ts when gltf file is imported. This is done here so that scene settings are applied whenever the imported object is added to scene.
-    //     if (!config) return
-    //     this.fromJSON(config, config.resources)
-    // }
-
     public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
         const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
         if (!camViews) {
@@ -1455,7 +1470,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
         return this._canvasTexture
     }
-
 
     private _stopPropagation = (e: PointerEvent | MouseEvent | TouchEvent) => {
         if (!this.scene.mainCamera.canUserInteract) return
@@ -1543,13 +1557,13 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         return this.plugins[type] as T | undefined
     }
 
-
     private _onPluginAdd(p: IViewerPlugin) {
         const ev = {type: 'addPlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
         this._pluginListeners.add.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
         this.setDirty(p)
     }
+
     private _onPluginRemove(p: IViewerPlugin, dispose = false) {
         const ev = {type: 'removePlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
@@ -1568,6 +1582,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     addPluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void, ...plugins: string[]): void {
         this._pluginListeners[type].push({p: plugins, l: listener})
     }
+
     removePluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void): void {
         this._pluginListeners[type] = this._pluginListeners[type].filter(l=> l.l !== listener)
     }
@@ -1608,10 +1623,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     }
 
-    /**
-     * plugins that are not serialized/deserialized with the viewer from config. useful when loading files exported from the editor, etc
-     * (runtime only, not serialized itself)
-     */
-    serializePluginsIgnored: string[] = []
+    private _onAddSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
+        const object = e?.object
+        if (!object) return
+    }
 
 }

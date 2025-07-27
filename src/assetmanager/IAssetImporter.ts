@@ -37,6 +37,7 @@ export interface ImportResultExtras {
     userData?: IImportResultUserData
 
     __rootPath?: string
+    __rootPathOptions?: Record<string, any>
     __rootBlob?: IFile
     // __disposed?: boolean
 
@@ -45,7 +46,18 @@ export interface ImportResultExtras {
 export type ImportResult = ImportResultObject & ImportResultExtras
 
 export interface IImportResultUserData{
+    /**
+     * The path from which the asset was downloaded/imported.
+     */
     rootPath?: string
+    /**
+     * Incase files are loaded as different extensions(like for json), this will be set.
+     */
+    rootPathOptions?: Record<string, any>
+    /**
+     * Whether to refresh this object from the asset manager when its loaded as an embedded object
+     */
+    rootPathRefresh?: boolean
 
     /**
      * extra arbitrary data saved by the importer that can be used by the plugins (like gltf material variants)

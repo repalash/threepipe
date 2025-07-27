@@ -14,6 +14,7 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
+import {IObject3D} from '../../core'
 
 export interface GLTFExporter2Options {
     /**
@@ -165,21 +166,23 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         if (options.exportExt === 'glb') {
             gltfOptions.binary = true
         }
-        if (options.preserveUUIDs !== false) { // default true
-            (Array.isArray(input) ? input : [input]).forEach((obj: Object3D) =>
-                obj.traverse((obj1: Object3D) => {
-                    if (obj1.uuid) obj1.userData.gltfUUID = obj1.uuid
-                }))
-        }
-        // animations
-        (Array.isArray(input) ? input : [input]).forEach((obj: Object3D) =>
-            obj.traverse((obj1: Object3D) => {
+        // collect animations and preserveUUID(default true)
+        (Array.isArray(input) ? input : [input]).forEach((obj: IObject3D) =>
+            obj.traverse((obj1: IObject3D) => {
+                if (options.preserveUUIDs !== false && obj1.uuid) obj1.userData.gltfUUID = obj1.uuid
                 if (obj1.animations) {
                     for (const animation of obj1.animations) {
                         if ((animation as any).__gltfExport !== false && !gltfOptions.animations!.includes(animation)) {
                             gltfOptions.animations!.push(...obj1.animations)
                         }
                     }
+                }
+
+                // todo move this to asset exporter?
+                if (obj1.children && obj1._sChildren) {
+                    // @ts-expect-error temp
+                    obj1._tChildren = obj1.children
+                    obj1.children = obj1._sChildren as IObject3D[]
                 }
             }))
 
@@ -188,6 +191,14 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 (Array.isArray(input) ? input : [input]).forEach((obj: Object3D) =>
                     obj.traverse((obj1: Object3D) => {
                         delete obj1.userData.gltfUUID
+
+                        // @ts-expect-error temp
+                        if (obj1._tChildren) {
+                            // @ts-expect-error temp
+                            obj1.children = obj1._tChildren
+                            // @ts-expect-error temp
+                            delete obj1._tChildren
+                        }
                     }))
             }
             // eslint-disable-next-line @typescript-eslint/naming-convention

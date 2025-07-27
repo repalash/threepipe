@@ -36,6 +36,7 @@ export class Object3DManager {
             const compatible = ext.isCompatible ? ext.isCompatible(obj) : true
             if (compatible) {
                 exts.push(ext)
+                ext.onRegister && ext.onRegister(obj)
             }
         }
     }

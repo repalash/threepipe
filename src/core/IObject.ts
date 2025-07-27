@@ -318,6 +318,11 @@ export interface IObjectExtension {
      */
     getUiConfig?: (material: IObject3D, refreshUi?: UiObjectConfig['uiRefresh']) => (ValOrArr<UiObjectConfig | undefined>)
 
+    /**
+     * Function to be called when the object the extension is added on the object. This generally happens when either the object is registered or extnsion is added
+     * @param object
+     */
+    onRegister?: (object: IObject3D) => void
 }
 
 export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> extends Object3D<TE>, IUiConfigContainer {
@@ -470,7 +475,31 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
      */
     autoUpgradeChildren?: boolean
 
-    // region inherited type fixes
+    /**
+     * Traverse only upgraded objects with extra options
+     * @param callback
+     * @param options
+     */
+    traverseModels?(callback: (object: IObject3D) => boolean | void, options: {
+        visible: boolean,
+        widgets: boolean,
+        [key: string]: any
+    }): void
+
+    /**
+     * @internal - for embedded objects
+     */
+    _rootPathRefreshed?: boolean
+    /**
+     * @internal - when embedded objects are loading
+     */
+    _rootPathRefreshing?: boolean
+    /**
+     * @internal - for embedded objects
+     */
+    _sChildren?: Object3D[]
+
+    // reg ion inherited type fixes
 
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
@@ -485,7 +514,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
     parent: IObject3D | null
     children: IObject3D[]
 
-    // endregion
+    // end region
 
 }
 

@@ -14,6 +14,7 @@ import {IImporter, ILoader} from './IImporter'
 import {Importer} from './Importer'
 import {SimpleJSONLoader} from './import'
 import {parseFileExtension} from 'ts-browser-helpers'
+import {ImportAddOptions} from './AssetManager'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -136,13 +137,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     }
 
     async importPath<T extends ImportResult|undefined = ImportResult|undefined>(path: string, options: ImportAssetOptions = {}): Promise<T[]> {
-        const op = {...options}
-        delete op.pathOverride
-        delete op.forceImport
-        delete op.reimportDisposed
-        delete op.fileHandler
-        delete op.importedFile
-        const opts = JSON.stringify(op)
+        const opts = this._serializeOptions(options)
         const cached = this._cachedAssets.find(a => a.path === path && a._options === opts)
         let asset: IAsset
         if (cached) asset = cached
@@ -150,6 +145,17 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         asset._options = opts
         if (options.importedFile) asset.file = options.importedFile
         return await this.importAsset(asset, options)
+    }
+
+    private _serializeOptions(options: ImportAddOptions) {
+        const {
+            pathOverride,
+            forceImport,
+            reimportDisposed,
+            fileHandler,
+            importedFile,
+            ...op} = options
+        return JSON.stringify(op)
     }
 
     // import and process an IAsset
@@ -366,7 +372,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         //
         // }
         if (res && typeof res === 'object' && !Array.isArray(res)) {
+            if (options.fileHandler && !options.fileExtension) {
+                console.warn('AssetImporter - Pass fileExtension to options when using fileHandler to be able to use `rootPath`', options.fileHandler, path)
+            }
             res.__rootPath = path
+            if (options) {
+                const ser = this._serializeOptions(options)
+                if (ser) res.__rootPathOptions = JSON.parse(ser)
+            }
             const f = file || this._fileDatabase.get(path)
             if (f) res.__rootBlob = f
         }
@@ -453,12 +466,15 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (res.image?.complete) res.needsUpdate = true
         }
         const rootPath = res.__rootPath
+        const rootPathOptions = res.__rootPathOptions
         const rootBlob = res.__rootBlob
 
         if (res.userData) {
             const userData: IImportResultUserData = res.userData
-            if (!userData.rootPath && rootPath && !rootPath.startsWith('blob:') && !rootPath.startsWith('/'))
+            if (!userData.rootPath && rootPath && !rootPath.startsWith('blob:') && !rootPath.startsWith('/')) {
                 userData.rootPath = rootPath
+                if (rootPathOptions) userData.rootPathOptions = rootPathOptions
+            }
             if (rootBlob) {
                 userData.__sourceBlob = rootBlob
                 if (userData.__needsSourceBuffer) { // set __sourceBuffer here if required during serialize later on, __needsSourceBuffer can be set in asset loaders

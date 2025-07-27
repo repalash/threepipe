@@ -370,6 +370,11 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
     protected _setupObjectProcess() {
         this.importer.addEventListener('processRaw', (event) => {
+            const obj = event.data as IObject3D
+            if (obj && obj.isObject3D) {
+                this._loadObjectDependencies(obj)
+                return
+            }
             // console.log('preprocess mat', mat)
             const mat = event.data as IMaterial
             if (!mat || !mat.isMaterial || !mat.uuid) return
@@ -471,6 +476,100 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     }
 
     /**
+     * Load the embedded `rootPath` dependencies within this object
+     * @param object
+     * @private
+     */
+    private async _loadObjectDependencies(object: IObject3D) {
+        const deps = [] as IObject3D[]
+        if (!object.traverseModels) {
+            this.viewer.console.error('AssetManager - Object not upgraded, cannot load dependencies', object)
+            return
+        }
+        object.traverseModels && object.traverseModels(m => {
+            if (m.userData.rootPathRefresh && !m._rootPathRefreshed && !m._rootPathRefreshing && m.userData.rootPath) {
+                deps.push(m)
+                return false // to not traverse children
+            }
+            return true
+        }, {visible: false, widgets: true})
+        const pms = deps.map(async m => {
+            m._rootPathRefreshing = true
+            const rootPath = m.userData.rootPath
+            if (!rootPath) return null
+            const rootPathOptions = m.userData.rootPathOptions
+            const res = await this.importer.import(rootPath, {
+                ...rootPathOptions,
+            })
+            if (!res) {
+                throw new Error(`Unable to load asset from url - ${rootPath}`)
+            }
+            return res
+        })
+        const r = await Promise.allSettled(pms)
+        // console.log(r)
+        for (let i = 0; i < r.length; i++) {
+            const res = r[i]
+            const obj = deps[i]
+            delete obj._rootPathRefreshing
+            obj._rootPathRefreshed = true
+            if (res.status === 'rejected') {
+                this.viewer.console.error(`ThreeViewer - Failed to load root path for object ${obj.name}`, res.reason)
+                continue
+            }
+            if (res.status !== 'fulfilled') continue
+            const models = res.value
+            if (!models || !models.length) continue
+            const model = models.find(m => m?.isObject3D)
+            if (!model) {
+                this.viewer.console.warn('AssetManager - No valid model found in root path', res.value)
+                continue
+            }
+            const others = models.filter(m => m && m !== model)
+            const parent = obj.parent
+            const newIndex = parent ? parent.children.indexOf(obj) : -1
+            if (parent) obj.removeFromParent()
+            this.viewer.object3dManager.unregisterObject(obj)
+            if (!model.isObject3D) {
+                this.viewer.console.warn('Non model dependency loaded. Not fully supported yet.')
+                // todo?
+                continue
+            }
+            if (!parent) {
+                this.viewer.console.error('AssetManager - Unexpected error, no parent found for object when loading dependency', obj)
+                // parent = this.viewer.scene.modelRoot
+                continue
+            }
+            if (model._copyFromEmbedded) model._copyFromEmbedded(obj) // todo better name, document this in IObject3D or ImportResult?
+            else {
+                obj.matrix.decompose(model.position, model.quaternion, model.scale)
+                model.name = obj.name // copy name
+                model.userData = {...obj.userData, ...model.userData} // merge userData
+                model._rootPathRefreshed = true // mark as refreshed
+                // @ts-expect-error force update
+                model.uuid = obj.uuid
+            }
+            parent.add(model as IObject3D)
+            const newIndex2 = parent.children.indexOf(model as IObject3D)
+            if (newIndex >= 0 && newIndex2 >= 0 && newIndex !== newIndex2) {
+                parent.children.splice(newIndex2, 1)
+                parent.children.splice(newIndex, 0, model as IObject3D) // add at new index
+            }
+            if (others.length) {
+                for (const other of others) {
+                    if (other?.isObject3D) {
+                        parent.add(other as Object3D)
+                    } else {
+                        this.viewer.console.warn('Non model dependency loaded. Not fully supported yet.', other)
+                    }
+                }
+            }
+        }
+    }
+
+    // region process state
+
+    /**
      * State of download/upload/process/other processes in the viewer.
      * Subscribes to importer and exporter by default, more can be added by plugins like {@link FileTransferPlugin}
      */
@@ -512,6 +611,8 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             } : undefined)
         })
     }
+
+    // endregion
 
     // region glTF extensions registration helpers
 
@@ -561,10 +662,6 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             if (ind2 >= 0) exporter2.extensions?.splice(ind2, 1)
         }
     }
-
-    // endregion
-
-    // region object extensions
 
     // endregion
 
