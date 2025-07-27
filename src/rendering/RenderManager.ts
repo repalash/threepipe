@@ -549,15 +549,14 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
 
     /**
-     * Converts a render target to a png/jpeg data url string.
+     * Copies a render target to a new/existing canvas element.
      * Note: this will clamp the values to [0, 1] and converts to srgb for float and half-float render targets.
      * @param target
-     * @param mimeType
-     * @param quality
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
+     * @param canvas - optional canvas to render to, if not provided a new canvas will be created.
      */
-    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
-        const canvas = document.createElement('canvas')
+    renderTargetToCanvas(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, textureIndex = 0, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+        canvas = canvas ?? document.createElement('canvas')
         canvas.width = target.width
         canvas.height = target.height
         const ctx = canvas.getContext('2d')
@@ -573,6 +572,21 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         }
 
         ctx.putImageData(imageData, 0, 0)
+
+        return canvas
+    }
+
+    /**
+     * Converts a render target to a png/jpeg data url string.
+     * Note: this will clamp the values to [0, 1] and converts to srgb for float and half-float render targets.
+     * @param target
+     * @param mimeType
+     * @param quality
+     * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
+     */
+    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
+        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+        const canvas = this.renderTargetToCanvas(target, textureIndex)
 
         const string = (texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
         canvas.remove()

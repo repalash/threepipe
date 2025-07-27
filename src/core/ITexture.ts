@@ -1,6 +1,7 @@
 import {IMaterial} from './IMaterial'
 import {Source, Texture, TextureEventMap} from 'three'
 import {IRenderTarget} from '../rendering'
+import type {ChangeEvent} from 'uiconfig.js'
 
 export interface ITextureUserData{
     mimeType?: string
@@ -20,6 +21,27 @@ export interface ITextureUserData{
 // }
 
 export type ITextureEventMap = TextureEventMap
+
+declare module 'three'{
+    export interface TextureEventMap{
+        textureUpdate: {
+            // These are handled in dispatchEvent override in iMaterialCommons
+            bubbleToObject?: boolean
+            bubbleToParent?: boolean
+            uiChangeEvent?: ChangeEvent
+        } /* & ITextureSetDirtyOptions*/
+        // select: { // todo remove?
+        //     ui?: boolean
+        //     // focusCamera?: boolean // todo ?
+        //     bubbleToObject?: boolean
+        //     bubbleToParent?: boolean
+        //     material: IMaterial
+        //     value?: /* IObject3D | */ ITexture | null // todo is this required?
+        //
+        //     source?: string // who is triggering the event. so that recursive events can be prevented
+        // } /* & IObjectSetDirtyOptions*/
+    }
+}
 
 export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extends Texture<TE> {
     assetType?: 'texture'
