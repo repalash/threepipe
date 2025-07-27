@@ -128,7 +128,7 @@
     "@types/wicg-file-system-access": "^2020.9.5",
     "popmotion": "^11.0.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.17.1",
+    "ts-browser-helpers": "^0.18.0",
     "uiconfig.js": "^0.1.5"
   },
   "peerDependencies": {
