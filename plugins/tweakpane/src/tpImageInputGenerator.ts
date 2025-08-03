@@ -36,6 +36,7 @@ const staticData = {
     dataTexImage: makeTextSvg('Data Texture'),
     lutCubeTexImage: makeTextSvg('CUBE Texture'),
     compressedTexImage: makeTextSvg('Compressed Texture'),
+    // videoTexImage: makeTextSvg('Video Texture'),
     textureMap: {} as any,
     imageMap: {} as any,
     tempMap: {} as any,
@@ -54,7 +55,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
     }
     // todo: video is not playing
     // if (cc.isVideoTexture && !cc.image.tp_src) {
-    //     cc.image.tp_src = dataTexImage
+    //     cc.image.tp_src = staticData.videoTexImage
     // }
     if (cc.isTexture) {
         // console.warn('here')
@@ -71,16 +72,21 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
                         cc.tp_src = dataUrl
                         setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
                         config.uiRefresh?.(false, 'postFrame')
-
                     }, 200)
                     cc.tp_src = staticData.renderTarImage2
                     // }
                     // config._lastRtRefresh = Date.now()
                 }
-            } else if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement || cc.image instanceof HTMLVideoElement) { // todo: support playback in video
+            } else if (cc.image instanceof ImageBitmap || cc.image instanceof HTMLImageElement /* || cc.image instanceof HTMLVideoElement*/) { // todo: try video with bitmap after ts-browser-helpers update
                 cc.image.tp_src = imageBitmapToBase64(cc.image, 160)
+                if (cc.image instanceof HTMLVideoElement) {
+                    setTimeout(()=>cc.image.tp_src && delete cc.image.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                }
             } else {
                 cc.image.tp_src = textureToDataUrl(cc, 160, false, 'image/png', 90) // this supports DataTexture also
+                if (cc.image instanceof HTMLVideoElement) {
+                    setTimeout(()=>cc.image.tp_src && delete cc.image.tp_src, 1000) // clear after 1 second so it refreshes on next render
+                }
             }
 
             if (!cc.image.tp_src && !cc.tp_src) {
