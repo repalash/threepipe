@@ -1,8 +1,8 @@
-import {Object3D, Vector3} from 'three'
+import {CatmullRomCurve3, Object3D, Vector3} from 'three'
 import {Easing} from 'popmotion'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {Box3B} from '../../three'
-import {onChange, serialize, timeout} from 'ts-browser-helpers'
+import {onChange, onChange3, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {EasingFunctions, EasingFunctionType} from '../../utils'
 import {CameraView, ICamera, ICameraView} from '../../core'
@@ -15,8 +15,12 @@ export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctio
 export interface CameraViewPluginEventMap extends AViewerPluginEventMap{
     viewChange: {view: CameraView}
     startViewChange: {view: CameraView}
+
     viewAdd: {view: CameraView}
     viewDelete: {view: CameraView}
+    viewUpdate: {view: CameraView}
+
+    update: {key?: string}
 }
 
 /**
@@ -42,7 +46,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         // this.recordAllViews = this.recordAllViews.bind(this)
         // this._wheel = this._wheel.bind(this)
         // this._pointerMove = this._pointerMove.bind(this)
-        // this._postFrame = this._postFrame.bind(this)
+        this._postFrame = this._postFrame.bind(this)
+        this.setDirty = this.setDirty.bind(this)
 
         this.animDuration = options.duration ?? this.animDuration
         this.animEase = options.ease ?? this.animEase
@@ -68,13 +73,17 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     /**
      * Pauses time between view changes when animating all views or looping.
      */
+    @onChange3('setDirty')
     @serialize() @uiInput('View Pause Time') viewPauseTime = 200
 
     /**
      * {@link EasingFunctions}
      */
+    @onChange3('setDirty')
     @serialize() @uiDropdown('Ease', Object.keys(EasingFunctions).map((label:string)=>({label}))) animEase: EasingFunctionType = 'easeInOutSine' // ms
+    @onChange3('setDirty')
     @serialize() @uiSlider('Duration', [10, 10000], 10) animDuration = 1000 // ms
+    @onChange3('setDirty')
     @serialize() @uiDropdown('Interpolation', ['spherical', 'linear'/* , 'spline (dev)'*/].map((label:string)=>({label, value: label.split(' ')[0]})))
         interpolateMode: 'spherical'|'linear'|'spline' = 'spherical'
     // todo spline
@@ -84,6 +93,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
     // not used
     @serialize()
+    // @onChange3('setDirty')
     // @uiSlider('RotationOffset', [0.2, 0.75], 0.01)
         rotationOffset = 0.25
 
@@ -149,61 +159,34 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         return view
     }
 
-    addView(view: CameraView) {
-        if (!this._cameraViews.includes(view)) this._cameraViews.push(view)
+    addView(view: CameraView, force = false) {
         view.addEventListener('setView', this._viewSetView as any)
         view.addEventListener('updateView', this._viewUpdateView as any)
         view.addEventListener('deleteView', this._viewDeleteView as any)
         view.addEventListener('animateView', this._viewAnimateView as any)
-        this.uiConfig.uiRefresh?.()
-        this.dispatchEvent({type: 'viewAdd', view})
-    }
-
-    protected _viewSetView = ({view, camera}: {view?: CameraView, camera?: ICamera}) => {
-        if (!view) {
-            this._viewer?.console.warn('Invalid view', view)
-            return
+        view.addEventListener('update', this._viewUpdated)
+        const incl = this._cameraViews.includes(view)
+        if (!incl || force) {
+            if (!incl) this._cameraViews.push(view)
+            this.setDirty({key: 'cameraViews', change: 'viewAdd'})
+            this.dispatchEvent({type: 'viewAdd', view})
         }
-        this.setView(view, camera)
     }
 
-    protected _viewUpdateView = ({view, camera}: {view: CameraView, camera?: ICamera}) => {
-        if (!view) {
-            this._viewer?.console.warn('Invalid view', view)
-            return
-        }
-        const name = view.name
-        this.getView(camera, view.isWorldSpace ?? true, view)
-        view.name = name
-    }
-
-    protected _viewDeleteView = ({view}: {view: CameraView}) => {
-        if (!view) {
-            this._viewer?.console.warn('Invalid view', view)
-            return
-        }
-        this.deleteView(view)
-    }
-
-    protected _viewAnimateView = async({view, camera, duration, easing, throwOnStop}: {view: CameraView, camera?: ICamera, duration?: number, easing?: Easing|EasingFunctionType, throwOnStop?: boolean}) => {
-        if (!view) {
-            this._viewer?.console.warn('Invalid view', view)
-            return
-        }
-        return this.animateToView(view, duration || this.animDuration, easing || this.animEase, camera, throwOnStop)
-    }
-
-    deleteView(view: CameraView) {
+    deleteView(view: CameraView, force = false) {
         const i = this._cameraViews.indexOf(view)
-        if (i >= 0)
-            this._cameraViews.splice(i, 1)
         view.removeEventListener('setView', this._viewSetView as any)
         view.removeEventListener('updateView', this._viewUpdateView as any)
         view.removeEventListener('deleteView', this._viewDeleteView as any)
         view.removeEventListener('animateView', this._viewAnimateView as any)
-        this.uiConfig.uiRefresh?.()
-        this.dispatchEvent({type: 'viewDelete', view})
+        view.removeEventListener('update', this._viewUpdated)
+        if (i >= 0 || force) {
+            if (i >= 0) this._cameraViews.splice(i, 1)
+            this.setDirty({key: 'cameraViews', change: 'viewDelete'})
+            this.dispatchEvent({type: 'viewDelete', view})
+        }
     }
+
 
     getView(camera?: ICamera, worldSpace = true, view?: CameraView) {
         camera = camera || this._viewer?.scene.mainCamera
@@ -389,11 +372,16 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     fromJSON(data: any, meta?: any): this | null {
         this._cameraViews.forEach(v=>this.deleteView(v)) // deserialize pushes to the existing array
         if (super.fromJSON(data, meta)) {
-            this._cameraViews.forEach(v=>this.addView(v))
-            this.uiConfig.uiRefresh?.()
+            this._cameraViews.forEach(v=>this.addView(v, true))
+            this.uiConfig?.uiRefresh?.()
             return this
         }
         return null
+    }
+
+    setDirty(ops?: any): any {
+        this.uiConfig?.uiRefresh?.(false, 'postFrame')
+        this.dispatchEvent({...ops, type: 'update'})
     }
 
     public async animateToObject(selected?: Object3D, distanceMultiplier = 4, duration?: number, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 5.0}) {
@@ -459,6 +447,48 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         }
         this._animationLooping = false
     }
+
+
+    protected _viewSetView = ({view, camera}: {view?: CameraView, camera?: ICamera}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        this.setView(view, camera)
+    }
+
+    protected _viewUpdateView = ({view, camera}: {view: CameraView, camera?: ICamera}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        const name = view.name
+        this.getView(camera, view.isWorldSpace ?? true, view)
+        view.name = name
+    }
+
+    protected _viewDeleteView = ({view}: {view: CameraView}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        this.deleteView(view)
+    }
+
+    protected _viewAnimateView = async({view, camera, duration, easing, throwOnStop}: {view: CameraView, camera?: ICamera, duration?: number, easing?: Easing|EasingFunctionType, throwOnStop?: boolean}) => {
+        if (!view) {
+            this._viewer?.console.warn('Invalid view', view)
+            return
+        }
+        return this.animateToView(view, duration || this.animDuration, easing || this.animEase, camera, throwOnStop)
+    }
+
+    protected _viewUpdated = async(e: {target: ICameraView, key?: string}) => {
+        if (!this._cameraViews.includes(e.target as any)) return
+        this.dispatchEvent({type: 'viewUpdate', view: e.target as CameraView})
+        this.setDirty({key: 'cameraViews', change: 'viewUpdate'})
+    }
+
 
     // region deprecated
 

@@ -64,8 +64,8 @@ export function texImageToCanvas(image: TexImageSource, maxWidth: number, flipY 
         width = image.displayWidth
         height = image.displayHeight
     } else {
-        width = image.width
-        height = image.height
+        width = image.width || (image as HTMLVideoElement).videoWidth || (image as HTMLImageElement).naturalWidth || 1
+        height = image.height || (image as HTMLVideoElement).videoHeight || (image as HTMLImageElement).naturalHeight || 1
     }
     if (window.VideoFrame as any === HTMLVideoElement) delete (window as any).VideoFrame
     const canvas = document.createElement('canvas')

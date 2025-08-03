@@ -178,7 +178,6 @@ export const iCameraCommons = {
             }
         }
         view.isWorldSpace = worldSpace
-        view.uiConfig?.uiRefresh?.(true, 'postFrame')
         return view as T
     },
 
