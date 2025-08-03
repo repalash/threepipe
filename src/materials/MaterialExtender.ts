@@ -81,24 +81,13 @@ export class MaterialExtender {
         material.materialExtensions = [...material.materialExtensions || [], ...exts]
             .sort((a, b)=>(b.priority || 0) - (a.priority || 0))
 
-        if (!(material as any).__ext_beforeRenderListen) {
-            (material as any).__ext_beforeRenderListen = true
+        if (!(material as any).__extListen) {
+            (material as any).__extListen = true
+
             material.addEventListener('beforeRender', materialBeforeRender)
-        }
-        if (!(material as any).__ext_afterRenderListen) {
-            (material as any).__ext_afterRenderListen = true
             material.addEventListener('afterRender', materialAfterRender)
-        }
-        if (!(material as any).__ext_addToMeshListen) {
-            (material as any).__ext_addToMeshListen = true
             material.addEventListener('addToMesh', materialAddToMesh)
-        }
-        if (!(material as any).__ext_removeFromMeshListen) {
-            (material as any).__ext_removeFromMeshListen = true
             material.addEventListener('removeFromMesh', materialRemovedFromMesh)
-        }
-        if (!(material as any).__ext_materialUpdateListen) {
-            (material as any).__ext_materialUpdateListen = true
             material.addEventListener('materialUpdate', materialUpdate)
         }
 
@@ -117,18 +106,14 @@ export class MaterialExtender {
             }
         }
 
-        if (!material.materialExtensions?.length) {
+        if (!material.materialExtensions?.length && (material as any).__extListen) {
             material.removeEventListener('beforeRender', materialBeforeRender)
             material.removeEventListener('afterRender', materialAfterRender)
             material.removeEventListener('addToMesh', materialAddToMesh)
             material.removeEventListener('removeFromMesh', materialRemovedFromMesh)
             material.removeEventListener('materialUpdate', materialUpdate)
 
-            ;(material as any).__ext_beforeRenderListen = false
-            ;(material as any).__ext_afterRenderListen = false
-            ;(material as any).__ext_addToMeshListen = false
-            ;(material as any).__ext_removeFromMeshListen = false
-            ;(material as any).__ext_materialUpdateListen = false
+            delete (material as any).__extListen
         }
     }
 }

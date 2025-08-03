@@ -487,10 +487,12 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             if (clips.length < 1) return
 
             const duration = Math.max(...clips.map(an=>an.duration))
+
+            //  so that looping works in sync
             if (object.userData.gltfAnim_SyncMaxDuration ?? this.syncMaxDuration) {
                 clips.forEach(cp=>cp.duration = duration)
                 object.userData.gltfAnim_SyncMaxDuration = true
-            } // todo: check why do we need to do this? wont this create problems with looping or is it for that so that looping works in sync.
+            }
 
             const mixer = new AnimationMixer(isInRoot ? this._viewer.scene : this._viewer.scene.modelRoot) // add to modelRoot so it works with GLTF export...
             const actions = clips.map(an=>mixer.clipAction(an).setLoop(this.loopAnimations ? LoopRepeat : LoopOnce, this.loopRepetitions))

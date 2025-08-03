@@ -17,7 +17,7 @@ import {Color} from 'three'
  *
  * @category Plugins
  */
-export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
+export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshUi': object} & AViewerPluginEventMap> {
     enabled = true
     public static PluginType = 'MaterialConfiguratorPlugin'
     private _picking: PickingPlugin | undefined
@@ -50,11 +50,15 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
     /**
      * Apply all variations(by selected index or first item) when a config is loaded
      */
-    applyOnLoad = true
+    @serialize()
+        applyOnLoad = true
+
+    applyOnLoadForce = false
 
     /**
      * Reapply all selected variations again.
-     * Useful when the scene is loaded or changed and the variations are not applied.
+     * Useful when a model or config is loaded or changed and the variations are not applied in the model.
+     * It is automatically called when the config is loaded if `applyOnLoad` is true.
      */
     reapplyAll() {
         this.variations.forEach(v => this.applyVariation(v, v.materials[v.selectedIndex ?? 0].uuid))
@@ -62,11 +66,11 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
 
     fromJSON(data: any, meta?: any): this | Promise<this | null> | null {
         this.variations = []
-        if (!super.fromJSON(data, meta)) return null // its not a promise
-        if (data.applyOnLoad === undefined) { // old files
-            this.applyOnLoad = false
+        if (!super.fromJSON(data, meta)) return null // it's not a promise
+        if (this.applyOnLoadForce && data.applyOnLoad !== false ||
+            data.applyOnLoad !== undefined && this.applyOnLoad) {
+            this.reapplyAll()
         }
-        if (this.applyOnLoad) this.reapplyAll()
         return this
     }
 
@@ -140,6 +144,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync {
      */
     refreshUi(): void {
         if (!this.enabled || !this._viewer) return
+        this.dispatchEvent({type: 'refreshUi'})
         this._uiNeedRefresh = true
     }
 
