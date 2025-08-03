@@ -73,6 +73,7 @@ import {VERSION} from './version'
 import {OrbitControls3} from '../three'
 
 import {Object3DManager} from '../assetmanager/Object3DManager'
+import {ViewerTimeline} from '../utils/ViewerTimeline'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
@@ -298,6 +299,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      */
     @uiConfig(undefined, {label: 'Scene', expanded: true}) @serialize('scene')
     private readonly _scene: RootScene
+
+    /**
+     * Main timeline for the viewer.
+     *
+     * It's a WIP, API might change.
+     */
+    @uiConfig(undefined, {label: 'Timeline', expanded: true})
+    readonly timeline = new ViewerTimeline()
 
     @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
@@ -705,6 +714,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * Set the viewer to dirty and trigger render of the next frame.
+     *
+     * This also triggers the 'update' event on the viewer. Note - update event might be triggered multiple times in a single frame, use preFrame or preRender events to get notified only once per frame.
      * @param source - The source of the dirty event. like plugin or 3d object
      * @param event - The event that triggered the dirty event.
      */
@@ -726,6 +737,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         for (let i = 0; i < this.maxFramePerLoop; i++) {
 
+            // from setDirty
             if (this._needsReset) {
                 this.renderManager.reset()
                 this._needsReset = false
@@ -760,6 +772,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 this.setDirty(dirtyPlugins)
             }
 
+            // again, setDirty might have been called in preFrame
             if (this._needsReset) {
                 this.renderManager.reset()
                 this._needsReset = false
@@ -795,11 +808,15 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
             }
 
+            this.timeline.update(this)
+
             this.dispatchEvent({type: 'postFrame', target: this})
             this.renderManager.onPostFrame()
 
-            if (!needsRender) // break if no frame rendered
-                break
+            // this is update after postFrame, because other plugins etc will update the scene in postFrame listeners
+            this.timeline.update2(this)
+            // if (!needsRender) // break if no frame rendered (should not break)
+            //     break
 
         }
 
@@ -811,9 +828,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * Get the Plugin by a constructor type or by the string type.
-     * Use string type if the plugin is not a dependency and you don't want to bundle the plugin.
+     * Use string type if the plugin is not a dependency, and you don't want to bundle the plugin.
      * @param type - The class of the plugin to get, or the string type of the plugin to get which is in the static PluginType property of the plugin
-     * @returns {T | undefined} - The plugin of the specified type.
+     * @returns {T extends IViewerPlugin | undefined} - The plugin of the specified type.
      */
     getPlugin<T extends IViewerPlugin>(type: Class<T>|string): T | undefined {
         return this.plugins[typeof type === 'string' ? type : (type as any).PluginType] as T | undefined
