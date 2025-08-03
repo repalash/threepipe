@@ -1,4 +1,4 @@
-import {CameraView, CameraViewPlugin, MaterialConfiguratorBasePlugin, Object3DManager, ThreeViewer} from 'threepipe'
+import {CameraViewPlugin, MaterialConfiguratorBasePlugin, ThreeViewer} from 'threepipe'
 import React from 'react'
 import {createRoot} from 'react-dom/client'
 import './timeline.css'
@@ -125,7 +125,6 @@ function TimelineCard({item, trackHeight, cardHeight, timeToPixels, isActive, pi
         </div>
     )
 }
-
 
 function TimelineTrack({track, trackIndex, trackHeight, cardHeight, currentTime, timeToPixels, pixelsToTime, selectedItem, setSelectedItem}) {
     return (
@@ -280,15 +279,13 @@ function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose
 }
 
 // Timeline Content Component
-function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeight, cardHeight, onTimelineClick, selectedItem, setSelectedItem}) {
+function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeight, cardHeight, selectedItem, setSelectedItem}) {
     const timeToPixels = (time: number) => time / maxTime * timelineWidth
     const pixelsToTime = (pixels: number) => pixels / timelineWidth * maxTime
 
     return (
         <div
             className="timeline-content"
-            // onPointerDown={onTimelineClick}
-            // onPointerMove={onTimelineClick}
             style={{
                 width: `${timelineWidth}px`,
             }}
@@ -343,8 +340,8 @@ function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeig
 
 // Main Timeline Component
 function Timeline({viewer}: {viewer: ThreeViewer}) {
-    const [currentTime, _setCurrentTime] = React.useState(0)
-    const [isPlaying, _setIsPlaying] = React.useState(false)
+    const [currentTime, setCurrentTime0] = React.useState(0)
+    const [isPlaying, setIsPlaying0] = React.useState(false)
     const [tracks, setTracks] = React.useState<TimelineTrack[]>([])
     const [selectedItem, setSelectedItem] = React.useState<string | null>(null) // uuid
 
@@ -358,8 +355,6 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
     React.useEffect(() => {
         timelineWidthRef.current = timelineWidth
     }, [timelineWidth])
-
-
 
     const setTracksMerge = React.useCallback((tracks1: TimelineTrack[], type: string)=>{
         setTracks(t=>{
@@ -386,13 +381,13 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
 
     React.useEffect(() => {
         const l = ()=>{
-            _setIsPlaying(timeline.running)
+            setIsPlaying0(timeline.running)
             if (timeline.time > maxTime) {
                 // console.warn('Timeline time exceeded maxTime, resetting to 0')
-                _setCurrentTime(0)
+                setCurrentTime0(0)
                 timeline.setTime(0, false)
             } else {
-                _setCurrentTime(timeline.time)
+                setCurrentTime0(timeline.time)
             }
         }
 
@@ -409,17 +404,17 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
     }, [timeline])
 
     const setCurrentTime = React.useCallback((time: number) => {
-        _setCurrentTime(time)
+        setCurrentTime0(time)
         // viewer.timeline.time
         if (viewer.timeline.time !== time) {
             viewer.timeline.setTime(time, true)
         }
-    }, [currentTime, _setCurrentTime])
+    }, [currentTime, setCurrentTime0])
 
     const handlePlayPause = React.useCallback(() => {
         if (timeline.running) timeline.stop()
         else timeline.start()
-        _setIsPlaying(!timeline.running)
+        setIsPlaying0(!timeline.running)
     }, [timeline])
 
     // endregion timeline
@@ -654,21 +649,54 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
 
     // endregion video
 
-    const pixelsToTime = (pixels: number) => pixels / timelineWidth * maxTime
+    // region mouse events
 
-    const handleTimelineClick = (e: React.PointerEvent) => {
-        if (e.type === 'pointermove' && e.buttons !== 1) return // Only handle mouse down events
-        // const ct = e.currentTarget as HTMLDivElement
-        const ct = document.getElementById('timeline-content')
-        if (!ct) return
-        const rect = ct.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const newTime = Math.max(0, Math.min(maxTime, pixelsToTime(x)))
-        setCurrentTime(newTime)
-    }
-
+    // Handle mouse pointer drag on timeline
     React.useEffect(()=>{
-        window.addEventListener('wheel', (e)=>{
+        const root = document.getElementById('timeline-root')
+        if (!root) return
+        let isPointerDown = false
+        const handleTimelinePointer = (e: PointerEvent) => {
+            if (e.type === 'pointerup' || e.type === 'pointermove' && e.buttons !== 1) {
+                isPointerDown = false
+                window.removeEventListener('pointerup', handleTimelinePointer)
+                window.removeEventListener('pointermove', handleTimelinePointer)
+                return
+            }
+
+            const target = e.target as HTMLDivElement
+            if (e.type === 'pointerdown' && (
+                target.closest('.timeline-controls-buttons') ||
+                target.closest('.timeline-controls-title') ||
+                target.closest('.timeline-track-labels'))) return
+
+            if (e.type === 'pointerdown') {
+                isPointerDown = true
+                window.addEventListener('pointerup', handleTimelinePointer)
+                window.addEventListener('pointermove', handleTimelinePointer)
+            }
+            if (!isPointerDown) return
+
+            const pixelsToTime = (pixels: number) => pixels / timelineWidthRef.current * maxTime
+
+            const ct = document.getElementById('timeline-content')
+            if (!ct) return
+            const rect = ct.getBoundingClientRect()
+            const x = e.clientX - rect.left
+            const newTime = Math.max(0, Math.min(maxTime, pixelsToTime(x)))
+            setCurrentTime(newTime)
+        }
+        root.addEventListener('pointerdown', handleTimelinePointer)
+        return () => {
+            root.removeEventListener('pointerdown', handleTimelinePointer)
+            window.removeEventListener('pointerup', handleTimelinePointer)
+            window.removeEventListener('pointermove', handleTimelinePointer)
+        }
+    }, [])
+
+    // Handle mouse wheel zoom
+    React.useEffect(()=>{
+        const l = (e: WheelEvent)=>{
             if (Math.abs(e.deltaY) < 0.001 || !e.ctrlKey) return
             // check if target in timeline content
             const timelineContent = document.getElementById('timeline-content')
@@ -679,24 +707,20 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
                 const scrollContainer = timelineContent.parentElement
                 if (!scrollContainer) return
 
-                // Get mouse position relative to the timeline content
                 const timelineRect = timelineContent.getBoundingClientRect()
-                const mouseX = e.clientX - timelineRect.left + scrollContainer.scrollLeft
-
-                // Calculate the time value under the mouse cursor before zooming
-                const timeUnderMouse = mouseX / timelineWidthRef.current * maxTime
+                const mouseX = e.clientX - timelineRect.left// + scrollContainer.scrollLeft
 
                 // Calculate new width
                 const delta = e.deltaY > 0 ? -1 : 1
                 const newWidth = Math.max(500, timelineWidthRef.current + delta * 10)
 
-                // Calculate what the new mouse position should be to maintain the same time under cursor
-                const newMouseX = timeUnderMouse / maxTime * newWidth
+                // (x - l + s) / w = c
+                // (x - l + s + k) / nw = c
+                // (x - l + s + k) = (x - l + s) * nw / w
+                // k = ((x - l + s) * nw / w) - (x - l + s)
+                // k = (x - l + s) * (nw / w - 1)
+                const scrollAdjustment = mouseX * (newWidth / timelineWidthRef.current - 1)
 
-                // Calculate the required scroll adjustment
-                const scrollAdjustment = newMouseX - mouseX
-
-                // Update timeline width
                 setTimelineWidth(newWidth)
                 timelineWidthRef.current = newWidth
 
@@ -706,31 +730,18 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
                     scrollContainer.scrollLeft += scrollAdjustment
                 })
             }
-        }, {passive: false})
+        }
+        window.addEventListener('wheel', l, {passive: false})
+        return () => {
+            window.removeEventListener('wheel', l)
+        }
     }, [])
+
+    // endregion mouse events
 
     return (
         <div
-            style={{
-                boxSizing: 'border-box',
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                backgroundColor: 'var(--tp-base-background-color)',
-                padding: '0',
-                borderRadius: 'var(--tp-element-border-radius)',
-                pointerEvents: 'auto',
-                width: 'calc(100% - 40px)',
-                margin: '20px',
-                height: 'auto',
-                color: 'var(--tp-container-foreground-color)',
-                fontFamily: 'var(--tp-font-family)',
-                overflow: 'hidden',
-                border: '1px solid var(--tp-container-border-color)',
-                boxShadow: '0 4px 8px var(--tp-base-shadow-color)',
-            }}
-            onPointerDown={handleTimelineClick}
-            onPointerMove={handleTimelineClick}
+            className="timeline-root-container"
         >
             <TimelineControls
                 isPlaying={isPlaying}
@@ -748,24 +759,12 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
                 }}
             />
 
-            <div style={{
-                display: 'flex',
-                height: 'auto',
-                width: '100%',
-            }}>
+            <div className="timeline-main-row">
                 <TrackLabels tracks={tracks} trackHeight={trackHeight} />
 
                 <div
-                    style={{
-                        display: 'flex',
-                        height: 'auto',
-                        width: '100%',
-                        flex: '1 1 50%',
-                        overscrollBehavior: 'contain',
-                        overflowX: 'scroll',
-                        overflowY: 'hidden',
-                        userSelect: 'none',
-                    }}>
+                    className="timeline-scroll-container"
+                >
                     <TimelineContent
                         tracks={tracks}
                         currentTime={currentTime}
@@ -773,7 +772,6 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
                         timelineWidth={timelineWidth}
                         trackHeight={trackHeight}
                         cardHeight={cardHeight}
-                        // onTimelineClick={handleTimelineClick}
                         selectedItem={selectedItem}
                         setSelectedItem={setSelectedItem}
                     />

@@ -247,5 +247,42 @@
 .timeline-tracks-container {
     box-sizing: border-box;
     position: relative;
-    cursor: pointer;
+    /*cursor: pointer;*/
+}
+
+/* Timeline Root Container */
+.timeline-root-container {
+    box-sizing: border-box;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background-color: var(--tp-base-background-color);
+    padding: 0;
+    border-radius: var(--tp-element-border-radius);
+    pointer-events: auto;
+    width: calc(100% - 40px);
+    margin: 20px;
+    height: auto;
+    color: var(--tp-container-foreground-color);
+    font-family: var(--tp-font-family), sans-serif;
+    overflow: hidden;
+    border: 1px solid var(--tp-container-border-color);
+    box-shadow: 0 4px 8px var(--tp-base-shadow-color);
+}
+
+.timeline-main-row {
+    display: flex;
+    height: auto;
+    width: 100%;
+}
+
+.timeline-scroll-container {
+    display: flex;
+    height: auto;
+    width: 100%;
+    flex: 1 1 50%;
+    overscroll-behavior: contain;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    user-select: none;
 }
