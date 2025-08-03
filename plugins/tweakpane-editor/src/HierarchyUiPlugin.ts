@@ -51,6 +51,10 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
     position: relative;
 }
 
+.treejs .treejs-node.treejs-placeholder {
+    padding-left: 20px !important;
+}
+
 .treejs .treejs-label {
     position: absolute;
     height: 16px;
