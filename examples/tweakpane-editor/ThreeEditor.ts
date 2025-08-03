@@ -68,15 +68,25 @@ import {
     B3DMLoadPlugin,
     CMPTLoadPlugin,
     DeepZoomImageLoadPlugin,
+    EnvironmentControlsPlugin,
+    GlobeControlsPlugin,
     I3DMLoadPlugin,
     PNTSLoadPlugin,
     TilesRendererPlugin,
-    EnvironmentControlsPlugin,
-    GlobeControlsPlugin,
 } from '@threepipe/plugin-3d-tiles-renderer'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 import {ThreeGpuPathTracerPlugin} from '@threepipe/plugin-path-tracing'
-import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, OutlinePlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
+import {
+    AnisotropyPlugin,
+    BloomPlugin,
+    DepthOfFieldPlugin,
+    OutlinePlugin,
+    SSContactShadowsPlugin,
+    SSGIPlugin,
+    SSReflectionPlugin,
+    TemporalAAPlugin,
+    VelocityBufferPlugin,
+} from '@threepipe/webgi-plugins'
 
 export class ThreeEditor extends ThreeViewer {
 
@@ -197,5 +207,6 @@ export class ThreeEditor extends ThreeViewer {
         const editor = this.addPluginSync(new TweakpaneEditorPlugin())
 
         editor.loadPlugins(this.editorModes)
+
     }
 }

@@ -1,6 +1,16 @@
-import {_testFinish, _testStart, DropzonePlugin, getUrlQueryParam, HemisphereLight} from 'threepipe'
+import {
+    _testFinish,
+    _testStart,
+    BufferGeometry2,
+    DropzonePlugin,
+    getUrlQueryParam,
+    HemisphereLight, ITexture, Mesh2,
+    PhysicalMaterial,
+} from 'threepipe'
 import {TransfrSharePlugin} from '@threepipe/plugin-network'
 import {ThreeEditor} from './ThreeEditor'
+import {PlaneGeometryGenerator, SphereGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+import {initTimeline} from './timeline'
 
 async function init() {
 
@@ -46,6 +56,21 @@ async function init() {
         console.log(obj)
     }
 
+    const l = async()=>{
+        // window.removeEventListener('mouseup', l)
+        const plane = new Mesh2(
+            new PlaneGeometryGenerator().generate(),
+            new PhysicalMaterial(),
+        )
+        plane.name = 'Plane'
+        plane.material.map = await viewer.load<ITexture>('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sintel.mp4') ?? null
+        // plane.material.map = await viewer.load<ITexture>('https://cors-proxy.r2cache.com/https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4') ?? null
+        await viewer.addSceneObject(plane)
+    }
+    // window.addEventListener('mouseup', l)
+    l()
+
+    initTimeline(viewer)
 }
 
 _testStart()
