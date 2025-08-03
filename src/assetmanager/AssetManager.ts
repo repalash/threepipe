@@ -47,6 +47,7 @@ import {
     MTLLoader2,
     OBJLoader2,
     SVGTextureLoader,
+    VideoTextureLoader,
     ZipLoader,
 } from './import'
 import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
@@ -325,6 +326,8 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf', 'data:model/glb'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary', 'model/glb'], true, (l, _, i) => l?.setup(this.viewer, i.extensions)),
 
             new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true),
+
+            new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime'], true),
         ]
 
         this.importer.addImporter(...importers)

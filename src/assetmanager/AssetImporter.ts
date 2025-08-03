@@ -77,7 +77,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
 
     readonly importers: IImporter[] = [
-        // new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'data:video'], false),
         new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),
         new Importer(FileLoader, ['txt'], ['text/plain'], false),
         // new Importer(RGBEPNGLoader, ['rgbe.png', 'hdr.png', 'hdrpng'], ['image/png+rgbe'], false), // todo: not working on windows?
