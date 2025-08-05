@@ -1,13 +1,25 @@
 import {
+    CameraViewPlugin,
     Class,
     createDiv,
     downloadBlob,
     FullScreenPlugin,
     GLTFAnimationPlugin,
-    IViewerPlugin,
+    IViewerPlugin, PickingPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {autoRotateCC, collapse, download, expand, playIcon, resetSettings, snapshot, trash} from './icons'
+import {
+    autoRotateCC,
+    collapse,
+    download,
+    expand,
+    playIcon,
+    resetSettings,
+    snapshot,
+    trash,
+    focus,
+    loopCamViews,
+} from './icons'
 import tippy, {createSingleton} from 'tippy.js'
 
 export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewerPlugin>[]) {
@@ -33,24 +45,24 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewer
                 viewer.scene.disposeSceneModels()
             },
         },
-        // {
-        //     id: 'fit-scene',
-        //     icon: focus,
-        //     tooltip: 'Fit Object/Scene',
-        //     onclick: async() => {
-        //         await viewer.fitToView(viewer.getPlugin(PickingPlugin)?.getSelectedObject())
-        //     },
-        // },
-        // {
-        //     id: 'loop-cam-views',
-        //     icon: loopCamViews,
-        //     tooltip: 'Loop Camera Views',
-        //     toggle: true,
-        //     onclick: async() => {
-        //         if (!viewer.getPlugin(CameraViewPlugin)) return
-        //         viewer.getPlugin(CameraViewPlugin)!.viewLooping = !viewer.getPlugin(CameraViewPlugin)!.viewLooping
-        //     },
-        // },
+        {
+            id: 'fit-scene',
+            icon: focus,
+            tooltip: 'Fit Object/Scene',
+            onclick: async() => {
+                await viewer.fitToView(viewer.getPlugin(PickingPlugin)?.getSelectedObject())
+            },
+        },
+        {
+            id: 'loop-cam-views',
+            icon: loopCamViews,
+            tooltip: 'Loop Camera Views',
+            toggle: true,
+            onclick: async() => {
+                if (!viewer.getPlugin(CameraViewPlugin)) return
+                viewer.getPlugin(CameraViewPlugin)!.viewLooping = !viewer.getPlugin(CameraViewPlugin)!.viewLooping
+            },
+        },
         {
             id: 'play-gltf',
             icon: playIcon,
