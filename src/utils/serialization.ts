@@ -53,7 +53,8 @@ export class ThreeSerialization {
                 // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
                 if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
                 const imgData = obj.source.data
-                const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath
+                const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
+                    (obj.userData.rootPath.startsWith('http') || obj.userData.rootPath.startsWith('data:'))
                 let res = {} as any
                 const ud = obj.userData
                 try { // need try catch here because of hasRootPath

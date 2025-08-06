@@ -177,10 +177,11 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
         const srcData = map.source.data
         const mimeType = map.userData.mimeType
-        if (map.userData.rootPath &&
-            !this.options.exporterOptions.embedUrlImages
-            && (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
-        ) {
+
+        const hasRootPath = !map.isRenderTargetTexture && map.userData.rootPath && typeof map.userData.rootPath === 'string' &&
+            (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
+
+        if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
             if (map.source.data) { // handled below in GLTFWriter2.processImage
                 if (!this.options.exporterOptions.embedUrlImagePreviews || (map as any).isDataTexture) map.source.data = null // todo make sure its only Texture, check for svg etc
                 else map.source.data._savePreview = true
@@ -207,9 +208,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
         // map uuid saved in processSampler.
 
-        if (map.userData.rootPath && !this.options.exporterOptions.embedUrlImages
-            && (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
-        ) {
+        if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
             if (map.source.data) delete map.source.data._savePreview
             else map.source.data = srcData
 
