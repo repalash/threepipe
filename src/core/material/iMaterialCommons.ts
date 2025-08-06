@@ -1,16 +1,8 @@
 import {
-    AddEquation,
-    AlwaysStencilFunc,
     ColorManagement,
-    FrontSide,
-    KeepStencilOp,
-    LessEqualDepth,
     Material,
     MaterialParameters,
-    NormalBlending,
-    OneMinusSrcAlphaFactor,
     Scene,
-    SrcAlphaFactor,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
@@ -18,73 +10,25 @@ import {copyProps} from 'ts-browser-helpers'
 import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
-import {IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from '../IMaterial'
-import {isInScene} from '../../three/utils'
+import {AnimateTime, IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from '../IMaterial'
+import {UnlitMaterial} from './UnlitMaterial'
+import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
+import {lerpParams} from '../../utils/lerp'
 
-/**
- * Map of all material properties and their default values in three.js - Material.js
- * This is used to copy properties and serialize/deserialize them.
- * @note: Upgrade note: keep updated from three.js/src/Material.js:22
- */
-export const threeMaterialPropList = {
-    // uuid: '', // DONT COPY, should remain commented
-    name: '',
-    blending: NormalBlending,
-    side: FrontSide,
-    vertexColors: false,
-    opacity: 1,
-    transparent: false,
-    blendSrc: SrcAlphaFactor,
-    blendDst: OneMinusSrcAlphaFactor,
-    blendEquation: AddEquation,
-    blendSrcAlpha: null,
-    blendDstAlpha: null,
-    blendEquationAlpha: null,
-    blendColor: '#000000',
-    blendAlpha: 0,
-    depthFunc: LessEqualDepth,
-    depthTest: true,
-    depthWrite: true,
-    stencilWriteMask: 0xff,
-    stencilFunc: AlwaysStencilFunc,
-    stencilRef: 0,
-    stencilFuncMask: 0xff,
-    stencilFail: KeepStencilOp,
-    stencilZFail: KeepStencilOp,
-    stencilZPass: KeepStencilOp,
-    stencilWrite: false,
-    clippingPlanes: null,
-    clipIntersection: false,
-    clipShadows: false,
-    shadowSide: null,
-    colorWrite: true,
-    precision: null,
-    polygonOffset: false,
-    polygonOffsetFactor: 0,
-    polygonOffsetUnits: 0,
-    dithering: false,
-    alphaToCoverage: false,
-    premultipliedAlpha: false,
-    forceSinglePass: false,
-    allowOverride: true,
-    visible: true,
-    toneMapped: true,
-    userData: {},
-    // wireframeLinecap: 'round',
-    // wireframeLinejoin: 'round',
-    alphaTest: 0,
-    alphaHash: false,
-    // fog: true,
-}
+
 export const iMaterialCommons = {
     threeMaterialPropList,
+    threeMaterialInterpolateProps,
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         if (options?.needsUpdate !== false) this.needsUpdate = true
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         if (options?.last !== false && options?.refreshUi !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
     setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
-        function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string})): IMaterial {
+        function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string}), _allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTime): IMaterial {
+
+            if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
+            if (clearCurrentUserData) this.userData = {}
 
             // legacy check for old color management(non-sRGB) in material.setValues todo: move this to Material.fromJSON
             const legacyColors = (parameters as any)?.metadata && (parameters as any)?.metadata.version <= 4.5
@@ -99,6 +43,11 @@ export const iMaterialCommons = {
 
             const userData = params.userData
             delete params.userData
+
+            const interpolateProps = new Set([...this.constructor.InterpolateProperties || UnlitMaterial.InterpolateProperties, ...this.constructor.MapProperties || UnlitMaterial.MapProperties])
+            if (time) {
+                lerpParams(params, this as any, interpolateProps, time)
+            }
 
             // todo: can migrate to @serialize for properties which have UI etc and use super.setValues for the rest like threeMaterialPropList
             superSetValues.call(this, params)
@@ -117,12 +66,12 @@ export const iMaterialCommons = {
 
             if (legacyColors) ColorManagement.enabled = lastColorManagementEnabled
 
-            this.setDirty?.()
+            this.setDirty && this.setDirty()
             return this
         },
     dispose: (superDispose: Material['dispose']): IMaterial['dispose'] =>
         function(this: IMaterial, force = true): void {
-            if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
+            if (!force && this.userData.disposeOnIdle === false) return
             superDispose.call(this)
         },
     clone: (superClone: Material['clone']): IMaterial['clone'] =>

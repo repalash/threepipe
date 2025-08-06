@@ -19,6 +19,7 @@ import type {IObject3D} from './IObject'
 import {ISetDirtyCommonOptions} from './IObject'
 import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
+import {IRenderManager} from './IRenderer'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
 // export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
@@ -222,11 +223,15 @@ export interface IMaterialUserData extends IImportResultUserData{
     postTonemap?: boolean
 }
 
+export interface AnimateTime {t: number, dt: number, rm?: IRenderManager}
+
 export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends Material<TE>, IJSONSerializable, IDisposable, IUiConfigContainer {
     constructor: {
         TYPE: string
         TypeSlug: string
         MaterialProperties?: Record<string, any>
+        MapProperties?: string[]
+        InterpolateProperties?: string[]
         MaterialTemplate?: IMaterialTemplate
     }
     assetType: 'material'
@@ -241,7 +246,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     // toJSON(meta?: any): any;
 
     // copyProps should be just setValues
-    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean): this;
+    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTime): this;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
     fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
 
@@ -256,9 +261,11 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     generator?: IMaterialGenerator
 
     /**
-     * Managed internally, do not change manually
+     * Objects in the scene that are using this material.
+     * This is set in the {@link Object3DManager} when the objects are added/removed from the scene. Do not modify this set directly.
      */
     appliedMeshes: Set<IObject3D>
+
     lastShader?: WebGLProgramParametersWithUniforms
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation

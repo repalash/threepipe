@@ -10,6 +10,7 @@ import {
 } from 'three'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
+    AnimateTime,
     IMaterial,
     IMaterialEventMap,
     IMaterialGenerator,
@@ -20,9 +21,10 @@ import {
 import {MaterialExtension} from '../../materials'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
-import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
+import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
+import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
 /**
  * And extension of three.js MeshBasicMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
@@ -114,15 +116,13 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(MeshBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(MeshBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
         if (parameters.type && !allowInvalidType && !['MeshBasicMaterial', 'MeshBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
-        if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
-        if (clearCurrentUserData) this.userData = {}
-        iMaterialCommons.setValues(super.setValues).call(this, parameters)
+        iMaterialCommons.setValues(super.setValues).call(this, parameters, allowInvalidType, clearCurrentUserData, time)
 
         this.userData.uuid = this.uuid
         return this
@@ -192,7 +192,6 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     // endregion UI Config
 
-
     // Class properties can also be listed with annotations like @serialize or @property
     // used for serialization
     static readonly MaterialProperties = {
@@ -219,6 +218,27 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
         fog: true,
         flatShading: false,
     }
+    static readonly MapProperties = [
+        'map',
+        'aoMap',
+        'lightMap',
+        'specularMap',
+        'alphaMap',
+        'envMap',
+    ]
+    static readonly InterpolateProperties = [
+        ...threeMaterialInterpolateProps,
+        'color',
+        'color',
+        'specular',
+        'emissive',
+        'reflectivity',
+        'refractionRatio',
+        'envMapIntensity',
+        'lightMapIntensity',
+        'aoMapIntensity',
+        'wireframeLinewidth',
+    ]
 
     static MaterialTemplate: IMaterialTemplate<UnlitMaterial, Partial<typeof UnlitMaterial.MaterialProperties>> = {
         materialType: UnlitMaterial.TYPE,

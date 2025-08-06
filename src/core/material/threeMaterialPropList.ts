@@ -1,0 +1,72 @@
+import {
+    AddEquation,
+    AlwaysStencilFunc,
+    FrontSide,
+    KeepStencilOp,
+    LessEqualDepth,
+    NormalBlending,
+    OneMinusSrcAlphaFactor,
+    SrcAlphaFactor,
+} from 'three'
+
+/**
+ * Map of all material properties and their default values in three.js - Material.js
+ * This is used to copy properties and serialize/deserialize them.
+ * @note: Upgrade note: keep updated from three.js/src/Material.js:22
+ */
+export const threeMaterialPropList = {
+    // uuid: '', // DONT COPY, should remain commented
+    name: '',
+    blending: NormalBlending,
+    side: FrontSide,
+    vertexColors: false,
+    opacity: 1,
+    transparent: false,
+    blendSrc: SrcAlphaFactor,
+    blendDst: OneMinusSrcAlphaFactor,
+    blendEquation: AddEquation,
+    blendSrcAlpha: null,
+    blendDstAlpha: null,
+    blendEquationAlpha: null,
+    blendColor: '#000000',
+    blendAlpha: 0,
+    depthFunc: LessEqualDepth,
+    depthTest: true,
+    depthWrite: true,
+    stencilWriteMask: 0xff,
+    stencilFunc: AlwaysStencilFunc,
+    stencilRef: 0,
+    stencilFuncMask: 0xff,
+    stencilFail: KeepStencilOp,
+    stencilZFail: KeepStencilOp,
+    stencilZPass: KeepStencilOp,
+    stencilWrite: false,
+    clippingPlanes: null,
+    clipIntersection: false,
+    clipShadows: false,
+    shadowSide: null,
+    colorWrite: true,
+    precision: null,
+    polygonOffset: false,
+    polygonOffsetFactor: 0,
+    polygonOffsetUnits: 0,
+    dithering: false,
+    alphaToCoverage: false,
+    premultipliedAlpha: false,
+    forceSinglePass: false,
+    allowOverride: true,
+    visible: true,
+    toneMapped: true,
+    userData: {},
+    // wireframeLinecap: 'round',
+    // wireframeLinejoin: 'round',
+    alphaTest: 0,
+    alphaHash: false,
+    // fog: true,
+}
+export const threeMaterialInterpolateProps = [
+    'opacity',
+    'blendColor',
+    'blendAlpha',
+    'alphaTest',
+]

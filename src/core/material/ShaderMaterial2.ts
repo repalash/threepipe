@@ -12,7 +12,8 @@ import {
 } from 'three'
 import {IMaterial, IMaterialEventMap, IMaterialParameters, IMaterialUserData} from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
+import {iMaterialCommons} from './iMaterialCommons'
+import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
 export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> extends ShaderMaterial<TE & IMaterialEventMap> implements IMaterial<TE> {
     declare ['constructor']: typeof ShaderMaterial2
@@ -36,6 +37,11 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
         glslVersion: null,
         defaultAttributeValues: {},
     }
+
+    static readonly InterpolateProperties = [
+        ...threeMaterialInterpolateProps,
+        'wireframeLinewidth',
+    ]
 
     assetType = 'material' as const
 

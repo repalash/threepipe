@@ -13,6 +13,7 @@ import {
 } from 'three'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
+    AnimateTime,
     IMaterial,
     IMaterialEventMap,
     IMaterialGenerator,
@@ -21,10 +22,11 @@ import {
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
+import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
 import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/lines/LineMaterial.js'
+import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
 /**
  * And extension of three.js LineMaterial that can be assigned to lines, and support threepipe features, uiconfig, and serialization.
@@ -157,15 +159,13 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(LineMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(LineMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
         if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE].includes(parameters.type) && !(parameters as LineMaterial2).isLineMaterial && !(parameters as LineMaterial2).isLineMaterial2) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
-        if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
-        if (clearCurrentUserData) this.userData = {}
-        iMaterialCommons.setValues(super.setValues).call(this, parameters)
+        iMaterialCommons.setValues(super.setValues).call(this, parameters, allowInvalidType, clearCurrentUserData, time)
 
         this.userData.uuid = this.uuid
         return this
@@ -232,6 +232,17 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         vertexShader: '',
 
     }
+
+    static readonly InterpolateProperties = [
+        ...threeMaterialInterpolateProps,
+        'color',
+        'dashScale',
+        'dashSize',
+        'dashOffset',
+        'gapSize',
+        'linewidth',
+        'resolution',
+    ]
 
     static MaterialTemplate: IMaterialTemplate<LineMaterial2, Partial<typeof LineMaterial2.MaterialProperties>> = {
         materialType: LineMaterial2.TYPE,

@@ -16,6 +16,7 @@ import {
 } from 'three'
 import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
+    AnimateTime,
     IMaterial,
     IMaterialEventMap,
     IMaterialGenerator,
@@ -24,10 +25,11 @@ import {
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {iMaterialCommons, threeMaterialPropList} from './iMaterialCommons'
+import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {ITexture} from '../ITexture'
 import {iMaterialUI} from './IMaterialUi'
+import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
 /**
  * And extension of three.js MeshPhysicalMaterial that can be assigned to objects, and support threepipe features, uiconfig, and serialization.
@@ -166,7 +168,7 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      */
-    setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined): this {
+    setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
         if (parameters.type && !allowInvalidType && !['MeshPhysicalMaterial', 'MeshStandardMaterial', 'MeshStandardMaterial2', this.constructor.TYPE].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
@@ -178,11 +180,8 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
             (<any>parameters).normalScale = [(<any>parameters).normalScale, (<any>parameters).normalScale]
         }
 
-        if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
-        if (clearCurrentUserData) this.userData = {}
-
         if ((parameters as any).ior !== undefined) this.ior = (parameters as any).ior // ior is not serialized in MeshPhysicalMaterial.toJSON, so we need to set it here
-        iMaterialCommons.setValues(super.setValues).call(this, parameters)
+        iMaterialCommons.setValues(super.setValues).call(this, parameters, allowInvalidType, clearCurrentUserData, time)
 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
 
@@ -318,6 +317,70 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         anisotropyRotation: 0,
         anisotropyMap: null,
     }
+    static readonly MapProperties = [
+        'map',
+        'lightMap',
+        'aoMap',
+        'emissiveMap',
+        'bumpMap',
+        'normalMap',
+        'displacementMap',
+        'roughnessMap',
+        'metalnessMap',
+        'alphaMap',
+        'envMap',
+        // glossinessMap
+        // specularColorMap
+        'clearcoatMap',
+        'clearcoatRoughnessMap',
+        'clearcoatNormalMap',
+        'iridescenceMap',
+        'iridescenceThicknessMap',
+        'sheenColorMap',
+        'sheenRoughnessMap',
+        'transmissionMap',
+        'thicknessMap',
+        'specularIntensityMap',
+        'specularColorMap',
+        'anisotropyMap',
+    ]
+
+
+    static readonly InterpolateProperties = [
+        ...threeMaterialInterpolateProps,
+        'color',
+        'emissive',
+        'roughness',
+        'metalness',
+        'lightMapIntensity',
+        'aoMapIntensity',
+        'emissiveIntensity',
+        'bumpScale',
+        'normalScale',
+        'displacementScale',
+        'displacementBias',
+        'envMapIntensity',
+        'wireframeLinewidth',
+        'reflectivity',
+        'clearcoat',
+        'clearcoatRoughness',
+        'clearcoatNormalScale',
+        'iridescence',
+        'iridescenceIOR',
+        'iridescenceThicknessRange',
+        'sheen',
+        'sheenColor',
+        'sheenRoughness',
+        'transmission',
+        'thickness',
+        'attenuationDistance',
+        'attenuationColor',
+        'specularIntensity',
+        'specularColor',
+        'anisotropy',
+        'anisotropyRotation',
+    ]
+
 
     static MaterialTemplate: IMaterialTemplate<PhysicalMaterial, Partial<typeof PhysicalMaterial.MaterialProperties>> = {
         materialType: PhysicalMaterial.TYPE,
