@@ -1,10 +1,13 @@
-import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from '../interaction/PickingPlugin'
 import {imageBitmapToBase64, makeColorSvgCircle, serialize} from 'ts-browser-helpers'
 import {UiObjectConfig} from 'uiconfig.js'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialPreviewGenerator} from '../../three'
 import {Color} from 'three'
+import {AnimateTime} from '../../core/IMaterial'
+import {AnimationResult, PopmotionPlugin} from '../animation/PopmotionPlugin'
+import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 
 /**
  * Material Configurator Plugin (Base)
@@ -28,6 +31,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         super()
         this.addEventListener('deserialize', this.refreshUi)
         this.refreshUi = this.refreshUi.bind(this)
+        this._preFrame = this._preFrame.bind(this)
         this._refreshUi = this._refreshUi.bind(this)
         this._refreshUiConfig = this._refreshUiConfig.bind(this)
     }
@@ -45,6 +49,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         })
         this._previewGenerator = new MaterialPreviewGenerator()
         viewer.addEventListener('preFrame', this._refreshUi)
+        viewer.addEventListener('preFrame', this._preFrame)
     }
 
     /**
@@ -81,6 +86,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         this._picking?.removeEventListener('selectedObjectChanged', this._refreshUiConfig)
         this.removeEventListener('deserialize', this.refreshUi)
         viewer.removeEventListener('preFrame', this._refreshUi)
+        viewer.removeEventListener('preFrame', this._preFrame)
 
         this._picking = undefined
 
@@ -100,15 +106,42 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * @param variations
      * @param matUuidOrIndex
      */
-    applyVariation(variations: MaterialVariations, matUuidOrIndex: string|number): boolean {
+    applyVariation(variations: MaterialVariations, matUuidOrIndex: string|number, setSelectedIndex?: boolean, time?: AnimateTime): boolean {
         const m = this._viewer?.materialManager
         if (!m) return false
         const material = typeof matUuidOrIndex === 'string' ?
             variations.materials.find(m1 => m1.uuid === matUuidOrIndex) :
             variations.materials[matUuidOrIndex]
         if (!material) return false
-        variations.selectedIndex = variations.materials.indexOf(material)
-        return m.applyMaterial(material, variations.uuid)
+        setSelectedIndex && (variations.selectedIndex = variations.materials.indexOf(material))
+        return m.applyMaterial(material, variations.uuid, true, time)
+    }
+
+    async applyVariationAnimate(variations: MaterialVariations, matUuidOrIndex: string|number, duration = 500): Promise<void> {
+        if (variations._animation) {
+            variations._animation.stop()
+        }
+        const popmotion = this._viewer?.getPlugin(PopmotionPlugin)
+        if (!popmotion) {
+            throw new Error('MaterialConfiguratorBasePlugin - PopmotionPlugin is required for animation, please add it to the viewer.')
+        }
+        this._viewer?.getPlugin(FrameFadePlugin)?.disable(MaterialConfiguratorBasePlugin.PluginType)
+        const anim = popmotion.animateNumber({
+            duration,
+            onUpdate: (v, dv) => {
+                this.applyVariation(variations, matUuidOrIndex, true, {t: v, dt: dv})
+            },
+            onComplete: () => {
+                this.applyVariation(variations, matUuidOrIndex, true, {t: 1, dt: 0})
+            },
+            onEnd: ()=>{
+                if (variations._animation !== anim) return
+                variations._animation = undefined
+            },
+        })
+        variations._animation = anim
+        await variations._animation?.promise
+        this._viewer?.getPlugin(FrameFadePlugin)?.enable(MaterialConfiguratorBasePlugin.PluginType)
     }
 
     /**
@@ -161,6 +194,60 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         this._refreshUiConfig()
         return true
     }
+
+    protected _preFrame() {
+        if (!this.enabled) return false
+        if (!this._viewer?.timeline.shouldRun() || !this.variations.length) return false
+        const time = this._viewer?.timeline.time
+        const delta = this._viewer?.timeline.delta || 0
+
+        let applied = false
+        for (const variation of this.variations) {
+            if (!variation.timeline?.length) continue
+            const selected = variation.selectedIndex
+            const selectedTime = variation.timeline
+                .sort((a, b) => -a.time + b.time)
+                .find(t => t.time <= time)
+            if (selectedTime) {
+                if (!selected || selectedTime.index !== selected && selectedTime.index !== variation.materials[selected]?.uuid) {
+                    const start = selectedTime.time
+                    // const end = variation.timeline.find(t => t.time > start)?.time || time
+                    // const end = selectedTime.time + (selectedTime.duration ?? 0.5) // 0.5 secs
+                    // const i = delta / (end - time)
+                    // const m = end - start
+                    // end - time = m - (time - start)
+                    // const duration = end - start
+                    const duration = selectedTime.duration ?? 0.5
+
+                    let t = duration < 1e-6 ? 1 : (time - start) / duration
+                    let dt = duration < 1e-6 ? 0 : delta / duration
+
+
+                    // i        = delta * (end - start) / (end - start) * (end - time)
+                    //          = dt * 1 / (1 - t * 1)
+                    //          = dt * m / (m - (time - start))
+                    //          = dt * m / (end - time)
+                    //          = dt * (end - start) / (end - time)
+                    //          = dt * (time - start) / t(end - time)
+
+                    if (t <= 1 || !this._viewer?.timeline.running) { // seeking if not running
+                        if (t > 1) {
+                            t = 1
+                        }
+                        if (dt < 1e-6)
+                            dt = 1.0 / 60
+                            // dt = 1. - t // if delta is too small, we assume we are at the end of the timeline (like when dragging)
+                            // dt = (1. - t) / 2
+                        this.applyVariation(variation, selectedTime.index, t >= 1. - dt, {t, dt, rm: this._viewer?.renderManager})
+                        applied = true
+                    }
+                }
+            }
+        }
+
+        return applied
+    }
+
 
     @serialize()
         variations: MaterialVariations[] = []
@@ -314,4 +401,12 @@ export interface MaterialVariations {
         [key: string]: any
     }[]
     selectedIndex?: number
+    timeline?: {
+        time: number,
+        index: number|string,
+        duration?: number,
+    }[]
+
+
+    _animation?: AnimationResult
 }

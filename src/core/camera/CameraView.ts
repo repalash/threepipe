@@ -1,4 +1,4 @@
-import {EventDispatcher, Quaternion, Vector3} from 'three'
+import {CatmullRomCurve3, EventDispatcher, Quaternion, Vector3} from 'three'
 import {onChange3, serializable, serialize} from 'ts-browser-helpers'
 import {IUiConfigContainer, uiButton, uiInput, uiNumber, UiObjectConfig, uiPanelContainer, uiVector} from 'uiconfig.js'
 import {ICamera} from '../ICamera'
@@ -89,4 +89,32 @@ export class CameraView extends EventDispatcher<CameraViewEventMap> implements I
     uiConfig?: UiObjectConfig
     // uiConfig = generateUiFolder(this.name, this)
 
+}
+
+export function createCameraPath(views: CameraView[]) {
+    const splineCurve = 'chordal'
+    const points = views.map(c => c.position.clone())
+    const spline = new CatmullRomCurve3(points, true, splineCurve, 0.75)
+
+    const getPosition = (t: number, viewIndex: number, v?: Vector3) => {
+        v = v || new Vector3()
+        const ip = 1. / points.length
+        const i = viewIndex === 0 ? points.length : viewIndex
+        const d = (i - 1) * ip
+        spline.getPointAt(d + t * ip, v)
+        return v
+    }
+
+    const targets = views.map(c => c.target.clone())
+    const targetSpline = new CatmullRomCurve3(targets, true, splineCurve, 0.75)
+
+    const getTarget = (t: number, viewIndex: number, v?: Vector3) => {
+        v = v || new Vector3()
+        const ip = 1. / targets.length
+        const i = viewIndex === 0 ? targets.length : viewIndex
+        const d = (i - 1) * ip
+        targetSpline.getPointAt(d + t * ip, v)
+        return v
+    }
+    return {getPosition, getTarget}
 }
