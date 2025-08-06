@@ -38,6 +38,7 @@
         "node_modules",
         "dist",
         "examples",
+        "experiments",
         "**/*.spec.ts"
     ]
 }

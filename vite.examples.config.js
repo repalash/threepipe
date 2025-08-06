@@ -29,8 +29,8 @@ const alias = {
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.4.1/dist/index.mjs',
-    'react': 'https://esm.sh/react@18',
-    'react-dom': 'https://esm.sh/react-dom@18',
+    'react': 'https://esm.sh/react@18/?dev',
+    'react-dom/client': 'https://esm.sh/react-dom@18/client?dev',
     'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js',
     'vue-import': 'https://unpkg.com/vue-import/dist/vue-import.esm-browser.js',
 }

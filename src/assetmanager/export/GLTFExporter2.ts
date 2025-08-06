@@ -148,9 +148,9 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         onError: (error: ErrorEvent) => void,
         options: GLTFExporter2Options = {},
     ): void {
-        const gltfOptions: GLTFWriter2['options'] = {
+        const gltfOptions = {
             // default options
-            binary: false,
+            binary: false as boolean,
             trs: options.trs ?? false,
             onlyVisible: options.onlyVisible ?? false,
             truncateDrawRange: options.truncateDrawRange ?? true,
@@ -162,7 +162,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
             exporterOptions: options,
             ignoreInvalidMorphTargetTracks: options.ignoreInvalidMorphTargetTracks,
             ignoreEmptyTextures: options.ignoreEmptyTextures,
-        }
+        } satisfies GLTFWriter2['options']
         if (options.exportExt === 'glb') {
             gltfOptions.binary = true
         }
@@ -172,8 +172,20 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 if (options.preserveUUIDs !== false && obj1.uuid) obj1.userData.gltfUUID = obj1.uuid
                 if (obj1.animations) {
                     for (const animation of obj1.animations) {
-                        if ((animation as any).__gltfExport !== false && !gltfOptions.animations!.includes(animation)) {
-                            gltfOptions.animations!.push(...obj1.animations)
+                        if (animation.__gltfExport !== false) {
+                            const rootRefs: string[] = animation.userData.rootRefs || []
+                            if (options.preserveUUIDs !== false && obj1.uuid) {
+                                if (!rootRefs.includes(obj1.uuid)) {
+                                    rootRefs.push(obj1.uuid)
+                                }
+                            } else if (obj1.name) {
+                                if (!rootRefs.includes(obj1.name)) {
+                                    rootRefs.push(obj1.name)
+                                }
+                            }
+                            animation.userData.rootRefs = rootRefs
+                            if (!gltfOptions.animations.includes(animation))
+                                gltfOptions.animations.push(animation)
                         }
                     }
                 }
@@ -186,6 +198,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 }
             }))
 
+        console.log(gltfOptions.animations)
         return super.parse(input, (o: any)=> {
             if (options.preserveUUIDs !== false) { // default true
                 (Array.isArray(input) ? input : [input]).forEach((obj: Object3D) =>
@@ -237,5 +250,19 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 GLTFViewerConfigExtension.ExportViewerConfig(viewer, writer)
             },
         })
+    }
+}
+
+declare module 'three'{
+    interface AnimationClip {
+        /**
+         * Whether to export this animation in glTF format.
+         * @default true
+         */
+        __gltfExport?: boolean;
+        userData: {
+            clipActions?: Record<string, any[]>
+            [key: string]: any
+        }
     }
 }
