@@ -1,11 +1,11 @@
-import {CatmullRomCurve3, Object3D, Vector3} from 'three'
+import {Object3D, Vector3} from 'three'
 import {Easing} from 'popmotion'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {Box3B} from '../../three'
 import {onChange, onChange3, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {EasingFunctions, EasingFunctionType} from '../../utils'
-import {CameraView, ICamera, ICameraView} from '../../core'
+import {CameraView, createCameraPath, ICamera, ICameraView, IMaterial} from '../../core'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 import {getFittingDistance} from '../../three/utils/camera'
@@ -125,7 +125,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
         })
 
-        // viewer.addEventListener('postFrame', this._postFrame)
+        viewer.addEventListener('postFrame', this._postFrame)
         // window.addEventListener('wheel', this._wheel)
         // window.addEventListener('pointermove', this._pointerMove)
 
@@ -133,7 +133,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
     onRemove(viewer: ThreeViewer): void {
 
-        // viewer.removeEventListener('postFrame', this._postFrame)
+        viewer.removeEventListener('postFrame', this._postFrame)
         // window.removeEventListener('wheel', this._wheel)
         // window.removeEventListener('pointermove', this._pointerMove)
 
@@ -393,9 +393,19 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, radius * distanceMultiplier)), center, duration, ease)
     }
 
-    public async animateToFitObject(selected?: Object3D, distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
+    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
         if (!this._viewer) return
-        const bbox = new Box3B().expandByObject(selected || this._viewer.scene.modelRoot, false, true)
+        const selectedArray = (Array.isArray(selected) ? selected : selected ? [selected] : [])
+            .filter(Boolean)
+            .flatMap(m=>{
+                if (!(m as IMaterial).isMaterial) return m
+                return (m as IMaterial).appliedMeshes
+            }) as Object3D[]
+
+        const bbox = new Box3B().expandByObject(!selectedArray.length ? this._viewer.scene.modelRoot : selectedArray[0], false, true)
+        for (let i = 1; i < selectedArray.length; i++) {
+            bbox.expandByObject(selectedArray[i], false, true)
+        }
         const cameraZ = getFittingDistance(this._viewer.scene.mainCamera, bbox)
         const center = bbox.getCenter(new Vector3()) // world position
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, cameraZ * distanceMultiplier)), center, duration, ease)
@@ -519,6 +529,59 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     }
 
     // endregion
+
+    protected _postFrame() {
+        if (!this.enabled) return
+        const camera = this._viewer?.scene.mainCamera
+        if (!camera) return
+        if (!this._viewer?.timeline.shouldRun() || !this._cameraViews.length) {
+            camera.setInteractions(true, CameraViewPlugin.PluginType + '-postFrame')
+            return
+        }
+        camera.setInteractions(false, CameraViewPlugin.PluginType + '-postFrame')
+
+        const time = this._viewer?.timeline.time
+        // const delta = this._viewer?.timeline.delta || 0
+
+        const timeline = []
+        const viewDuration = this.animDuration || 1000
+        const pauseTime = this.viewPauseTime || 0
+        const views = this._cameraViews
+        let time1 = 0
+        for (let i = 0; i < views.length; i++) {
+            const view = views[i]
+            const duration = Math.max(2, view.duration * viewDuration) / 1000
+            timeline.push({
+                time: time1,
+                index: i,
+                duration: duration,
+            })
+            time1 += duration + pauseTime / 1000
+        }
+        const selectedTime = timeline
+            .sort((a, b) => -a.time + b.time)
+            .find(t => t.time <= time)
+        if (!selectedTime) return // todo?
+
+        const viewIndex = selectedTime.index
+
+        const start = selectedTime.time
+        const duration = selectedTime.duration ?? 0.5
+
+        const t = duration < 1e-6 ? 1 : (time - start) / duration
+        // const dt = duration < 1e-6 ? 0 : delta / duration
+
+        if (t > 1) return // todo?
+
+        // todo cache path
+        const {getPosition, getTarget} = createCameraPath(this.camViews)
+
+        getPosition(t, viewIndex, camera.position)
+        getTarget(t, viewIndex, camera.target)
+        camera.setDirty()
+
+        return true
+    }
 
     // region to be ported to other plugins
 
