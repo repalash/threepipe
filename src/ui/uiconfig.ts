@@ -1,4 +1,4 @@
-export {UiConfigRendererBase, UiConfigMethods} from 'uiconfig.js'
+export {UiConfigRendererBase, UiConfigMethods, UiConfigRenderer} from 'uiconfig.js'
 export type {UiConfigContainer, IUiConfigContainer, UiObjectConfig, UiObjectType, TUiRefreshModes, ChangeArgs, ChangeEvent} from 'uiconfig.js'
 
 // decorators
@@ -8,6 +8,10 @@ export {
     uiColor, uiImage, uiToggle, uiNumber,
 } from 'uiconfig.js'
 export {uiPanelContainer, uiFolderContainer} from 'uiconfig.js'
+
 export {generateUiConfig, generateUiFolder, generateValueConfig, UiConfigTypeMap} from 'uiconfig.js'
 export type {TParams} from 'uiconfig.js'
+
+export {equalsPrimitive, clonePrimitive, copyPrimitive} from 'uiconfig.js'
+export type {PrimitiveValObject, PrimitiveVal} from 'uiconfig.js'
 
