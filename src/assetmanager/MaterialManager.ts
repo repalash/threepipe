@@ -15,8 +15,9 @@ import {
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID} from '../three'
-import {IMaterialEventMap} from '../core/IMaterial'
+import {AnimateTime, IMaterialEventMap} from '../core/IMaterial'
 import {shaderReplaceString} from '../utils'
+import {Object3DManager} from './Object3DManager'
 
 /**
  * Material Manager
@@ -99,41 +100,25 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             || this.templates.find(v => v.alias?.includes(nameOrType) && (!withGenerator || v.generator))
     }
 
-    static GetMapsForMaterial(material: IMaterial) {
-        const maps = new Set<ITexture>()
-        // todo use MaterialProperties or similar to find the maps in the material. This is a bit hacky
-        for (const val of Object.values(material)) {
-            if (val && val.isTexture) {
-                maps.add(val)
-            }
-        }
-        for (const val of Object.values(material.userData ?? {})) {
-            if (val && (val as any).isTexture) {
-                maps.add(val as ITexture)
-            }
-        }
-        return maps
-    }
-
     protected _disposeMaterial = (e: {target?: IMaterial})=>{
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
         mat.setDirty()
-        for (const map of MaterialManager.GetMapsForMaterial(mat)) {
-            const dispose = !map.isRenderTargetTexture
-                && map.userData.disposeOnIdle !== false
-                // && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
-
-            if (dispose && typeof map.dispose === 'function') {
-                // console.log('disposing texture', map)
-                map.dispose()
-            }
-        }
-        this._materialMaps.delete(mat.uuid)
+        // for (const map of MaterialManager.GetMapsForMaterial(mat)) {
+        //     const dispose = !map.isRenderTargetTexture
+        //         && map.userData.disposeOnIdle !== false
+        //         // && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
+        //
+        //     if (dispose && typeof map.dispose === 'function') {
+        //         // console.log('disposing texture', map)
+        //         map.dispose()
+        //     }
+        // }
         // this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly. todo: make an easy way to do that.
     }
 
     private _materialMaps = new Map<string, Set<ITexture>>()
+    // private _textures = new Set<ITexture>()
 
     protected _materialUpdate: EventListener2<'materialUpdate', IMaterialEventMap, IMaterial> = (e)=>{
         const mat = e.material || e.target
@@ -148,22 +133,25 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
 
     private _refreshTextureRefs(mat: any) {
         if (!mat.__textureUpdate) mat.__textureUpdate = this._textureUpdate.bind(mat)
-        const newMaps = MaterialManager.GetMapsForMaterial(mat)
+        const newMaps = Object3DManager.GetMapsForMaterial(mat)
         const oldMaps = this._materialMaps.get(mat.uuid) || new Set<ITexture>()
         for (const map of newMaps) {
-            if (oldMaps.has(map)) continue
-            if (!map._appliedMaterials) map._appliedMaterials = new Set<IMaterial>()
-            map._appliedMaterials.add(mat)
+            if (!map || !map.isTexture) continue
+            // this._textures.add(map)
+            // if (!map._appliedMaterials) map._appliedMaterials = new Set<IMaterial>()
+            // if (oldMaps.has(map)) continue
+            // map._appliedMaterials.add(mat)
             map.addEventListener('update', mat.__textureUpdate)
         }
         for (const map of oldMaps) {
             if (newMaps.has(map)) continue
             map.removeEventListener('update', mat.__textureUpdate)
-            if (!map._appliedMaterials) continue
-            const mats = map._appliedMaterials
-            mats?.delete(mat)
-            if (!mats || map.userData.disposeOnIdle === false) continue
-            if (mats.size === 0) map.dispose()
+            // if (!map._appliedMaterials) continue
+            // const mats = map._appliedMaterials
+            // mats?.delete(mat)
+            // if (!mats?.size) this._textures.delete(map)
+            // if (!mats || map.userData.disposeOnIdle === false) continue
+            // if (mats.size === 0) map.dispose()
         }
         this._materialMaps.set(mat.uuid, newMaps)
     }
@@ -198,6 +186,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      */
     public unregisterMaterial(material: IMaterial): void {
         this._materials = this._materials.filter(v=>v.uuid !== material.uuid)
+        this._materialMaps.delete(material.uuid)
         material.unregisterMaterialExtensions?.(this._materialExtensions)
         material.removeEventListener('dispose', this._disposeMaterial)
         material.removeEventListener('materialUpdate', this._materialUpdate)
@@ -332,7 +321,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         return blob
     }
 
-    applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true): boolean {
+    applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true, time?: AnimateTime): boolean {
         let currentMats = this.findMaterialsByName(nameRegexOrUuid, regex)
         if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameRegexOrUuid) as any]
         let applied = false
@@ -341,7 +330,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             if (!c) continue
             if (c === material) continue
             if (c.userData.__isVariation) continue
-            const applied2 = this.copyMaterialProps(c, material)
+            const applied2 = this.copyMaterialProps(c, material, time)
             if (applied2) applied = true
         }
         return applied
@@ -352,14 +341,14 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      * @param c
      * @param material
      */
-    copyMaterialProps(c: IMaterial, material: IMaterial) {
+    copyMaterialProps(c: IMaterial, material: IMaterial, time?: AnimateTime) {
         let applied = false
         const mType = Object.getPrototypeOf(material).constructor.TYPE
         const cType = Object.getPrototypeOf(c).constructor.TYPE
         // console.log(cType, mType)
         if (cType === mType) {
             const n = c.name
-            c.setValues(material)
+            c.setValues(material, undefined, undefined, time)
             c.name = n
             applied = true
         } else {
@@ -368,6 +357,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             const newMat = (c as any)['__' + mType] || this.create(mType)
             if (newMat) {
                 const n = c.name
+                // newMat.setValues(material, undefined, undefined, time)
                 newMat.setValues(material)
                 newMat.name = n
                 const meshes = c.appliedMeshes

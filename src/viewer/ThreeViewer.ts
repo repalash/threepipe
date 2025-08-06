@@ -433,7 +433,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (container && !options.canvas) container.appendChild(this._canvas)
         if (!container) container = this._canvas.parentElement ?? undefined
         if (!container) throw new Error('No container(or canvas).')
-        this._container = container
+        this._container = container // todo listen to canvas container change
+        // if (getComputedStyle(this._container).position === 'static') {
+        //     this.console.warn('ThreeViewer - The canvas container has static position, it must be set to relative or absolute for some plugins to work properly.')
+        // }
         this.setDirty = this.setDirty.bind(this)
         this._animationLoop = this._animationLoop.bind(this)
 
@@ -812,8 +815,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
             this.dispatchEvent({type: 'postFrame', target: this})
             this.renderManager.onPostFrame()
+            this.object3dManager.onPostFrame(this.timeline)
 
-            // this is update after postFrame, because other plugins etc will update the scene in postFrame listeners
+            // this is update after postFrame, because other plugins etc will update the scene in postFrame or preFrame listeners
             this.timeline.update2(this)
             // if (!needsRender) // break if no frame rendered (should not break)
             //     break
@@ -1464,7 +1468,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.enabled = false
     }
 
-    public async fitToView(selected?: Object3D, distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
+    public async fitToView(selected?: Object3D|Object3D[]|IMaterial|IMaterial[], distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
         const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
         if (!camViews) {
             this.console.error('ThreeViewer: CameraViewPlugin (CameraViews) is required for fitToView to work')

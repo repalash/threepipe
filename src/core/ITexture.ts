@@ -1,7 +1,8 @@
 import {IMaterial} from './IMaterial'
 import {Source, Texture, TextureEventMap} from 'three'
 import {IRenderTarget} from '../rendering'
-import type {ChangeEvent} from 'uiconfig.js'
+import type {ChangeEvent, UiObjectConfig} from 'uiconfig.js'
+import {IObject3D} from './IObject'
 
 export interface ITextureUserData{
     mimeType?: string
@@ -11,6 +12,16 @@ export interface ITextureUserData{
      * Works only after it's applied to a material once.
      */
     disposeOnIdle?: boolean
+
+
+    // for videos etc
+    timeline?: {
+        enabled: boolean
+        delay?: number // in ms
+        scale?: number // scale the timeline to this value
+        start?: number // in ms
+        end?: number // in ms
+    }
 }
 
 // export type ITextureEventTypes = 'dispose' | 'update'
@@ -61,7 +72,12 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
         _canSerialize?: boolean // see KTX2LoadPlugin and GLTFExporter.js. Disables auto decompress for glTF export
     }
 
-    _appliedMaterials?: Set<IMaterial> // for internal use only. refers to the materials that this texture is applied to
+    // _appliedMaterials?: Set<IMaterial> // for internal use only. refers to the materials that this texture is applied to
+    /**
+     * Objects/Materials in the scene that are using this texture.
+     * This is set in the {@link Object3DManager} when the objects are added/removed from the scene. Do not modify this set directly.
+     */
+    appliedObjects?: Set<IObject3D|IMaterial>
 
     _target?: IRenderTarget // for internal use only. refers to the render target that this texture is attached to
 }
@@ -69,7 +85,7 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
 export function upgradeTexture(this: ITexture) {
     this.assetType = 'texture'
     if (!this.userData) this.userData = {}
-    if (!this._appliedMaterials) this._appliedMaterials = new Set()
+    if (!this.appliedObjects) this.appliedObjects = new Set()
     if (!this.setDirty) this.setDirty = ()=>this.needsUpdate = true
     // todo: uiconfig, dispose, etc
 }

@@ -294,17 +294,9 @@ export const iObjectCommons = {
 
         // todo should these be before or after `materialChanged` event? right now its before, also .material will return the old one since _currentMaterial is old
         for (const mat of removed) {
-            if (mat.appliedMeshes) {
-                mat.appliedMeshes.delete(this)
-                // if (mat.userData && mat.appliedMeshes?.size === 0 && mat.userData.disposeOnIdle !== false)
-                mat.dispose(false) // this will dispose textures(if they are idle) if the material is registered in the material manager
-            }
             mat.dispatchEvent({type: 'removeFromMesh', object: this})
         }
         for (const mat of added) {
-            if (mat.appliedMeshes) {
-                mat.appliedMeshes.add(this)
-            }
             mat.dispatchEvent({type: 'addToMesh', object: this})
             // note - material bubbleToObject is handled in dispatchEvent override in iMaterialCommons
         }
@@ -354,10 +346,6 @@ export const iObjectCommons = {
         if (geom === geometry) return
         if (geom) {
             this._onGeometryUpdate && geom.removeEventListener('geometryUpdate', this._onGeometryUpdate)
-            if (geom.appliedMeshes) {
-                geom.appliedMeshes.delete(this)
-                geom.dispose(false)
-            }
         }
         if (geometry) {
             if (!geometry.assetType) {
@@ -369,7 +357,6 @@ export const iObjectCommons = {
         if (geometry) {
             this.updateMorphTargets()
             this._onGeometryUpdate && geometry.addEventListener('geometryUpdate', this._onGeometryUpdate)
-            if (geometry.appliedMeshes) geometry.appliedMeshes.add(this)
         }
         this.dispatchEvent({type: 'geometryChanged', geometry: geometry ?? null, oldGeometry: geom, bubbleToParent: true, object: this})
         this.refreshUi()

@@ -9,6 +9,7 @@ export type {IAsset, IFile, IAssetID, IAssetList} from './IAsset'
 export type {ImportResult, IImportResultUserData, ImportResultObject, IAssetImporter, IAssetImporterEventMap, ImportAssetOptions, ImportFilesOptions, LoadFileOptions, ProcessRawOptions, RootSceneImportResult, ImportResultExtras} from './IAssetImporter'
 export type {IAssetExporter, IExporter, IExportWriter, ExportFileOptions, BlobExt} from './IExporter'
 export type {IImporter, ILoader} from './IImporter'
+export type {Object3DManagerEventMap} from './Object3DManager'
 
 export * from './import/index'
 export * from './export/index'
