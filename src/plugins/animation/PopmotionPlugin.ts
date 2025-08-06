@@ -1,4 +1,4 @@
-import type {Driver} from 'popmotion/lib/animations/types'
+import {Driver, PlaybackOptions} from 'popmotion/lib/animations/types'
 import {now} from 'ts-browser-helpers'
 import {animate, type AnimationOptions, KeyframeOptions} from 'popmotion'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
@@ -187,7 +187,10 @@ export class PopmotionPlugin extends AViewerPluginSync {
             const opts: AnimationOptions<V> = {
                 driver: this.defaultDriver,
                 ...options,
-                onUpdate: !isBool ? options.onUpdate : undefined,
+                onUpdate: (v)=>{
+                    if (isBool || !options.onUpdate) return
+                    options.onUpdate(v)
+                },
                 onComplete: async()=>{
                     try {
                         if (isBool) options.onUpdate?.(options.to as any)
@@ -226,6 +229,28 @@ export class PopmotionPlugin extends AViewerPluginSync {
         const anim = this.animate(options)
         if (animations) animations.push(anim)
         return anim.promise
+    }
+
+    /**
+     * Similar to animate, but specifically for numbers, defaults from 0 to 1. Also calls onUpdate with the delta value.
+     * @param options
+     */
+    animateNumber(options: Omit<PlaybackOptions<number> & KeyframeOptions<number>, 'from'|'to'|'onUpdate'> & {
+        from?: number,
+        to?: number,
+        onUpdate?: (value: number, delta: number) => void
+    }): AnimationResult {
+        let lastVal = options.from ?? 0
+        return this.animate({
+            ...options,
+            from: lastVal,
+            to: options.to ?? 1,
+            onUpdate: (v: number) => {
+                const dv = v - lastVal
+                lastVal = v
+                options.onUpdate && options.onUpdate(v, dv)
+            },
+        })
     }
 
     async animateTargetAsync<T>(target: T, key: keyof T, options: AnimationOptions<T[keyof T]>, animations?: AnimationResult[]): Promise<string> {

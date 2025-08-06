@@ -44,17 +44,12 @@ export class TransformAnimationPlugin extends AViewerPluginSync {
         const object = e.object
         object?.traverse && !object.isWidget && object.traverse((o: IObject3D)=>{
             if (o.isWidget) return
-            if (!o.userData[TransformAnimationPlugin.PluginType]) {
-                o.userData[TransformAnimationPlugin.PluginType] = {
-                    transforms: [] as TSavedTransform[],
-                }
-            }
             // if (!o.userData[TransformAnimationPlugin.PluginType].transforms) {
             //     o.userData[TransformAnimationPlugin.PluginType].transforms = []
             // }
 
             // for old files, todo remove later
-            o.userData[TransformAnimationPlugin.PluginType]!.transforms?.forEach((t, i)=>{
+            o.userData[TransformAnimationPlugin.PluginType]?.transforms?.forEach((t, i)=>{
                 if (t.name === undefined) t.name = 'Transform ' + i
             })
 
