@@ -16,14 +16,13 @@ export interface IGeometryUserData extends IImportResultUserData{
      * @default true
      */
     disposeOnIdle?: boolean
-    // [key: string]: any // commented for noe
+    // [key: string]: any // commented for now
 }
 export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE>, IUiConfigContainer {
     assetType: 'geometry'
     setDirty(options?: IGeometrySetDirtyOptions): void;
     refreshUi(): void;
     uiConfig?: UiObjectConfig
-    appliedMeshes: Set<IObject3D>
 
     /**
      * Centers the geometry.
@@ -42,6 +41,12 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IGeometryUserData
+
+    /**
+     * Objects in the scene that are using this geometry.
+     * This is set in the {@link Object3DManager} when the objects are added/removed from the scene. Do not modify this set directly.
+     */
+    appliedMeshes: Set<IObject3D>
 
     /**
      * Disposes the geometry from the GPU.

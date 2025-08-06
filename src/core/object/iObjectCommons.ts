@@ -182,7 +182,10 @@ export const iObjectCommons = {
             }
             if (root !== this.parentRoot) {
                 this.traverse(o=>{
+                    const old = o.parentRoot
+                    if (old === root) return
                     o.parentRoot = root
+                    o.dispatchEvent({...e, type: 'parentRootChanged', object: o, oldParentRoot: old || undefined, bubbleToParent: false})
                 })
             }
             this.setDirty?.({...e, change: 'addedToParent'})
@@ -190,9 +193,12 @@ export const iObjectCommons = {
         onRemovedFromParent: function(this: IObject3D, e: Event): void {
             // removed from some parent
             this.setDirty?.({...e, change: 'removedFromParent'})
-            if (this.parentRoot !== undefined) {
+            if (this.parentRoot) {
                 this.traverse(o=>{
+                    const old = o.parentRoot
+                    if (!old) return
                     o.parentRoot = undefined
+                    o.dispatchEvent({...e, type: 'parentRootChanged', object: o, oldParentRoot: old || undefined, bubbleToParent: false})
                 })
             }
         },

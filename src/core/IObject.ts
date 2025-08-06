@@ -108,6 +108,11 @@ export interface IObject3DEventMap extends Object3DEventMap{
         bubbleToParent: boolean
         // todo
     } & Omit<ICameraSetDirtyOptions, 'bubbleToParent'>
+    parentRootChanged: {
+        object: IObject3D
+        oldParentRoot: IObject3D|undefined
+        bubbleToParent: boolean
+    }
 }
 // Record<keyof IObject3DEventMap0, IObject3DEventMap0[keyof IObject3DEventMap0] & {
 //     // bubbleToParent?: boolean

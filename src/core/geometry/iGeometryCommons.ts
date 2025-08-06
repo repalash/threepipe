@@ -1,6 +1,6 @@
 import {UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometrySetDirtyOptions} from '../IGeometry'
-import {autoGPUInstanceMeshes, isInScene, toIndexedGeometry} from '../../three/utils'
+import {autoGPUInstanceMeshes, toIndexedGeometry} from '../../three/utils'
 import {BufferGeometry, Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {IObject3D} from '../IObject'
@@ -15,7 +15,7 @@ export const iGeometryCommons = {
     },
     dispose: (superDispose: BufferGeometry['dispose']): IGeometry['dispose'] =>
         function(this: IGeometry, force = true): void {
-            if (!force && (this.userData.disposeOnIdle === false || isInScene(this))) return
+            if (!force && this.userData.disposeOnIdle === false) return
             superDispose.call(this)
         },
     clone: (superClone: BufferGeometry['clone']): IGeometry['clone'] =>
