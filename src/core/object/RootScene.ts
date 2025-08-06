@@ -272,12 +272,12 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         else this.modelRoot.add(obj)
 
         const process = () => {
-            if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered) { // pseudoCentered is legacy
+            if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered && !obj.isLight) { // pseudoCentered is legacy
                 obj.autoCenter && obj.autoCenter()
             } else {
                 obj.userData.isCentered = true // mark as centered, so that autoCenter is not called again when file is reloaded.
             }
-            if (autoScale && !obj.userData.autoScaled) {
+            if (autoScale && !obj.userData.autoScaled && !obj.isLight) {
                 obj.autoScale && obj.autoScale(obj.userData.autoScaleRadius || autoScaleRadius)
             } else {
                 obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
