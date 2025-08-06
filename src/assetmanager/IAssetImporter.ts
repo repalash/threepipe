@@ -188,6 +188,13 @@ export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
      * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.UseMeshLines`.
      */
     useMeshLines?: boolean,
+
+    /**
+     * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
+     *
+     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.CreateUniqueNames`.
+     */
+    createUniqueNames?: boolean,
 }
 
 // export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'

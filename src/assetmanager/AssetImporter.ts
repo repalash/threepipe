@@ -74,7 +74,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
      */
     cacheImportedAssets = true
 
-    static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
+    // moved to constants whiteImageData and whiteTexture
+    // static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
+    // static WHITE_TEXTURE = new Texture(AssetImporter.WHITE_IMAGE_DATA)
 
     readonly importers: IImporter[] = [
         new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),

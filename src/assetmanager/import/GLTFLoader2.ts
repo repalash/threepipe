@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
-import {generateUUID} from '../../three'
+import {generateUUID, whiteImageData} from '../../three'
 import {
     glbEncryptionPreparser,
     GLTFLightExtrasExtension,
@@ -33,7 +33,6 @@ import {
     UnlitLineMaterial,
     UnlitMaterial,
 } from '../../core'
-import {AssetImporter} from '../AssetImporter'
 import {ImportAddOptions} from '../AssetManager'
 
 // todo move somewhere
@@ -78,6 +77,12 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     static UseMeshLines = false
 
     /**
+     * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
+     * This is useful when importing gltf files with multiple objects with the same name, and creating animations for them.
+     */
+    static CreateUniqueNames = false
+
+    /**
      * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data
      */
     preparsers: GLTFPreparser[] = []
@@ -96,7 +101,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 
                 // this will be used when doing new Texture(). Which is done for not found images or when some error happens in loading. See FBXLoader.
                 // todo save the path of invalid textures, check if they can be found in the loaded libs, and ask the user in UI to remap it to something else manually
-                if (!Texture.DEFAULT_IMAGE) Texture.DEFAULT_IMAGE = AssetImporter.WHITE_IMAGE_DATA
+                if (!Texture.DEFAULT_IMAGE) Texture.DEFAULT_IMAGE = whiteImageData
 
                 const useMeshLines = this.importOptions?.useMeshLines ?? GLTFLoader2.UseMeshLines
                 GLTFLoader.ObjectConstructors.LineBasicMaterial = useMeshLines ? LineMaterial2 as any : UnlitLineMaterial as any
@@ -104,6 +109,12 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 return res ? super.parse(res, path, (ret)=>{
                     Texture.DEFAULT_IMAGE = val
                     GLTFLoader.ObjectConstructors.LineBasicMaterial = useMeshLines ? LineMaterial2 as any : UnlitLineMaterial as any
+
+                    // todo remove after three update
+                    for (const scene of ret.scenes) {
+                        scene.updateMatrixWorld()
+                    }
+
                     onLoad && onLoad(ret)
                 }, onError) : onError && onError(new ErrorEvent('no data'))
             })
@@ -122,20 +133,53 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         // todo: support loading of multiple scenes?
         const scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
         if (!scene) return undefined
-        if (res.animations.length > 0) scene.animations = res.animations
+
+        const lines: Line[] = []
+        const refMap = new Map<string, Object3D[]>()
+        scene.traverse((node: Object3D) => {
+            if (node.userData.gltfUUID) { // saved in GLTFExporter2
+                safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
+                delete node.userData.gltfUUID // have issue with cloning if we don't dispose.
+            }
+            if ((node as Line).isLine) lines.push(node as Line)
+            if (node.uuid) {
+                if (!refMap.has(node.uuid)) refMap.set(node.uuid, [])
+                refMap.get(node.uuid)!.push(node)
+            }
+            if (node.name) {
+                if (!refMap.has(node.name)) refMap.set(node.name, [])
+                refMap.get(node.name)!.push(node)
+            }
+        })
+
+        if (res.animations.length > 0) {
+            scene.animations = []
+            for (const animation of res.animations) {
+                let f = false
+                // rootRefs is added by GLTFExporter2 when exporting animations, it is an array of uuids or names, it is used to find the root object for the animation
+                if (animation.userData.rootRefs) {
+                    for (const ref of animation.userData.rootRefs) {
+                        const roots = refMap.get(ref) || []
+                        for (const root of roots) {
+                            if (!root.animations) root.animations = []
+                            if (!root.animations.includes(animation)) {
+                                root.animations.push(animation)
+                            }
+                            f = true
+                        }
+                    }
+                    if (f) delete animation.userData.rootRefs // it will be added again with correct data when exporting
+                }
+                if (!f) {
+                    // no root found, add to scene
+                    scene.animations.push(animation)
+                }
+            }
+        }
 
         const useMeshLines = this.importOptions?.useMeshLines ?? GLTFLoader2.UseMeshLines
         // todo: move out and put the chosen setting in userData.
         if (useMeshLines) {
-            const lines: Line[] = []
-            scene.traverse((node: Object3D) => {
-                if (node.userData.gltfUUID) { // saved in GLTFExporter2
-                    safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
-                    delete node.userData.gltfUUID // have issue with cloning if we don't dispose.
-                }
-                if ((node as Line).isLine) lines.push(node as Line)
-            })
-
             // convert lines to mesh/fat lines
             for (const line of lines) {
                 convertToFatLine(line)
@@ -181,6 +225,11 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                     res.userData.gltfExtensions = gltfExtensions
                 }
                 return res
+            }
+            const createUniqueName = parser.createUniqueName
+            parser.createUniqueName = (originalName: string) => {
+                if (parser.importOptions?.createUniqueNames || GLTFLoader2.CreateUniqueNames && parser.importOptions?.createUniqueNames !== false) return createUniqueName.call(parser, originalName)
+                return originalName // allow duplicates
             }
             const tempPathDrc = generateUUID() + '.drc'
             const tempPathKtx2 = generateUUID() + '.ktx2'
