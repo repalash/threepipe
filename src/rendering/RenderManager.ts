@@ -1,13 +1,14 @@
 import {
+    AddEquation,
     Color,
-    ColorSpace,
+    ColorSpace, ConstantAlphaFactor, CustomBlending,
     FloatType,
     HalfFloatType,
     IUniform,
     NoBlending,
     NoColorSpace,
     NormalBlending,
-    NoToneMapping,
+    NoToneMapping, OneMinusConstantAlphaFactor,
     PCFShadowMap,
     ShadowMapType,
     Texture,
@@ -432,8 +433,10 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param respectColorSpace - does color space conversion when reading and writing to the target
      * @param blending - Note - Set to NormalBlending if transparent is set to false
      * @param transparent
+     * @param opacity - opacity of the material, if not set, uses the material's opacity
+     * @param blendAlpha - custom blending factor, if set, overrides blending. The material will use CustomBlending with ConstantAlphaFactor and OneMinusConstantAlphaFactor, useful to blend between textures.
      */
-    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false, blending = NoBlending, transparent = true}: RendererBlitOptions = {}): void {
+    blit(destination: IRenderTarget|undefined|null, {source, viewport, material, clear = true, respectColorSpace = false, blending = NoBlending, transparent = true, opacity, blendAlpha}: RendererBlitOptions = {}): void {
         const copyPass = !respectColorSpace ? this._composer.copyPass : this._composer.copyPass2
         const {renderToScreen, material: oldMaterial, uniforms: oldUniforms, clear: oldClear} = copyPass
         if (material) {
@@ -446,6 +449,11 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         const oldAutoClear = this._renderer.autoClear
         const oldTarget = this._renderer.getRenderTarget()
         const oldBlending = copyPass.material.blending
+        const oldOpacity = copyPass.material.uniforms.opacity?.value ?? 1
+        const oldBlendAlpha = copyPass.material.blendAlpha
+        const oldBlendSrc = copyPass.material.blendSrc
+        const oldBlendDst = copyPass.material.blendDst
+        const oldBlendEquation = copyPass.material.blendEquation
 
         if (viewport) {
             if (!destination) {
@@ -465,6 +473,18 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         copyPass.clear = clear
         copyPass.material.transparent = transparent
         copyPass.material.needsUpdate = true
+        if (copyPass.material.uniforms.opacity && opacity !== undefined) {
+            copyPass.material.uniforms.opacity.value = opacity
+        }
+
+        if (blendAlpha !== undefined) {
+            // blendAlpha is custom blending factor
+            copyPass.material.blending = CustomBlending
+            copyPass.material.blendSrc = ConstantAlphaFactor
+            copyPass.material.blendDst = OneMinusConstantAlphaFactor
+            copyPass.material.blendEquation = AddEquation
+            copyPass.material.blendAlpha = blendAlpha
+        }
 
         this._renderer.renderWithModes({
             sceneRender: true,
@@ -476,12 +496,19 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         }, ()=>{
             copyPass.render(this._renderer, <WebGLRenderTarget>destination || null, {texture: source} as any, 0, false)
         })
+        if (copyPass.material.uniforms.opacity && opacity !== undefined) {
+            copyPass.material.uniforms.opacity.value = oldOpacity
+        }
         copyPass.renderToScreen = renderToScreen
         copyPass.clear = oldClear
+        copyPass.material.blending = oldBlending
+        copyPass.material.blendSrc = oldBlendSrc
+        copyPass.material.blendDst = oldBlendDst
+        copyPass.material.blendEquation = oldBlendEquation
+        copyPass.material.blendAlpha = oldBlendAlpha
+        copyPass.material.transparent = oldTransparent
         copyPass.material = oldMaterial
         copyPass.uniforms = oldUniforms
-        copyPass.material.blending = oldBlending
-        copyPass.material.transparent = oldTransparent
         this._renderer.autoClear = oldAutoClear
         if (viewport) {
             if (!destination) {
@@ -700,7 +727,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             }
 
             clone(trackTarget = true): any {
-                if (this.isTemporary) throw 'Cloning temporary render targets not supported'
+                if (this.isTemporary) throw 'Cloning temporary render targets not supported' // todo why?
                 if (Array.isArray(this.texture)) throw 'Cloning multiple render targets not supported'
                 // Note: todo: webgl render target.clone messes up the texture, by not copying isRenderTargetTexture prop and maybe some other stuff. So its better to just create a new one
                 // const cloned = super.clone() as IRenderTarget

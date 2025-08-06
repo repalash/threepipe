@@ -39,7 +39,18 @@ export interface IRenderManagerEventMap {
     }
 }
 
-export interface RendererBlitOptions {source?: Texture, viewport?: Vector4, material?: ShaderMaterial, clear?: boolean, respectColorSpace?: boolean, blending?: Blending, transparent?: boolean}
+export interface RendererBlitOptions {
+    source?: Texture,
+    viewport?: Vector4,
+    material?: ShaderMaterial,
+    clear?: boolean,
+    respectColorSpace?: boolean,
+    blending?: Blending,
+    transparent?: boolean,
+    opacity?: number,
+    blendAlpha?: number
+}
+
 export interface IRenderManager<TE extends IRenderManagerEventMap = IRenderManagerEventMap> extends RenderTargetManager<TE>, IShaderPropertiesUpdater{
     readonly renderer: IWebGLRenderer
     readonly needsRender: boolean
