@@ -1,14 +1,19 @@
 {
     "name": "@threepipe/plugin-tweakpane",
     "description": "Tweakpane UI Plugin for ThreePipe",
-    "version": "0.6.5",
+    "version": "0.6.6",
     "devDependencies": {
         "tweakpane-image-plugin": "https://pkg.threepipe.org/dep/tweakpane-image-plugin/-/v1.1.404/package.tgz",
-        "uiconfig-tweakpane": "^0.0.11",
-        "uiconfig.js": "^0.1.5"
+        "uiconfig-tweakpane": "0.0.12",
+        "ts-browser-helpers": "file:./../../node_modules/ts-browser-helpers",
+        "uiconfig.js": "file:./../../node_modules/uiconfig.js"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
+    },
+    "overrides": {
+        "ts-browser-helpers": "$ts-browser-helpers",
+        "uiconfig.js": "$uiconfig.js"
     },
     "exports": {
         ".": {
@@ -61,14 +66,15 @@
             "clean-package",
             "scripts",
             "devDependencies",
+            "overrides",
             "//"
         ],
         "replace": {
             "dependencies": {
-                "uiconfig-tweakpane": "^0.0.10"
             },
             "peerDependencies": {
-                "threepipe": "^0.0.50"
+                "threepipe": "^0.0.56",
+                "uiconfig-tweakpane": "^0.0.12"
             }
         }
     },

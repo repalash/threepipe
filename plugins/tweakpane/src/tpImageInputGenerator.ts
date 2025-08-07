@@ -43,7 +43,7 @@ const staticData = {
 }
 
 const allowedImageExtensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
-    '.exr', /* '.mp4', '.ogg', '.mov',*/ '.jpeg',
+    '.exr', '.mp4', '.ogg', '.mov', '.jpeg',
     '.bmp', '.gif', '.webp', '.cube', '.ktx2', '.avif', '.ico', '.tiff'] // todo update blueprint editor with this list
 
 function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
@@ -53,7 +53,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
     if (cc.isCompressedTexture && !cc.image.tp_src) {
         cc.image.tp_src = staticData.compressedTexImage
     }
-    // todo: video is not playing
+    // todo: video is not playing, handled below
     // if (cc.isVideoTexture && !cc.image.tp_src) {
     //     cc.image.tp_src = staticData.videoTexImage
     // }
@@ -341,7 +341,7 @@ async function imageFromFile(renderer: TweakpaneUiPlugin, config: UiObjectConfig
         inp.click()
         return
     }
-    const files = await uploadFile(false, false, params.extensions?.map((ext: string) => `image/${ext.replace(/^\./, '')}`).join(', ') ?? 'image/*')
+    const files = await uploadFile(false, false, params.extensions?.join(',') ?? 'image/*')
     if (!files.length) return
     const file = files[0]
 
