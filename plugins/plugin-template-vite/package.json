@@ -64,8 +64,8 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.50",
-                "@threepipe/plugin-tweakpane": "^0.6.1"
+                "threepipe": "^0.0.56",
+                "@threepipe/plugin-tweakpane": "^0.6.6"
             }
         }
     }

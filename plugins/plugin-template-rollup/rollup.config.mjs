@@ -8,8 +8,8 @@ import packageJson from './package.json' with {type: 'json'};
 import path from 'path'
 import {fileURLToPath} from 'url';
 import postcss from 'rollup-plugin-postcss'
-import replace from '@rollup/plugin-replace'
 import terser from '@rollup/plugin-terser';
+import {globalsReplacePlugin} from '../../scripts/vite-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,13 +60,7 @@ export default {
     ],
     external: Object.keys(settings.globals),
     plugins: [
-        replace({
-            'from \'three\'': 'from \'threepipe\'',
-            delimiters: ['', ''],
-        }),
-        replace({
-            'process.env.NODE_ENV': JSON.stringify('production'),
-        }),
+        ...globalsReplacePlugin(settings.globals, isProduction),
         postcss({
             modules: false,
             autoModules: true, // todo; issues with typescript import css, because inject is false

@@ -30,8 +30,8 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.43",
-                "@threepipe/plugin-tweakpane": "^0.5.4"
+                "threepipe": "^0.0.56",
+                "@threepipe/plugin-tweakpane": "^0.6.6"
             }
         }
     },

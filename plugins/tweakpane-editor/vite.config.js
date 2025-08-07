@@ -1,14 +1,10 @@
 import {defineConfig} from 'vite'
-import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
 import packageJson from './package.json';
-import license from 'rollup-plugin-license';
-import replace from '@rollup/plugin-replace';
-import glsl from 'rollup-plugin-glsl';
-import path from 'node:path';
+import {commonPlugins, globalsReplacePlugin} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
-const { name, version, author } = packageJson
+const { name } = packageJson
 const {main, module, browser} = packageJson
 
 const globals = {
@@ -55,38 +51,7 @@ export default defineConfig({
     },
     plugins: [
         isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
-        replace({
-            'from \'three\'': 'from \'threepipe\'',
-            delimiters: ['', ''],
-            preventAssignment: true,
-        }),
-        replace({
-            'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
-            preventAssignment: true,
-        }),
-        glsl({ // todo: minify glsl.
-            include: 'src/**/*.glsl',
-        }),
-        json(),
-        // postcss({
-        //     modules: false,
-        //     autoModules: true,  // todo; issues with typescript import css, because inject is false
-        //     inject: false,
-        //     minimize: isProduction,
-        //     // Or with custom options for `postcss-modules`
-        // }),
-        license({
-            banner: `
-        @license
-        ${name} v${version}
-        Copyright 2022<%= moment().format('YYYY') > 2022 ? '-' + moment().format('YYYY') : null %> ${author}
-        ${packageJson.license} License
-        See ./dependencies.txt for any bundled third-party dependencies and licenses.
-      `,
-            thirdParty: {
-                output: path.join(__dirname, 'dist', 'dependencies.txt'),
-                includePrivate: true, // Default is false.
-            },
-        }),
+        ...globalsReplacePlugin(globals, isProd),
+        ...commonPlugins(packageJson, __dirname, isProd),
     ],
 })
