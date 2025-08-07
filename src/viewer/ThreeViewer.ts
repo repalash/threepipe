@@ -305,7 +305,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      *
      * It's a WIP, API might change.
      */
-    @uiConfig(undefined, {label: 'Timeline', expanded: true})
+    @uiConfig(undefined, {label: 'Timeline', expanded: true, tags: ['advanced']})
+    @serialize('timeline')
     readonly timeline = new ViewerTimeline()
 
     @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
@@ -1581,14 +1582,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _onPluginAdd(p: IViewerPlugin) {
         const ev = {type: 'addPlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
-        this._pluginListeners.add.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
+        this._pluginListeners.add.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType) || p.constructor.OldPluginType && l.p.includes(p.constructor.OldPluginType)).forEach(l=> l.l(ev))
         this.setDirty(p)
     }
 
     private _onPluginRemove(p: IViewerPlugin, dispose = false) {
         const ev = {type: 'removePlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
-        this._pluginListeners.remove.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType)).forEach(l=> l.l(ev))
+        this._pluginListeners.remove.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType) || p.constructor.OldPluginType && l.p.includes(p.constructor.OldPluginType)).forEach(l=> l.l(ev))
         delete this.plugins[p.constructor.PluginType]
         if (p.constructor.OldPluginType) delete this.plugins[p.constructor.OldPluginType]
         if (dispose) p.dispose() // todo await?
@@ -1600,8 +1601,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         remove: [],
     }
 
-    addPluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void, ...plugins: string[]): void {
-        this._pluginListeners[type].push({p: plugins, l: listener})
+    addPluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void, ...plugins: (string|undefined)[]): void {
+        this._pluginListeners[type].push({p: plugins.filter(p=>!!p) as string[], l: listener})
     }
 
     removePluginListener(type: 'add' | 'remove', listener: (event: IViewerEvent) => void): void {
@@ -1639,7 +1640,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 mount(p1)
                 um()
             }
-            this.addPluginListener('add', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType)
+            this.addPluginListener('add', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType, typeof plugin === 'string' ? undefined : (plugin as any).OldPluginType)
         }
 
     }

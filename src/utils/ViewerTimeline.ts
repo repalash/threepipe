@@ -1,8 +1,10 @@
 import {Clock, EventDispatcher} from 'three'
 import {ThreeViewer} from '../viewer'
 import {ProgressivePlugin} from '../plugins'
-import {uiButton, uiFolderContainer, uiInput} from 'uiconfig.js'
+import {uiButton, uiFolderContainer, uiInput, uiToggle} from 'uiconfig.js'
+import {serializable, serialize} from 'ts-browser-helpers'
 
+@serializable('ViewerTimeline')
 @uiFolderContainer('Timeline')
 export class ViewerTimeline extends EventDispatcher<{start: object, stop: object, reset: object, update: object}> {
     /**
@@ -18,11 +20,44 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
         delta = 0
 
     /**
+     * Maximum time in secs.
+     * This is used to limit the time in the timeline.
+     * Set to 0 to disable the limit.
+     */
+    @uiInput('Max Time')
+    @serialize()
+        endTime = 2
+
+    /**
+     * Reset the timeline time to 0 when the timeline ends.
+     * It is applicable only when the timeline is running and `endTime` is set to a value greater than 0.
+     * This can be used to loop the timeline.
+     * @default true
+     */
+    @uiToggle('Reset on End')
+    @serialize()
+        resetOnEnd = true
+
+    /**
+     * Stop the timeline when it reaches the end.
+     * This is applicable only when the timeline is running and `endTime` is set to a value greater than 0.
+     * This can be used to stop the timeline when it reaches the end.
+     * It is separate from `resetOnEnd`, the timeline is stopped and then reset when both are true.
+     * @default false
+     */
+    @uiToggle('Stop on End')
+    @serialize()
+        stopOnEnd = false
+
+    /**
      * Running state.
      */
     @uiInput('Running', {readOnly: true})
         running = false
 
+    /**
+     * Returns true if the timeline is running or if it is set to step this/next frame.
+     */
     shouldRun() {
         return this.running || this._step
     }
@@ -65,29 +100,7 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
     }
 
     update(viewer: ThreeViewer) {
-        if (this._stop) {
-            this._clock.stop()
-            this._start = false
-            this._stop = false
-            this.running = this._clock.running
-            this.dispatchEvent({type: 'stop'})
-        }
-        if (this._start) {
-            this._clock.start()
-            this._clock.elapsedTime = this.time
-            this._start = false
-            this.running = this._clock.running
-            this.dispatchEvent({type: 'start'})
-        }
-        if (this._reset) {
-            this._clock.elapsedTime = 0
-            this.time = 0
-            this.delta = 0
-            this._reset = false
-            this.dispatchEvent({type: 'reset'})
-        }
-        this.running = this._clock.running
-
+        this._refreshParams()
         if (!this.running) {
             this.delta = this._clock.getDelta() // this will return 0 always
             this.time = this._clock.elapsedTime
@@ -113,6 +126,35 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
             // viewer.setDirty(this) // for next frame
             this.dispatchEvent({type: 'update'})
         }
+        this._refreshParams()
+    }
+
+    private _refreshParams() {
+        const isEnd = this.endTime > 0 && this.time >= this.endTime && this.running
+        const isReset = this.resetOnEnd && isEnd
+        const isStop = this.stopOnEnd && isEnd
+        if (this._stop || isStop) {
+            this._clock.stop()
+            this._start = false
+            this._stop = false
+            this.running = this._clock.running
+            this.dispatchEvent({type: 'stop'})
+        }
+        if (this._start) {
+            this._clock.start()
+            this._clock.elapsedTime = this.time
+            this._start = false
+            this.running = this._clock.running
+            this.dispatchEvent({type: 'start'})
+        }
+        if (this._reset || isReset) {
+            this._clock.elapsedTime = 0
+            this.time = 0
+            this.delta = 0
+            this._reset = false
+            this.dispatchEvent({type: 'reset'})
+        }
+        this.running = this._clock.running
     }
 
     // todo better name

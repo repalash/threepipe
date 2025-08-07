@@ -20,7 +20,7 @@ export abstract class AViewerPlugin<TE extends AViewerPluginEventMap = AViewerPl
     public static readonly OldPluginType?: string
     protected _dirty = false
 
-    uiConfig?: UiObjectConfig = undefined // todo: this should work when uncommented, remove all get uiConfig and do it properly
+    uiConfig?: UiObjectConfig = undefined // if this is showing an error, remove all `get uiConfig` and use objects
 
     protected _viewer?: TViewer
 
