@@ -58,8 +58,8 @@ import {AssetExporter} from './AssetExporter'
 import {IExporter} from './IExporter'
 import {GLTFExporter2, GLTFWriter2} from './export'
 import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
-import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
-import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter'
+import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 
 export interface AssetManagerOptions{
     /**

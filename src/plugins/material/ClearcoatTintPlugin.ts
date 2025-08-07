@@ -6,7 +6,7 @@ import {IMaterialUserData, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString, ThreeSerialization} from '../../utils'
 import {AssetManager, GLTFWriter2} from '../../assetmanager'
-import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 /**
  * Clearcoat Tint Plugin

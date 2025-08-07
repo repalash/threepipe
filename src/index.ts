@@ -1,5 +1,6 @@
 export * from './viewer/index'
 export * from './three/Threejs'
+export * from './three/addons'
 export * from './three/index'
 export * from './core/index'
 export * from './assetmanager/index'

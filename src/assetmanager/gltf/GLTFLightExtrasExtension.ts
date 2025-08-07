@@ -1,6 +1,6 @@
-import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ObjectLoader} from 'three'
-import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 
 export class GLTFLightExtrasExtension {
     static readonly WebGiLightExtrasExtension = 'WEBGI_light_extras'

@@ -4,7 +4,7 @@ import {
     NormalOrGLBufferAttributes,
 } from 'three'
 import type {IGeometry, IGeometryEventMap, IGeometryUserData} from '../IGeometry'
-import {WireframeGeometry2} from 'three/examples/jsm/lines/WireframeGeometry2'
+import {WireframeGeometry2} from 'three/examples/jsm/lines/WireframeGeometry2.js'
 import {iGeometryCommons} from './iGeometryCommons'
 import type {IObject3D} from '../IObject'
 

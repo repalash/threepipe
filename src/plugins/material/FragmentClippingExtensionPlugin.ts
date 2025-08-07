@@ -6,7 +6,7 @@ import {IMaterial, IMaterialUserData, IObject3D, PhysicalMaterial} from '../../c
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
 import {shaderReplaceString, ThreeSerialization} from '../../utils'
 import {AssetManager, GLTFWriter2} from '../../assetmanager'
-import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import FragmentClippingExtensionPluginPars from './shaders/FragmentClippingExtensionPlugin.pars.glsl'
 import FragmentClippingExtensionPluginPatch from './shaders/FragmentClippingExtensionPlugin.patch.glsl'
 

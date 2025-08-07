@@ -1,7 +1,7 @@
 import {LineGeometry2} from '../geometry/LineGeometry2'
 import {LineMaterial2} from '../material/LineMaterial2'
 import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
-import {Line2} from 'three/examples/jsm/lines/Line2'
+import {Line2} from 'three/examples/jsm/lines/Line2.js'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
 import {UiObjectConfig} from 'uiconfig.js'

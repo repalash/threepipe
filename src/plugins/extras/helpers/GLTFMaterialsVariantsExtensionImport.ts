@@ -6,7 +6,7 @@
  */
 
 import {Material, Mesh, Object3D} from 'three'
-import {GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import {GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {IObject3D} from '../../../core'
 
 // export type OnUpdateType = ((arg0: Mesh, arg1: Material, arg2: any) => void) | null

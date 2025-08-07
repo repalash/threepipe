@@ -1,6 +1,6 @@
 import {NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
 import type {IGeometry, IGeometryEventMap, IGeometryUserData} from '../IGeometry'
-import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry'
+import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import {iGeometryCommons} from './iGeometryCommons'
 import type {IObject3D} from '../IObject'
 

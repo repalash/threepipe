@@ -1,5 +1,5 @@
-import type {GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
-import type {GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+import type {GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type {GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ISerializedViewerConfig, ThreeViewer} from '../../viewer'
 import {Group, ImageUtils} from 'three'
 import {RGBEPNGLoader} from '../import/RGBEPNGLoader'

@@ -1,7 +1,7 @@
-import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ThreeSerialization} from '../../utils/serialization'
 import {Color, DoubleSide, Material} from 'three'
-import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ITexture} from '../../core'
 
 export class GLTFMaterialExtrasExtension {

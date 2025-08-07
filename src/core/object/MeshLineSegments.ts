@@ -1,7 +1,7 @@
 import {LineSegmentsGeometry2} from '../geometry/LineSegmentsGeometry2'
 import {LineMaterial2} from '../material/LineMaterial2'
 import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
-import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2'
+import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {iObjectCommons} from './iObjectCommons'
 import {IMaterial} from '../IMaterial'
 import {MeshLine} from './MeshLine'

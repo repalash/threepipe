@@ -1,6 +1,6 @@
-import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader'
+import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {Object3D} from 'three'
-import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter'
+import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 
 export class GLTFObject3DExtrasExtension {
     static readonly WebGiObject3DExtrasExtension = 'WEBGI_object3d_extras'

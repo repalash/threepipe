@@ -1,4 +1,4 @@
-import type {IUniform} from 'three/src/renderers/shaders/UniformsLib'
+import type {IUniform} from 'three/src/renderers/shaders/UniformsLib.js'
 import {Texture} from 'three'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {ExtendedShaderPass} from './ExtendedShaderPass'
