@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-configurator",
     "description": "Plugins for creating material and object configurators in threepipe.",
-    "version": "0.1.3",
+    "version": "0.2.0",
     "devDependencies": {
     },
     "dependencies": {
@@ -17,7 +17,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.39"
+                "threepipe": "^0.0.56"
             }
         }
     },
