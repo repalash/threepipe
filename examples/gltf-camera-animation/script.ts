@@ -25,7 +25,6 @@ async function init() {
     })
     console.log(result)
 
-
     const fileCamera = viewer.scene.getObjectByName<ICamera>('Correction__MovingCamera')
     if (!fileCamera) return
 
