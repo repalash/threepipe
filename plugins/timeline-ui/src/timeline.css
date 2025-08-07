@@ -120,32 +120,72 @@
 .timeline-indicator {
     box-sizing: border-box;
     position: absolute;
-    top: 0;
+    top: -4px;
+    height: calc(100% + 8px);
     bottom: 0;
     width: 2px;
-    background: var(--tp-groove-foreground-color);
     pointer-events: none;
     z-index: 10;
+    background: var(--tp-groove-foreground-color);
 }
 
 .timeline-indicator-head {
     box-sizing: border-box;
     position: absolute;
-    top: -8px;
-    left: -6px;
-    width: 14px;
-    height: 14px;
-    background: var(--tp-groove-foreground-color);
-    border-radius: 50%;
+    top: 0;
+    left: -16px;
+    min-width: 36px;
+    max-width: 44px;
+    width: auto;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    font-size: 10px;
+    font-family: var(--tp-font-family), sans-serif;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    background: inherit;
+    color: #615e6b;
+}
+.timeline-indicator-head:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.timeline-indicator-current {
+    background: var(--tp-input-foreground-color);
+    opacity: 0.75;
+}
+.timeline-indicator-end {
+    background: #f87171; /* light red */
+}
+.timeline-indicator-head-current {
+    color: #fff;
+}
+.timeline-indicator-head-max {
+    color: #fff;
+}
+.timeline-indicator-label {
+    width: auto;
+    text-align: center;
+    font-size: 11px;
+    font-family: var(--tp-font-family), sans-serif;
+    pointer-events: none;
+    white-space: pre;
 }
 
 /* Timeline Track Labels */
 .timeline-track-labels {
     box-sizing: border-box;
-    width: 140px;
+    width: calc(140px - 16px);
     display: flex;
     flex-direction: column;
     padding-left: 15px;
+    margin-top: 4px;
 }
 
 .timeline-track-label {
@@ -168,7 +208,7 @@
     margin-left: 15px;
     margin-top: 5px;
     margin-right: 5px;
-    margin-bottom: 5px;
+    margin-bottom: 0px;
 }
 
 .timeline-controls-title {
@@ -284,4 +324,6 @@
     overflow-x: scroll;
     overflow-y: hidden;
     user-select: none;
+    padding-top: 4px;
+    padding-left: 16px;
 }

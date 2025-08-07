@@ -70,10 +70,14 @@ export function cameraViewsExt(manager: TimelineManager): TMExtension {
                 // const i = t.findIndex(t1 => t1.type === track.type)
                 if (lastI >= 0) {
                     const newTracks = [...t]
-                    newTracks[lastI] = track
+                    if (track.items.length) {
+                        newTracks[lastI] = track
+                    } else {
+                        newTracks.splice(lastI, 1)
+                    }
                     return newTracks
                 }
-                return [...t, track]
+                return track.items.length ? [...t, track] : t
             })
         },
     }
@@ -116,7 +120,7 @@ export function gltfAnimationExt(manager: TimelineManager): TMExtension {
                 const lastI = t.findIndex(t1 => t1.type === trackType)
 
                 const animations = gltfAnimation?.animations ?? []
-                console.log(animations)
+                // console.log(animations)
                 const actions = animations.flatMap(a=> a.actions || [])
                 const track = lastI >= 0 ? t[lastI] : {
                     label: 'glTF Animations',
@@ -167,10 +171,14 @@ export function gltfAnimationExt(manager: TimelineManager): TMExtension {
                 // const i = t.findIndex(t1 => t1.type === track.type)
                 if (lastI >= 0) {
                     const newTracks = [...t]
-                    newTracks[lastI] = track
+                    if (track.items.length) {
+                        newTracks[lastI] = track
+                    } else {
+                        newTracks.splice(lastI, 1)
+                    }
                     return newTracks
                 }
-                return [...t, track]
+                return track.items.length ? [...t, track] : t
             })
         },
     }
@@ -292,7 +300,7 @@ export function videoTextureExt(manager: TimelineManager): TMExtension {
                     }
                     const {delay, scale, start, end} = vid.userData.timeline || {}
                     const duration = ((vid.image as HTMLVideoElement)?.duration || 1) - ((start || 0) + (end || 0))
-                    console.log(duration)
+                    // console.log(duration)
                     const tDuration = duration / (scale || 1)
                     // td = (d - (start + end))/scale
                     // d - (start + end) = d1 * scale
@@ -316,7 +324,8 @@ export function videoTextureExt(manager: TimelineManager): TMExtension {
                     })
                 }
 
-                tracks1.push(track)
+                if (track.items.length)
+                    tracks1.push(track)
 
                 break
             }

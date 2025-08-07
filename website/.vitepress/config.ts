@@ -30,7 +30,7 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Guides', collapsed: false,
+        text: 'Manual', collapsed: false,
         items: [
           {text: 'Loading Files', link: 'guide/loading-files'},
           {text: 'Exporting Files', link: 'guide/exporting-files'},
@@ -190,7 +190,8 @@ export default defineConfig({
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
           {text: '3D Tiles (OGC) Renderer Plugin', link: 'package/plugin-3d-tiles-renderer'},
           {text: 'Assimpjs Plugin', link: 'package/plugin-assimpjs'},
-          {text: 'Path Tracing', link: 'package/plugin-path-tracing'},
+          {text: 'Path Tracing Plugin', link: 'package/plugin-path-tracing'},
+          {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
         ]
       },
     ],

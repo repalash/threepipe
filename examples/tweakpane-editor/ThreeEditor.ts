@@ -48,7 +48,7 @@ import {
     ThreeViewer,
     TonemapPlugin,
     TransformAnimationPlugin,
-    TransformControlsPlugin,
+    TransformControlsPlugin, UndoManagerPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
     ViewerUiConfigPlugin,
@@ -76,6 +76,7 @@ import {
 } from '@threepipe/plugin-3d-tiles-renderer'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 import {ThreeGpuPathTracerPlugin} from '@threepipe/plugin-path-tracing'
+import {TimelineUiPlugin} from '@threepipe/plugin-timeline-ui'
 import {
     AnisotropyPlugin,
     BloomPlugin,
@@ -91,6 +92,7 @@ import {
 export class ThreeEditor extends ThreeViewer {
 
     editorPlugins: (IViewerPlugin | Class<IViewerPlugin>)[] = [
+        UndoManagerPlugin,
         LoadingScreenPlugin,
         AssetExporterPlugin,
         GLTFDracoExportPlugin,
@@ -154,6 +156,7 @@ export class ThreeEditor extends ThreeViewer {
         TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/
         new AssimpJsPlugin(false),
         new ThreeGpuPathTracerPlugin(false),
+        new TimelineUiPlugin(false, document.body),
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
@@ -164,7 +167,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
-        ['Animation']: [GLTFAnimationPlugin, CameraViewPlugin],
+        ['Animation']: [TimelineUiPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     }

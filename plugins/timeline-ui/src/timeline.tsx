@@ -1,5 +1,4 @@
 import React from 'react'
-import './timeline.css'
 import {TimelineManager, TimelineTrack, TrackItem} from './TimelineManager'
 
 const cardHeight = 24
@@ -17,11 +16,14 @@ interface TimelineProps{
     tracks: TimelineTrack[]
     currentTime: number
     maxTime: number
+    endTime: number
     timelineWidth: number
     selectedItem: string | null
     setSelectedItem: (item: string | null) => void
     timeToPixels: (time: number) => number
     pixelsToTime: (pixels: number) => number
+    resetOnEnd: boolean
+    stopOnEnd: boolean
 }
 
 function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem, setSelectedItem}: Pick<TimelineProps, 'timeToPixels' | 'pixelsToTime' | 'selectedItem' | 'setSelectedItem'> & {
@@ -132,7 +134,7 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
     )
 }
 
-function TimelineTrack({
+function TimelineTrackFC({
     track, trackIndex: _trackIndex,
     currentTime, timeToPixels, pixelsToTime, selectedItem, setSelectedItem,
 }: {track: TimelineTrack, trackIndex: number} & Pick<TimelineProps, 'currentTime' | 'timeToPixels' | 'pixelsToTime' | 'selectedItem' | 'setSelectedItem'>) {
@@ -199,16 +201,34 @@ function TimeRuler({maxTime, timeToPixels}: Pick<TimelineProps, 'maxTime'|'timeT
 }
 
 // Current Time Indicator Component
-function TimeIndicator({currentTime, timeToPixels}: Pick<TimelineProps, 'currentTime'|'timeToPixels'>) {
+function TimeIndicator({currentTime, endTime, timeToPixels, resetOnEnd, stopOnEnd}: Pick<TimelineProps, 'currentTime'|'endTime'|'timeToPixels'|'resetOnEnd'|'stopOnEnd'>) {
     return (
-        <div
-            className="timeline-indicator"
-            style={{
-                left: `${timeToPixels(currentTime)}px`,
-            }}
-        >
-            <div className="timeline-indicator-head" />
-        </div>
+        <>
+            {/* End Time */}
+            {(resetOnEnd || stopOnEnd) &&
+            <div
+                className="timeline-indicator timeline-indicator-end"
+                style={{
+                    left: `${timeToPixels(endTime)}px`,
+                }}
+            >
+                <div className="timeline-indicator-head timeline-indicator-head-max">
+                    <span className="timeline-indicator-label">{(endTime % 60).toFixed(1).padStart(4, '0')}</span>
+                </div>
+            </div>
+            }
+            {/* Current Time */}
+            <div
+                className="timeline-indicator timeline-indicator-current"
+                style={{
+                    left: `${timeToPixels(currentTime)}px`,
+                }}
+            >
+                <div className="timeline-indicator-head timeline-indicator-head-current">
+                    <span className="timeline-indicator-label">{(currentTime % 60).toFixed(1).padStart(4, '0')}</span>
+                </div>
+            </div>
+        </>
     )
 }
 
@@ -237,12 +257,14 @@ function TrackLabels({tracks}: {tracks: TimelineTrack[]}) {
 }
 
 // Timeline Controls Component
-function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose}: {
+function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose, resetOnEnd, toggleResetOnEnd}: {
     isPlaying: boolean
     currentTime: number
     onPlayPause: () => void
     onReset: () => void
     onClose: () => void
+    resetOnEnd: boolean
+    toggleResetOnEnd: () => void
 }) {
     const currentTimeStr = formatTime(currentTime)
 
@@ -254,6 +276,15 @@ function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose
                     className="timeline-controls-button timeline-reset-button"
                     onClick={onReset}
                     title="Reset"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
+                    </svg>
+                </button>
+                <button
+                    className={`timeline-controls-button timeline-loop-button ${resetOnEnd ? 'active' : ''}`}
+                    onClick={toggleResetOnEnd}
+                    title={resetOnEnd ? 'Disable Looping' : 'Enable Looping'}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 0 0-3.7-3.7 48.678 48.678 0 0 0-7.324 0 4.006 4.006 0 0 0-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 0 0 3.7 3.7 48.656 48.656 0 0 0 7.324 0 4.006 4.006 0 0 0 3.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3-3 3" />
@@ -294,7 +325,7 @@ function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose
 }
 
 // Timeline Content Component
-function TimelineContent({tracks, currentTime, maxTime, timelineWidth, setSelectedItem, timeToPixels, pixelsToTime, selectedItem}: TimelineProps) {
+function TimelineContent({tracks, currentTime, maxTime, endTime, timelineWidth, setSelectedItem, timeToPixels, pixelsToTime, selectedItem, resetOnEnd, stopOnEnd}: TimelineProps) {
     return (
         <div
             className="timeline-content"
@@ -330,7 +361,7 @@ function TimelineContent({tracks, currentTime, maxTime, timelineWidth, setSelect
                 }}
             >
                 {tracks.map((track, trackIndex) =>
-                    <TimelineTrack
+                    <TimelineTrackFC
                         key={track.uuid ?? trackIndex}
                         track={track}
                         trackIndex={trackIndex}
@@ -342,20 +373,27 @@ function TimelineContent({tracks, currentTime, maxTime, timelineWidth, setSelect
                     />
                 )}
 
-                <TimeIndicator currentTime={currentTime} timeToPixels={timeToPixels} />
             </div>
+
+            <TimeIndicator
+                currentTime={currentTime}
+                endTime={endTime}
+                timeToPixels={timeToPixels}
+                resetOnEnd={resetOnEnd}
+                stopOnEnd={stopOnEnd}
+            />
         </div>
     )
 }
 
 // Main Timeline Component
-export function Timeline({manager}: {manager: TimelineManager}) {
+export function Timeline({manager, closeTimeline}: {manager: TimelineManager, closeTimeline?: ()=>void}) {
     const viewer = manager.viewer
     const [currentTime, setCurrentTime0] = React.useState(0)
     const [isPlaying, setIsPlaying0] = React.useState(false)
 
     const [managerUpdated, setManagerUpdated] = React.useState(0)
-    const [tracks, setTracks0] = React.useState<TimelineTrack[]>([])
+    const [tracks, setTracks0] = React.useState<TimelineTrack[]>(manager.tracks)
 
     React.useEffect(() => {
         const l = () => {
@@ -380,6 +418,29 @@ export function Timeline({manager}: {manager: TimelineManager}) {
     // const maxTime = 20
     const [timelineWidth, setTimelineWidth] = React.useState(1500)
     const [maxTime, setMaxTime] = React.useState(20)
+    const [endTime, setEndTimeState] = React.useState(viewer.timeline.endTime)
+    const [resetOnEnd, setResetOnEnd] = React.useState(viewer.timeline.resetOnEnd)
+    const [stopOnEnd, setStopOnEnd] = React.useState(viewer.timeline.stopOnEnd)
+
+    // Update endTime in both state and viewer
+    const setEndTime = React.useCallback((t: number) => {
+        setEndTimeState(t)
+        if (viewer.timeline.endTime !== t) {
+            viewer.timeline.endTime = t
+        }
+    }, [viewer])
+
+    const toggleResetOnEnd = React.useCallback(() => {
+        setResetOnEnd(prev => {
+            return viewer.timeline.resetOnEnd = !prev
+        })
+    }, [viewer.timeline])
+    // @ts-expect-error unused
+    const toggleStopOnEnd = React.useCallback(() => {
+        setStopOnEnd(prev => {
+            return viewer.timeline.stopOnEnd = !prev
+        })
+    }, [viewer.timeline])
 
     const timelineWidthRef = React.useRef(timelineWidth)
     const maxTimeRef = React.useRef(maxTime)
@@ -390,9 +451,19 @@ export function Timeline({manager}: {manager: TimelineManager}) {
         maxTimeRef.current = maxTime
     }, [timelineWidth, maxTime])
 
+    React.useEffect(() => {
+        const endTime1 = viewer.timeline.endTime
+        setEndTime(endTime1)
+        if (endTime1 > maxTimeRef.current) {
+            setMaxTime(endTime1 + 2)
+            setTimelineWidth(Math.max(timelineWidth, timeToPixels(endTime1 + 2)))
+        }
+    }, [viewer.timeline.endTime])
+
     const pixelsToTime = React.useCallback((pixels: number) => pixels / timelineWidthRef.current * maxTimeRef.current, [timelineWidthRef, maxTimeRef])
     const timeToPixels = React.useCallback((time: number) => time / maxTimeRef.current * timelineWidthRef.current, [timelineWidthRef, maxTimeRef])
 
+    // @ts-expect-error unused
     const tracksDuration = React.useMemo(() => {
         const duration = tracks.reduce((max, track) => {
             const trackMax = track.items.reduce((maxItem, item) => Math.max(maxItem, item.time + item.duration), 0)
@@ -456,9 +527,11 @@ export function Timeline({manager}: {manager: TimelineManager}) {
         const root = document.getElementById('timeline-root')
         if (!root) return
         let isPointerDown = false
+        let isDraggingEndTime = false
         const handleTimelinePointer = (e: PointerEvent) => {
             if (e.type === 'pointerup' || e.type === 'pointermove' && e.buttons !== 1) {
                 isPointerDown = false
+                isDraggingEndTime = false
                 window.removeEventListener('pointerup', handleTimelinePointer)
                 window.removeEventListener('pointermove', handleTimelinePointer)
                 return
@@ -471,19 +544,25 @@ export function Timeline({manager}: {manager: TimelineManager}) {
                 target.closest('.timeline-track-labels'))) return
 
             if (e.type === 'pointerdown') {
+                // Check if we're clicking on the end time indicator
+                isDraggingEndTime = !!target.closest('.timeline-indicator-end')
                 isPointerDown = true
                 window.addEventListener('pointerup', handleTimelinePointer)
                 window.addEventListener('pointermove', handleTimelinePointer)
             }
             if (!isPointerDown) return
 
-
             const ct = document.getElementById('timeline-content')
             if (!ct) return
             const rect = ct.getBoundingClientRect()
             const x = e.clientX - rect.left
             const newTime = Math.max(0, Math.min(maxTimeRef.current, pixelsToTime(x)))
-            setCurrentTime(newTime)
+
+            if (isDraggingEndTime) {
+                setEndTime(newTime)
+            } else {
+                setCurrentTime(newTime)
+            }
         }
         root.addEventListener('pointerdown', handleTimelinePointer)
         return () => {
@@ -546,16 +625,18 @@ export function Timeline({manager}: {manager: TimelineManager}) {
                 isPlaying={isPlaying}
                 currentTime={currentTime}
                 onPlayPause={handlePlayPause}
+                resetOnEnd={resetOnEnd}
+                toggleResetOnEnd={toggleResetOnEnd}
                 onReset={() => {
                     setCurrentTime(0)
                     viewer.timeline.setTime(0, true)
                 }}
-                onClose={() => {
+                onClose={closeTimeline || (() => {
                     const root = document.getElementById('timeline-root')
                     if (root) {
                         root.remove()
                     }
-                }}
+                })}
             />
 
             <div className="timeline-main-row">
@@ -568,10 +649,13 @@ export function Timeline({manager}: {manager: TimelineManager}) {
                         tracks={tracks}
                         currentTime={currentTime}
                         maxTime={maxTime}
+                        endTime={endTime}
                         timelineWidth={timelineWidth}
                         timeToPixels={timeToPixels}
                         pixelsToTime={pixelsToTime}
                         selectedItem={selectedItem}
+                        resetOnEnd={resetOnEnd}
+                        stopOnEnd={stopOnEnd}
                         setSelectedItem={setSelectedItem}
                     />
                 </div>

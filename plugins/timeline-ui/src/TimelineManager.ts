@@ -96,7 +96,6 @@ export class TimelineManager extends EventDispatcher<{update: {updated: string},
         this.tracks = []
 
         // this.viewer.addEventListener('postFrame', this._postFrame)
-
         Object.values(this._extensions).forEach(e=>e.setup())
     }
     destroy() {

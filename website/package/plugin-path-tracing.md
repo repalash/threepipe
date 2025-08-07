@@ -3,7 +3,10 @@ prev:
   text: '@threepipe/plugin-assimpjs'
   link: './plugin-assimpjs'
 
-next: false
+next:
+  text: '@threepipe/plugin-timeline-ui'
+  link: './plugin-timeline-ui'
+
 ---
 
 # @threepipe/plugin-path-tracing

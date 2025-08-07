@@ -28,6 +28,7 @@ const alias = {
     '@threepipe/plugin-assimpjs': path.resolve(__dirname, './plugins/assimpjs/src/index.ts'),
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
+    '@threepipe/plugin-timeline-ui': path.resolve(__dirname, './plugins/timeline-ui/src/index.ts'),
     '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.4.1/dist/index.mjs',
     'react': 'https://esm.sh/react@18/?dev',
     'react-dom/client': 'https://esm.sh/react-dom@18/client?dev',

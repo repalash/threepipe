@@ -1,7 +1,7 @@
 import {ThreeViewer} from 'threepipe'
 import {TimelineManager} from './TimelineManager'
 import {createRoot} from 'react-dom/client'
-import React from 'react'
+import {createElement} from 'react'
 import {Timeline} from './timeline'
 
 export async function initTimeline(viewer: ThreeViewer) {
@@ -20,5 +20,5 @@ export async function initTimeline(viewer: ThreeViewer) {
 
     const manager = new TimelineManager(viewer)
 
-    createRoot(root).render(React.createElement(Timeline, {manager}))
+    createRoot(root).render(createElement(Timeline, {manager}))
 }
