@@ -27,7 +27,6 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
     private _picking: PickingPlugin | undefined
     private _uiNeedRefresh = false
 
-
     constructor() {
         super()
 

@@ -1,17 +1,38 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {absMax, now, onChange, onChange2, PointerDragHelper, serialize} from 'ts-browser-helpers'
 import {uiButton, uiDropdown, uiFolderContainer, uiMonitor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
-import {AnimationAction, AnimationClip, AnimationMixer, EventListener2, LoopOnce, LoopRepeat, Scene} from 'three'
+import {
+    AnimationAction,
+    AnimationClip,
+    AnimationMixer,
+    EventListener2,
+    LoopOnce,
+    LoopRepeat,
+    Object3D,
+    Scene,
+} from 'three'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {IObject3D, ISceneEventMap} from '../../core'
 import {generateUUID} from '../../three'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
+import {Object3DManager, Object3DManagerEventMap} from '../../assetmanager'
 
 export interface GLTFAnimationPluginEventMap extends AViewerPluginEventMap{
     checkpointBegin: object
     checkpointEnd: object
     animationStep: {delta: number, time: number}
+    addAnimation: {animation: IObjectAnimation}
+    removeAnimation: {animation: IObjectAnimation}
 }
+
+export interface IObjectAnimation {
+    object: Object3D
+    mixer: AnimationMixer,
+    clips: AnimationClip[],
+    actions: AnimationAction[],
+    duration: number
+}
+
 
 /**
  * Manages playback of GLTF animations.
@@ -33,16 +54,24 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     declare uiConfig: UiObjectConfig
 
     static readonly PluginType = 'GLTFAnimation'
+
+    protected readonly _animations: IObjectAnimation[] = []
+
     /**
      * List of GLTF animations loaded with the models.
      * The animations are standard threejs AnimationClip and their AnimationAction. Each set of actions also has a mixer.
      */
-    public readonly animations: {mixer: AnimationMixer, clips: AnimationClip[], actions: AnimationAction[], duration: number}[] = []
+    get animations() {
+        return [...this._animations]
+    }
 
     /**
      * If true, the animation time will be automatically incremented by the time delta, otherwise it has to be set manually between 0 and the animationDuration using `setTime`. (default: true)
+     * Set it to false when controlling the time manually like when using the timeline or other custom controls.
+     *
+     * Note that this is not serialized, so it will not be saved in the scene file and must be set manually in the code.
      */
-    @serialize() autoIncrementTime = true
+    autoIncrementTime = true
 
     /**
      * Loop the complete animation. (not individual actions)
@@ -57,7 +86,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
      * Only applicable when {@link loopAnimations} is true.
      */
     @onChange2(GLTFAnimationPlugin.prototype._onPropertyChange)
-    @serialize() loopRepetitions = Infinity
+    @serialize() loopRepetitions = 2
 
     /**
      * Timescale for the animation. (not individual actions)
@@ -118,6 +147,11 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
      * If true, the animation will be played automatically when the model(any model with animations) is loaded.
      */
     @uiToggle() @serialize() autoplayOnLoad = false
+
+    /**
+     * Force (not serialized) version of {@link autoplayOnLoad}, this will play the animation even if it {@link autoplayOnLoad} is disabled inside the saved file.
+     */
+    autoplayOnLoadForce = false
 
     /**
      * Sync the duration of all clips based on the max duration, helpful for things like timeline markers
@@ -192,7 +226,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        viewer.scene.addEventListener('addSceneObject', this._objectAdded)
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdded)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemoved)
+        viewer.scene.addEventListener('sceneUpdate', this._sceneUpdate)
         viewer.addEventListener('postFrame', this._postFrame)
         window.addEventListener('wheel', this._wheel)
         window.addEventListener('scroll', this._scroll)
@@ -200,8 +236,10 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     }
 
     onRemove(viewer: ThreeViewer): void {
-        while (this.animations.length) this.animations.pop()
-        viewer.scene.removeEventListener('addSceneObject', this._objectAdded)
+        while (this._animations.length) this._animations.pop()
+        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdded)
+        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemoved)
+        viewer.scene.removeEventListener('sceneUpdate', this._sceneUpdate)
         viewer.removeEventListener('postFrame', this._postFrame)
         window.removeEventListener('wheel', this._wheel)
         window.removeEventListener('scroll', this._scroll)
@@ -225,7 +263,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     }
     async playClips(names: string[], resetOnEnd = false) {
         const anims: AnimationAction[] = []
-        this.animations.forEach(({actions})=>{
+        this._animations.forEach(({actions})=>{
             actions.forEach((action)=>{
                 if (names.includes(action.getClip().name)) {
                     anims.push(action)
@@ -236,6 +274,15 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     }
 
     private _lastAnimId = ''
+    /**
+     * If true, will stop the animation when the animation ends. (when not looping)
+     */
+    stopOnCheckpointEnd = true
+
+    autoUnpauseActions = true
+    autoEnableActions = true
+    activeActionWeight: number | null = 1
+    inactiveActionWeight: number | null = 0
 
     /**
      * Starts all the animations and returns a promise that resolves when all animations are done.
@@ -254,7 +301,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const isAllAnimations = !animations
         if (!animations) {
             animations = []
-            this.animations.forEach(({actions}) => {
+            this._animations.forEach(({actions}) => {
                 // console.log(mixer, actions, clips)
                 animations!.push(...actions)
             })
@@ -320,7 +367,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
                 this.addEventListener('checkpointEnd', listen)
             })
         }
-        if (id === this._lastAnimId) { // in-case multiple animations are started.
+        if (id === this._lastAnimId && this.stopOnCheckpointEnd) { // in-case multiple animations are started.
             this.stopAnimation(resetOnEnd)
         }
         return
@@ -367,7 +414,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             this.stopAnimation(true) // reset and stop
             return
         }
-        this.animations.forEach(({mixer}) => {
+        this._animations.forEach(({mixer}) => {
             // console.log(mixer, actions, clips)
             mixer.stopAllAction()
             mixer.setTime(0)
@@ -383,8 +430,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const scrollAnimate = this.animateOnScroll //  && this._animationState === 'paused'
         const pageScrollAnimate = this.animateOnPageScroll //  && this._animationState === 'paused'
         const dragAnimate = this.animateOnDrag //  && this._animationState === 'paused'
+        // const timelineRunning = this._viewer.timeline.shouldRun()
 
-        if (this.isDisabled() || this.animations.length < 1 || this._animationState !== 'playing' && !scrollAnimate && !dragAnimate && !pageScrollAnimate) {
+        if (this.isDisabled() || this._animations.length < 1 || this._animationState !== 'playing'/* && !scrollAnimate && !dragAnimate && !pageScrollAnimate && !timelineRunning*/) {
             this._lastFrameTime = 0
             // console.log('not anim')
             if (this._fadeDisabled) {
@@ -394,10 +442,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             return
         }
 
-        if (this._animationTime < 0.0001) {
-            this.dispatchEvent({type: 'checkpointBegin'})
-        }
-        if (this.autoIncrementTime) {
+        const animTime1 = this._animationTime
+
+        if (this.autoIncrementTime || pageScrollAnimate || scrollAnimate || dragAnimate) {
 
             const time = now() / 1000.0
             if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 30.0
@@ -411,31 +458,102 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             else if (scrollAnimate) delta *= this._scrollAnimationState
             else if (dragAnimate) delta *= this._dragAnimationState
 
-            if (Math.abs(delta) < 0.0001) return
+            // if (Math.abs(delta) < 0.0001) return
 
             const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
             if (d && d > 0) delta = d
-            if (d === 0) return // not converged yet.
+            if (d === 0) delta = 0 // not converged yet.
             // if d < 0: not recording, do nothing
 
             const ts = Math.abs(this.timeScale)
             this._animationTime += delta * (ts > 0 ? ts : 1)
+        } else {
+            const time = now() / 1000.0
+            // if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 30.0
+            // let delta = time - this._lastFrameTime
+            // delta *= this.animationSpeed
+
+            this._lastFrameTime = time
+
+            // const d = this._viewer.timeline.delta
+            // if (d < 0.0001 && this._viewer.timeline.running) return // no delta, no animation
+
+            // todo animationSpeed
+            // this._animationTime = this._viewer.timeline.time
+            const ts = Math.abs(this.timeScale) * this.animationSpeed
+            // if (d > 0.0001) {
+            //     this._animationTime += d * (ts > 0 ? ts : 1)
+            // } else {
+            this._animationTime = this._viewer.timeline.time * (ts > 0 ? ts : 1)
+            // }
+
+            // const time = this._viewer.timeline.time
+            // if (this._lastFrameTime < 1) this._lastFrameTime = Math.min(time - 1.0 / 60.0, time - this._viewer.timeline.delta)
+            // let delta = time - this._lastFrameTime
+            // delta *= this.animationSpeed
+            //
+            // this._lastFrameTime = time
+            //
+            // if (pageScrollAnimate) delta *= this._pageScrollAnimationState
+            // else if (scrollAnimate && dragAnimate) delta *= absMax(this._scrollAnimationState, this._dragAnimationState)
+            // else if (scrollAnimate) delta *= this._scrollAnimationState
+            // else if (dragAnimate) delta *= this._dragAnimationState
+            //
+            // // if (Math.abs(delta) < 0.0001) return
+            //
+            // // const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
+            // // if (d && d > 0) delta = d
+            // // if (d === 0) delta = 0 // not converged yet.
+            // // if d < 0: not recording, do nothing
+            //
+            // const ts = Math.abs(this.timeScale)
+            // this._animationTime += delta * (ts > 0 ? ts : 1)
+
         }
 
         const animDelta = this._animationTime - this._lastAnimationTime
 
         this._lastAnimationTime = this._animationTime
 
+        if (Math.abs(animDelta) < 0.00001) return
+
+        if (animTime1 < 0.0001) {
+            this.dispatchEvent({type: 'checkpointBegin'})
+        }
+
         const t = this.timeScale < 0 ?
             (isFinite(this._animationDuration) ? this._animationDuration : 0) - this._animationTime :
             this._animationTime
 
-        this.animations.map(a=>{
-            // a.mixer.timeScale = -1
+        this._animations.map(a=>{
+            a.actions.forEach(a1=>{
+                const startTime = a1.clipData?.startTime || 0
+                if (a1.clipData?.timeScale !== undefined) {
+                    a1.timeScale = a1.clipData.timeScale
+                }
+                if (startTime !== undefined && a1._startTime === null || a1._startTime !== startTime) {
+                    // a1.startAt(startTime)
+                    a1._startTime = startTime
+                }
+                const isActive = t >= startTime && t < a1.getClip().duration / Math.abs(a1.timeScale) + startTime
+
+                if (this.autoUnpauseActions && a1.paused && isActive) {
+                    a1.paused = false
+                }
+                if (this.autoEnableActions && !a1.enabled && isActive) {
+                    a1.enabled = true
+                }
+                if (this.inactiveActionWeight !== null && !isActive && a1.weight) {
+                    a1.setEffectiveWeight(this.inactiveActionWeight)
+                } else if (this.activeActionWeight !== null && isActive && !a1.weight) {
+                    a1.setEffectiveWeight(this.activeActionWeight)
+                }
+                // if (a.paused) {
+                //     console.warn(a)
+                // }
+            })
             a.mixer.setTime(t)
         })
-
-        if (Math.abs(animDelta) < 0.00001) return
 
         // if (this._animationTime > this._animationDuration) this._animationTime -= this._animationDuration
         // if (this._animationTime < 0) this._animationTime += this._animationDuration
@@ -474,50 +592,117 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         }
     }
 
-    protected _objectAdded: EventListener2<'addSceneObject', ISceneEventMap, Scene> = (ev)=>{
+    // protected _rootClips: Set<AnimationClip> = new Set()
+
+    protected _objectAdded: EventListener2<'objectAdd', Object3DManagerEventMap, Object3DManager> = (ev)=>{
         const object = ev.object as IObject3D
         if (!this._viewer) return
         let changed = false
-        const isInRoot = ev.options?.addToRoot // for model stage etc
+        // const isInRoot = ev.options?.addToRoot // for model stage etc
 
-        object.traverse((obj)=>{
-            if (!this._viewer) return
+        const s = this._refreshAnimations(object, object)
+        if (s) changed = true
 
-            const clips: AnimationClip[] = obj.animations
-            if (clips.length < 1) return
-
-            const duration = Math.max(...clips.map(an=>an.duration))
-
-            //  so that looping works in sync
-            if (object.userData.gltfAnim_SyncMaxDuration ?? this.syncMaxDuration) {
-                clips.forEach(cp=>cp.duration = duration)
-                object.userData.gltfAnim_SyncMaxDuration = true
-            }
-
-            const mixer = new AnimationMixer(isInRoot ? this._viewer.scene : this._viewer.scene.modelRoot) // add to modelRoot so it works with GLTF export...
-            const actions = clips.map(an=>mixer.clipAction(an).setLoop(this.loopAnimations ? LoopRepeat : LoopOnce, this.loopRepetitions))
-
-            actions.forEach(ac=>ac.clampWhenFinished = true)
-
-            this.animations.push({
-                mixer, clips, actions, duration,
-            })
-            // todo remove on object dispose/remove
-
-            changed = true
-
-        })
         // this.playAnimation()
         if (changed) {
             this._onPropertyChange(!this.autoplayOnLoad)
-            if (this.autoplayOnLoad) this.playAnimation()
+            if (this.autoplayOnLoad || this.autoplayOnLoadForce || this._animationState === 'playing') {
+                // note play animation also resets the time to 0 if autoIncrementTime is true, todo is this idea?
+                this.playAnimation()
+            }
         }
-        return
+    }
+
+    protected _objectRemoved: EventListener2<'objectRemove', Object3DManagerEventMap, Object3DManager> = (ev)=>{
+        if (!this._viewer) return
+        const object = ev.object as IObject3D
+        const animation = this._animations.find(a => a.object === object)
+        if (!animation) return
+
+        animation.mixer.stopAllAction()
+
+        this._animations.splice(this._animations.indexOf(animation), 1)
+        this.dispatchEvent({type: 'removeAnimation', animation})
+
+    }
+
+    private _refreshAnimations(obj: IObject3D, root: IObject3D) {
+        if (!this._viewer) return false
+        const clips: AnimationClip[] = obj.animations
+        if (clips.length < 1) return false
+
+        let animation = this._animations.find(a => a.object === obj)
+
+        animation = animation || {
+            object: obj,
+            mixer: new AnimationMixer(root),
+            clips: [],
+            actions: [],
+            duration: 0,
+        }
+        animation.clips = clips
+
+        animation.duration = Math.max(...clips.map(an => an.duration))
+
+        //  so that looping works in sync
+        if (root.userData.gltfAnim_SyncMaxDuration ?? this.syncMaxDuration) {
+            clips.forEach(cp => cp.duration = animation.duration)
+            root.userData.gltfAnim_SyncMaxDuration = true
+        }
+
+        const actions = clips.flatMap(clip => {
+            if (!clip.userData.clipActions) {
+                clip.userData.clipActions = {}
+            }
+            const existing = clip.userData.clipActions?.[obj.uuid]
+            if (existing && existing.length) {
+                const r = []
+                for (const data of existing) {
+                    const a = animation.actions.find(a1=>a1.clipData?.uid === data.uid)
+                    if (a) r.push(a)
+                }
+                if (r.length) return r
+            }
+            if (!existing) {
+                clip.userData.clipActions[obj.uuid] = []
+            }
+
+            const action = animation.mixer.clipAction(clip)
+            action.clipData = {
+                uid: generateUUID(),
+                name: clip.name,
+                startTime: 0,
+                timeScale: 1,
+            }
+            action.setLoop(this.loopAnimations ? LoopRepeat : LoopOnce, this.loopRepetitions)
+            clip.userData.clipActions[obj.uuid].push(action.clipData)
+            return action
+        })
+
+        animation.actions = actions
+
+        animation.actions.forEach(ac => ac.clampWhenFinished = true)
+
+        this._animations.push(animation)
+        this.dispatchEvent({type: 'addAnimation', animation})
+        // todo remove on object dispose/remove
+
+        return true
+    }
+
+    protected _sceneUpdate: EventListener2<'sceneUpdate', ISceneEventMap, Scene> = (_ev)=>{
+        if (!this._viewer) return
+        const changed = this._refreshAnimations(this._viewer.scene.modelRoot, this._viewer.scene.modelRoot)
+        if (changed) {
+            this._onPropertyChange(!this.autoplayOnLoad)
+            if (this.autoplayOnLoad || this.autoplayOnLoadForce || this._animationState === 'playing') this.playAnimation()
+        }
+
     }
 
     private _onPropertyChange(replay = true): void {
-        this._animationDuration = Math.max(...this.animations.map(({duration})=>duration)) * (this.loopAnimations ? this.loopRepetitions : 1)
-        if (this._animationState === 'playing' && replay) {
+        this._animationDuration = Math.max(...this._animations.map(({duration})=>duration)) * (this.loopAnimations ? this.loopRepetitions : 1)
+        if (this._animationState === 'playing' && replay !== false) {
             this.playAnimation()
         }
     }
@@ -556,4 +741,16 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     ) - window.innerHeight
 
 
+}
+
+declare module 'three'{
+    interface AnimationAction{
+        _startTime: number | null
+        clipData?: { // serialized data
+            uid: string
+            name: string
+            startTime: number
+            timeScale: number
+        }
+    }
 }
