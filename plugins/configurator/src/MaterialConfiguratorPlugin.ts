@@ -8,7 +8,7 @@ import {GridItemListPlugin} from './GridItemListPlugin'
  * The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.
  * This functionality is inherited from `MaterialConfiguratorBasePlugin`
  *
- * Additionally this plugin adds a Grid UI using {@link GridItemListPlugin} in the DOM over the viewer canvas to show various material variations and allow the user to apply them.
+ * Additionally, this plugin adds a Grid UI using {@link GridItemListPlugin} in the DOM over the viewer canvas to show various material variations and allow the user to apply them.
  * The UI can also be used in the editor to edit the variations and apply them.
  */
 export class MaterialConfiguratorPlugin extends MaterialConfiguratorBasePlugin {
@@ -17,6 +17,15 @@ export class MaterialConfiguratorPlugin extends MaterialConfiguratorBasePlugin {
     enableEditContextMenus = false
 
     dependencies = [GridItemListPlugin]
+
+    /**
+     * Animate the material change when applying a variation.
+     */
+    animateApply = true
+    /**
+     * Duration of the animation when applying a variation in ms
+     */
+    animateApplyDuration = 500
 
     // must be called from preFrame
     protected async _refreshUi(): Promise<boolean> {
@@ -37,7 +46,7 @@ export class MaterialConfiguratorPlugin extends MaterialConfiguratorBasePlugin {
                     return {
                         id: m.uuid,
                         image, // : (m as any).map?.image ? imageBitmapToBase64((m as any).map.image, 100) : makeColorSvg((m as any).color ?? '#ffffff'),
-                        onClick: (id:string) => this.applyVariation(variation, id),
+                        onClick: async(id:string) => this.animateApply ? this.applyVariationAnimate(variation, id, this.animateApplyDuration) : this.applyVariation(variation, id),
                         tooltip: m.name || m.uuid,
                     }
                 }), (d, item)=> {
