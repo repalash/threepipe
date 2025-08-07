@@ -1,4 +1,4 @@
-import {UiConfigRendererBlueprint} from 'uiconfig-blueprint'
+import {UiConfigRendererBlueprint} from 'uiconfig-blueprint/lib/esm'
 import {
     Class,
     Color,
