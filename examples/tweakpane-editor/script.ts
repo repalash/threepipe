@@ -1,16 +1,19 @@
 import {
     _testFinish,
     _testStart,
-    BufferGeometry2,
     DropzonePlugin,
     getUrlQueryParam,
-    HemisphereLight, ITexture, Mesh2,
+    GLTFAnimationPlugin,
+    HemisphereLight,
+    IObject3D,
+    ITexture,
+    Mesh2,
     PhysicalMaterial,
 } from 'threepipe'
 import {TransfrSharePlugin} from '@threepipe/plugin-network'
 import {ThreeEditor} from './ThreeEditor'
-import {PlaneGeometryGenerator, SphereGeometryGenerator} from '@threepipe/plugin-geometry-generator'
-import {initTimeline} from './timeline'
+import {PlaneGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+import {initTimeline} from './timeline/init'
 
 async function init() {
 

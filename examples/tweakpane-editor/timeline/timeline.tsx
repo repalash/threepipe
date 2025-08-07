@@ -1,27 +1,33 @@
-import {CameraViewPlugin, MaterialConfiguratorBasePlugin, ThreeViewer} from 'threepipe'
 import React from 'react'
-import {createRoot} from 'react-dom/client'
 import './timeline.css'
+import {TimelineManager, TimelineTrack, TrackItem} from './TimelineManager'
 
-interface TrackItem {
-    label: string // Start time in seconds
-    uuid: any
-    id: any // object mapped
-    time: number // Start time in seconds
-    duration: number // Duration in seconds
+const cardHeight = 24
+const rulerHeight = 20
+const timelineGap = 8
+const trackHeight = cardHeight + timelineGap
 
-    setTime?(v: number): void
-    setDuration?(v: number): void
-}
-interface TimelineTrack {
-    type?: string,
-    label: string,
-    uuid: string,
-    id: any,
-    items: TrackItem[]
+const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60)
+    const seconds = (time % 60).toFixed(1)
+    return `${minutes}:${seconds.padStart(4, '0')}`
 }
 
-function TimelineCard({item, trackHeight, cardHeight, timeToPixels, isActive, pixelsToTime, selectedItem, setSelectedItem}) {
+interface TimelineProps{
+    tracks: TimelineTrack[]
+    currentTime: number
+    maxTime: number
+    timelineWidth: number
+    selectedItem: string | null
+    setSelectedItem: (item: string | null) => void
+    timeToPixels: (time: number) => number
+    pixelsToTime: (pixels: number) => number
+}
+
+function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem, setSelectedItem}: Pick<TimelineProps, 'timeToPixels' | 'pixelsToTime' | 'selectedItem' | 'setSelectedItem'> & {
+    item: TrackItem
+    isActive: boolean
+}) {
     const left: number = timeToPixels(item.time)
     const width: number = timeToPixels(item.duration)
 
@@ -30,7 +36,7 @@ function TimelineCard({item, trackHeight, cardHeight, timeToPixels, isActive, pi
     const setLeft = (v: number) => {
         const t = pixelsToTime(v)
         if (item.time === t || !item.setTime) return
-        item.setTime(t, false)
+        item.setTime(t)
     }
     const setWidth = (v: number) => {
         const d = pixelsToTime(v)
@@ -126,7 +132,22 @@ function TimelineCard({item, trackHeight, cardHeight, timeToPixels, isActive, pi
     )
 }
 
-function TimelineTrack({track, trackIndex, trackHeight, cardHeight, currentTime, timeToPixels, pixelsToTime, selectedItem, setSelectedItem}) {
+function TimelineTrack({
+    track, trackIndex: _trackIndex,
+    currentTime, timeToPixels, pixelsToTime, selectedItem, setSelectedItem,
+}: {track: TimelineTrack, trackIndex: number} & Pick<TimelineProps, 'currentTime' | 'timeToPixels' | 'pixelsToTime' | 'selectedItem' | 'setSelectedItem'>) {
+
+    // Sort items so that the selected card is rendered last (on top)
+    const sortedItems = React.useMemo(() => {
+        if (!selectedItem) return track.items
+        const items = [...track.items]
+        const idx = items.findIndex(item => item.uuid === selectedItem)
+        if (idx === -1) return items
+        const [selected] = items.splice(idx, 1)
+        items.push(selected)
+        return items
+    }, [track.items, selectedItem])
+
     return (
         <div
             className="timeline-track"
@@ -134,15 +155,13 @@ function TimelineTrack({track, trackIndex, trackHeight, cardHeight, currentTime,
                 height: `${trackHeight}px`,
             }}
         >
-            {track.items.map((item, itemIndex) => {
+            {sortedItems.map((item, itemIndex) => {
                 const isActive = currentTime >= item.time && currentTime <= item.time + item.duration
 
                 return (
                     <TimelineCard
                         key={item.uuid ?? itemIndex}
                         item={item}
-                        trackHeight={trackHeight}
-                        cardHeight={cardHeight}
                         timeToPixels={timeToPixels}
                         isActive={isActive}
                         pixelsToTime={pixelsToTime}
@@ -155,12 +174,8 @@ function TimelineTrack({track, trackIndex, trackHeight, cardHeight, currentTime,
     )
 }
 
-const cardHeight = 24
-const rulerHeight = 20
-const timelineGap = 8
-
 // Time Ruler Component
-function TimeRuler({maxTime, timeToPixels}) {
+function TimeRuler({maxTime, timeToPixels}: Pick<TimelineProps, 'maxTime'|'timeToPixels'>) {
     return (
         <div
             className="timeline-ruler"
@@ -184,7 +199,7 @@ function TimeRuler({maxTime, timeToPixels}) {
 }
 
 // Current Time Indicator Component
-function TimeIndicator({currentTime, timeToPixels}) {
+function TimeIndicator({currentTime, timeToPixels}: Pick<TimelineProps, 'currentTime'|'timeToPixels'>) {
     return (
         <div
             className="timeline-indicator"
@@ -198,7 +213,7 @@ function TimeIndicator({currentTime, timeToPixels}) {
 }
 
 // Track Labels Component
-function TrackLabels({tracks, trackHeight}: {tracks: TimelineTrack[], trackHeight: number}) {
+function TrackLabels({tracks}: {tracks: TimelineTrack[]}) {
     return (
         <div
             className="timeline-track-labels"
@@ -221,14 +236,14 @@ function TrackLabels({tracks, trackHeight}: {tracks: TimelineTrack[], trackHeigh
     )
 }
 
-const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60)
-    const seconds = (time % 60).toFixed(1)
-    return `${minutes}:${seconds.padStart(4, '0')}`
-}
-
 // Timeline Controls Component
-function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose}) {
+function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose}: {
+    isPlaying: boolean
+    currentTime: number
+    onPlayPause: () => void
+    onReset: () => void
+    onClose: () => void
+}) {
     const currentTimeStr = formatTime(currentTime)
 
     return (
@@ -279,10 +294,7 @@ function TimelineControls({isPlaying, currentTime, onPlayPause, onReset, onClose
 }
 
 // Timeline Content Component
-function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeight, cardHeight, selectedItem, setSelectedItem}) {
-    const timeToPixels = (time: number) => time / maxTime * timelineWidth
-    const pixelsToTime = (pixels: number) => pixels / timelineWidth * maxTime
-
+function TimelineContent({tracks, currentTime, maxTime, timelineWidth, setSelectedItem, timeToPixels, pixelsToTime, selectedItem}: TimelineProps) {
     return (
         <div
             className="timeline-content"
@@ -322,8 +334,6 @@ function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeig
                         key={track.uuid ?? trackIndex}
                         track={track}
                         trackIndex={trackIndex}
-                        trackHeight={trackHeight}
-                        cardHeight={cardHeight}
                         currentTime={currentTime}
                         timeToPixels={timeToPixels}
                         pixelsToTime={pixelsToTime}
@@ -339,41 +349,61 @@ function TimelineContent({tracks, currentTime, maxTime, timelineWidth, trackHeig
 }
 
 // Main Timeline Component
-function Timeline({viewer}: {viewer: ThreeViewer}) {
+export function Timeline({manager}: {manager: TimelineManager}) {
+    const viewer = manager.viewer
     const [currentTime, setCurrentTime0] = React.useState(0)
     const [isPlaying, setIsPlaying0] = React.useState(false)
-    const [tracks, setTracks] = React.useState<TimelineTrack[]>([])
+
+    const [managerUpdated, setManagerUpdated] = React.useState(0)
+    const [tracks, setTracks0] = React.useState<TimelineTrack[]>([])
+
+    React.useEffect(() => {
+        const l = () => {
+            setManagerUpdated(v=>v + 1)
+        }
+        const lt = ()=>{
+            setTracks0(manager.tracks)
+        }
+        manager.addEventListener('update', l)
+        manager.addEventListener('tracksChange', lt)
+        return () => {
+            manager.removeEventListener('update', l)
+            manager.removeEventListener('tracksChange', lt)
+        }
+    }, [manager])
+    React.useEffect(() => {
+        manager.update()
+    }, [manager, managerUpdated])
+
     const [selectedItem, setSelectedItem] = React.useState<string | null>(null) // uuid
 
-    const maxTime = 20
+    // const maxTime = 20
     const [timelineWidth, setTimelineWidth] = React.useState(1500)
-    const trackHeight = cardHeight + timelineGap
+    const [maxTime, setMaxTime] = React.useState(20)
 
     const timelineWidthRef = React.useRef(timelineWidth)
+    const maxTimeRef = React.useRef(maxTime)
 
     // Keep ref updated
     React.useEffect(() => {
         timelineWidthRef.current = timelineWidth
-    }, [timelineWidth])
+        maxTimeRef.current = maxTime
+    }, [timelineWidth, maxTime])
 
-    const setTracksMerge = React.useCallback((tracks1: TimelineTrack[], type: string)=>{
-        setTracks(t=>{
-            const newTracks = [...t]
-            const inds: number[] = []
-            for (const timelineTrack of tracks1) {
-                const i = t.findIndex(t1 => t1.type === timelineTrack.type && t1.uuid === timelineTrack.uuid)
-                if (i >= 0) {
-                    newTracks[i] = timelineTrack
-                    inds.push(i)
-                } else {
-                    inds.push(newTracks.push(timelineTrack) - 1) // add new track and get its index
-                }
-            }
-            return newTracks.filter((t1, i)=>{
-                return inds.includes(i) || t1.type !== type // keep only the tracks that are in the new tracks or not video tracks
-            })
-        })
-    }, [setTracks])
+    const pixelsToTime = React.useCallback((pixels: number) => pixels / timelineWidthRef.current * maxTimeRef.current, [timelineWidthRef, maxTimeRef])
+    const timeToPixels = React.useCallback((time: number) => time / maxTimeRef.current * timelineWidthRef.current, [timelineWidthRef, maxTimeRef])
+
+    const tracksDuration = React.useMemo(() => {
+        const duration = tracks.reduce((max, track) => {
+            const trackMax = track.items.reduce((maxItem, item) => Math.max(maxItem, item.time + item.duration), 0)
+            return Math.max(max, trackMax)
+        }, 0)
+        if (duration > maxTimeRef.current - 2) {
+            setMaxTime(duration + 2)
+            setTimelineWidth(Math.max(timelineWidth, timeToPixels(duration)))
+        }
+        return duration
+    }, [tracks])
 
     // region timeline
 
@@ -382,7 +412,7 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
     React.useEffect(() => {
         const l = ()=>{
             setIsPlaying0(timeline.running)
-            if (timeline.time > maxTime) {
+            if (timeline.time > maxTimeRef.current) {
                 // console.warn('Timeline time exceeded maxTime, resetting to 0')
                 setCurrentTime0(0)
                 timeline.setTime(0, false)
@@ -419,236 +449,6 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
 
     // endregion timeline
 
-    // region camera views
-
-    const cameraViews = viewer.getPlugin(CameraViewPlugin)!
-    const [cameraViewsVersion, setCameraViewsVersion] = React.useState(0)
-
-    React.useEffect(() => {
-        const l = ()=>{
-            setCameraViewsVersion(v=>v + 1)
-        }
-
-        cameraViews.addEventListener('update', l) // any update
-        cameraViews.addEventListener('viewAdd', l)
-        cameraViews.addEventListener('viewDelete', l)
-        cameraViews.addEventListener('viewUpdate', l)
-        return () => {
-            cameraViews.removeEventListener('update', l)
-            cameraViews.removeEventListener('viewAdd', l)
-            cameraViews.removeEventListener('viewDelete', l)
-            cameraViews.removeEventListener('viewUpdate', l)
-        }
-    }, [cameraViews])
-
-    React.useEffect(() => {
-        const trackType = 'cameraViews'
-        // console.log(track)
-        setTracks(t=>{
-            const lastI = t.findIndex(t1 => t1.type === trackType)
-
-            const views = cameraViews?.cameraViews ?? []
-            const track = lastI >= 0 ? t[lastI] : {
-                label: 'Camera Views',
-                id: cameraViews,
-                type: trackType,
-                uuid: trackType,
-                items: [],
-            } as TimelineTrack
-            // const lastItems = track.items || []
-            track.items = []
-
-            const viewDuration = cameraViews?.animDuration || 1000
-            const pauseTime = cameraViews?.viewPauseTime || 0
-            let time = 0
-            for (let i = 0; i < views.length; i++) {
-                const view = views[i]
-                const duration = Math.max(2, view.duration * viewDuration) / 1000
-                track.items.push({
-                    label: view.name || `View ${i + 1}`,
-                    time: time,
-                    id: view,
-                    uuid: track.uuid + view.uuid, // assuming one view is only adding to the track once at max
-                    duration: duration,
-                    // setTime(v: number) {
-                    //     // if (this.time === v) return
-                    //     // const diff = v - this.time
-                    //     return
-                    // },
-                    setDuration(v: number) {
-                        const d = v * 1000 / viewDuration
-                        if (this.duration === d || d < 0) return
-                        // this.duration = d
-                        view.duration = d
-                    },
-                })
-                time += duration + pauseTime / 1000
-            }
-
-            // const i = t.findIndex(t1 => t1.type === track.type)
-            if (lastI >= 0) {
-                const newTracks = [...t]
-                newTracks[lastI] = track
-                return newTracks
-            }
-            return [...t, track]
-        })
-    }, [cameraViews, cameraViewsVersion])
-    // endregion camera views
-
-    // region material configurator
-
-    const matConf = viewer.getPlugin(MaterialConfiguratorBasePlugin)!
-    const [matConfVersion, setMatConfVersion] = React.useState(0)
-
-    React.useEffect(() => {
-        const l = ()=>{
-            setMatConfVersion(v=>v + 1)
-        }
-
-        matConf.addEventListener('refreshUi', l)
-        return () => {
-            matConf.removeEventListener('refreshUi', l)
-        }
-    }, [matConf])
-
-    React.useEffect(() => {
-        const vars = matConf?.variations ?? []
-        const tracks1 = [] as TimelineTrack[]
-        for (let i = 0; i < vars.length; i++) {
-            const variation = vars[i]
-            const track = {
-                type: 'matConf',
-                label: variation.title ? `${variation.title} (Material)` : `Material ${i + 1}`,
-                id: variation,
-                uuid: 'matConf' + (variation.uuid ?? i),
-                items: [],
-            } as TimelineTrack
-            let tm = variation.timeline
-            if (!tm) {
-                tm = []
-                const duration = 0.5
-                const pauseTime = 3
-                let time = 0
-                for (const item of variation.materials) {
-                    tm.push({
-                        time: time,
-                        index: item.uuid,
-                        duration: duration,
-                    })
-                    time += duration + pauseTime
-                }
-                variation.timeline = tm
-            }
-            for (let i1 = 0; i1 < tm.length; i1++) {
-                const item = tm[i1]
-                const mat = typeof item.index === 'number' ? variation.materials[item.index] : variation.materials.find(m=>m.uuid === item.index)
-                track.items.push({
-                    label: mat?.name || 'unnamed',
-                    time: item.time,
-                    id: item,
-                    uuid: track.uuid + i1,
-                    duration: item.duration ?? 0.5, // default 0.5 secs
-
-                    setTime(v: number) {
-                        item.time = v
-                        this.time = v
-                    },
-                    setDuration(v: number) {
-                        item.duration = v
-                        this.duration = v
-                    },
-                })
-            }
-            tracks1.push(track)
-        }
-
-        setTracksMerge(tracks1, 'matConf')
-    }, [matConf, matConfVersion])
-
-    // endregion material configurator
-
-    // region video
-
-    const objectManager = viewer.object3dManager!
-    const [videoListVersion, setVideoListVersion] = React.useState(0)
-
-    React.useEffect(() => {
-        const l = ()=>{
-            setVideoListVersion(v=>v + 1)
-        }
-
-        objectManager.addEventListener('videoAdd', l)
-        objectManager.addEventListener('videoRemove', l)
-        return () => {
-            objectManager.removeEventListener('videoAdd', l)
-            objectManager.removeEventListener('videoRemove', l)
-        }
-    }, [matConf])
-
-    React.useEffect(() => {
-        const vids = objectManager.getVideos()
-        const tracks1 = [] as TimelineTrack[]
-        for (let i = 0; i < 1; i++) {
-            // const variation = vars[i]
-            const track = {
-                type: 'videoList',
-                label: 'Videos',
-                id: 'videoList',
-                uuid: 'videoList' + i,
-                items: [],
-            } as TimelineTrack
-
-            for (let i1 = 0; i1 < vids.length; i1++) {
-                const vid = vids[i1]
-                if (!vid) continue
-                if (!vid.userData.timeline) {
-                    vid.userData.timeline = {
-                        enabled: true,
-                        delay: 0,
-                        scale: 1,
-                        start: 0,
-                        end: 0,
-                    }
-                }
-                const {delay, scale, start, end} = vid.userData.timeline || {}
-                const duration = ((vid.image as HTMLVideoElement)?.duration || 1) - ((start || 0) + (end || 0))
-                console.log(duration)
-                const tDuration = duration / (scale || 1)
-                // td = (d - (start + end))/scale
-                // d - (start + end) = d1 * scale
-                track.items.push({
-                    label: vid.name || `Video ${i1 + 1}`,
-                    time: delay || 0,
-                    id: vid,
-                    uuid: track.uuid + i1,
-                    duration: tDuration,
-
-                    setTime(v: number) {
-                        if (!vid.userData.timeline) return
-                        vid.userData.timeline.delay = v
-                        this.time = v
-                    },
-                    setDuration(v: number) {
-                        if (!vid.userData.timeline) return
-                        vid.userData.timeline.scale = duration / v
-                        this.duration = v
-                    },
-                })
-            }
-
-            tracks1.push(track)
-
-            break
-        }
-
-        setTracksMerge(tracks1, 'videoList')
-        // console.log(track)
-
-    }, [objectManager, videoListVersion])
-
-    // endregion video
-
     // region mouse events
 
     // Handle mouse pointer drag on timeline
@@ -677,13 +477,12 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
             }
             if (!isPointerDown) return
 
-            const pixelsToTime = (pixels: number) => pixels / timelineWidthRef.current * maxTime
 
             const ct = document.getElementById('timeline-content')
             if (!ct) return
             const rect = ct.getBoundingClientRect()
             const x = e.clientX - rect.left
-            const newTime = Math.max(0, Math.min(maxTime, pixelsToTime(x)))
+            const newTime = Math.max(0, Math.min(maxTimeRef.current, pixelsToTime(x)))
             setCurrentTime(newTime)
         }
         root.addEventListener('pointerdown', handleTimelinePointer)
@@ -760,7 +559,7 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
             />
 
             <div className="timeline-main-row">
-                <TrackLabels tracks={tracks} trackHeight={trackHeight} />
+                <TrackLabels tracks={tracks} />
 
                 <div
                     className="timeline-scroll-container"
@@ -770,33 +569,14 @@ function Timeline({viewer}: {viewer: ThreeViewer}) {
                         currentTime={currentTime}
                         maxTime={maxTime}
                         timelineWidth={timelineWidth}
-                        trackHeight={trackHeight}
-                        cardHeight={cardHeight}
+                        timeToPixels={timeToPixels}
+                        pixelsToTime={pixelsToTime}
                         selectedItem={selectedItem}
                         setSelectedItem={setSelectedItem}
                     />
                 </div>
             </div>
         </div>
-    )
-}
-
-export async function initTimeline(viewer: ThreeViewer) {
-    const root = document.createElement('div')
-    document.body.appendChild(root)
-    root.style.position = 'absolute'
-    root.style.top = '0'
-    root.style.left = '0'
-    root.style.width = '100%'
-    root.style.height = '100%'
-    root.style.zIndex = '1000'
-    root.id = 'timeline-root'
-    root.style.pointerEvents = 'none' // Disable pointer events to allow interaction with the viewer
-    root.style.background = 'transparent' // Optional: semi-transparent background
-
-    createRoot(root).render(
-        <Timeline viewer={viewer}
-        />
     )
 }
 

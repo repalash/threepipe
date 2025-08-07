@@ -19,9 +19,8 @@
 .timeline-card:hover {
     transform: translateY(-2px);
     opacity: 0.8;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
-
 .timeline-card.active {
     opacity: 0.9;
 }
