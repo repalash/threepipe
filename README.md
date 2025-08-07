@@ -19,7 +19,7 @@ Key features include:
 - Simple, intuitive API for creating 3D model viewers/configurators/editors on web pages, with many built-in presets for common workflows and use-cases.
 - Companion [editor](https://threepipe.org/examples/tweakpane-editor/) to create, edit and configure 3D scenes in the browser.
 - Modular architecture that allows you to easily extend the viewer, scene objects, materials, shaders, rendering, post-processing and serialization with custom functionality.
-- Plugin system along with a rich library of built-in plugins that allows you to easily add new features to the viewer.
+- Plugin system along with a rich of built-in plugins that allows you to easily add new features to the viewer.
 - [uiconfig](https://github.com/repalash/uiconfig.js) compatibility to automatically generate configuration UIs in the browser.
 - Modular rendering pipeline with built-in deferred rendering, post-processing, RGBM HDR rendering, etc.
 - Material extension framework to modify/inject/build custom shader code into existing materials at runtime from plugins.
@@ -52,6 +52,26 @@ To create a new project locally
 ```npm create threepipe@latest```
 
 And follow the instructions to create a new project.
+
+### Stackblitz
+
+Get started with pre-ready templates with model viewer and plugins that run locally directly in your browser -
+
+- **javascript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter">
+  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+  </a>
+
+- **typescript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter">
+  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+  </a>
+
+- **javascript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter">
+  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+  </a>
+
+- **typescript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter">
+  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+  </a>
 
 ### HTML/JS Quickstart (CDN)
 
