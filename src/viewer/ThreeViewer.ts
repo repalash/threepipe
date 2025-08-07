@@ -1470,11 +1470,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     }
 
     public async fitToView(selected?: Object3D|Object3D[]|IMaterial|IMaterial[], distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
-        const camViews = this.getPlugin<CameraViewPlugin>('CameraViews')
-        if (!camViews) {
-            this.console.error('ThreeViewer: CameraViewPlugin (CameraViews) is required for fitToView to work')
-            return
-        }
+        const camViews = this.getOrAddPluginSync(CameraViewPlugin)
         await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: ((<OrbitControls3> this.scene.mainCamera.controls)?.minDistance ?? 0.5) + 0.5, max: 1000.0})
     }
 

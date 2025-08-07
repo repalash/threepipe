@@ -226,6 +226,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
+        // todo handle existing objects in the scene incase the plugin is added after the objects are loaded.
         viewer.object3dManager.addEventListener('objectAdd', this._objectAdded)
         viewer.object3dManager.addEventListener('objectRemove', this._objectRemoved)
         viewer.scene.addEventListener('sceneUpdate', this._sceneUpdate)

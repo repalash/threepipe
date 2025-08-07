@@ -80,6 +80,8 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
     appliedObjects?: Set<IObject3D|IMaterial>
 
     _target?: IRenderTarget // for internal use only. refers to the render target that this texture is attached to
+
+    uiConfig?: UiObjectConfig
 }
 
 export function upgradeTexture(this: ITexture) {
@@ -88,4 +90,20 @@ export function upgradeTexture(this: ITexture) {
     if (!this.appliedObjects) this.appliedObjects = new Set()
     if (!this.setDirty) this.setDirty = ()=>this.needsUpdate = true
     // todo: uiconfig, dispose, etc
+
+    // if (!this.uiConfig) {
+    //
+    //     if (this.isVideoTexture) {
+    //         this.uiConfig = {
+    //             type: 'folder',
+    //             label: 'Video Texture',
+    //             children: [
+    //                 {
+    //
+    //                 },
+    //             ],
+    //         }
+    //     }
+    //
+    // }
 }

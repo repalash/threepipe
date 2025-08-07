@@ -1,12 +1,14 @@
 import {Clock, EventDispatcher} from 'three'
 import {ThreeViewer} from '../viewer'
 import {ProgressivePlugin} from '../plugins'
-import {uiButton, uiFolderContainer, uiInput, uiToggle} from 'uiconfig.js'
+import {uiButton, uiFolderContainer, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {serializable, serialize} from 'ts-browser-helpers'
 
 @serializable('ViewerTimeline')
 @uiFolderContainer('Timeline')
 export class ViewerTimeline extends EventDispatcher<{start: object, stop: object, reset: object, update: object}> {
+    declare uiConfig: UiObjectConfig
+
     /**
      * in secs
      */
