@@ -74,13 +74,5 @@
                 "threepipe": "^0.0.56"
             }
         }
-    },
-    "//": {
-        "dependencies": {
-            "uiconfig-blueprint": "^0.0.3"
-        },
-        "local_dependencies": {
-            "uiconfig-blueprint": "file:./../../../uiconfig-blueprint"
-        }
     }
 }

@@ -3,13 +3,15 @@ import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
 import packageJson from './package.json';
 import license from 'rollup-plugin-license';
-import replace from '@rollup/plugin-replace';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
+import {globalsReplacePlugin} from './scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
 const {main, module, browser} = packageJson
+
+const globals = {}
 
 export default defineConfig({
     optimizeDeps: {
@@ -40,15 +42,14 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 // inlineDynamicImports: false,
+                globals,
             },
+            external: Object.keys(globals),
         },
     },
     plugins: [
         isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
-        replace({
-            'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
-            preventAssignment: true,
-        }),
+        ...globalsReplacePlugin(globals, isProd),
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),

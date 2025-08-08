@@ -17,6 +17,10 @@
       "import": "./dist/",
       "require": "./dist/"
     },
+    "./src/": {
+      "import": "./dist/",
+      "require": "./dist/"
+    },
     "./lib": {
       "types": "./lib/index.d.ts",
       "import": "./lib/index.js"
@@ -96,6 +100,8 @@
     "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-replace": "^5.0.2",
     "@types/node": "^22.10.2",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
     "@types/stats.js": "^0.17.0",
     "@typescript-eslint/eslint-plugin": "^5.59.7",
     "@typescript-eslint/parser": "^5.59.5",
@@ -120,18 +126,16 @@
     "vite-plugin-dts": "^4.5.3",
     "vitepress": "^1.5.0",
     "vitepress-plugin-nprogress": "^0.0.4",
-    "wrangler": "^4.25.1",
-    "@types/react": "^19.1.9",
-    "@types/react-dom": "^19.1.7"
+    "wrangler": "^4.25.1"
   },
   "dependencies": {
-    "@types/three": "https://pkg.threepipe.org/dep/@types/three/-/v0.160.1002/package.tgz",
+    "@types/three": "https://pkg.threepipe.org/dep/@types/three/-/v0.160.1003/package.tgz",
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "popmotion": "^11.0.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.18.0",
-    "uiconfig.js": "^0.1.5"
+    "ts-browser-helpers": "^0.19.0",
+    "uiconfig.js": "^0.2.0"
   },
   "peerDependencies": {
     "three": "https://pkg.threepipe.org/dep/three/-/v0.160.1005/package.tgz"

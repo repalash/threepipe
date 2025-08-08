@@ -43,7 +43,7 @@ export interface SVGTexture {
   url: string;
 }
 
-declare module 'three/src/core/BufferGeometry' {
+declare module 'three/src/core/BufferGeometry.js' {
   export interface BufferGeometry {
     boundsTree?: MeshBVH;
     computeBoundsTree: typeof computeBoundsTree;

@@ -1,26 +1,26 @@
 import replace from '@rollup/plugin-replace';
 import glsl from 'rollup-plugin-glsl';
 import json from '@rollup/plugin-json';
+import alias from '@rollup/plugin-alias';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 
 export function globalsReplacePlugin (globals, isProd) {
     return [
-        ...Object.entries(globals).flatMap(([key, value]) => {
-            if(key === value) return null
-            return [
-                replace({
+        replace({
+            values: Object.entries(globals).reduce((p, [key, value]) => {
+                if(key === value) return p
+                return {
+                    ...p,
                     [`from '${key}'`]: `from '${value}'`,
-                    delimiters: ['', ''],
-                    preventAssignment: true,
-                }),
-                replace({
+                    [`from "${key}"`]: `from '${value}'`,
                     [`require('${key}')`]: `require('${value}')`,
-                    delimiters: ['', ''],
-                    preventAssignment: true,
-                }),
-            ]
-        }).filter(f=>f),
+                    [`require("${key}")`]: `require('${value}')`,
+                }
+            }, {}),
+            delimiters: ['', ''],
+            preventAssignment: true,
+        }),
         replace({
             'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
             preventAssignment: true,

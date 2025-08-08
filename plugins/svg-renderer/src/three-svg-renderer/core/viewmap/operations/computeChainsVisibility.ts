@@ -5,7 +5,7 @@
  * Created on Tue Nov 22 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
+ * within the Joint Research Unit UMR 9189
  * CNRS - Centrale Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
@@ -101,11 +101,11 @@ export function chainVisibilityWithGeometry(chain: Chain) {
 
 /**
  * Determines chain visibility via casting a rayfrom the chain to the camera
- * @param contour 
- * @param camera 
- * @param objects 
- * @param tolerance 
- * @returns 
+ * @param contour
+ * @param camera
+ * @param objects
+ * @param tolerance
+ * @returns
  */
 export function chainVisibilityWithRaycasting(
     chain: Chain,
@@ -124,7 +124,7 @@ export function chainVisibilityWithRaycasting(
   // Cast a ray from the middle of the segment to the camera
   _rayOrigin.lerpVectors(edge.a.pos3d, edge.b.pos3d, 0.5);
   _rayDirection.subVectors(camera.position, _rayOrigin).normalize();
-  _raycaster.firstHitOnly = false;
+  // _raycaster.firstHitOnly = false; // todo?
   _raycaster.set(_rayOrigin, _rayDirection);
 
   // Get the projection of the origin of the ray cast

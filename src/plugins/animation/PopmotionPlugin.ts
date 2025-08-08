@@ -1,6 +1,5 @@
-import {Driver, PlaybackOptions} from 'popmotion/lib/animations/types'
 import {now} from 'ts-browser-helpers'
-import {animate, type AnimationOptions, KeyframeOptions} from 'popmotion'
+import {animate, type AnimationOptions, KeyframeOptions, PlaybackOptions, Driver} from 'popmotion'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'

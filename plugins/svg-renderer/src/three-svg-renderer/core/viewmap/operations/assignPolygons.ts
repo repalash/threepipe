@@ -5,7 +5,7 @@
  * Created on Tue Nov 22 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
+ * within the Joint Research Unit UMR 9189
  * CNRS - Centrale Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
@@ -50,7 +50,7 @@ export function assignPolygons(
 
   const svgMeshesMap = new Map<Mesh, SVGMesh>();
   const threeMeshes = new Array<Mesh>();
-  
+
   for (const mesh of meshes) {
     svgMeshesMap.set(mesh.threeMesh, mesh);
     threeMeshes.push(mesh.threeMesh);
@@ -60,7 +60,7 @@ export function assignPolygons(
 
     imagePointToNDC(polygon.insidePoint, _vec2, renderSize);
     _raycaster.setFromCamera(_vec2, camera);
-    _raycaster.firstHitOnly = true;
+    // _raycaster.firstHitOnly = true; // todo?
     const intersections = _raycaster.intersectObjects(threeMeshes, false);
 
     if (intersections.length > 0) {

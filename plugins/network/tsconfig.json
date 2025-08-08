@@ -19,7 +19,7 @@
         "noUnusedParameters": true,
         "removeComments": false,
         "preserveConstEnums": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "emitDecoratorMetadata": false,
         "sourceMap": true,
         "target": "ES2021",
