@@ -2,18 +2,41 @@ import {Clock, EventDispatcher} from 'three'
 import {ThreeViewer} from '../viewer'
 import {ProgressivePlugin} from '../plugins'
 import {uiButton, uiFolderContainer, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
-import {serializable, serialize} from 'ts-browser-helpers'
+import {onChangeDispatchEvent, serializable, serialize} from 'ts-browser-helpers'
+import {OnChangeDispatchEventType} from './browser-helpers'
+
+export interface ViewerTimelineEventMap{
+    start: object,
+    stop: object,
+    reset: object,
+    update: object,
+    resetOnEndChanged: OnChangeDispatchEventType<boolean>,
+    stopOnEndChanged: OnChangeDispatchEventType<boolean>,
+    endTimeChanged: OnChangeDispatchEventType<number>
+}
 
 @serializable('ViewerTimeline')
 @uiFolderContainer('Timeline')
-export class ViewerTimeline extends EventDispatcher<{start: object, stop: object, reset: object, update: object}> {
+export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
     declare uiConfig: UiObjectConfig
+    protected _time = 0
 
     /**
-     * in secs
+     * Current time in secs
      */
     @uiInput('Time', {readOnly: true})
-        time = 0
+    get time() {
+        return this._time
+    }
+
+    /**
+     * Set the current time and step a frame
+     * @param value
+     */
+    set time(value: number) {
+        if (this._time === value) return
+        this.setTime(value, true)
+    }
 
     /**
      * in secs
@@ -28,6 +51,7 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
      */
     @uiInput('Max Time')
     @serialize()
+    @onChangeDispatchEvent('endTimeChanged')
         endTime = 2
 
     /**
@@ -38,6 +62,7 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
      */
     @uiToggle('Reset on End')
     @serialize()
+    @onChangeDispatchEvent('resetOnEndChanged')
         resetOnEnd = true
 
     /**
@@ -49,6 +74,7 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
      */
     @uiToggle('Stop on End')
     @serialize()
+    @onChangeDispatchEvent('stopOnEndChanged')
         stopOnEnd = false
 
     /**
@@ -164,11 +190,10 @@ export class ViewerTimeline extends EventDispatcher<{start: object, stop: object
         this._step = false
     }
 
-
     setTime(t: number, stepFrame = true) {
         if (t < 0) t = 0
         this._clock.elapsedTime = t
-        this.time = t
+        this._time = t
         this.delta = 0 // reset delta
         // this._start = false
         // this._stop = false

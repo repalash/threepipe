@@ -787,6 +787,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             if (needsRender) {
                 for (let j = 0; j < this.rendersPerFrame; j++) {
                     this.dispatchEvent({type: 'preRender', target: this})
+                    // console.log('render')
 
                     const render = ()=>{
                         const cam = this._scene.mainCamera

@@ -1,5 +1,6 @@
 export * from './browser-helpers'
 export * from './shaders'
+export {ViewerTimeline, type ViewerTimelineEventMap} from './ViewerTimeline'
 export {GLStatsJS} from './GLStatsJS'
 export {CustomContextMenu} from './CustomContextMenu'
 export {Dropzone, type DropFile, type ListenerCallback, type DropEventType} from './Dropzone'

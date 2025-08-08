@@ -530,18 +530,24 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
     // endregion
 
+    private _lastAnimTime = -1
+
     protected _postFrame() {
-        if (!this.enabled) return
-        const camera = this._viewer?.scene.mainCamera
+        if (!this.enabled || !this._viewer) return
+        const camera = this._viewer.scene.mainCamera
         if (!camera) return
-        if (!this._viewer?.timeline.shouldRun() || !this._cameraViews.length) {
+        if (!this._viewer.timeline.shouldRun() || !this._cameraViews.length) {
             camera.setInteractions(true, CameraViewPlugin.PluginType + '-postFrame')
+            this._lastAnimTime = -1
             return
         }
         camera.setInteractions(false, CameraViewPlugin.PluginType + '-postFrame')
 
-        const time = this._viewer?.timeline.time
-        // const delta = this._viewer?.timeline.delta || 0
+        const time = this._viewer.timeline.time
+        // const delta = this._viewer.timeline.delta || 0
+
+        if (time == this._lastAnimTime) return
+        this._lastAnimTime = time
 
         const timeline = []
         const viewDuration = this.animDuration || 1000
