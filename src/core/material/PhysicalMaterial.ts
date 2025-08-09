@@ -14,9 +14,8 @@ import {
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
-import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
+import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {
-    AnimateTime,
     IMaterial,
     IMaterialEventMap,
     IMaterialGenerator,
@@ -167,6 +166,7 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
      * @param parameters - material or material parameters object
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
+     * @param time - optional data to animate(lerp) from current value to the target value.
      */
     setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this

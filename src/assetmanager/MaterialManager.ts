@@ -15,7 +15,7 @@ import {
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID} from '../three'
-import {AnimateTime, IMaterialEventMap} from '../core/IMaterial'
+import {AnimateTimeMaterial, IMaterialEventMap} from '../core/IMaterial'
 import {shaderReplaceString} from '../utils'
 import {Object3DManager} from './Object3DManager'
 
@@ -321,7 +321,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         return blob
     }
 
-    applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true, time?: AnimateTime): boolean {
+    applyMaterial(material: IMaterial, nameRegexOrUuid: string, regex = true, time?: AnimateTimeMaterial): boolean {
         let currentMats = this.findMaterialsByName(nameRegexOrUuid, regex)
         if (!currentMats || currentMats.length < 1) currentMats = [this.findMaterial(nameRegexOrUuid) as any]
         let applied = false
@@ -340,8 +340,9 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      * copyProps from material to c
      * @param c
      * @param material
+     * @param time
      */
-    copyMaterialProps(c: IMaterial, material: IMaterial, time?: AnimateTime) {
+    copyMaterialProps(c: IMaterial, material: IMaterial, time?: AnimateTimeMaterial) {
         let applied = false
         const mType = Object.getPrototypeOf(material).constructor.TYPE
         const cType = Object.getPrototypeOf(c).constructor.TYPE
@@ -358,7 +359,8 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             if (newMat) {
                 const n = c.name
                 // newMat.setValues(material, undefined, undefined, time)
-                newMat.setValues(material)
+                if (newMat.setValues) newMat.setValues(material)
+                else Object.assign(newMat, material)
                 newMat.name = n
                 const meshes = c.appliedMeshes
                 for (const mesh of [...meshes ?? []]) {

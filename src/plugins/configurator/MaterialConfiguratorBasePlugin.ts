@@ -5,9 +5,9 @@ import {UiObjectConfig} from 'uiconfig.js'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialPreviewGenerator} from '../../three'
 import {Color} from 'three'
-import {AnimateTime} from '../../core/IMaterial'
 import {AnimationResult, PopmotionPlugin} from '../animation/PopmotionPlugin'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
+import {AnimateTime} from '../../utils'
 
 /**
  * Material Configurator Plugin (Base)
@@ -66,7 +66,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * It is automatically called when the config is loaded if `applyOnLoad` is true.
      */
     reapplyAll() {
-        this.variations.forEach(v => this.applyVariation(v, v.materials[v.selectedIndex ?? 0].uuid))
+        this.variations.forEach(v => this.applyVariation(v, v.selectedIndex ?? 0))
     }
 
     fromJSON(data: any, meta?: any): this | Promise<this | null> | null {
@@ -105,16 +105,24 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * Apply a material variation based on index or uuid.
      * @param variations
      * @param matUuidOrIndex
+     * @param setSelectedIndex - default true, to be used with animation
+     * @param time - optional data to animate(lerp) from current value to the target material.
      */
-    applyVariation(variations: MaterialVariations, matUuidOrIndex: string|number, setSelectedIndex?: boolean, time?: AnimateTime): boolean {
+    applyVariation(variations: MaterialVariations, matUuidOrIndex: string|number, setSelectedIndex?: boolean, time?: AnimateTime & {from?: string | number}): boolean {
         const m = this._viewer?.materialManager
         if (!m) return false
-        const material = typeof matUuidOrIndex === 'string' ?
-            variations.materials.find(m1 => m1.uuid === matUuidOrIndex) :
-            variations.materials[matUuidOrIndex]
+        const material = this.findMaterialVariation(matUuidOrIndex, variations)
         if (!material) return false
         setSelectedIndex && (variations.selectedIndex = variations.materials.indexOf(material))
-        return m.applyMaterial(material, variations.uuid, true, time)
+
+        const fromMaterial = time?.from !== undefined ? this.findMaterialVariation(time.from, variations) : undefined
+        return m.applyMaterial(material, variations.uuid, true, time?.from !== undefined ? {...time, from: fromMaterial} : (time as AnimateTime))
+    }
+
+    findMaterialVariation(matUuidOrIndex: string | number, variations: MaterialVariations) {
+        return typeof matUuidOrIndex === 'string' ?
+            variations.materials.find(m1 => m1.uuid === matUuidOrIndex) :
+            variations.materials[matUuidOrIndex]
     }
 
     async applyVariationAnimate(variations: MaterialVariations, matUuidOrIndex: string|number, duration = 500): Promise<void> {
@@ -200,47 +208,49 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         if (!this._viewer?.timeline.shouldRun() || !this.variations.length) return false
         const time = this._viewer?.timeline.time
         const delta = this._viewer?.timeline.delta || 0
+        const looping = this._viewer?.timeline.resetOnEnd ?? false
 
         let applied = false
         for (const variation of this.variations) {
             if (!variation.timeline?.length) continue
             const selected = variation.selectedIndex
-            const selectedTime = variation.timeline
+            const sortedTimeline = variation.timeline
                 .sort((a, b) => -a.time + b.time)
-                .find(t => t.time <= time)
+            const selectedTime = sortedTimeline.find(t => t.time <= time)
+            const selectedItemI = selectedTime ? sortedTimeline.indexOf(selectedTime) : -1
+            const previousTime =
+                selectedItemI < sortedTimeline.length - 1 && selectedItemI >= 0 ?
+                    sortedTimeline[selectedItemI + 1] : // next item is the previous item because of sorting.
+                    looping && selectedItemI > 0 ? sortedTimeline[0] : undefined
+            const isSeeking = !this._viewer?.timeline.running
+
             if (selectedTime) {
-                if (!selected || selectedTime.index !== selected && selectedTime.index !== variation.materials[selected]?.uuid) {
+                const notSelected = typeof selected === 'undefined' ||
+                    selectedTime.index !== selected && (typeof selected !== 'number' || selectedTime.index !== variation.materials[selected]?.uuid)
+                if (isSeeking || notSelected) {
                     const start = selectedTime.time
-                    // const end = variation.timeline.find(t => t.time > start)?.time || time
-                    // const end = selectedTime.time + (selectedTime.duration ?? 0.5) // 0.5 secs
-                    // const i = delta / (end - time)
-                    // const m = end - start
-                    // end - time = m - (time - start)
-                    // const duration = end - start
+
                     const duration = selectedTime.duration ?? 0.5
 
                     let t = duration < 1e-6 ? 1 : (time - start) / duration
                     let dt = duration < 1e-6 ? 0 : delta / duration
 
-
-                    // i        = delta * (end - start) / (end - start) * (end - time)
-                    //          = dt * 1 / (1 - t * 1)
-                    //          = dt * m / (m - (time - start))
-                    //          = dt * m / (end - time)
-                    //          = dt * (end - start) / (end - time)
-                    //          = dt * (time - start) / t(end - time)
-
-                    if (t <= 1 || !this._viewer?.timeline.running) { // seeking if not running
-                        if (t > 1) {
-                            t = 1
-                        }
-                        if (dt < 1e-6)
-                            dt = 1.0 / 60
-                            // dt = 1. - t // if delta is too small, we assume we are at the end of the timeline (like when dragging)
-                            // dt = (1. - t) / 2
-                        this.applyVariation(variation, selectedTime.index, t >= 1. - dt, {t, dt, rm: this._viewer?.renderManager})
-                        applied = true
+                    // if (t <= 1 || isSeeking) { // seeking if not running
+                    if (t > 1) {
+                        t = 1
                     }
+                    if (dt < 1e-6)
+                        dt = 1.0 / 60
+                    // dt = 1. - t // if delta is too small, we can assume we are at the end of the timeline (like when dragging) (dragging uses from value now)
+                    // dt = (1. - t) / 2
+                    // console.log(selectedItemI, previousTime?.index, t, dt)
+                    this.applyVariation(variation, selectedTime.index, t >= 1. - 0.00001, {
+                        t, dt,
+                        from: isSeeking ? previousTime?.index : undefined,
+                        rm: this._viewer?.renderManager,
+                    })
+                    applied = true
+                    // }
                 }
             }
         }
@@ -400,7 +410,7 @@ export interface MaterialVariations {
         icon?: string,
         [key: string]: any
     }[]
-    selectedIndex?: number
+    selectedIndex?: number | string
     timeline?: {
         time: number,
         index: number|string,

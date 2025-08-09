@@ -9,7 +9,6 @@ import {
 } from 'three'
 import {UiObjectConfig} from 'uiconfig.js'
 import {
-    AnimateTime,
     IMaterial,
     IMaterialEventMap,
     IMaterialGenerator,
@@ -18,7 +17,7 @@ import {
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
+import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {makeSamplerUi} from '../../ui/image-ui'
@@ -100,7 +99,8 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
      * The input is expected to be a valid material or a deserialized material parameters object(including the deserialized userdata)
      * @param parameters - material or material parameters object
      * @param allowInvalidType - if true, the type of the oldMaterial is not checked. Objects without type are always allowed.
-     * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
+     * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which won't be overwritten if not present in the new material.
+     * @param time - optional data to animate(lerp) from current value to the target value.
      */
     setValues(parameters: Material|(LineBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this

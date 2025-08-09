@@ -10,7 +10,7 @@ import {copyProps} from 'ts-browser-helpers'
 import {copyMaterialUserData} from '../../utils/serialization'
 import {MaterialExtender, MaterialExtension} from '../../materials'
 import {IScene} from '../IScene'
-import {AnimateTime, IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from '../IMaterial'
+import {AnimateTimeMaterial, IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from '../IMaterial'
 import {UnlitMaterial} from './UnlitMaterial'
 import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 import {lerpParams} from '../../utils/lerp'
@@ -25,7 +25,7 @@ export const iMaterialCommons = {
         if (options?.last !== false && options?.refreshUi !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
     setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
-        function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string}), _allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTime): IMaterial {
+        function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string}), _allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): IMaterial {
 
             if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
             if (clearCurrentUserData) this.userData = {}

@@ -19,7 +19,7 @@ import type {IObject3D} from './IObject'
 import {ISetDirtyCommonOptions} from './IObject'
 import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
-import {IRenderManager} from './IRenderer'
+import {AnimateTime} from '../utils'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
 // export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
@@ -223,7 +223,7 @@ export interface IMaterialUserData extends IImportResultUserData{
     postTonemap?: boolean
 }
 
-export interface AnimateTime {t: number, dt: number, rm?: IRenderManager}
+export interface AnimateTimeMaterial extends AnimateTime{from?: IMaterial}
 
 export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends Material<TE>, IJSONSerializable, IDisposable, IUiConfigContainer {
     constructor: {
@@ -246,7 +246,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     // toJSON(meta?: any): any;
 
     // copyProps should be just setValues
-    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTime): this;
+    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): this;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
     fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
 
