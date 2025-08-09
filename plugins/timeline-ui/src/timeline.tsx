@@ -35,16 +35,22 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
 
     const isSelected = selectedItem && selectedItem === item.uuid
 
-    const setLeft = (v: number) => {
+    const setLeft = item.setTime ? (v: number, last = false) => {
         const t = pixelsToTime(v)
-        if (item.time === t || !item.setTime) return
-        item.setTime(t)
-    }
-    const setWidth = (v: number) => {
+        if (item.time === t && !last || !item.setTime) return
+        item.setTime(t, last)
+    } : null
+    const setWidth = item.setDuration ? (v: number, last = false) => {
         const d = pixelsToTime(v)
-        if (item.duration === d || !item.setDuration) return
-        item.setDuration(d)
-    }
+        if (item.duration === d && !last || !item.setDuration) return
+        item.setDuration(d, last)
+    } : null
+    const setLeftWidth = item.setTimeDuration ? (l: number, w: number, last = false) => {
+        const t = pixelsToTime(l)
+        const d = pixelsToTime(w)
+        if (item.duration === d && item.time === t && !last || !item.setTimeDuration) return
+        item.setTimeDuration(t, d, last)
+    } : null
 
     const handlePointerDown = (type: 'left' | 'right' | 'center') => (e: React.PointerEvent) => {
         e.preventDefault()
@@ -56,26 +62,32 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
 
         const onPointerMove = (moveEvent: PointerEvent) => {
             const dx = moveEvent.clientX - startX
-            if (type === 'right') {
+            const last = moveEvent.type === 'pointerup'
+            if (type === 'right' && setWidth) {
                 const newWidth = Math.max(1, origWidth + dx)
-                setWidth(newWidth)
+                setWidth(newWidth, last)
             } else if (type === 'left') {
-                if (item.setDuration) {
+                if (setWidth || setLeftWidth) {
                     const newLeft = Math.min(origLeft + origWidth - 1, origLeft + dx)
                     const newWidth = Math.max(1, origWidth - dx)
-                    setLeft(newLeft)
-                    setWidth(newWidth)
-                } else {
+                    if (setLeftWidth) {
+                        setLeftWidth(newLeft, newWidth, last)
+                    } else if (setLeft && setWidth) {
+                        setLeft(newLeft, last)
+                        setWidth(newWidth, last)
+                    }
+                } else if (setLeft) {
                     const newLeft = Math.max(0, origLeft + dx)
-                    setLeft(newLeft)
+                    setLeft(newLeft, last)
                 }
-            } else if (type === 'center') {
+            } else if (type === 'center' && setLeft) {
                 const newLeft = Math.max(0, origLeft + dx)
-                setLeft(newLeft)
+                setLeft(newLeft, last)
             }
         }
 
-        const onPointerUp = () => {
+        const onPointerUp = (ev: PointerEvent) => {
+            onPointerMove(ev)
             window.removeEventListener('pointermove', onPointerMove)
             window.removeEventListener('pointerup', onPointerUp)
         }
@@ -104,10 +116,10 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
                     setSelectedItem(item.uuid)
                 }
             }}
-            onPointerDown={isSelected && item.setTime ? handlePointerDown('center') : undefined}
+            onPointerDown={isSelected && setLeft ? handlePointerDown('center') : undefined}
         >
             {/* left handle */}
-            {item.setTime && isSelected && <div
+            {setLeft && isSelected && <div
                 className={`timeline-card-handle left ${isActive || isSelected ? 'active' : ''}`}
                 style={{
                     minWidth: `${handleWidth}px`,
@@ -122,7 +134,7 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
             </span>
 
             {/* right handle */}
-            {item.setDuration && isSelected && <div
+            {setWidth && isSelected && <div
                 className={`timeline-card-handle right ${isActive || isSelected ? 'active' : ''}`}
                 style={{
                     minWidth: `${handleWidth}px`,
@@ -389,7 +401,6 @@ function TimelineContent({tracks, currentTime, maxTime, endTime, timelineWidth, 
 // Main Timeline Component
 export function Timeline({manager, closeTimeline}: {manager: TimelineManager, closeTimeline?: ()=>void}) {
     const viewer = manager.viewer
-    const [currentTime, setCurrentTime0] = React.useState(0)
     const [isPlaying, setIsPlaying0] = React.useState(false)
 
     const [managerUpdated, setManagerUpdated] = React.useState(0)
@@ -413,67 +424,108 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
         manager.update()
     }, [manager, managerUpdated])
 
-    const [selectedItem, setSelectedItem] = React.useState<string | null>(null) // uuid
+    const [selectedItem, setSelectedItem0] = React.useState<string | null>(manager.selectedItemId) // uuid
 
     // const maxTime = 20
-    const [timelineWidth, setTimelineWidth] = React.useState(1500)
-    const [maxTime, setMaxTime] = React.useState(20)
-    const [endTime, setEndTimeState] = React.useState(viewer.timeline.endTime)
-    const [resetOnEnd, setResetOnEnd] = React.useState(viewer.timeline.resetOnEnd)
-    const [stopOnEnd, setStopOnEnd] = React.useState(viewer.timeline.stopOnEnd)
+    const [currentTime, setCurrentTime0] = React.useState(0)
+    const [endTime, setEndTime0] = React.useState(viewer.timeline.endTime)
+    const [resetOnEnd, setResetOnEnd0] = React.useState(viewer.timeline.resetOnEnd)
+    const [stopOnEnd, setStopOnEnd0] = React.useState(viewer.timeline.stopOnEnd)
+    const maxTimeRef = React.useRef(Math.max(20, viewer.timeline.endTime || 20))
+    const timelineWidthRef = React.useRef(maxTimeRef.current * 60)
+    const [maxTime, setMaxTime0] = React.useState(maxTimeRef.current)
+    const [timelineWidth, setTimelineWidth0] = React.useState(timelineWidthRef.current)
 
-    // Update endTime in both state and viewer
-    const setEndTime = React.useCallback((t: number) => {
-        setEndTimeState(t)
-        if (viewer.timeline.endTime !== t) {
-            viewer.timeline.endTime = t
-        }
-    }, [viewer])
-
-    const toggleResetOnEnd = React.useCallback(() => {
-        setResetOnEnd(prev => {
-            return viewer.timeline.resetOnEnd = !prev
-        })
-    }, [viewer.timeline])
-    // @ts-expect-error unused
-    const toggleStopOnEnd = React.useCallback(() => {
-        setStopOnEnd(prev => {
-            return viewer.timeline.stopOnEnd = !prev
-        })
-    }, [viewer.timeline])
-
-    const timelineWidthRef = React.useRef(timelineWidth)
-    const maxTimeRef = React.useRef(maxTime)
-
-    // Keep ref updated
     React.useEffect(() => {
         timelineWidthRef.current = timelineWidth
         maxTimeRef.current = maxTime
     }, [timelineWidth, maxTime])
 
-    React.useEffect(() => {
-        const endTime1 = viewer.timeline.endTime
-        setEndTime(endTime1)
-        if (endTime1 > maxTimeRef.current) {
-            setMaxTime(endTime1 + 2)
-            setTimelineWidth(Math.max(timelineWidth, timeToPixels(endTime1 + 2)))
-        }
-    }, [viewer.timeline.endTime])
-
     const pixelsToTime = React.useCallback((pixels: number) => pixels / timelineWidthRef.current * maxTimeRef.current, [timelineWidthRef, maxTimeRef])
     const timeToPixels = React.useCallback((time: number) => time / maxTimeRef.current * timelineWidthRef.current, [timelineWidthRef, maxTimeRef])
 
-    // @ts-expect-error unused
-    const tracksDuration = React.useMemo(() => {
+    const setMaxTime = React.useCallback((time: number) => {
+        setMaxTime0(time)
+        maxTimeRef.current = time
+        setTimelineWidth0(Math.max(timelineWidthRef.current, timeToPixels(time)))
+    }, [timeToPixels])
+
+    React.useEffect(()=>{
+        const l1 = ()=> {
+            const time = viewer.timeline.endTime
+            if (time > maxTimeRef.current - 2) {
+                setMaxTime(time + 2)
+            }
+            setEndTime0(time)
+        }
+        const l2 = ()=> setResetOnEnd0(viewer.timeline.resetOnEnd)
+        const l3 = ()=> setStopOnEnd0(viewer.timeline.stopOnEnd)
+        viewer.timeline.addEventListener('endTimeChanged', l1)
+        viewer.timeline.addEventListener('resetOnEndChanged', l2)
+        viewer.timeline.addEventListener('stopOnEndChanged', l3)
+        return () => {
+            viewer.timeline.removeEventListener('endTimeChanged', l1)
+            viewer.timeline.removeEventListener('resetOnEndChanged', l2)
+            viewer.timeline.removeEventListener('stopOnEndChanged', l3)
+        }
+    }, [viewer.timeline])
+
+    const setSelectedItem = React.useCallback((item: string | null) => {
+        const itemid = item || ''
+        if (manager.selectedItemId !== itemid) {
+            manager.setValue([manager, 'selectedItemId'], itemid, true, 'viewer_timeline_ui_selectedItemId')
+        }
+        return itemid
+    }, [manager])
+    React.useEffect(()=>{
+        const l1 = () => {
+            setSelectedItem0(manager.selectedItemId || null)
+        }
+        manager.addEventListener('selectedItemChanged', l1)
+        return () => {
+            manager.removeEventListener('selectedItemChanged', l1)
+        }
+    }, [manager])
+
+    const setCurrentTime = React.useCallback((time: number|undefined, last = true) => {
+        setCurrentTime0(t=>{
+            // viewer.timeline.time
+            time = time ?? t
+            if (viewer.timeline.time !== time || last) {
+                viewer.timeline.time = time // not tracking undo here
+                // manager.setValue([viewer.timeline, 'time'], time, last, 'viewer_timeline_time')
+            }
+            return time
+        })
+    }, [viewer.timeline, setCurrentTime0])
+
+    // Update endTime in both state and viewer
+    const setEndTime = React.useCallback((time: number | undefined, last = true) => {
+        time = time ?? viewer.timeline.endTime
+        if (viewer.timeline.endTime !== time || last) {
+            manager.setValue([viewer.timeline, 'endTime'], time, last, 'viewer_timeline_endTime')
+        }
+    }, [viewer.timeline])
+
+    const toggleResetOnEnd = React.useCallback(() => {
+        const v = !viewer.timeline.resetOnEnd
+        manager.setValue([viewer.timeline, 'resetOnEnd'], v, true, 'viewer_timeline_resetOnEnd')
+    }, [viewer.timeline])
+
+    // const toggleStopOnEnd = React.useCallback(() => {
+    //     const v = !viewer.timeline.stopOnEnd
+    //     manager.setValue([viewer.timeline, 'stopOnEnd'], v, true, 'viewer_timeline_stopOnEnd')
+    // }, [viewer.timeline])
+
+    React.useEffect(() => {
         const duration = tracks.reduce((max, track) => {
             const trackMax = track.items.reduce((maxItem, item) => Math.max(maxItem, item.time + item.duration), 0)
             return Math.max(max, trackMax)
         }, 0)
         if (duration > maxTimeRef.current - 2) {
             setMaxTime(duration + 2)
-            setTimelineWidth(Math.max(timelineWidth, timeToPixels(duration)))
         }
-        return duration
+        // return duration
     }, [tracks])
 
     // region timeline
@@ -504,14 +556,6 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
         }
     }, [timeline])
 
-    const setCurrentTime = React.useCallback((time: number) => {
-        setCurrentTime0(time)
-        // viewer.timeline.time
-        if (viewer.timeline.time !== time) {
-            viewer.timeline.setTime(time, true)
-        }
-    }, [currentTime, setCurrentTime0])
-
     const handlePlayPause = React.useCallback(() => {
         if (timeline.running) timeline.stop()
         else timeline.start()
@@ -530,6 +574,13 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
         let isDraggingEndTime = false
         const handleTimelinePointer = (e: PointerEvent) => {
             if (e.type === 'pointerup' || e.type === 'pointermove' && e.buttons !== 1) {
+                if (isPointerDown) {
+                    if (isDraggingEndTime) {
+                        setEndTime(undefined, true)
+                    } else {
+                        setCurrentTime(undefined, true)
+                    }
+                }
                 isPointerDown = false
                 isDraggingEndTime = false
                 window.removeEventListener('pointerup', handleTimelinePointer)
@@ -559,9 +610,9 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
             const newTime = Math.max(0, Math.min(maxTimeRef.current, pixelsToTime(x)))
 
             if (isDraggingEndTime) {
-                setEndTime(newTime)
+                setEndTime(newTime, false)
             } else {
-                setCurrentTime(newTime)
+                setCurrentTime(newTime, false)
             }
         }
         root.addEventListener('pointerdown', handleTimelinePointer)
@@ -599,7 +650,7 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
                 // k = (x - l + s) * (nw / w - 1)
                 const scrollAdjustment = mouseX * (newWidth / timelineWidthRef.current - 1)
 
-                setTimelineWidth(newWidth)
+                setTimelineWidth0(newWidth)
                 timelineWidthRef.current = newWidth
 
                 // Adjust scroll position to maintain the time value under the mouse cursor

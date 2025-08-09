@@ -27,7 +27,7 @@ export class TimelineUiPlugin extends AViewerPluginSync implements IViewerPlugin
 
     dependencies = [UndoManagerPlugin]
 
-    static CONTAINER_SLOT = 'timline-ui-container'
+    static CONTAINER_SLOT = 'timeline-ui-container'
 
     readonly container: HTMLElement
     constructor(enabled = true, container?: HTMLElement) {

@@ -52,16 +52,17 @@ export function cameraViewsExt(manager: TimelineManager): TMExtension {
                         id: view,
                         uuid: track.uuid + view.uuid, // assuming one view is only adding to the track once at max
                         duration: duration,
-                        // setTime(v: number) {
+                        // setTime(v: number, last = true) {
                         //     // if (this.time === v) return
                         //     // const diff = v - this.time
                         //     return
                         // },
-                        setDuration(v: number) {
+                        setDuration(v: number, last = true) {
                             const d = v * 1000 / viewDuration
                             if (this.duration === d || d < 0) return
-                            // this.duration = d
-                            view.duration = d
+                            this.duration = d
+                            // view.duration = d
+                            manager.setValue([view, 'duration'], d, last, view)
                         },
                     })
                     time += duration + pauseTime / 1000
@@ -144,7 +145,7 @@ export function gltfAnimationExt(manager: TimelineManager): TMExtension {
                     // if (action._startTime === undefined) {
                     //     console.error('gltfAnimationExt: Minified three.js used')
                     // }
-                    const time = clipData.startTime || 0 // action.startTime is non-standard three.js supported by GLTFAnimationPlugin
+                    const time = clipData.startTime || 0
                     track.items.push({
                         label: clip.name || `Action ${i + 1}`,
                         // time: clip.start || 0,
@@ -152,18 +153,22 @@ export function gltfAnimationExt(manager: TimelineManager): TMExtension {
                         id: action,
                         uuid: track.uuid + i,
                         duration: duration,
-                        setTime(v: number) {
+                        setTime(v: number, last = true) {
                             this.time = v
-                            clipData.startTime = v // action.startTime
-                            action.stopWarping()
+                            manager.setValue([clipData, 'startTime'], v, last, clipData, onChange)
                             return
                         },
-                        setDuration(v: number) {
+                        setDuration(v: number, last = true) {
                             this.duration = v
                             const ts = sgn * clip.duration / v
-                            clipData.timeScale = ts
-                            action.timeScale = ts
+                            manager.setValue([clipData, 'timeScale'], ts, last, clipData, onChange)
                             action.stopWarping()
+                        },
+                        setTimeDuration(t1: number, d: number, last = true) {
+                            this.time = t1
+                            this.duration = d
+                            const ts = sgn * clip.duration / d
+                            manager.setValues([[clipData, 'startTime'], [clipData, 'timeScale']], [0, 1], [t1, ts], last, clipData, onChange)
                         },
                     })
                 }
@@ -214,6 +219,7 @@ export function matConfExt(manager: TimelineManager): TMExtension {
                     items: [],
                 } as TimelineTrack
                 let tm = variation.timeline
+                // create timeline, todo move to the plugin
                 if (!tm) {
                     tm = []
                     const duration = 0.5
@@ -229,23 +235,29 @@ export function matConfExt(manager: TimelineManager): TMExtension {
                     }
                     variation.timeline = tm
                 }
-                for (let i1 = 0; i1 < tm.length; i1++) {
-                    const item = tm[i1]
-                    const mat = typeof item.index === 'number' ? variation.materials[item.index] : variation.materials.find(m=>m.uuid === item.index)
+                for (const item of tm) {
+                    const mat = typeof item.index === 'number' ? variation.materials[item.index] : variation.materials.find(m => m.uuid === item.index)
+                    const uuid = track.uuid + item.index
                     track.items.push({
                         label: mat?.name || 'unnamed',
                         time: item.time,
                         id: item,
-                        uuid: track.uuid + i1,
+                        uuid: uuid,
                         duration: item.duration ?? 0.5, // default 0.5 secs
 
-                        setTime(v: number) {
-                            item.time = v
+                        setTime(v: number, last = true) {
                             this.time = v
+                            manager.setValue([item, 'time'], v, last, uuid + 'time', onChange)
                         },
-                        setDuration(v: number) {
-                            item.duration = v
+                        setDuration(v: number, last = true) {
                             this.duration = v
+                            manager.setValue([item, 'duration'], v, last, uuid + 'duration', onChange)
+                        },
+                        setTimeDuration(t: number, d: number, last = true) {
+                            this.time = t
+                            this.duration = d
+                            console.log(t, d, last)
+                            manager.setValues([[item, 'time'], [item, 'duration']], [0, 0.5], [t, d], last, uuid + 'time_duration', onChange)
                         },
                     })
                 }
@@ -311,15 +323,21 @@ export function videoTextureExt(manager: TimelineManager): TMExtension {
                         uuid: track.uuid + i1,
                         duration: tDuration,
 
-                        setTime(v: number) {
+                        setTime(v: number, last = true) {
                             if (!vid.userData.timeline) return
-                            vid.userData.timeline.delay = v
                             this.time = v
+                            manager.setValue([vid.userData.timeline, 'delay'], v, last, vid.userData.timeline, onChange)
                         },
-                        setDuration(v: number) {
+                        setDuration(v: number, last = true) {
                             if (!vid.userData.timeline) return
-                            vid.userData.timeline.scale = duration / v
                             this.duration = v
+                            manager.setValue([vid.userData.timeline, 'scale'], duration / v, last, vid.userData.timeline, onChange)
+                        },
+                        setTimeDuration(t: number, d: number, last = true) {
+                            if (!vid.userData.timeline) return
+                            this.time = t
+                            this.duration = d
+                            manager.setValues([[vid.userData.timeline, 'delay'], [vid.userData.timeline, 'scale']], [0, 1], [t, duration / d], last, vid.userData.timeline, onChange)
                         },
                     })
                 }

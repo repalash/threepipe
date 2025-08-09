@@ -1,4 +1,12 @@
-import {EventDispatcher, ThreeViewer} from 'threepipe'
+import {
+    createBindingsProxy,
+    EventDispatcher,
+    onChangeDispatchEvent,
+    OnChangeDispatchEventType,
+    safeSetProperty,
+    ThreeViewer,
+    UndoManagerPlugin,
+} from 'threepipe'
 import {cameraViewsExt, gltfAnimationExt, matConfExt, videoTextureExt} from './extensions'
 
 export interface TrackItem {
@@ -8,8 +16,9 @@ export interface TrackItem {
     time: number // Start time in seconds
     duration: number // Duration in seconds
 
-    setTime?(v: number): void
-    setDuration?(v: number): void
+    setTime?(v: number, last?: boolean): void
+    setDuration?(v: number, last?: boolean): void
+    setTimeDuration?(t: number, d?: number, last?: boolean): void
 }
 export interface TimelineTrack {
     type?: string,
@@ -26,8 +35,9 @@ export interface TMExtension {
     update(): void;
 }
 
-export class TimelineManager extends EventDispatcher<{update: {updated: string}, tracksChange: object}> {
+export class TimelineManager extends EventDispatcher<{update: {updated: string}, tracksChange: object, selectedItemChanged: OnChangeDispatchEventType<string>}> {
     tracks: TimelineTrack[] = []
+    readonly undo?: UndoManagerPlugin
     setTracks(fn: (current: TimelineTrack[]) => TimelineTrack[]) {
         const newt = fn(this.tracks)
         if (newt !== this.tracks) {
@@ -63,6 +73,8 @@ export class TimelineManager extends EventDispatcher<{update: {updated: string},
         this.addExtension(cameraViewsExt(this))
         this.addExtension(matConfExt(this))
         this.addExtension(videoTextureExt(this))
+        // todo subscribe to plugin change
+        this.undo = viewer.getPlugin<UndoManagerPlugin>('UndoManagerPlugin')
     }
 
     addExtension(ext: TMExtension) {
@@ -108,4 +120,19 @@ export class TimelineManager extends EventDispatcher<{update: {updated: string},
         this._updated.clear()
         this._extensions = {}
     }
+
+    setValue(binding: [any, keyof any], v: any, last: boolean, uid: any, onUndoRedo?: ()=>void) {
+        if (this.undo) {
+            return this.undo.setValue(binding, v, {last}, uid, undefined, true, onUndoRedo)
+        } else if (binding[0]) {
+            return safeSetProperty(binding[0], binding[1], v, true, true)
+        }
+    }
+    setValues(bindings: [any, keyof any][], defs: any[], v: any[], last: boolean, uid: any, onUndoRedo?: ()=>void) {
+        const proxy = createBindingsProxy(bindings, defs)
+        return this.setValue([proxy, 'value'], v, last, uid, onUndoRedo)
+    }
+
+    @onChangeDispatchEvent('selectedItemChanged')
+        selectedItemId: string
 }
