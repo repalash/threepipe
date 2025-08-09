@@ -6,7 +6,8 @@
         "tweakpane-image-plugin": "https://pkg.threepipe.org/dep/tweakpane-image-plugin/-/v1.1.404/package.tgz",
         "uiconfig-tweakpane": "0.0.12",
         "ts-browser-helpers": "file:./../../node_modules/ts-browser-helpers",
-        "uiconfig.js": "file:./../../node_modules/uiconfig.js"
+        "uiconfig.js": "file:./../../node_modules/uiconfig.js",
+        "tweakpane": "^3.1.10"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
@@ -73,19 +74,9 @@
             "dependencies": {
             },
             "peerDependencies": {
-                "threepipe": "^0.0.56",
+                "threepipe": "^0.0.57",
                 "uiconfig-tweakpane": "^0.0.12"
             }
-        }
-    },
-    "//": {
-        "dependencies": {
-            "tweakpane-image-plugin": "https://github.com/repalash/tweakpane-image-plugin/releases/download/v1.1.404/package.tgz",
-            "uiconfig-tweakpane": "^0.0.10"
-        },
-        "local_dependencies": {
-            "tweakpane-image-plugin": "file:./../tweakpane-image-plugin",
-            "uiconfig-tweakpane": "^file:./../uiconfig-tweakpane"
         }
     }
 }

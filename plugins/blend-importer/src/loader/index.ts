@@ -1,10 +1,8 @@
 import {createCamera} from './camera'
 import {createLight} from './light'
 import {createMesh} from './mesh'
-import {IObject3D, Object3D} from 'threepipe'
+import {Euler, EulerOrder, IObject3D, Object3D, Quaternion, Vector3} from 'threepipe'
 import {Ctx} from './ctx'
-import {Euler, EulerOrder} from 'three/src/math/Euler'
-import {Quaternion, Vector3} from 'three'
 
 // https://github.com/blender/blender/blob/99a4c93081cc2310a09a14f20a1493e8974c10d2/source/blender/makesdna/DNA_object_types.h#L445
 const blenderObjectTypes = {

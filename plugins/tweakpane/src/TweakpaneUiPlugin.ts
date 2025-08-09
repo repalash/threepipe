@@ -1,5 +1,5 @@
 import * as TweakpaneImagePlugin from 'tweakpane-image-plugin'
-import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane'
+import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane/lib/esm'
 import {
     Class,
     Color,
