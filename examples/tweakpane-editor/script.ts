@@ -1,18 +1,6 @@
-import {
-    _testFinish,
-    _testStart,
-    DropzonePlugin,
-    getUrlQueryParam,
-    GLTFAnimationPlugin,
-    HemisphereLight,
-    IObject3D,
-    ITexture,
-    Mesh2,
-    PhysicalMaterial,
-} from 'threepipe'
+import {_testFinish, _testStart, DropzonePlugin, getUrlQueryParam, HemisphereLight} from 'threepipe'
 import {TransfrSharePlugin} from '@threepipe/plugin-network'
 import {ThreeEditor} from './ThreeEditor'
-import {PlaneGeometryGenerator} from '@threepipe/plugin-geometry-generator'
 
 async function init() {
 
@@ -58,38 +46,6 @@ async function init() {
         console.log(obj)
     }
 
-    const l = async()=>{
-        // window.removeEventListener('mouseup', l)
-        const plane = new Mesh2(
-            new PlaneGeometryGenerator().generate(),
-            new PhysicalMaterial(),
-        )
-        plane.name = 'Plane'
-        plane.material.map = await viewer.load<ITexture>('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sintel.mp4') ?? null
-        // plane.material.map = await viewer.load<ITexture>('https://cors-proxy.r2cache.com/https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4') ?? null
-        await viewer.addSceneObject(plane)
-    }
-    // window.addEventListener('mouseup', l)
-    l()
-
-    const anim = viewer.getPlugin(GLTFAnimationPlugin)!
-
-    if (!getUrlQueryParam('m')) {
-        for (let i = 0; i < 10; i++) {
-            const m1 = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/Horse.glb', {
-                autoCenter: true,
-                autoScale: true,
-                i,
-            })
-            if (m1) {
-                m1.position.set(i, 0, 0)
-                const a = anim.animations.find(a1=> a1.object === m1)
-                if (a) {
-                    a.actions[0].clipData!.startTime = i * 0.35
-                }
-            }
-        }
-    }
 }
 
 _testStart()
