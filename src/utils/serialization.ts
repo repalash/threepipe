@@ -1,6 +1,7 @@
 import {arrayBufferToBase64, base64ToArrayBuffer, getTypedArray, Serialization} from 'ts-browser-helpers'
 import {
-    Color,
+    CanvasTexture,
+    Color, CubeTexture, DataTexture,
     Material,
     MaterialLoader,
     Matrix3,
@@ -654,6 +655,25 @@ export class MetaImporter {
         }
         resources.textures = json.textures ? objLoader.parseTextures(textures, resources.images) : {}
 
+        for (const key1 of Object.keys(resources.textures)) {
+            let tex: Texture|undefined = resources.textures[key1]
+            if (!tex) continue
+            // __texCtor is set in MetaImporter.LoadRootPathTextures
+            if (tex.source.__texCtor) {
+                const newTex: Texture = new tex.source.__texCtor(tex.source.data)
+                if (!newTex || typeof newTex.copy !== 'function') continue
+                newTex.copy(tex)
+                delete tex.source.__texCtor
+                resources.textures[key1] = newTex
+                tex = newTex
+            }
+            if (tex.source.data instanceof HTMLCanvasElement && !(tex as CanvasTexture).isCanvasTexture) {
+                const newTex = new CanvasTexture(tex.source.data).copy(tex)
+                resources.textures[key1] = newTex
+                tex = newTex
+            }
+        }
+
         // replace the source of the textures(which has preview) with the loaded images, see {@link LoadRootPathTextures} for `rootPathPromise`
         // todo: should this be moved after processRaw?
         const textures2 = {...resources.textures}
@@ -746,6 +766,12 @@ export class MetaImporter {
                 const source2 = new Source(source.data)
                 if (inpTexture.image) source2.uuid = inpTexture.image
                 inpTexture.image = source2.uuid
+
+                // only these are supported by ObjectLoader.parseTextures, see parseTextures2
+                if (texture.constructor !== Texture && texture.constructor !== DataTexture && texture.constructor !== CubeTexture) {
+                    source2.__texCtor = texture.constructor as typeof Texture
+                }
+
                 if (!hasImage)
                     images[source2.uuid] = source2
                 texture.dispose() // todo: what happens when we reimport a cached disposed texture asset, is three.js able to recreate the webgl texture on render?
@@ -832,4 +858,10 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
         return {uuid: texture.uuid, resource: 'extras'}
     }
     return tex
+}
+
+declare module 'three'{
+    export interface Source{
+        ['__texCtor']?: typeof Texture
+    }
 }
