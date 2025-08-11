@@ -1,7 +1,6 @@
 import replace from '@rollup/plugin-replace';
 import glsl from 'rollup-plugin-glsl';
 import json from '@rollup/plugin-json';
-import alias from '@rollup/plugin-alias';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 

@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-blend-importer",
     "description": "Basic importer for .blend file",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "devDependencies": {
     },
     "dependencies": {
@@ -27,7 +27,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.54"
+                "threepipe": "^0.0.57"
             }
         }
     },
