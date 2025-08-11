@@ -37,7 +37,7 @@ export class GLTFMeshOptDecodePlugin extends SimpleEventDispatcher<'initialized'
         s.type = 'module'
         const ev = Math.random().toString(36).substring(7)
         s.innerHTML = `
-import { MeshoptDecoder } from '${GLTFMeshOptDecodePlugin.DECODER_URL}';
+import { MeshoptDecoder } from ${JSON.stringify(GLTFMeshOptDecodePlugin.DECODER_URL)};
 window.MeshoptDecoder = MeshoptDecoder; // setting it before ready as GLTFLoader supports it.
 MeshoptDecoder.ready.then(() => {
 window.dispatchEvent(new CustomEvent('${ev}'))

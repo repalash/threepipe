@@ -57,7 +57,7 @@ export class CustomContextMenu {
         for (const [key, func] of Object.entries(items)) {
             const d = document.createElement('div')
             d.classList.add('customContextMenuItems')
-            d.innerHTML = key
+            d.textContent = key
             container.appendChild(d)
             d.onclick = async() => {
                 await func()

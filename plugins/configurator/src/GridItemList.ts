@@ -1,4 +1,4 @@
-import {createDiv, createStyles, mobileAndTabletCheck} from 'ts-browser-helpers'
+import {createDiv, createStyles, escapeHtml, mobileAndTabletCheck} from 'ts-browser-helpers'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import styles from './GridItemList.css?inline'
@@ -45,7 +45,7 @@ export class GridItemList {
         const container = createDiv({
             classList: ['customContextGrid'], addToBody: false,
             innerHTML: `
-            <div class="customContextGridHeading"> ${title} </div>
+            <div class="customContextGridHeading"> ${escapeHtml(title)} </div>
             `,
         })
         container.style.top = y + 'px'
@@ -56,7 +56,7 @@ export class GridItemList {
         for (const item of items) {
             const d = createDiv({
                 classList: ['customContextGridItems'], addToBody: false, innerHTML: `
-            <img src="${item.image}" class="customContextGridItemImage">
+            <img src=${JSON.stringify(item.image || '')} class="customContextGridItemImage">
             `,
             })
             d.style.width = itemWidth + 'rem'

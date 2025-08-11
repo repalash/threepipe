@@ -13,7 +13,7 @@ import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
 import {Importer} from './Importer'
 import {SimpleJSONLoader} from './import'
-import {parseFileExtension} from 'ts-browser-helpers'
+import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
 
@@ -707,12 +707,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
 }
 
-// todo import from ts-browser-helpers in next version
-function escapeRegExp(str: string) {
-    // @ts-expect-error new browser feature
-    return RegExp.escape ? RegExp.escape(str) :
-        str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
-}
 // function escapeReplacement(str: string) {
 //     return str.replace(/\$/g, '$$$$')
 // }

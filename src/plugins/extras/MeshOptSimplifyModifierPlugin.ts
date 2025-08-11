@@ -40,7 +40,7 @@ export class MeshOptSimplifyModifierPlugin extends SimplifyModifierPlugin {
         s.type = 'module'
         const ev = Math.random().toString(36).substring(7)
         s.innerHTML = `
-import { MeshoptSimplifier } from '${MeshOptSimplifyModifierPlugin.SIMPLIFIER_URL}';
+import { MeshoptSimplifier } from ${JSON.stringify(MeshOptSimplifyModifierPlugin.SIMPLIFIER_URL)};
 MeshoptSimplifier.ready.then(() => {
 window.MeshoptSimplifier = MeshoptSimplifier;
 window.dispatchEvent(new CustomEvent('${ev}'))

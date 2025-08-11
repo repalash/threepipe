@@ -64,8 +64,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
         this.modePlugins = this.modeKeys.map(key => plugins[key])
         this.modeDivs = this.modeKeys.map((key, i) => {
             const d = createDiv({
-                innerHTML: key, classList: ['mode-button', 'button-bar-button'],
+                innerHTML: '', classList: ['mode-button', 'button-bar-button'],
             })
+            d.textContent = key
             d.onclick = () => this.setSelectedMode(i)
             buttonsContainer.appendChild(d)
             return d

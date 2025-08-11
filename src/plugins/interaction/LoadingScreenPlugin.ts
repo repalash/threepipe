@@ -1,4 +1,4 @@
-import {createDiv, createStyles, onChange, serialize, timeout} from 'ts-browser-helpers'
+import {createDiv, createStyles, escapeHtml, onChange, serialize, timeout} from 'ts-browser-helpers'
 import styles from './LoadingScreenPlugin.css?inline'
 import spinner1 from './loaders/spinner1.css?inline'
 import {uiButton, uiDropdown, uiFolderContainer, uiInput, uiSlider, uiToggle} from 'uiconfig.js'
@@ -187,8 +187,8 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         if (this.showFileNames) {
             let text = ''
             processState.forEach((v, k) => {
-                text += (this.showProcessStates ? `<span class="loadingScreenProcessState">${v.state}</span>: ` : '') +
-                    (k || '').split('/').pop() +
+                text += (this.showProcessStates ? `<span class="loadingScreenProcessState">${escapeHtml(v.state)}</span>: ` : '') +
+                    escapeHtml((k || '').split('/').pop() || '') +
                     (this.showProgress && v.progress ? ' - ' + (v.progress.toFixed(0) + '%') : '') +
                     '<br>'
             })
@@ -198,16 +198,16 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         }
         const errors = [...processState.values()].filter(v => v.state === 'error')
         if (errors.length > 0 && errors.length === processState.size && !this.hideOnOnlyErrors) {
-            this._setHTML(this._contentDiv, this.errorTextHeader)
+            this._setHTML(this._contentDiv, escapeHtml(this.errorTextHeader))
         } else {
-            this._setHTML(this._contentDiv, this.loadingTextHeader)
+            this._setHTML(this._contentDiv, escapeHtml(this.loadingTextHeader))
         }
         this._setHTML(this.loadingElement, this.spinners[this.loader].html)
         this._mainDiv.style.setProperty('--b-opacity', this.backgroundOpacity.toString())
         this._mainDiv.style.setProperty('--b-background', this.background)
         ;(this._mainDiv.style as any).backdropFilter = `blur(${this.backgroundBlur}px)`
         this._mainDiv.style.color = this.textColor
-        this._setHTML(this.logoElement, this.logoImage ? `<img class="loadingScreenLogoImage" src="${this.logoImage}"/>` : '')
+        this._setHTML(this.logoElement, this.logoImage ? `<img class="loadingScreenLogoImage" src=${JSON.stringify(this.logoImage)}/>` : '')
         if (updateVisibility) {
             this._updateVisibility(processState, errors.length)
         }

@@ -116,9 +116,7 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         },
         [this.undoCommandTypes.action]: (c: ActionUndoCommand)=>{
             const ref = ()=>{
-                // @ts-expect-error next version
                 c.onUndoRedo && c.onUndoRedo(c)
-                // c.uid.uiRefresh?.(false)
             }
             return {
                 undo: async()=>{
