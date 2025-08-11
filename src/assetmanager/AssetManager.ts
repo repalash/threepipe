@@ -1,7 +1,6 @@
 import {ImportAssetOptions, ImportResult, ProcessRawOptions, RootSceneImportResult} from './IAssetImporter'
 import {
     BaseEvent,
-    Cache as threeCache,
     Camera,
     EventDispatcher,
     Light,
@@ -13,7 +12,7 @@ import {
 } from 'three'
 import {ISerializedConfig, IViewerPlugin, ThreeViewer} from '../viewer'
 import {AssetImporter} from './AssetImporter'
-import {getTextureDataType, overrideThreeCache} from '../three'
+import {getTextureDataType} from '../three'
 import {IAsset} from './IAsset'
 import {
     AddObjectOptions,
@@ -61,6 +60,7 @@ import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 
+// todo rename to AssetImporterCacheOptions
 export interface AssetManagerOptions{
     /**
      * simple memory based cache for downloaded files, default = false
@@ -104,12 +104,11 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     readonly importer: AssetImporter
     readonly exporter: AssetExporter
     readonly materials: MaterialManager
-    private _storage?: Cache | Storage
     get storage() {
-        return this._storage
+        return this.importer.storage
     }
 
-    constructor(viewer: ThreeViewer, {simpleCache = false, storage}: AssetManagerOptions = {}) {
+    constructor(viewer: ThreeViewer, cacheOptions?: AssetManagerOptions) {
         super()
         this._sceneUpdated = this._sceneUpdated.bind(this)
         this.addAsset = this.addAsset.bind(this)
@@ -117,14 +116,13 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
         this._loaderCreate = this._loaderCreate.bind(this)
         this.addImported = this.addImported.bind(this)
 
-        this.importer = new AssetImporter(!!viewer.getPlugin('debug'))
+        this.importer = new AssetImporter(!!viewer.getPlugin('debug'), cacheOptions)
         this.exporter = new AssetExporter()
         this.materials = new MaterialManager()
         this.viewer = viewer
         this.viewer.scene.addEventListener('addSceneObject', this._sceneUpdated)
         this.viewer.scene.addEventListener('materialChanged', this._sceneUpdated)
         this.viewer.scene.addEventListener('beforeDeserialize', this._sceneUpdated)
-        this._initCacheStorage(simpleCache, storage ?? true)
 
         this._setupGltfExtensions()
         this._setupObjectProcess()
@@ -349,26 +347,6 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
         const exporters: IExporter[] = [this._gltfExporter]
 
         this.exporter.addExporter(...exporters)
-    }
-
-    private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage | boolean) {
-        if (storage === true && window?.caches) {
-            window.caches.open?.('threepipe-assetmanager').then(c => {
-                this._initCacheStorage(simpleCache, c)
-                this._storage = c
-            })
-            return
-        }
-        if (simpleCache || storage) {
-            // three.js built-in simple memory cache. used in FileLoader.js todo: use local storage somehow
-            if (simpleCache) threeCache.enabled = true
-
-            if (storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache) {
-                overrideThreeCache(storage)
-                // todo: clear cache
-            }
-        }
-        this._storage = typeof storage === 'boolean' ? undefined : storage
     }
 
     protected _setupObjectProcess() {

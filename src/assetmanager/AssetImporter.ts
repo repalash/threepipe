@@ -1,4 +1,4 @@
-import {EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
+import {Cache as threeCache, EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
 import {
     IAssetImporter,
     IImportResultUserData,
@@ -14,7 +14,8 @@ import {IImporter, ILoader} from './IImporter'
 import {Importer} from './Importer'
 import {SimpleJSONLoader} from './import'
 import {parseFileExtension} from 'ts-browser-helpers'
-import {ImportAddOptions} from './AssetManager'
+import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
+import {overrideThreeCache} from '../three'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -62,6 +63,11 @@ export interface IAssetImporterEventMap {
 export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> implements IAssetImporter {
     private _loadingManager: LoadingManager
 
+    private _storage?: Cache | Storage
+    get storage() {
+        return this._storage
+    }
+
     private _logger = console.log
     // Used when loading multiple files at once.
     protected _rootContext?: {path: string, rootUrl: string, /* baseUrl: string;*/}
@@ -85,7 +91,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         // new Importer(LUTCubeLoader2, ['cube'], false),
     ]
 
-    constructor(logging = false) {
+    constructor(logging = false, {simpleCache = false, storage}: AssetManagerOptions = {}) {
         super()
         if (!logging) this._logger = () => {return}
         // this._viewer = viewer
@@ -97,6 +103,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         this._loadingManager = new LoadingManager(this._onLoad, this._onProgress, this._onError)
         this._loadingManager.onStart = this._onStart
         this._loadingManager.setURLModifier(this._urlModifier)
+        this._initCacheStorage(simpleCache, storage ?? true)
     }
 
     get loadingManager(): LoadingManager {
@@ -298,6 +305,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     // load a single file
     private async _loadFile(path: string, file?: IFile, options: LoadFileOptions = {}, onDownloadProgress?: (e: ProgressEvent)=>void): Promise<ImportResult | ImportResult[] | undefined> {
         // if (file?.__loadedAsset) return file.__loadedAsset
+        if (this._cacheStoreInitPromise) await this._cacheStoreInitPromise
 
         this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 0})
         let res: ImportResult | ImportResult[] | undefined
@@ -631,6 +639,28 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         return loader
     }
 
+    private _cacheStoreInitPromise?: Promise<void>
+    private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage | boolean) {
+        if (storage === true && window?.caches) {
+            this._cacheStoreInitPromise = window.caches.open?.('threepipe-assetmanager').then(c => {
+                this._initCacheStorage(simpleCache, c)
+                this._storage = c
+                this._cacheStoreInitPromise = undefined
+            })
+            return
+        }
+        if (simpleCache || storage) {
+            // three.js built-in simple memory cache. used in FileLoader.js todo: use local storage somehow
+            if (simpleCache) threeCache.enabled = true
+
+            if (storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache) {
+                overrideThreeCache(storage)
+                // todo: clear cache
+            }
+        }
+        this._storage = typeof storage === 'boolean' ? undefined : storage
+    }
+
     addEventListener<T extends keyof IAssetImporterEventMap>(type: T, listener: EventListener<IAssetImporterEventMap[T], T, this>): void {
         super.addEventListener(type, listener)
         if (type === 'loaderCreate') {
@@ -677,6 +707,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
 }
 
+// todo import from ts-browser-helpers in next version
 function escapeRegExp(str: string) {
     // @ts-expect-error new browser feature
     return RegExp.escape ? RegExp.escape(str) :
