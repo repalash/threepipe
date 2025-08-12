@@ -1,6 +1,6 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from '../interaction/PickingPlugin'
-import {imageBitmapToBase64, makeColorSvgCircle, serialize} from 'ts-browser-helpers'
+import {escapeRegExp, getOrCall, imageBitmapToBase64, makeColorSvgCircle, serialize} from 'ts-browser-helpers'
 import {UiObjectConfig} from 'uiconfig.js'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialPreviewGenerator} from '../../three'
@@ -66,7 +66,10 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * It is automatically called when the config is loaded if `applyOnLoad` is true.
      */
     reapplyAll() {
-        this.variations.forEach(v => this.applyVariation(v, v.selectedIndex ?? 0))
+        this.variations.forEach(async v => {
+            if (v.selectedIndex === undefined) return // nothing selected
+            this.applyVariation(v, v.selectedIndex)
+        })
     }
 
     fromJSON(data: any, meta?: any): this | Promise<this | null> | null {
@@ -93,12 +96,19 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         return super.onRemove(viewer)
     }
 
-    findVariation(uuid?: string): MaterialVariations|undefined {
-        return uuid ? this.variations.find(v => v.uuid === uuid) : undefined
+    findVariation(mapping?: string): MaterialVariations|undefined {
+        return mapping ? this.variations.find(v => {
+            if (v.regex ?? true) return mapping.match(typeof v.uuid === 'string' ? '^' + v.uuid + '$' : v.uuid) !== null
+            else return v.uuid === mapping
+        }) : undefined
     }
 
     getSelectedVariation(): MaterialVariations|undefined {
-        return this.findVariation(this._selectedMaterial()?.uuid) || this.findVariation(this._selectedMaterial()?.name)
+        const selected = this._selectedMaterial()
+        if (!selected) return undefined
+        const v = this.findVariation(selected.uuid) || this.findVariation(selected.name)
+        if (v && v.regex === undefined) v.regex = true // required for tweakpane and old files, it cannot be undefined
+        return v
     }
 
     /**
@@ -116,7 +126,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
         setSelectedIndex && (variations.selectedIndex = variations.materials.indexOf(material))
 
         const fromMaterial = time?.from !== undefined ? this.findMaterialVariation(time.from, variations) : undefined
-        return m.applyMaterial(material, variations.uuid, true, time?.from !== undefined ? {...time, from: fromMaterial} : (time as AnimateTime))
+        return m.applyMaterial(material, variations.uuid, variations.regex ?? true, time?.from !== undefined ? {...time, from: fromMaterial} : (time as AnimateTime))
     }
 
     findMaterialVariation(matUuidOrIndex: string | number, variations: MaterialVariations) {
@@ -184,19 +194,19 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * Refreshes the UI in the next frame
      */
     refreshUi(): void {
-        if (!this.enabled || !this._viewer) return
+        if (this.isDisabled() || !this._viewer || getOrCall(this.uiConfig.hidden)) return
         this.dispatchEvent({type: 'refreshUi'})
         this._uiNeedRefresh = true
     }
 
     private _refreshUiConfig() {
-        if (!this.enabled) return
-        this.uiConfig.uiRefresh?.() // don't call this.refreshUi here
+        if (this.isDisabled()) return
+        this.uiConfig.uiRefresh?.(true, 'postFrame', 500) // don't call this.refreshUi here
     }
 
     // must be called from preFrame
     protected async _refreshUi(): Promise<boolean> {
-        if (!this.enabled) return false
+        if (this.isDisabled()) return false
         if (!this._viewer || !this._uiNeedRefresh) return false
         this._uiNeedRefresh = false
         this._refreshUiConfig()
@@ -204,7 +214,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
     }
 
     protected _preFrame() {
-        if (!this.enabled) return false
+        if (this.isDisabled()) return false
         if (!this._viewer?.timeline.shouldRun() || !this.variations.length) return false
         const time = this._viewer?.timeline.time
         const delta = this._viewer?.timeline.delta || 0
@@ -272,6 +282,54 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
             return mat
         }
     }
+
+    protected _uicShowAllVariations = false
+
+    createVariationsUiConfig(v?: MaterialVariations) {
+        // if(!v) v = this.getSelectedVariation()
+        if (!v) return undefined
+        return {
+            type: 'folder',
+            label: v.title,
+            uuid: v.uuid,
+            children: [
+                {
+                    type: 'input',
+                    label: 'mapping',
+                    property: () => [v, 'uuid'],
+                    onChange: async() => this.refreshUi(),
+                },
+                {
+                    type: 'input',
+                    label: 'title',
+                    property: () => [v, 'title'],
+                    onChange: async() => this.refreshUi(),
+                },
+                {
+                    type: 'dropdown',
+                    label: 'Preview Type',
+                    property: () => [v, 'preview'],
+                    onChange: async() => this.refreshUi(),
+                    children: ['generate:sphere', 'generate:cube', 'color', 'map', 'emissive', ...Object.keys(PhysicalMaterial.MaterialProperties).filter(x => x.endsWith('Map'))].map(k => ({
+                        label: k,
+                        value: k,
+                    })),
+                },
+                {
+                    type: 'checkbox',
+                    label: 'regex mapping',
+                    // hidden: () => !this._selectedMaterial()/* || this.getSelectedVariation()?.uuid.match(/[.*+?[\](){}^$|\\]/) === null*/,
+                    property: () => [v, 'regex'],
+                    onChange: async() => this.refreshUi(),
+                },
+
+                ...v.materials.map(m => {
+                    return m.uiConfig ? Object.assign(m.uiConfig, {expanded: false}) : {}
+                }),
+            ],
+        }
+    }
+
     uiConfig: UiObjectConfig = {
         label: 'Material Configurator',
         type: 'folder',
@@ -285,38 +343,16 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
                     hidden: () => !this._selectedMaterial(),
                     disabled: true,
                 },
-                {
-                    type: 'input',
-                    label: 'mapping',
-                    hidden: () => !this._selectedMaterial(),
-                    property: () => [this.getSelectedVariation(), 'uuid'],
-                    onChange: async() => this.refreshUi(),
-                },
-                {
-                    type: 'input',
-                    label: 'title',
-                    hidden: () => !this._selectedMaterial(),
-                    property: () => [this.getSelectedVariation(), 'title'],
-                    onChange: async() => this.refreshUi(),
-                },
-                {
-                    type: 'dropdown',
-                    label: 'Preview Type',
-                    hidden: () => !this._selectedMaterial(),
-                    property: () => [this.getSelectedVariation(), 'preview'],
-                    onChange: async() => this.refreshUi(),
-                    children: ['generate:sphere', 'generate:cube', 'color', 'map', 'emissive', ...Object.keys(PhysicalMaterial.MaterialProperties).filter(x => x.endsWith('Map'))].map(k => ({
-                        label: k,
-                        value: k,
-                    })),
-                },
-                ...this.getSelectedVariation()?.materials.map(m => {
-                    return m.uiConfig ? Object.assign(m.uiConfig, {expanded: false}) : {}
-                }) || [],
+                this.createVariationsUiConfig(this.getSelectedVariation()) ?? (this._uicShowAllVariations ? {} : {
+                    type: 'button',
+                    label: 'Select a material to see or add variations',
+                    readOnly: true,
+                }),
+                this._uicShowAllVariations && !this._selectedMaterial() ? this.variations.map(v => this.createVariationsUiConfig(v)) : [],
                 {
                     type: 'button',
                     label: 'Clear variations',
-                    hidden: () => !this._selectedMaterial(),
+                    hidden: () => !this.getSelectedVariation(),
                     value: async() => {
                         const v = this.getSelectedVariation()
                         if (v && await this._viewer!.dialog.confirm('Material configurator: Remove all variations for this material?')) v.materials = []
@@ -326,7 +362,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
                 {
                     type: 'button',
                     label: 'Remove completely',
-                    hidden: () => !this._selectedMaterial(),
+                    hidden: () => !this.getSelectedVariation(),
                     value: async() => {
                         const v = this.getSelectedVariation()
                         if (v && await this._viewer!.dialog.confirm('Material configurator: Remove this variation?')) {
@@ -357,6 +393,13 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
                         this.variations.forEach(v => this.applyVariation(v, v.materials[0].uuid))
                     },
                 },
+                {
+                    type: 'checkbox',
+                    label: 'Show All',
+                    hidden: () => this._selectedMaterial(),
+                    property: () => [this, '_uicShowAllVariations'],
+                    onChange: async() => this.uiConfig?.uiRefresh?.(),
+                },
             ],
         ],
     }
@@ -386,10 +429,11 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
 
     createVariation(material: IMaterial, variationKey?: string) {
         this.variations.push({
-            uuid: variationKey ?? material.name.length > 0 ? material.name : material.uuid,
+            uuid: variationKey ?? material.name.length > 0 ? escapeRegExp(material.name) : material.uuid,
             title: material.name.length > 0 ? material.name : 'No Name',
             preview: 'generate:sphere',
             materials: [],
+            regex: true,
         })
         return this.variations[this.variations.length - 1]
     }
@@ -410,13 +454,20 @@ export interface MaterialVariations {
         icon?: string,
         [key: string]: any
     }[]
+    /**
+     * Whether to use regex to match the material name.
+     * @default true
+     */
+    regex?: boolean
     selectedIndex?: number | string
+    /**
+     * Keyframes for the viewer timeline animation
+     */
     timeline?: {
         time: number,
         index: number|string,
         duration?: number,
     }[]
-
 
     _animation?: AnimationResult
 }
