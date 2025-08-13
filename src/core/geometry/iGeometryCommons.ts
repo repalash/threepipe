@@ -93,6 +93,9 @@ export const iGeometryCommons = {
                     property: [this, 'name'],
                 },
                 {
+                    type: 'divider',
+                },
+                {
                     type: 'button',
                     label: 'Center Geometry',
                     value: async() => {

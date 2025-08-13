@@ -296,6 +296,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     })),
                 } : undefined
             },
+            {
+                type: 'divider',
+            },
             // geometry
             ()=>(this.geometry as IUiConfigContainer)?.uiConfig,
             // material(s)

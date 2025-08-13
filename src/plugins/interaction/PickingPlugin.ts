@@ -293,6 +293,14 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 if (c) {
                     if (c.type === 'folder') safeSetProperty(c, 'expanded', true, true)
                     ui.children.push(c)
+
+                    const objChildren = c.children
+                    // find all children after type divider
+                    const dividerIndex = objChildren?.findIndex((c1) => typeof c1 === 'object' && (c1.type === 'divider' || c1.type === 'separator')) ?? -1
+                    if (dividerIndex >= 0) {
+                        ui.children.push(...objChildren!.slice(dividerIndex + 1))
+                        c.children = objChildren!.slice(0, dividerIndex)
+                    }
                 } else {
                     // check materials
                     const mats = (selected as IObject3D).materials ?? [(selected as IObject3D).material as IMaterial]
@@ -301,6 +309,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                         if (c) ui.children.push(c)
                     }
                 }
+            } else {
+                ui.children.push(this._pickPromptUi)
             }
 
             ui.uiRefresh?.()
@@ -365,6 +375,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
     }
 
+    private _pickPromptUi: UiObjectConfig = {
+        type: 'button',
+        label: 'Select an object to see its properties',
+        readOnly: true,
+        hidden: () => this.getSelectedObject() !== undefined,
+    }
     private _uiConfigChildren: UiObjectConfig[] = [
         {
             label: 'Enabled',
@@ -411,6 +427,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         expanded: true,
         children: [
             ...this._uiConfigChildren,
+            this._pickPromptUi,
         ],
     }
 
