@@ -23,6 +23,13 @@ export interface Object3DManagerEventMap {
     'videoRemove': {video: VideoTexture & ITexture}
     'objectAdd': {object: IObject3D}
     'objectRemove': {object: IObject3D}
+    'materialAdd': {material: IMaterial}
+    'materialRemove': {material: IMaterial}
+    'geometryAdd': {geometry: IGeometry}
+    'geometryRemove': {geometry: IGeometry}
+    'textureAdd': {texture: ITexture}
+    'textureRemove': {texture: ITexture}
+    'dispose': object
 }
 
 export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
@@ -236,12 +243,17 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             meshes = new Set<IObject3D>()
             mat.appliedMeshes = meshes
         }
+        const isNewMaterial = !this._materials.has(mat)
         meshes.add(mesh)
         this._materials.add(mat)
 
         const maps = Object3DManager.GetMapsForMaterial(mat)
         if (maps) for (const tex of maps) {
             this._registerTexture(tex, mat)
+        }
+
+        if (isNewMaterial) {
+            this.dispatchEvent({type: 'materialAdd', material: mat})
         }
     }
     private _unregisterMaterial(mat: IMaterial, mesh: IObject3D) {
@@ -256,6 +268,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             if (maps) for (const tex of maps) {
                 this._unregisterTexture(tex, mat)
             }
+
+            this.dispatchEvent({type: 'materialRemove', material: mat})
 
             if (this.autoDisposeMaterials)
                 mat.dispose(false)
@@ -276,8 +290,13 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             meshes = new Set<IObject3D>()
             geom.appliedMeshes = meshes
         }
+        const isNewGeometry = !this._geometries.has(geom)
         meshes.add(mesh)
         this._geometries.add(geom)
+
+        if (isNewGeometry) {
+            this.dispatchEvent({type: 'geometryAdd', geometry: geom})
+        }
     }
 
     private _unregisterGeometry(geom: IGeometry|undefined, mesh: IObject3D) {
@@ -287,6 +306,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         meshes.delete(mesh)
         if (meshes.size === 0 && this._geometries.has(geom)) {
             this._geometries.delete(geom)
+
+            this.dispatchEvent({type: 'geometryRemove', geometry: geom})
 
             if (this.autoDisposeGeometries)
                 geom.dispose(false)
@@ -307,9 +328,14 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             objects = new Set<IObject3D|IMaterial>()
             tex.appliedObjects = objects
         }
+        const isNewTexture = !this._textures.has(tex)
         objects.add(obj)
         this._textures.add(tex)
         if (tex.isVideoTexture) this._registerVideo(tex as VideoTexture & ITexture)
+
+        if (isNewTexture) {
+            this.dispatchEvent({type: 'textureAdd', texture: tex})
+        }
     }
 
     private _unregisterTexture(tex: ITexture|undefined, obj: IObject3D | IMaterial) {
@@ -320,6 +346,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         if (objects.size === 0 && this._textures.has(tex)) {
             this._textures.delete(tex)
             if (tex.isVideoTexture) this._videos.delete(tex as VideoTexture & ITexture)
+
+            this.dispatchEvent({type: 'textureRemove', texture: tex})
 
             if (tex.userData?.disposeOnIdle !== false && this.autoDisposeTextures && !tex.isRenderTargetTexture && tex.dispose)
                 tex.dispose()
@@ -348,6 +376,53 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         this.dispatchEvent({type: 'videoAdd', video: tex})
     }
 
+    // endregion textures
+
+    // region utils
+
+    findObject(nameOrUuid: string): IObject3D|undefined {
+        if (!nameOrUuid) return undefined
+        const obj = this._objects.values().find(o => o.uuid === nameOrUuid)
+        if (obj) return obj
+        const obj1 = this.findObjectsByName(nameOrUuid)
+        if (obj1.length > 1) {
+            console.warn('Multiple objects found with name:', nameOrUuid, obj1)
+            return undefined
+        }
+        return obj1[0]
+    }
+    findObjectsByName(name: string): IObject3D[] {
+        const objs: IObject3D[] = []
+        this._objects.forEach(o=>{
+            if (o.name === name) {
+                objs.push(o)
+            }
+        })
+        return objs
+    }
+    findMaterial(nameOrUuid: string): IMaterial|undefined {
+        if (!nameOrUuid) return undefined
+        const mat = this._materials.values().find(m => m.uuid === nameOrUuid)
+        if (mat) return mat
+        const mats = this.findMaterialsByName(nameOrUuid)
+        if (mats.length > 1) {
+            console.warn('Multiple materials found with name:', nameOrUuid, mats)
+            return undefined
+        }
+        return mats[0]
+    }
+    findMaterialsByName(name: string): IMaterial[] {
+        const mats: IMaterial[] = []
+        this._materials.forEach(m=>{
+            if (m.name === name) {
+                mats.push(m)
+            }
+        })
+        return mats
+    }
+
+    // endregion utils
+
     dispose() {
         const objects = [...this._objects]
         for (const o of objects) {
@@ -356,10 +431,11 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             // o.removeEventListener('added', this._objAdded)
         }
         this._objectExtensions = []
-        this._objects.clear()
-        this._materials.clear()
-        this._geometries.clear()
+        this._objects.clear() // todo should this dispatch objectRemove events?
+        this._materials.clear() // todo should this dispatch materialRemove events?
+        this._geometries.clear() // todo should this dispatch geometryRemove events?
         // this._root = undefined
+        this.dispatchEvent({type: 'dispose'})
     }
 
     static readonly MaterialTextureProperties: Set<string> = new Set<string>([
