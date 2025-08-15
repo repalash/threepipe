@@ -1,7 +1,7 @@
 import {Quaternion, Spherical, Vector3} from 'three'
 import {worldToLocalQuaternion} from '../three/utils'
 import {CameraView, ICamera, ICameraView} from '../core'
-import {AnimationOptions} from 'popmotion'
+import {AnimationOptions} from '@repalash/popmotion'
 import {lerp, lerpAngle} from './animation'
 
 export function sphericalFromCameraView(view: Pick<CameraView, 'position'|'target'>): Spherical {

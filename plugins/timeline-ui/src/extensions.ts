@@ -1,4 +1,4 @@
-import {CameraViewPlugin, GLTFAnimationPlugin, MaterialConfiguratorBasePlugin} from 'threepipe'
+import {AnimationObjectPlugin, CameraViewPlugin, GLTFAnimationPlugin, MaterialConfiguratorBasePlugin} from 'threepipe'
 import type {TimelineManager, TimelineTrack, TMExtension} from './TimelineManager'
 
 export function cameraViewsExt(manager: TimelineManager): TMExtension {
@@ -256,7 +256,6 @@ export function matConfExt(manager: TimelineManager): TMExtension {
                         setTimeDuration(t: number, d: number, last = true) {
                             this.time = t
                             this.duration = d
-                            console.log(t, d, last)
                             manager.setValues([[item, 'time'], [item, 'duration']], [0, 0.5], [t, d], last, uuid + 'time_duration', onChange)
                         },
                     })
@@ -354,3 +353,76 @@ export function videoTextureExt(manager: TimelineManager): TMExtension {
     }
 }
 
+export function animationObjectExt(manager: TimelineManager): TMExtension {
+    const animationObjectPlugin = manager.viewer.getPlugin(AnimationObjectPlugin)!
+    const onChange = ()=>{
+        manager.setUpdated(AnimationObjectPlugin.PluginType)
+    }
+    return {
+        uuid: AnimationObjectPlugin.PluginType,
+        setup() {
+            if (animationObjectPlugin) {
+                // animationObjectPlugin.addEventListener('animationAdd', onChange)
+                // animationObjectPlugin.addEventListener('animationRemove', onChange)
+                // animationObjectPlugin.addEventListener('animationUpdate', onChange)
+                animationObjectPlugin.addEventListener('rebuildTimeline', onChange)
+            }
+        },
+        destroy() {
+            if (animationObjectPlugin) {
+                // animationObjectPlugin.removeEventListener('animationAdd', onChange)
+                // animationObjectPlugin.removeEventListener('animationRemove', onChange)
+                // animationObjectPlugin.removeEventListener('animationUpdate', onChange)
+                animationObjectPlugin.removeEventListener('rebuildTimeline', onChange)
+            }
+        },
+        update() {
+            const anims = animationObjectPlugin?.getTimeline() ?? []
+            const tracks1 = [] as TimelineTrack[]
+            for (let i = 0; i < 1; i++) {
+                const track = {
+                    type: 'animationObject',
+                    label: 'Animation Object',
+                    id: animationObjectPlugin,
+                    uuid: 'animationObject',
+                    items: [],
+                    order: 999,
+                } as TimelineTrack
+                for (let i1 = 0; i1 < anims.length; i1++) {
+                    const [anim] = anims[i1]
+                    const uuid = track.uuid + anim.uuid
+                    // v = d + (d + k) * r
+                    const getDuration = ()=>anim.duration + (anim.duration + anim.repeatDelay) * anim.repeat
+                    // (v - rk) / (1 + r) = d
+                    const setDuration = (v: number)=>{
+                        return (v - anim.repeatDelay * anim.repeat) / (anim.repeat + 1)
+                    }
+                    track.items.push({
+                        label: anim.name ? anim.name : `Animation ${i1 + 1}`,
+                        time: anim.delay / 1000,
+                        id: anim,
+                        uuid: uuid,
+                        duration: getDuration() / 1000,
+                        setTime(v: number, last = true) {
+                            this.time = v
+                            manager.setValue([anim, 'delay'], v * 1000, last, uuid + 'delay', onChange)
+                        },
+                        setDuration(v: number, last = true) {
+                            this.duration = v
+                            manager.setValue([anim, 'duration'], 1000 * setDuration(v), last, uuid + 'duration', onChange)
+                        },
+                        setTimeDuration(t: number, d: number, last = true) {
+                            this.time = t
+                            this.duration = d
+                            manager.setValues([[anim, 'delay'], [anim, 'duration']], [0, 0.5], [t * 1000, 1000 * setDuration(d)], last, uuid + 'delay_duration', onChange)
+                        },
+                        offsets: anim.offsets,
+                    })
+                }
+                tracks1.push(track)
+            }
+
+            manager.setTracksMerge(tracks1, 'animationObject')
+        },
+    }
+}

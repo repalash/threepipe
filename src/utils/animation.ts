@@ -11,19 +11,22 @@ import {
     circIn,
     circInOut,
     circOut,
+    DriverControls,
     easeIn,
     easeInOut,
     easeOut,
     Easing,
     KeyframeOptions,
+    keyframes,
     linear,
-} from 'popmotion'
+    PlaybackOptions,
+} from '@repalash/popmotion'
 import {timeout} from 'ts-browser-helpers'
 import {MathUtils} from 'three'
 
 export {animate}
 
-declare module 'popmotion'{
+declare module '@repalash/popmotion'{
     interface PlaybackOptions<V> {
         // throwOnStop?: boolean; // instead of this, user can simply throw an error in onStop.
         onEnd?: () => void;
@@ -163,3 +166,84 @@ export function lerpAngle(a: number, b: number, t: number) {
 }
 
 export const lerp = MathUtils.lerp
+
+/**
+ * Simplified version of popmption animate that supports seeking around the animation. Used in AnimationObject.ts
+ * @param from
+ * @param autoplay
+ * @param driver
+ * @param elapsed
+ * @param onPlay
+ * @param onStop
+ * @param onComplete
+ * @param onUpdate
+ * @param delay
+ * @param canComplete
+ * @param options
+ */
+export function animateKeyframes<V = number>({
+    from,
+    autoplay = true,
+    driver,
+    elapsed = 0,
+    onPlay,
+    onStop,
+    onComplete,
+    onUpdate,
+    delay = 0,
+    canComplete = true,
+    ...options
+}: KeyframeOptions<V> & Omit<PlaybackOptions<V>, 'repeat' | 'repeatType' | 'repeatDelay' | 'onRepeat' | 'type'> & {delay?: number, canComplete?: boolean}) {
+    const {to} = options
+    let driverControls: DriverControls
+    const computedDuration = (options as KeyframeOptions<V>).duration || 0
+    let latest: V
+    let isComplete = false
+
+    const animation = keyframes({...options, from, to} as any)
+
+    function complete() {
+        driverControls.stop()
+        onComplete && onComplete()
+    }
+
+    function update(delta: number) {
+        const running = elapsed >= delay
+
+        elapsed += delta
+
+        if (elapsed < delay) {
+            if (!running) return
+        }
+
+        const el = Math.max(0, elapsed - delay)
+
+        if (!isComplete || el <= (computedDuration || 0)) {
+            const state = animation.next(el)
+            latest = state.value as any
+
+            isComplete = state.done
+        }
+
+        onUpdate?.(latest)
+
+        if (isComplete && canComplete) {
+            complete()
+        }
+    }
+
+    function play() {
+        onPlay?.()
+        driverControls = driver!(update)
+        driverControls.start()
+    }
+
+    autoplay && play()
+
+    return {
+        stop: () => {
+            onStop?.()
+            driverControls.stop()
+        },
+    }
+}

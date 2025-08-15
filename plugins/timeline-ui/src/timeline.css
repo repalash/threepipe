@@ -31,6 +31,32 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Timeline Card Keyframes */
+.timeline-card-keyframe {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 6px;
+    height: 6px;
+    /*background: var(--tp-groove-foreground-color);*/
+    background: var(--tp-input-foreground-color);
+    border: 1px solid var(--tp-base-background-color);
+    pointer-events: none;
+    display: none;
+    opacity: 0.4;
+    z-index: 1;
+}
+
+.timeline-card.active .timeline-card-keyframe {
+    display: block;
+    /*opacity: 0.75;*/
+}
+
+.timeline-card:hover .timeline-card-keyframe, .timeline-card.selected .timeline-card-keyframe {
+    display: block;
+    opacity: 0.75;
+}
+
 /* Timeline Card Handle */
 .timeline-card-handle {
     box-sizing: border-box;

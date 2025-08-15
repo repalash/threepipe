@@ -1,5 +1,5 @@
 import {Object3D, Vector3} from 'three'
-import {Easing} from 'popmotion'
+import {Easing} from '@repalash/popmotion'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {Box3B} from '../../three'
 import {onChange, onChange3, serialize, timeout} from 'ts-browser-helpers'

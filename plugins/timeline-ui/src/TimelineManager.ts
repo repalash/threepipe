@@ -7,7 +7,7 @@ import {
     ThreeViewer,
     UndoManagerPlugin,
 } from 'threepipe'
-import {cameraViewsExt, gltfAnimationExt, matConfExt, videoTextureExt} from './extensions'
+import {animationObjectExt, cameraViewsExt, gltfAnimationExt, matConfExt, videoTextureExt} from './extensions'
 
 export interface TrackItem {
     label: string // Start time in seconds
@@ -15,7 +15,7 @@ export interface TrackItem {
     id: any // object mapped
     time: number // Start time in seconds
     duration: number // Duration in seconds
-
+    offsets?: number[] // keyframes in range 0-1. between time and time + duration
     setTime?(v: number, last?: boolean): void
     setDuration?(v: number, last?: boolean): void
     setTimeDuration?(t: number, d?: number, last?: boolean): void
@@ -26,6 +26,7 @@ export interface TimelineTrack {
     uuid: string,
     id: any,
     items: TrackItem[]
+    order?: number
 }
 
 export interface TMExtension {
@@ -41,7 +42,9 @@ export class TimelineManager extends EventDispatcher<{update: {updated: string},
     setTracks(fn: (current: TimelineTrack[]) => TimelineTrack[]) {
         const newt = fn(this.tracks)
         if (newt !== this.tracks) {
-            this.tracks = newt
+            this.tracks = newt.sort((a, b) => {
+                return (a.order || 0) - (b.order || 0)
+            })
             this.dispatchEvent({type: 'tracksChange'})
         }
     }
@@ -73,6 +76,7 @@ export class TimelineManager extends EventDispatcher<{update: {updated: string},
         this.addExtension(cameraViewsExt(this))
         this.addExtension(matConfExt(this))
         this.addExtension(videoTextureExt(this))
+        this.addExtension(animationObjectExt(this))
         // todo subscribe to plugin change
         this.undo = viewer.getPlugin<UndoManagerPlugin>('UndoManagerPlugin')
     }

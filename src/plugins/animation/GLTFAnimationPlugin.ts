@@ -446,7 +446,6 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const animTime1 = this._animationTime
 
         if (this.autoIncrementTime || pageScrollAnimate || scrollAnimate || dragAnimate) {
-
             const time = now() / 1000.0
             if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 30.0
             let delta = time - this._lastFrameTime
@@ -516,7 +515,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
         this._lastAnimationTime = this._animationTime
 
-        if (Math.abs(animDelta) < 0.00001) return
+        if (Math.abs(animDelta) < 0.0001) return
 
         if (animTime1 < 0.0001) {
             this.dispatchEvent({type: 'checkpointBegin'})

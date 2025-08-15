@@ -13,4 +13,6 @@ export {type AnimateTime, lerpNumber, lerpVal, lerpVector, lerpTexture, lerpPara
 export {cLinearToRGBM, vLinearToRGBM, cRGBMToLinear, vRGBMToLinear} from './color-encodings'
 export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} from './canvas-snapshot'
 export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
+export {AnimationObject, extractAnimationKey} from './AnimationObject'
+export type {IAnimationObject, AnimationObjectEventMap, IAnimSet, TUpdaterType} from './AnimationObject'
 

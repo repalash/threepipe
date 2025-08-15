@@ -63,6 +63,7 @@ export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
 export {PopmotionPlugin, type AnimationResult} from './animation/PopmotionPlugin'
 export {TransformAnimationPlugin, type TSavedTransform} from './animation/TransformAnimationPlugin'
 export {CameraViewPlugin, type CameraViewPluginOptions} from './animation/CameraViewPlugin'
+export {AnimationObjectPlugin} from './animation/AnimationObjectPlugin'
 
 // material
 export {ClearcoatTintPlugin, clearCoatTintGLTFExtension} from './material/ClearcoatTintPlugin'

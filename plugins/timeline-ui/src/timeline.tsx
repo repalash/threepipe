@@ -128,6 +128,17 @@ function TimelineCard({item, timeToPixels, isActive, pixelsToTime, selectedItem,
                 onPointerDown={handlePointerDown('left')}
             />}
 
+            {/* keyframes */}
+            {item.offsets && item.offsets.map((offset, index) =>
+                <div
+                    key={index}
+                    className="timeline-card-keyframe"
+                    style={{
+                        left: `${offset * width}px`,
+                    }}
+                />
+            )}
+
             {/* label */}
             <span className="timeline-card-label">
                 {item.label || 'unnamed'}
