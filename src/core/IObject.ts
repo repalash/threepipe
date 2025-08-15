@@ -504,7 +504,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
      */
     _sChildren?: Object3D[]
 
-    // reg ion inherited type fixes
+    // region inherited type fixes
 
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void

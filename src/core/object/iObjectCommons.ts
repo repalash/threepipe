@@ -367,7 +367,7 @@ export const iObjectCommons = {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
 
-    dispatchEvent: (superDispatch: IObject3D['dispatchEvent']): IObject3D['dispatchEvent'] =>
+    dispatchEvent: (superDispatch: ((ev: any)=>void)): ((ev: any)=>void) =>
         function(this: IObject3D, event): void {
             if ((event as IEvent<any>).target && (event as IEvent<any>).target !== this && this.acceptChildEvents === false) return
             if ((event as IObject3DEventMap['objectUpdate']).bubbleToParent || this.userData?.__autoBubbleToParentEvents?.includes(event.type)) {
@@ -421,7 +421,7 @@ export const iObjectCommons = {
             }
             return superAdd.call(this, ...args)
         },
-    dispose: (superDispose?: IObject3D['dispose']) =>
+    dispose: (superDispose?: ((removeFromParent?: boolean)=> void)) =>
         function(this: IObject3D, removeFromParent = true): void {
             if (removeFromParent && this.parent) {
                 this.removeFromParent()

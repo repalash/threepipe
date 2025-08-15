@@ -24,7 +24,7 @@ export const iMaterialCommons = {
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         if (options?.last !== false && options?.refreshUi !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
-    setValues: (superSetValues: Material['setValues']): IMaterial['setValues'] =>
+    setValues: (superSetValues: ((values: MaterialParameters)=>void)): IMaterial['setValues'] =>
         function(this: IMaterial, parameters: Material | (MaterialParameters & {type?: string}), _allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): IMaterial {
 
             if (clearCurrentUserData === undefined) clearCurrentUserData = (<Material>parameters).isMaterial
@@ -69,12 +69,12 @@ export const iMaterialCommons = {
             this.setDirty && this.setDirty()
             return this
         },
-    dispose: (superDispose: Material['dispose']): IMaterial['dispose'] =>
+    dispose: (superDispose: IMaterial['dispose']): IMaterial['dispose'] =>
         function(this: IMaterial, force = true): void {
             if (!force && this.userData.disposeOnIdle === false) return
             superDispose.call(this)
         },
-    clone: (superClone: Material['clone']): IMaterial['clone'] =>
+    clone: (superClone: IMaterial['clone']): IMaterial['clone'] =>
         function(this: IMaterial, track = false): IMaterial {
             if (track) {
                 if (!this.userData.cloneId) {
@@ -97,7 +97,7 @@ export const iMaterialCommons = {
 
             return material
         },
-    dispatchEvent: (superDispatchEvent: Material['dispatchEvent']): IMaterial['dispatchEvent'] =>
+    dispatchEvent: (superDispatchEvent: ((ev: any)=>void)): ((ev: any)=>void) =>
         function(this: IMaterial, event): void {
             superDispatchEvent.call(this, event)
             const type = event.type
@@ -153,22 +153,22 @@ export const iMaterialCommons = {
         this.dispatchEvent({type: 'afterRender', renderer, scene, camera, geometry, object})
     } as IMaterial['onAfterRender'],
 
-    onBeforeCompileOverride: (superOnBeforeCompile: Material['onBeforeCompile']): IMaterial['onBeforeCompile'] =>
+    onBeforeCompileOverride: (superOnBeforeCompile: IMaterial['onBeforeCompile']): IMaterial['onBeforeCompile'] =>
         function(this: IMaterial, shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void {
             iMaterialCommons.onBeforeCompile.call(this, shader, renderer)
             superOnBeforeCompile.call(this, shader, renderer)
         },
-    onBeforeRenderOverride: (superOnBeforeRender: Material['onBeforeRender']): IMaterial['onBeforeRender'] =>
-        function(this: IMaterial, ...args: Parameters<Material['onBeforeRender']>): void {
+    onBeforeRenderOverride: (superOnBeforeRender: IMaterial['onBeforeRender']): IMaterial['onBeforeRender'] =>
+        function(this: IMaterial, ...args: Parameters<IMaterial['onBeforeRender']>): void {
             superOnBeforeRender.call(this, ...args)
             iMaterialCommons.onBeforeRender.call(this, ...args)
         },
-    onAfterRenderOverride: (superOnAfterRender: Material['onAfterRender']): IMaterial['onAfterRender'] =>
-        function(this: IMaterial, ...args: Parameters<Material['onAfterRender']>): void {
+    onAfterRenderOverride: (superOnAfterRender: IMaterial['onAfterRender']): IMaterial['onAfterRender'] =>
+        function(this: IMaterial, ...args: Parameters<IMaterial['onAfterRender']>): void {
             superOnAfterRender.call(this, ...args)
             iMaterialCommons.onAfterRender.call(this, ...args)
         },
-    customProgramCacheKeyOverride: (superCustomPropertyCacheKey: Material['customProgramCacheKey']): IMaterial['customProgramCacheKey'] =>
+    customProgramCacheKeyOverride: (superCustomPropertyCacheKey: ()=>string): ()=>string =>
         function(this: IMaterial): string {
             return superCustomPropertyCacheKey.call(this) + iMaterialCommons.customProgramCacheKey.call(this)
         },
