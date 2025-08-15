@@ -325,7 +325,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true),
 
-            new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime'], true),
+            new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'webm', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm'], true),
         ]
 
         this.importer.addImporter(...importers)

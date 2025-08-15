@@ -294,13 +294,14 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                     if (c.type === 'folder') safeSetProperty(c, 'expanded', true, true)
                     ui.children.push(c)
 
-                    const objChildren = c.children
+                    // todo children need to be added back to config on selection change or error
+                    // const objChildren = c.children
                     // find all children after type divider
-                    const dividerIndex = objChildren?.findIndex((c1) => typeof c1 === 'object' && (c1.type === 'divider' || c1.type === 'separator')) ?? -1
-                    if (dividerIndex >= 0) {
-                        ui.children.push(...objChildren!.slice(dividerIndex + 1))
-                        c.children = objChildren!.slice(0, dividerIndex)
-                    }
+                    // const dividerIndex = objChildren?.findIndex((c1) => typeof c1 === 'object' && (c1.type === 'divider' || c1.type === 'separator')) ?? -1
+                    // if (dividerIndex >= 0) {
+                    //     ui.children.push(...objChildren!.slice(dividerIndex + 1))
+                    //     c.children = objChildren!.slice(0, dividerIndex)
+                    // }
                 } else {
                     // check materials
                     const mats = (selected as IObject3D).materials ?? [(selected as IObject3D).material as IMaterial]

@@ -7,7 +7,9 @@ import {
     SRGBColorSpace,
     ThreeViewer,
     UnlitMaterial,
+    DoubleSide,
 } from 'threepipe'
+import {TimelineUiPlugin} from '@threepipe/plugin-timeline-ui'
 
 async function init() {
 
@@ -15,25 +17,25 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
-            allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'webp', 'avif', 'ico', 'exr', 'hdr'],
+            allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'webp', 'avif', 'ico'],
             addOptions: {
                 disposeSceneObjects: false,
                 autoSetEnvironment: false, // when hdr is dropped
                 autoSetBackground: false,
             },
         },
-        plugins: [LoadingScreenPlugin],
+        plugins: [LoadingScreenPlugin, TimelineUiPlugin],
     })
 
     viewer.scene.setBackgroundColor('#555555')
 
     const urls = [
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/sprite0.png',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/uv_grid_opengl.jpg',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/svg/style-css-inside-defs.svg',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/tiltbrush/Light.webp',
-        // todo: avif
-        'https://threepipe.org/favicon.ico',
+        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sintel.mp4',
+        'https://cors-proxy.r2cache.com/https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
+        'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2020/03/file_example_WEBM_480_900KB.webm',
+        // todo ogg doesnt work?
+        // 'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2018/04/file_example_OGG_480_1_7mg.ogg',
+        'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2018/04/file_example_MOV_480_700kB.mov',
     ]
 
     const geometry = new PlaneGeometry(1, 1)
@@ -43,9 +45,11 @@ async function init() {
         const texture = await viewer.load<ITexture>(url)
         if (!texture) continue
         texture.colorSpace = SRGBColorSpace
+        texture.name = url.split('/').pop()!
         const material = new UnlitMaterial({
             map: texture,
             transparent: true,
+            side: DoubleSide,
         })
         const plane = new Mesh(geometry, material)
         plane.position.set(i % 3 - 1, -Math.floor(i / 3) + 1, 0)
@@ -61,12 +65,19 @@ async function init() {
         const material = new UnlitMaterial({
             map: texture,
             transparent: true,
+            side: DoubleSide,
         })
         const plane = new Mesh(geometry, material)
         plane.position.set(i % 3 - 1, -Math.floor(i / 3) + 1, 0)
         viewer.scene.addObject(plane)
         i++
+        viewer.timeline.reset()
     })
+
+    viewer.timeline.resetOnEnd = true
+    viewer.timeline.endTime = 10 // loop back after 10 secs
+    viewer.timeline.start()
+
 }
 
 _testStart()

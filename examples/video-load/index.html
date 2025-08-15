@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Image Load</title>
+    <title>Video Load</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
@@ -11,7 +11,8 @@
     <script type="importmap">
     {
         "imports": {
-          "threepipe": "./../../dist/index.mjs"
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-timeline-ui": "./../../plugins/timeline-ui/dist/index.mjs"
         }
     }
 
@@ -40,7 +41,7 @@
 </head>
 <body>
 <div id="canvas-container">
-    <p>Drop .png, .jpeg, .jpg, .svg, .ico, .avif, .webp, .exr, .hdr files here</p>
+    <p>Drop '.mp4', '.ogg', '.mov', '.webm' files here</p>
     <canvas id="mcanvas"></canvas>
 </div>
 

@@ -43,7 +43,7 @@ const staticData = {
 }
 
 const allowedImageExtensions = ['.jpg', '.png', '.svg', '.hdr', '.ktx2',
-    '.exr', '.mp4', '.ogg', '.mov', '.jpeg',
+    '.exr', '.mp4', '.ogg', '.mov', '.webm', '.jpeg',
     '.bmp', '.gif', '.webp', '.cube', '.ktx2', '.avif', '.ico', '.tiff'] // todo update blueprint editor with this list
 
 function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
