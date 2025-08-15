@@ -419,7 +419,8 @@ export function animationObjectExt(manager: TimelineManager): TMExtension {
                         offsets: anim.offsets,
                     })
                 }
-                tracks1.push(track)
+                if (track.items.length)
+                    tracks1.push(track)
             }
 
             manager.setTracksMerge(tracks1, 'animationObject')

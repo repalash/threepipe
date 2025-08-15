@@ -100,6 +100,19 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         return activeIndex
     }
 
+    private _triggerButtonsShown = false
+    get triggerButtonsShown() {
+        return this._triggerButtonsShown
+    }
+    set triggerButtonsShown(v: boolean) {
+        this._triggerButtonsShown = v
+        if (v) document.body.classList.add('aouic-triggers-visible')
+        else document.body.classList.remove('aouic-triggers-visible')
+    }
+    showTriggers(v = true) {
+        this.triggerButtonsShown = v
+    }
+
     constructor() {
         super()
         this.animation.animSetParallel = true
@@ -120,11 +133,15 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             margin-top: -4px;
             cursor: pointer;
             color: var(--tp-label-foreground-color, #777);
+            display: none;
         }
         .anim-object-uic-trigger-visible{
         }
         .anim-object-uic-trigger-active{
             color: red;
+        }
+        .aouic-triggers-visible .anim-object-uic-trigger{
+            display: inline-block;
         }
         `)
     }
@@ -443,6 +460,11 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
                     this.animation.addAnimation()
                     this.uiConfig.uiRefresh?.(true, 'postFrame', 1)
                 },
+            },
+            {
+                type: 'checkbox',
+                label: 'Show Triggers',
+                property: [this, 'triggerButtonsShown'],
             },
             // {
             //     type: 'button',

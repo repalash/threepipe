@@ -1,4 +1,5 @@
 import {
+    type AnimationObjectPlugin,
     AViewerPluginSync, createStyles,
     IViewerPluginSync,
     onChange,
@@ -90,6 +91,7 @@ export class TimelineUiPlugin extends AViewerPluginSync implements IViewerPlugin
             // if (this.root) this.root.style.display = 'none'
             this._removeRoot()
         }
+        this._viewer?.getPlugin<AnimationObjectPlugin>('AnimationObjectPlugin')?.showTriggers(this.enabled)
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
