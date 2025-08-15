@@ -23,47 +23,52 @@ export interface GeometryGenerator<T=any>{
     createUiConfig?(geometry: IGeometry): UiObjectConfig[]
 }
 
-function updateAttribute<T extends BufferAttribute=Float32BufferAttribute>(geometry: BufferGeometry, attribute: string, itemSize: number, array: number[], cls?: Class<T>) {
+function updateAttribute<T extends BufferAttribute=Float32BufferAttribute>(geometry: BufferGeometry, attribute: string, itemSize: number, array: T | number[], cls?: Class<T>) {
     const attr = geometry.getAttribute(attribute) as T
-    const count = array.length / itemSize
+    const count = Array.isArray(array) ? array.length / itemSize : array.count
     if (attr && attr.count === count) {
-        attr.set(array)
+        attr.set(Array.isArray(array) ? array : (array as T).array)
         attr.needsUpdate = true
     } else {
-        geometry.setAttribute(attribute, new (cls ?? Float32BufferAttribute)(array, itemSize))
+        geometry.setAttribute(attribute, Array.isArray(array) ? new (cls ?? Float32BufferAttribute)(array, itemSize) : array as T)
     }
     return attr
 }
 
-function updateIndices(geometry: BufferGeometry, indices: number[]) {
+function updateIndices(geometry: BufferGeometry, indices: number[] | BufferAttribute) {
     const index = geometry.index
-    if (index && index.count === indices.length) {
-        index.set(indices)
+    if (index && index.count === (Array.isArray(indices) ? indices.length : indices.count)) {
+        index.set(Array.isArray(indices) ? indices : (indices as BufferAttribute).array)
         index.needsUpdate = true // todo: wireframe attribute is not updating
     } else geometry.setIndex(indices)
 }
 
 export function updateUi(geometry: BufferGeometry, childrenUi: () => UiObjectConfig[]) {
-    if (!(geometry as any).uiConfig) return
-    let oldUi = (geometry as any).uiConfig?.children?.find((c: UiObjectConfig) => c.tags?.includes('generatedGeometry'))
+    const uiConfig = (geometry as any).uiConfig as UiObjectConfig
+    if (!uiConfig) return
+    let oldUi = uiConfig.children?.find((c) => typeof c === 'object' && c.tags?.includes('generatedGeometry')) as UiObjectConfig | undefined
     if (!oldUi) {
         oldUi = {
             type: 'folder',
             label: 'Generation Params',
+            expanded: true,
             tags: ['generatedGeometry'],
             children: [],
         }
-        ;(geometry as any).uiConfig.children?.push(oldUi)
+        const dividerIndex = uiConfig.children?.findIndex((c) => typeof c === 'object' && (c.type === 'divider' || c.type === 'separator')) ?? -1
+        if (dividerIndex >= 0) {
+            uiConfig.children?.splice(dividerIndex, 0, oldUi)
+        } else uiConfig.children?.push(oldUi)
     }
     if (geometry.userData.__generationParamsUiType !== geometry.userData.generationParams.type) {
         oldUi.children = childrenUi()
         geometry.userData.__generationParamsUiType = geometry.userData.generationParams.type
-        oldUi.uiRefresh?.('postFrame', true)
+        oldUi.uiRefresh?.(true, 'postFrame')
     }
 }
 
-export abstract class AGeometryGenerator<Tp extends object=any> implements GeometryGenerator<Tp> {
-    constructor(public type: string) {
+export abstract class AGeometryGenerator<Tp extends object=any, Tt extends string = string> implements GeometryGenerator<Tp> {
+    constructor(public type: Tt) {
     }
 
     abstract defaultParams: Tp
@@ -79,7 +84,13 @@ export abstract class AGeometryGenerator<Tp extends object=any> implements Geome
         })
         return ui
     }
-    protected abstract _generateData(params: Tp): {indices: number[]; vertices: number[]; normals: number[]; uvs: number[], groups?: {start: number, count: number, materialIndex: number}[]}
+    protected abstract _generateData(params: Tp): {
+        indices: number[] | BufferAttribute
+        vertices: number[] | BufferAttribute
+        normals: number[] | BufferAttribute
+        uvs: number[] | BufferAttribute
+        groups?: {start: number, count: number, materialIndex?: number}[]
+    }
 
     generate(g?: IGeometry, parameters: Partial<Tp> = {}): IGeometry|BufferGeometry2 {
         const geometry: IGeometry = g ?? new BufferGeometry2()
