@@ -11,7 +11,7 @@ export interface CircleGeometryGeneratorParams {
 
 export class CircleGeometryGenerator extends AGeometryGenerator<CircleGeometryGeneratorParams> {
 
-    constructor(type = 'circle', defaultParams?: CircleGeometryGeneratorParams) {
+    constructor(type = 'circle', defaultParams?: Partial<CircleGeometryGeneratorParams>) {
         super(type)
         if (defaultParams) Object.assign(this.defaultParams, defaultParams)
     }

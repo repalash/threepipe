@@ -1,7 +1,6 @@
 import {Vector3} from 'threepipe'
 import {AGeometryGenerator} from '../AGeometryGenerator'
 
-
 export interface SphereGeometryGeneratorParams {
     radius: number,
     widthSegments: number,
@@ -12,9 +11,9 @@ export interface SphereGeometryGeneratorParams {
     thetaLength: number,
 }
 
-export class SphereGeometryGenerator extends AGeometryGenerator<SphereGeometryGeneratorParams> {
+export class SphereGeometryGenerator<Tt extends string= 'sphere'> extends AGeometryGenerator<SphereGeometryGeneratorParams, Tt> {
 
-    constructor(type = 'sphere', defaultParams?: SphereGeometryGeneratorParams) {
+    constructor(type: Tt = 'sphere' as Tt, defaultParams?: Partial<SphereGeometryGeneratorParams>) {
         super(type)
         if (defaultParams) Object.assign(this.defaultParams, defaultParams)
     }

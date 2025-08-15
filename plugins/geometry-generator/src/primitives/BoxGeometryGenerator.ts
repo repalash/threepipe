@@ -13,7 +13,7 @@ export interface BoxGeometryGeneratorParams {
 
 export class BoxGeometryGenerator extends AGeometryGenerator<BoxGeometryGeneratorParams> {
 
-    constructor(type = 'box', defaultParams?: BoxGeometryGeneratorParams) {
+    constructor(type = 'box', defaultParams?: Partial<BoxGeometryGeneratorParams>) {
         super(type)
         if (defaultParams) Object.assign(this.defaultParams, defaultParams)
     }

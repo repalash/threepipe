@@ -10,7 +10,7 @@ export interface PlaneGeometryGeneratorParams {
 
 export class PlaneGeometryGenerator extends AGeometryGenerator<PlaneGeometryGeneratorParams> {
 
-    constructor(type = 'plane', defaultParams?: PlaneGeometryGeneratorParams) {
+    constructor(type = 'plane', defaultParams?: Partial<PlaneGeometryGeneratorParams>) {
         super(type)
         if (defaultParams) Object.assign(this.defaultParams, defaultParams)
     }
