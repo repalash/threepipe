@@ -1,15 +1,66 @@
+/* Timeline Root Container */
+.timeline-root-container {
+    --timeline-card-bg: var(--tp-button-background-color-active, #555e6b);
+    --timeline-base-bg: var(--tp-base-background-color, #1C2026);
+    --timeline-alt-bg: var(--tp-input-foreground-color, #F6F7F9);
+    --timeline-col: var(--tp-container-foreground-color, #F6F7F9);
+    --timeline-card-col: var(--tp-button-foreground-color, #F6F7F9);
+    --timeline-mark-col: var(--tp-monitor-foreground-color, #b6bfcb);
+    --timeline-card-hov-bg: var(--tp-button-background-color-hover, #555e6b);
+    --timeline-lab-col: var(--tp-label-foreground-color, #d2d3d5);
+    --timeline-font-family: var(--tp-font-family, sans-serif);
+    --timeline-border-radius: var(--tp-element-border-radius, 0.25rem);
+    --timeline-base-shadow-color: var(--tp-base-shadow-color, rgba(0, 0, 0, 0.2));
+    --timeline-container-border: var(--tp-container-border-color, #555e6b99);
+
+    box-sizing: border-box;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    background-color: var(--timeline-base-bg);
+    padding: 0;
+    border-radius: var(--timeline-border-radius);
+    pointer-events: auto;
+    width: calc(100% - 40px);
+    margin: 20px;
+    height: auto;
+    color: var(--timeline-col);
+    font-family: var(--timeline-font-family), sans-serif;
+    overflow: hidden;
+    border: 1px solid var(--timeline-container-border);
+    box-shadow: 0 4px 8px var(--timeline-base-shadow-color);
+}
+
+.timeline-main-row {
+    display: flex;
+    height: auto;
+    width: 100%;
+}
+
+.timeline-scroll-container {
+    display: flex;
+    height: auto;
+    width: 100%;
+    flex: 1 1 50%;
+    overscroll-behavior: contain;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    user-select: none;
+    padding-top: 4px;
+    padding-left: 16px;
+}
+
 /* Timeline Card */
 .timeline-card {
     box-sizing: border-box;
     position: absolute;
-    background: var(--tp-button-background-color-active);
+    background: var(--timeline-card-bg);
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
-    color: var(--tp-button-foreground-color);
-    font-family: var(--tp-font-family), sans-serif;
+    color: var(--timeline-card-col);
     user-select: none;
     cursor: pointer;
     transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
@@ -27,7 +78,7 @@
 .timeline-card.selected{
     opacity: 1;
     transform: translateY(0);
-    /*background: var(--tp-button-background-color-hover);*/
+    /*background: var(--timeline-card-hov-bg);*/
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -38,9 +89,9 @@
     transform: translate(-50%, -50%) rotate(45deg);
     width: 6px;
     height: 6px;
-    /*background: var(--tp-groove-foreground-color);*/
-    background: var(--tp-input-foreground-color);
-    border: 1px solid var(--tp-base-background-color);
+    /*background: var(--timeline-mark-col);*/
+    background: var(--timeline-alt-bg);
+    border: 1px solid var(--timeline-base-bg);
     pointer-events: none;
     display: none;
     opacity: 0.4;
@@ -78,11 +129,11 @@
 }
 
 .timeline-card-handle.selected, .timeline-card-handle.active{
-    /*background: var(--tp-input-foreground-color);*/
+    /*background: var(--timeline-alt-bg);*/
     opacity: 0.6;
 }
 .timeline-card-handle:hover{
-    /*background: var(--tp-input-foreground-color);*/
+    /*background: var(--timeline-alt-bg);*/
     opacity: 1;
 }
 
@@ -126,7 +177,7 @@
     box-sizing: border-box;
     width: 100%;
     position: relative;
-    background: var(--tp-base-background-color);
+    background: var(--timeline-base-bg);
 }
 
 .timeline-ruler-mark {
@@ -137,8 +188,7 @@
     /*border-left: 1px solid var(--tp-container-border-color);*/
     margin-left: 1px;
     font-size: 10px;
-    color: var(--tp-monitor-foreground-color);
-    font-family: var(--tp-font-family);
+    color: var(--timeline-mark-col);
     padding-left: 2px;
 }
 
@@ -152,7 +202,7 @@
     width: 2px;
     pointer-events: none;
     z-index: 10;
-    background: var(--tp-groove-foreground-color);
+    background: var(--timeline-mark-col);
 }
 
 .timeline-indicator-head {
@@ -169,7 +219,6 @@
     justify-content: center;
     border-radius: 2px;
     font-size: 10px;
-    font-family: var(--tp-font-family), sans-serif;
     font-weight: bold;
     box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     pointer-events: auto;
@@ -183,7 +232,7 @@
 }
 
 .timeline-indicator-current {
-    background: var(--tp-input-foreground-color);
+    background: var(--timeline-alt-bg);
     opacity: 0.75;
 }
 .timeline-indicator-end {
@@ -199,7 +248,6 @@
     width: auto;
     text-align: center;
     font-size: 11px;
-    font-family: var(--tp-font-family), sans-serif;
     pointer-events: none;
     white-space: pre;
 }
@@ -219,8 +267,7 @@
     display: flex;
     align-items: center;
     font-size: 12px;
-    color: var(--tp-label-foreground-color);
-    font-family: var(--tp-font-family), sans-serif;
+    color: var(--timeline-lab-col);
 }
 
 /* Timeline Controls */
@@ -229,7 +276,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-family: var(--tp-font-family), sans-serif;
     user-select: none;
     margin-left: 15px;
     margin-top: 5px;
@@ -238,7 +284,7 @@
 }
 
 .timeline-controls-title {
-    color: var(--tp-container-foreground-color);
+    color: var(--timeline-col);
     font-size: 12px;
     font-weight: bold;
 }
@@ -254,10 +300,9 @@
     box-sizing: border-box;
     background: transparent;
     border: none;
-    color: var(--tp-button-foreground-color);
-    font-family: var(--tp-font-family);
+    color: var(--timeline-card-col);
     padding: 3px;
-    border-radius: var(--tp-element-border-radius);
+    border-radius: var(--timeline-border-radius);
     cursor: pointer;
     font-size: 12px;
     display: flex;
@@ -269,18 +314,17 @@
     height: 20px;
 }
 .timeline-controls-button.active {
-    background: var(--tp-button-background-color-active);
+    background: var(--timeline-card-bg);
 }
 .timeline-controls-button:hover{
-    background: var(--tp-button-background-color-hover);
+    background: var(--timeline-card-hov-bg);
 }
 
 .timeline-time-display {
     box-sizing: border-box;
     font-size: 12px;
     min-width: 60px;
-    color: var(--tp-monitor-foreground-color);
-    font-family: var(--tp-font-family);
+    color: var(--timeline-mark-col);
 }
 
 /* Timeline Content */
@@ -305,7 +349,7 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    background: var(--tp-container-border-color);
+    background: var(--timeline-container-border);
     /*opacity: 0.3;*/
 }
 
@@ -315,41 +359,3 @@
     /*cursor: pointer;*/
 }
 
-/* Timeline Root Container */
-.timeline-root-container {
-    box-sizing: border-box;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    background-color: var(--tp-base-background-color);
-    padding: 0;
-    border-radius: var(--tp-element-border-radius);
-    pointer-events: auto;
-    width: calc(100% - 40px);
-    margin: 20px;
-    height: auto;
-    color: var(--tp-container-foreground-color);
-    font-family: var(--tp-font-family), sans-serif;
-    overflow: hidden;
-    border: 1px solid var(--tp-container-border-color);
-    box-shadow: 0 4px 8px var(--tp-base-shadow-color);
-}
-
-.timeline-main-row {
-    display: flex;
-    height: auto;
-    width: 100%;
-}
-
-.timeline-scroll-container {
-    display: flex;
-    height: auto;
-    width: 100%;
-    flex: 1 1 50%;
-    overscroll-behavior: contain;
-    overflow-x: scroll;
-    overflow-y: hidden;
-    user-select: none;
-    padding-top: 4px;
-    padding-left: 16px;
-}

@@ -1,4 +1,5 @@
 import {
+    AnimationObjectPlugin,
     AssetExporterPlugin,
     BaseGroundPlugin,
     CameraViewPlugin,
@@ -59,7 +60,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+import {FontLibrary, GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
@@ -98,6 +99,7 @@ export class ThreeEditor extends ThreeViewer {
         GLTFDracoExportPlugin,
         GLTFSpecGlossinessConverterPlugin,
         PopmotionPlugin,
+        AnimationObjectPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
@@ -167,7 +169,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
-        ['Animation']: [TimelineUiPlugin, GLTFAnimationPlugin, CameraViewPlugin],
+        ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin],
         ['Debug']: [RenderTargetPreviewPlugin],
     }
@@ -211,5 +213,6 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
+        await FontLibrary.Init // required for text geometry generation. todo add to other editors?
     }
 }

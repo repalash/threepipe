@@ -1,10 +1,10 @@
 import {
     _testFinish,
-    _testStart,
+    _testStart, AnimationObjectPlugin,
     CameraViewPlugin,
     GLTFAnimationPlugin,
     LoadingScreenPlugin,
-    MaterialConfiguratorBasePlugin, OrbitControls3,
+    MaterialConfiguratorBasePlugin, OrbitControls3, PickingPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -15,11 +15,13 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, CameraViewPlugin, MaterialConfiguratorBasePlugin, GLTFAnimationPlugin, TimelineUiPlugin],
+        plugins: [LoadingScreenPlugin, CameraViewPlugin, MaterialConfiguratorBasePlugin, GLTFAnimationPlugin, AnimationObjectPlugin, TimelineUiPlugin, PickingPlugin],
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
+    ui.setupPluginUi(PickingPlugin, {expanded: true})
+    ui.setupPluginUi(AnimationObjectPlugin, {expanded: true})
 
     await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
 
