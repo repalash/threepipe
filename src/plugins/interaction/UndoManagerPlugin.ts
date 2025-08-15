@@ -1,6 +1,7 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {
     ActionUndoCommand,
+    AnyFunction,
     getUrlQueryParam,
     JSUndoManager,
     onChange,
@@ -62,6 +63,36 @@ export class UndoManagerPlugin extends AViewerPluginSync {
     }
 
     /**
+     * Performs an action with undo/redo support.
+     * @param targ - the target object to call the action on
+     * @param action - a function that returns - 1. an undo function, 2. an object with undo and redo functions (and optional action)
+     * @param args - the arguments to pass to the action function
+     * @param uid - unique identifier for the command, not really used in actions
+     * @param onUndoRedo - optional callback function to be called on undo/redo of the command. Not called on first action execution, only on undo/redo.
+     */
+    async performAction<T extends AnyFunction>(targ: any|undefined, action: T, args: Parameters<T>, uid: any, onUndoRedo?: (c: ActionUndoCommand)=>void) {
+        const ac = ()=> targ === undefined ? action(...args) : action.call(targ, ...args) // if a function is returned, it is treated as undo function
+        let res = await ac()
+        const undo = typeof res === 'function' ? res : res?.undo?.bind(res)
+        const resAction = typeof res !== 'function' ? res?.action?.bind(res) : null
+        const redo = typeof res === 'function' ? ac : res?.redo?.bind(res) ?? resAction
+        if (typeof resAction === 'function') {
+            res = await resAction() // execute the action now. adding await just in case
+        }
+        if (typeof undo === 'function') {
+            this.recordUndo({
+                type: 'UiConfigMethods_action',
+                uid: uid,
+                target: targ,
+                undo: undo,
+                redo: redo,
+                args,
+                onUndoRedo,
+            })
+        }
+    }
+
+    /**
      * Sets a value in the target object with undo/redo support.
      * @param binding - a tuple of target object and key to set the value on
      * @param value - the value to set
@@ -79,7 +110,7 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         return true
     }
 
-    setValues(bindings: [any, keyof any][], defs: any[], v: any[], props: SetValueUndoCommandProps<any>, uid?: any, forceOnChange?: boolean, trackUndo = true, onUndoRedo?: ()=>void) {
+    setValues(bindings: [any, keyof any][], defs: any[], v: any[], props: SetValueUndoCommandProps<any>, uid?: any, forceOnChange?: boolean, trackUndo = true, onUndoRedo?: (c: SetValueUndoCommand)=>void) {
         // array proxy for bindings, this is required because undo modifies arrays in place, and it's better as we only update the bindings that are actually changed.
         const proxy = createBindingsProxy(bindings, defs)
         return this.setValue([proxy, 'value'], v, props, uid, forceOnChange, trackUndo, onUndoRedo)
