@@ -1,7 +1,7 @@
-import {MONACOPILOT_ENDPOINT, MONACOPILOT_TOKEN} from '../../globals.js';
+import * as globalSecs from '../../globals.js';
 
 export function setupMonacopilot (monaco, editor) {
-    if(!MONACOPILOT_ENDPOINT) return
+    if(!globalSecs.MONACOPILOT_ENDPOINT) return
 
     // const copilot = new window.monacopilot.CompletionCopilot('', {
     //     provider: 'mistral',
@@ -12,8 +12,8 @@ export function setupMonacopilot (monaco, editor) {
         language: 'typescript',
         trigger: 'onDemand', // onTyping, [onIdle]
 
-        endpoint: MONACOPILOT_ENDPOINT,
-        token: MONACOPILOT_TOKEN,
+        endpoint: globalSecs.MONACOPILOT_ENDPOINT,
+        token: globalSecs.MONACOPILOT_TOKEN,
         // requestHandler: async ({ body }) => {
         //     return await copilot.complete({body});
         // },
