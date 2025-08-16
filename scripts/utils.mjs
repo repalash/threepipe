@@ -172,7 +172,7 @@ export async function execEachPluginParallel (command, templates = false) {
             }
         }
 
-        const n = 6;
+        const n = 3;
         const groups = []
         for (let i = 0; i < level.length; i += n) {
             groups.push(level.slice(i, i + n));
