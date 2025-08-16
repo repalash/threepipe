@@ -6,6 +6,7 @@ import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -74,6 +75,24 @@ export default defineConfig({
                 includePrivate: true, // Default is false.
             },
         }),
+
+        { // this is because vite doesn't return raw html with ?raw query
+            name: 'raw-html',
+            configureServer (server) {
+                server.middlewares.use('/', (req, res, next) => {
+                    // Custom logic to serve raw HTML
+                    if (req.url.includes('.html?raw')) {
+                        // Read and serve the file directly from filesystem
+                        const filePath = path.join(__dirname, req.url.slice(0, -'?raw'.length));
+                        const content = fs.readFileSync(filePath, 'utf8');
+                        res.setHeader('Content-Type', 'text/plain');
+                        res.end(content);
+                        return;
+                    }
+                    next();
+                });
+            },
+        },
 
         {
             name: 'transform-html-replace-js-to-ts',

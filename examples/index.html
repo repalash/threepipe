@@ -23,6 +23,9 @@
             --text-color: #1C2026;
             --text-color-accent: #2b313a;
             --text-color-hover: #2b313a;
+
+            --foreground-active: hsl(0, 1%, 17%);
+            --luminosity-hover: hsl(220 60% 95% / 0.1);
         }
 
         @media (prefers-color-scheme: dark) {
@@ -35,10 +38,14 @@
                 --text-color: #F6F7F9;
                 --text-color-accent: #d2d3d5;
                 --text-color-hover: #d2d3d5;
+
+                --foreground-active: hsl(0 0% 94%);
+                --luminosity-hover: hsl(220 60% 95% / 0.1);
             }
         }
 
         .root-container {
+            position: relative;
             display: flex;
             flex-direction: row;
             width: 100%;
@@ -61,19 +68,22 @@
             color: var(--text-color-hover);
         }
 
-        .sidebar {
-            width: min(320px, 30%);
+        .sidebar, .codebar {
             height: 100%;
             background: var(--background-color);
             color: var(--text-color);
-            padding: 1rem 1rem;
             box-sizing: border-box;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
             position: relative;
+        }
+
+        .sidebar {
+            padding: 1rem 1rem;
             transition: width 0s ease-in-out;
+            width: min(320px, 30%);
         }
 
         .sidebar h1 {
@@ -115,15 +125,41 @@
             flex-direction: column; font-weight: normal;
         }
 
+        .sidebar ul li {
+            position: relative;
+            display: flex;
+        }
+        .sidebar ul li .hov-btn{
+            box-sizing: border-box;
+            cursor: pointer;
+            position: absolute;
+            top: 0; bottom: 0; right: 0;
+            margin: auto 0; padding: 4px;
+            height: 20px; width: 20px;
+            font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.3s ease-in-out, background-color 0.3s ease-in-out;
+            opacity: 0;
+        }
+        .sidebar ul li:hover .hov-btn{
+            opacity: 1;
+        }
+        .sidebar ul li.selected-li .delete-btn{
+            display: none;
+        }
+
+        .sidebar ul li .hov-btn:hover{
+            background-color: var(--luminosity-hover);
+            color: var(--foreground-active);
+        }
+
         .sidebar ul li a {
             color: var(--primary-color);
             text-underline-offset: 0.25rem;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease-in-out, font-weight 0.3s ease-in-out, background-size 0.75s;
-            background: linear-gradient(to right, rgb(231, 7, 7), rgb(91, 34, 203), rgb(7, 108, 211));
-            background-position: 0 100%;
-            background-repeat: no-repeat;
+            background: linear-gradient(to right, rgb(231, 7, 7), rgb(91, 34, 203), rgb(7, 108, 211)) no-repeat 0 100%;
             background-size: 0 0;
             padding-bottom: 2px;
         }
@@ -160,8 +196,9 @@
         .closed:before{
             content: attr(data-selected-example);
             position: absolute;
-            top: 0; left: 0;
-            height: 100%; width: 3.3rem;
+            top: 40px; left: 0;
+            height: calc(100% - 40px);
+            width: 3.3rem;
             color: var(--primary-color);
             font-size: 1.25rem;
             text-align: center; vertical-align: middle;
@@ -244,56 +281,34 @@
         }
 
     </style>
-    <script>
+
+    <link rel="stylesheet" href="./_index/editor/editor.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.0/build/dist/untar.min.js"></script>
+
+    <script src="https://unpkg.com/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script src="https://unpkg.com/monacopilot@1.2.7/dist/index.global.js"></script>
+    <script src="https://unpkg.com/monaco-tm@0.1.0/dist/index.global.js"></script>
+
+    <script type="module">
+        import {setupCodeEditor} from "./_index/editor/setup.mjs";
+
         window.addEventListener('DOMContentLoaded', () => {
             const hamburger = document.querySelector('.hamburger');
             const sidebar = document.querySelector('.sidebar');
-            hamburger.addEventListener('click', () => {
-                sidebar.classList.toggle('closed');
-            });
-
+            const codebar = document.querySelector('.codebar');
             const iframe = document.querySelector('#example-iframe');
-            const links = document.querySelectorAll('li>a');
-            let selected = document.querySelector('a.selected');
-
-            function selectTarget(target, scroll = false) {
-                selected.classList.remove('selected');
-                target.classList.add('selected');
-                selected = target;
-                iframe.src = target.href;
-                sidebar.dataset.selectedExample = target.innerText;
-                window.location.hash = "#" + target.getAttribute("href").slice(2);
-                if(scroll){
-                    setTimeout(() => { // this is required because of autofocus
-                        target.scrollIntoView({behavior: "smooth", block: "center"});
-                    }, 100);
-                }
-            }
-
-            links.forEach(link => {
-                link.onclick = (ev) => {
-                    ev.preventDefault()
-                    const target = ev.target;
-                    selectTarget(target);
-                }
-            });
-
-            let hash = window.location.hash.slice(1);
-            if(hash){
-                if(!hash.endsWith('/')) hash += '/';
-                const target = document.querySelector(`a[href="./${hash}"]`);
-                selectTarget(target || selected, true);
-            }
-            else selectTarget(selected, true);
-
+            const filterInput = document.querySelector('#filterInput');
+            // todo listen to customExample changes and create tab accordingly
+            const customExamples = JSON.parse(localStorage.getItem('tp-examples-custom')) ?? []
             let urlParams = new URLSearchParams(window.location.search);
             let searchTerm = urlParams.get('q');
-
-            const filterInput = document.querySelector('#filterInput');
-
-            if (searchTerm) filterInput.value = searchTerm;
+            let allExamples = []
+            let selected
 
             function updateSearch() {
+                urlParams = new URLSearchParams(window.location.search);
                 const filterQuery = filterInput.value.toLowerCase();
                 urlParams.set('q', filterQuery);
                 if(searchTerm)
@@ -318,6 +333,128 @@
                     category.nextElementSibling.style.display = category.style.display;
                 });
             }
+            function createExample(example) {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                const loc = window.location.origin + window.location.pathname.replace('/index.html', '/');
+                console.log(loc, example.href)
+                a.href = example.href.replace(loc, './');
+                a.textContent = example.label;
+                a.dataset.customId = example.id;
+                li.dataset.customIdLi = example.id;
+                li.appendChild(a);
+                const deleteBtn = document.createElement('span');
+                deleteBtn.textContent = '✕';
+                deleteBtn.className = 'hov-btn delete-btn';
+                deleteBtn.onclick = (ev) => {
+                    ev.stopPropagation();
+                    const customId = ev.target.parentElement.customIdLi;
+                    customExamples.splice(customExamples.findIndex(e => e.id === customId), 1);
+                    localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                    localStorage.removeItem(`tp-examples-custom-${customId}`);
+                    ev.target.parentElement.remove();
+                    updateSearch()
+                }
+                li.appendChild(deleteBtn);
+                sidebar.querySelector('#custom-category').appendChild(li);
+                return a
+            }
+            function addExample(example, content) {
+                customExamples.push(example)
+                localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+                const a = createExample(example)
+                a.onclick = (ev) => {
+                    ev.preventDefault();
+                    selectTarget(ev.target);
+                }
+                allExamples.push(a.href)
+                selectTarget(a, true, false)
+                updateSearch()
+            }
+            function saveExample(exampleId, content) {
+                const example = customExamples.find(e => e.id === exampleId);
+                if(!example){
+                    console.warn(`Example with id ${exampleId} not found.`);
+                    return;
+                }
+                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+            }
+
+            const setEditorExample = setupCodeEditor(iframe)
+
+            function selectTarget(target, scroll = false, updateFrame = true) {
+                selected.classList.remove('selected');
+                selected.parentElement && selected.parentElement.classList.remove('selected-li');
+                target.classList.add('selected');
+                target.parentElement.classList.add('selected-li');
+                sidebar.dataset.selectedExample = target.innerText;
+                window.location.hash = "#" + target.getAttribute("href").slice(2);
+                if(selected === target) return
+                selected = target;
+                if(scroll){
+                    setTimeout(() => { // this is required because of autofocus
+                        target.scrollIntoView({behavior: "smooth", block: "center"});
+                    }, 100);
+                }
+                if(!updateFrame) return;
+                const custom = !!target.dataset.customId
+                const customContent = custom ? localStorage.getItem(`tp-examples-custom-${target.dataset.customId}`) : null
+                if(!custom) {
+                    if (iframe.srcdoc) iframe.removeAttribute('srcdoc');
+                    if (iframe.src !== target.href) iframe.src = target.href;
+                }else {
+                    if(iframe.src) iframe.removeAttribute('src');
+                    if(iframe.srcdoc !== customContent) {
+                        iframe.srcdoc = customContent;
+                    }
+                }
+                setEditorExample(target.href, allExamples, customContent,
+                    (newName, oldName, content)=> addExample({
+                        id: newName,
+                        label: target.textContent + newName.replace(oldName, '').replace(/-/g, ' '),
+                        href: target.href.replace(oldName, newName),
+                    }, content), saveExample)
+            }
+
+            hamburger.addEventListener('click', () => {
+                sidebar.classList.toggle('closed');
+            });
+            window.addEventListener('keydown', (ev) => {
+                // ignore if textarea
+                if(ev.target.id === 'filterInput') {
+                    if(ev.target.value !== '') return;
+                }
+                else if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
+                if(ev.key === '.') {
+                    ev.preventDefault();
+                    codebar.classList.toggle('closed');
+                }
+            });
+            customExamples.forEach(createExample);
+
+            const links = sidebar.querySelectorAll('li>a'); // after creating custom examples
+            selected = sidebar.querySelector('a.selected');
+            const examples = [...links.values().map(link=>link.href)]
+            allExamples = [...examples] ///[...examples, ...customExamples.map(example => example.href)]
+
+            links.forEach(link => {
+                link.onclick = (ev) => {
+                    ev.preventDefault()
+                    const target = ev.target;
+                    selectTarget(target);
+                }
+            });
+
+            let hash = window.location.hash.slice(1);
+            if(hash){
+                if(!hash.endsWith('/')) hash += '/';
+                const target = document.querySelector(`a[href="./${hash}"]`);
+                selectTarget(target || selected, true);
+            }
+            else selectTarget(selected, true);
+
+            if (searchTerm) filterInput.value = searchTerm;
 
             window.addEventListener('popstate', function() {
                 urlParams = new URLSearchParams(window.location.search);
@@ -325,11 +462,11 @@
                 document.querySelector('#filterInput').value = searchTerm;
                 updateSearch()
             });
-
             filterInput.addEventListener('keyup', updateSearch);
             updateSearch()
         });
     </script>
+
 </head>
 <body>
 <div class="root-container">
@@ -359,6 +496,9 @@
         <ul>
             <li><a class="selected" href="./tweakpane-editor/">Tweakpane Editor </a></li>
             <li><a href="./model-viewer/">Model Viewer </a></li>
+        </ul>
+        <h2 class="category">Custom</h2>
+        <ul id="custom-category">
         </ul>
         <h2 class="category">Rendering</h2>
         <ul>
@@ -568,14 +708,29 @@
             <li><a href="./gltf-transmission-test-msaa-zprepass/">glTF Transmission Test + MSAA + zPrepass</a></li>
             <li><a href="./dispose-reimport-test/">Dispose + Reimport (URL)</a></li>
             <li><a href="./dispose-reimport-test-2/">Dispose + Reimport (URL, Root)</a></li>
-            <li><a href="./dispose-reimport-test-3/">Dispose + Reimport (URL, Root, BUG)</a></li>
-            <li><a href="./reimport-duplicate-test/">Reimport Duplicate (URL, Root, BUG)</a></li>
+            <li><a href="./dispose-reimport-test-3/">Dispose + Reimport 2 (URL, Root)</a></li>
+            <li><a href="./reimport-duplicate-test/">Reimport Duplicate (URL, Root)</a></li>
             <li><a href="./clear-reimport-test/">Clear + Reimport (URL, Root)</a></li>
             <li><a href="./clear-reimport-test-2/">Clear + Reimport 2 (URL, Root)</a></li>
             <li><a href="./theatrejs-plugin/">TheatreJs UI Plugin (Incomplete)</a></li>
         </ul>
     </div>
-    <div class="iframe-container">
+    <div class="codebar closed left-pane">
+        <div class="codefiles">
+            <div class="codefiles-tabs"></div>
+            <div class="codefiles-actions">
+                <div class="codefiles-action" id="codefiles-action-format">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" width="1em" height="1em"><path d="M10.33 1.67h-8c-.45-.02-.43-.67 0-.67h8c.44 0 .46.64 0 .67m-8 2.66c-.45-.02-.43-.66 0-.66H7c.44 0 .45.64 0 .66zM5.67 3c-.46-.02-.44-.66 0-.67h6.66c.44.01.46.65 0 .67zm5.33.67c.44 0 .45.64 0 .66H8.33c-.45-.02-.43-.66 0-.66zm1.33.66c-.45-.02-.43-.66 0-.66H13c.44 0 .45.64 0 .66zm-10 1.34c-.45-.02-.43-.67 0-.67h1.34c.43 0 .45.64 0 .67zm8 0c-.45-.02-.43-.67 0-.67h3.34c.43 0 .45.64 0 .67zM5 5.67C4.55 5.65 4.57 5 5 5h.67c.43 0 .45.64 0 .67zm-2.67 8c-.45-.02-.43-.67 0-.67h1.34c.43 0 .45.64 0 .67zm2.67 0c-.45-.02-.43-.67 0-.67h.67c.43 0 .45.64 0 .67zM10.33 7c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm-8 0c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm0 5.33c-.45-.02-.43-.66 0-.66h3.34c.43 0 .45.64 0 .66zm0 2.67c-.45-.02-.43-.66 0-.67h3.34c.43.01.45.65 0 .67zm0-6.67c-.45-.02-.43-.66 0-.66H3c.44 0 .45.64 0 .66zm2 0c-.45-.02-.43-.66 0-.66h2c.44 0 .46.64 0 .66zm3.34 0c-.46-.02-.44-.66 0-.66H13c.44 0 .45.64 0 .66zm2.66 1.34c-.45-.02-.43-.67 0-.67h2c.44 0 .46.64 0 .67zm-4 0c-.45-.02-.43-.67 0-.67H9c.44 0 .45.64 0 .67zm-4 0c-.45-.02-.43-.67 0-.67H5c.44 0 .45.64 0 .67zm0 1.33c-.45-.02-.43-.66 0-.67H3c.44.01.45.65 0 .67zm2 0c-.45-.02-.43-.66 0-.67h6c.44.01.46.65 0 .67zm-2-8c-.45-.02-.43-.66 0-.67h2c.44.01.46.65 0 .67z"></path></svg>
+                </div>
+                <div class="codefiles-action" id="codefiles-action-run">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.681 3H2V2h3.5l.5.5V6H5V4a5 5 0 1 0 4.53-.761l.302-.954A6 6 0 1 1 4.681 3" clip-rule="evenodd"></path></svg>
+                </div>
+            </div>
+        </div>
+        <div class="codebox"></div>
+    </div>
+    <div class="panes-separator"><div class="panes-separator-line"></div></div>
+    <div class="iframe-container right-pane">
         <!-- TODO: allow only threepipe and localhost domains -->
         <iframe id="example-iframe" src="./tweakpane-editor/" frameborder="0" allowfullscreen="allowfullscreen"
                 allow="accelerometer *; ambient-light-sensor *; autoplay *; camera *; clipboard-read *; clipboard-write *; encrypted-media *; fullscreen *; geolocation *; gyroscope *; magnetometer *; microphone *; midi *; payment *; picture-in-picture *; screen-wake-lock *; speaker *; sync-xhr *; usb *; web-share *; vibrate *; vr *">

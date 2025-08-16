@@ -1,0 +1,223 @@
+
+:root {
+    /*--page-background: hsl(220 10% 14%);*/
+    --tab-inactiveBackground: var(--background-color-search);
+    --foreground-alt: hsl(0, 0%, 41%);
+    --tab-activeBackground: #FFFFFE;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tab-inactiveBackground: hsl(220 10% 16.5%);
+        --foreground-alt: hsl(0 0% 62%);
+        --tab-activeBackground: #15181E;
+    }
+}
+
+.codebar {
+    width: max(320px, 40%);
+    flex-direction: column;
+    gap: 0;
+    display: flex;
+}
+.codebar.closed{
+    display: none;
+}
+
+.codefiles {
+    --tab-height: 38px;
+    background-color: var(--background-color);
+    display: flex;
+    flex-shrink: 0;
+    height: var(--tab-height);
+    overflow: hidden;
+}
+
+.codefiles-tabs {
+    display: flex;
+    height: calc(var(--tab-height) + 20px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.codefiles-actions {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+.codefile-actions-disabled .codefiles-action{
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.codefiles-action {
+    --size: 32px;
+    --iconSize: 14px;
+    width: 30px !important;
+    cursor: pointer;
+    /*--size: 32px;*/
+    /*--iconSize: 16px;*/
+    align-items: center;
+    color: inherit;
+    display: flex;
+    flex-shrink: 0;
+    font-size: var(--iconSize);
+    height: var(--size);
+    justify-content: center;
+    max-height: 100%;
+    padding: 0;
+    transition: all .3s ease;
+    /*width: var(--size);*/
+}
+.codefiles-action:hover{
+    background-color: var(--luminosity-hover);
+    color: var(--foreground-active);
+}
+
+.codefile{
+    align-items: center;
+    background-color: var(--tab-inactiveBackground);
+    color: var(--foreground-alt);
+    cursor: pointer;
+    display: inline-flex;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 400;
+    height: var(--tab-height, 32px);
+    line-height: var(--tab-height, 32px);
+    min-width: 110px;
+    padding: 0;
+    padding-inline-end: 4px;
+    padding-inline-start: 10px;
+    position: relative;
+}
+.codefile-selected{
+    background-color: var(--tab-activeBackground);
+    color: var(--foreground-active);
+}
+.codefile-disabled{
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.codefile-name{
+    align-items: center;
+    color: var(--text-color, currentColor);
+    display: flex;
+    flex-grow: 1;
+    font-size: 13px;
+    gap: 4px;
+    user-select: none;
+}
+.codefile-name1{
+    flex-grow: 1;
+    line-height: normal;
+    overflow: hidden;
+    padding: 2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.codefile-button{
+    border-radius: 4px;
+    color: inherit;
+    display: block;
+    flex: none;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0;
+    height: 20px;
+    width: 20px;
+    padding: 2px;
+    box-sizing: border-box;
+}
+.codefile-button.can-close:hover{
+    background-color: var(--luminosity-hover);
+    color: var(--foreground-active);
+}
+
+.codefile-button::before{
+    box-sizing: border-box;
+    padding: 2px;
+    display: flex;
+    height: 16px;
+    width: 16px;
+    justify-content: center;
+    content: "\2715";
+    opacity: 0.2;
+    cursor: default;
+}
+.codefile-button.can-close::before{
+    opacity: 1;
+    cursor: pointer;
+}
+
+.codefile-unsaved > .codefile-button::before{
+    content: "\25CF";
+    opacity: 1;
+}
+
+.codefile:hover > .codefile-button,
+.codefile-selected > .codefile-button,
+.codefile-unsaved > .codefile-button {
+    opacity: 1;
+}
+
+.codebox{
+    width: 100%;
+    height: 100%;
+}
+
+.monaco-editor { position: absolute !important; }
+
+.left-pane {
+    /*width: 18%;*/
+    /*background: #ccc;*/
+}
+
+/*.panes-separator,*/
+/*.left-pane,*/
+/*.right-pane {*/
+/*    margin: 0;*/
+/*    padding: 0;*/
+/*    height: 100%;*/
+/*}*/
+.right-pane{
+    margin-left: -4px;
+}
+
+.panes-separator {
+    height: 100%;
+    width: 8px;
+    position: relative;
+    cursor: col-resize;
+    margin-left: -4px;
+    background: transparent;
+}
+.panes-separator .panes-separator-line{
+    position: absolute;
+    width: 4px;
+    height: 100%;
+    left: 2px;
+    background: transparent;
+}
+.panes-separator.pane-sep-dragging .panes-separator-line{
+    background: #1389fd;
+}
+.panes-separator:hover .panes-separator-line{
+    background: #1389fd;
+}
+
+.right-pane {
+    flex: auto;
+    /*background: #eee;*/
+}
+
+.file-icon{
+    flex-shrink: 0;
+    height: 15px;
+    width: 15px;
+}
