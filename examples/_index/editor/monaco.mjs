@@ -190,7 +190,7 @@ export async function createMonacoEditor () {
     window.monacoEditor = await window.monacoPromise
 
     loadFileFromPath(new URL('./examples-utils/simple-bottom-buttons.js', window.location.href).href)
-    loadFileFromPath(new URL('./tweakpane-editor/ThreeEditor.ts?raw', window.location.href).href)
+    // loadFileFromPath(new URL('./tweakpane-editor/ThreeEditor.ts?raw', window.location.href).href)
     // loadFileFromPath(new URL('./examples-utils/global-loading.mjs', window.location.href).href)
     // loadFileFromPath(new URL('./examples-utils/simple-code-preview.mjs', window.location.href).href)
     return window.monacoEditor;

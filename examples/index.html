@@ -305,7 +305,7 @@
             let urlParams = new URLSearchParams(window.location.search);
             let searchTerm = urlParams.get('q');
             let allExamples = []
-            let selected
+            let selected = null
 
             function updateSearch() {
                 urlParams = new URLSearchParams(window.location.search);
@@ -384,8 +384,11 @@
             const setEditorExample = setupCodeEditor(iframe)
 
             function selectTarget(target, scroll = false, updateFrame = true) {
-                selected.classList.remove('selected');
-                selected.parentElement && selected.parentElement.classList.remove('selected-li');
+                const current = selected || sidebar.querySelector('a.selected')
+                if(current) {
+                    current.classList.remove('selected');
+                    current.parentElement && current.parentElement.classList.remove('selected-li');
+                }
                 target.classList.add('selected');
                 target.parentElement.classList.add('selected-li');
                 sidebar.dataset.selectedExample = target.innerText;
@@ -434,7 +437,7 @@
             customExamples.forEach(createExample);
 
             const links = sidebar.querySelectorAll('li>a'); // after creating custom examples
-            selected = sidebar.querySelector('a.selected');
+            const selected1 = sidebar.querySelector('a.selected');
             const examples = [...links.values().map(link=>link.href)]
             allExamples = [...examples] ///[...examples, ...customExamples.map(example => example.href)]
 
@@ -450,9 +453,9 @@
             if(hash){
                 if(!hash.endsWith('/')) hash += '/';
                 const target = document.querySelector(`a[href="./${hash}"]`);
-                selectTarget(target || selected, true);
+                selectTarget(target || selected1, true);
             }
-            else selectTarget(selected, true);
+            else selectTarget(selected1, true);
 
             if (searchTerm) filterInput.value = searchTerm;
 

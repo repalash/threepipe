@@ -7,8 +7,8 @@ const fileLoadState = {
     files: new Map(),
 }
 
-export function registerFile (path, text) {
-    path = monacoPrefix + path
+export function registerFile (path, text, prefix = monacoPrefix) {
+    path = prefix + path
     if(fileLoadState.files.has(path)) {
         console.warn('Replacing existing file', path, 'with new content');
     }

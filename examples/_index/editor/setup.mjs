@@ -118,7 +118,7 @@ export function setupCodeEditor (iframe) {
 
         const model = monaco.editor.createModel(currentFile, undefined, monaco.Uri.parse(uris));
 
-        model.refreshJsContent = async ()=>{
+        model.refreshJsContent = async (first = false)=>{
             if(model._refreshingJs) return model._refreshingJs
             let changed = false
             model._refreshingJs = (async ()=> {
@@ -145,7 +145,7 @@ export function setupCodeEditor (iframe) {
             if(!changed) return
             const onChange = exampleState[example]?.onChange
             if(onChange && model.compiledContent !== undefined) {
-                onChange(model, uris, model.compiledContent ?? model.getValue())
+                onChange(model, uris, model.compiledContent ?? model.getValue(), first)
             }
         }
 
@@ -163,10 +163,10 @@ export function setupCodeEditor (iframe) {
             model.refreshSavedState()
         })
 
-        model._onSave = async ()=> {
+        model._onSave = async (first = false)=> {
             saveFile(uris, model.getValue());
             model.refreshSavedState()
-            await model.refreshJsContent()
+            await model.refreshJsContent(first)
         }
 
         editor.onSaveAction(async (e) => {
@@ -184,10 +184,9 @@ export function setupCodeEditor (iframe) {
             model.setValue(content)
         }
 
-        saveFile(uris, model.getValue());
-        model.refreshSavedState()
-
-        // model._onSave() // no await
+        // saveFile(uris, model.getValue());
+        // model.refreshSavedState()
+        model._onSave(true) // no await
 
         tab.classList.remove('codefile-disabled');
 
@@ -246,14 +245,26 @@ export function setupCodeEditor (iframe) {
             changed: false,
             html: htmlContent,
             js: hasContent || '',
-            onChange: (model, uris, content)=>{
-                if(uris.endsWith('.ts') || uris.endsWith('.js')) {
+            files: [], // extrafiles
+            onChange: (model, uris, content, first = false)=>{
+                if(uris.endsWith('/script.ts') || uris.endsWith('/script.js')) {
                     state.js = content;
-                }else if(uris.endsWith('.html')) {
+                }else if(uris.endsWith('/index.html')) {
                     state.html = content;
-                } else {
-                    console.warn('Unknown file type for onChange:', uris);
+                }else {
+                    let hasFile = false
+                    for (const file of state.files) {
+                        if(uris.endsWith('/' + file.name.replace(/^\.\//, ''))) {
+                            file.content = content;
+                            hasFile = true
+                            break
+                        }
+                    }
+                    if(!hasFile)
+                        console.warn('Unknown file type for onChange:', uris);
                 }
+                if(first) return
+
                 const parsedHtml = new DOMParser().parseFromString(state.html, 'text/html');
                 // replace script
                 const existingScript = parsedHtml.querySelector('#example-script');
@@ -266,6 +277,25 @@ export function setupCodeEditor (iframe) {
                     baseTag = parsedHtml.createElement('base');
                     parsedHtml.head.prepend(baseTag);
                 }
+                const importMap = parsedHtml.querySelector('script[type="importmap"]');
+                if (importMap) {
+                    const imports = JSON.parse(importMap.textContent || '{}').imports || {};
+                    let changed = false
+                    for (const file of state.files) {
+                        if(imports[file.key] && file.content) {
+                            const mime = file.name.endsWith('.ts') || file.name.endsWith('.js') ? 'text/javascript' :
+                                file.name.endsWith('.css') ? 'text/css' : 'text/plain';
+                            // imports[file.key] = 'data:' + mime + ';charset=utf-8,' + encodeURIComponent(content);
+                            imports[file.key] = 'data:' + mime + ';base64,' + btoa(file.content);
+                            changed = true
+                        }
+                    }
+                    if(changed) {
+                        importMap.textContent = JSON.stringify({imports}, null, 2);
+                    }
+                }
+                // todo
+
                 const url = new URL(window.location.href)
                 url.pathname += example + '/';
                 url.hash = ''
@@ -276,6 +306,8 @@ export function setupCodeEditor (iframe) {
                     state.changed = true
                     if(exampleId2 !== example) {
                         createNew(exampleId2, example, parsedHtml.documentElement.outerHTML);
+                    }else{
+                        saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
                     }
                 }else {
                     saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
@@ -295,6 +327,21 @@ export function setupCodeEditor (iframe) {
                 }
             },
         }
+        for (let key of Object.keys(imports)) {
+            if (key.startsWith('./')) {
+                if(key.includes('/../')) continue // just in case
+                const name = key.endsWith('.js') ? key : key + '.ts'; // todo check if ts file exists
+                const file = {key, name, content: ''}
+
+                const ref = imports[key]
+                if(ref && ref.startsWith('data:')) {
+                    const dataUrl = ref.split('base64,')
+                    file.content = atob(dataUrl[1]);
+                }
+                state.files.push(file)
+            }
+        }
+
         exampleState[exampleId2] = state
 
 
@@ -303,22 +350,14 @@ export function setupCodeEditor (iframe) {
         }
 
         const mainScriptUrl = new URL(mainSource, htmlPath.href);
+        // const extraFileUrls = []
 
         const getContent = async (absUrl) => {
             if(exampleId2 === example) return null
             if(absUrl === mainScriptUrl.href && hasContent) {
-                const lines = hasContent.split('\n')
-                if(!lines.length) return ''
-                let ts = 0
-                while(lines[ts].trim() === '' && ts < lines.length - 1) ts++
-                lines.splice(0, ts)
-                if(!lines.length) return ''
-                const indent = lines[0].match(/^\s*/)[0]
-                // console.log(`:${indent}:`)
-                const content = lines.map(line => line.startsWith(indent) ? line.slice(indent.length) : line).join('\n')
-                return content
+                return trimCodeIndents(hasContent);
             }
-            if(absUrl === htmlPath.href && hasContent) {
+            if(absUrl === htmlPath.href && htmlContent) {
                 return htmlContent
             }
             const url = new URL(absUrl)
@@ -335,16 +374,23 @@ export function setupCodeEditor (iframe) {
                 tab.click()
             }, 100)
         })
+
+        for (const file of state.files) {
+            const pathUrl = new URL(file.name, htmlPath.href);
+            // // extraFileUrls.push(pathUrl)
+            createFile(pathUrl.href, exampleId2, getContent, false)
+
+        }
         createFile(htmlPath.href, exampleId2, getContent, false)
 
         const editor = await window.monacoPromise
         loadTypesFromTarGz('threepipe')
         loadTypesFromTarGz('uiconfig-tweakpane')
         for (let key of Object.keys(imports)) {
-            if(!key.startsWith('./'))
+            if (key.startsWith('./')) {
+                // nothing
+            } else {
                 loadTypesFromTarGz(key)
-            else {
-                continue
             }
         }
     }
@@ -381,6 +427,17 @@ export function setupCodeEditor (iframe) {
     window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
 
     return setEditorExample
+}
+
+function trimCodeIndents (code) {
+    const lines = code.split('\n')
+    if (!lines.length) return ''
+    let ts = 0
+    while (lines[ts].trim() === '' && ts < lines.length - 1) ts++
+    lines.splice(0, ts)
+    if (!lines.length) return ''
+    const indent = lines[0].match(/^\s*/)[0]
+    return lines.map(line => line.startsWith(indent) ? line.slice(indent.length) : line).join('\n')
 }
 
 function nextName (n) {
