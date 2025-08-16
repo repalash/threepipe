@@ -11,7 +11,7 @@ export function setupCodeEditor (iframe) {
         setupMonacopilot(monaco, editor)
     })
 
-    // const codebar = document.querySelector('.codebar');
+    const codebar = document.querySelector('.codebar');
     const codefiles = document.querySelector('.codefiles-tabs');
     const codefilesActions = document.querySelector('.codefiles-actions');
     const exampleState = {};
@@ -194,8 +194,6 @@ export function setupCodeEditor (iframe) {
         return tab
     }
 
-    window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
-
     async function setEditorExample (example111, examples111, customContent, createNew, saveExample) {
         // remove existing tabs
         codefiles.innerHTML = '';
@@ -203,10 +201,9 @@ export function setupCodeEditor (iframe) {
         window.monaco && monaco.editor && monaco.editor.getModels().forEach(model => model.dispose());
         const example = example111.split('/examples/').pop().split('/index.html')[0].split('/')[0];
         const examples = examples111.map(e=>e.split('/examples/').pop().split('/index.html')[0].split('/')[0])
-        console.warn(example)
         const indexFilename = 'index.html';
         const htmlPath = new URL('./' + example + '/' + indexFilename, window.location.href)
-        const htmlContent = customContent || await (fetch(htmlPath.href + '?raw')).then(res=>res.text()).catch(e=>{
+        let htmlContent = customContent || await (fetch(htmlPath.href + '?raw')).then(res=>res.text()).catch(e=>{
             console.error('Error fetching example:', e);
             return '';
         });
@@ -227,10 +224,15 @@ export function setupCodeEditor (iframe) {
         const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {};
         const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : [];
         const hasContent = exampleScript.textContent
-        const mainSource = hasContent ? './script.js' : sources.find(s=>s.endsWith('/script.ts')) || sources[0];
+        const mainSource = sources.find(s=>s.endsWith('/script.ts')) || sources[0] || (hasContent ? './script.js' : null);
         if(!mainSource) {
             console.warn('No main source script found in the example script dataset');
             return;
+        }
+        if(hasContent) {
+            exampleScript.textContent = ''
+            exampleScript.src = mainSource;
+            htmlContent = parsed.documentElement.outerHTML
         }
         let exampleId2 = example
         if(!customContent) {
@@ -243,7 +245,7 @@ export function setupCodeEditor (iframe) {
             id: exampleId2,
             changed: false,
             html: htmlContent,
-            js: exampleScript.textContent || '',
+            js: hasContent || '',
             onChange: (model, uris, content)=>{
                 if(uris.endsWith('.ts') || uris.endsWith('.js')) {
                     state.js = content;
@@ -312,9 +314,12 @@ export function setupCodeEditor (iframe) {
                 lines.splice(0, ts)
                 if(!lines.length) return ''
                 const indent = lines[0].match(/^\s*/)[0]
-                console.log(`:${indent}:`)
+                // console.log(`:${indent}:`)
                 const content = lines.map(line => line.startsWith(indent) ? line.slice(indent.length) : line).join('\n')
                 return content
+            }
+            if(absUrl === htmlPath.href && hasContent) {
+                return htmlContent
             }
             const url = new URL(absUrl)
             // if(url.pathname.endsWith('.ts') || url.pathname.endsWith('.html'))
@@ -333,6 +338,8 @@ export function setupCodeEditor (iframe) {
         createFile(htmlPath.href, exampleId2, getContent, false)
 
         const editor = await window.monacoPromise
+        loadTypesFromTarGz('threepipe')
+        loadTypesFromTarGz('uiconfig-tweakpane')
         for (let key of Object.keys(imports)) {
             if(!key.startsWith('./'))
                 loadTypesFromTarGz(key)
@@ -341,6 +348,37 @@ export function setupCodeEditor (iframe) {
             }
         }
     }
+
+    // Function to setup show-code-btn listener in iframe
+    function setupIframeCodeButton () {
+        try {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            const showCodeBtn = iframeDoc.querySelector('.show-code-btn');
+            if (showCodeBtn) {
+                showCodeBtn.onclick = () => {
+                    codebar.classList.toggle('closed');
+                };
+            }
+            // add style in iframe
+            const style = iframeDoc.createElement('style');
+            style.textContent = `
+                        .code-block{
+                            display: none !important;
+                        }
+                    `;
+            iframeDoc.head.appendChild(style);
+        } catch (e) {
+            // Handle cross-origin or other access issues
+            console.warn('Could not access iframe content:', e);
+        }
+    }
+
+    // Listen for iframe load events to setup the button listener
+    iframe.addEventListener('load', () => {
+        setupIframeCodeButton();
+    });
+
+    window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
 
     return setEditorExample
 }

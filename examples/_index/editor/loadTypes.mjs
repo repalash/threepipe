@@ -87,7 +87,7 @@ export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0)
             const cached = await cache.match(cacheKey);
             if(cached) files = await cached.arrayBuffer().then(buf => untar(buf));
             else {
-                console.log('cache miss')
+                // console.log('cache miss')
                 const buffer = await fetch(tarball).then(r => r.arrayBuffer())
                 const decompressed = pako.inflate(buffer);
                 await cache.put(cacheKey, new Response(decompressed.buffer));
