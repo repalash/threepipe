@@ -276,6 +276,7 @@ Many features will be added but the core API will not change significantly in fu
   - [UI Configuration](https://threepipe.org/guide/features.html#ui-configuration)
   - [Serialization](https://threepipe.org/guide/features.html#serialization)
   - [Plugin System](https://threepipe.org/guide/features.html#plugin-system)
+  - [Timeline](https://threepipe.org/guide/features.html#timeline)
 - [Viewer API](https://threepipe.org/guide/viewer-api.html#viewer-api)
   - [ThreeViewer](https://threepipe.org/guide/viewer-api.html#threeviewer)
   - [RenderManager](https://threepipe.org/guide/viewer-api.html#rendermanager)

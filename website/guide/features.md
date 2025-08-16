@@ -17,7 +17,7 @@ Threepipe comes packed with an asset manager, render pipeline, serialization set
 ThreePipe Asset Manager supports the import of the following file formats out of the box:
 * **Models**: gltf, glb, obj+mtl, fbx, drc
 * **Materials**: mat, pmat, bmat (json based), registered material template slugs
-* **Images**: webp, png, jpeg, jpg, svg, ico, avif, hdr, exr
+* **Textures**: webp, png, jpeg, jpg, svg, ico, avif, hdr, exr, mp4, mov, webm
 * **Misc**: json, vjson, zip, txt
 
 Plugins can add additional formats:
@@ -30,7 +30,7 @@ Plugins can add additional formats:
     * ktx2 - Using [KTX2LoadPlugin](../plugin/KTX2LoadPlugin)
 
 Plugins to support more model formats are available in the package [@threepipe/plugins-extra-importers](../package/plugins-extra-importers) including .3ds,
-.3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz
+.3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz. 
 
 ### Loading files
 
@@ -189,3 +189,55 @@ For any high-level usage, don't use the `ThreeSerialization` class directly. Use
 :::
 
 Read more and check samples in the [Serialization](./serialization) guide.
+
+## Timeline
+
+ThreePipe provides a **global timeline system** that serves as the central control mechanism for all time-based animations and effects in the viewer. The timeline enables synchronized playback, recording, and control of multiple animation systems working together.
+
+### Core Timeline Features
+
+The viewer timeline ([ViewerTimeline](https://threepipe.org/docs/classes/ViewerTimeline.html)) provides:
+
+- **Global Time Control**: Centralized time management for all animations
+- **Playback Controls**: Play, pause, stop, seek, and loop functionality  
+- **Frame-by-Frame Control**: Precise frame stepping for animation recording
+- **Progressive Integration**: Synchronization with progressive rendering for high-quality output
+- **Plugin Integration**: Unified interface for all animation plugins
+
+```typescript
+// Basic timeline control
+viewer.timeline.time = 2.5        // Current time in seconds
+viewer.timeline.endTime = 10      // Timeline duration in seconds
+viewer.timeline.resetOnEnd = true // Loop timeline when it reaches the end
+
+viewer.timeline.start()           // Start timeline playback
+viewer.timeline.stop()            // Pause timeline
+viewer.timeline.reset()           // Reset to time 0
+```
+
+### Plugin Integration
+
+Multiple plugins interface with the global timeline to provide synchronized animation experiences:
+
+#### Animation Plugins
+- **[GLTFAnimationPlugin](../plugin/GLTFAnimationPlugin)**: Plays GLTF animations synchronized with the global timeline
+- **[AnimationObjectPlugin](../plugin/AnimationObjectPlugin)**: Low-level Keyframe-based property animations that follow timeline control
+- **[CameraViewPlugin](../plugin/CameraViewPlugin)**: Camera transitions and view animations
+- **[TransformAnimationPlugin](../plugin/TransformAnimationPlugin)**: Object transform animations over time [WIP]
+- **[TimelineUiPlugin](../package/plugin-timeline-ui)**: UI controls for managing timeline animations.
+
+#### Other Plugins
+- **[MaterialConfiguratorBasePlugin](https://threepipe.org/docs/classes/MaterialConfiguratorBasePlugin.html)**: Material switching animations that can be timed with the timeline
+- **CanvasRecorderPlugin**: Recording plugins use timeline for frame-perfect animation capture
+
+### Progressive Rendering Integration
+
+The timeline system integrates with the **[ProgressivePlugin](../plugin/ProgressivePlugin)** to provide high-quality animation recording. When recording animations, the timeline waits for progressive rendering to converge before advancing to the next frame, ensuring each frame is rendered with maximum quality.
+
+```typescript
+// All animations play synchronized on the global timeline
+viewer.timeline.endTime = 5
+viewer.timeline.start() // Plays GLTF, property, and camera animations together
+```
+
+The global timeline system ensures all animation components work together harmoniously, providing a unified animation experience in ThreePipe applications. Check the [API Reference](https://threepipe.org/docs/classes/ViewerTimeline.html) for complete timeline documentation.
