@@ -107,6 +107,7 @@ export default defineConfig({
           {
             text: 'Animation', collapsed: true,
             items: [
+              {text: 'AnimationObjectPlugin', link: 'plugin/AnimationObjectPlugin'},
               {text: 'GLTFAnimationPlugin', link: 'plugin/GLTFAnimationPlugin'},
               {text: 'PopmotionPlugin', link: 'plugin/PopmotionPlugin'},
               {text: 'CameraViewPlugin', link: 'plugin/CameraViewPlugin'},

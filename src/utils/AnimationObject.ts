@@ -108,6 +108,46 @@ export interface AnimationObjectEventMap {
     'update': object
 }
 
+/**
+ * AnimationObject - An object for containing keyframe-based animation for properties
+ *
+ * AnimationObject extends popmotion and interfaces with the {@link ThreeViewer} to provide a keyframe animation system that can animate any accessible property
+ * on objects, materials, or the viewer itself. It supports complex timing, easing, and serialization.
+ *
+ * It is used in {@link AnimationObjectPlugin}.
+ *
+ * Key Features:
+ * - **Property Access**: Uses dot-notation strings to access nested properties (e.g., 'position.x', 'material.roughness')
+ * - **Keyframe System**: Define multiple keyframes with custom timing and values
+ * - **Easing Support**: Built-in easing functions or custom easing functions
+ * - **Timeline Integration**: Seamlessly works with viewer's global timeline
+ * - **Serialization**: Automatically saves/loads with scene data
+ * - **UI Integration**: Generates UI controls and supports interactive editing
+ * - **Hierarchical**: Can contain child animations for complex choreography
+ *
+ * @example Basic Animation
+ * ```typescript
+ * const anim = new AnimationObject(myObject)
+ * anim.access = 'position.y'
+ * anim.values = [0, 5, 0]
+ * anim.offsets = [0, 0.5, 1]
+ * anim.duration = 2000
+ * anim.ease = (x: number) => 1 - Math.cos(x * Math.PI / 2) // Custom easeOutSine
+ * anim.updateTarget = true
+ * ```
+ *
+ * @example Complex Animation with Multiple Keyframes
+ * ```typescript
+ * const colorAnim = new AnimationObject(material)
+ * colorAnim.access = 'color'
+ * colorAnim.values = ['#ff0000', '#00ff00', '#0000ff', '#ff0000']
+ * colorAnim.offsets = [0, 0.33, 0.66, 1]
+ * colorAnim.duration = 4000
+ * anim.ease = 'easeInOutSine'
+ * colorAnim.delay = 500
+ * ```
+ *
+ */
 @serializable('AnimationObject')
 export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEventMap> implements IAnimationObject<V>, IUiConfigContainer {
     uuid = generateUUID()

@@ -28,6 +28,7 @@ Key features include:
 - Built-in undo/redo support for user actions.
 - Automatic disposal of all three.js resources with built-in reference management.
 - Realtime Realistic Rendering with screen-space post-processing effects from [webgi](https://webgi.dev/).
+- Animation system(and UI) to create state, keyframe-based animations for any object, material, or viewer property with global timeline.
 
 Checkout the documentation and guides on the [threepipe website](https://threepipe.org) for more details.
 
@@ -304,6 +305,7 @@ Many features will be added but the core API will not change significantly in fu
   - [ContactShadowGroundPlugin](https://threepipe.org/plugin/ContactShadowGroundPlugin.html) - Adds a ground plane at runtime with contact shadows
   - [GLTFAnimationPlugin](https://threepipe.org/plugin/GLTFAnimationPlugin.html) - Add support for playing and seeking glTF animations
   - [PopmotionPlugin](https://threepipe.org/plugin/PopmotionPlugin.html) - Integrates with popmotion.io library for animation/tweening
+  - [AnimationObjectPlugin](https://threepipe.org/plugin/AnimationObjectPlugin.html) - Create and manage keyframe-based animations for any object, material, or viewer property with timeline controls
   - [CameraViewPlugin](https://threepipe.org/plugin/CameraViewPlugin.html) - Add support for saving, loading, animating, looping between camera views
   - [TransformAnimationPlugin](https://threepipe.org/plugin/TransformAnimationPlugin.html) - Add support for saving, loading, animating, between object transforms
   - [RenderTargetPreviewPlugin](https://threepipe.org/plugin/RenderTargetPreviewPlugin.html) - Preview any render target in a UI panel over the canvas

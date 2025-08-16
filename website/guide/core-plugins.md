@@ -78,6 +78,7 @@ Plugins to add/configure interaction and user editable elements to the viewer.
 Plugins to add support for animations and animation controls.
 
 - [GLTFAnimationPlugin](../plugin/GLTFAnimationPlugin) - Add support for playing and seeking gltf animations
+- [AnimationObjectPlugin](../plugin/AnimationObjectPlugin) - Create and manage keyframe-based animations for any object, material, or viewer property with timeline controls
 - [PopmotionPlugin](../plugin/PopmotionPlugin) - Integrates with popmotion.io library for animation/tweening
 - [CameraViewPlugin](../plugin/CameraViewPlugin) - Add support for saving, loading, animating, looping between camera views
 - [TransformAnimationPlugin](../plugin/TransformAnimationPlugin) - Add support for saving, loading, animating, between object transforms
@@ -137,4 +138,3 @@ Base plugins for creating configurators. These include the functionality, serial
 
 - [MaterialConfiguratorBasePlugin](https://threepipe.org/docs/classes/MaterialConfiguratorBasePlugin.html) - Base class to create material configurator plugins.
 - [SwitchNodeBasePlugin](https://threepipe.org/docs/classes/SwitchNodeBasePlugin.html) - Base class to create switch node plugins.
-

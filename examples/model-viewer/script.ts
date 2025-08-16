@@ -1,5 +1,5 @@
 import {
-    _testFinish, _testStart,
+    _testFinish, _testStart, AnimationObjectPlugin,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
@@ -99,6 +99,7 @@ async function init() {
     await viewer.addPlugins([
         LoadingScreenPlugin,
         PopmotionPlugin,
+        AnimationObjectPlugin,
         CameraViewPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),

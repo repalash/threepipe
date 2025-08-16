@@ -24,7 +24,7 @@ Check out the [ScreenPass.glsl](https://github.com/repalash/threepipe/blob/maste
 
 Let's explore how to customize the screen pass using different methods to achieve a color tint effect as an example.
 
-<iframe src="https://threepipe.org/examples/screen-pass-extension-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Screen Pass Extension Example"></iframe>
+<iframe src="https://threepipe.org/examples/screen-pass-extension-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Screen Pass Extension Example"></iframe>
 
 ## Basic Screen Shader
 

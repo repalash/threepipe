@@ -11,8 +11,6 @@ aside: false
 
 A timeline UI component and panel for Threepipe Viewer and Editor to preview and edit global timeline for viewer animations and plugins.
 
-[//]: # (todo: image)
-
 [Example](https://threepipe.org/examples/#timeline-ui-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/timeline-ui/src/TimelineUiPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/timeline-ui/docs/classes/TimelineUiPlugin.html)
@@ -23,7 +21,7 @@ A timeline UI component and panel for Threepipe Viewer and Editor to preview and
 npm install @threepipe/plugin-timeline-ui
 ```
 
-<iframe src="https://threepipe.org/examples/timeline-ui-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Screen Pass Extension Example"></iframe>
+<iframe src="https://threepipe.org/examples/timeline-ui-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Timeline UI Plugin Example"></iframe>
 
 Includes `TimelineUiPlugin` that creates and manages the react component of the timeline ui. 
 

@@ -13,7 +13,20 @@ export interface AnimationObjectPluginEventMap extends AViewerPluginEventMap, An
     animationUpdate: {animation: AnimationObject}
 }
 
-// @uiFolder('Viewer Animations') // todo rename plugin to ViewerAnimationsPlugin?
+/**
+ * Animation Object Plugin
+ *
+ * This plugin allows you to create and manage animation objects for properties in the viewer, plugins, objects, materials etc.
+ * Animation objects are serializable javascript objects that bind to a property, and can animate it over time across keyframes.
+ *
+ * Animation Object plugin adds support for creating animations bound to viewer and plugins and serializing them along with this plugin.
+ * Also adds support for tracking and playback of animation objects in the userData of objects and materials.
+ *
+ * All the tracked animations are played on load and synced with the viewer timeline if its active.
+ *
+ * This plugin also adds trigger buttons for creating and editing animation objects, keyframes, for the ui config.
+ */
+// @uiFolder('Viewer Animations') // todo rename plugin to Property Animation plugin?
 export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPluginEventMap> {
     public static readonly PluginType = 'AnimationObjectPlugin'
     enabled = true
@@ -189,6 +202,32 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
     }
     getTimeline() {
         return this._currentTimeline
+    }
+
+    addAnimation(access?: string, target?: any, anim?: AnimationObject) {
+        anim = anim || new AnimationObject()
+        if (access !== undefined) anim.access = access
+        if (!target?.userData) {
+            if (!this.animation.animSet.includes(anim))
+                this.animation.add(anim)
+        } else {
+            if (!target.userData.animationObjects) target.userData.animationObjects = []
+            if (!target.userData.animationObjects.includes(anim)) {
+                target.userData.animationObjects.push(anim)
+                this._addAnimationObject(anim, target)
+                this._setupUiConfig(target)
+            }
+        }
+        return anim
+    }
+    removeAnimation(anim: AnimationObject, target?: any) {
+        if (!target?.userData) {
+            this.animation.remove(anim)
+        } else {
+            this._removeAnimationFromObject(anim, target)
+            this._removeAnimationObject(anim)
+            this._cleanUpUiConfig(target)
+        }
     }
 
     private _objectAdd = (e: {object?: IObject3D})=>{

@@ -1,7 +1,7 @@
 ---
 prev: 
-    text: 'ContactShadowGroundPlugin'
-    link: './ContactShadowGroundPlugin'
+    text: 'AnimationObjectPlugin'
+    link: './AnimationObjectPlugin'
 
 next: 
     text: 'PopmotionPlugin'
