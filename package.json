@@ -134,7 +134,7 @@
     "@types/wicg-file-system-access": "^2020.9.5",
     "@repalash/popmotion": "^11.0.5002",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": "^0.19.3",
+    "ts-browser-helpers": "^0.19.5",
     "uiconfig.js": "^0.2.1"
   },
   "peerDependencies": {

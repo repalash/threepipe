@@ -1,14 +1,34 @@
-import {arrayBufferToBase64, base64ToArrayBuffer, getTypedArray, Serialization} from 'ts-browser-helpers'
+import {arrayBufferToBase64, base64ToArrayBuffer, getTypedArray, Serialization, Serializer} from 'ts-browser-helpers'
 import {
+    AnimationClip,
+    ArcCurve,
     CanvasTexture,
-    Color, CubeTexture, DataTexture,
+    CatmullRomCurve3,
+    Color,
+    CubeTexture,
+    CubicBezierCurve,
+    CubicBezierCurve3,
+    Curve,
+    CurvePath,
+    DataTexture,
+    EllipseCurve,
+    Euler,
+    LineCurve,
+    LineCurve3,
     Material,
     MaterialLoader,
+    Matrix2,
     Matrix3,
     Matrix4,
     ObjectLoader,
+    Path,
+    QuadraticBezierCurve,
+    QuadraticBezierCurve3,
     Quaternion,
+    Shape,
     Source,
+    Spherical,
+    SplineCurve,
     Texture,
     Vector2,
     Vector3,
@@ -23,17 +43,364 @@ import {textureToCanvas} from '../three/utils/texture'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
 export class ThreeSerialization {
-    static {
-        const primitives = [
-            [Vector2, 'isVector2', ['x', 'y']],
-            [Vector3, 'isVector3', ['x', 'y', 'z']],
-            [Vector4, 'isVector4', ['x', 'y', 'z', 'w']],
-            [Quaternion, 'isQuaternion', ['x', 'y', 'z', 'w']],
-            [Color, 'isColor', ['r', 'g', 'b']],
-            [Matrix3, 'isMatrix3', ['elements']],
-            [Matrix4, 'isMatrix4', ['elements']],
-        ] as const
-        Serialization.RegisterSerializer(...primitives.map(p=>({
+
+    static Primitives = [
+        [Vector2, 'isVector2', ['x', 'y']],
+        [Vector3, 'isVector3', ['x', 'y', 'z']],
+        [Vector4, 'isVector4', ['x', 'y', 'z', 'w']],
+        [Quaternion, 'isQuaternion', ['x', 'y', 'z', 'w']],
+        [Euler, 'isEuler', ['x', 'y', 'z', 'order']],
+        [Color, 'isColor', ['r', 'g', 'b']],
+        [Matrix2, 'isMatrix2', ['elements']],
+        [Matrix3, 'isMatrix3', ['elements']],
+        [Matrix4, 'isMatrix4', ['elements']],
+        [Spherical, 'isSpherical', ['radius', 'phi', 'theta']],
+        // todo Plane etc (has Vector2)
+    ] as const
+
+    static Texture: Serializer = {
+        priority: 2,
+        isType: (obj: any) => obj.isTexture || obj.metadata?.type === 'Texture',
+        serialize: (obj: any, meta?: SerializationMetaType) => {
+            if (!obj?.isTexture) throw new Error('Expected a texture')
+            if (obj.isRenderTargetTexture) return undefined // todo: support render targets
+            // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
+            if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
+            const imgData = obj.source.data
+            const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
+                (obj.userData.rootPath.startsWith('http') || obj.userData.rootPath.startsWith('data:'))
+            let res = {} as any
+            const ud = obj.userData
+            try { // need try catch here because of hasRootPath
+                if (hasRootPath) {
+                    if (obj.source.data) {
+                        if (!obj.userData.embedUrlImagePreviews) // todo make sure its only Texture, check for svg etc
+                            obj.source.data = null // handled in GLTFWriter2.processImage
+                        else {
+                            obj.source.data = textureToCanvas(obj, 16, obj.flipY) // todo: check flipY
+                        }
+                    }
+                }
+                obj.userData = {} // toJSON will call JSON.stringify, which will serialize userData
+                const meta2 = {images: {} as any} // in-case meta is undefined
+                res = obj.toJSON(meta || meta2)
+                if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
+                res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
+            } catch (e) {
+                console.error('Threepipe Serialization: Unable to serialize texture')
+                console.error(e)
+            }
+            obj.userData = ud // should be outside try catch
+            if (hasRootPath) {
+                if (meta && !obj.userData.embedUrlImagePreviews) delete meta.images[obj.source.uuid] // because its empty. uuid still stored in the texture.image
+                obj.source.data = imgData
+            }
+
+            if (meta?.textures && res && !res.resource) {
+                if (!meta.textures[res.uuid])
+                    meta.textures[res.uuid] = res
+                res = {uuid: res.uuid, resource: 'textures'}
+            }
+            return res
+        },
+        deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
+            if (dat.isTexture) return dat
+            if (dat.resource === 'textures' && meta?.textures?.[dat.uuid]) return meta.textures[dat.uuid]
+
+            console.warn('Cannot deserialize texture into object like primitive, since textures need to be loaded asynchronously. Trying with ObjectLoader. Load events might not work properly.', dat, obj)
+            const loader = meta?._context.objectLoader ?? new ObjectLoader(meta?._context.assetImporter?.loadingManager)
+            const data = {...dat}
+            if (typeof data.image === 'string') {
+                if (!meta?.images) {
+                    console.error('Cannot deserialize texture with image url without meta.images', data)
+                } else {
+                    data.image = meta.images[data.image]
+                }
+            }
+            if (!data.image || typeof data.image === 'string' || !data.image.isSource && !data.image.url) {
+                console.error('Cannot deserialize texture', data)
+                return obj
+            }
+            let imageOnLoad: undefined | (()=>void)
+            if (meta && !data.image.isSource) {
+                if (!meta._context.imagePromises) meta._context.imagePromises = []
+                meta._context.imagePromises.push(new Promise<void>((resolve) => {
+                    imageOnLoad = resolve
+                }))
+            }
+            const sources = data.image.isSource ? {[data.image.uuid]: data.image as Source} : loader.parseImages([data.image], imageOnLoad)
+            data.image = Object.keys(sources)[0]
+            if (meta?.images) meta.images[data.image] = sources[data.image]
+            if (data.userData) data.userData = ThreeSerialization.Deserialize(data.userData, {}, meta)
+            const textures = loader.parseTextures([data], sources)
+            const uuid = Object.keys(textures)[0]
+            if (!uuid || !textures[uuid]) {
+                console.error('Cannot deserialize texture', data)
+                return obj
+            }
+            if (meta?.textures) meta.textures[uuid] = textures[uuid]
+            return textures[uuid]
+        },
+    }
+
+    static Material: Serializer = {
+        priority: 2,
+        isType: (obj: any) => obj.isMaterial || obj.metadata?.type === 'Material',
+        serialize: (obj: any, meta?: SerializationMetaType) => {
+            if (!obj?.isMaterial) throw new Error('Expected a material')
+            if (meta?.materials?.[obj.uuid]) return {uuid: obj.uuid, resource: 'materials'}
+            if (obj.userData.rootPath) {
+                // todo
+                // it works for textures because image(Source) are immutable
+                console.error('TODO: handle material with root path with material inheritance/hierarchy')
+
+            }
+
+            // serialize textures separately
+            const meta2 = meta ?? {textures: {}, images: {}}
+            const objTextures: any = {}
+            const tempTextures: any = {}
+            const propList = Object.keys(obj.constructor.MaterialProperties || obj)
+            for (const k of propList) {
+                if (k.startsWith('__')) continue // skip private/internal textures/properties
+                const v = obj[k]
+                if (v?.isTexture) {
+                    const ser = Serialization.Serialize(v, meta2)
+                    objTextures[k] = ser
+                    tempTextures[k] = v
+                    obj[k] = ser ? {isTexture: true, toJSON: ()=> ser} : null // because of how threejs Material.toJSON serializes textures
+                }
+            }
+
+            // Serialize without userData because three.js tries to convert it to string. We are serializing it separately
+            const userData = obj.userData
+            obj.userData = {}
+            let res = {} as any
+            try {
+                res = obj.toJSON(meta || meta2, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
+                serializeMaterialUserData(res, userData, meta)
+                res.userData.uuid = userData.uuid
+                // todo: override generator to mention that this is a custom serializer?
+                if (obj.constructor.TYPE) res.type = obj.constructor.TYPE // override type if specified as static property in the class
+                // Remove undefined values. Note that null values are kept.
+                for (const key of Object.keys(res)) if (res[key] === undefined) delete res[key]
+            } catch (e) {
+                console.error('Threepipe Serialization: Unable to serialize material')
+                console.error(e)
+            }
+            obj.userData = userData
+            // Restore textures
+            for (const [k, v] of Object.entries(tempTextures)) {
+                obj[k] = v
+                delete tempTextures[k]
+            }
+            // Add material, textures, images to meta
+            // serialize textures are already added to meta by the texture serializer
+            if (res) {
+                if (meta) {
+                    for (const [k, v] of Object.entries(objTextures)) {
+                        if (v) res[k] = v // can be undefined because of RenderTargetTexture...
+                    }
+                    if (meta.materials) {
+                        if (!meta.materials[res.uuid])
+                            meta.materials[res.uuid] = res
+                        res = {uuid: res.uuid, resource: 'materials'}
+                    }
+                } else {
+                    for (const [k, v] of Object.entries(objTextures)) {
+                        if (v) res[k] = (v as any).uuid // to remain compatible with how three.js saves
+                    }
+                    res.textures = Object.values(meta2.textures)
+                    res.images = Object.values(meta2.images)
+                }
+            }
+            return res
+        },
+        deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
+            function finalCopy(material: Material) {
+                if (material.isMaterial) {
+                    if (obj?.isMaterial && obj.uuid === material.uuid) {
+                        if (obj !== material && typeof obj.setValues === 'function') {
+                            console.warn('material uuid already exists, copying values to old material')
+                            obj.setValues(material)
+                        }
+                        return obj
+                    } else {
+                        return material
+                    }
+                }
+                return undefined
+            }
+
+            let ret = finalCopy(dat)
+            if (ret !== undefined) return ret
+            if (dat.resource === 'materials' && meta?.materials?.[dat.uuid]) {
+                ret = finalCopy(meta.materials[dat.uuid])
+                if (ret !== undefined) return ret
+                console.error('cannot find material in meta', dat, ret)
+            }
+
+            const type = dat.type
+            if (!type) {
+                console.error('Cannot deserialize material without type', dat)
+                return obj
+            }
+            const data = {...dat} as Record<string, any>
+            if (data.userData) data.userData = Serialization.Deserialize(data.userData, undefined, meta, false)
+            //
+            const textures: Record<string, Texture> = {}
+            for (const [k, v] of Object.entries(data)) { // for textures
+                if (typeof v === 'string' && meta?.textures?.[v]) {
+                    data[k] = meta.textures[v]
+                    textures[k] = meta.textures[v]
+                }
+                if (!v || !v.resource || typeof v.resource !== 'string') continue
+                const resource = meta?.[v.resource as 'textures'|'extras']?.[v.uuid]
+                data[k] = resource || null
+                if (v.resource === 'textures' && resource?.isTexture) {
+                    textures[k] = resource
+                }
+            }
+
+            // we have 2 options, either obj is null or it is a material.
+            // if the material is not the same type, we can't use it, should we throw an error or create a new material and assign it. maybe a warning and create a new material?
+            // to create a material, we need to know the type, type->material initialization can be done in either material manager or MaterialLoader
+
+            // data has deserialized textures and userData, assuming the rest can be deserialized by material.fromJSON
+
+            if (!obj || !obj.isMaterial || obj.type !== type && obj.constructor?.TYPE !== type) {
+                if (obj && Object.keys(obj).length) console.warn('Material type mismatch during deserialize, creating a new material', obj, data, type, obj.constructor?.type)
+                obj = null
+            }
+            // if obj is not null
+            if (obj && (!data.uuid || obj.uuid === data.uuid)) {
+                if (obj.fromJSON) obj.fromJSON(data, meta, true)
+                else if (obj.setValues) obj.setValues(data)
+                else console.error('Cannot deserialize material, no fromJSON or setValues method', obj, data)
+                return obj
+            }
+
+            // obj is null or type mismatch, so ignore obj and create a new material
+
+            // generate from material manager generator and call fromJSON with internal true which will call setValues
+            const materialManager = meta?._context.materialManager
+            if (materialManager) {
+                const material = materialManager.create(type)
+                if (material) {
+                    if (material.fromJSON) material.fromJSON(data, meta, true)
+                    else if (material.setValues) material.setValues(data)
+                    else console.error('Cannot deserialize material, no fromJSON or setValues method', material, data)
+                    return material
+                }
+            }
+
+            console.warn('Legacy three.js material deserialization')
+
+            // normal three.js material
+            const loader = new MaterialLoader() // todo: get loader from meta.loaders
+            for (const [k, v] of Object.entries(textures)) {
+                data[k] = v.uuid
+            }
+            const texs = {...loader.textures}
+            loader.setTextures(textures)
+            const mat = loader.parse(data)
+            loader.setTextures(texs)
+
+            ret = finalCopy(mat)
+            if (ret !== undefined) return ret
+            console.error('cannot deserialize material', dat, ret, mat)
+
+        },
+    }
+
+    static RenderTarget: Serializer = {
+        priority: 2,
+        isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
+        serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
+            if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
+            if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
+
+            // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
+            const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
+            let res: any = {
+                metadata: {type: 'RenderTarget'},
+                uuid: obj.uuid,
+                width: obj.width,
+                height: obj.height,
+                depth: obj.depth,
+                sizeMultiplier: obj.sizeMultiplier,
+                count: Array.isArray(obj.texture) ? obj.texture.length : undefined,
+                isCubeRenderTarget: obj.isWebGLCubeRenderTarget || undefined,
+                isTemporary: obj.isTemporary,
+                textureName: Array.isArray(obj.texture) ? obj.texture.map(t => t.name) : obj.texture?.name,
+                options: {
+                    wrapS: tex?.wrapS,
+                    wrapT: tex?.wrapT,
+                    magFilter: tex?.magFilter,
+                    minFilter: tex?.minFilter,
+                    format: tex?.format,
+                    type: tex?.type,
+                    anisotropy: tex?.anisotropy,
+                    depthBuffer: !!obj.depthBuffer,
+                    stencilBuffer: !!obj.stencilBuffer,
+                    generateMipmaps: tex?.generateMipmaps,
+                    depthTexture: !!obj.depthTexture,
+                    colorSpace: tex?.colorSpace,
+                    samples: obj.samples,
+                },
+            }
+
+            if (meta?.extras) {
+                if (!meta.extras[res.uuid])
+                    meta.extras[res.uuid] = res
+                res = {uuid: res.uuid, resource: 'extras'}
+            }
+            return res
+        },
+        deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
+            if (obj?.uuid === dat.uuid) return obj
+            if (dat.isWebGLRenderTarget) return dat
+
+            const renderManager = meta?._context.renderManager
+            if (!renderManager) {
+                console.error('Cannot deserialize render target without render manager', dat)
+                return obj
+            }
+            if (dat.isWebGLCubeRenderTarget || dat.isTemporary) {
+                // todo support cube, temporary render target here
+                console.warn('Cannot deserialize WebGLCubeRenderTarget or temporary render target yet', dat)
+                return obj
+            }
+
+            const res = renderManager.createTarget({
+                sizeMultiplier: dat.sizeMultiplier || undefined,
+                size: dat.sizeMultiplier ? undefined : {width: dat.width, height: dat.height},
+                textureCount: dat.count,
+                ...dat.options,
+            })
+            if (dat.textureName) {
+                if (Array.isArray(dat.textureName) && Array.isArray(res.texture)) {
+                    for (let i = 0; i < dat.textureName.length; i++) {
+                        res.texture[i].name = dat.textureName[i]
+                    }
+                } else if (!Array.isArray(res.texture)) {
+                    res.texture.name = Array.isArray(dat.textureName) ? dat.textureName[0] : dat.textureName
+                }
+            }
+            if (!res) return res
+            res.uuid = dat.uuid
+            if (meta?.extras) meta.extras[dat.uuid] = res
+            return res
+        },
+    }
+
+    private static _init = false
+    static Init() {
+        if (this._init) return
+        this._init = true
+        // @ts-expect-error not sure why it's not set in three.js
+        Spherical.prototype.isSpherical = true
+        Serialization.RegisterSerializer(...ThreeSerialization.Primitives.map(p=>({
             priority: 1,
             isType: (obj: any) => obj[p[1]],
             serialize: (obj: any) => {
@@ -43,359 +410,46 @@ export class ThreeSerialization {
             },
             deserialize: copier(p[0]),
         })))
+        Serialization.RegisterSerializer(ThreeSerialization.Texture)
+        Serialization.RegisterSerializer(ThreeSerialization.Material)
+        Serialization.RegisterSerializer(ThreeSerialization.RenderTarget)
 
-        // texture
-        Serialization.RegisterSerializer({
-            priority: 2,
-            isType: (obj: any) => obj.isTexture || obj.metadata?.type === 'Texture',
-            serialize: (obj: any, meta?: SerializationMetaType) => {
-                if (!obj?.isTexture) throw new Error('Expected a texture')
-                if (obj.isRenderTargetTexture) return undefined // todo: support render targets
-                // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
-                if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
-                const imgData = obj.source.data
-                const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
-                    (obj.userData.rootPath.startsWith('http') || obj.userData.rootPath.startsWith('data:'))
-                let res = {} as any
-                const ud = obj.userData
-                try { // need try catch here because of hasRootPath
-                    if (hasRootPath) {
-                        if (obj.source.data) {
-                            if (!obj.userData.embedUrlImagePreviews) // todo make sure its only Texture, check for svg etc
-                                obj.source.data = null // handled in GLTFWriter2.processImage
-                            else {
-                                obj.source.data = textureToCanvas(obj, 16, obj.flipY) // todo: check flipY
-                            }
-                        }
-                    }
-                    obj.userData = {} // toJSON will call JSON.stringify, which will serialize userData
-                    const meta2 = {images: {} as any} // in-case meta is undefined
-                    res = obj.toJSON(meta || meta2)
-                    if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
-                    res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
-                } catch (e) {
-                    console.error('Threepipe Serialization: Unable to serialize texture')
-                    console.error(e)
-                }
-                obj.userData = ud // should be outside try catch
-                if (hasRootPath) {
-                    if (meta && !obj.userData.embedUrlImagePreviews) delete meta.images[obj.source.uuid] // because its empty. uuid still stored in the texture.image
-                    obj.source.data = imgData
-                }
-
-                if (meta?.textures && res && !res.resource) {
-                    if (!meta.textures[res.uuid])
-                        meta.textures[res.uuid] = res
-                    res = {uuid: res.uuid, resource: 'textures'}
-                }
-                return res
-            },
-            deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
-                if (dat.isTexture) return dat
-                if (dat.resource === 'textures' && meta?.textures?.[dat.uuid]) return meta.textures[dat.uuid]
-
-                console.warn('Cannot deserialize texture into object like primitive, since textures need to be loaded asynchronously. Trying with ObjectLoader. Load events might not work properly.', dat, obj)
-                const loader = meta?._context.objectLoader ?? new ObjectLoader(meta?._context.assetImporter?.loadingManager)
-                const data = {...dat}
-                if (typeof data.image === 'string') {
-                    if (!meta?.images) {
-                        console.error('Cannot deserialize texture with image url without meta.images', data)
-                    } else {
-                        data.image = meta.images[data.image]
-                    }
-                }
-                if (!data.image || typeof data.image === 'string' || !data.image.isSource && !data.image.url) {
-                    console.error('Cannot deserialize texture', data)
-                    return obj
-                }
-                let imageOnLoad: undefined | (()=>void)
-                if (meta && !data.image.isSource) {
-                    if (!meta._context.imagePromises) meta._context.imagePromises = []
-                    meta._context.imagePromises.push(new Promise<void>((resolve) => {
-                        imageOnLoad = resolve
-                    }))
-                }
-                const sources = data.image.isSource ? {[data.image.uuid]: data.image as Source} : loader.parseImages([data.image], imageOnLoad)
-                data.image = Object.keys(sources)[0]
-                if (meta?.images) meta.images[data.image] = sources[data.image]
-                if (data.userData) data.userData = ThreeSerialization.Deserialize(data.userData, {}, meta)
-                const textures = loader.parseTextures([data], sources)
-                const uuid = Object.keys(textures)[0]
-                if (!uuid || !textures[uuid]) {
-                    console.error('Cannot deserialize texture', data)
-                    return obj
-                }
-                if (meta?.textures) meta.textures[uuid] = textures[uuid]
-                return textures[uuid]
-            },
-        })
-
-        // material
-        Serialization.RegisterSerializer({
-            priority: 2,
-            isType: (obj: any) => obj.isMaterial || obj.metadata?.type === 'Material',
-            serialize: (obj: any, meta?: SerializationMetaType) => {
-                if (!obj?.isMaterial) throw new Error('Expected a material')
-                if (meta?.materials?.[obj.uuid]) return {uuid: obj.uuid, resource: 'materials'}
-                if (obj.userData.rootPath) {
-                    // todo
-                    // it works for textures because image(Source) are immutable
-                    console.error('TODO: handle material with root path with material inheritance/hierarchy')
-
-                }
-
-                // serialize textures separately
-                const meta2 = meta ?? {textures: {}, images: {}}
-                const objTextures: any = {}
-                const tempTextures: any = {}
-                const propList = Object.keys(obj.constructor.MaterialProperties || obj)
-                for (const k of propList) {
-                    if (k.startsWith('__')) continue // skip private/internal textures/properties
-                    const v = obj[k]
-                    if (v?.isTexture) {
-                        const ser = Serialization.Serialize(v, meta2)
-                        objTextures[k] = ser
-                        tempTextures[k] = v
-                        obj[k] = ser ? {isTexture: true, toJSON: ()=> ser} : null // because of how threejs Material.toJSON serializes textures
-                    }
-                }
-
-                // Serialize without userData because three.js tries to convert it to string. We are serializing it separately
-                const userData = obj.userData
-                obj.userData = {}
-                let res = {} as any
-                try {
-                    res = obj.toJSON(meta || meta2, true) // copying userData is handled in toJSON, see MeshStandardMaterial2
-                    serializeMaterialUserData(res, userData, meta)
-                    res.userData.uuid = userData.uuid
-                    // todo: override generator to mention that this is a custom serializer?
-                    if (obj.constructor.TYPE) res.type = obj.constructor.TYPE // override type if specified as static property in the class
-                    // Remove undefined values. Note that null values are kept.
-                    for (const key of Object.keys(res)) if (res[key] === undefined) delete res[key]
-                } catch (e) {
-                    console.error('Threepipe Serialization: Unable to serialize material')
-                    console.error(e)
-                }
-                obj.userData = userData
-                // Restore textures
-                for (const [k, v] of Object.entries(tempTextures)) {
-                    obj[k] = v
-                    delete tempTextures[k]
-                }
-                // Add material, textures, images to meta
-                // serialize textures are already added to meta by the texture serializer
-                if (res) {
-                    if (meta) {
-                        for (const [k, v] of Object.entries(objTextures)) {
-                            if (v) res[k] = v // can be undefined because of RenderTargetTexture...
-                        }
-                        if (meta.materials) {
-                            if (!meta.materials[res.uuid])
-                                meta.materials[res.uuid] = res
-                            res = {uuid: res.uuid, resource: 'materials'}
-                        }
-                    } else {
-                        for (const [k, v] of Object.entries(objTextures)) {
-                            if (v) res[k] = (v as any).uuid // to remain compatible with how three.js saves
-                        }
-                        res.textures = Object.values(meta2.textures)
-                        res.images = Object.values(meta2.images)
-                    }
-                }
-                return res
-            },
-            deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
-                function finalCopy(material: Material) {
-                    if (material.isMaterial) {
-                        if (obj?.isMaterial && obj.uuid === material.uuid) {
-                            if (obj !== material && typeof obj.setValues === 'function') {
-                                console.warn('material uuid already exists, copying values to old material')
-                                obj.setValues(material)
-                            }
-                            return obj
-                        } else {
-                            return material
-                        }
-                    }
-                    return undefined
-                }
-
-                let ret = finalCopy(dat)
-                if (ret !== undefined) return ret
-                if (dat.resource === 'materials' && meta?.materials?.[dat.uuid]) {
-                    ret = finalCopy(meta.materials[dat.uuid])
-                    if (ret !== undefined) return ret
-                    console.error('cannot find material in meta', dat, ret)
-                }
-
-                const type = dat.type
-                if (!type) {
-                    console.error('Cannot deserialize material without type', dat)
-                    return obj
-                }
-                const data = {...dat} as Record<string, any>
-                if (data.userData) data.userData = Serialization.Deserialize(data.userData, undefined, meta, false)
-                //
-                const textures: Record<string, Texture> = {}
-                for (const [k, v] of Object.entries(data)) { // for textures
-                    if (typeof v === 'string' && meta?.textures?.[v]) {
-                        data[k] = meta.textures[v]
-                        textures[k] = meta.textures[v]
-                    }
-                    if (!v || !v.resource || typeof v.resource !== 'string') continue
-                    const resource = meta?.[v.resource as 'textures'|'extras']?.[v.uuid]
-                    data[k] = resource || null
-                    if (v.resource === 'textures' && resource?.isTexture) {
-                        textures[k] = resource
-                    }
-                }
-
-                // we have 2 options, either obj is null or it is a material.
-                // if the material is not the same type, we can't use it, should we throw an error or create a new material and assign it. maybe a warning and create a new material?
-                // to create a material, we need to know the type, type->material initialization can be done in either material manager or MaterialLoader
-
-                // data has deserialized textures and userData, assuming the rest can be deserialized by material.fromJSON
-
-                if (!obj || !obj.isMaterial || obj.type !== type && obj.constructor?.TYPE !== type) {
-                    if (obj && Object.keys(obj).length) console.warn('Material type mismatch during deserialize, creating a new material', obj, data, type, obj.constructor?.type)
-                    obj = null
-                }
-                // if obj is not null
-                if (obj && (!data.uuid || obj.uuid === data.uuid)) {
-                    if (obj.fromJSON) obj.fromJSON(data, meta, true)
-                    else if (obj.setValues) obj.setValues(data)
-                    else console.error('Cannot deserialize material, no fromJSON or setValues method', obj, data)
-                    return obj
-                }
-
-                // obj is null or type mismatch, so ignore obj and create a new material
-
-                // generate from material manager generator and call fromJSON with internal true which will call setValues
-                const materialManager = meta?._context.materialManager
-                if (materialManager) {
-                    const material = materialManager.create(type)
-                    if (material) {
-                        if (material.fromJSON) material.fromJSON(data, meta, true)
-                        else if (material.setValues) material.setValues(data)
-                        else console.error('Cannot deserialize material, no fromJSON or setValues method', material, data)
-                        return material
-                    }
-                }
-
-                console.warn('Legacy three.js material deserialization')
-
-                // normal three.js material
-                const loader = new MaterialLoader() // todo: get loader from meta.loaders
-                for (const [k, v] of Object.entries(textures)) {
-                    data[k] = v.uuid
-                }
-                const texs = {...loader.textures}
-                loader.setTextures(textures)
-                const mat = loader.parse(data)
-                loader.setTextures(texs)
-
-                ret = finalCopy(mat)
-                if (ret !== undefined) return ret
-                console.error('cannot deserialize material', dat, ret, mat)
-
-            },
-        })
-
-        // render target
-        Serialization.RegisterSerializer({
-            priority: 2,
-            isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
-            serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
-                if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
-                if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
-
-                // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
-                const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
-                let res: any = {
-                    metadata: {type: 'RenderTarget'},
-                    uuid: obj.uuid,
-                    width: obj.width,
-                    height: obj.height,
-                    depth: obj.depth,
-                    sizeMultiplier: obj.sizeMultiplier,
-                    count: Array.isArray(obj.texture) ? obj.texture.length : undefined,
-                    isCubeRenderTarget: obj.isWebGLCubeRenderTarget || undefined,
-                    isTemporary: obj.isTemporary,
-                    textureName: Array.isArray(obj.texture) ? obj.texture.map(t => t.name) : obj.texture?.name,
-                    options: {
-                        wrapS: tex?.wrapS,
-                        wrapT: tex?.wrapT,
-                        magFilter: tex?.magFilter,
-                        minFilter: tex?.minFilter,
-                        format: tex?.format,
-                        type: tex?.type,
-                        anisotropy: tex?.anisotropy,
-                        depthBuffer: !!obj.depthBuffer,
-                        stencilBuffer: !!obj.stencilBuffer,
-                        generateMipmaps: tex?.generateMipmaps,
-                        depthTexture: !!obj.depthTexture,
-                        colorSpace: tex?.colorSpace,
-                        samples: obj.samples,
-                    },
-                }
-
-                if (meta?.extras) {
-                    if (!meta.extras[res.uuid])
-                        meta.extras[res.uuid] = res
-                    res = {uuid: res.uuid, resource: 'extras'}
-                }
-                return res
-            },
-            deserialize: (dat: any, obj: any, meta?: SerializationMetaType) => {
-                if (obj?.uuid === dat.uuid) return obj
-                if (dat.isWebGLRenderTarget) return dat
-
-                const renderManager = meta?._context.renderManager
-                if (!renderManager) {
-                    console.error('Cannot deserialize render target without render manager', dat)
-                    return obj
-                }
-                if (dat.isWebGLCubeRenderTarget || dat.isTemporary) {
-                    // todo support cube, temporary render target here
-                    console.warn('Cannot deserialize WebGLCubeRenderTarget or temporary render target yet', dat)
-                    return obj
-                }
-
-                const res = renderManager.createTarget({
-                    sizeMultiplier: dat.sizeMultiplier || undefined,
-                    size: dat.sizeMultiplier ? undefined : {width: dat.width, height: dat.height},
-                    textureCount: dat.count,
-                    ...dat.options,
-                })
-                if (dat.textureName) {
-                    if (Array.isArray(dat.textureName) && Array.isArray(res.texture)) {
-                        for (let i = 0; i < dat.textureName.length; i++) {
-                            res.texture[i].name = dat.textureName[i]
-                        }
-                    } else if (!Array.isArray(res.texture)) {
-                        res.texture.name = Array.isArray(dat.textureName) ? dat.textureName[0] : dat.textureName
-                    }
-                }
-                if (!res) return res
-                res.uuid = dat.uuid
-                if (meta?.extras) meta.extras[dat.uuid] = res
-                return res
-            },
-        })
-
+        // these classes have toJSON/fromJSON and .type
+        Serialization.SerializableClasses.set('Shape', Shape) // todo this could be large, it should be a resource in meta for duplicates
+        Serialization.SerializableClasses.set('Curve', Curve)
+        Serialization.SerializableClasses.set('CurvePath', CurvePath)
+        Serialization.SerializableClasses.set('Path', Path)
+        Serialization.SerializableClasses.set('ArcCurve', ArcCurve)
+        Serialization.SerializableClasses.set('CatmullRomCurve3', CatmullRomCurve3)
+        Serialization.SerializableClasses.set('CubicBezierCurve', CubicBezierCurve)
+        Serialization.SerializableClasses.set('CubicBezierCurve3', CubicBezierCurve3)
+        Serialization.SerializableClasses.set('EllipseCurve', EllipseCurve)
+        Serialization.SerializableClasses.set('LineCurve', LineCurve)
+        Serialization.SerializableClasses.set('LineCurve3', LineCurve3)
+        Serialization.SerializableClasses.set('QuadraticBezierCurve', QuadraticBezierCurve)
+        Serialization.SerializableClasses.set('QuadraticBezierCurve3', QuadraticBezierCurve3)
+        Serialization.SerializableClasses.set('SplineCurve', SplineCurve)
+        Serialization.SerializableClasses.set('AnimationClip', AnimationClip)
+        // Serialization.SerializableClasses.set('Skeleton', Skeleton) // doesnt have .type. todo add to three.js
     }
 
     /**
      * Serialize an object
      * {@link Serialization.Serialize}
      */
-    static Serialize = Serialization.Serialize
+    static Serialize(obj: any, meta?: Record<string, Record<string, any>>, isThis = false) {
+        if (!this._init) this.Init()
+        return Serialization.Serialize(obj, meta, isThis)
+    }
 
     /**
      * Deserialize an object
      * {@link Serialization.Deserialize}
      */
-    static Deserialize = Serialization.Deserialize
+    static Deserialize(data: any, obj: any, meta?: Record<string, any>, isThis = false) {
+        if (!this._init) this.Init()
+        return Serialization.Deserialize(data, obj, meta, isThis)
+    }
 
 }
 
