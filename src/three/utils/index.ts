@@ -8,6 +8,7 @@ export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDa
 export {threeConstMappings} from './const-mappings'
 export {whiteImageData, whiteTexture} from './constants'
 export {ObjectPicker} from './ObjectPicker'
+export type {SelectionObject, ObjectPickerEventMap, SelectionObjectArr, SelectionModeType} from './ObjectPicker'
 export {autoGPUInstanceMeshes} from './gpu-instancing'
 export {HVBlurHelper} from './HVBlurHelper'
 export {MaterialPreviewGenerator} from './MaterialPreviewGenerator'

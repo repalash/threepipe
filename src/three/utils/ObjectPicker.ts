@@ -1,12 +1,16 @@
 import {EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
 import {JSUndoManager, now, onChangeDispatchEvent} from 'ts-browser-helpers'
-import {ICamera, IMaterial, IObject3D} from '../../core'
+import {ICamera, IMaterial, IObject3D, ITexture, IGeometry} from '../../core'
+
+export type SelectionObject = IObject3D | IMaterial | ITexture | IGeometry | null
+export type SelectionObjectArr = IObject3D[] | IMaterial[] | ITexture[] | IGeometry[]
+export type SelectionModeType = 'object' | 'material' | 'texture' | 'geometry'
 
 export interface ObjectPickerEventMap{
-    hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: IObject3D | IMaterial | null},
-    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: IObject3D | IMaterial | null},
+    hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject},
+    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject},
     hitObject: {time: number, intersects: {selectedObject: IObject3D | null, intersect: Intersection<IObject3D> | null, intersects: Intersection<IObject3D>[]}}
-    selectionModeChanged: {detail: {key: 'selectionMode', value: 'object' | 'material', oldValue: 'object' | 'material'}}
+    selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
 }
 
 export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
@@ -14,7 +18,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
     hoverEnabled = false
     @onChangeDispatchEvent('selectionModeChanged')
-        selectionMode: 'object' | 'material' = 'object'
+        selectionMode: SelectionModeType = 'object'
 
     /**
      * Time threshold for a pointer click event
@@ -35,8 +39,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     public selectionCondition: (o: IObject3D) => boolean
     public raycaster: Raycaster
     public mouse: Vector2
-    private _selected: IObject3D[] | IMaterial[]
-    private _hovering: IObject3D[] | IMaterial[]
+    private _selected: SelectionObjectArr
+    private _hovering: SelectionObjectArr
     public cursorStyles: {default: string; down: string}
     public domElement: HTMLElement
     constructor(root: IObject3D, domElement: HTMLElement, camera: ICamera, selectionCondition?: (o:IObject3D)=>boolean) {
@@ -98,7 +102,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         this._camera = value
     }
 
-    get selectedObject(): IObject3D | IMaterial | null {
+    get selectedObject(): SelectionObject {
         return this._selected.length > 0 ? this._selected[0] : null
     }
 
@@ -106,11 +110,20 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     //     this.setSelected(object)
     // }
 
-    setSelected(object: IObject3D | IMaterial | null, record = true) {
-        if ((object as IObject3D)?.isObject3D && this.selectionMode === 'material' ||
-            (object as IMaterial)?.isMaterial && this.selectionMode === 'object') {
-            this.selectionMode = (object as IMaterial)?.isMaterial ? 'material' : 'object'
+    setSelected(object: SelectionObject, record = true) {
+        // Auto-switch selection mode based on object type
+        if (object) {
+            if ((object as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
+                this.selectionMode = 'object'
+            } else if ((object as IMaterial)?.isMaterial && this.selectionMode !== 'material') {
+                this.selectionMode = 'material'
+            } else if ((object as ITexture)?.isTexture && this.selectionMode !== 'texture') {
+                this.selectionMode = 'texture'
+            } else if ((object as IGeometry)?.isBufferGeometry && this.selectionMode !== 'geometry') {
+                this.selectionMode = 'geometry'
+            }
         }
+
         if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object) return
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
@@ -129,13 +142,13 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         })
     }
 
-    get hoverObject(): IObject3D | IMaterial | null {
+    get hoverObject(): SelectionObject {
         return this._hovering.length > 0 ? this._hovering[0] : null
     }
 
-    set hoverObject(object: IObject3D | IObject3D[] | IMaterial | IMaterial[] | null) {
+    set hoverObject(object: SelectionObject | SelectionObject[] | null) {
         if (!this._hovering.length && !object || this._hovering.length === 1 && this._hovering[0] === object) return
-        this._hovering = (object ? Array.isArray(object) ? [...object] : [object] : []) as (IObject3D[] | IMaterial[])
+        this._hovering = (object ? Array.isArray(object) ? [...object] : [object] : []) as SelectionObjectArr
 
         const obj = this.hoverObject
         this.dispatchEvent({
@@ -226,10 +239,37 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (intersects) this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects})
         else this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects: {selectedObject: null, intersect: null, intersects: []}})
 
-        let obj: IObject3D|IMaterial|null = intersects?.selectedObject || null
-        if (this.selectionMode === 'material' && obj && obj.material) {
-            obj = Array.isArray(obj.material) ? obj.material[0] : obj.material
+        let obj: SelectionObject = intersects?.selectedObject || null
+
+        // Handle selection based on current mode
+        if (obj) {
+            switch (this.selectionMode) {
+            case 'material':
+                if (obj.material) {
+                    obj = Array.isArray(obj.material) ? obj.material[0] : obj.material
+                }
+                break
+            case 'texture':
+                // Find the first texture from the material
+                if (obj.material) {
+                    const material = Array.isArray(obj.material) ? obj.material[0] : obj.material
+                    // Look for common texture properties
+                    obj = material.map || material.normalMap || material.roughnessMap || material.metalnessMap ||
+                          material.aoMap || null
+                } else {
+                    obj = null
+                }
+                break
+            case 'geometry':
+                obj = obj.geometry || null
+                break
+            case 'object':
+            default:
+                // obj remains as the intersected object
+                break
+            }
         }
+
         this.setSelected(obj)
     }
 

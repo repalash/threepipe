@@ -6,8 +6,9 @@ import {IMaterial, IObject3D, IScene, ISceneEventMap} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import {type UndoManagerPlugin} from './UndoManagerPlugin'
-import {ObjectPickerEventMap} from '../../three/utils/ObjectPicker'
+import {ObjectPickerEventMap, SelectionObject} from '../../three/utils/ObjectPicker'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
+import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -47,6 +48,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     // @serialize()  // todo
     autoFocusHover = false
 
+    // @serialize()  // todo
+    autoApplyMaterialOnDrop = true
+
     /**
      * Note: this is for runtime use only, not serialized
      */
@@ -82,12 +86,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.dispatchEvent = this.dispatchEvent.bind(this)
     }
 
-    getSelectedObject<T extends IObject3D|IMaterial = IObject3D|IMaterial>(): T|undefined {
+    getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
         if (this.isDisabled()) return
         return this._picker?.selectedObject as T || undefined
     }
 
-    setSelectedObject(object: IObject3D|IMaterial|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
+    setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
         const disabled = this.isDisabled()
         if (disabled && !object) return
         if (!this._picker) return
@@ -125,30 +129,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('hitObject', this._onObjectHit)
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
 
-        // on material drop on selected object
-        // viewer.scene.addEventListener('addSceneObject', async(e) => {
-        //     const obj = e.object
-        //     const selected: IModel<Mesh> = this.getSelectedObject()! as any
-        //     if (selected
-        //         && obj?.assetType === 'material'
-        //         && typeof selected?.setMaterial === 'function'
-        //         && selected?.modelObject?.isMesh
-        //         && await viewer.confirm('Applying material: Apply material to the selected object?')
-        //     ) {
-        //         const oldMat = selected.material
-        //         if (Array.isArray(oldMat)) {
-        //             console.warn('Dropping on material array not yet fully supported.')
-        //             selected.setMaterial(obj)
-        //         } else {
-        //             let meshes: IModel<Mesh>[] = Array.from(oldMat?.userData.__appliedMeshes ?? [])
-        //             const c = meshes.length > 1 ? !await viewer.confirm('Applying material: Apply to all objects using this material?') : meshes.length < 1
-        //             if (c) meshes = [selected]
-        //             for (const mesh of meshes) {
-        //                 if (mesh) mesh.setMaterial?.(obj)
-        //             }
-        //         }
-        //     }
-        // })
+        viewer.getPlugin<DropzonePlugin>('Drop')?.addEventListener('drop', this._onDrop)
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
@@ -167,6 +148,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
+        viewer.getPlugin<DropzonePlugin>('Drop')?.removeEventListener('drop', this._onDrop)
 
         this._widget?.removeFromParent()
         this._hoverWidget?.removeFromParent()
@@ -365,6 +347,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }
         this.dispatchEvent(e)
     }
+
     private _selectionModeChanged = (e: any)=>{
         if (!this._viewer) return
         this.dispatchEvent(e)
@@ -374,6 +357,31 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     public async focusObject(selected?: Object3D|null) {
         this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
+    }
+
+    // todo this should be done with undo support, see UndoManagerPlugin.recordAction
+    private _onDrop = async(e: DropzonePluginEventMap['drop'])=>{
+        if (!this._viewer || !this.autoApplyMaterialOnDrop) return
+        const obj = e.assets
+        const assetMat = obj?.find(m=>(m as IMaterial).isMaterial) as IMaterial
+        const selected = this.getSelectedObject()
+        if (selected
+            && (selected as IObject3D)?.isObject3D
+            && assetMat
+            && await this._viewer.dialog.confirm('Applying material: Apply material to the selected object?')
+        ) {
+            let oldMat = (selected as IObject3D).material
+            if (Array.isArray(oldMat)) {
+                console.warn('Dropping on material array not yet fully supported.')
+                oldMat = oldMat[0]
+            }
+            let meshes = Array.from(oldMat?.appliedMeshes ?? [])
+            const c = meshes.length > 1 ? !await this._viewer.dialog.confirm('Applying material: Apply to all objects using this material?') : meshes.length < 1
+            if (c) meshes = [selected as IObject3D]
+            for (const mesh of meshes) {
+                if (mesh) mesh.material = assetMat
+            }
+        }
     }
 
     private _pickPromptUi: UiObjectConfig = {
