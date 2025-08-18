@@ -96,7 +96,7 @@ const json2 = viewer.exportConfig(true);
 
 Any plugin that supports serialization(most of them), can be exported independently to JSON using `viewer.export` or `viewer.exportPluginConfig`.
 
-::: note
+::: info Note
 Don't use `plugin.toJSON` directly, use `viewer.export` instead as that will make sure the resources(like textures) are embedded with proper context.
 :::
 

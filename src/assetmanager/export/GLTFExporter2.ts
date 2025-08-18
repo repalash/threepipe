@@ -258,11 +258,11 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         GLTFMaterialExtrasExtension.Export,
         GLTFObject3DExtrasExtension.Export,
         GLTFLightExtrasExtension.Export,
-        GLTFMaterialsBumpMapExtension.Export,
+        // GLTFMaterialsBumpMapExtension.Export, // deprecated
         GLTFMaterialsDisplacementMapExtension.Export,
         GLTFMaterialsLightMapExtension.Export,
         GLTFMaterialsAlphaMapExtension.Export,
-        // (w)=>new GLTFMeshGpuInstancingExporter(w),
+        // (w)=>new GLTFMeshGpuInstancingExporter(w), // added to threejs
     ]
 
     setup(viewer: ThreeViewer, extraExtensions?: ((parser: GLTFWriter2) => GLTFExporterPlugin)[]): this {

@@ -23,6 +23,7 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
     setDirty(options?: IGeometrySetDirtyOptions): void;
     refreshUi(): void;
     uiConfig?: UiObjectConfig
+    isBufferGeometry: true
 
     /**
      * Centers the geometry.

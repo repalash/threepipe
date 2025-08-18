@@ -169,14 +169,15 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             let r = obj
 
+            const rootPath = obj.__rootPath || obj.userData?.rootPath
+
             switch (obj.assetType) {
             case 'material':
                 this.materials.registerMaterial(<IMaterial>obj)
                 break
             case 'texture':
-                if (autoSetEnvironment && (
-                    obj.__rootPath?.endsWith('.hdr') || obj.__rootPath?.endsWith('.exr')
-                )) this.viewer.scene.environment = <ITexture>obj
+                if (autoSetEnvironment && (rootPath?.endsWith('.hdr') || rootPath?.endsWith('.exr')))
+                    this.viewer.scene.environment = <ITexture>obj
                 if (autoSetBackground) this.viewer.scene.background = <ITexture>obj
                 break
             case 'model':

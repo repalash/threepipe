@@ -1247,8 +1247,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * Deserialize and import all the viewer and plugin settings, exported with {@link exportConfig}.
+     *
+     * @param json - The serialized JSON object returned from {@link exportConfig} or {@link toJSON}.
+     * @returns {Promise<this>} - The viewer instance with the imported config.
      */
-    async importConfig(json: ISerializedConfig|ISerializedViewerConfig) {
+    async importConfig(json: ISerializedConfig|ISerializedViewerConfig): Promise<this | IViewerPlugin | undefined> {
         if (json.type !== this.type && <string>json.type !== 'ViewerApp' && <string>json.type !== 'ThreeViewer') {
             if (this.getPlugin(json.type)) {
                 return this.importPluginConfig(json)
@@ -1259,6 +1262,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
         const resources = await this.loadConfigResources(json.resources || {})
         this.fromJSON(<ISerializedViewerConfig>json, resources)
+        return this
     }
 
     /**

@@ -20,7 +20,7 @@ All plugins follow the same basic structure, independent of the logic, with the 
 
 Plugins can be dependent on other plugins. These dependencies are automatically resolved and added to the viewer at runtime. e.g. `SSAOPlugin` depends on `GBufferPlugin` to get the depth and normal data. So, when `SSAOPlugin` is added to the viewer, it automatically adds `GBufferPlugin` before that (if not added already).
 
-::: note
+::: info Note
 Plugin dependencies are different from pass/filter dependencies, which specifies how passes should be arranged in the render pipeline (effect composer).
 :::
 

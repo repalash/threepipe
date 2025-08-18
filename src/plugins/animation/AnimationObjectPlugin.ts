@@ -305,13 +305,14 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             if (!prop) continue
             const [tar, key] = prop
             if (!tar || typeof key !== 'string') continue
-            const btn = createDiv({innerHTML: '◆', classList: ['anim-object-uic-trigger']})
+            const btn = createDiv({innerHTML: '◆', classList: ['anim-object-uic-trigger'], addToBody: false})
+            if (btn.parentElement) btn.remove()
             btn.dataset.isAnimObjectTrigger = '1'
             btn.title = 'Add Animation for ' + getOrCall(config.label, key) // todo use uiconfigmethods
 
             const getAo = () => {
-                if (!obj.userData.animationObjects) obj.userData.animationObjects = []
-                return obj.userData.animationObjects.find(o => o.access === key)
+                // if (!obj.userData.animationObjects) obj.userData.animationObjects = []
+                return obj.userData.animationObjects?.find(o => o.access === key)
             }
             btn.addEventListener('click', () => {
                 const undo = this._viewer?.getPlugin(UndoManagerPlugin) // todo use uiconfigmethods

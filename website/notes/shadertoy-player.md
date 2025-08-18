@@ -145,7 +145,7 @@ The shader calls the `mainImage` function, which is where your ShaderToy code wi
 
 Since this is not defined in the shader itself, it will not compile without a material extension that injects the `mainImage` function.
 
-::: note `glMarker`
+::: info Note `glMarker`
 The `#glMarker` directive is a placeholder for the `ScreenPass` in threepipe that indicates where the screen shader extensions should be added. These include extensions by plugins like `TonemapPlugin`, `VignettePlugin`, etc.
 You can remove it if you don't need these extensions. 
 
@@ -222,7 +222,7 @@ const viewer = new ThreeViewer({
 
 The material is set as the `screenShader` in the viewer configuration, which sets it as material in the `ScreenPass`. Check out the [Screen Pass guide](./../guide/screen-pass) for more details on how custom screen shaders/materials work in threepipe.
 
-::: note `ExtendedShaderMaterial`
+::: info Note `ExtendedShaderMaterial`
 [`ExtendedShaderMaterial`](https://threepipe.org/docs/classes/ExtendedShaderMaterial.html) is a custom material that allows dynamic shader code injection and supports the `MaterialExtension` system.
 It extends the standard `ShaderMaterial` to provide additional features like automatic uniform management, shader code injection, compatibility with the threepipe material extension system, and automatic texture encoding and size support.
 It is used here to apply the ShaderToy shader as a screen shader in the viewer.
