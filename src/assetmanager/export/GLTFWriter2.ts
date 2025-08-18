@@ -3,6 +3,7 @@ import {BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, T
 import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
 import {ThreeSerialization} from '../../utils'
+import {IMaterial} from '../../core'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
@@ -80,12 +81,17 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         }
 
         // when not a shader material
-        if (!material || mat === material) return defIndex // todo: this line needds to be tested.
+        if (!material || mat === material) return defIndex
 
         // when shader material
         const defaultDef = JSON.stringify(this.json.materials[defIndex])
         const materialDef = JSON.parse(defaultDef) // for deep clone
         // console.log(defIndex, defaultDef, materialDef)
+
+        const color = (material as IMaterial).color?.isColor ? (material as IMaterial).color!.toArray().concat([material.opacity]) : null
+        if (color && !color.every((c) => c === 1) && materialDef.pbrMetallicRoughness) {
+            materialDef.pbrMetallicRoughness.baseColorFactor = color
+        }
 
         this.serializeUserData(material, materialDef)
 
