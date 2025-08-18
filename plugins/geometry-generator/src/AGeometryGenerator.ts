@@ -6,7 +6,7 @@ import {
     Float32BufferAttribute,
     generateUiConfig,
     getOrCall,
-    IGeometry,
+    IGeometry, IMaterial, IObject3D, LineGeometry2, Mesh2, PhysicalMaterial,
     UiObjectConfig,
 } from 'threepipe'
 
@@ -73,6 +73,10 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
 
     abstract defaultParams: Tp
 
+    defaultMeshClass: Class<IObject3D> = Mesh2
+    defaultMaterialClass?: Class<IMaterial> = PhysicalMaterial
+    defaultGeometryClass?: Class<IGeometry> = BufferGeometry2
+
     createUiConfig(geometry: IGeometry): UiObjectConfig[] {
         if (!geometry.userData.generationParams) return []
         const ui = (generateUiConfig(geometry.userData.generationParams)
@@ -85,11 +89,12 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
         return ui
     }
     protected abstract _generateData(params: Tp): {
-        indices: number[] | BufferAttribute
+        indices?: number[] | BufferAttribute
         vertices: number[] | BufferAttribute
-        normals: number[] | BufferAttribute
-        uvs: number[] | BufferAttribute
+        normals?: number[] | BufferAttribute
+        uvs?: number[] | BufferAttribute
         groups?: {start: number, count: number, materialIndex?: number}[]
+        positions?: number[] // for lines
     }
 
     generate(g?: IGeometry, parameters: Partial<Tp> = {}): IGeometry|BufferGeometry2 {
@@ -107,13 +112,17 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
             type: this.type,
         } as Tp
 
-        const {indices, vertices, normals, uvs, groups} = this._generateData(params)
+        const {indices, vertices, normals, uvs, groups, positions} = this._generateData(params)
 
-        // console.log(indices, vertices, normals, uvs, groups)
-        updateIndices(geometry, indices)
-        updateAttribute(geometry, 'position', 3, vertices)
-        updateAttribute(geometry, 'normal', 3, normals)
-        updateAttribute(geometry, 'uv', 2, uvs)
+        if (positions !== undefined && (geometry as LineGeometry2).setPositions) {
+            (geometry as LineGeometry2).setPositions(positions)
+        } else {
+            // console.log(indices, vertices, normals, uvs, groups)
+            indices && updateIndices(geometry, indices)
+            vertices && updateAttribute(geometry, 'position', 3, vertices)
+            normals && updateAttribute(geometry, 'normal', 3, normals)
+            uvs && updateAttribute(geometry, 'uv', 2, uvs)
+        }
 
         if (groups) {
             geometry.clearGroups()
@@ -122,8 +131,8 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
             }
         }
 
-        geometry.computeBoundingBox()
-        geometry.computeBoundingSphere()
+        geometry.computeBoundingBox && geometry.computeBoundingBox()
+        geometry.computeBoundingSphere && geometry.computeBoundingSphere()
 
         Object.assign(geometry.userData.generationParams, params)
 

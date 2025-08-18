@@ -1,8 +1,12 @@
 import {
     _testFinish,
-    _testStart, AnimationObjectPlugin,
+    _testStart,
+    AnimationObjectPlugin,
+    IMaterial,
+    LineMaterial2,
     LoadingScreenPlugin,
     Object3DGeneratorPlugin,
+    Path,
     PickingPlugin,
     ThreeViewer,
 } from 'threepipe'
@@ -42,6 +46,7 @@ async function init() {
         {type: 'text', params: {text: 'yello', alignX: 0.5, alignY: 0.5, size: 0.5, height: 0.1, curveSegments: 120, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelOffset: 0, bevelSegments: 15}, color: '#fd79a8', roughness: 0.4, metalness: 0.6},
         {type: 'torus', params: {radius: 0.5, tube: 0.2, radialSegments: 32, tubularSegments: 64}, color: '#f9ca24', roughness: 0.2, metalness: 0.9},
         {type: 'circle', params: {radius: 0.5, segments: 32}, color: '#6c5ce7', roughness: 0.8, metalness: 0.1},
+        {type: 'line', params: {curve: new Path().moveTo(-0.5, -0.5).lineTo(0.5, -0.5).lineTo(0.5, 0.5).lineTo(-0.5, 0.5), closePath: true, segments: 10}, color: '#6c5ce7', roughness: 0.8, metalness: 0.1, lineWidth: 0.1, worldUnits: true},
     ]
 
     // Arrange in a 3x2 grid with tighter spacing
@@ -50,11 +55,13 @@ async function init() {
 
     geometries.forEach((geom, index) => {
         const obj = generator.generateObject(geom.type, geom.params)
-        const material = obj.material
+        const material = obj.material as IMaterial
         material.name = geom.type + ' Material'
         material.color?.setStyle(geom.color)
         material.roughness = geom.roughness
         material.metalness = geom.metalness
+        if (geom.lineWidth !== undefined) (material as LineMaterial2).linewidth = geom.lineWidth
+        if (geom.worldUnits !== undefined) (material as LineMaterial2).worldUnits = geom.worldUnits
 
         // Calculate grid position
         const col = index % gridCols
@@ -65,6 +72,7 @@ async function init() {
         obj.position.set(x, y, 0)
 
         viewer.scene.addObject(obj)
+        console.log(obj)
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

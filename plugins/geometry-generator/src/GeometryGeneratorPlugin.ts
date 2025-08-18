@@ -3,11 +3,11 @@ import {
     BufferGeometry2,
     Class,
     IGeometry,
-    IMaterial,
+    IMaterial, IObject3D,
     Mesh2,
     type Object3DGeneratorPlugin,
     PhysicalMaterial,
-    ThreeViewer,
+    ThreeViewer, toTitleCase,
 } from 'threepipe'
 import {TorusGeometryGenerator} from './primitives/TorusGeometryGenerator'
 import {CircleGeometryGenerator} from './primitives/CircleGeometryGenerator'
@@ -16,6 +16,7 @@ import {SphereGeometryGenerator} from './primitives/SphereGeometryGenerator'
 import {PlaneGeometryGenerator} from './primitives/PlaneGeometryGenerator'
 import {CylinderGeometryGenerator} from './primitives/CylinderGeometryGenerator'
 import {TextGeometryGenerator} from './primitives/TextGeometryGenerator'
+import {LineGeometryGenerator} from './primitives/LineGeometryGenerator'
 import {AGeometryGenerator, updateUi} from './AGeometryGenerator'
 
 // for type autocomplete
@@ -27,6 +28,7 @@ export interface IGeometryGeneratorMap extends Record<string, AGeometryGenerator
     torus: TorusGeometryGenerator
     cylinder: CylinderGeometryGenerator
     text: TextGeometryGenerator
+    line: LineGeometryGenerator
 }
 
 /**
@@ -48,21 +50,29 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         torus: new TorusGeometryGenerator('torus'),
         cylinder: new CylinderGeometryGenerator('cylinder'),
         text: new TextGeometryGenerator('text'),
+        line: new LineGeometryGenerator('line'),
     }
 
+    defaultMeshClass: Class<IObject3D> = Mesh2
     defaultMaterialClass: Class<IMaterial> = PhysicalMaterial
     defaultGeometryClass: Class<IGeometry> = BufferGeometry2
 
     generateObject<T extends keyof IGeometryGeneratorMap & string = string, TG extends AGeometryGenerator = IGeometryGeneratorMap[T]>(type: T, params?: Partial<TG['defaultParams']> & {
+        mesh?: IObject3D,
         geometry?: IGeometry,
         material?: IMaterial,
     }) {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
-        const obj = new Mesh2(params?.geometry ?? new this.defaultGeometryClass(), params?.material ?? new this.defaultMaterialClass())
+        let obj = params?.mesh
+        const geometry = obj?.geometry || params?.geometry || (generator.defaultGeometryClass ? new generator.defaultGeometryClass() : new this.defaultGeometryClass())
+        const material = obj?.material || params?.material || (generator.defaultMaterialClass ? new generator.defaultMaterialClass() : new this.defaultMaterialClass())
+        obj = obj || (generator.defaultMeshClass ? new generator.defaultMeshClass(geometry, material) : new this.defaultMeshClass(geometry, material))
+        if (obj.geometry !== geometry) obj.geometry = geometry
+        if (obj.material !== material) obj.material = material
         generator.generate(obj.geometry, params)
         obj.name = type
-        obj.geometry.name = 'Generated ' + type
+        obj.geometry.name = 'Generated ' + toTitleCase(type)
         return obj
     }
     generateGeometry(type: string, params: any, geometry?: IGeometry) {
@@ -145,4 +155,3 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     }
 
 }
-

@@ -2,10 +2,12 @@ import {AGeometryGenerator} from '../AGeometryGenerator'
 import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js'
 import {FontLibrary} from '../FontLibrary'
 import {Float32BufferAttribute} from 'three'
+import {Font} from 'three/examples/jsm/loaders/FontLoader.js'
 
+export type FontJSON = Record<string, any>
 export interface TextGeometryGeneratorParams {
     text: string,
-    font: string,
+    font: string | FontJSON,
     size: number,
     height: number,
     curveSegments: number,
@@ -46,7 +48,7 @@ export class TextGeometryGenerator extends AGeometryGenerator<TextGeometryGenera
 
     protected _generateData(params: TextGeometryGeneratorParams) {
         const textGeometry = new TextGeometry(params.text, {
-            font: FontLibrary.GetFont(params.font),
+            font: typeof params.font === 'string' ? FontLibrary.GetFont(params.font) : new Font(params.font),
             size: params.size,
             height: params.height,
             curveSegments: params.curveSegments,
