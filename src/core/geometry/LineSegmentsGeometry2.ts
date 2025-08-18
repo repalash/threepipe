@@ -1,4 +1,4 @@
-import {NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
+import {InterleavedBufferAttribute, NormalBufferAttributes, NormalOrGLBufferAttributes} from 'three'
 import type {IGeometry, IGeometryEventMap, IGeometryUserData} from '../IGeometry'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import {iGeometryCommons} from './iGeometryCommons'
@@ -16,4 +16,14 @@ export class LineSegmentsGeometry2<Attributes extends NormalOrGLBufferAttributes
         super()
         iGeometryCommons.upgradeGeometry.call(this)
     }
+
+    getPositions() {
+        const start = this.attributes.instanceStart as InterleavedBufferAttribute
+        return start?.data.array || null
+    }
+    getColors() {
+        const start = this.attributes.instanceColorStart as InterleavedBufferAttribute
+        return start?.data.array || null
+    }
+
 }

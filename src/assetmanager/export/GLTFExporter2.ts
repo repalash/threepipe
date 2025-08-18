@@ -1,20 +1,19 @@
 import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {IExportWriter} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
-import {AnimationClip, Object3D} from 'three'
+import {AnimationClip, BufferAttribute, BufferGeometry, Object3D} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {
     glbEncryptionProcessor,
     GLTFLightExtrasExtension,
     GLTFMaterialExtrasExtension,
     GLTFMaterialsAlphaMapExtension,
-    GLTFMaterialsBumpMapExtension,
     GLTFMaterialsDisplacementMapExtension,
     GLTFMaterialsLightMapExtension,
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
-import {IObject3D} from '../../core'
+import {IGeometry, IObject3D, MeshLine, MeshLineSegments} from '../../core'
 
 export interface GLTFExporter2Options {
     /**
@@ -166,26 +165,53 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         if (options.exportExt === 'glb') {
             gltfOptions.binary = true
         }
+
+        const meshLines = new Map<MeshLine|MeshLineSegments, IGeometry>();
+
         // collect animations and preserveUUID(default true)
         (Array.isArray(input) ? input : [input]).forEach((obj: IObject3D) =>
             obj.traverse((obj1: IObject3D) => {
                 if (options.preserveUUIDs !== false && obj1.uuid) obj1.userData.gltfUUID = obj1.uuid
+
+                // save the root where gltf animations are set, this is required since objects can have the same name in diff hierarchies
                 if (obj1.animations) {
                     for (const animation of obj1.animations) {
-                        if (animation.__gltfExport !== false) {
-                            const rootRefs: string[] = animation.userData.rootRefs || []
-                            if (options.preserveUUIDs !== false && obj1.uuid) {
-                                if (!rootRefs.includes(obj1.uuid)) {
-                                    rootRefs.push(obj1.uuid)
-                                }
-                            } else if (obj1.name) {
-                                if (!rootRefs.includes(obj1.name)) {
-                                    rootRefs.push(obj1.name)
-                                }
+                        if (animation.__gltfExport === false) continue
+                        const rootRefs: string[] = animation.userData.rootRefs || []
+                        if (options.preserveUUIDs !== false && obj1.uuid) {
+                            if (!rootRefs.includes(obj1.uuid)) {
+                                rootRefs.push(obj1.uuid)
                             }
-                            animation.userData.rootRefs = rootRefs
-                            if (!gltfOptions.animations.includes(animation))
-                                gltfOptions.animations.push(animation)
+                        } else if (obj1.name) {
+                            if (!rootRefs.includes(obj1.name)) {
+                                rootRefs.push(obj1.name)
+                            }
+                        }
+                        animation.userData.rootRefs = rootRefs
+                        if (!gltfOptions.animations.includes(animation))
+                            gltfOptions.animations.push(animation)
+                    }
+                }
+
+                // for mesh lines, create a temp line (BufferGeometry) so GLTFExporter correctly saves it as mode = line.
+                if (typeof (obj1 as MeshLine|MeshLineSegments).geometry?.getPositions === 'function'
+                // && !obj1.geometry?.attributes.position
+                && obj1.isLine === undefined && obj1.isLineSegments === undefined
+                && (obj1.isLine2 || obj1.isLineSegments2)
+                && !meshLines.has(obj1 as MeshLine|MeshLineSegments)
+                ) {
+                    const positions = (obj1 as MeshLine|MeshLineSegments).geometry.getPositions()
+                    if (positions) {
+                        const colors = (obj1 as MeshLine|MeshLineSegments).geometry.getColors && (obj1 as MeshLine|MeshLineSegments).geometry.getColors()
+                        const g1 = new BufferGeometry()
+                        g1.attributes.position = new BufferAttribute(positions, 3)
+                        if (colors) g1.attributes.color = new BufferAttribute(colors, 3)
+                        meshLines.set(obj1 as MeshLine|MeshLineSegments, obj1.geometry as any)
+                        obj1.geometry = g1 as any
+                        if ((obj1 as MeshLine).isLine2) obj1.isLine = true
+                        if ((obj1 as MeshLine).isLineSegments2) {
+                            obj1.isLine = true
+                            obj1.isLineSegments = true
                         }
                     }
                 }
@@ -198,13 +224,21 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 }
             }))
 
-        console.log(gltfOptions.animations)
-        return super.parse(input, (o: any)=> {
+        const onDone1 = (o: any)=> {
             if (options.preserveUUIDs !== false) { // default true
                 (Array.isArray(input) ? input : [input]).forEach((obj: Object3D) =>
-                    obj.traverse((obj1: Object3D) => {
+                    obj.traverse((obj1: IObject3D) => {
                         delete obj1.userData.gltfUUID
 
+                        if (meshLines.has(obj1 as MeshLine|MeshLineSegments) && obj1.geometry) {
+                            const g = obj1.geometry
+                            obj1.geometry = meshLines.get(obj1 as MeshLine|MeshLineSegments) as any
+                            g.dispose(true)
+                            if (obj1.isLine) delete obj1.isLine
+                            if (obj1.isLineSegments) delete obj1.isLineSegments
+                        }
+
+                        // todo move this to asset exporter?
                         // @ts-expect-error temp
                         if (obj1._tChildren) {
                             // @ts-expect-error temp
@@ -216,7 +250,8 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
             }
             // eslint-disable-next-line @typescript-eslint/naming-convention
             onDone(Object.assign(o, {__isGLTFOutput: true}))
-        }, onError, gltfOptions, new GLTFWriter2())
+        }
+        return super.parse(input, onDone1, onError, gltfOptions, new GLTFWriter2())
     }
 
     static ExportExtensions: ((parser: GLTFWriter2) => GLTFExporterPlugin)[] = [

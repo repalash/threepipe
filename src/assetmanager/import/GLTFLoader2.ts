@@ -68,11 +68,11 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     ]
 
     /**
-     * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width and other properties.
+     * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width and other properties like `dashed`.
      *
      * This is the default value for the flag, it can also be controlled by using the `useMeshLines` in the import options.
      *
-     * Note - Lines may not export correctly when loaded with this.
+     * Note - Some bugs right now like bounding box, shadows and depth when using this.
      */
     static UseMeshLines = false
 
@@ -186,7 +186,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             }
         }
 
-        // todo: replacing lights and camera, todo: remove and change constructors in GLTFLoader.js
         if (!scene.userData) scene.userData = {}
         if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
         if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
@@ -302,6 +301,10 @@ function convertToFatLine(line: Line) {
     }
     line2.geometry.setPositions(positions)
     line2.computeLineDistances()
+    const colors = line.geometry.attributes.color?.array as Float32Array
+    if (colors && (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors) {
+        (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors(colors)
+    }
     const index = parent.children.indexOf(line)
     parent.add(line2)
     const {geometry, material} = line2
@@ -316,6 +319,7 @@ function convertToFatLine(line: Line) {
     line2.userData = {...line2.userData, ...ud}
     material.userData.renderToGBuffer = false // this is set in LineMaterial2
     material.userData.renderToDepth = false
+    safeSetProperty(line2, 'uuid', line.uuid, true, true)
     line.removeFromParent()
     // put at the same index
     const index2 = parent.children.indexOf(line2)

@@ -245,6 +245,9 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
     }
 }
 
+/**
+ * @deprecated Use {@link UnlitLineMaterial} instead.
+ */
 export class LineBasicMaterial2 extends UnlitLineMaterial {
     constructor(parameters?: LineBasicMaterialParameters) {
         super(parameters)
