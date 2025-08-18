@@ -1,6 +1,7 @@
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {MeshStandardMaterial} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {PhysicalMaterial} from '../../core'
 
 /**
  * Displacement Map Extension
@@ -87,8 +88,11 @@ class GLTFMaterialsDisplacementMapExtensionExport {
 
         const extensionDef: any = {}
 
-        extensionDef.displacementScale = material.displacementScale
-        extensionDef.displacementBias = material.displacementBias
+        if (material.displacementScale !== PhysicalMaterial.MaterialProperties.displacementScale)
+            extensionDef.displacementScale = material.displacementScale
+
+        if (material.displacementBias !== PhysicalMaterial.MaterialProperties.displacementBias)
+            extensionDef.displacementBias = material.displacementBias
 
         if (material.displacementMap && writer.checkEmptyMap(material.displacementMap)) {
 
@@ -97,6 +101,8 @@ class GLTFMaterialsDisplacementMapExtensionExport {
             extensionDef.displacementTexture = displacementMapDef
 
         }
+
+        if (!Object.keys(extensionDef)) return
 
         materialDef.extensions = materialDef.extensions || {}
         materialDef.extensions[ this.name ] = extensionDef

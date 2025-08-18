@@ -1,11 +1,14 @@
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {MeshStandardMaterial} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {PhysicalMaterial} from '../../core'
 
 /**
  * Bump Map Extension
  *
  * bumpTexture and bumpScale are added to the material
+ *
+ * Note - this is not deprecated as an official KHR extension now exists, but the importer is kept as it's used in many files.
  *
  * Specification: https://threepipe.org/docs/gltf-extensions/WEBGI_materials_bumpmap.html
  */
@@ -93,7 +96,8 @@ class GLTFMaterialsBumpMapExtensionExport {
 
         const extensionDef: any = {}
 
-        extensionDef.bumpScale = material.bumpScale
+        if (material.bumpScale !== PhysicalMaterial.MaterialProperties.bumpScale)
+            extensionDef.bumpScale = material.bumpScale
 
         if (material.bumpMap && writer.checkEmptyMap(material.bumpMap)) {
 
@@ -102,6 +106,8 @@ class GLTFMaterialsBumpMapExtensionExport {
             extensionDef.bumpTexture = bumpMapDef
 
         }
+
+        if (!Object.keys(extensionDef)) return
 
         materialDef.extensions = materialDef.extensions || {}
         materialDef.extensions[ this.name ] = extensionDef

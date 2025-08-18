@@ -2,7 +2,8 @@ import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loader
 import {ThreeSerialization} from '../../utils/serialization'
 import {Color, DoubleSide, Material} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
-import {ITexture} from '../../core'
+import {ITexture, LineMaterial2, PhysicalMaterial} from '../../core'
+import {threeMaterialPropList} from '../../core/material/threeMaterialPropList'
 
 export class GLTFMaterialExtrasExtension {
     static readonly WebGiMaterialExtrasExtension = 'WEBGI_material_extras'
@@ -61,14 +62,14 @@ export class GLTFMaterialExtrasExtension {
                     if (ext.blendColor !== undefined && o.blendColor !== undefined) (o.blendColor as Color).setHex(ext.blendColor)
                     if (ext.blendAlpha !== undefined) o.blendAlpha = ext.blendAlpha
 
-                    // if (ext.stencilWrite !== undefined) o.stencilWrite = ext.stencilWrite
-                    // if (ext.stencilWriteMask !== undefined) o.stencilWriteMask = ext.stencilWriteMask
-                    // if (ext.stencilFunc !== undefined) o.stencilFunc = ext.stencilFunc
-                    // if (ext.stencilRef !== undefined) o.stencilRef = ext.stencilRef
-                    // if (ext.stencilFuncMask !== undefined) o.stencilFuncMask = ext.stencilFuncMask
-                    // if (ext.stencilFail !== undefined) o.stencilFail = ext.stencilFail
-                    // if (ext.stencilZFail !== undefined) o.stencilZFail = ext.stencilZFail
-                    // if (ext.stencilZPass !== undefined) o.stencilZPass = ext.stencilZPass
+                    if (ext.stencilWrite !== undefined) o.stencilWrite = ext.stencilWrite
+                    if (ext.stencilWriteMask !== undefined) o.stencilWriteMask = ext.stencilWriteMask
+                    if (ext.stencilFunc !== undefined) o.stencilFunc = ext.stencilFunc
+                    if (ext.stencilRef !== undefined) o.stencilRef = ext.stencilRef
+                    if (ext.stencilFuncMask !== undefined) o.stencilFuncMask = ext.stencilFuncMask
+                    if (ext.stencilFail !== undefined) o.stencilFail = ext.stencilFail
+                    if (ext.stencilZFail !== undefined) o.stencilZFail = ext.stencilZFail
+                    if (ext.stencilZPass !== undefined) o.stencilZPass = ext.stencilZPass
 
                     if (ext.wireframe !== undefined) o.wireframe = ext.wireframe
                     if (ext.wireframeLinewidth !== undefined) o.wireframeLinewidth = ext.wireframeLinewidth
@@ -77,9 +78,16 @@ export class GLTFMaterialExtrasExtension {
 
                     if (ext.rotation !== undefined) o.rotation = ext.rotation
 
-                    // if (ext.linewidth !== 1) o.linewidth = ext.linewidth
-                    // if (ext.dashSize !== undefined) o.dashSize = ext.dashSize
-                    // if (ext.gapSize !== undefined) o.gapSize = ext.gapSize
+                    if (ext.linewidth !== undefined) o.linewidth = ext.linewidth
+                    if (ext.worldUnits !== undefined) o.worldUnits = ext.worldUnits
+                    if (ext.dashed !== undefined) o.dashed = ext.dashed
+                    if (ext.dashSize !== undefined) o.dashSize = ext.dashSize
+                    if (ext.dashScale !== undefined) o.dashScale = ext.dashScale
+                    if (ext.dashOffset !== undefined) o.dashOffset = ext.dashOffset
+                    if (ext.gapSize !== undefined) o.gapSize = ext.gapSize
+                    if (ext.resolution !== undefined && o.resolution && o.resolution.fromArray) {
+                        o.resolution.fromArray(ext.resolution)
+                    }
                     // if (ext.scale !== undefined) o.scale = ext.scale
 
                     if (ext.polygonOffset !== undefined) o.polygonOffset = ext.polygonOffset
@@ -165,69 +173,74 @@ export class GLTFMaterialExtrasExtension {
             // bumpMap, lightMap, alphaMap moved to separate extensions
 
             // if (material.shininess !== undefined) dat.shininess = material.shininess
-            if (material.fog !== undefined) dat.fog = material.fog
-            if (material.flatShading !== undefined) dat.flatShading = material.flatShading
-            if (material.blending !== undefined) dat.blending = material.blending
-            // if (material.combine !== undefined) dat.combine = material.combine
+            if (material.fog !== undefined && material.fog !== PhysicalMaterial.MaterialProperties.fog) dat.fog = material.fog
+            if (material.flatShading !== undefined && material.flatShading !== PhysicalMaterial.MaterialProperties.flatShading) dat.flatShading = material.flatShading
+            if (material.blending !== undefined && material.blending !== threeMaterialPropList.blending) dat.blending = material.blending
+            // if (material.combine !== undefined && material.combine !== threeMaterialPropList.combine) dat.combine = material.combine
             if (material.side !== undefined && material.side !== DoubleSide) dat.side = material.side // DoubleSide handled in GLTF
-            if (material.shadowSide !== undefined) dat.shadowSide = material.shadowSide
-            if (material.depthFunc !== undefined) dat.depthFunc = material.depthFunc
-            if (material.depthTest !== undefined) dat.depthTest = material.depthTest
-            if (material.depthWrite !== undefined) dat.depthWrite = material.depthWrite
-            if (material.colorWrite !== undefined) dat.colorWrite = material.colorWrite
+            if (material.shadowSide !== undefined && material.shadowSide !== threeMaterialPropList.shadowSide) dat.shadowSide = material.shadowSide
+            if (material.depthFunc !== undefined && material.depthFunc !== threeMaterialPropList.depthFunc) dat.depthFunc = material.depthFunc
+            if (material.depthTest !== undefined && material.depthTest !== threeMaterialPropList.depthTest) dat.depthTest = material.depthTest
+            if (material.depthWrite !== undefined && material.depthWrite !== threeMaterialPropList.depthWrite) dat.depthWrite = material.depthWrite
+            if (material.colorWrite !== undefined && material.colorWrite !== threeMaterialPropList.colorWrite) dat.colorWrite = material.colorWrite
 
-            if (material.vertexColors !== undefined) dat.vertexColors = material.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
-            if (material.alphaTest !== undefined) dat.alphaTest = material.alphaTest
-            if (material.alphaHash !== undefined) dat.alphaHash = material.alphaHash
+            if (material.vertexColors !== undefined && material.vertexColors !== threeMaterialPropList.vertexColors) dat.vertexColors = material.vertexColors // this is override, it is also set in GLTFLoader if geometry has vertex colors, todo: check how to do this in a better way
+            if (material.alphaTest !== undefined && material.alphaTest !== threeMaterialPropList.alphaTest) dat.alphaTest = material.alphaTest
+            if (material.alphaHash !== undefined && material.alphaHash !== threeMaterialPropList.alphaHash) dat.alphaHash = material.alphaHash
 
-            if (material.envMapIntensity !== undefined) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
-            // if (material.envMapSlotKey !== undefined) dat.envMapSlotKey = material.envMapSlotKey // in userData
+            if (material.envMapIntensity !== undefined && material.envMapIntensity !== PhysicalMaterial.MaterialProperties.envMapIntensity) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
+            // if (material.envMapSlotKey !== undefined && material.envMapSlotKey !== threeMaterialPropList.envMapSlotKey) dat.envMapSlotKey = material.envMapSlotKey // in userData
 
-            if (material.blendSrc !== undefined) dat.blendSrc = material.blendSrc
-            if (material.blendDst !== undefined) dat.blendDst = material.blendDst
-            if (material.blendEquation !== undefined) dat.blendEquation = material.blendEquation
-            if (material.blendSrcAlpha !== undefined) dat.blendSrcAlpha = material.blendSrcAlpha
-            if (material.blendDstAlpha !== undefined) dat.blendDstAlpha = material.blendDstAlpha
-            if (material.blendEquationAlpha !== undefined) dat.blendEquationAlpha = material.blendEquationAlpha
-            if (material.blendColor !== undefined) dat.blendColor = (material.blendColor as Color).getHex()
-            if (material.blendAlpha !== undefined) dat.blendAlpha = material.blendAlpha
+            if (material.blendSrc !== undefined && material.blendSrc !== threeMaterialPropList.blendSrc) dat.blendSrc = material.blendSrc
+            if (material.blendDst !== undefined && material.blendDst !== threeMaterialPropList.blendDst) dat.blendDst = material.blendDst
+            if (material.blendEquation !== undefined && material.blendEquation !== threeMaterialPropList.blendEquation) dat.blendEquation = material.blendEquation
+            if (material.blendSrcAlpha !== undefined && material.blendSrcAlpha !== threeMaterialPropList.blendSrcAlpha) dat.blendSrcAlpha = material.blendSrcAlpha
+            if (material.blendDstAlpha !== undefined && material.blendDstAlpha !== threeMaterialPropList.blendDstAlpha) dat.blendDstAlpha = material.blendDstAlpha
+            if (material.blendEquationAlpha !== undefined && material.blendEquationAlpha !== threeMaterialPropList.blendEquationAlpha) dat.blendEquationAlpha = material.blendEquationAlpha
+            if (material.blendColor !== undefined && material.blendColor !== threeMaterialPropList.blendColor) dat.blendColor = (material.blendColor as Color).getHex()
+            if (material.blendAlpha !== undefined && material.blendAlpha !== threeMaterialPropList.blendAlpha) dat.blendAlpha = material.blendAlpha
 
-            // if (material.stencilWrite !== undefined) dat.stencilWrite = material.stencilWrite
-            // if (material.stencilWriteMask !== undefined) dat.stencilWriteMask = material.stencilWriteMask
-            // if (material.stencilFunc !== undefined) dat.stencilFunc = material.stencilFunc
-            // if (material.stencilRef !== undefined) dat.stencilRef = material.stencilRef
-            // if (material.stencilFuncMask !== undefined) dat.stencilFuncMask = material.stencilFuncMask
-            // if (material.stencilFail !== undefined) dat.stencilFail = material.stencilFail
-            // if (material.stencilZFail !== undefined) dat.stencilZFail = material.stencilZFail
-            // if (material.stencilZPass !== undefined) dat.stencilZPass = material.stencilZPass
+            if (material.stencilWrite !== undefined && material.stencilWrite !== threeMaterialPropList.stencilWrite) dat.stencilWrite = material.stencilWrite
+            if (material.stencilWriteMask !== undefined && material.stencilWriteMask !== threeMaterialPropList.stencilWriteMask) dat.stencilWriteMask = material.stencilWriteMask
+            if (material.stencilFunc !== undefined && material.stencilFunc !== threeMaterialPropList.stencilFunc) dat.stencilFunc = material.stencilFunc
+            if (material.stencilRef !== undefined && material.stencilRef !== threeMaterialPropList.stencilRef) dat.stencilRef = material.stencilRef
+            if (material.stencilFuncMask !== undefined && material.stencilFuncMask !== threeMaterialPropList.stencilFuncMask) dat.stencilFuncMask = material.stencilFuncMask
+            if (material.stencilFail !== undefined && material.stencilFail !== threeMaterialPropList.stencilFail) dat.stencilFail = material.stencilFail
+            if (material.stencilZFail !== undefined && material.stencilZFail !== threeMaterialPropList.stencilZFail) dat.stencilZFail = material.stencilZFail
+            if (material.stencilZPass !== undefined && material.stencilZPass !== threeMaterialPropList.stencilZPass) dat.stencilZPass = material.stencilZPass
 
-            if (material.wireframe !== undefined) dat.wireframe = material.wireframe
-            if (material.wireframeLinewidth !== undefined) dat.wireframeLinewidth = material.wireframeLinewidth
-            if (material.wireframeLinecap !== undefined) dat.wireframeLinecap = material.wireframeLinecap
-            if (material.wireframeLinejoin !== undefined) dat.wireframeLinejoin = material.wireframeLinejoin
+            if (material.wireframe !== undefined && material.wireframe !== PhysicalMaterial.MaterialProperties.wireframe) dat.wireframe = material.wireframe
+            if (material.wireframeLinewidth !== undefined && material.wireframeLinewidth !== PhysicalMaterial.MaterialProperties.wireframeLinewidth) dat.wireframeLinewidth = material.wireframeLinewidth
+            if (material.wireframeLinecap !== undefined && material.wireframeLinecap !== PhysicalMaterial.MaterialProperties.wireframeLinecap) dat.wireframeLinecap = material.wireframeLinecap
+            if (material.wireframeLinejoin !== undefined && material.wireframeLinejoin !== PhysicalMaterial.MaterialProperties.wireframeLinejoin) dat.wireframeLinejoin = material.wireframeLinejoin
 
             if (material.rotation !== undefined) dat.rotation = material.rotation
 
-            // if (material.linewidth !== 1) dat.linewidth = material.linewidth
-            // if (material.dashSize !== undefined) dat.dashSize = material.dashSize
-            // if (material.gapSize !== undefined) dat.gapSize = material.gapSize
+            if (material.linewidth !== undefined && material.linewidth !== LineMaterial2.MaterialProperties.linewidth) dat.linewidth = material.linewidth
+            if (material.worldUnits !== undefined && material.worldUnits !== LineMaterial2.MaterialProperties.worldUnits) dat.worldUnits = material.worldUnits
+            if (material.dashed !== undefined && material.dashed !== LineMaterial2.MaterialProperties.dashed) dat.dashed = material.dashed
+            if (material.dashSize !== undefined && material.dashSize !== LineMaterial2.MaterialProperties.dashSize) dat.dashSize = material.dashSize
+            if (material.dashScale !== undefined && material.dashScale !== LineMaterial2.MaterialProperties.dashScale) dat.dashScale = material.dashScale
+            if (material.dashOffset !== undefined && material.dashOffset !== LineMaterial2.MaterialProperties.dashOffset) dat.dashOffset = material.dashOffset
+            if (material.gapSize !== undefined && material.gapSize !== LineMaterial2.MaterialProperties.gapSize) dat.gapSize = material.gapSize
+            // if (material.resolution !== undefined && material.resolution.isVector2 && (material.resolution.x !== LineMaterial2.MaterialProperties.resolution.x || material.resolution.y !== LineMaterial2.MaterialProperties.resolution.y)) dat.resolution = material.resolution.toArray()
             // if (material.scale !== undefined) dat.scale = material.scale
 
-            if (material.polygonOffset !== undefined) dat.polygonOffset = material.polygonOffset
-            if (material.polygonOffsetFactor !== undefined) dat.polygonOffsetFactor = material.polygonOffsetFactor
-            if (material.polygonOffsetUnits !== undefined) dat.polygonOffsetUnits = material.polygonOffsetUnits
+            if (material.polygonOffset !== undefined && material.polygonOffset !== threeMaterialPropList.polygonOffset) dat.polygonOffset = material.polygonOffset
+            if (material.polygonOffsetFactor !== undefined && material.polygonOffsetFactor !== threeMaterialPropList.polygonOffsetFactor) dat.polygonOffsetFactor = material.polygonOffsetFactor
+            if (material.polygonOffsetUnits !== undefined && material.polygonOffsetUnits !== threeMaterialPropList.polygonOffsetUnits) dat.polygonOffsetUnits = material.polygonOffsetUnits
 
-            if (material.dithering !== undefined) dat.dithering = material.dithering
+            if (material.dithering !== undefined && material.dithering !== threeMaterialPropList.dithering) dat.dithering = material.dithering
 
-            if (material.alphaToCoverage !== undefined) dat.alphaToCoverage = material.alphaToCoverage
-            if (material.premultipliedAlpha !== undefined) dat.premultipliedAlpha = material.premultipliedAlpha
+            if (material.alphaToCoverage !== undefined && material.alphaToCoverage !== threeMaterialPropList.alphaToCoverage) dat.alphaToCoverage = material.alphaToCoverage
+            if (material.premultipliedAlpha !== undefined && material.premultipliedAlpha !== threeMaterialPropList.premultipliedAlpha) dat.premultipliedAlpha = material.premultipliedAlpha
 
-            // if (material.visible !== undefined) dat.visible = material.visible
+            // if (material.visible !== undefined && material.visible !== threeMaterialPropList.visible) dat.visible = material.visible
 
-            if (material.toneMapped !== undefined) dat.toneMapped = material.toneMapped
+            if (material.toneMapped !== undefined && material.toneMapped !== threeMaterialPropList.toneMapped) dat.toneMapped = material.toneMapped
 
             // ignoring data from the GLTFExporter.
-            if (material.normalScale !== undefined) dat.normalScale = [material.normalScale.x, material.normalScale.y]
+            if (material.normalScale !== undefined && material.normalScale.isVector2 && (material.normalScale.x !== PhysicalMaterial.MaterialProperties.normalScale.x || material.normalScale.y !== PhysicalMaterial.MaterialProperties.normalScale.y)) dat.normalScale = [material.normalScale.x, material.normalScale.y]
 
             // if (material.reflectivity !== undefined) dat.reflectivity = material.reflectivity // see KHR_materials_ior, and comments in parser.
 

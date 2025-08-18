@@ -1,6 +1,7 @@
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {MeshStandardMaterial} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {PhysicalMaterial} from '../../core'
 
 /**
  * Light Map Extension
@@ -93,7 +94,8 @@ class GLTFMaterialsLightMapExtensionExport {
 
         const extensionDef: any = {}
 
-        extensionDef.lightMapIntensity = material.lightMapIntensity
+        if (material.lightMapIntensity !== PhysicalMaterial.MaterialProperties.lightMapIntensity)
+            extensionDef.lightMapIntensity = material.lightMapIntensity
 
         if (material.lightMap && writer.checkEmptyMap(material.lightMap)) {
 
@@ -102,6 +104,8 @@ class GLTFMaterialsLightMapExtensionExport {
             extensionDef.lightMapTexture = lightMapDef
 
         }
+
+        if (!Object.keys(extensionDef)) return
 
         materialDef.extensions = materialDef.extensions || {}
         materialDef.extensions[ this.name ] = extensionDef
