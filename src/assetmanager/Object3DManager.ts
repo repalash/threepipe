@@ -3,7 +3,9 @@ import {
     iGeometryCommons,
     IMaterial,
     iMaterialCommons,
+    IMaterialEventMap,
     IObject3D,
+    IObject3DEventMap,
     iObjectCommons,
     ITexture,
     LegacyPhongMaterial,
@@ -13,11 +15,14 @@ import {
     upgradeTexture,
 } from '../core'
 import {IObjectExtension} from '../core/IObject'
-import {Event, EventDispatcher, VideoTexture} from 'three'
+import {Event, Event2, EventDispatcher, VideoTexture} from 'three'
 import {generateUUID} from '../three'
-import {deepAccessObject} from 'ts-browser-helpers'
-import {ViewerTimeline} from '../utils/ViewerTimeline'
+import {object3DTextureProperties, sceneTextureProperties} from '../core/object/iObjectCommons'
+import {materialTextureProperties, materialTexturePropertiesUserData} from '../core/material/iMaterialCommons'
 
+/**
+ * Event map for Object3DManager events.
+ */
 export interface Object3DManagerEventMap {
     'videoAdd': {video: VideoTexture & ITexture}
     'videoRemove': {video: VideoTexture & ITexture}
@@ -32,6 +37,9 @@ export interface Object3DManagerEventMap {
     'dispose': object
 }
 
+/**
+ * Manages 3D objects, materials, geometries, textures, and videos in a scene.
+ */
 export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     private _root: IObject3D | undefined
     private _objects = new Set<IObject3D>()
@@ -41,6 +49,21 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     private _textures = new Set<ITexture>()
     private _videos = new Set<VideoTexture & ITexture>()
 
+    getObjects() {
+        return [...this._objects]
+    }
+    getObjectExtensions() {
+        return [...this._objectExtensions]
+    }
+    getMaterials() {
+        return [...this._materials]
+    }
+    getGeometries() {
+        return [...this._geometries]
+    }
+    getTextures() {
+        return [...this._textures]
+    }
     getVideos() {
         return [...this._videos]
     }
@@ -53,10 +76,13 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     constructor() {
         super()
         this._rootChanged = this._rootChanged.bind(this)
+        this._materialChanged = this._materialChanged.bind(this)
+        this._geometryChanged = this._geometryChanged.bind(this)
+        this._texturesChanged = this._texturesChanged.bind(this) // todo add texturesChanged to textures on objects as well like background and environment
         // this._objAdded = this._objAdded.bind(this)
     }
 
-    onPostFrame(time: ViewerTimeline) {
+    onPostFrame(timeline: {time: number, running: boolean}) {
         // const delta = time.delta
         for (const video of this._videos) {
             const data = video.userData.timeline
@@ -70,7 +96,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             const duration = elem.duration || 1
             const end = duration - (data?.end || 0)
             // elem.pause()
-            let t = time.time
+            let t = timeline.time
             t -= delay
             t *= scale
             if (t < start) t = start
@@ -93,7 +119,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
                     })
                 }
             }
-            if (!time.running) {
+            if (!timeline.running) {
                 // if the timeline is not running, pause the video
                 if (!elem.paused && !video._playid) {
                     elem.pause()
@@ -121,9 +147,11 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         }
         this._objects.add(obj)
         obj.addEventListener('parentRootChanged', this._rootChanged)
+        obj.addEventListener('materialChanged', this._materialChanged)
+        obj.addEventListener('geometryChanged', this._geometryChanged)
         this._registerMaterials(obj.materials, obj)
         this._registerGeometry(obj.geometry, obj)
-        const maps = Object3DManager.GetMapsForObject3D(obj)
+        const maps = iObjectCommons.getMapsForObject3D.call(obj)
         if (maps) for (const tex of maps) {
             this._registerTexture(tex, obj)
         }
@@ -143,10 +171,12 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     unregisterObject(obj: IObject3D) {
         if (!obj || !obj.uuid || !this._objects.has(obj)) return false
         this._objects.delete(obj)
+        obj.removeEventListener('materialChanged', this._materialChanged)
+        obj.removeEventListener('geometryChanged', this._geometryChanged)
         // obj.removeEventListener('added', this._objAdded)
         this._unregisterMaterials(obj.materials, obj)
         this._unregisterGeometry(obj.geometry, obj)
-        const maps = Object3DManager.GetMapsForObject3D(obj)
+        const maps = iObjectCommons.getMapsForObject3D.call(obj)
         if (maps) for (const tex of maps) {
             this._unregisterTexture(tex, obj)
         }
@@ -167,33 +197,6 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         // listener is not removed, it will be used to know when its added back to root. todo - because of this reference to the manager is kept even after dispose, if the object is removed from the scene before dispose. but it would be empty.
         // obj.removeEventListener('parentRootChanged', this._rootChanged)
     }
-
-    private _rootChanged = (ev: Event<'parentRootChanged', IObject3D>) => {
-        if (!ev.target || !this._root) return
-        const parent = ev.target.parentRoot
-        let inRoot = false
-        if (parent === this._root) inRoot = true
-        else {
-            ev.target.traverseAncestors(a => {
-                if (a === this._root) inRoot = true
-            })
-        }
-        if (inRoot) {
-            this.registerObject(ev.target)
-        } else {
-            this.unregisterObject(ev.target)
-        }
-    }
-
-    // private _objAdded = (ev: Event<'added', IObject3D>) => {
-    //     if (!ev.target) return
-    //     let inRoot = false
-    //     ev.target.traverseAncestors(a => {
-    //         if (a === this._root) inRoot = true
-    //     })
-    //     if (!inRoot) return
-    //     this.registerObject(ev.target)
-    // }
 
     registerObjectExtension(ext: IObjectExtension) {
         if (!ext) return
@@ -225,14 +228,69 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         // }
     }
 
+    private _rootChanged = (ev: Event<'parentRootChanged', IObject3D>) => {
+        if (!ev.target || !this._root) return
+        const parent = ev.target.parentRoot
+        let inRoot = false
+        if (parent === this._root) inRoot = true
+        else {
+            ev.target.traverseAncestors(a => {
+                if (a === this._root) inRoot = true
+            })
+        }
+        if (inRoot) {
+            this.registerObject(ev.target)
+        } else {
+            this.unregisterObject(ev.target)
+        }
+    }
+
+    // private _objAdded = (ev: Event<'added', IObject3D>) => {
+    //     if (!ev.target) return
+    //     let inRoot = false
+    //     ev.target.traverseAncestors(a => {
+    //         if (a === this._root) inRoot = true
+    //     })
+    //     if (!inRoot) return
+    //     this.registerObject(ev.target)
+    // }
+
+    private _materialChanged = (ev: Event2<'materialChanged', IObject3DEventMap, IObject3D>) => {
+        if (!ev.target) return
+        const obj = ev.target
+
+        const oldMaterials = ev.oldMaterial
+        if (oldMaterials) {
+            if (Array.isArray(oldMaterials)) {
+                this._unregisterMaterials(oldMaterials, obj)
+            } else {
+                this._unregisterMaterial(oldMaterials, obj)
+            }
+        }
+
+        this._registerMaterials(obj.materials, obj)
+    }
+
+    private _geometryChanged = (ev: Event2<'geometryChanged', IObject3DEventMap, IObject3D>) => {
+        if (!ev.target) return
+        const obj = ev.target
+
+        const oldGeometry = ev.oldGeometry
+        if (oldGeometry) this._unregisterGeometry(oldGeometry, obj)
+
+        this._registerGeometry(obj.geometry, obj)
+    }
+
     // region materials
 
     private _registerMaterials(mat: IMaterial[]|undefined, mesh: IObject3D) {
         return mat && mat.forEach(m => this._registerMaterial(m, mesh))
     }
+
     private _unregisterMaterials(mat: IMaterial[]|undefined, mesh: IObject3D) {
         return mat && mat.forEach(m => this._unregisterMaterial(m, mesh))
     }
+
     private _registerMaterial(mat: IMaterial, mesh: IObject3D) {
         if (!mat || !mat.isMaterial || !mesh || !mesh.uuid) return
         if (!mat.assetType) {
@@ -247,7 +305,12 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         meshes.add(mesh)
         this._materials.add(mat)
 
-        const maps = Object3DManager.GetMapsForMaterial(mat)
+        // Add texturesChanged event listener for new materials
+        if (isNewMaterial) {
+            mat.addEventListener('texturesChanged', this._texturesChanged)
+        }
+
+        const maps = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
         if (maps) for (const tex of maps) {
             this._registerTexture(tex, mat)
         }
@@ -256,6 +319,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             this.dispatchEvent({type: 'materialAdd', material: mat})
         }
     }
+
     private _unregisterMaterial(mat: IMaterial, mesh: IObject3D) {
         if (!mat || !mesh || !mesh.uuid) return
         const meshes = mat.appliedMeshes
@@ -264,15 +328,34 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         if (meshes.size === 0 && this._materials.has(mat)) {
             this._materials.delete(mat)
 
-            const maps = Object3DManager.GetMapsForMaterial(mat)
+            // Remove texturesChanged event listener when material is no longer used
+            mat.removeEventListener('texturesChanged', this._texturesChanged)
+
+            const maps = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
             if (maps) for (const tex of maps) {
                 this._unregisterTexture(tex, mat)
             }
 
             this.dispatchEvent({type: 'materialRemove', material: mat})
 
-            if (this.autoDisposeMaterials)
+            if (this.autoDisposeMaterials) {
                 mat.dispose(false)
+            }
+        }
+    }
+
+    private _texturesChanged = (ev: Event2<'texturesChanged', IMaterialEventMap, IMaterial>) => {
+        if (!ev.target) return
+        const material = ev.target
+
+        const removedTextures = ev.removedTextures
+        if (removedTextures) for (const tex of removedTextures) {
+            this._unregisterTexture(tex, material)
+        }
+
+        const addedTextures = ev.textures // using textures instead of addedTextures here
+        if (addedTextures) for (const tex of addedTextures) {
+            this._registerTexture(tex, material)
         }
     }
 
@@ -320,9 +403,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
     private _registerTexture(tex: ITexture|undefined, obj: IObject3D | IMaterial) {
         if (!tex || !tex.isTexture || !obj || !obj.uuid) return
-        if (!tex.assetType) {
-            upgradeTexture.call(tex)
-        }
+        if (!tex.assetType) upgradeTexture.call(tex)
         let objects = tex.appliedObjects
         if (!objects) {
             objects = new Set<IObject3D|IMaterial>()
@@ -438,58 +519,20 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         this.dispatchEvent({type: 'dispose'})
     }
 
-    static readonly MaterialTextureProperties: Set<string> = new Set<string>([
-        ...UnlitMaterial.MapProperties,
-        ...UnlitLineMaterial.MapProperties,
-        ...PhysicalMaterial.MapProperties,
-        ...LegacyPhongMaterial.MapProperties,
-    ])
+    static readonly MaterialTextureProperties: Set<string> = materialTextureProperties
     // todo add from plugins like custom bump map etc.
-    static readonly MaterialTexturePropertiesUserData: Set<string> = new Set<string>([])
+    static readonly MaterialTexturePropertiesUserData: Set<string> = materialTexturePropertiesUserData
 
-    static GetMapsForMaterial(material: IMaterial) {
-        const maps = new Set<ITexture>()
-        for (const prop of material.constructor?.MapProperties || Object3DManager.MaterialTextureProperties) {
-            const val = prop in material ? (material as any)[prop] : undefined
-            if (val && val.isTexture) {
-                maps.add(val)
-            }
-            Object3DManager._addMap(prop, material, maps)
-        }
-        if (material.userData)
-            for (const prop of Object3DManager.MaterialTexturePropertiesUserData) {
-                Object3DManager._addMap(prop, material.userData, maps, true)
-            }
+    static readonly SceneTextureProperties: Set<string> = sceneTextureProperties
+    static readonly Object3DTextureProperties: Set<string> = object3DTextureProperties
 
-        return maps
-    }
-
-    static readonly SceneTextureProperties: Set<string> = new Set<string>([
-        'environmentMap',
-        'background',
-    ])
-    static readonly Object3DTextureProperties: Set<string> = new Set<string>([])
-
-    static GetMapsForObject3D(object: IObject3D) {
-        const maps = new Set<ITexture>()
-        for (const prop of Object3DManager.Object3DTextureProperties) {
-            Object3DManager._addMap(prop, object, maps)
-        }
-        if (object.isScene) {
-            for (const prop of Object3DManager.SceneTextureProperties) {
-                Object3DManager._addMap(prop, object, maps)
-            }
-        }
-        return maps
-    }
-
-    private static _addMap(prop: string, object: any, maps: Set<ITexture>, deep = false) {
-        const val = deep ?
-            deepAccessObject(prop, object, false) :
-            prop in object ? (object as any)[prop] : undefined
-        if (val && val.isTexture) {
-            maps.add(val)
-        }
+    static {
+        this.MaterialTextureProperties.union(new Set([
+            ...UnlitMaterial.MapProperties,
+            ...UnlitLineMaterial.MapProperties,
+            ...PhysicalMaterial.MapProperties,
+            ...LegacyPhongMaterial.MapProperties,
+        ]))
     }
 }
 

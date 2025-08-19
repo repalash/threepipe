@@ -1,6 +1,7 @@
 import {BufferGeometry, MathUtils, Object3D, Quaternion} from 'three'
 import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import {IGeometry, IMaterial, IObject3D, IScene, ITexture} from '../../core'
+import {deepAccessObject} from 'ts-browser-helpers'
 
 /**
  * Convert geometry to BufferGeometry with indexed attributes.
@@ -54,4 +55,20 @@ export function worldToLocalQuaternion(object: Object3D, quaternion: Quaternion,
  */
 export function localToWorldQuaternion(object: Object3D, quaternion: Quaternion, _q = new Quaternion()) {
     return quaternion.premultiply(object.getWorldQuaternion(_q))
+}
+
+/**
+ * Check if a texture/map exists at a given property of an object/material.
+ * @param prop
+ * @param object
+ * @param maps
+ * @param deep
+ */
+export function checkTexMapReference(prop: string, object: IObject3D|IMaterial|IObject3D['userData']|IMaterial['userData'], maps: Set<ITexture>, deep = false) {
+    const val = deep ?
+        deepAccessObject(prop, object, false) :
+        prop in object ? (object as any)[prop] : undefined
+    if (val && val.isTexture) {
+        maps.add(val)
+    }
 }

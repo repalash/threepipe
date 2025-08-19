@@ -504,6 +504,14 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
      */
     _sChildren?: Object3D[]
 
+    // constructor: {
+    //     // TYPE: string
+    //     // TypeSlug: string
+    //     ObjectProperties?: Record<string, any>
+    //     MapProperties?: string[]
+    //     InterpolateProperties?: string[]
+    // }
+
     // region inherited type fixes
 
     traverse(callback: (object: IObject3D) => void): void

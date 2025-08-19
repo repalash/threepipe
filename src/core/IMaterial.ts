@@ -1,13 +1,13 @@
 import {
     BufferGeometry,
     Camera,
-    Color,
+    Color, Event,
     IUniform,
     Material,
     MaterialEventMap,
     MaterialParameters,
     Object3D,
-    Scene,
+    Scene, Texture,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
@@ -76,6 +76,15 @@ export interface IMaterialEventMap extends MaterialEventMap{
         meta?: SerializationMetaType
         bubbleToObject: boolean
         bubbleToParent: boolean
+    }
+    texturesChanged: {
+        textures: Set<ITexture>
+        oldTextures: Set<ITexture>
+        addedTextures: Set<ITexture>
+        removedTextures: Set<ITexture>
+        material: IMaterial
+        bubbleToObject?: boolean
+        bubbleToParent?: boolean
     }
 }
 
@@ -322,6 +331,9 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     // [key: string]: any
 
+    // private
+    ['__textureUpdate']?: (e: Event<'update', Texture>)=>void
+    ['_mapRefs']?: Set<ITexture>
     // required because of typescript/typedoc bugs
 
     /**

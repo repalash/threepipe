@@ -1,4 +1,4 @@
-import {ColorManagement, Event, EventDispatcher, EventListener2, Material, ShaderChunk, Texture} from 'three'
+import {ColorManagement, EventDispatcher, Material, ShaderChunk} from 'three'
 import {
     IMaterial,
     iMaterialCommons,
@@ -15,9 +15,9 @@ import {
 import {downloadFile} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID} from '../three'
-import {AnimateTimeMaterial, IMaterialEventMap} from '../core/IMaterial'
+import {AnimateTimeMaterial} from '../core/IMaterial'
 import {shaderReplaceString} from '../utils'
-import {Object3DManager} from './Object3DManager'
+import {upgradeMaterial} from '../core/material/iMaterialCommons'
 
 /**
  * Material Manager
@@ -104,61 +104,17 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
         mat.setDirty()
-        // for (const map of MaterialManager.GetMapsForMaterial(mat)) {
-        //     const dispose = !map.isRenderTargetTexture
-        //         && map.userData.disposeOnIdle !== false
-        //         // && !isInScene(map) // todo <- is this always required? this will be very slow if doing for every map of every material dispose on scene clear
-        //
-        //     if (dispose && typeof map.dispose === 'function') {
-        //         // console.log('disposing texture', map)
-        //         map.dispose()
-        //     }
-        // }
-        // this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly. todo: make an easy way to do that.
+        // todo: move this to Object3DManager, unregister on remove from scene, same as dispose.
+        if (!mat.appliedMeshes?.size) // todo test dispose reimport tests after this change.
+            this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly.
     }
 
     private _materialMaps = new Map<string, Set<ITexture>>()
-    // private _textures = new Set<ITexture>()
-
-    protected _materialUpdate: EventListener2<'materialUpdate', IMaterialEventMap, IMaterial> = (e)=>{
-        const mat = e.material || e.target
-        if (!mat || mat.assetType !== 'material') return
-        this._refreshTextureRefs(mat)
-    }
-
-    protected _textureUpdate = function(this: IMaterial, e: Event<'update', Texture>) {
-        if (!this || this.assetType !== 'material') return
-        this.dispatchEvent({texture: e.target, bubbleToParent: true, bubbleToObject: true, ...e, type: 'textureUpdate'})
-    }
-
-    private _refreshTextureRefs(mat: any) {
-        if (!mat.__textureUpdate) mat.__textureUpdate = this._textureUpdate.bind(mat)
-        const newMaps = Object3DManager.GetMapsForMaterial(mat)
-        const oldMaps = this._materialMaps.get(mat.uuid) || new Set<ITexture>()
-        for (const map of newMaps) {
-            if (!map || !map.isTexture) continue
-            // this._textures.add(map)
-            // if (!map._appliedMaterials) map._appliedMaterials = new Set<IMaterial>()
-            // if (oldMaps.has(map)) continue
-            // map._appliedMaterials.add(mat)
-            map.addEventListener('update', mat.__textureUpdate)
-        }
-        for (const map of oldMaps) {
-            if (newMaps.has(map)) continue
-            map.removeEventListener('update', mat.__textureUpdate)
-            // if (!map._appliedMaterials) continue
-            // const mats = map._appliedMaterials
-            // mats?.delete(mat)
-            // if (!mats?.size) this._textures.delete(map)
-            // if (!mats || map.userData.disposeOnIdle === false) continue
-            // if (mats.size === 0) map.dispose()
-        }
-        this._materialMaps.set(mat.uuid, newMaps)
-    }
 
     public registerMaterial(material: IMaterial): void {
         if (!material) return
         if (this._materials.includes(material)) return
+        if (!material.assetType) upgradeMaterial.call(material)
         const mat = this.findMaterial(material.uuid)
         // todo make an option to return the same material instance and replace it, instead of replacing uuid
         if (mat) {
@@ -166,14 +122,14 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             material.uuid = generateUUID()
             if (material.userData.uuid) material.userData.uuid = material.uuid
         }
-        // todo: check for name exists also
+        // todo: check for name exists also?
 
         // console.warn('Registering material', material)
         material.addEventListener('dispose', this._disposeMaterial)
-        material.addEventListener('materialUpdate', this._materialUpdate) // from set dirty
+        // material.addEventListener('materialUpdate', this._materialUpdate) // from set dirty
         material.registerMaterialExtensions?.(this._materialExtensions)
+        material.setDirty() // this is required to be done here, as it calls refreshTextureRefs
         this._materials.push(material)
-        this._refreshTextureRefs(material)
     }
 
     registerMaterials(materials: IMaterial[]): void {
@@ -189,7 +145,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         this._materialMaps.delete(material.uuid)
         material.unregisterMaterialExtensions?.(this._materialExtensions)
         material.removeEventListener('dispose', this._disposeMaterial)
-        material.removeEventListener('materialUpdate', this._materialUpdate)
+        // material.removeEventListener('materialUpdate', this._materialUpdate)
     }
     clearMaterials(): void {
         [...this._materials].forEach(material => this.unregisterMaterial(material))
@@ -243,12 +199,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         return [...this._materials]
     }
 
-    // processModel(object: IModel, options: AnyOptions): IModel {
-    //     const k = this._processModel(object, options)
-    //     safeSetProperty(object, 'modelObject', k)
-    //     return object
-    // }
-    // protected abstract _processModel(object: any, options: AnyOptions): any
     /**
      * Creates a new material if a compatible template is found or apply minimal upgrades and returns the original material.
      * Also checks from the registered materials, if one with the same uuid is found, it is returned instead with the new parameters.

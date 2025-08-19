@@ -1,8 +1,10 @@
 import {
     ColorManagement,
+    Event,
     Material,
     MaterialParameters,
     Scene,
+    Texture,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
@@ -14,13 +16,15 @@ import {AnimateTimeMaterial, IMaterial, IMaterialEventMap, IMaterialSetDirtyOpti
 import {UnlitMaterial} from './UnlitMaterial'
 import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 import {lerpParams} from '../../utils/lerp'
-
+import {ITexture} from '../ITexture'
+import {checkTexMapReference} from '../../three'
 
 export const iMaterialCommons = {
     threeMaterialPropList,
     threeMaterialInterpolateProps,
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         if (options?.needsUpdate !== false) this.needsUpdate = true
+        iMaterialCommons.refreshTextureRefs.call(this)
         this.dispatchEvent({bubbleToObject: true, bubbleToParent: true, ...options, type: 'materialUpdate'}) // this sets sceneUpdate in root scene
         if (options?.last !== false && options?.refreshUi !== false) this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
@@ -174,8 +178,63 @@ export const iMaterialCommons = {
         },
 
     upgradeMaterial: upgradeMaterial,
+
+    getMapsForMaterial: function(this: IMaterial) {
+        const maps = new Set<ITexture>()
+        for (const prop of this.constructor?.MapProperties || materialTextureProperties) {
+            checkTexMapReference(prop, this, maps)
+        }
+        if (this.userData)
+            for (const prop of materialTexturePropertiesUserData) {
+                checkTexMapReference(prop, this.userData, maps, true)
+            }
+
+        return maps
+    },
+    refreshTextureRefs: function(this: IMaterial) {
+        if (!this.__textureUpdate) this.__textureUpdate = textureUpdate.bind(this)
+        const newMaps = iMaterialCommons.getMapsForMaterial.call(this)
+        const oldMaps = this._mapRefs || new Set<ITexture>()
+        let changed = false
+        const added = new Set<ITexture>()
+        const removed = new Set<ITexture>()
+        for (const map of newMaps) {
+            if (!map || !map.isTexture) continue
+            map.addEventListener('update', this.__textureUpdate!)
+            if (oldMaps.has(map)) continue
+            changed = true
+            added.add(map)
+        }
+        for (const map of oldMaps) {
+            if (newMaps.has(map)) continue
+            map.removeEventListener('update', this.__textureUpdate!)
+            changed = true
+            removed.add(map)
+        }
+        this._mapRefs = newMaps
+        if (changed) {
+            this.dispatchEvent({
+                type: 'texturesChanged',
+                textures: newMaps, oldTextures: oldMaps,
+                addedTextures: added, removedTextures: removed,
+                material: this,
+                bubbleToObject: true,
+                bubbleToParent: true,
+            })
+        }
+    },
+
     // todo;
 } as const
+
+const textureUpdate = function(this: IMaterial, e: Event<'update', Texture>) {
+    if (!this || this.assetType !== 'material') return
+    this.dispatchEvent({texture: e.target, bubbleToParent: true, bubbleToObject: true, ...e, type: 'textureUpdate'})
+}
+
+export const materialTextureProperties: Set<string> = new Set<string>([])
+// todo add from plugins like custom bump map etc.
+export const materialTexturePropertiesUserData: Set<string> = new Set<string>([])
 
 /**
  * Convert a standard three.js {@link Material} to {@link IMaterial}
@@ -195,10 +254,10 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
         ;(this as any).__upgradeSetup = true
     }
     // legacy
-    if (!this.userData.setDirty) this.userData.setDirty = (e: any) => {
-        console.warn('userData.setDirty is deprecated. Use setDirty instead.')
-        this.setDirty(e)
-    }
+    // if (!this.userData.setDirty) this.userData.setDirty = (e: any) => {
+    //     console.warn('userData.setDirty is deprecated. Use setDirty instead.')
+    //     this.setDirty(e)
+    // }
 
     if (this.assetType === 'material') return this // already upgraded
     this.assetType = 'material'
@@ -219,5 +278,6 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     // todo: add uiconfig, serialization, other stuff from UnlitMaterial?
     // dispose uiconfig etc. on dispose
 
+    this.setDirty({change: 'upgradeMaterial'})
     return this
 }

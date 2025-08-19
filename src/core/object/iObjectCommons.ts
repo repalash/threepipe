@@ -4,11 +4,12 @@ import {IEvent, objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEventMap, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData} from '../../utils'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
-import {Box3B} from '../../three'
+import {Box3B, checkTexMapReference} from '../../three'
 import {makeIObject3DUiConfig} from './IObjectUi'
 import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
 import {ILight} from '../light/ILight'
+import {ITexture} from '../ITexture'
 
 export const iObjectCommons = {
     setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions, ...args: any[]): void {
@@ -239,11 +240,11 @@ export const iObjectCommons = {
             }
         }
         // Legacy
-        if (this.userData.setMaterial) console.error('userData.setMaterial already defined')
-        this.userData.setMaterial = (m: any)=>{
-            console.error('userData.setMaterial is deprecated, use setMaterial directly')
-            this.material = m
-        }
+        // if (this.userData.setMaterial) console.error('userData.setMaterial already defined')
+        // this.userData.setMaterial = (m: any)=>{
+        //     console.error('userData.setMaterial is deprecated, use setMaterial directly')
+        //     this.material = m
+        // }
 
     },
 
@@ -330,11 +331,11 @@ export const iObjectCommons = {
             }
         }
         // Legacy
-        if (this.userData.setGeometry) console.error('userData.setGeometry already defined')
-        this.userData.setGeometry = (g: any)=>{
-            console.error('userData.setGeometry is deprecated, use setGeometry directly')
-            this.geometry = g
-        }
+        // if (this.userData.setGeometry) console.error('userData.setGeometry already defined')
+        // this.userData.setGeometry = (g: any)=>{
+        //     console.error('userData.setGeometry is deprecated, use setGeometry directly')
+        //     this.geometry = g
+        // }
 
     },
     getGeometry: function(this: IObject3D&Mesh): IGeometry | undefined {
@@ -444,8 +445,29 @@ export const iObjectCommons = {
             superDispose?.call(this)
         },
 
+    getMapsForObject3D: function(this: IObject3D) {
+        const maps = new Set<ITexture>()
+        // @ts-expect-error todo add type
+        for (const prop of this.constructor?.MapProperties || object3DTextureProperties) {
+            checkTexMapReference(prop, this, maps)
+        }
+        if (this.isScene) {
+            for (const prop of sceneTextureProperties) {
+                checkTexMapReference(prop, this, maps)
+            }
+        }
+        // todo userdata properties
+        return maps
+    },
 
 }
+
+export const sceneTextureProperties: Set<string> = new Set<string>([
+    'environmentMap',
+    'background',
+])
+
+export const object3DTextureProperties: Set<string> = new Set<string>([])
 
 /**
  * Converts three.js Object3D to IObject3D, setup object events, adds utility methods, and runs objectProcessor.
