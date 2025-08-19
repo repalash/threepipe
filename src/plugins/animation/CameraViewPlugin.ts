@@ -5,7 +5,7 @@ import {Box3B} from '../../three'
 import {onChange, onChange3, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {EasingFunctions, EasingFunctionType} from '../../utils'
-import {CameraView, createCameraPath, ICamera, ICameraView, IMaterial} from '../../core'
+import {CameraView, createCameraPath, ICamera, ICameraView, IGeometry, IMaterial, IObject3D, ITexture} from '../../core'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 import {getFittingDistance} from '../../three/utils/camera'
@@ -393,14 +393,16 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, radius * distanceMultiplier)), center, duration, ease)
     }
 
-    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
+    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
         if (!this._viewer) return
         const selectedArray = (Array.isArray(selected) ? selected : selected ? [selected] : [])
+            .flatMap(o =>
+                (o as ITexture)?.isTexture ? [...(o as ITexture).appliedObjects?.values() || []] : o)
+            .flatMap(o =>
+                (o as IMaterial)?.isMaterial ? [...(o as IMaterial).appliedMeshes?.values() || []] :
+                    (o as IGeometry)?.isBufferGeometry ? [...(o as IGeometry).appliedMeshes?.values() || []] :
+                    o as IObject3D)
             .filter(Boolean)
-            .flatMap(m=>{
-                if (!(m as IMaterial).isMaterial) return m
-                return (m as IMaterial).appliedMeshes
-            }) as Object3D[]
 
         const bbox = new Box3B().expandByObject(!selectedArray.length ? this._viewer.scene.modelRoot : selectedArray[0], false, true)
         for (let i = 1; i < selectedArray.length; i++) {

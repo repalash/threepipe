@@ -50,7 +50,7 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewer
             icon: focus,
             tooltip: 'Fit Object/Scene',
             onclick: async() => {
-                await viewer.fitToView(viewer.getPlugin(PickingPlugin)?.getSelectedObject())
+                await viewer.fitToView(viewer.getPlugin(PickingPlugin)?.getSelectedObject() || undefined)
             },
         },
         {

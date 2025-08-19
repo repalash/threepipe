@@ -16,7 +16,7 @@ import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr}
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
-    IAnimationLoopEvent,
+    IAnimationLoopEvent, IGeometry,
     IMaterial,
     IObject3D,
     IObjectProcessor,
@@ -1474,7 +1474,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.enabled = false
     }
 
-    public async fitToView(selected?: Object3D|Object3D[]|IMaterial|IMaterial[], distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
+    public async fitToView(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {
         const camViews = this.getOrAddPluginSync(CameraViewPlugin)
         await camViews?.animateToFitObject(selected, distanceMultiplier, duration, ease, {min: ((<OrbitControls3> this.scene.mainCamera.controls)?.minDistance ?? 0.5) + 0.5, max: 1000.0})
     }
