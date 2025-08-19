@@ -416,7 +416,8 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         return obj.uiConfig?.children?.filter(c =>
             typeof c === 'object' && c.type &&
             ['vec3', 'color', 'number', 'checkbox', 'toggle'].includes(c.type) &&
-            Array.isArray(c.property) && c.property[0] === obj
+            Array.isArray(c.property) && c.property[0] === obj &&
+            (!(obj as IMaterial).constructor?.InterpolateProperties || (obj as IMaterial).constructor.InterpolateProperties!.includes(c.property[1] as string))
         ) as UiObjectConfig[] || []
     }
 
