@@ -58,7 +58,7 @@ ui.appendChild(line.uiConfig)
 See the [full code here](https://github.com/repalash/threepipe/blob/master/examples/fat-line-spiral/script.ts), live example on [threepipe.org/examples](https://threepipe.org/examples/fat-line-spiral/).
 
 ::: warning
-Fat lines (MeshLine) cannot be exported with glTF. If you want to create lines that can be exported as glTF lines, use three.js `Line` directly (for now).
+Fat lines (MeshLine) do not render to the gbuffer, some post-processing plugins might not work. To use lines with post-processing, use default lines.
 :::
 
 ## Features of `MeshLine`
@@ -67,6 +67,7 @@ Fat lines (MeshLine) cannot be exported with glTF. If you want to create lines t
 - **Per-vertex color:** Supports gradients and color effects along the line.
 - **UI integration:** Easily expose line and spiral parameters for live editing.
 - **Performance:** Efficiently renders thousands of segments as a single mesh.
+- **glTF compatibility:** Automatically load and saves the line as gltf lines for seamless compatibility with other tools.
 
 ## How Fat Lines Work Under the Hood
 
@@ -79,7 +80,6 @@ Use fat lines when you need:
 - Technical illustrations or stylized effects
 - Color gradients or dashes along a line
 - Interactive geometry that updates in real time
-- Using as a viewer (not exporting as glTF)
 
 For simple, single-pixel lines, the default three.js `Line` is still fastest, but for anything more advanced, `MeshLine` is the way to go.
 
@@ -87,4 +87,29 @@ For simple, single-pixel lines, the default three.js `Line` is still fastest, bu
 
 When importing glTF files with embedded line geometries and materials, `GLTFLoader2.UseMeshLines` feature can be used to automatically convert those lines to `MeshLine` instances. This allows you to take advantage of the advanced line rendering capabilities without needing to modify the original GLTF files.
 
-Checkout the article on [GLTF Mesh Lines](https://threepipe.org/notes/gltf-mesh-lines) for more details on how to use this feature.
+Checkout the article on [GLTF Mesh Lines](./gltf-mesh-lines) for more details on how to use this feature.
+
+## Line Geometry Generator
+
+In addition to creating lines from scratch using points like above, `GeometryGeneratorPlugin` can be used to generate line objects/geometries from on `Curve`.
+
+Here is a simple example to create a Square from a Path.
+```typescript
+import {ThreeViewer, Path} from 'threepipe'
+import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+
+const viewer = new ThreeViewer({
+    canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
+    // plugins: [...],
+})
+LineGeometryGenerator.UseMeshLines = true // to generate fat lines, set before adding the plugin
+const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
+const lineObj = generator.generateObject('line', {
+    curve: new Path().moveTo(-0.5, -0.5).lineTo(0.5, -0.5).lineTo(0.5, 0.5).lineTo(-0.5, 0.5), 
+    closePath: true, 
+    segments: 10
+})
+viewer.scene.addObject(lineObj)
+```
+
+Check the example for a demo - [Geometry Generator Plugin](https://threepipe.org/examples/#geometry-generator-plugin/)

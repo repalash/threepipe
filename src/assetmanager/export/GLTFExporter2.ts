@@ -207,7 +207,11 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                         g1.attributes.position = new BufferAttribute(positions, 3)
                         if (colors) g1.attributes.color = new BufferAttribute(colors, 3)
                         meshLines.set(obj1 as MeshLine|MeshLineSegments, obj1.geometry as any)
-                        obj1.geometry = g1 as any
+                        if (obj1.assetType)
+                            obj1._currentGeometry = g1 as any
+                        else
+                            obj1.geometry = g1 as any
+
                         if ((obj1 as MeshLine).isLine2) obj1.isLine = true
                         if ((obj1 as MeshLine).isLineSegments2) {
                             obj1.isLine = true
@@ -232,7 +236,11 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
                         if (meshLines.has(obj1 as MeshLine|MeshLineSegments) && obj1.geometry) {
                             const g = obj1.geometry
-                            obj1.geometry = meshLines.get(obj1 as MeshLine|MeshLineSegments) as any
+                            const g1 = meshLines.get(obj1 as MeshLine|MeshLineSegments) as any
+                            if (obj1.assetType)
+                                obj1._currentGeometry = g1
+                            else
+                                obj1.geometry = g1
                             g.dispose(true)
                             if (obj1.isLine) delete obj1.isLine
                             if (obj1.isLineSegments) delete obj1.isLineSegments

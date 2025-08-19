@@ -32,10 +32,8 @@ You can enable this feature globally by setting:
 GLTFLoader2.UseMeshLines = true;
 ```
 
-::: danger WARNING
-Lines imported this way may not export correctly when using the glTF exporter, as the mesh-based lines are not standard GLTF lines. This may change in later versions of three.js or threepipe.
-
-Only enable the feature when using `threepipe` as a viewer.
+::: info Note
+Lines imported this way do not render to the GBuffer, as the mesh-based lines are not standard webgl lines. This may change in later versions of three.js or threepipe.
 :::
 
 Once the feature is enabled, glTF files with lines will be imported using `Line2` and `LineMaterial2` instead of the default line classes.

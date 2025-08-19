@@ -22,6 +22,7 @@ import {
 } from 'three';
 
 const _raycaster = new Raycaster();
+_raycaster.params.Line2 = {threshold: 0.01} // for picking lines
 
 const _tempVector = new Vector3();
 const _tempVector2 = new Vector3();

@@ -59,6 +59,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             })
 
         this.raycaster = new Raycaster()
+        this.raycaster.params.Line2 = {threshold: 0.01} // for picking fat lines. todo separate thresh for world and localspace?
 
         this.mouse = new Vector2()
         this._selected = []
