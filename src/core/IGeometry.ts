@@ -16,7 +16,7 @@ export interface IGeometryUserData extends IImportResultUserData{
      * @default true
      */
     disposeOnIdle?: boolean
-    // [key: string]: any // commented for now
+    [key: string]: any
 }
 export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE>, IUiConfigContainer {
     assetType: 'geometry'
