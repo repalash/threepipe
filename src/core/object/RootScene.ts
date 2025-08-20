@@ -409,9 +409,9 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     // readonly boxHelper: Box3Helper
 
     refreshScene(event?: Partial<(ISceneEventMap['objectUpdate']|ISceneEventMap['geometryUpdate']|ISceneEventMap['geometryChanged'])> & ISceneSetDirtyOptions & {type?: keyof ISceneEventMap}): this {
-        if (event && event.type === 'objectUpdate' && (event.object === this || (event as any).target === this)) return this // ignore self
+        const fromSelf = event && event.type === 'objectUpdate' && (event.object === this || (event as any).target === this)
         // todo test the isCamera here. this is for animation object plugin
-        if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
+        if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return fromSelf ? this : this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)
         this.refreshActiveCameraNearFar()
         // this.dollyActiveCameraFov()
@@ -419,7 +419,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         // this.boxHelper?.boxHelper?.copy?.(this._sceneBounds)
         this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
         this.dispatchEvent({...event, type: 'sceneUpdate', hierarchyChanged: ['addedToParent', 'removedFromParent'].includes(event?.change || '')})
-        iObjectCommons.setDirty.call(this, event)
+        if (!fromSelf) iObjectCommons.setDirty.call(this, event)
         return this
     }
 

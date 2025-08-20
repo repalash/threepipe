@@ -17,7 +17,7 @@ export const iObjectCommons = {
             options = {change: options}
         }
         this.dispatchEvent({bubbleToParent: this.userData?.autoUpdateParent ?? true, object: this, ...options, type: 'objectUpdate', args}) // this sets sceneUpdate in root scene
-        if (options?.refreshUi !== false && options?.last !== false) this.refreshUi?.()
+        if (options?.refreshUi !== false && options?.last !== false && this.refreshUi) this.refreshUi()
         // console.log('object update')
     },
 
