@@ -256,6 +256,21 @@ export interface IObject3DUserData extends IImportResultUserData {
      */
     autoRegisterInManager?: boolean
 
+    /**
+     * Settings for TransformControls2 when this object is selected. See {@link TransformControlsPlugin}
+     */
+    transformControls?: {
+        showX?: boolean
+        showY?: boolean
+        showZ?: boolean
+        translationSnap?: number
+        rotationSnap?: number
+        scaleSnap?: number
+        space?: 'local' | 'world'
+        mode?: 'translate' | 'rotate' | 'scale'
+        lockProps?: string[]
+    }
+
     // region root scene model root
 
     /**
@@ -264,6 +279,7 @@ export interface IObject3DUserData extends IImportResultUserData {
     rootSceneModelRoot?: boolean
     __gltfAsset?: GLTF['asset']
     __gltfExtras?: GLTF['userData']
+
     // endregion
 
 

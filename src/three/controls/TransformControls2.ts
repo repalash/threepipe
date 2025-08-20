@@ -1,6 +1,6 @@
 import {TransformControls} from './TransformControls.js'
-import {MathUtils} from 'three'
-import type {ICamera, IObject3D, IWidget} from '../../core'
+import {MathUtils, Object3D} from 'three'
+import type {ICamera, IObject3D, IObject3DUserData, IWidget} from '../../core'
 import {iObjectCommons} from '../../core'
 import {uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 
@@ -10,6 +10,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     assetType = 'widget' as const
     setDirty = iObjectCommons.setDirty.bind(this)
     refreshUi = iObjectCommons.refreshUi.bind(this)
+    lockProps: string[] | undefined = undefined // list of properties to lock.
 
     declare object: IObject3D | undefined
     private _keyDownListener(event: KeyboardEvent) {
@@ -111,7 +112,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this.size = 1.5
 
         this.addEventListener('objectChange', () => {
-            this?.object?.setDirty && this.object.setDirty({frameFade: false})
+            this?.object?.setDirty && this.object.setDirty({frameFade: false, change: 'transform'})
             // todo: do this.setDirty?
         })
         this.addEventListener('change', () => {
@@ -122,6 +123,38 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this._keyDownListener = this._keyDownListener.bind(this)
         window.addEventListener('keydown', this._keyDownListener)
         window.addEventListener('keyup', this._keyUpListener)
+
+        this.traverse(c=>{
+            c.castShadow = false
+            c.receiveShadow = false
+            c.userData.__keepShadowDef = true
+        })
+    }
+
+    protected _savedSettings = {} as any
+    attach(object: Object3D): this {
+        if (this._savedSettings.lockProps) this.lockProps = this._savedSettings.lockProps
+        Object.assign(this, this._savedSettings)
+        this._savedSettings = {}
+
+        // see LineHelper for example
+        if (object.userData.transformControls) {
+            const props: ((keyof typeof this) & (keyof (Required<IObject3DUserData>['transformControls'])))[] =
+                ['translationSnap', 'rotationSnap', 'scaleSnap', 'space', 'mode', 'showX', 'showY', 'showZ', 'lockProps']
+            for (const prop of props) {
+                if (object.userData.transformControls[prop] !== undefined) {
+                    this._savedSettings[prop] = this[prop]
+                    this[prop] = object.userData.transformControls[prop]
+                }
+            }
+        }
+        return super.attach(object)
+    }
+    detach(): this {
+        if (this._savedSettings.lockProps) this.lockProps = this._savedSettings.lockProps
+        Object.assign(this, this._savedSettings)
+        this._savedSettings = {}
+        return super.detach()
     }
 
     dispose() {

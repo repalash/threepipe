@@ -1,15 +1,24 @@
-import {EventDispatcher, Intersection, Raycaster, Vector2} from 'three'
+import {EventDispatcher, Intersection, Object3D, Raycaster, Vector2} from 'three'
 import {JSUndoManager, now, onChangeDispatchEvent} from 'ts-browser-helpers'
-import {ICamera, IMaterial, IObject3D, ITexture, IGeometry} from '../../core'
+import {ICamera, IMaterial, IObject3D, ITexture, IGeometry, IWidget} from '../../core'
 
 export type SelectionObject = IObject3D | IMaterial | ITexture | IGeometry | null
 export type SelectionObjectArr = IObject3D[] | IMaterial[] | ITexture[] | IGeometry[]
 export type SelectionModeType = 'object' | 'material' | 'texture' | 'geometry'
 
+export interface HitIntersects{
+    selectedObject: IObject3D | null,
+    intersect: Intersection<IObject3D> | null,
+    intersects: Intersection<IObject3D>[],
+    mouse: Vector2,
+    selectedWidget?: (IWidget&IObject3D) | null,
+    selectedHandle?: Object3D | null,
+}
+
 export interface ObjectPickerEventMap{
-    hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject},
-    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject},
-    hitObject: {time: number, intersects: {selectedObject: IObject3D | null, intersect: Intersection<IObject3D> | null, intersects: Intersection<IObject3D>[]}}
+    hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
+    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
+    hitObject: {time: number, intersects: HitIntersects} // selectedObject should be renamed to hitObject
     selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
 }
 
@@ -31,6 +40,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
     undoManager?: JSUndoManager
     private _root: IObject3D
+    extraObjects: IObject3D[] = []
     private _camera: ICamera
     private _mouseDownTime: number
     private _mouseDownPos: Vector2 = new Vector2()
@@ -40,7 +50,9 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     public raycaster: Raycaster
     public mouse: Vector2
     private _selected: SelectionObjectArr
+    private _selectedIntersects: HitIntersects|undefined
     private _hovering: SelectionObjectArr
+    private _hoveringIntersects: HitIntersects|undefined
     public cursorStyles: {default: string; down: string}
     public domElement: HTMLElement
     constructor(root: IObject3D, domElement: HTMLElement, camera: ICamera, selectionCondition?: (o:IObject3D)=>boolean) {
@@ -84,7 +96,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
     dispose() {
         this.setSelected(null)
-        this.hoverObject = null
+        this.setHoverObject(null)
 
         this.domElement.removeEventListener('pointermove', this._onPointerMove)
         this.domElement.removeEventListener('pointerleave', this._onPointerLeave)
@@ -111,7 +123,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     //     this.setSelected(object)
     // }
 
-    setSelected(object: SelectionObject, record = true) {
+    setSelected(object: SelectionObject, record = true, intersects?: HitIntersects) {
         // Auto-switch selection mode based on object type
         if (object) {
             if ((object as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
@@ -125,9 +137,14 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             }
         }
 
-        if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object) return
+        if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
+            && this._selectedIntersects?.selectedObject === intersects?.selectedObject
+            && this._selectedIntersects?.selectedWidget === intersects?.selectedWidget
+            && this._selectedIntersects?.selectedHandle === intersects?.selectedHandle
+        ) return
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
+        this._selectedIntersects = intersects || undefined
 
         const obj = this.selectedObject
         this.dispatchEvent({
@@ -135,6 +152,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
             material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
             value: obj,
+            intersects,
         })
 
         record && this.undoManager?.record({
@@ -147,9 +165,15 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return this._hovering.length > 0 ? this._hovering[0] : null
     }
 
-    set hoverObject(object: SelectionObject | SelectionObject[] | null) {
-        if (!this._hovering.length && !object || this._hovering.length === 1 && this._hovering[0] === object) return
+    // set hoverObject(object: SelectionObject | SelectionObject[] | null) {
+    setHoverObject(object: SelectionObject, _record = true, intersects?: HitIntersects) {
+        if (!this._hovering.length && !object || this._hovering.length === 1 && this._hovering[0] === object
+            && this._hoveringIntersects?.selectedObject === intersects?.selectedObject
+            && this._hoveringIntersects?.selectedWidget === intersects?.selectedWidget
+            && this._hoveringIntersects?.selectedHandle === intersects?.selectedHandle
+        ) return
         this._hovering = (object ? Array.isArray(object) ? [...object] : [object] : []) as SelectionObjectArr
+        this._hoveringIntersects = intersects || undefined
 
         const obj = this.hoverObject
         this.dispatchEvent({
@@ -157,6 +181,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
             material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
             value: obj,
+            intersects,
         })
     }
 
@@ -174,12 +199,13 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     }
 
     private _onPointerMove = (event: PointerEvent) => {
-
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
 
-        if (this.hoverEnabled)
-            this.hoverObject = this.checkIntersection()?.intersects[0].object ?? null
+        if (this.hoverEnabled) {
+            const {obj, intersects} = this._hitObject()
+            this.setHoverObject(obj, true, intersects || undefined)
+        }
 
     }
 
@@ -190,7 +216,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         // this.updateMouseFromEvent(event);
 
         if (this.hoverEnabled || this.hoverObject)
-            this.hoverObject = null
+            this.setHoverObject(null)
 
     }
 
@@ -235,10 +261,18 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _onPointerClick = (event: PointerEvent) => {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
+        const {obj, intersects} = this._hitObject()
+        this.setSelected(obj, true, intersects || undefined)
+    }
 
+    private _hitObject() {
         const intersects = this.checkIntersection()
-        if (intersects) this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects})
-        else this.dispatchEvent({type: 'hitObject', time: this._mouseUpTime, intersects: {selectedObject: null, intersect: null, intersects: []}})
+        if (intersects) this.dispatchEvent({type: 'hitObject', time: this.time, intersects})
+        else this.dispatchEvent({
+            type: 'hitObject',
+            time: this.time,
+            intersects: {selectedObject: null, intersect: null, intersects: [], mouse: this.mouse.clone()},
+        })
 
         let obj: SelectionObject = intersects?.selectedObject || null
 
@@ -256,7 +290,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
                     const material = Array.isArray(obj.material) ? obj.material[0] : obj.material
                     // Look for common texture properties
                     obj = material.map || material.normalMap || material.roughnessMap || material.metalnessMap ||
-                          material.aoMap || null
+                            material.aoMap || null
                 } else {
                     obj = null
                 }
@@ -270,8 +304,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
                 break
             }
         }
-
-        this.setSelected(obj)
+        return {obj, intersects}
     }
 
     checkIntersection() {
@@ -281,7 +314,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
         this.raycaster.setFromCamera(this.mouse, camera)
 
-        let intersects = this.raycaster.intersectObject<IObject3D>(this._root, true)
+        let intersects = this.raycaster.intersectObjects<IObject3D>([this._root, ...this.extraObjects], true)
 
         const uniqueIds: number[] = []
 
@@ -337,7 +370,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (selectedObject && intersect) {
 
             if (selectedObject) // sorted by distance
-                return {selectedObject, intersect, intersects, mouse: this.mouse.toArray()}
+                return {selectedObject, intersect, intersects, mouse: this.mouse.clone()}
 
             return null
 

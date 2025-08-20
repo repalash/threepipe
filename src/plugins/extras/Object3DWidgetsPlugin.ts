@@ -3,7 +3,7 @@ import {IScene, ISceneEventMap, IWidget} from '../../core'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IEvent, onChange} from 'ts-browser-helpers'
 import {EventListener2, Object3D} from 'three'
-import {CameraHelper2, DirectionalLightHelper2, PointLightHelper2, SpotLightHelper2} from '../../three'
+import {CameraHelper2, DirectionalLightHelper2, LineHelper, PointLightHelper2, SpotLightHelper2} from '../../three'
 
 export interface IObject3DHelper<T extends Object3D&IWidget = Object3D&IWidget>{
     Create: (o: Object3D)=>T,
@@ -25,6 +25,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         SpotLightHelper2,
         PointLightHelper2,
         CameraHelper2,
+        LineHelper,
     ]
 
     setDirty() {
@@ -43,7 +44,10 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
+        this._widgetRoot.userData.isWidgetRoot = true
+        this._widgetRoot.name = 'Widgets Root'
         viewer.scene.addObject(this._widgetRoot, {addToRoot: true, autoScale: false, autoCenter: false})
+        // todo use object3dmanager here
         viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
     }
     onRemove(viewer: ThreeViewer) {

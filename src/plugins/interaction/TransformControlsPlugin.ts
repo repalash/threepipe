@@ -93,7 +93,12 @@ export class TransformControlsPlugin extends AViewerPluginSync {
                 if (this.transformControls.object) this.transformControls.detach()
                 return
             }
-            event.object ? this.transformControls.attach(event.object) : this.transformControls.detach()
+            if (event.object) {
+                const obj = event.intersects?.selectedHandle ?? event.intersects?.selectedObject ?? event.object
+                this.transformControls.attach(obj)
+            } else {
+                this.transformControls.detach()
+            }
         })
 
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=> {

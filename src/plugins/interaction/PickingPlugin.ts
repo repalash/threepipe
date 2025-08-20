@@ -2,7 +2,7 @@ import {EventListener2, Object3D} from 'three'
 import {Class, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {bindToValue, BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
-import {IMaterial, IObject3D, IScene, ISceneEventMap} from '../../core'
+import {IMaterial, IObject3D, IScene, ISceneEventMap, IWidget} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import {type UndoManagerPlugin} from './UndoManagerPlugin'
@@ -113,7 +113,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             while (o) {
                 if (!o.visible) return false
                 if (o.assetType === 'model' || o.assetType === 'light') ret = true
-                if (o.assetType === 'widget') return false
+                // else if (o.assetType === 'widget' && o !== obj) return false // only select widget if itself is selected (not its children)
                 if (o.userData.userSelectable === false) return false
                 if (o.userData.bboxVisible === false) return false
                 // todo colorwrite?
@@ -121,6 +121,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             }
             return ret
         })
+
+        this._picker.extraObjects.push(...viewer.scene.children.filter(r=>r.userData.isWidgetRoot))
+        // todo remove listener
+        this._viewer?.scene.addEventListener('addSceneObject', this._addSceneObject)
+
         if (this._widget) viewer.scene.addObject(this._widget, {addToRoot: true})
         if (this._hoverWidget) viewer.scene.addObject(this._hoverWidget, {addToRoot: true})
 
@@ -181,6 +186,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (!e.hierarchyChanged) return
         this._sceneUpdated = true
     }
+    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
+        // to be able to pick widgets. see onObjectHit
+        if (e.object?.userData?.isWidgetRoot && e.object.parent === this._viewer?.scene) {
+            this._picker?.extraObjects.push(e.object)
+        }
+    }
+
 
     private _checkSelectedInScene() {
         if (this.isDisabled() || !this._viewer) return
@@ -339,11 +351,27 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     }
 
-    private _onObjectHit = (e: any)=>{
+    private _onObjectHit = (e: PickingPluginEventMap['hitObject']&{type: 'hitObject'})=>{
         if (!this._viewer) return
         if (this.isDisabled()) {
             e.intersects.selectedObject = null
             return
+        }
+        let selected = e.intersects.selectedObject
+        // if a widget is picked, select the object its bound to instead
+        if (selected) {
+            const obj = selected
+            let isWidget = selected.assetType === 'widget'
+            while (selected.parent && !isWidget) {
+                if (selected.userData.allowPicking) break
+                selected = selected.parent
+                isWidget = selected.assetType === 'widget'
+            }
+            if (isWidget && (selected as IObject3D&IWidget).object) {
+                e.intersects.selectedObject = (selected as IObject3D&IWidget).object
+                e.intersects.selectedWidget = (selected as IObject3D&IWidget)
+                e.intersects.selectedHandle = obj.userData.isWidgetHandle ? obj : undefined
+            }
         }
         this.dispatchEvent(e)
     }

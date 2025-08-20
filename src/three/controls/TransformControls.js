@@ -82,7 +82,7 @@ class TransformControls extends Object3D {
 
                 set: function ( value ) {
 
-                    if ( propValue !== value ) {
+                    if ( propValue !== value && !(scope.lockProps && scope.lockProps.includes( propName )) ) {
 
                         propValue = value;
                         _plane[ propName ] = value;
