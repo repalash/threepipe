@@ -78,25 +78,28 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         this.rebuildTimeline()
         this.dispatchEvent({...e, type: 'animationUpdate', animation: e.target})
 
+        if (!this._triggerButtonsShown) return
         const visibleBtns = this._visibleBtns.get(e.target)
         if (visibleBtns) {
             visibleBtns.forEach(btn => this._refreshTriggerBtn(e.target, btn))
         }
     }
     private _viewerTimelineUpdate = ()=>{
-        if (!this._viewer) return
+        if (!this._viewer || !this._triggerButtonsShown) return
         this._visibleBtns.forEach((btns, ao) => {
             btns.forEach(btn => this._refreshTriggerBtn(ao, btn))
         })
     }
     private _refreshTriggerBtn = (ao: AnimationObject, btn: HTMLElement) => {
         const activeIndex = this._getActiveIndex(ao)
+        btn.classList.remove('anim-object-uic-trigger-equals')
+        btn.classList.remove('anim-object-uic-trigger-active')
 
         btn.dataset.activeIndex = activeIndex
         if (activeIndex.length) {
             btn.classList.add('anim-object-uic-trigger-active')
-        } else {
-            btn.classList.remove('anim-object-uic-trigger-active')
+            if (ao.isValueSame(parseInt(activeIndex)))
+                btn.classList.add('anim-object-uic-trigger-equals')
         }
     }
 
@@ -118,9 +121,15 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         return this._triggerButtonsShown
     }
     set triggerButtonsShown(v: boolean) {
+        const changed = this._triggerButtonsShown !== v
         this._triggerButtonsShown = v
         if (v) document.body.classList.add('aouic-triggers-visible')
         else document.body.classList.remove('aouic-triggers-visible')
+        if (changed && v) {
+            this._visibleBtns.forEach((btns, ao) => {
+                btns.forEach(btn => this._refreshTriggerBtn(ao, btn))
+            })
+        }
     }
     showTriggers(v = true) {
         this.triggerButtonsShown = v
@@ -151,7 +160,10 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         .anim-object-uic-trigger-visible{
         }
         .anim-object-uic-trigger-active{
-            color: red;
+            color: blue;
+        }
+        .anim-object-uic-trigger-equals{
+            color: red !important;
         }
         .aouic-triggers-visible .anim-object-uic-trigger{
             display: inline-block;
@@ -288,11 +300,14 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
     }
 
     private _visibleBtns = new Map<AnimationObject, Set<HTMLElement>>()
-    private _iObservers = new Map<string, Set<IntersectionObserver>>()
+    private _iObservers = new WeakMap<IObject3D|IMaterial, {o: IntersectionObserver, btn: HTMLElement, key: string}[]>()
 
     private _setupUiConfig(obj: IObject3D | IMaterial) {
         const type = (obj as IObject3D).isObject3D ? 'objects' : (obj as IMaterial).isMaterial ? 'materials' : undefined
         if (!type) return
+        if (!obj.uiConfig) return
+        const existing = obj.uiConfig?.children?.find(c => typeof c === 'object' && c.tags?.includes(AnimationObjectPlugin.PluginType))
+        if (existing) return // todo regenerate?
         obj.uiConfig?.children?.push({
             type: 'folder',
             label: 'Property Animations',
@@ -304,19 +319,15 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             const prop = getOrCall(config.property) // todo use uiconfigmethods
             if (!prop) continue
             const [tar, key] = prop
-            if (!tar || typeof key !== 'string') continue
+            if (!tar || tar !== obj || typeof key !== 'string') continue
             const btn = createDiv({innerHTML: '◆', classList: ['anim-object-uic-trigger'], addToBody: false})
             if (btn.parentElement) btn.remove()
             btn.dataset.isAnimObjectTrigger = '1'
             btn.title = 'Add Animation for ' + getOrCall(config.label, key) // todo use uiconfigmethods
 
-            const getAo = () => {
-                // if (!obj.userData.animationObjects) obj.userData.animationObjects = []
-                return obj.userData.animationObjects?.find(o => o.access === key)
-            }
             btn.addEventListener('click', () => {
                 const undo = this._viewer?.getPlugin(UndoManagerPlugin) // todo use uiconfigmethods
-                let ao = getAo()
+                let ao = getAo(obj, key)
                 const cTime = 1000 * (this._viewer?.timeline.time || 0) // current time in ui
                 if (!ao) {
                     ao = new AnimationObject()
@@ -370,7 +381,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             const btnObserver = new IntersectionObserver(entries => {
                 for (const entry of entries) {
                     if (entry.target !== btn) continue
-                    const ao = getAo()
+                    const ao = getAo(obj, key)
                     if (!ao) continue
                     if (!this._visibleBtns.has(ao)) this._visibleBtns.set(ao, new Set())
                     const btns = this._visibleBtns.get(ao)!
@@ -389,34 +400,60 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
                 }
             })
             btnObserver.observe(btn)
-            if (!this._iObservers.has(obj.uuid)) this._iObservers.set(obj.uuid, new Set())
-            this._iObservers.get(obj.uuid)?.add(btnObserver)
+            if (!this._iObservers.has(obj)) this._iObservers.set(obj, [])
+            this._iObservers.get(obj)?.push({o: btnObserver, btn, key})
 
-            const ao = getAo()
+            const ao = getAo(obj, key)
             if (ao) this._refreshTriggerBtn(ao, btn)
 
             config.domChildren = !config.domChildren || Array.isArray(config.domChildren) ? [...config.domChildren || [], btn] : config.domChildren
         }
+        if ((obj as IObject3D).isObject3D) {
+            (obj as IObject3D).addEventListener('objectUpdate', this._objectUpdate)
+        }
+        if ((obj as IMaterial).isMaterial) {
+            (obj as IMaterial).addEventListener('materialUpdate', this._objectUpdate)
+        }
+    }
+
+    private _objectUpdate = (e: {change?: string, key?: string, object?: IObject3D, material?: IMaterial, target?: IObject3D|IMaterial}) => {
+        const obj = e.object || e.material
+        if (this.isDisabled() || !this._triggerButtonsShown || !obj || obj !== e.target) return
+        const key = e.change || e.key
+        if (!obj.assetType || obj.assetType === 'widget' || !key) return
+        const btn = this._iObservers.get(obj)?.find(o => o.key === key)?.btn
+        if (!btn?.parentElement) return
+        const ao1 = getAo(obj, key)
+        if (!ao1) return
+        this._refreshTriggerBtn(ao1, btn)
     }
 
     private _cleanUpUiConfig(obj: IObject3D | IMaterial) {
         const components = this._animatableUiConfigs(obj)
-        const observers = this._iObservers.get(obj.uuid)
+        const observers = this._iObservers.get(obj)
         for (const config of components) {
             config.domChildren = Array.isArray(config.domChildren) ? config.domChildren?.filter(d => !(d instanceof HTMLElement && d.dataset.isAnimObjectTrigger)) || [] : config.domChildren
         }
+        if ((obj as IObject3D).isObject3D) {
+            (obj as IObject3D).removeEventListener('objectUpdate', this._objectUpdate)
+        }
+        if ((obj as IMaterial).isMaterial) {
+            (obj as IMaterial).removeEventListener('materialUpdate', this._objectUpdate)
+        }
         if (observers) {
-            observers.forEach(o => o.disconnect())
-            observers.clear()
-            this._iObservers.delete(obj.uuid)
+            observers.forEach(({o, btn}) => {
+                o.disconnect()
+                btn.remove()
+            })
+            this._iObservers.delete(obj)
         }
     }
 
     private _animatableUiConfigs(obj: IObject3D | IMaterial) {
         return obj.uiConfig?.children?.filter(c =>
             typeof c === 'object' && c.type &&
-            ['vec3', 'color', 'number', 'checkbox', 'toggle'].includes(c.type) &&
-            Array.isArray(c.property) && c.property[0] === obj &&
+            ['vec3', 'color', 'number', 'checkbox', 'toggle', 'slider'].includes(c.type) &&
+            Array.isArray(c.property) && c.property[0] === obj && // todo use uiconfigmethods to get the property?
             (!(obj as IMaterial).constructor?.InterpolateProperties || (obj as IMaterial).constructor.InterpolateProperties!.includes(c.property[1] as string))
         ) as UiObjectConfig[] || []
     }
@@ -446,10 +483,14 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
                 } : undefined}
             },
         }
+
+        this._setupUiConfig(viewer.scene)
     }
 
     onRemove(viewer: ThreeViewer) {
         super.onRemove(viewer)
+        this._cleanUpUiConfig(viewer.scene)
+
         viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
         viewer.object3dManager.removeEventListener('materialAdd', this._materialAdd)
@@ -523,4 +564,9 @@ declare module '../../assetmanager/IAssetImporter'{
     export interface IImportResultUserData{
         animationObjects?: AnimationObject[]
     }
+}
+
+const getAo = (obj: IObject3D|IMaterial, key: string) => {
+    // if (!obj.userData.animationObjects) obj.userData.animationObjects = []
+    return obj?.userData.animationObjects?.find(o => o.access === key)
 }

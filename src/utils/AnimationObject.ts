@@ -431,6 +431,33 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
         return {undo, redo}
     }
 
+    isValueSame(index: number) {
+        if (index < 0 || index >= this.values.length) {
+            console.warn('AnimationObject: Invalid keyframe index', index, this)
+            return false
+        }
+
+        const value = this._thisValueCloner()
+        if (!value) {
+            console.warn('AnimationObject: No value to update keyframe for', this)
+            return false
+        }
+        const oldValue = this.values[index]
+        const newValue = value()
+
+        if (oldValue === newValue) return true
+        if (typeof oldValue !== typeof newValue) return false
+        if (typeof oldValue === 'object' && typeof newValue === 'object') {
+            if ((oldValue as any)?.equals) {
+                return (oldValue as any).equals(newValue)
+            }
+            if (newValue?.equals) {
+                return newValue.equals(oldValue)
+            }
+        }
+        return false
+    }
+
     refreshUi() {
         this.setDirty()
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
