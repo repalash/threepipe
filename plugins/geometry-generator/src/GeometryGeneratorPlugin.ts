@@ -65,9 +65,9 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
         let obj = params?.mesh
-        const geometry = obj?.geometry || params?.geometry || (generator.defaultGeometryClass ? new generator.defaultGeometryClass() : new this.defaultGeometryClass())
-        const material = obj?.material || params?.material || (generator.defaultMaterialClass ? new generator.defaultMaterialClass() : new this.defaultMaterialClass())
-        obj = obj || (generator.defaultMeshClass ? new generator.defaultMeshClass(geometry, material) : new this.defaultMeshClass(geometry, material))
+        const geometry = obj?.geometry || params?.geometry || (generator.defaultGeometryClass ? new (generator.defaultGeometryClass())() : new this.defaultGeometryClass())
+        const material = obj?.material || params?.material || (generator.defaultMaterialClass ? new (generator.defaultMaterialClass())() : new this.defaultMaterialClass())
+        obj = obj || (generator.defaultMeshClass ? new (generator.defaultMeshClass())(geometry, material) : new this.defaultMeshClass(geometry, material))
         if (obj.geometry !== geometry) obj.geometry = geometry
         if (obj.material !== material) obj.material = material
         generator.generate(obj.geometry, params)

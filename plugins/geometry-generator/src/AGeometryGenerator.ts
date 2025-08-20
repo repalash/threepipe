@@ -73,14 +73,14 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
 
     abstract defaultParams: Tp
 
-    defaultMeshClass: Class<IObject3D> = Mesh2
-    defaultMaterialClass?: Class<IMaterial> = PhysicalMaterial
-    defaultGeometryClass?: Class<IGeometry> = BufferGeometry2
+    defaultMeshClass: ()=>Class<IObject3D> = ()=>Mesh2
+    defaultMaterialClass?: ()=>Class<IMaterial> = ()=>PhysicalMaterial
+    defaultGeometryClass?: ()=>Class<IGeometry> = ()=>BufferGeometry2
 
     createUiConfig(geometry: IGeometry): UiObjectConfig[] {
         if (!geometry.userData.generationParams) return []
         const ui = (generateUiConfig(geometry.userData.generationParams)
-            // @ts-expect-error we assume only functions will be generated since its an object
+            // @ts-expect-error we assume only functions will be generated since it's an object
             ?.map(v=>v())
             .filter(v=>getOrCall(v.property)?.[1] !== 'type') || []) as UiObjectConfig[]
         ui.forEach(u=> {
@@ -102,6 +102,14 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
         if ((parameters as any).type && (parameters as any).type !== this.type) {
             console.error('Cannot change type of generated geometry here, use the plugin instead')
             return geometry
+        }
+        // todo remove on remove using object3dmanager when removed from scene?
+        if (!(geometry as any).__hasRegenerateListener) {
+            (geometry as any).__hasRegenerateListener = true
+            geometry.addEventListener('geometryUpdate', (e) => {
+                // todo throttle?
+                if (e.regenerate) geometry.userData.generationParams && this.generate(geometry)
+            })
         }
         if (!geometry.userData.generationParams) geometry.userData.generationParams = {type: this.type}
         geometry.userData.generationParams.type = this.type

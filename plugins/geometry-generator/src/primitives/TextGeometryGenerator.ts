@@ -1,7 +1,7 @@
 import {AGeometryGenerator} from '../AGeometryGenerator'
 import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js'
 import {FontLibrary} from '../FontLibrary'
-import {Float32BufferAttribute} from 'three'
+import {Float32BufferAttribute} from 'threepipe'
 import {Font} from 'three/examples/jsm/loaders/FontLoader.js'
 
 export type FontJSON = Record<string, any>
