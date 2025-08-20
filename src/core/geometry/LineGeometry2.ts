@@ -47,7 +47,7 @@ function pairsToPoints(start?: InterleavedBufferAttribute) {
     // every second point from pairs
     for (let i = 3; i < length; i += 3) {
 
-        const segmentIndex = 2 * i
+        const segmentIndex = 2 * i - 3
         positions[i] = segments[segmentIndex]
         positions[i + 1] = segments[segmentIndex + 1]
         positions[i + 2] = segments[segmentIndex + 2]

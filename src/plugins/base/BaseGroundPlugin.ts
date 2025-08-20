@@ -89,6 +89,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
 
         viewer.scene.addObject(this._mesh, {addToRoot: true})
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate) // todo: refresh when update...
+        // todo use object3dmanager here instead of addSceneObject
         viewer.scene.addEventListener('addSceneObject', this._onSceneUpdate)
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postFrame', this._postFrame)
@@ -181,7 +182,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     }
 
     // not serialized. this can be controlled by other plugins like ModelStagePlugin and serialized there
-    useModelBounds = false
+    useModelBounds = true
 
     protected _refreshTransform() {
         if (!this._mesh) return false

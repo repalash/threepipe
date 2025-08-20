@@ -84,6 +84,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
         type: 'folder',
         label: ()=>this.name || 'unnamed',
         onChange: (ev)=>{
+            // todo this calls setDirty when some material prop changes as well, that needs to be ignored.
             if (!ev.config || ev.config.onChange) return
             let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
             key = typeof key === 'string' ? key : undefined

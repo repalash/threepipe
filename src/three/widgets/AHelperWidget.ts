@@ -4,7 +4,6 @@ import {iObjectCommons, IWidget} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
 
 export abstract class AHelperWidget extends Object3D implements IWidget {
-    modelObject = this
     isWidget = true as const
     assetType = 'widget'
 
@@ -26,6 +25,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
 
         this.dispose = this.dispose.bind(this)
         this._objectUpdate = this._objectUpdate.bind(this)
+        this._objectBeforeRender = this._objectBeforeRender.bind(this)
         this.attach(object)
         this.traverse(o => {
             o.userData.__keepShadowDef = true
@@ -42,7 +42,13 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         iObjectCommons.setDirty.call(this)
     }
 
+    private _objectUpdated = false
     private _objectUpdate() {
+        this._objectUpdated = true
+    }
+    private _objectBeforeRender() {
+        if (!this._objectUpdated) return
+        this._objectUpdated = false
         if (this.object) this.update()
     }
 
@@ -51,6 +57,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.object = object
         if (this.object) {
             this.update()
+            this.object.addEventListener('beforeRender', this._objectBeforeRender)
             this.object.addEventListener('objectUpdate', this._objectUpdate)
             this.object.addEventListener('dispose', this.dispose)
             this.uiConfig && this.object.uiConfig?.children?.push(this.uiConfig)
@@ -60,21 +67,26 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
     }
 
     detach(): this {
-        if (this.object) {
-            this.object.removeEventListener('objectUpdate', this._objectUpdate)
-            this.object.removeEventListener('dispose', this.dispose)
-            if (this.uiConfig) {
-                const i = this.object.uiConfig?.children?.indexOf(this.uiConfig)
-                if (i !== undefined && i >= 0)
-                    this.object.uiConfig?.children?.splice(i, 1)
-            }
-            this.object = undefined
-            this.visible = false
+        if (!this.object) return this
+        this.object.removeEventListener('beforeRender', this._objectBeforeRender)
+        this.object.removeEventListener('objectUpdate', this._objectUpdate)
+        this.object.removeEventListener('dispose', this.dispose)
+        if (this.uiConfig) {
+            const i = this.object.uiConfig?.children?.indexOf(this.uiConfig)
+            if (i !== undefined && i >= 0)
+                this.object.uiConfig?.children?.splice(i, 1)
         }
+        this.object = undefined
+        this.visible = false
         return this
     }
 
     uiConfig = generateUiFolder('Widget', this)
+
+    /**
+     * @deprecated - not required
+     */
+    modelObject = this
 
 }
 

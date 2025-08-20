@@ -16,7 +16,7 @@ export const iObjectCommons = {
         if (typeof options === 'string') { // just incase called by decorators
             options = {change: options}
         }
-        this.dispatchEvent({bubbleToParent: this.userData?.autoUpdateParent ?? true, ...options, type: 'objectUpdate', object: this, args}) // this sets sceneUpdate in root scene
+        this.dispatchEvent({bubbleToParent: this.userData?.autoUpdateParent ?? true, object: this, ...options, type: 'objectUpdate', args}) // this sets sceneUpdate in root scene
         if (options?.refreshUi !== false && options?.last !== false) this.refreshUi?.()
         // console.log('object update')
     },
@@ -593,10 +593,10 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     // region Legacy
 
     // eslint-disable-next-line deprecation/deprecation
-    !this.userData.dispose && (this.userData.dispose = () => {
-        console.warn('userData.dispose is deprecated, use dispose directly')
-        this.dispose && this.dispose()
-    })
+    // !this.userData.dispose && (this.userData.dispose = () => {
+    //     console.warn('userData.dispose is deprecated, use dispose directly')
+    //     this.dispose && this.dispose()
+    // })
     // eslint-disable-next-line deprecation/deprecation
     !this.modelObject && Object.defineProperty(this, 'modelObject', {
         get: ()=>{
@@ -605,10 +605,10 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
         },
     })
     // eslint-disable-next-line deprecation/deprecation
-    !this.userData.setDirty && (this.userData.setDirty = (e: any)=>{
-        console.error('object.userData.setDirty is deprecated, use object.setDirty directly')
-        this.setDirty?.(e)
-    })
+    // !this.userData.setDirty && (this.userData.setDirty = (e: any)=>{
+    //     console.error('object.userData.setDirty is deprecated, use object.setDirty directly')
+    //     this.setDirty?.(e)
+    // })
 
     // endregion
 

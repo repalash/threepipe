@@ -77,6 +77,6 @@ declare module 'three'{
         geometryUpdate: {
             geometry: IGeometry
             bubbleToObject?: boolean
-        }
+        } & IGeometrySetDirtyOptions
     }
 }

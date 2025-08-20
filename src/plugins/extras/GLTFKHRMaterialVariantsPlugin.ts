@@ -28,6 +28,7 @@ export class GLTFKHRMaterialVariantsPlugin extends AViewerPluginSync {
     onAdded(v: ThreeViewer): void {
         super.onAdded(v)
         // v.addEventListener('preRender', this._preRender)
+        // todo use object3dmanager here instead of addSceneObject
         v.scene.addEventListener('addSceneObject', this._objectAdded)
         v.assetManager.registerGltfExtension(khrMaterialVariantsGLTFExtension)
     }

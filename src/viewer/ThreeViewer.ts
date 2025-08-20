@@ -16,11 +16,11 @@ import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr}
 import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
-    IAnimationLoopEvent, IGeometry,
+    IAnimationLoopEvent,
+    IGeometry,
     IMaterial,
     IObject3D,
     IObjectProcessor,
-    IScene,
     ISceneEventMap,
     ITexture,
     OrthographicCamera2,
@@ -328,7 +328,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     /**
      * Specifies how many frames to render in a single request animation frame. Keep to 1 for realtime rendering.
      * Note: should be max (screen refresh rate / animation frame rate) like 60Hz / 30fps
-     * @type {number}
      */
     maxFramePerLoop = 1
 
@@ -489,7 +488,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.object3dManager = new Object3DManager()
         this._scene = new RootScene(camera, this._objectProcessor)
         this._scene.setBackgroundColor('#ffffff')
-        this._scene.addEventListener('addSceneObject', this._onAddSceneObject)
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
         this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
@@ -1644,11 +1642,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this.addPluginListener('add', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType, typeof plugin === 'string' ? undefined : (plugin as any).OldPluginType)
         }
 
-    }
-
-    private _onAddSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
-        const object = e?.object
-        if (!object) return
     }
 
 }

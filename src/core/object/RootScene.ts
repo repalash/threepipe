@@ -392,7 +392,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
 
     private _mainCameraUpdate: EventListener2<'cameraUpdate', IObject3DEventMap, ICamera> = (e) => {
-        this.setDirty({refreshScene: false})
+        if (!this._mainCamera?.parent) this.setDirty({refreshScene: false})
         this.refreshActiveCameraNearFar()
         if (e.key === 'fov') this.dollyActiveCameraFov()
         this.dispatchEvent({...e, type: 'mainCameraUpdate'})
@@ -409,7 +409,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     // readonly boxHelper: Box3Helper
 
     refreshScene(event?: Partial<(ISceneEventMap['objectUpdate']|ISceneEventMap['geometryUpdate']|ISceneEventMap['geometryChanged'])> & ISceneSetDirtyOptions & {type?: keyof ISceneEventMap}): this {
-        if (event && event.type === 'objectUpdate' && event.object === this) return this // ignore self
+        if (event && event.type === 'objectUpdate' && (event.object === this || (event as any).target === this)) return this // ignore self
         // todo test the isCamera here. this is for animation object plugin
         if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)

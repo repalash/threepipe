@@ -34,6 +34,7 @@ export class TransformAnimationPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
+        // todo use object3dmanager here instead of addSceneObject
         viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
     }
     onRemove(viewer: ThreeViewer): void {

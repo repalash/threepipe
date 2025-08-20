@@ -51,6 +51,7 @@ export class SSAAPlugin extends AViewerPluginSync {
         super.onAdded(viewer)
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
+        // todo use object3dmanager here instead of addSceneObject
         viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
     }
 
