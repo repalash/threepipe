@@ -40,6 +40,7 @@ import {ThreeViewer} from '../viewer'
 import {ITexture} from '../core'
 import {IRenderTarget, RenderManager} from '../rendering'
 import {textureToCanvas} from '../three/utils/texture'
+import {CurvePath3} from '../three'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
 export class ThreeSerialization {
@@ -418,6 +419,7 @@ export class ThreeSerialization {
         Serialization.SerializableClasses.set('Shape', Shape) // todo this could be large, it should be a resource in meta for duplicates
         Serialization.SerializableClasses.set('Curve', Curve)
         Serialization.SerializableClasses.set('CurvePath', CurvePath)
+        Serialization.SerializableClasses.set('CurvePath3', CurvePath3)
         Serialization.SerializableClasses.set('Path', Path)
         Serialization.SerializableClasses.set('ArcCurve', ArcCurve)
         Serialization.SerializableClasses.set('CatmullRomCurve3', CatmullRomCurve3)

@@ -3,6 +3,7 @@ import {
     CatmullRomCurve3,
     CubicBezierCurve,
     Curve,
+    CurvePath,
     Line,
     LineLoop,
     LineSegments,
@@ -32,6 +33,7 @@ import {uiSlider} from 'uiconfig.js'
 export type LineType1 = (Line | LineLoop | LineSegments)
 export type LineType2 = Line2 | LineSegments2 | MeshLine | MeshLineSegments
 export type LineType = LineType1 | LineType2
+
 export class LineHelper extends AHelperWidget {
     line: LineType
     private _vertexHandles: Mesh[] = []
@@ -83,20 +85,7 @@ export class LineHelper extends AHelperWidget {
         const generationParams = this.line.geometry.userData?.generationParams /* as LineGeometryGeneratorParams*/
         const curve = generationParams?.curve as Curve<Vector2|Vector3>
         if (curve) {
-            const points = [] as Array<[number[], string]>
-            // toArray since it can be a Vector2 or Vector3
-            if ((curve as any).v0?.toArray)
-                points.push([(curve as CubicBezierCurve).v0.toArray(), 'v0'])
-            if ((curve as any).v1?.toArray)
-                points.push([(curve as CubicBezierCurve).v1.toArray(), 'v1'])
-            if ((curve as any).v2?.toArray)
-                points.push([(curve as CubicBezierCurve).v2.toArray(), 'v2'])
-            if ((curve as any).v3?.toArray)
-                points.push([(curve as CubicBezierCurve).v3.toArray(), 'v3'])
-            if ((curve as any).points !== undefined)
-                (curve as CatmullRomCurve3).points.forEach((p, i)=>{
-                    points.push([p.toArray(), 'points.' + i])
-                })
+            const points = getPointsForCurve(curve)
 
             const existingCubes = this._vertexHandles
             this._vertexHandles = []
@@ -106,6 +95,7 @@ export class LineHelper extends AHelperWidget {
             for (let i = 0; i < points.length; i++) {
                 const point1 = points[i]
                 const cube = existingCubes[i] ?? new Mesh(this._cubeGeometry, this._cubeMaterial2)
+                cube.renderOrder = 100
                 const parr = point1[0]
                 if (!isFinite(parr[0])) parr[0] = 0
                 if (!isFinite(parr[1])) parr[1] = 0
@@ -147,11 +137,22 @@ export class LineHelper extends AHelperWidget {
                     point[0] = position.x
                     point[1] = position.y
                     point[2] = position.z
-                    if (key.startsWith('points.')) {
-                        const index = parseInt(key.slice(7) || '0', 10)
-                        ;(curve as CatmullRomCurve3).points?.[index]?.set(point[0], point[1], point[2])
+
+                    let curve1 = curve
+                    let key1 = key
+                    if (key1.startsWith('curves.')) {
+                        const ee = key1.indexOf('.', 7)
+                        const curveIndex = parseInt(key1.slice(7, ee) || '0')
+                        key1 = key1.slice(ee + 1)
+                        if (curveIndex >= 0 && curveIndex < (curve as CurvePath<any>).curves.length) {
+                            curve1 = (curve as CurvePath<any>).curves[curveIndex]
+                        }
+                    }
+                    if (key1.startsWith('points.')) {
+                        const index = parseInt(key1.slice(7) || '0', 10)
+                        ;(curve1 as CatmullRomCurve3).points?.[index]?.set(point[0], point[1], point[2])
                     } else {
-                        (curve as any)[key]?.set(point[0], point[1], point[2])
+                        (curve1 as any)[key1]?.set(point[0], point[1], point[2])
                     }
                     geometry.setDirty && geometry.setDirty({regenerate: true})
                 }
@@ -210,4 +211,31 @@ export class LineHelper extends AHelperWidget {
     static Create(obj: Object3D) {
         return new LineHelper(obj as any)
     }
+}
+
+function getPointsForCurve(curve: Curve<Vector2 | Vector3>) {
+    const points = [] as Array<[number[], string]>
+    // toArray since it can be a Vector2 or Vector3
+    if ((curve as any).v0?.toArray)
+        points.push([(curve as CubicBezierCurve).v0.toArray(), 'v0'])
+    if ((curve as any).v1?.toArray)
+        points.push([(curve as CubicBezierCurve).v1.toArray(), 'v1'])
+    if ((curve as any).v2?.toArray)
+        points.push([(curve as CubicBezierCurve).v2.toArray(), 'v2'])
+    if ((curve as any).v3?.toArray)
+        points.push([(curve as CubicBezierCurve).v3.toArray(), 'v3'])
+    if ((curve as any).points !== undefined)
+        (curve as CatmullRomCurve3).points.forEach((p, i) => {
+            points.push([p.toArray(), 'points.' + i])
+        })
+    if ((curve as any).curves !== undefined)
+        (curve as CurvePath<any>).curves.forEach((c, i) => {
+            const points1 = getPointsForCurve(c)
+            points1.forEach(p => {
+                p[1] = 'curves.' + i + '.' + p[1]
+            })
+            points.push(...points1)
+        })
+
+    return points
 }
