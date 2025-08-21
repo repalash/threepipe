@@ -3,7 +3,7 @@ import {
     BufferGeometry2,
     Class,
     IGeometry,
-    IMaterial, IObject3D,
+    IMaterial, IObject3D, ISceneEventMap,
     Mesh2,
     type Object3DGeneratorPlugin,
     PhysicalMaterial,
@@ -82,7 +82,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         g.name = 'Generated ' + type
         return g
     }
-    updateGeometry(geometry: IGeometry, params: any) {
+    updateGeometry(geometry: IGeometry, params?: any) {
         if (!geometry.userData.generationParams?.type) throw new Error('Geometry is not generated')
         const generator = this.generators[geometry.userData.generationParams.type]
         if (!generator) throw new Error('Unknown generator type: ' + geometry.userData.generationParams.type)
@@ -92,6 +92,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     onAdded(v: ThreeViewer) {
         super.onAdded(v)
         v.scene.addEventListener('sceneUpdate', this._sceneUpdate)
+        v.scene.addEventListener('geometryUpdate', this._geometryUpdate)
         this.refreshObject3DGenerator()
     }
 
@@ -122,6 +123,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         object3DGenerator.uiConfig?.uiRefresh?.(true)
     }
 
+    // todo use object3dmanager
     protected _sceneUpdate = (e: any)=>{
         if (e.hierarchyChanged) {
             const obj = e.object || this._viewer?.scene.modelRoot
@@ -138,6 +140,12 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         }
     }
 
+    // to regenerate call geometry.setDirty({regenerate: true})
+    protected _geometryUpdate = (e: ISceneEventMap['geometryUpdate'])=>{
+        if (e.regenerate && e.geometry?.userData?.generationParams)
+            this.updateGeometry(e.geometry)
+    }
+
     uiConfig = {
         type: 'folder',
         label: 'Generate Geometry',
@@ -152,6 +160,17 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
                     this._viewer?.scene.addObject(obj)
                 },
             }))],
+    }
+
+}
+
+declare module 'threepipe'{
+    // @ts-expect-error not sure why
+    interface IGeometrySetDirtyOptions{
+        /**
+         * Regenerate a geometry. The geometry must have generationParams set in userData.
+         */
+        regenerate?: boolean
     }
 
 }

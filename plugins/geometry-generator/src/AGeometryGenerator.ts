@@ -103,14 +103,6 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
             console.error('Cannot change type of generated geometry here, use the plugin instead')
             return geometry
         }
-        // todo remove on remove using object3dmanager when removed from scene?
-        if (!(geometry as any).__hasRegenerateListener) {
-            (geometry as any).__hasRegenerateListener = true
-            geometry.addEventListener('geometryUpdate', (e) => {
-                // todo throttle?
-                if (e.regenerate) geometry.userData.generationParams && this.generate(geometry)
-            })
-        }
         if (!geometry.userData.generationParams) geometry.userData.generationParams = {type: this.type}
         geometry.userData.generationParams.type = this.type
         const params = {
