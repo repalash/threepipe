@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
+import {BufferGeometry, Line, LineLoop, LineSegments, LoadingManager, Mesh, Object3D, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID, whiteImageData} from '../../three'
@@ -136,6 +136,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
 
         const lines: Line[] = []
         const refMap = new Map<string, Object3D[]>()
+        const geometries = new Set<BufferGeometry>()
         scene.traverse((node: Object3D) => {
             if (node.userData.gltfUUID) { // saved in GLTFExporter2
                 safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
@@ -150,6 +151,12 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 if (!refMap.has(node.name)) refMap.set(node.name, [])
                 refMap.get(node.name)!.push(node)
             }
+            if ((node as Mesh).geometry && (node as Mesh).geometry.isBufferGeometry) {
+                geometries.add((node as Mesh).geometry)
+            }
+        })
+        geometries.forEach(geom=>{
+            deserializeUserData(geom)
         })
 
         if (res.animations.length > 0) {
@@ -216,13 +223,9 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             parser.importOptions = this.importOptions || undefined
             const getDependency = parser.getDependency
             parser.getDependency = async(type: string, index: number) => {
+                // deserialize userdata properly. note - this does not do geometry, that's done separately after load
                 const res = await getDependency.call(parser, type, index)
-                if (res && res.userData) {
-                    const gltfExtensions = res.userData.gltfExtensions
-                    delete res.userData.gltfExtensions
-                    res.userData = ThreeSerialization.Deserialize(res.userData, {})
-                    res.userData.gltfExtensions = gltfExtensions
-                }
+                deserializeUserData(res)
                 return res
             }
             const createUniqueName = parser.createUniqueName
@@ -305,6 +308,10 @@ function convertToFatLine(line: Line) {
     if (colors && (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors) {
         (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors(colors)
     }
+    line2.geometry.name = line.geometry.name
+    safeSetProperty(line2.geometry, 'uuid', line.geometry.uuid, true, true)
+    line2.geometry.userData = {...line.geometry.userData}
+    // todo groups? anything else
     const index = parent.children.indexOf(line)
     parent.add(line2)
     const {geometry, material} = line2
@@ -334,5 +341,14 @@ declare module 'three/examples/jsm/loaders/GLTFLoader.js'{
     export interface GLTFParser {
         importOptions?: ImportAddOptions
         // getDependency(type: string, index: number): Promise<Object3D|Texture|Line|LineSegments|LineLoop>
+    }
+}
+
+function deserializeUserData(res: {userData: any}) {
+    if (res && res.userData) {
+        const gltfExtensions = res.userData.gltfExtensions
+        delete res.userData.gltfExtensions
+        res.userData = ThreeSerialization.Deserialize(res.userData, {})
+        res.userData.gltfExtensions = gltfExtensions
     }
 }

@@ -193,19 +193,25 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                     }
                 }
 
+                const geometry = (obj1 as MeshLine|MeshLineSegments).geometry
+
                 // for mesh lines, create a temp line (BufferGeometry) so GLTFExporter correctly saves it as mode = line.
-                if (typeof (obj1 as MeshLine|MeshLineSegments).geometry?.getPositions === 'function'
+                if (typeof geometry?.getPositions === 'function'
                 // && !obj1.geometry?.attributes.position
                 && obj1.isLine === undefined && obj1.isLineSegments === undefined
                 && (obj1.isLine2 || obj1.isLineSegments2)
                 && !meshLines.has(obj1 as MeshLine|MeshLineSegments)
                 ) {
-                    const positions = (obj1 as MeshLine|MeshLineSegments).geometry.getPositions()
+                    const positions = geometry.getPositions()
                     if (positions) {
-                        const colors = (obj1 as MeshLine|MeshLineSegments).geometry.getColors && (obj1 as MeshLine|MeshLineSegments).geometry.getColors()
+                        const colors = geometry.getColors && (obj1 as MeshLine|MeshLineSegments).geometry.getColors()
                         const g1 = new BufferGeometry()
                         g1.attributes.position = new BufferAttribute(positions, 3)
                         if (colors) g1.attributes.color = new BufferAttribute(colors, 3)
+                        g1.name = geometry.name
+                        g1.userData = geometry.userData
+                        g1.uuid = geometry.uuid
+                        // todo groups? anything else
                         meshLines.set(obj1 as MeshLine|MeshLineSegments, obj1.geometry as any)
                         if (obj1.assetType)
                             obj1._currentGeometry = g1 as any
@@ -213,7 +219,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                             obj1.geometry = g1 as any
 
                         if ((obj1 as MeshLine).isLine2) obj1.isLine = true
-                        if ((obj1 as MeshLine).isLineSegments2) {
+                        else if ((obj1 as MeshLine).isLineSegments2) {
                             obj1.isLine = true
                             obj1.isLineSegments = true
                         }
