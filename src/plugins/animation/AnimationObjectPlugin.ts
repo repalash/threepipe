@@ -5,7 +5,6 @@ import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {AnimationObject, AnimationObjectEventMap} from '../../utils/AnimationObject'
 import {IMaterial, IObject3D} from '../../core'
 import {createDiv, createStyles, UndoManagerPlugin} from '../../index'
-import {Driver} from '@repalash/popmotion'
 import {Event2} from 'three'
 
 export interface AnimationObjectPluginEventMap extends AViewerPluginEventMap, AnimationObjectEventMap{
@@ -184,33 +183,34 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             if (this._refTimeline && pop) {
                 this._refTimeline = false
                 this._currentTimeline.forEach(([_, r]) => r.stop())
-                this._currentTimeline = this.getAllAnimations().map(o => [o, pop.animateObject(o, 0, false, this.popmotionDriver)])
+                this._currentTimeline = this.getAllAnimations().map(o => [o, pop.animateObject(o, 0, false, pop.timelineDriver)])
                 this.dispatchEvent({type: 'rebuildTimeline', timeline: this._currentTimeline})
             }
         },
-        preFrame: ()=>{
-            if (!this._viewer) return
-            if (this.isDisabled() || Object.keys(this._updaters).length < 1) {
-                this._lastFrameTime = 0
-                return
-            }
-
-            const time = this._viewer.timeline.time * 1000
-            // if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 60.0
-            const delta = time - this._lastFrameTime
-
-            this._lastFrameTime = time
-
-            if (Math.abs(delta) <= 0.0001) return
-
-            this._updaters.forEach(u=>{
-                let dt = delta
-                if (u.time !== time) dt = time - u.time
-                if (u.time + dt < 0) dt = -u.time
-                u.time += dt
-                if (Math.abs(dt) > 0.001) u.u(dt)
-            })
-        },
+        // moved to popmotion
+        // preFrame: ()=>{
+        //     if (!this._viewer) return
+        //     if (this.isDisabled() || Object.keys(this._updaters).length < 1) {
+        //         this._lastFrameTime = 0
+        //         return
+        //     }
+        //
+        //     const time = this._viewer.timeline.time * 1000
+        //     // if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 60.0
+        //     const delta = time - this._lastFrameTime
+        //
+        //     this._lastFrameTime = time
+        //
+        //     if (Math.abs(delta) <= 0.0001) return
+        //
+        //     this._updaters.forEach(u=>{
+        //         let dt = delta
+        //         if (u.time !== time) dt = time - u.time
+        //         if (u.time + dt < 0) dt = -u.time
+        //         u.time += dt
+        //         if (Math.abs(dt) > 0.001) u.u(dt)
+        //     })
+        // },
     }
     getTimeline() {
         return this._currentTimeline
@@ -314,100 +314,8 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             tags: ['animation', AnimationObjectPlugin.PluginType],
             children: [()=>obj.userData.animationObjects?.map(ao=>ao.uiConfig)],
         })
-        const components = this._animatableUiConfigs(obj)
-        for (const config of components) {
-            const prop = getOrCall(config.property) // todo use uiconfigmethods
-            if (!prop) continue
-            const [tar, key] = prop
-            if (!tar || tar !== obj || typeof key !== 'string') continue
-            const btn = createDiv({innerHTML: '◆', classList: ['anim-object-uic-trigger'], addToBody: false})
-            if (btn.parentElement) btn.remove()
-            btn.dataset.isAnimObjectTrigger = '1'
-            btn.title = 'Add Animation for ' + getOrCall(config.label, key) // todo use uiconfigmethods
 
-            btn.addEventListener('click', () => {
-                const undo = this._viewer?.getPlugin(UndoManagerPlugin) // todo use uiconfigmethods
-                let ao = getAo(obj, key)
-                const cTime = 1000 * (this._viewer?.timeline.time || 0) // current time in ui
-                if (!ao) {
-                    ao = new AnimationObject()
-                    // ao.access = type + '.' + obj.uuid + '.' + key
-                    ao.access = key
-                    ao.name = obj.name + ' ' + (getOrCall(config.label, key) || key)
-                    ao.updateTarget = true // calls setDirty on obj on any change
-                    ao.delay = cTime // current time in ui
-                    ao.duration = 2000
-                    const cao = ao
-                    const c = {
-                        redo: ()=>{
-                            if (!obj.userData.animationObjects) obj.userData.animationObjects = []
-                            obj.userData.animationObjects.push(cao)
-                            this._addAnimationObject(cao, obj)
-                            this._refreshTriggerBtn(cao, btn)
-                        },
-                        undo: ()=>{
-                            cao.removeFromParent() // this will dispatch with fromChild = true
-                            this._refreshTriggerBtn(cao, btn)
-                        },
-                    }
-                    c.redo()
-                    undo?.undoManager?.record(c)
-                } else if (ao.values.length > 1) {
-                    const cao = ao
-                    const shownActiveIndex = btn.dataset.activeIndex || ''
-                    const activeIndex = this._getActiveIndex(ao)
-                    if (activeIndex === shownActiveIndex) {
-                        const index = parseInt(activeIndex || '-1')
-                        const ref = ()=> this._refreshTriggerBtn(cao, btn)
-                        if (undo) {
-                            if (index < 0) undo.performAction(ao, ao.addKeyframe, [cTime], 'addKeyframe-' + ao.access, ref)
-                            else undo.performAction(ao, ao.updateKeyframe, [index], 'editKeyframe-' + ao.access, ref)
-                            ref()
-                        } else {
-                            if (index < 0) ao.addKeyframe(cTime)
-                            else ao.updateKeyframe(index)
-                            ref()
-                        }
-
-                    } else {
-                        // todo something else is shown in ui, maybe user didnt want this
-                        console.error('Active index mismatch', activeIndex, shownActiveIndex)
-                    }
-                }
-                // btn.remove()
-                // config.domChildren = !config.domChildren || Array.isArray(config.domChildren) ? config.domChildren?.filter(d => d !== btn) || [] : config.domChildren
-            })
-
-            const btnObserver = new IntersectionObserver(entries => {
-                for (const entry of entries) {
-                    if (entry.target !== btn) continue
-                    const ao = getAo(obj, key)
-                    if (!ao) continue
-                    if (!this._visibleBtns.has(ao)) this._visibleBtns.set(ao, new Set())
-                    const btns = this._visibleBtns.get(ao)!
-                    // console.log(entry.isIntersecting)
-                    if (entry.isIntersecting) {
-                        if (!btns.has(btn)) {
-                            btn.classList.add('anim-object-uic-trigger-visible')
-                            btns.add(btn)
-                            // timeline time change
-                            // animation object change
-                        }
-                    } else {
-                        btn.classList.remove('anim-object-uic-trigger-visible')
-                        btns.delete(btn)
-                    }
-                }
-            })
-            btnObserver.observe(btn)
-            if (!this._iObservers.has(obj)) this._iObservers.set(obj, [])
-            this._iObservers.get(obj)?.push({o: btnObserver, btn, key})
-
-            const ao = getAo(obj, key)
-            if (ao) this._refreshTriggerBtn(ao, btn)
-
-            config.domChildren = !config.domChildren || Array.isArray(config.domChildren) ? [...config.domChildren || [], btn] : config.domChildren
-        }
+        this._setupUiConfigButtons(obj)
         if ((obj as IObject3D).isObject3D) {
             (obj as IObject3D).addEventListener('objectUpdate', this._objectUpdate)
         }
@@ -416,23 +324,15 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         }
     }
 
-    private _objectUpdate = (e: {change?: string, key?: string, object?: IObject3D, material?: IMaterial, target?: IObject3D|IMaterial}) => {
-        const obj = e.object || e.material
-        if (this.isDisabled() || !this._triggerButtonsShown || !obj || obj !== e.target) return
-        const key = e.change || e.key
-        if (!obj.assetType || obj.assetType === 'widget' || !key) return
-        const btn = this._iObservers.get(obj)?.find(o => o.key === key)?.btn
-        if (!btn?.parentElement) return
-        const ao1 = getAo(obj, key)
-        if (!ao1) return
-        this._refreshTriggerBtn(ao1, btn)
-    }
-
     private _cleanUpUiConfig(obj: IObject3D | IMaterial) {
-        const components = this._animatableUiConfigs(obj)
+        this._cleanupUiConfigButtons(obj)
         const observers = this._iObservers.get(obj)
-        for (const config of components) {
-            config.domChildren = Array.isArray(config.domChildren) ? config.domChildren?.filter(d => !(d instanceof HTMLElement && d.dataset.isAnimObjectTrigger)) || [] : config.domChildren
+        if (observers) {
+            observers.forEach(({o, btn}) => {
+                o.disconnect()
+                btn.remove()
+            })
+            this._iObservers.delete(obj)
         }
         if ((obj as IObject3D).isObject3D) {
             (obj as IObject3D).removeEventListener('objectUpdate', this._objectUpdate)
@@ -440,12 +340,132 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         if ((obj as IMaterial).isMaterial) {
             (obj as IMaterial).removeEventListener('materialUpdate', this._objectUpdate)
         }
-        if (observers) {
-            observers.forEach(({o, btn}) => {
-                o.disconnect()
-                btn.remove()
-            })
-            this._iObservers.delete(obj)
+        if (!obj.uiConfig) return
+        const existing = obj.uiConfig?.children?.findIndex(c => typeof c === 'object' && c.tags?.includes(AnimationObjectPlugin.PluginType))
+        if (existing !== undefined && existing >= 0) {
+            obj.uiConfig.children?.splice(existing, 1)
+        }
+    }
+
+    private _setupUiConfigButtons(obj: IObject3D | IMaterial) {
+        const components = this._animatableUiConfigs(obj)
+        for (const config of components) {
+            this.setupUiConfigButton(obj, config)
+        }
+    }
+
+    private _cleanupUiConfigButtons(obj: IObject3D | IMaterial, uiConfigs?: UiObjectConfig[]) {
+        const components = uiConfigs ?? this._animatableUiConfigs(obj)
+        for (const config of components) {
+            this.cleanupUiConfigButton(config)
+        }
+    }
+
+    setupUiConfigButton(obj: IObject3D | IMaterial, config: UiObjectConfig, path?: string) {
+        if (config._animTriggerInit) return
+        const prop = getOrCall(config.property) // todo use uiconfigmethods
+        if (!prop) return
+        const [tar, key] = prop
+        if (!tar || typeof key !== 'string' || tar !== obj && !path) return
+        const keyPath = path ? path.endsWith('.') ? path + key : path : key
+        const btn = createDiv({innerHTML: '◆', classList: ['anim-object-uic-trigger'], addToBody: false})
+        if (btn.parentElement) btn.remove()
+        btn.dataset.isAnimObjectTrigger = '1'
+        btn.title = 'Add Animation for ' + getOrCall(config.label, key) // todo use uiconfigmethods
+
+        btn.addEventListener('click', () => {
+            const undo = this._viewer?.getPlugin(UndoManagerPlugin) // todo use uiconfigmethods
+            let ao = getAo(obj, keyPath)
+            const cTime = 1000 * (this._viewer?.timeline.time || 0) // current time in ui
+            if (!ao) {
+                ao = new AnimationObject()
+                // ao.access = type + '.' + obj.uuid + '.' + keyPath
+                ao.access = keyPath
+                ao.name = obj.name + ' ' + (getOrCall(config.label, keyPath) || keyPath)
+                ao.updateTarget = true // calls setDirty on obj on any change
+                ao.delay = cTime // current time in ui
+                ao.duration = 2000
+                const cao = ao
+                const c = {
+                    redo: () => {
+                        if (!obj.userData.animationObjects) obj.userData.animationObjects = []
+                        obj.userData.animationObjects.push(cao)
+                        this._addAnimationObject(cao, obj)
+                        this._refreshTriggerBtn(cao, btn)
+                    },
+                    undo: () => {
+                        cao.removeFromParent() // this will dispatch with fromChild = true
+                        this._refreshTriggerBtn(cao, btn)
+                    },
+                }
+                c.redo()
+                undo?.undoManager?.record(c)
+            } else if (ao.values.length > 1) {
+                const cao = ao
+                const shownActiveIndex = btn.dataset.activeIndex || ''
+                const activeIndex = this._getActiveIndex(ao)
+                if (activeIndex === shownActiveIndex) {
+                    const index = parseInt(activeIndex || '-1')
+                    const ref = () => this._refreshTriggerBtn(cao, btn)
+                    if (undo) {
+                        if (index < 0) undo.performAction(ao, ao.addKeyframe, [cTime], 'addKeyframe-' + ao.access, ref)
+                        else undo.performAction(ao, ao.updateKeyframe, [index], 'editKeyframe-' + ao.access, ref)
+                        ref()
+                    } else {
+                        if (index < 0) ao.addKeyframe(cTime)
+                        else ao.updateKeyframe(index)
+                        ref()
+                    }
+
+                } else {
+                    // todo something else is shown in ui, maybe user didnt want this
+                    console.error('Active index mismatch', activeIndex, shownActiveIndex)
+                }
+            }
+            this._setBtnVisible(ao, btn, true)
+
+            // btn.remove()
+            // config.domChildren = !config.domChildren || Array.isArray(config.domChildren) ? config.domChildren?.filter(d => d !== btn) || [] : config.domChildren
+        })
+
+        const btnObserver = new IntersectionObserver(entries => {
+            const ao = getAo(obj, keyPath)
+            if (!ao) return
+            for (const entry of entries) {
+                if (entry.target !== btn) continue
+                this._setBtnVisible(ao, btn, entry.isIntersecting)
+            }
+        })
+        btnObserver.observe(btn)
+        if (!this._iObservers.has(obj)) this._iObservers.set(obj, [])
+        this._iObservers.get(obj)?.push({o: btnObserver, btn, key: keyPath})
+
+        const ao = getAo(obj, keyPath)
+        if (ao) this._refreshTriggerBtn(ao, btn)
+
+        config._animTriggerInit = true
+        config.domChildren = !config.domChildren || Array.isArray(config.domChildren) ? [...config.domChildren || [], btn] : config.domChildren
+    }
+
+    cleanupUiConfigButton(config?: UiObjectConfig) {
+        if (!config) return
+        config.domChildren = Array.isArray(config.domChildren) ? config.domChildren?.filter(d => !(d instanceof HTMLElement && d.dataset.isAnimObjectTrigger)) || [] : config.domChildren
+    }
+
+    private _setBtnVisible(ao: AnimationObject, btn: HTMLElement, visible : boolean) {
+        if (!this._visibleBtns.has(ao)) this._visibleBtns.set(ao, new Set())
+        const btns = this._visibleBtns.get(ao)!
+        // console.log(entry.isIntersecting)
+        if (visible) {
+            if (!btns.has(btn)) {
+                btn.classList.add('anim-object-uic-trigger-visible')
+                btns.add(btn)
+                // timeline time change
+                // animation object change
+            }
+        } else {
+            btn.classList.remove('anim-object-uic-trigger-visible')
+            btns.delete(btn)
         }
     }
 
@@ -456,6 +476,22 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
             Array.isArray(c.property) && c.property[0] === obj && // todo use uiconfigmethods to get the property?
             (!(obj as IMaterial).constructor?.InterpolateProperties || (obj as IMaterial).constructor.InterpolateProperties!.includes(c.property[1] as string))
         ) as UiObjectConfig[] || []
+    }
+
+    private _objectUpdate = (e: {change?: string, key?: string, object?: IObject3D, material?: IMaterial, target?: IObject3D|IMaterial}) => {
+        const obj = e.object || e.material
+        if (this.isDisabled() || !this._triggerButtonsShown || !obj || obj !== e.target) return
+        const key = e.change || e.key
+        if (!obj.assetType || obj.assetType === 'widget' || !key) return
+        const btns = this._iObservers.get(obj)
+            ?.filter(o => (o.key === key || o.key?.endsWith('.' + key)) && o.btn?.parentElement)
+        if (!btns?.length) return
+        for (const obs of btns) {
+            const ao1 = getAo(obj, obs.key) // todo deep access key
+            // console.log(e, key)
+            if (!ao1) return
+            this._refreshTriggerBtn(ao1, obs.btn)
+        }
     }
 
     onAdded(viewer: ThreeViewer) {
@@ -506,15 +542,15 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         return this
     }
 
-    private _lastFrameTime = 0 // for post frame, in ms
-    private _updaters: {u: ((timestamp: number) => void), time: number}[] = []
-
-    readonly popmotionDriver: Driver = (update)=> ({
-        start: () => this._updaters.push({u: update, time: 0}),
-        stop: () => {
-            this._updaters.splice(this._updaters.findIndex(u => u.u === update), 1)
-        },
-    })
+    // moved to popmotion
+    // private _lastFrameTime = 0 // for post frame, in ms
+    // private _updaters: {u: ((timestamp: number) => void), time: number}[] = []
+    // readonly popmotionDriver: Driver = (update)=> ({
+    //     start: () => this._updaters.push({u: update, time: 0}),
+    //     stop: () => {
+    //         this._updaters.splice(this._updaters.findIndex(u => u.u === update), 1)
+    //     },
+    // })
 
     // override ui config for flatten hierarchy (for now)
     uiConfig: UiObjectConfig = {

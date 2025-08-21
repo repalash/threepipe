@@ -298,7 +298,12 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
         this.dispatchEvent = this.dispatchEvent.bind(this)
     }
 
-    fromJSON(data: any, meta?: any): this {
+    fromJSON(data1: any, meta?: any): this {
+        let data = {...data1}
+        if (data.access !== undefined) { // first set access so values are initialized
+            this.access = data.access
+            delete data.access
+        }
         if (data.from !== undefined) { // old files with to/from
             data = {...data}
             data.values = [data.from, data.to]
@@ -313,19 +318,29 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
         return this
     }
 
+    private _lastAccess = ''
+    private _lastTarget: any = undefined
     protected _onAccessChanged() {
         const tar = this.targetObject
         if (tar && tar === this.getViewer() && !Object.values(viewerOptions).includes(this.access)) this.access = '' // todo check for now...
-        this.values = []
-        this.offsets = []
-        const clone = this._thisValueCloner()
-        if (!clone) {
+        if (this.access !== this._lastAccess || !this.values.length || this._lastTarget !== tar && tar && this._lastTarget) {
+            this._lastAccess = this.access
+            const lastValues = this.values
+            this.values = []
+            this.offsets = []
+            const clone = this._thisValueCloner()
+            if (!clone) {
+                this.refreshUi()
+                return
+            }
+            this.values = [clone(), clone()]
+            // todo improve merge. like it wont work with vectors right now. For that we need to check if primitive type is the same and/or call the .copy() function
+            if (lastValues.length >= 2 && (
+                typeof lastValues[0] === typeof this.values[0] && (typeof lastValues[0] !== 'object' || (lastValues[0] as any).type && (lastValues[0] as any).type === (this.values[0] as any)?.type)
+            )) this.values = lastValues
+            this.offsets = this.offsets.length === this.values.length ? this.offsets : [0, 1]
             this.refreshUi()
-            return
         }
-        this.values = [clone(), clone()]
-        this.offsets = [0, 1]
-        this.refreshUi()
     }
     private _thisValueCloner() {
         const {key, tar} = extractAnimationKey(this)
@@ -497,7 +512,7 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
         target: () => {
             const t = this.targetObject
             if (t && typeof t.setDirty === 'function') {
-                t.setDirty({frameFade: false, refreshScene: false})
+                t.setDirty({frameFade: false, refreshScene: false, source: 'AnimationObject', key: this.access})
             }
         },
     }
