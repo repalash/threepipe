@@ -394,7 +394,7 @@ export class PopmotionPlugin extends AViewerPluginSync {
         if (canComplete) o.result = a
         delay = (delay || 0) + ((delay2 ?? o.delay) || 0)
         a.anims = o.animSet ? [...a.anims, this.animateSet(o.animSet, o.animSetParallel ?? false, delay, canComplete, driver)] : a.anims
-        const oUpdate = o.updater ?? []
+        const oUpdaters = o.updater ?? []
 
         const opts = !key || !tar ? {
             to: [0, 1],
@@ -417,7 +417,7 @@ export class PopmotionPlugin extends AViewerPluginSync {
             onUpdate: (v) => {
                 o.options.onUpdate && o.options.onUpdate(v as any)
                 accOnUpdate && accOnUpdate()
-                oUpdate.forEach(value => value && value())
+                oUpdaters.forEach(value => value && value())
             },
         }, animateKeyframes)) // animateKeyframes implements delay and canComplete
 

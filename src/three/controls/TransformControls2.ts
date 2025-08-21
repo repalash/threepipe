@@ -17,6 +17,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         if (!this.enabled) return
         if (!this.object) return
         if (event.metaKey || event.ctrlKey) return
+        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
 
         switch (event.code) {
 

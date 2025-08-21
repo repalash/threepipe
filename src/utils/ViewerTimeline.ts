@@ -131,7 +131,7 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         this._refreshParams()
         if (!this.running) {
             this.delta = this._clock.getDelta() // this will return 0 always
-            this.time = this._clock.elapsedTime
+            this._time = this._clock.elapsedTime
             return
         }
         const d = viewer.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
@@ -140,17 +140,17 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
             this.delta = d / 1000
             this._clock.oldTime += d
             this._clock.elapsedTime += this.delta
-            this.time = this._clock.elapsedTime
+            this._time = this._clock.elapsedTime
             // viewer.setDirty(this) // for next frame
             this.dispatchEvent({type: 'update'})
         } else if (d !== undefined && d === 0) {
             // recording, not converged yet.
             this.delta = 0
-            this.time = this._clock.elapsedTime
+            this._time = this._clock.elapsedTime
         } else if (d === undefined || d < 0) {
             // not recording
             this.delta = this._clock.getDelta() // this updates oldTime and elapsedTime
-            this.time = this._clock.elapsedTime
+            this._time = this._clock.elapsedTime
             // viewer.setDirty(this) // for next frame
             this.dispatchEvent({type: 'update'})
         }

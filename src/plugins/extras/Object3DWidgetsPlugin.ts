@@ -1,5 +1,5 @@
 import {UiObjectConfig} from 'uiconfig.js'
-import {IScene, ISceneEventMap, IWidget} from '../../core'
+import {IObject3D, IScene, ISceneEventMap, IWidget} from '../../core'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IEvent, onChange} from 'ts-browser-helpers'
 import {EventListener2, Object3D} from 'three'
@@ -81,6 +81,9 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
 
     private _createWidgets(o?: Object3D) {
+        if ((o as IObject3D).assetType === 'widget') {
+            return
+        }
         o?.traverse((l: any) => {
             const widget = this.widgets.find(w => w.object === l)
             if (widget) {
