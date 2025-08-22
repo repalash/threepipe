@@ -3,7 +3,7 @@ import {
     BufferGeometry2,
     Class,
     IGeometry,
-    IMaterial, IObject3D, ISceneEventMap,
+    IMaterial, IMesh, IObject3D, IObject3DEventMap, ISceneEventMap,
     Mesh2,
     type Object3DGeneratorPlugin,
     PhysicalMaterial,
@@ -57,22 +57,29 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     defaultMaterialClass: Class<IMaterial> = PhysicalMaterial
     defaultGeometryClass: Class<IGeometry> = BufferGeometry2
 
-    generateObject<T extends keyof IGeometryGeneratorMap & string = string, TG extends AGeometryGenerator = IGeometryGeneratorMap[T]>(type: T, params?: Partial<TG['defaultParams']> & {
-        mesh?: IObject3D,
-        geometry?: IGeometry,
-        material?: IMaterial,
-    }) {
+    generateObject<
+        T extends keyof IGeometryGeneratorMap & string = string,
+        TGeometry extends IGeometry = IGeometry,
+        TMaterial extends IMaterial = IMaterial,
+        TG extends AGeometryGenerator = IGeometryGeneratorMap[T]
+    >(type: T, params?: Partial<TG['defaultParams']> & {
+        mesh?: IMesh<IObject3DEventMap, TGeometry, TMaterial>,
+        geometry?: TGeometry,
+        material?: TMaterial,
+    }): IMesh<IObject3DEventMap, TGeometry, TMaterial> {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
         let obj = params?.mesh
         const geometry = obj?.geometry || params?.geometry || (generator.defaultGeometryClass ? new (generator.defaultGeometryClass())() : new this.defaultGeometryClass())
         const material = obj?.material || params?.material || (generator.defaultMaterialClass ? new (generator.defaultMaterialClass())() : new this.defaultMaterialClass())
-        obj = obj || (generator.defaultMeshClass ? new (generator.defaultMeshClass())(geometry, material) : new this.defaultMeshClass(geometry, material))
-        if (obj.geometry !== geometry) obj.geometry = geometry
-        if (obj.material !== material) obj.material = material
+        obj = obj || (generator.defaultMeshClass ? new (generator.defaultMeshClass())(geometry, material) : new this.defaultMeshClass(geometry, material)) as any
+        if (!obj) return obj as any
+        if (obj.geometry !== geometry) obj.geometry = geometry as any
+        if (obj.material !== material) obj.material = material as any
         generator.generate(obj.geometry, params)
         obj.name = type
-        obj.geometry.name = 'Generated ' + toTitleCase(type)
+        if (!geometry.name)
+            geometry.name = 'Generated ' + toTitleCase(type)
         return obj
     }
     generateGeometry(type: string, params: any, geometry?: IGeometry) {
@@ -164,13 +171,13 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
 
 }
 
-declare module 'threepipe'{
-    // @ts-expect-error not sure why
-    interface IGeometrySetDirtyOptions{
-        /**
-         * Regenerate a geometry. The geometry must have generationParams set in userData.
-         */
-        regenerate?: boolean
-    }
-
-}
+// declare module 'threepipe'{
+//     // @ats-expect-error not sure why
+//     interface IGeometrySetDirtyOptions{
+//         /**
+//          * Regenerate a geometry. The geometry must have generationParams set in userData.
+//          */
+//         regenerate?: boolean
+//     }
+//
+// }

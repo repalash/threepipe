@@ -89,6 +89,7 @@ export class LineGeometryGenerator extends AGeometryGenerator<LineGeometryGenera
         const segments = Math.max(2, params.segments || 50)
         const closePath = params.closePath || false
 
+        curve.updateArcLengths()
         const points = curve.getSpacedPoints(segments - 1)
 
         if (points.length !== segments) {
