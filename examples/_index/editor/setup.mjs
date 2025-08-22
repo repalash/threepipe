@@ -135,7 +135,7 @@ export function setupCodeEditor (iframe) {
                     return null
                 })
                 if (jsFile && model.compiledContent !== jsFile.text) {
-                    console.log(jsFile)
+                    // console.log(jsFile)
                     model.compiledContent = jsFile.text;
                     changed = true
                 }
@@ -399,30 +399,49 @@ export function setupCodeEditor (iframe) {
     function setupIframeCodeButton () {
         try {
             const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            const showCodeBtn = iframeDoc.querySelector('.show-code-btn');
-            if (showCodeBtn) {
-                showCodeBtn.onclick = () => {
-                    codebar.classList.toggle('closed');
-                };
-            }
-            // add style in iframe
-            const style = iframeDoc.createElement('style');
-            style.textContent = `
+
+            let setup = false
+            // Function to actually setup the button once it's available
+            const setupButton = () => {
+                if(setup) return true
+                const showCodeBtn = iframeDoc.querySelector('.show-code-btn');
+                if (showCodeBtn) {
+                    setup = true
+                    showCodeBtn.onclick = () => {
+                        codebar.classList.toggle('closed');
+                    };
+
+                    // add style in iframe
+                    const style = iframeDoc.createElement('style');
+                    style.textContent = `
                         .code-block{
                             display: none !important;
                         }
                     `;
-            iframeDoc.head.appendChild(style);
+                    iframeDoc.head.appendChild(style);
+                    return true; // Success
+                }
+                return false; // Button not found yet
+            };
+
+            if (setupButton()) return;
+            iframeDoc.addEventListener('DOMContentLoaded', () => {
+                setupButton()
+            });
         } catch (e) {
             // Handle cross-origin or other access issues
             console.warn('Could not access iframe content:', e);
         }
     }
 
-    // Listen for iframe load events to setup the button listener
     iframe.addEventListener('load', () => {
         setupIframeCodeButton();
     });
+
+    // Check if iframe is already loaded and setup immediately if needed
+    if (iframe.contentDocument && iframe.contentDocument.readyState !== 'loading') {
+        setupIframeCodeButton();
+    }
 
     window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
 
