@@ -10,7 +10,7 @@ export class MeshLineSegments<
     TGeometry extends LineSegmentsGeometry2 = LineSegmentsGeometry2,
     TMaterial extends LineMaterial2= LineMaterial2,
     TE extends IObject3DEventMap = IObject3DEventMap
-> extends LineSegments2<TGeometry, TMaterial, TE> implements IObject3D<TE> {
+> extends LineSegments2<TGeometry, TMaterial, TE> implements IObject3D<TE, TGeometry, TMaterial> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi

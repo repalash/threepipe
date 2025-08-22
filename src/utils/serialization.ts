@@ -433,6 +433,7 @@ export class ThreeSerialization {
         Serialization.SerializableClasses.set('SplineCurve', SplineCurve)
         Serialization.SerializableClasses.set('AnimationClip', AnimationClip)
         // Serialization.SerializableClasses.set('Skeleton', Skeleton) // doesnt have .type. todo add to three.js
+
     }
 
     /**

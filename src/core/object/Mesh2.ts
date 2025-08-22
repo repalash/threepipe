@@ -8,7 +8,7 @@ export class Mesh2<
     TGeometry extends IGeometry = IGeometry,
     TMaterial extends IMaterial | IMaterial[] = IMaterial | IMaterial[],
     TE extends IObject3DEventMap = IObject3DEventMap
-> extends Mesh<TGeometry, TMaterial, TE> implements IObject3D<TE> {
+> extends Mesh<TGeometry, TMaterial, TE> implements IObject3D<TE, TGeometry, TMaterial> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi

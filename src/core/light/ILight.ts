@@ -4,7 +4,7 @@ import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 export interface ILight<
     TShadowSupport extends LightShadow | undefined = LightShadow | undefined,
     TE extends IObject3DEventMap = IObject3DEventMap
-> extends Light<TShadowSupport, TE>, IObject3D<TE> {
+> extends Light<TShadowSupport, TE>, IObject3D<TE, undefined, undefined> {
     assetType: 'light'
     readonly isLight: true
 

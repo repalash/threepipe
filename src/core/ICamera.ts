@@ -54,7 +54,7 @@ export interface ICameraUserData extends IObject3DUserData {
     // [key: string]: any // commented for noe
 }
 
-export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends Camera<TE>, IObject3D<TE>, IShaderPropertiesUpdater {
+export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends Camera<TE>, IObject3D<TE, undefined, undefined>, IShaderPropertiesUpdater {
     assetType: 'camera'
     readonly isCamera: true
     setDirty(options?: ICameraSetDirtyOptions): void;

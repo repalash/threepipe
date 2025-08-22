@@ -346,7 +346,7 @@ export interface IObjectExtension {
     onRegister?: (object: IObject3D) => void
 }
 
-export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> extends Object3D<TE>, IUiConfigContainer {
+export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG extends IGeometry | undefined= IGeometry | undefined, TM extends IMaterial | IMaterial[] | undefined = IMaterial | IMaterial[] | undefined> extends Object3D<TE>, IUiConfigContainer {
     assetType: 'model' | 'light' | 'camera' | 'widget'
     isLight?: boolean
     isCamera?: boolean
@@ -363,7 +363,8 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
     isPoints?: boolean
     readonly isObject3D: true
 
-    material?: IMaterial | IMaterial[]
+    geometry?: TG
+    material?: TM
     /**
      * Same as material but always returns an array.
      * To set, just set `material` property
@@ -371,7 +372,6 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
     readonly materials?: IMaterial[]
     // eslint-disable-next-line @typescript-eslint/naming-convention
     _currentMaterial?: IMaterial | IMaterial[] | null
-    geometry?: IGeometry
     morphTargetDictionary?: Record<string, number>
     morphTargetInfluences?: number[]
     updateMorphTargets?(): void
@@ -545,5 +545,10 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap> ext
 
     // end region
 
+}
+
+export interface IMesh<TE extends IObject3DEventMap = IObject3DEventMap, TG extends IGeometry= IGeometry, TM extends IMaterial | IMaterial[] = IMaterial | IMaterial[]> extends IObject3D<TE, TG, TM>, IUiConfigContainer {
+    geometry: TG
+    material: TM
 }
 

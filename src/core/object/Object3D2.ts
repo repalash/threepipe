@@ -1,11 +1,19 @@
 import {Object3D} from 'three'
 import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
+import {IGeometry} from '../IGeometry'
+import {IMaterial} from '../IMaterial'
 
-export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap> extends Object3D<TE> implements IObject3D<TE> {
+export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
+    TG extends IGeometry | undefined = undefined,
+    TM extends IMaterial | IMaterial[] | undefined = undefined
+> extends Object3D<TE> implements IObject3D<TE, TG, TM> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
+
+    declare geometry: TG
+    declare material: TM
 
     /**
      * @deprecated use `this` instead

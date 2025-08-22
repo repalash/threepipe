@@ -35,7 +35,7 @@ export type {ICameraControls, TControlsCtor, ICameraControlsEventMap} from './ca
 export type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode, ICameraSetDirtyOptions} from './ICamera'
 export type {IGeometry, IGeometryUserData, IGeometryEventMap, IGeometrySetDirtyOptions} from './IGeometry'
 export type {IMaterial, IMaterialEventMap, IMaterialParameters, IMaterialUserData, IMaterialSetDirtyOptions, IMaterialTemplate, IMaterialGenerator, AnimateTimeMaterial} from './IMaterial'
-export type {IObject3D, IObject3DEventMap, ISetDirtyCommonOptions, IObjectSetDirtyOptions, IObjectProcessor, IObject3DUserData, IObjectExtension} from './IObject'
+export type {IObject3D, IMesh, IObject3DEventMap, ISetDirtyCommonOptions, IObjectSetDirtyOptions, IObjectProcessor, IObject3DUserData, IObjectExtension} from './IObject'
 export type {IRenderManager, IRenderManagerOptions, IWebGLRenderer, IRenderManagerEventMap, IAnimationLoopEvent, TThreeRendererMode, TThreeRendererModeUserData, IRenderManagerUpdateEvent, RendererBlitOptions} from './IRenderer'
 export type {IScene, ISceneEventMap, ISceneSetDirtyOptions, AddObjectOptions, ISceneUserData, IWidget} from './IScene'
 export type {ITexture, ITextureUserData, ITextureEventMap} from './ITexture'
