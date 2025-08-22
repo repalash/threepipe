@@ -334,41 +334,6 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     // private
     ['__textureUpdate']?: (e: Event<'update', Texture>)=>void
     ['_mapRefs']?: Set<ITexture>
-    // required because of typescript/typedoc bugs
-
-    /**
-     *
-     * @param renderer
-     * @param scene
-     * @param camera
-     * @param geometry
-     * @param object
-     */
-    onAfterRender(
-        renderer: WebGLRenderer,
-        scene: Scene,
-        camera: Camera,
-        geometry: BufferGeometry,
-        object: Object3D,
-    ): void;
-
-    /**
-     *
-     * @param renderer
-     * @param scene
-     * @param camera
-     * @param geometry
-     * @param object
-     */
-    onBeforeRender(
-        renderer: WebGLRenderer,
-        scene: Scene,
-        camera: Camera,
-        geometry: BufferGeometry,
-        object: Object3D,
-    ): void;
-
-    onBeforeCompile(parameters: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void;
 
 }
 

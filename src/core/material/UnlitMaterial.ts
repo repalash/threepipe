@@ -101,7 +101,9 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     //     //     this.needsUpdate = true
     //     // }
     // }
+    /** @ignore */
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
+    /** @ignore */
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion

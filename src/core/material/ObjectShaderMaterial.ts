@@ -92,7 +92,10 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
     //     super.onBeforeRender(...args)
     //     iMaterialCommons.onBeforeRender.call(this, ...args)
     // }
+
+    /** @ignore */
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
+    /** @ignore */
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion

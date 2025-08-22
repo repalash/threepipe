@@ -117,7 +117,8 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     }
 
     /**
-     * onAfterRender is called after the material is rendered.
+     * onAfterRender is called after the material is rendered
+     * @ignore
      */
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 

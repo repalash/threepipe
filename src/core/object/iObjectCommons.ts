@@ -368,7 +368,8 @@ export const iObjectCommons = {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
 
-    dispatchEvent: (superDispatch: ((ev: any)=>void)): ((ev: any)=>void) =>
+    /** @ignore */
+    dispatchEvent: (superDispatch: IObject3D['dispatchEvent']): IObject3D['dispatchEvent'] =>
         function(this: IObject3D, event): void {
             if ((event as IEvent<any>).target && (event as IEvent<any>).target !== this && this.acceptChildEvents === false) return
             if ((event as IObject3DEventMap['objectUpdate']).bubbleToParent || this.userData?.__autoBubbleToParentEvents?.includes(event.type)) {
@@ -378,6 +379,7 @@ export const iObjectCommons = {
             }
             superDispatch.call(this, event)
         },
+    /** @ignore */
     clone: (superClone: IObject3D['clone']): IObject3D['clone'] =>
         function(this: IObject3D, ...args): IObject3D {
             const userData = this.userData
@@ -393,6 +395,7 @@ export const iObjectCommons = {
             clone.userData.cloneParent = this.uuid
             return clone
         },
+    /** @ignore */
     copy: (superCopy: IObject3D['copy']): IObject3D['copy'] =>
         function(this: IObject3D, source: IObject3D, ...args): IObject3D {
             const lightTarget = this.isLight ? (this as ILight).target : null
@@ -415,6 +418,7 @@ export const iObjectCommons = {
 
             return this
         },
+    /** @ignore */
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
         function(this: IObject3D, ...args): IObject3D {
             if (this.autoUpgradeChildren !== false) {
@@ -422,7 +426,8 @@ export const iObjectCommons = {
             }
             return superAdd.call(this, ...args)
         },
-    dispose: (superDispose?: ((removeFromParent?: boolean)=> void)) =>
+    /** @ignore */
+    dispose: (superDispose?: IObject3D['dispose']) =>
         function(this: IObject3D, removeFromParent = true): void {
             if (removeFromParent && this.parent) {
                 this.removeFromParent()

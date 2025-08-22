@@ -97,7 +97,9 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
     //     //     this.needsUpdate = true
     //     // }
     // }
+    /** @ignore */
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
+    /** @ignore */
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion

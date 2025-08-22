@@ -13,17 +13,20 @@ export const iGeometryCommons = {
     refreshUi: function(this: IGeometry) {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     },
-    dispose: (superDispose: (()=>void)): IGeometry['dispose'] =>
+    /** @ignore */
+    dispose: (superDispose: BufferGeometry['dispose']): IGeometry['dispose'] =>
         function(this: IGeometry, force = true): void {
             if (!force && this.userData.disposeOnIdle === false) return
             superDispose.call(this)
         },
-    clone: (superClone: (()=>BufferGeometry)): IGeometry['clone'] =>
+    /** @ignore */
+    clone: (superClone: BufferGeometry['clone']): IGeometry['clone'] =>
         function(this: IGeometry): IGeometry {
             return iGeometryCommons.upgradeGeometry.call(superClone.call(this))
         },
     upgradeGeometry: upgradeGeometry,
-    center: (superCenter: ((target?: Vector3)=> BufferGeometry)): IGeometry['center'] =>
+    /** @ignore */
+    center: (superCenter: BufferGeometry['center']): IGeometry['center'] =>
         function(this: IGeometry, offset?: Vector3, keepWorldPosition = false, setDirty = true): IGeometry {
             if (keepWorldPosition) {
                 offset = offset ? offset.clone() : new Vector3()

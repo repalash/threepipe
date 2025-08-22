@@ -87,7 +87,9 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
         super.onBeforeCompile(shader, renderer)
     }
 
+    /** @ignore */
     onBeforeRender = iMaterialCommons.onBeforeRenderOverride(super.onBeforeRender)
+    /** @ignore */
     onAfterRender = iMaterialCommons.onAfterRenderOverride(super.onAfterRender)
 
     // endregion
