@@ -70,6 +70,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         oldMaterial: IMaterial|IMaterial[]|null
         bubbleToParent: boolean
     }
+    texturesChanged: IMaterialEventMap['texturesChanged']
     geometryUpdate: {
         object: IObject3D
         geometry: IGeometry
