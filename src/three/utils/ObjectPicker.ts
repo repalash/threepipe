@@ -137,10 +137,11 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             }
         }
 
+        const currentIntersects = this._selectedIntersects
         if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
-            && this._selectedIntersects?.selectedObject === intersects?.selectedObject
-            && this._selectedIntersects?.selectedWidget === intersects?.selectedWidget
-            && this._selectedIntersects?.selectedHandle === intersects?.selectedHandle
+            && currentIntersects?.selectedObject === intersects?.selectedObject
+            && currentIntersects?.selectedWidget === intersects?.selectedWidget
+            && currentIntersects?.selectedHandle === intersects?.selectedHandle
         ) return
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
@@ -156,8 +157,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         })
 
         record && this.undoManager?.record({
-            undo: () => this.setSelected(current.length ? current[0] : null, false),
-            redo: () => this.setSelected(object, false),
+            undo: () => this.setSelected(current.length ? current[0] : null, false, currentIntersects),
+            redo: () => this.setSelected(object, false, intersects),
         })
     }
 

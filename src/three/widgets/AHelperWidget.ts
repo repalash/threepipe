@@ -59,6 +59,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
             this.update()
             this.object.addEventListener('beforeRender', this._objectBeforeRender)
             this.object.addEventListener('objectUpdate', this._objectUpdate)
+            this.object.addEventListener('geometryUpdate', this._objectUpdate)
             this.object.addEventListener('dispose', this.dispose)
             this.uiConfig && this.object.uiConfig?.children?.push(this.uiConfig)
             this.visible = true
@@ -70,6 +71,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         if (!this.object) return this
         this.object.removeEventListener('beforeRender', this._objectBeforeRender)
         this.object.removeEventListener('objectUpdate', this._objectUpdate)
+        this.object.removeEventListener('geometryUpdate', this._objectUpdate)
         this.object.removeEventListener('dispose', this.dispose)
         if (this.uiConfig) {
             const i = this.object.uiConfig?.children?.indexOf(this.uiConfig)

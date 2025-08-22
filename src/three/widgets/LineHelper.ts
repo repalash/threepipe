@@ -26,7 +26,7 @@ import {
     MeshLineSegments,
 } from '../../core'
 import {onChange} from 'ts-browser-helpers'
-import {uiSlider} from 'uiconfig.js'
+import {uiColor, uiSlider} from 'uiconfig.js'
 // import type {LineGeometryGeneratorParams} from '../../../plugins/geometry-generator/src'
 
 // todo move this to geometry generator or some other plugin
@@ -45,6 +45,18 @@ export class LineHelper extends AHelperWidget {
     @uiSlider(undefined, [0.001, 0.2], 0.001)
         handleSize = 0.05
 
+    @onChange(LineHelper.prototype.update)
+    @uiSlider(undefined, [0.001, 0.5], 0.001)
+        editableHandleSize = 0.1
+
+    @onChange(LineHelper.prototype.update)
+    @uiColor()
+        handleColor = 0x0093FD
+
+    @onChange(LineHelper.prototype.update)
+    @uiColor()
+        editableHandleColor = 0xEF0065
+
     autoUpgradeChildren = false // used elsewhere
 
     constructor(line: LineType) {
@@ -56,14 +68,14 @@ export class LineHelper extends AHelperWidget {
         this._cubeGeometry = new BoxGeometry(1, 1, 1, 2, 2, 2)
         iGeometryCommons.upgradeGeometry.call(this._cubeGeometry)
         this._cubeMaterial = new MeshBasicMaterial({
-            color: 0xff0000,
+            color: this.handleColor,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.95,
         })
         this._cubeMaterial.userData.renderToGBuffer = false
         this._cubeMaterial.userData.renderToDepth = false
         this._cubeMaterial2 = this._cubeMaterial.clone()
-        this._cubeMaterial2.color.set(0, 0, 1)
+        this._cubeMaterial2.color.set(this.editableHandleColor)
         // this._cubeMaterial.depthWrite = false
         // this._cubeMaterial.depthTest = false
 
@@ -101,7 +113,7 @@ export class LineHelper extends AHelperWidget {
                 if (!isFinite(parr[1])) parr[1] = 0
                 if (!isFinite(parr[2])) parr[2] = 0
                 cube.position.fromArray(parr)
-                cube.scale.setScalar(this.handleSize)
+                cube.scale.setScalar(this.editableHandleSize)
                 cube.frustumCulled = false
 
                 // Ensure cubes don't cast/receive shadows
