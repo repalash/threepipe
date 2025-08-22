@@ -31,11 +31,11 @@ async function init() {
 
     const urls = [
         'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sintel.mp4',
-        'https://cors-proxy.r2cache.com/https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
-        'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2020/03/file_example_WEBM_480_900KB.webm',
+        'https://asset-samples.threepipe.org/minimal/big_buck_bunny_720p_1mb.mp4',
+        'https://asset-samples.threepipe.org/minimal/file_example_WEBM_480_900KB.webm',
+        'https://asset-samples.threepipe.org/minimal/file_example_MOV_480_700kB.mov',
         // todo ogg doesnt work?
-        // 'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2018/04/file_example_OGG_480_1_7mg.ogg',
-        'https://cors-proxy.r2cache.com/https://file-examples.com/storage/fe9d4ec2e9689df1fa3ad85/2018/04/file_example_MOV_480_700kB.mov',
+        // 'https://asset-samples.threepipe.org/minimal/file_example_OGG_480_1_7mg.ogg',
     ]
 
     const geometry = new PlaneGeometry(1, 1)
