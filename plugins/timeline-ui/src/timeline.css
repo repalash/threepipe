@@ -48,6 +48,9 @@
     user-select: none;
     padding-top: 4px;
     padding-left: 16px;
+
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 /* Timeline Card */
@@ -225,7 +228,7 @@
     cursor: pointer;
     transition: background 0.2s ease, box-shadow 0.2s ease;
     background: inherit;
-    color: #615e6b;
+    color: var(--timeline-base-bg);
 }
 .timeline-indicator-head:hover {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -239,7 +242,7 @@
     background: #f87171; /* light red */
 }
 .timeline-indicator-head-current {
-    color: #fff;
+    /*color: #fff;*/
 }
 .timeline-indicator-head-max {
     color: #fff;
@@ -358,4 +361,3 @@
     position: relative;
     /*cursor: pointer;*/
 }
-

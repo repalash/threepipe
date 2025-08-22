@@ -1,27 +1,29 @@
 import {
     _testFinish,
-    _testStart, AnimationObjectPlugin,
+    _testStart,
+    AnimationObjectPlugin,
     CameraViewPlugin,
     GLTFAnimationPlugin,
     LoadingScreenPlugin,
-    MaterialConfiguratorBasePlugin, OrbitControls3, PickingPlugin,
+    OrbitControls3,
+    PickingPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {TimelineUiPlugin} from '@threepipe/plugin-timeline-ui'
+import {MaterialConfiguratorPlugin} from '@threepipe/plugin-configurator'
 
 async function init() {
 
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, CameraViewPlugin, MaterialConfiguratorBasePlugin, GLTFAnimationPlugin, AnimationObjectPlugin, TimelineUiPlugin, PickingPlugin],
+        plugins: [LoadingScreenPlugin, CameraViewPlugin, MaterialConfiguratorPlugin, GLTFAnimationPlugin, AnimationObjectPlugin, TimelineUiPlugin, PickingPlugin],
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin, {expanded: true})
-    ui.setupPluginUi(AnimationObjectPlugin, {expanded: true})
 
     await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
 
@@ -29,7 +31,7 @@ async function init() {
     viewer.getPlugin(CameraViewPlugin)!.animEase = 'linear'
     viewer.timeline.endTime = 12
     const controls = viewer.scene.mainCamera.controls as OrbitControls3
-    controls.maxPolarAngle = Math.PI
+    controls.maxPolarAngle = Math.PI // because it's limited in the glb file
 }
 
 _testStart()

@@ -74,8 +74,10 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     autoIncrementTime = true
 
     /**
-     * Loop the complete animation. (not individual actions)
+     * Loop the complete animation. All actions are looped either individually or together based on {@link syncMaxDuration}.
      * This happens {@link loopRepetitions} times.
+     *
+     * Note - only applicable when {@link autoIncrementTime} is true.
      */
     @onChange2(GLTFAnimationPlugin.prototype._onPropertyChange)
     @uiToggle('Loop')
@@ -84,9 +86,10 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     /**
      * Number of times to loop the animation. (not individual actions)
      * Only applicable when {@link loopAnimations} is true.
+     * @default Infinity
      */
     @onChange2(GLTFAnimationPlugin.prototype._onPropertyChange)
-    @serialize() loopRepetitions = 2
+    @serialize() loopRepetitions = Infinity
 
     /**
      * Timescale for the animation. (not individual actions)
@@ -535,7 +538,13 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
                     // a1.startAt(startTime)
                     a1._startTime = startTime
                 }
-                const isActive = t >= startTime && t < a1.getClip().duration / Math.abs(a1.timeScale) + startTime
+
+                let clipDuration = a1.getClip().duration
+                if (this.autoIncrementTime && this.loopAnimations) {
+                    clipDuration *= this.loopRepetitions
+                }
+
+                const isActive = t >= startTime && (!isFinite(clipDuration) || t < clipDuration / Math.abs(a1.timeScale) + startTime)
 
                 if (this.autoUnpauseActions && a1.paused && isActive) {
                     a1.paused = false

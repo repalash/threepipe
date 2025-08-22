@@ -28,9 +28,9 @@ async function init() {
     const fileCamera = viewer.scene.getObjectByName<ICamera>('Correction__MovingCamera')
     if (!fileCamera) return
 
-    fileCamera.autoAspect = true
     fileCamera.userData.autoLookAtTarget = false
     fileCamera.activateMain()
+    fileCamera.autoAspect = true
 
     gltfAnimation.loopAnimations = true
     gltfAnimation.playAnimation() // note no await here.

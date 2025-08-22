@@ -464,8 +464,8 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
     React.useEffect(()=>{
         const l1 = ()=> {
             const time = viewer.timeline.endTime
-            if (time > maxTimeRef.current - 2) {
-                setMaxTime(time + 2)
+            if (time > maxTimeRef.current - 0.25) {
+                setMaxTime(time + 0.25)
             }
             setEndTime0(time)
         }
@@ -652,7 +652,7 @@ export function Timeline({manager, closeTimeline}: {manager: TimelineManager, cl
 
                 // Calculate new width
                 const delta = e.deltaY > 0 ? -1 : 1
-                const newWidth = Math.max(500, timelineWidthRef.current + delta * 10)
+                const newWidth = Math.max(500, timelineWidthRef.current + delta * 20)
 
                 // (x - l + s) / w = c
                 // (x - l + s + k) / nw = c

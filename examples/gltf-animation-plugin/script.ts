@@ -1,4 +1,5 @@
 import {_testFinish, _testStart, GLTFAnimationPlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
 
@@ -17,6 +18,9 @@ async function init() {
 
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)
     gltfAnimation.autoplayOnLoad = true
+
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
+    ui.setupPluginUi(GLTFAnimationPlugin)
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     const result = await viewer.load('https://threejs.org/examples/models/gltf/Horse.glb', {
