@@ -38,8 +38,20 @@ export async function loadFileFromPath (path) {
     })
     monaco.languages.typescript.typescriptDefaults.addExtraLib(file, urlToUri(path));
 }
+
+const ignoredPackages = new Set([
+    'three',
+    'react',
+    '@types/webxr',
+    'style-value-types',
+    'tslib',
+    'hey-listen',
+    'framesync',
+    '@types/wicg-file-system-access',
+])
+
 export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0) {
-    if(packageName === 'three') return // too big, @types/three is already there...
+    if(ignoredPackages.has(packageName)) return // too big, @types/three is already there...
     if(packageName === '@types/three' && !version1.startsWith('https')) return // dont load @types/three from npm, use the fork
 
     // console.log('Loading package', packageName, 'version', version1, 'at level', level);

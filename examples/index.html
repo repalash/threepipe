@@ -337,7 +337,6 @@
                 const li = document.createElement('li');
                 const a = document.createElement('a');
                 const loc = window.location.origin + window.location.pathname.replace('/index.html', '/');
-                console.log(loc, example.href)
                 a.href = example.href.replace(loc, './');
                 a.textContent = example.label;
                 a.dataset.customId = example.id;
