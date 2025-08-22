@@ -2,19 +2,26 @@ import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewe
 import {IMaterial, IObject3D, IObject3DEventMap} from '../../core'
 import {basicObjectConstraints, ConstraintPropsType, TConstraintPropsType} from './helpers/BasicObjectConstraints'
 import {getOrCall, onChange, serializable, serialize} from 'ts-browser-helpers'
-import {generateUiConfig, uiDropdown, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiDropdown, uiFolderContainer, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {generateUUID} from '../../three'
 import type {AnimationObjectPlugin} from '../animation/AnimationObjectPlugin'
 
 export type ObjectConstraintsPluginEventMap = AViewerPluginEventMap
 
 /**
- * Plugin for managing object constraints in a Three.js scene.
+ * Object Constraints Plugin
+ *
+ * Create sophisticated object relationships and behaviors using simple constraint-based animation system inspired by Blender's constraints.
+ *
+ * The ObjectConstraintsPlugin provides a powerful constraint system that allows objects to automatically follow, copy, or respond to other objects' transformations and properties. This enables complex animations and interactive behaviors without manual keyframe animation.
  */
+@uiFolderContainer('Object Constraints')
 export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraintsPluginEventMap> {
     public static readonly PluginType = 'ObjectConstraintsPlugin'
 
-    enabled = true
+    @uiToggle()
+    @serialize()
+        enabled = true
 
     dependencies = []
 

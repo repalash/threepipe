@@ -30,8 +30,9 @@ async function init() {
     })
     await viewer.init()
 
-    // todo has issues with bounding box, picking
+    // for fat lines
     // GLTFLoader2.UseMeshLines = true
+    // LineGeometryGenerator.UseMeshLines = true
 
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'

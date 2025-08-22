@@ -51,6 +51,7 @@ export default defineConfig({
           {text: 'ShaderToy Shader Tutorial', link: 'notes/shadertoy-player'},
           {text: 'Using Vanilla Three.js code', link: 'notes/vanilla-threejs'},
           {text: 'Three.js properties in glTF', link: 'notes/gltf-three-extras-ext'},
+          {text: 'Follow Path Constraint', link: 'notes/follow-path-constraint'},
         ]
       },
       {
@@ -98,6 +99,8 @@ export default defineConfig({
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
               {text: 'TransformControlsPlugin', link: 'plugin/TransformControlsPlugin'},
+              {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
+              {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},
               {text: 'DeviceOrientationControlsPlugin', link: 'plugin/DeviceOrientationControlsPlugin'},
               {text: 'PointerLockControlsPlugin', link: 'plugin/PointerLockControlsPlugin'},

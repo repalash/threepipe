@@ -21,6 +21,7 @@ export interface ConstraintPropsTypes {
 
     copy_scale: {
         axis?: ('x' | 'y' | 'z')[],
+        uniform?: boolean,
     }
 
     copy_transforms: {
@@ -30,6 +31,13 @@ export interface ConstraintPropsTypes {
     follow_path: {
         offset?: number, // 0-1 value representing position along the path
         followCurve?: boolean, // Whether to orient the object along the path direction
+    }
+
+    look_at: {
+        // trackAxis?: 'x' | '-x' | 'y' | '-y' | 'z' | '-z', // Which axis points toward the target
+        upAxis?: 'x' | '-x' | 'y' | '-y' | 'z' | '-z', // Which axis represents "up"
+        // targetSpace?: 'world' | 'local',
+        // ownerSpace?: 'world' | 'local',
     }
 
 }
@@ -151,23 +159,30 @@ export const basicObjectConstraints: Record<TConstraintPropsType, {
             if (!target) return {changed: false}
             const {
                 axis = ['x', 'y', 'z'],
+                uniform = false,
             } = props
 
             // Get target's world scale
             const targetScale = new Vector3()
             target.getWorldScale(targetScale)
 
-            let changed = false
-            let isEnd = true
+            const last = obj.scale.clone()
 
+            let uniformSum = 0
             // Apply scale on specified axes with influence
             axis.forEach((a) => {
-                const last = obj.scale[a]
-                const newScale = targetScale[a] * influence + last * (1 - influence)
+                const newScale = targetScale[a] * influence + last[a] * (1 - influence)
                 obj.scale[a] = newScale
-                changed = changed || Math.abs(newScale - last) > 0.00001
-                isEnd = isEnd && Math.abs(newScale - last) < 0.00001
+                uniformSum = uniformSum + newScale
             })
+
+            if (uniform) {
+                const uniformScale = uniformSum / axis.length
+                obj.scale.set(uniformScale, uniformScale, uniformScale)
+            }
+
+            const changed = !last.equals(obj.scale)
+            const isEnd = last.distanceTo(obj.scale) < 0.00001
 
             return {changed, end: isEnd, change: 'scale'}
         },
@@ -299,9 +314,66 @@ export const basicObjectConstraints: Record<TConstraintPropsType, {
 
         setDirty(e: IObject3DEventMap['objectUpdate'], _isTarget?: boolean) {
             const key = e.change || e.key
-            // console.log(e)
-            // Update when target geometry changes or transform changes
             return !key || key === 'position' || key === 'transform' || key === 'geometry'
+        },
+    },
+    // what?
+    look_at: {
+        defaultProps: {
+            // trackAxis: 'z', // Which axis points toward the target
+            upAxis: 'y', // Which axis represents "up"
+            // targetSpace: 'world',
+            // ownerSpace: 'world',
+        },
+        update: (obj: IObject3D, target: IObject3D | undefined, props: ConstraintPropsTypes['look_at'], influence: number) => {
+            if (!target) return {changed: false}
+            const {
+                // trackAxis = 'z',
+                upAxis = 'y',
+                // targetSpace = 'world',
+                // ownerSpace = 'world',
+            } = props
+
+            // Get target's world position
+            const targetPos = target.getWorldPosition(new Vector3())
+
+            // Calculate direction to target
+            const dir = targetPos.clone().sub(obj.position).normalize()
+
+            // Calculate up direction
+            const up = new Vector3(0, 1, 0) // Default up is world up
+            if (upAxis === 'x') up.set(1, 0, 0)
+            else if (upAxis === '-x') up.set(-1, 0, 0)
+            else if (upAxis === 'y') up.set(0, 1, 0)
+            else if (upAxis === '-y') up.set(0, -1, 0)
+            else if (upAxis === 'z') up.set(0, 0, 1)
+            else if (upAxis === '-z') up.set(0, 0, -1)
+
+            // Calculate right direction
+            const right = new Vector3().crossVectors(up, dir).normalize()
+
+            // Recalculate up direction as it may have changed
+            up.crossVectors(dir, right).normalize()
+
+            // Create a rotation matrix
+            const m = new Matrix4()
+            m.makeBasis(right, up, dir)
+
+            // Extract the rotation from the matrix
+            const q = new Quaternion().setFromRotationMatrix(m)
+
+            // Apply the rotation to the object
+            obj.quaternion.slerp(q, influence)
+
+            const changed = !obj.quaternion.equals(q)
+            const isEnd = obj.quaternion.angleTo(q) < 0.00001
+
+            return {changed, end: isEnd, change: 'rotation'}
+        },
+
+        setDirty(e: IObject3DEventMap['objectUpdate'], _isTarget?: boolean) {
+            const key = e.change || e.key
+            return !key || key === 'position' || key === 'rotation' || key === 'quaternion' || key === 'scale' || key === 'transform'
         },
     },
 }

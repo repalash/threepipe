@@ -4,8 +4,8 @@ prev:
     link: './InteractionPromptPlugin'
 
 next: 
-    text: 'ContactShadowGroundPlugin'
-    link: './ContactShadowGroundPlugin'
+    text: 'ObjectConstraintsPlugin'
+    link: './ObjectConstraintsPlugin'
 
 ---
 

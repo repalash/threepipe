@@ -3,7 +3,10 @@ prev:
   text: 'Using Vanilla Three.js style code'
   link: './vanilla-threejs'
 
-next: false
+next:
+  text: 'Follow Path Constraint Animation'
+  link: './follow-path-constraint'
+
 aside: false
 ---
 
