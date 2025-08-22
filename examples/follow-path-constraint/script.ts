@@ -28,6 +28,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        renderScale: 'auto',
         plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, ObjectConstraintsPlugin, PopmotionPlugin, Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin],
         dropzone: false,
     })

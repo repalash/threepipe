@@ -108,6 +108,7 @@ export class ThreeEditor extends ThreeViewer {
         new DepthBufferPlugin(HalfFloatType, false, false),
         new NormalBufferPlugin(HalfFloatType, false),
         CameraViewPlugin,
+        FullScreenPlugin,
         PickingPlugin,
         ObjectConstraintsPlugin,
         new TransformControlsPlugin(false),
