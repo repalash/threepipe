@@ -7,13 +7,14 @@ next:
     text: '@threepipe/plugin-3d-tiles-renderer'
     link: './plugin-3d-tiles-renderer'
 
+aside: false
 ---
 
 # @threepipe/plugin-svg-renderer
 
 Exports [ThreeSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs/classes/ThreeSVGRendererPlugin.html) and [BasicSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs/classes/BasicSVGRendererPlugin.html) which provide support for rendering the 3d scene as [SVG(Scalable Vector Graphics)](https://developer.mozilla.org/en-US/docs/Web/SVG). The generated SVG is compatible with browser rendering and other software like figma, illustrator etc.
 
-[Example](https://threepipe.org/examples/#three-svg-renderer/) &mdash;
+[Example](https://threepipe.org/examples/#three-svg-renderer-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/svg-renderer/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/svg-renderer/docs) &mdash;
 [GPLv3 License](https://github.com/repalash/threepipe/blob/master/plugins/svg-renderer/LICENSE)
@@ -23,6 +24,8 @@ Exports [ThreeSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs
 ```bash
 npm install @threepipe/plugin-svg-renderer
 ```
+
+<iframe src="https://threepipe.org/examples/three-svg-renderer-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe SVG Renderer Plugin"></iframe>
 
 ::: warning Note
 This is still a WIP. API might change a bit

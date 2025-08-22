@@ -76,7 +76,7 @@ assetExporterPlugin.encrypt = true
 await sharePlugin.shareViewerLink()
 ```
 
-### AWSClientPlugin
+## AWSClientPlugin
 
 [//]: # (todo: image)
 
