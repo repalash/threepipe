@@ -1,4 +1,14 @@
-import {Matrix4, Texture, TextureDataType, UnsignedByteType, Vector2, Vector3, Vector4, WebGLRenderTarget} from 'three'
+import {
+    LinearSRGBColorSpace,
+    Matrix4,
+    Texture,
+    TextureDataType,
+    UnsignedByteType,
+    Vector2,
+    Vector3,
+    Vector4,
+    WebGLRenderTarget,
+} from 'three'
 import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
@@ -14,6 +24,20 @@ import {uiConfigMaterialExtension} from '../../materials/MaterialExtender'
 import {GBufferPlugin, GBufferUpdaterContext} from './GBufferPlugin'
 
 export type SSAOPluginTarget = WebGLRenderTarget
+
+/**
+ * SSAO Packing modes for different texture formats and use cases
+ *
+ * - **Mode 1**: `(r: ssao, gba: depth)` - SSAO in red channel, depth in green/blue/alpha
+ * - **Mode 2**: `(rgb: ssao, a: 1)` - SSAO in RGB channels, alpha set to 1
+ * - **Mode 3**: `(rgba: packed_ssao)` - Packed SSAO data across all RGBA channels
+ * - **Mode 4**: `(rgb: packed_ssao, a: 1)` - Packed SSAO in RGB channels, alpha set to 1
+ *
+ * @remarks
+ * Currently only modes 1 and 2 are fully supported in the shader implementation.
+ * Modes 3 and 4 are available for future use but may require additional shader updates.
+ */
+export type SSAOPacking = 1 | 2 | 3 | 4
 
 /**
  * SSAO Plugin
@@ -45,15 +69,20 @@ export class SSAOPlugin
     // @uiSlider('Buffer Size Multiplier', [0.25, 2.0], 0.25)
     readonly sizeMultiplier: number // cannot be changed after creation (for now)
 
+    // @uiDropdown
+    readonly packing: SSAOPacking // cannot be changed after creation (for now)
+
     constructor(
         bufferType: TextureDataType = UnsignedByteType,
         sizeMultiplier = 1,
         enabled = true,
+        packing: SSAOPacking = 1,
     ) {
         super()
         this.enabled = enabled
         this.bufferType = bufferType
         this.sizeMultiplier = sizeMultiplier
+        this.packing = packing
     }
 
     protected _createTarget(recreate = true) {
@@ -69,6 +98,7 @@ export class SSAOPlugin
                     // minFilter: NearestFilter,
                     // generateMipmaps: false,
                     // encoding: LinearEncoding,
+                    colorSpace: LinearSRGBColorSpace,
                 })
 
         this.texture = this.target.texture
@@ -102,7 +132,7 @@ export class SSAOPlugin
         if (!this._viewer.renderManager.gbufferTarget || !this._viewer.renderManager.gbufferUnpackExtension)
             throw new Error('SSAOPlugin: GBuffer target not created. GBufferPlugin or DepthBufferPlugin is required.')
         this._createTarget(true)
-        return new SSAOPluginPass(this.passId, ()=>this.target)
+        return new SSAOPluginPass(this.passId, ()=>this.target, this.packing)
     }
 
     onAdded(viewer: ThreeViewer) {
@@ -209,18 +239,18 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     @serialize() @uniform({propKey: 'ssaoSplitX', onChange: SSAOPluginPass.prototype.setDirty})
         split = 0
 
-    constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>) {
+    constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>, packing: SSAOPacking = 1) {
         super({
             defines: {
                 ['LINEAR_DEPTH']: 1, // todo set from unpack extension
                 ['NUM_SAMPLES']: 11,
                 ['NUM_SPIRAL_TURNS']: 3,
-                ['SSAO_PACKING']: 1, // 1 is (r: ssao, gba: depth), 2 is (rgb: ssao, a: 1), 3 is (rgba: packed_ssao), 4 is (rgb: packed_ssao, a: 1)
+                ['SSAO_PACKING']: packing, // 1 is (r: ssao, gba: depth), 2 is (rgb: ssao, a: 1), 3 is (rgba: packed_ssao), 4 is (rgb: packed ssao, a: 1)
                 ['PERSPECTIVE_CAMERA']: 1, // set in PerspectiveCamera2
                 ['CHECK_GBUFFER_FLAG']: 0,
             },
             uniforms: {
-                tLastThis: {value: null},
+                // tLastThis: {value: null},
                 screenSize: {value: new Vector2(0, 0)}, // set in ExtendedRenderMaterial
                 saoData: {value: new Vector4()},
                 frameCount: {value: 0}, // set in RenderManager
@@ -245,8 +275,12 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         // this._getUiConfig = this._getUiConfig.bind(this)
     }
 
+    copyToWriteBuffer = false
+
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
+        this.needsSwap = false
         if (!this.enabled) return
+
         const target = getOrCall(this.target)
         if (!target) {
             console.warn('SSAOPluginPass: target not defined')
@@ -256,16 +290,28 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         // if (!this.material.defines.HAS_GBUFFER) {
         //     console.warn('SSAOPluginPass: DepthNormalBuffer required for ssao')
         // }
-        renderer.renderManager.blit(writeBuffer, {
-            source: target.texture,
-        })
-        this.uniforms.tLastThis.value = writeBuffer.texture
+
+        // tLastThis is not used anymore. the ssao is merged across frames with progressive plugin
+        // renderer.renderManager.blit(writeBuffer, {
+        //     source: target.texture,
+        //     respectColorSpace: true,
+        // })
+        // this.uniforms.tLastThis.value = writeBuffer.texture
         super.render(renderer, target, readBuffer, deltaTime, maskActive)
 
         // todo
         // if (this.smoothEnabled) {
         //     this.bilateralPass.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
         // }
+
+        if (this.copyToWriteBuffer) {
+            renderer.renderManager.blit(writeBuffer, {
+                source: target.texture,
+                respectColorSpace: true,
+            })
+            this.needsSwap = true
+        }
+
     }
 
     private _updateParameters() {
@@ -296,7 +342,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         },
         shaderExtender: (shader, _material, _renderer) => {
             if (!shader.defines?.SSAO_ENABLED) return
-            // todo: only SSAO_PACKING = 1 and 2 is supported. Not 3 and 4 right now.
+            // todo: only SSAO_PACKING = 1 and 2 are supported. Not 3 and 4 right now.
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <aomap_fragment>', ssaoPatch)
         },
         onObjectRender: (_object, material, renderer: any) => {

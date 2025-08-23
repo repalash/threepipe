@@ -182,6 +182,9 @@ export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipeli
     constructor(public readonly passId: IPassID, public target?: ValOrFunc<WebGLRenderTarget|undefined>, maxIntensity = 120) {
         super(undefined, maxIntensity)
     }
+
+    copyToWriteBuffer = true
+
     render(renderer: IWebGLRenderer, writeBuffer: WebGLRenderTarget, readBuffer: WebGLRenderTarget, deltaTime: number, maskActive: boolean) {
         if (!this.enabled) return
         const target = getOrCall(this.target)
@@ -189,8 +192,8 @@ export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipeli
             console.warn('ProgressiveBlendPass: target not defined')
             return
         }
+        this.needsSwap = false
         if (renderer.renderManager.frameCount < 1) {
-            this.needsSwap = false
             if (readBuffer?.texture)
                 renderer.renderManager.blit(target, {
                     source: readBuffer.texture,
@@ -198,12 +201,15 @@ export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipeli
                 })
             return
         }
-        this.needsSwap = true
         super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
-        renderer.renderManager.blit(target, {
-            source: writeBuffer.texture,
-            respectColorSpace: false,
-        })
+
+        if (this.copyToWriteBuffer) {
+            renderer.renderManager.blit(target, {
+                source: writeBuffer.texture,
+                respectColorSpace: false,
+            })
+            this.needsSwap = true
+        }
     }
 
     beforeRender(_: IScene, _1: ICamera, renderManager: IRenderManager) {
