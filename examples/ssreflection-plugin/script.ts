@@ -40,7 +40,7 @@ async function init() {
     ui.setupPluginUi(PickingPlugin)
     ui.setupPluginUi(BloomPlugin)
 
-    const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     if (!ssrefl.inlineShaderRayTrace) {
         targetPreview.addTarget(() => ssrefl.target, 'ssrefl')
     }

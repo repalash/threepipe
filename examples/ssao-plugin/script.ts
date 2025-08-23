@@ -1,6 +1,6 @@
 import {
     _testFinish, _testStart,
-    LoadingScreenPlugin,
+    LoadingScreenPlugin, ProgressivePlugin,
     RenderTargetPreviewPlugin,
     SSAAPlugin,
     SSAOPlugin,
@@ -18,7 +18,7 @@ const viewer = new ThreeViewer({
 
 async function init() {
 
-    const ssaoPlugin = viewer.addPluginSync(new SSAOPlugin(UnsignedByteType, 1))
+    const ssaoPlugin = viewer.addPluginSync(new SSAOPlugin(UnsignedByteType, 1, true, 2))
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     await viewer.load('https://threejs.org/examples/models/gltf/kira.glb', {
@@ -26,22 +26,28 @@ async function init() {
         autoScale: true,
     })
 
+    viewer.scene.mainCamera.position.set(-4, 0., 0)
+
     const ssaoTarget = ssaoPlugin.target
     if (!ssaoTarget) {
         throw new Error('ssaoPlugin.target returned undefined')
     }
 
-    // to render ssao buffer to screen, uncomment this line:
-    // viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
-    // or set a custom pipeline
-    // viewer.renderManager.autoBuildPipeline = false
-    // viewer.renderManager.pipeline = ['gbuffer', 'ssao', 'screen']
+    // set a custom pipeline to see SSAO. (Note that packing is set to 2 in SSAOPlugin constructor view the target with alpha=1)
+    viewer.renderManager.autoBuildPipeline = false
+    viewer.renderManager.pipeline = ['gbuffer', 'ssao', 'progressive', 'screen']
+    ssaoPlugin.pass!.copyToWriteBuffer = true // so that screen pass can access ssao result
 
-    const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
+    // or to render ssao buffer to screen, uncomment this line:
+    // viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
+
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>ssaoTarget, 'ssao', false, true, true, (s)=>`${s} = vec4(${s}.r);`)
+    targetPreview.addTarget(()=>viewer.getPlugin(ProgressivePlugin)?.target, 'progressive', false, false, true)
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
-    ui.setupPluginUi(SSAOPlugin)
+    ui.setupPluginUi(SSAOPlugin, {expanded: true})
+    ui.setupPluginUi(ProgressivePlugin)
 }
 
 _testStart()

@@ -7,6 +7,7 @@ next:
     text: 'CanvasSnapshotPlugin'
     link: './CanvasSnapshotPlugin'
 
+aside: false
 ---
 
 # SSAOPlugin
@@ -16,6 +17,8 @@ next:
 [Example](https://threepipe.org/examples/#ssao-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/SSAOPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/SSAOPlugin.html)
+
+<iframe src="https://threepipe.org/examples/ssao-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe SSAO Plugin Example"></iframe>
 
 SSAO Plugin adds support for [Screen Space Ambient Occlusion](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) to the viewer. Simply add the plugin to the viewer to use it.
 

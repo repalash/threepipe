@@ -60,7 +60,7 @@ async function init() {
     const getFlags = ()=>({texture: gbufferPlugin.flagsTexture})
     const getDepthTexture = ()=>({texture: gbufferPlugin.depthTexture})
 
-    const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(getNormalDepth, 'normalDepth')
     targetPreview.addTarget(getFlags, 'gBufferFlags')
     targetPreview.addTarget(getDepthTexture, 'depthTexture')

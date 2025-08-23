@@ -40,7 +40,7 @@ async function init() {
     // viewer.renderManager.screenPass.overrideReadBuffer = depthTarget
 
 
-    const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>depthTarget, 'depth')
 
     createSimpleButtons({

@@ -61,7 +61,7 @@ async function init() {
     ui.setupPluginUi(VelocityBufferPlugin)
     ui.setupPluginUi(AssetExporterPlugin)
 
-    const targetPreview = await viewer.addPlugin(RenderTargetPreviewPlugin)
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(() => ssgi.target, 'ssgi')
     // const gb = viewer.getPlugin(GBufferPlugin)
     // targetPreview.addTarget(() => gb?.target, 'depth')
