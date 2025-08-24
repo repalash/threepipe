@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threepipe React/JS Sample</title>
+    <style>
+        html, body{
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+              "three": "./../../dist/index.mjs",
+              "threepipe": "./../../dist/index.mjs",
+              "react": "https://esm.sh/react@19",
+              "react-dom/client": "https://esm.sh/react-dom@19/client",
+              "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime",
+              "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.3.0?external=react,react-dom,three",
+              "@threepipe/plugin-r3f": "./../../plugins/r3f/dist/index.mjs"
+            }
+        }
+    </script>
+
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+</head>
+<body>
+<div id="root"></div>
+<script id="example-script" type="module" data-scripts="./index.html">
+    import {LoadingScreenPlugin, _testFinish, _testStart} from 'threepipe'
+    import React from 'react'
+    import {createRoot} from 'react-dom/client'
+    import {ViewerCanvas, Asset, Model} from '@threepipe/plugin-r3f'
+    import htm from 'https://esm.sh/htm'
+    const html = htm.bind(React.createElement)
+
+    _testStart()
+    createRoot(document.getElementById('root')).render(
+        html` <${ViewerCanvas}
+            id=${"three-canvas"}
+            style=${{ width: 800, height: 600 }}
+            plugins=${[LoadingScreenPlugin]}
+            onMount=${async (viewer) => {
+                console.log('Loaded Viewer', viewer)
+                _testFinish()
+            }}
+        >
+            <${React.Suspense}>
+                <${Asset} url=${'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'}
+                          autoSetBackground=${true}/>
+                <${Model} url=${'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}/>
+            <//>
+        <//>
+    `)
+</script>
+</body>
+</html>

@@ -35,3 +35,4 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-path-tracing](../package/plugin-path-tracing) - Plugins for [path-tracing](https://en.wikipedia.org/wiki/Path_tracing). Using [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
 - [@threepipe/plugin-assimpjs](../package/plugin-assimpjs) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.
 - [@threepipe/plugin-timeline-ui](../package/plugin-timeline-ui) - A timeline UI component and plugin to manage global viewer timeline and animations.
+- [@threepipe/plugin-r3f](../package/plugin-r3f) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context.

@@ -136,6 +136,59 @@ Check it in action: https://threepipe.org/examples/#react-tsx-sample/
 
 Other examples in js: https://threepipe.org/examples/#react-js-sample/ and jsx: https://threepipe.org/examples/#react-jsx-sample/
 
+### React Three Fiber (R3F)
+
+For a more declarative approach using JSX syntax, you can use the [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) package which provides React Three Fiber integration.
+
+```bash
+npm install @threepipe/plugin-r3f
+```
+
+Here is a sample [React Three Fiber](https://r3f.docs.pmnd.rs/) component to render a model with an environment map using declarative JSX syntax.
+
+```tsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { ViewerCanvas, Asset, Model } from '@threepipe/plugin-r3f'
+import { LoadingScreenPlugin } from 'threepipe'
+
+function App() {
+  return (
+    <ViewerCanvas
+      id="three-canvas"
+      style={{width: 800, height: 600}}
+      plugins={[LoadingScreenPlugin]}
+      onMount={async (viewer) => {
+        console.log('Viewer mounted:', viewer)
+      }}
+    >
+      <React.Suspense fallback={<mesh>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="orange" />
+      </mesh>}>
+        <Asset 
+          url="https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
+          autoSetBackground={true}
+        />
+        <Asset 
+          url="https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf"
+          autoCenter={true}
+          autoScale={true}
+        />
+      </React.Suspense>
+    </ViewerCanvas>
+  )
+}
+
+createRoot(document.getElementById('root')).render(<App />)
+```
+
+`ViewerCanvas` is the wrapper around the r3f `Canvas` component that initializes the ThreePipe viewer and provides the viewer context to all child components.
+
+Any children added to this component are added to the scene model root. 
+
+Check it in action: https://threepipe.org/examples/#r3f-tsx-sample/
+
 ### Vue.js
 
 A sample [vue.js](https://vuejs.org/) component in js to render a model with an environment map.
@@ -169,7 +222,7 @@ Check it in action: https://threepipe.org/examples/#vue-html-sample/
 
 Another example with Vue SFC(Single file component): https://threepipe.org/examples/#vue-sfc-sample/
 
-### Svelte (4)
+### Svelte
 
 A sample [svelte](https://svelte.dev/) component in js to render a model with an environment map.
 
@@ -197,6 +250,11 @@ A sample [svelte](https://svelte.dev/) component in js to render a model with an
 ```
 
 Check it in action: https://threepipe.org/examples/#svelte-sample/
+
+For Svelte 5, simply initialize `canvasRef` to `$state()` -
+```js
+let canvasRef = $state();
+```
 
 ### NPM/YARN
 
@@ -258,6 +316,7 @@ Many features will be added but the core API will not change significantly in fu
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
     - [React](#react)
+    - [React Three Fiber (R3F)](#react-three-fiber-r3f)
     - [Vue.js](#vuejs)
     - [Svelte](#svelte)
     - [NPM/YARN Package](#npmyarn)
@@ -357,6 +416,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-path-tracing](https://threepipe.org/package/plugin-path-tracing.html) - Plugins for [path-tracing](https://en.wikipedia.org/wiki/Path_tracing). Using [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
   - [@threepipe/plugin-assimpjs](https://threepipe.org/package/plugin-assimpjs.html) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.
   - [@threepipe/plugin-timeline-ui](https://threepipe.org/package/plugin-timeline-ui.html) - A timeline UI component and plugin to manage global viewer timeline and animations.
+  - [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context.
 
 ## Documentation
 

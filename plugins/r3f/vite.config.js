@@ -2,6 +2,7 @@ import {defineConfig} from 'vite'
 import dts from 'vite-plugin-dts'
 import packageJson from './package.json';
 import {commonPlugins, globalsReplacePlugin} from '../../scripts/vite-utils.mjs';
+import react from '@vitejs/plugin-react'
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name } = packageJson
@@ -12,10 +13,11 @@ const globals = {
     'threepipe': 'threepipe',
     'uiconfig.js': 'threepipe',
     'ts-browser-helpers': 'threepipe',
-    // 'react': 'react',
-    // 'react-dom': 'react-dom',
-    // 'react-dom/client': 'react-dom/client',
-    // 'react/jsx-runtime': 'react/jsx-runtime',
+    'react': 'react',
+    'react-dom': 'react-dom',
+    'react-dom/client': 'react-dom/client',
+    'react/jsx-runtime': 'react/jsx-runtime',
+    '@react-three/fiber': '@react-three/fiber',
 }
 
 export default defineConfig({
@@ -36,7 +38,7 @@ export default defineConfig({
         } : null,
         lib: {
             entry: 'src/index.ts',
-            formats: isProd ? ['es', 'umd'] : ['es'],
+            formats: ['es'],
             name: name,
             fileName: (format) => (format === 'umd' ? main : module).replace('dist/', ''),
         },
@@ -55,6 +57,7 @@ export default defineConfig({
         },
     },
     plugins: [
+        react(),
         isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
         ...globalsReplacePlugin(globals, isProd),
         ...commonPlugins(packageJson, __dirname, isProd),

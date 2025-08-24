@@ -3,7 +3,10 @@ prev:
     text: '@threepipe/plugin-path-tracing'
     link: './plugin-path-tracing'
 
-next: false
+next:
+  text: '@threepipe/plugin-r3f'
+  link: './plugin-r3f'
+
 aside: false
 ---
 

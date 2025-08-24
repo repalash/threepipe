@@ -1,0 +1,46 @@
+{
+    "compilerOptions": {
+        "baseUrl": "./src",
+        "rootDir": "./src",
+        "allowJs": true,
+        "checkJs": false,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "isolatedModules": true,
+        "module": "ESNext",
+        "noImplicitAny": true,
+        "declaration": true,
+        "declarationMap": true,
+        "declarationDir": "dist",
+        "outDir": "dist",
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "moduleResolution": "bundler",
+        "emitDecoratorMetadata": false,
+        "sourceMap": true,
+        "allowImportingTsExtensions": true,
+        "target": "ES2022",
+        "jsx": "react-jsx",
+        "useDefineForClassFields": true,
+        "noUncheckedSideEffectImports": true,
+        "strictNullChecks": true,
+        "lib": [
+            "es2020",
+            "esnext",
+            "dom",
+            "DOM.Iterable"
+        ]
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts",
+        "dist"
+    ]
+}
