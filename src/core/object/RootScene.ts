@@ -357,7 +357,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * @deprecated Use {@link addObject}
      */
     add(...object: Object3D[]): this {
-        super.add(...object.filter(o=>o.parent !== this)) // to prevent multiple event dispatch
+        const filter = object.filter(o=>o.parent !== this)
+        filter.length && super.add(...filter) // to prevent multiple event dispatch
         // this._onSceneUpdate() // this is not needed, since it will be bubbled up from the object3d and we will get event objectUpdate
         return this
     }
