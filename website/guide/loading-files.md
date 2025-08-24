@@ -1,11 +1,11 @@
 ---
 prev:
-    text: 'Features'
-    link: './features'
+    text: '3D Assets/Files'
+    link: './3d-assets'
 
 next:
-    text: 'Exporting Files'
-    link: './exporting-files'
+    text: 'Materials Guide'
+    link: './materials'
 ---
 
 # Loading files
@@ -239,6 +239,113 @@ SVG strings can be converted to data urls using the [svgUrl](https://repalash.co
 const svgDataUrl = svgUrl`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"> ... </svg>`;
 const texture = await viewer.load<ITexture>(dataUrl)
 ```
+
+## Additional File Formats with Plugins
+
+Threepipe supports many additional file formats through plugins and packages. These can be added to extend the import capabilities beyond the built-in formats.
+
+### Core Plugins
+
+Built-in plugins that add support for additional formats:
+
+- **Rhino 3DM Files** - [Rhino3dmLoadPlugin](../plugin/Rhino3dmLoadPlugin)
+  - `.3dm` - Rhino 3D Model files with full geometry, materials, and metadata support
+  
+- **Point Cloud Files** - [PLYLoadPlugin](../plugin/PLYLoadPlugin)
+  - `.ply` - Stanford Polygon Format for 3D meshes and point clouds
+  
+- **3D Printing Files** - [STLLoadPlugin](../plugin/STLLoadPlugin)
+  - `.stl` - STereoLithography format for 3D printing
+  
+- **Compressed Textures** - [KTX2LoadPlugin](../plugin/KTX2LoadPlugin), [KTXLoadPlugin](../plugin/KTXLoadPlugin)
+  - `.ktx2` - Khronos Texture format with GPU compression support
+  - `.ktx` - Original Khronos Texture format
+  
+- **Apple AR Files** - [USDZLoadPlugin](../plugin/USDZLoadPlugin)
+  - `.usdz` - Universal Scene Description ZIP for AR Quick Look
+  
+- **Compressed glTF** - [GLTFMeshOptDecodePlugin](../plugin/GLTFMeshOptDecodePlugin)
+  - `.glb/.gltf` with `EXT_meshopt_compression` extension for smaller file sizes
+
+### @threepipe Packages
+
+External packages that add support for specialized formats:
+
+- **Gaussian Splatting** - [@threepipe/plugin-gaussian-splatting](../package/plugin-gaussian-splatting)
+  - `.splat` (gaussian splat format) - 3D Gaussian Splatting files for photorealistic rendering
+  
+- **Blender Files** - [@threepipe/plugin-blend-importer](../package/plugin-blend-importer) (WIP)
+  - `.blend` - Native Blender files with partial support
+  
+- **3D Tiles** - [@threepipe/plugin-3d-tiles-renderer](../package/plugin-3d-tiles-renderer)
+  - `.b3dm` - Batched 3D Model format for large-scale 3D data
+  - `.i3dm` - Instanced 3D Model format
+  - `.cmpt` - Composite format for combining tile formats
+  - `.pnts` - Point Cloud format for massive point datasets
+  - `.json/.tileset` - 3D Tileset JSON for defining tile hierarchies
+  
+- **Extended Import Support** - [@threepipe/plugins-extra-importers](../package/plugins-extra-importers)
+  - Additional three.js supported formats through various loaders
+  - Includes support for specialized geometry and material formats
+  
+- **AssimpJS Integration** - [@threepipe/plugin-assimpjs](../package/plugin-assimpjs)
+  - 40+ file formats.
+  - Cross-platform 3D model importing through Assimp library
+
+### Usage Examples
+
+Adding plugin support for additional formats:
+
+```typescript
+// Add support for Rhino 3DM files
+viewer.addPluginSync(Rhino3dmLoadPlugin)
+const rhinoModel = await viewer.load<IObject3D>('./model.3dm')
+
+// Add support for point clouds
+viewer.addPluginSync(PLYLoadPlugin)
+const pointCloud = await viewer.load<IObject3D>('./points.ply')
+
+// Add support for compressed textures
+viewer.addPluginSync(KTX2LoadPlugin)
+const compressedTexture = await viewer.load<ITexture>('./texture.ktx2')
+
+// Add support for 3D Gaussian Splats
+import { GaussianSplattingPlugin } from '@threepipe/plugin-gaussian-splatting'
+viewer.addPluginSync(new GaussianSplattingPlugin())
+const splatModel = await viewer.load<IObject3D>('./scene.splat')
+```
+
+### Installation
+
+Core plugins are included with threepipe and can be imported directly:
+
+```typescript
+import { Rhino3dmLoadPlugin, PLYLoadPlugin, STLLoadPlugin } from 'threepipe'
+```
+
+External packages need to be installed separately:
+
+```bash
+npm install @threepipe/plugin-gaussian-splatting
+npm install @threepipe/plugin-3d-tiles-renderer
+npm install @threepipe/plugin-assimpjs
+```
+
+::: tip Performance Considerations
+
+Some plugins like AssimpJS and 3D Tiles require additional WebAssembly files and may have larger bundle sizes. Consider loading these plugins dynamically or using code splitting for better initial load performance.
+
+:::
+
+::: info File Format Recommendations
+
+- Use **glTF/GLB** for general 3D models (best performance and feature support)
+- Use **3DM** for Rhino/CAD workflows with complex geometry
+- Use **Gaussian Splats** for photorealistic scene capture
+- Use **3D Tiles** for large-scale geospatial or architectural data
+- Use **PLY** for point cloud data and research datasets
+
+:::
 
 ## Custom file types
 

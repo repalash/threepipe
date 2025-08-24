@@ -4,8 +4,8 @@ prev:
     link: './serialization'
 
 next:
-    text: 'Screen Pass'
-    link: './screen-pass'
+    text: 'Material Extension'
+    link: './material-extension'
 ---
 
 # Plugin System

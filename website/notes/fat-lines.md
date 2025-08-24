@@ -9,7 +9,7 @@ aside: false
 
 # Fat Lines: Spiral Example
 
-<iframe src="https://threepipe.org/examples/fat-line-spiral/" style="width:100%;height:600px;border:none;"></iframe>
+<iframe src="https://threepipe.org/examples/fat-line-spiral/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Fat Line Spiral Example"></iframe>
 
 This example shows how to use ThreePipe's fat lines (MeshLine) to draw a thick, colorful spiral. The spiral's shape and color are generated in code, and you can adjust its parameters live using the UI.
 

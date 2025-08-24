@@ -3,13 +3,16 @@ prev:
   text: 'Saving three.js properties in glTF'
   link: './gltf-three-extras-ext'
   
-next: false
+next:
+  text: 'Material Extension Plugin'
+  link: './material-extension-plugin'
+
 aside: false
 ---
 
 # Follow Path Constraint Animation
 
-<iframe src="https://threepipe.org/examples/follow-path-constraint/" style="width:100%;height:600px;border:none;"></iframe>
+<iframe src="https://threepipe.org/examples/follow-path-constraint/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Follow Path Constraint Example"></iframe>
 
 This example demonstrates how to use ThreePipe's Object Constraints system to make 3D objects follow a curved path. A 3D helmet model smoothly travels along a spiral path, automatically orienting itself to face the direction of travel.
 

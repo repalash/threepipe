@@ -22,6 +22,13 @@ Getting started with Threepipe is easy. You can use it in your HTML/JS, React, V
 - An existing project or willingness to start a new one
 - Basic knowledge of JavaScript/TypeScript
 
+::: tip Assets
+
+In 3D Rendering, we use different kinds of assets like 3D models, textures, environment maps, etc. to create a scene.
+Learn more about different kinds of [3D Assets](./3d-assets.md) and where to find them.
+
+:::
+
 ## Quickstart
 
 ### Stackblitz

@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'Loading Files'
-    link: './loading-files'
+    text: 'Materials'
+    link: './materials'
 
 next:
     text: 'Render Pipeline'
@@ -41,6 +41,32 @@ downloadBlob(glb, 'object.glb')
 ```
 
 Check the example [glb-export](https://threepipe.org/examples/#glb-export/) to see a demo.
+
+::: tip DRACO compression
+
+Models can be processed with [gltf-transform](https://gltf-transform.donmccurdy.com/) to apply DRACO compression and other optimizations after exporting.
+
+```typescript
+viewer.addPluginSync(GLTFDracoExportPlugin)
+const blob = await viewer.export(mesh, {
+    exportExt: 'glb',
+    embedUrlImages: true, // embed images in glb even when url is available.
+    compress: true,
+})
+```
+
+Check the example [glb-export-draco](https://threepipe.org/examples/#glb-export-draco/) to see a demo.
+:::
+
+::: info Other formats
+
+Only glTF/glb export supports all serialization in threepipe, and is the recommended format for exporting 3D models.
+
+But in some cases it might be required to export your files in other formats, which can be achieved using plugins or any third-party three.js exporters.
+
+To export fbx files, `@threepipe/plugin-assimpjs` plugin can be used. Check out the [package docs](../package/plugin-assimpjs#export-to-fbx-convert-to-fbx) and the [fbx-export example](https://threepipe.org/examples/#fbx-export/) for more details.
+
+:::
 
 ## Exporting Materials
 
@@ -121,7 +147,7 @@ downloadBlob(blob, texture.name + '.' + blob.ext)
 Render target textures can be exported with `viewer.renderManager.exportRenderTarget` or `viewer.export`,
 read about [Exporting Render Targets](#exporting-render-targets) below.
 
-TODO: add examples for texture export
+[//]: # (TODO: add examples for texture export)
 
 Textures and Uint8 Data Textures can be exported as a data url or copied to a new canvas
 ```typescript
@@ -152,7 +178,7 @@ const texture = await viewer.load('https://example.com/file.jpeg')
 const dataUrl = await imageBitmapToBase64(texture.image, 'image/png', 0.85);
 ```
 
-TODO: add support for texture export as images in AssetExporter
+[//]: # (TODO: add support for texture export as images in AssetExporter)
 
 ## Exporting Render Targets
 
@@ -175,3 +201,5 @@ if (blob) downloadBlob(blob, target.texture.name + '.' + blob.ext)
 ::: tip
 `exportExt` is determined automatically if not specified.
 :::
+
+Checkout the example [render-target-export](https://threepipe.org/examples/#render-target-export/) to see a demo.

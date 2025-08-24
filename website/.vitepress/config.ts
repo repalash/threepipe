@@ -32,13 +32,15 @@ export default defineConfig({
       {
         text: 'Manual', collapsed: false,
         items: [
+          {text: '3D Assets', link: 'guide/3d-assets'},
           {text: 'Loading Files', link: 'guide/loading-files'},
+          {text: 'Materials', link: 'guide/materials'},
           {text: 'Exporting Files', link: 'guide/exporting-files'},
           {text: 'Render Pipeline', link: 'guide/render-pipeline'},
-          {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'UI Configuration', link: 'guide/ui-config'},
           {text: 'Serialization', link: 'guide/serialization'},
           {text: 'Plugin System', link: 'guide/plugin-system'},
+          {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
         ]
       },
@@ -51,7 +53,8 @@ export default defineConfig({
           {text: 'ShaderToy Shader Tutorial', link: 'notes/shadertoy-player'},
           {text: 'Using Vanilla Three.js code', link: 'notes/vanilla-threejs'},
           {text: 'Three.js properties in glTF', link: 'notes/gltf-three-extras-ext'},
-          {text: 'Follow Path Constraint', link: 'notes/follow-path-constraint'},
+          {text: 'Follow Path Constraint Animation', link: 'notes/follow-path-constraint'},
+          {text: 'Material Extension Plugin', link: 'notes/material-extension-plugin'},
         ]
       },
       {

@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'Material Extension'
-  link: './material-extension'
+    text: 'Render Pipeline'
+    link: './render-pipeline'
 
 next:
     text: 'Serialization'
@@ -21,7 +21,7 @@ The UIs can be generated at runtime using any of the UI plugins like [TweakpaneU
 
 An example showing how to create a UI for a material
 
-<iframe src="https://threepipe.org/examples/material-uiconfig/" style="width:100%;height:600px;border:none;"></iframe>
+<iframe src="https://threepipe.org/examples/material-uiconfig/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Material UI Config Example"></iframe>
 
 ```typescript
 const ui = viewer.addPluginSync(TweakpaneUiPlugin)
@@ -124,4 +124,3 @@ ui.appendChild({
 ```
 
 [//]: # (TODO: create example/codepen for this)
-

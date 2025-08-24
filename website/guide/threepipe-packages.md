@@ -3,10 +3,9 @@ prev:
     text: 'Core Plugins'
     link: './core-plugins'
 
-#next:
-#    text: '@threepipe Packages'
-#    link: './threepipe-packages'
-next: false
+next:
+    text: '3D Assets'
+    link: './3d-assets'
 aside: false
 ---
 

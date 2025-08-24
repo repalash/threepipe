@@ -1,11 +1,9 @@
 ---
 prev:
-    text: 'Plugin System'
-    link: './plugin-system'
+    text: 'Material Extension'
+    link: './material-extension'
 
-next:
-    text: 'Screen Pass'
-    link: './screen-pass'
+next: false
 ---
 
 # Screen Pass - Extensions and Shaders

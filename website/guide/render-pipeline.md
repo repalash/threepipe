@@ -4,8 +4,8 @@ prev:
     link: './exporting-files'
 
 next:
-    text: 'Material Extension'
-    link: './material-extension'
+    text: 'UI Configuration'
+    link: './ui-config'
 ---
 
 # Render pipeline

@@ -7,6 +7,7 @@ next:
     text: 'ClearcoatTintPlugin'
     link: './ClearcoatTintPlugin'
 
+aside: false
 ---
 
 # CustomBumpMapPlugin
@@ -16,6 +17,8 @@ next:
 [Example](https://threepipe.org/examples/#custom-bump-map-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/material/CustomBumpMapPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/CustomBumpMapPlugin.html)
+
+<iframe src="https://threepipe.org/examples/custom-bump-map-plugin/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Custom Bump Map Plugin Example"></iframe>
 
 CustomBumpMapPlugin adds a material extension to PhysicalMaterial to support custom bump maps.
 A Custom bump map is similar to the built-in bump map, but allows using an extra bump map and scale to give a combined effect.
@@ -43,3 +46,7 @@ material.userData._hasCustomBump = false
 material.userData._customBumpMat = null
 material.setDirty()
 ```
+
+## How it works
+
+Checkout the article - [Material Extension Plugin](../notes/material-extension-plugin) for a breakdown of `CustomBumpMapPlugin` and how to create your own material extension plugins.
