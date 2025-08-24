@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.61-dev.5",
+  "version": "0.0.61",
   "description": "A modern 3D viewer framework built on top of three.js, written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -41,8 +41,8 @@
     "dev": "NODE_ENV=development vite build --watch",
     "build": "npm run update-version && npm run compile && vite build",
     "compile": "rimraf lib && npm run compile:esm && npm run copy:inlines && npm run postcompile:esm",
-    "new:pack": "npm run prepare && npm run docs && clean-package && npm pack && clean-package restore",
-    "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && npm run docs-all && clean-package && PKG=$(npm pack) && clean-package restore && npm publish \"$PKG\" && git tag v$npm_package_version",
+    "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+    "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish \"$PKG\" && git tag v$npm_package_version",
     "build-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json",
     "dev-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
