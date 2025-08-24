@@ -56,8 +56,6 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         if (customMaterialExtensions) this.registerMaterialExtensions(customMaterialExtensions)
         iMaterialCommons.upgradeMaterial.call(this)
         this.setValues(parameters)
-        // this.userData.renderToGBuffer = false
-        // this.userData.renderToDepth = false
     }
 
     // region Material Extension

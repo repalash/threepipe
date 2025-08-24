@@ -1,11 +1,11 @@
-import {getOrCall, serialize} from 'ts-browser-helpers'
+import {createDiv, createStyles, getOrCall, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {AnimationObject, AnimationObjectEventMap} from '../../utils/AnimationObject'
 import {IMaterial, IObject3D} from '../../core'
-import {createDiv, createStyles, UndoManagerPlugin} from '../../index'
 import {Event2} from 'three'
+import type {UndoManagerPlugin} from '../interaction/UndoManagerPlugin'
 
 export interface AnimationObjectPluginEventMap extends AViewerPluginEventMap, AnimationObjectEventMap{
     rebuildTimeline: {timeline: [AnimationObject, AnimationResult][]}
@@ -41,19 +41,10 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
 
     readonly runtimeAnimation: AnimationObject = new AnimationObject(undefined, ()=>this._viewer, 'Runtime Animation')
 
-    // /**
-    //  * Animations that are tracked in the scene, bound to objects, materials etc
-    //  */
-    // animations: Set<AnimationObject> = new Set()
-
     getAllAnimations() {
         return [...this.animation.animSet, ...this.runtimeAnimation.animSet]
     }
 
-    // private _fAnimationAdd = (e: Event2<'animationAdd', AnimationObjectEventMap, AnimationObject>)=>{
-    //     this.rebuildTimeline()
-    //     this.dispatchEvent(e)
-    // }
     private _fAnimationAdd = (e: AnimationObjectEventMap['animationAdd'])=>{
         this.rebuildTimeline()
         this.dispatchEvent({...e, type: 'animationAdd'})
@@ -187,30 +178,6 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
                 this.dispatchEvent({type: 'rebuildTimeline', timeline: this._currentTimeline})
             }
         },
-        // moved to popmotion
-        // preFrame: ()=>{
-        //     if (!this._viewer) return
-        //     if (this.isDisabled() || Object.keys(this._updaters).length < 1) {
-        //         this._lastFrameTime = 0
-        //         return
-        //     }
-        //
-        //     const time = this._viewer.timeline.time * 1000
-        //     // if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 60.0
-        //     const delta = time - this._lastFrameTime
-        //
-        //     this._lastFrameTime = time
-        //
-        //     if (Math.abs(delta) <= 0.0001) return
-        //
-        //     this._updaters.forEach(u=>{
-        //         let dt = delta
-        //         if (u.time !== time) dt = time - u.time
-        //         if (u.time + dt < 0) dt = -u.time
-        //         u.time += dt
-        //         if (Math.abs(dt) > 0.001) u.u(dt)
-        //     })
-        // },
     }
     getTimeline() {
         return this._currentTimeline
@@ -374,7 +341,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         btn.title = 'Add Animation for ' + getOrCall(config.label, key) // todo use uiconfigmethods
 
         btn.addEventListener('click', () => {
-            const undo = this._viewer?.getPlugin(UndoManagerPlugin) // todo use uiconfigmethods
+            const undo = this._viewer?.getPlugin<UndoManagerPlugin>('UndoManagerPlugin') // todo use uiconfigmethods
             let ao = getAo(obj, keyPath)
             const cTime = 1000 * (this._viewer?.timeline.time || 0) // current time in ui
             if (!ao) {
@@ -488,7 +455,6 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         if (!btns?.length) return
         for (const obs of btns) {
             const ao1 = getAo(obj, obs.key) // todo deep access key
-            // console.log(e, key)
             if (!ao1) return
             this._refreshTriggerBtn(ao1, obs.btn)
         }
@@ -541,16 +507,6 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         // this.animation.setTarget(() => this._viewer)
         return this
     }
-
-    // moved to popmotion
-    // private _lastFrameTime = 0 // for post frame, in ms
-    // private _updaters: {u: ((timestamp: number) => void), time: number}[] = []
-    // readonly popmotionDriver: Driver = (update)=> ({
-    //     start: () => this._updaters.push({u: update, time: 0}),
-    //     stop: () => {
-    //         this._updaters.splice(this._updaters.findIndex(u => u.u === update), 1)
-    //     },
-    // })
 
     // override ui config for flatten hierarchy (for now)
     uiConfig: UiObjectConfig = {

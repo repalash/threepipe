@@ -203,7 +203,6 @@ export interface ThreeViewerOptions {
     }
     onLoad?: (results: any) => void
 
-
     /**
      * TonemapPlugin is added to the viewer if this is true.
      * @default true
@@ -251,6 +250,14 @@ export interface ThreeViewerOptions {
      * @default false
      */
     stopPointerEventPropagation?: boolean
+
+
+    /**
+     * By default, all imported assets are cached in memory, so that calling import/load would return the same instance of an asset if the same source and options is passed again.
+     * Set this to `false` to disable this caching.
+     * @default true
+     */
+    cacheImportedAssets?: boolean
 
     /**
      * @deprecated use {@link msaa} instead
@@ -546,6 +553,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
 
         this.assetManager = new AssetManager(this, options.assetManager)
+        if (options.cacheImportedAssets !== undefined)
+            this.assetManager.importer.cacheImportedAssets = options.cacheImportedAssets
 
         if (this.resizeObserver) this.resizeObserver.observe(this._canvas)
         // sometimes resize observer is late, so extra check
@@ -1506,59 +1515,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         e.stopPropagation()
     }
 
-    // todo: create/load texture utils
-
-    // region legacy creation functions
-
-    // /**
-    //  * Converts a three.js Camera instance to be used in the viewer.
-    //  * @param camera - The three.js OrthographicCamera or PerspectiveCamera instance
-    //  * @returns {CameraController} - A wrapper around the camera with some useful methods and properties.
-    //  */
-    // createCamera(camera: OrthographicCamera | PerspectiveCamera): CameraController {
-    //     const cam: CameraController = camera.userData.iCamera ?? new CameraController(camera, {
-    //         controlsMode: '',
-    //         controlsEnabled: false,
-    //     }, this._canvas)
-    //     if (camera.userData.autoLookAtTarget === undefined) {
-    //         cam.autoLookAtTarget = false
-    //         camera.userData.autoLookAtTarget = false
-    //     } else {
-    //         cam.autoLookAtTarget = camera.userData.autoLookAtTarget
-    //     }
-    //     return cam
-    // }
-
-    // /**
-    //  * Create a new empty object in the scene or add an existing three.js object to the scene.
-    //  * @param object
-    //  */
-    // async createObject3D(object?: Object3D): Promise<Object3DModel | undefined> {
-    //     return this.getManager()?.addImportedSingle<Object3DModel>(object || new Object3D(), {autoScale: false, pseudoCenter: false})
-    // }
-
-    // /**
-    //  * Create a new physical material from a template or another material. It returns the same material if a material is passed created by the material manager.
-    //  * @param material
-    //  */
-    // createPhysicalMaterial(material?: Material|MeshPhysicalMaterialParameters): MeshStandardMaterial2 | undefined {
-    //     return this.createMaterial<MeshStandardMaterial2>('standard', material)
-    // }
-
-    // /**
-    //  * Create a new material from a template or another material. It returns the same material if a material is passed created by the material manager.
-    //  * @param template - template name registered in MaterialManager
-    //  * @param material - three.js material object or material params to create a new material
-    //  */
-    // createMaterial<T extends IMaterial<any>>(template: 'standard' | 'basic' | 'diamond' | string, material?: Material|any): T | undefined {
-    //     if ((material as Material)?.isMaterial) {
-    //         const f = this.getManager()?.materials?.findMaterial((material as Material).uuid)
-    //         if (f) return f as T
-    //     }
-    //     return this.getManager()?.materials?.generateFromTemplate(template, material) as T
-    // }
-
-    // endregion
+    // todo: create/load texture utils?
 
     /**
      * The renderer for the viewer that's attached to the canvas. This is wrapper around WebGLRenderer and EffectComposer and manages post-processing passes and rendering logic

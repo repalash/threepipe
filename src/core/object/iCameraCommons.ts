@@ -45,7 +45,7 @@ export const iCameraCommons = {
         this.userData.__isMainCamera = true
         this.userData.__lastScale = this.scale.clone()
         this.scale.divide(this.getWorldScale(new Vector3())) // make unit scale, for near far and all
-        if (canvas) this.setCanvas(canvas, _refresh)
+        if (canvas && this.setCanvas) this.setCanvas(canvas, _refresh)
         else if (_refresh) {
             this.refreshCameraControls(false)
             this.refreshAspect(false)

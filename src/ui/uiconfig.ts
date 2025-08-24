@@ -12,6 +12,3 @@ export {uiPanelContainer, uiFolderContainer} from 'uiconfig.js'
 export {generateUiConfig, generateUiFolder, generateValueConfig, UiConfigTypeMap} from 'uiconfig.js'
 export type {TParams} from 'uiconfig.js'
 
-export {equalsPrimitive, clonePrimitive, copyPrimitive} from 'uiconfig.js'
-export type {PrimitiveValObject, PrimitiveVal} from 'uiconfig.js'
-

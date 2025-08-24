@@ -151,64 +151,6 @@ export class ViewHelper2 extends Object3D<ViewHelper2EventMap> {
         this.domContainer.onclick = (e) => this.handleClick(e)
     }
 
-    // onPointerDown(e: PointerEvent) {
-    //     const drag = (e1: PointerEvent) => {
-    //         if (!this.dragging && isClick(e1, mouseStart)) return
-    //         if (!this.dragging) {
-    //             resetSprites(this.spritePoints)
-    //             this.dragging = true
-    //         }
-    //
-    //         mouseAngle
-    //             .set(e1.clientX, e1.clientY)
-    //             .sub(mouseStart)
-    //             .multiplyScalar(1 / this.domRect.width * Math.PI)
-    //
-    //         this.rotation.x = MathUtils.clamp(
-    //             rotationStart.x + mouseAngle.y,
-    //             Math.PI / -2 + 0.001,
-    //             Math.PI / 2 - 0.001
-    //         )
-    //         this.rotation.y = rotationStart.y + mouseAngle.x
-    //         this.updateMatrixWorld()
-    //
-    //         q1.copy(this.quaternion).invert()
-    //
-    //         this.camera.position
-    //             .set(0, 0, 1)
-    //             .applyQuaternion(q1)
-    //             .multiplyScalar(radius)
-    //             .add(this.target)
-    //
-    //         this.camera.rotation.setFromQuaternion(q1)
-    //
-    //         this.updateOrientation(false)
-    //     }
-    //     const endDrag = () => {
-    //         document.removeEventListener('pointermove', drag, false)
-    //         document.removeEventListener('pointerup', endDrag, false)
-    //
-    //         if (!this.dragging) {
-    //             // this.handleClick(e)
-    //             return
-    //         }
-    //
-    //         this.dragging = false
-    //     }
-    //
-    //     if (this.animating === true) return
-    //     e.preventDefault()
-    //
-    //     mouseStart.set(e.clientX, e.clientY)
-    //
-    //     const rotationStart = euler.copy(this.rotation)
-    //
-    //     setRadius(this.camera, this.target)
-    //
-    //     document.addEventListener('pointermove', drag, false)
-    //     document.addEventListener('pointerup', endDrag, false)
-    // }
-
     onPointerMove(e: PointerEvent) {
         // if (this.dragging) return;
         (this.backgroundSphere.material as Material).opacity = 0.4
@@ -255,22 +197,6 @@ export class ViewHelper2 extends Object3D<ViewHelper2EventMap> {
             this.domContainer.style.cursor = 'pointer'
         }
     }
-
-    // setControls(controls?: OrbitControls | TrackballControls) {
-    //     if (this.controls) {
-    //         (this.controls as any).removeEventListener(
-    //             'change',
-    //             this.controlsChangeEvent.listener
-    //         )
-    //         this.target = new Vector3()
-    //     }
-    //
-    //     if (!controls) return
-    //
-    //     this.controls = controls;
-    //     (controls as any).addEventListener('change', this.controlsChangeEvent.listener)
-    //     this.target = controls.target
-    // }
 
     render() {
         const delta = clock.getDelta()

@@ -124,7 +124,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             camera.addEventListener('cameraUpdate', this._mainCameraUpdate)
             camera.activateMain(undefined, true)
 
-            if (!camera._canvas) {
+            if (!camera._canvas && camera !== this.defaultCamera) {
                 console.warn('RootScene: mainCamera does not have a canvas set, some controls might not work properly.')
             }
         } else {
@@ -630,42 +630,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
 
     // region deprecated
-
-    // /**
-    //  * Set the scene environment map, this will be processed with PMREM automatically later.
-    //  * @param asset
-    //  * @returns {void}
-    //  */
-    // public setEnvironment(asset: ITexture|null|undefined): void {
-    //     if (!asset) {
-    //         // eslint-disable-next-line deprecation/deprecation
-    //         this.environment = null
-    //         this._onEnvironmentChange()
-    //         return
-    //     }
-    //     if (!asset.isTexture) {
-    //         console.error('Unknown Environment type', asset)
-    //         return
-    //     }
-    //     if (asset.mapping === UVMapping) {
-    //         asset.mapping = EquirectangularReflectionMapping // for PMREMGenerator
-    //         asset.needsUpdate = true
-    //     }
-    //     // eslint-disable-next-line deprecation/deprecation
-    //     this.environment = asset
-    //     // eslint-disable-next-line deprecation/deprecation
-    //     // this.background = texture // for testing.
-    //     this._onEnvironmentChange()
-    // }
-    //
-    // /**
-    //  * Get the current scene environment map
-    //  * @returns {ITexture<Texture>}
-    //  */
-    // getEnvironment(): ITexture | null {
-    //     return this.environment || null
-    // }
-
 
     /**
      * Find objects by name exact match in the complete hierarchy.
