@@ -17,10 +17,11 @@ import {TViewerScreenShader} from '../postprocessing'
 import {
     AddObjectOptions,
     IAnimationLoopEvent,
+    ICamera,
+    iCameraCommons,
     IGeometry,
     IMaterial,
     IObject3D,
-    IObjectProcessor,
     ISceneEventMap,
     ITexture,
     OrthographicCamera2,
@@ -74,6 +75,7 @@ import {OrbitControls3} from '../three'
 
 import {Object3DManager} from '../assetmanager/Object3DManager'
 import {ViewerTimeline} from '../utils/ViewerTimeline'
+import {defaultObjectProcessor} from '../utils/objectProcessor'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
@@ -213,10 +215,22 @@ export interface ThreeViewerOptions {
         controlsMode?: TCameraControlsMode,
         position?: Vector3,
         target?: Vector3,
-    }
+    } | ICamera
 
-    // values above this might be clamped in post processing
+    rootScene?: RootScene
+
+    /**
+     * Max HDR intensity for rendering and post-processing.
+     * Values above this might be clamped during post-processing.
+     * @default 72 (when rgbm is false), 16 (when rgbm is true)
+     */
     maxHDRIntensity?: number
+
+    /**
+     * Power preference for the WebGL context.
+     * @default 'high-performance'
+     */
+    powerPreference?: WebGLPowerPreference
 
     /**
      * Options for the asset manager.
@@ -382,23 +396,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private readonly _container: HTMLElement // todo: add a way to move the canvas to a new container... and dispatch event...
     private _needsResize = false
     private _isRenderingFrame = false
-    private _objectProcessor: IObjectProcessor = {
-        processObject: (object: IObject3D)=>{
-            if (object.userData.autoRegisterInManager === false) return
-            this.object3dManager.registerObject(object)
-            if (object.material) {
-                if (!this.assetManager) {
-                    console.error('AssetManager is not initialized yet, cannot register object', object)
-                    return
-                }
-                const mats = Array.isArray(object.material) ? object.material : [object.material]
-                for (const mat of mats) {
-                    if (mat.userData.autoRegisterInManager === false) continue
-                    this.assetManager.materials.registerMaterial(mat)
-                }
-            }
-        },
-    }
     private _needsReset = true // renderer needs reset
 
     // Helpers for tracking main camera change and setting dirty automatically
@@ -450,15 +447,25 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         // camera
 
-        const camera =
-            options.camera?.type === 'orthographic' ?
-                new OrthographicCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas) :
-                new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
-        camera.name = 'Default Camera' + (camera.type === 'OrthographicCamera' ? ' (Ortho)' : '')
-        options.camera?.position ? camera.position.copy(options.camera.position) : camera.position.set(0, 0, 5)
-        options.camera?.target ? camera.target.copy(options.camera.target) : camera.target.set(0, 0, 0)
-        camera.setDirty()
-        camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
+        let camera
+        if ((options.camera as ICamera)?.isCamera) {
+            camera = options.camera as ICamera
+            if (!camera.assetType) iCameraCommons.upgradeCamera.call(camera)
+        } else {
+            camera =
+                options.camera?.type === 'orthographic' ?
+                    new OrthographicCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas) :
+                    new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
+            camera.name = 'Default Camera' + (camera.type === 'OrthographicCamera' ? ' (Ortho)' : '')
+            options.camera?.position ? camera.position.copy(options.camera.position) : camera.position.set(0, 0, 5)
+            options.camera?.target ? camera.target.copy(options.camera.target) : camera.target.set(0, 0, 0)
+            camera.setDirty()
+            camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
+
+            if (options.rootScene) {
+                this.console.error('ThreeViewer: Camera must also be passed in options when rootScene is passed in options.')
+            }
+        }
 
         // Update camera controls postFrame if allowed to interact
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
@@ -486,7 +493,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         // scene
 
         this.object3dManager = new Object3DManager()
-        this._scene = new RootScene(camera, this._objectProcessor)
+        this._scene = options.rootScene ?? new RootScene(camera, defaultObjectProcessor(this))
+        if (this._scene.mainCamera !== camera) this._scene.mainCamera = camera // just in case
         this._scene.setBackgroundColor('#ffffff')
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
@@ -525,6 +533,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 Math.min(options.maxRenderScale || 2, window.devicePixelRatio) : parseFloat(options.renderScale) :
                 options.renderScale,
             maxHDRIntensity: options.maxHDRIntensity,
+            powerPreference: options.powerPreference,
         })
         this.renderManager.addEventListener('animationLoop', this._animationLoop as any)
         this.renderManager.addEventListener('resize', ()=> this._scene.mainCamera.refreshAspect())
@@ -589,7 +598,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param obj
      * @param options
      */
-    async import<T extends ImportResult = ImportResult>(obj: string | IAsset | File | null, options?: ImportAddOptions) {
+    async import<T extends ImportResult = ImportResult>(obj: string | IAsset | File | null, options?: ImportAssetOptions) {
         if (!obj) return
         return await this.assetManager.importer.importSingle<T>(obj, options)
     }

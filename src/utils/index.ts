@@ -15,4 +15,4 @@ export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} fro
 export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
 export {AnimationObject, extractAnimationKey} from './AnimationObject'
 export type {IAnimationObject, AnimationObjectEventMap, IAnimSet, TUpdaterType} from './AnimationObject'
-
+export {defaultObjectProcessor} from './objectProcessor'
