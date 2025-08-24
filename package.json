@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.0.60",
+  "version": "0.0.61-dev.5",
   "description": "A modern 3D viewer framework built on top of three.js, written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -9,6 +9,11 @@
   "browser": "dist/index.js",
   "exports": {
     ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "require": "./dist/index.js"
+    },
+    "./dist": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -32,14 +37,12 @@
   },
   "type": "module",
   "scripts": {
-    "compile": "rimraf lib && npm run compile:esm && npm run copy:css",
-    "compile:esm": "tsc -p ./src",
-    "copy:css": "copyfiles -u 1 \"src/**/*.css\" lib",
-    "new:pack": "npm run prepare && npm run docs-all && clean-package && npm pack && clean-package restore",
-    "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && npm run docs-all && clean-package && npm publish && clean-package restore && git tag v$npm_package_version",
-    "build": "npm run update-version && npm run compile && vite build",
-    "dev": "NODE_ENV=development vite build --watch",
     "vite": "NODE_ENV=development vite --config vite.examples.config.js",
+    "dev": "NODE_ENV=development vite build --watch",
+    "build": "npm run update-version && npm run compile && vite build",
+    "compile": "rimraf lib && npm run compile:esm && npm run copy:inlines && npm run postcompile:esm",
+    "new:pack": "npm run prepare && npm run docs && clean-package && npm pack && clean-package restore",
+    "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && npm run docs-all && clean-package && PKG=$(npm pack) && clean-package restore && npm publish \"$PKG\" && git tag v$npm_package_version",
     "build-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json",
     "dev-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
@@ -48,13 +51,16 @@
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs clean-install -p",
-    "prepare": "npm run build && npm run build-plugins && npm run build-examples",
+    "prepare": "npm run build && npm run build-examples",
     "update-version": "node scripts/update-version.mjs",
     "website:dev": "vitepress dev website",
     "website:build": "vitepress build website",
     "website:preview": "vitepress preview website",
     "build-site": "bash ./scripts/build-site.sh",
-    "generate-example-env": "node ./scripts/generate-example-env.mjs"
+    "generate-example-env": "node ./scripts/generate-example-env.mjs",
+    "compile:esm": "vite build --config vite.lib.config.js",
+    "postcompile:esm": "#node scripts/fix-inline-imports.mjs",
+    "copy:inlines": "#copyfiles -u 1 \"src/**/*.{css,glsl}\" lib"
   },
   "clean-package": {
     "remove": [
@@ -135,7 +141,7 @@
     "@repalash/popmotion": "^11.0.5002",
     "stats.js": "^0.17.0",
     "ts-browser-helpers": "^0.19.4",
-    "uiconfig.js": "^0.3.0"
+    "uiconfig.js": "^0.3.1"
   },
   "peerDependencies": {
     "three": "https://pkg.threepipe.org/dep/three/-/v0.160.1006/package.tgz"

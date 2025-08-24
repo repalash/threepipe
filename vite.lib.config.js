@@ -5,22 +5,30 @@ import packageJson from './package.json';
 import license from 'rollup-plugin-license';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
-import {globalsReplacePlugin} from './scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
-const {main, module, browser} = packageJson
 
-const dist = 'dist'
-const globals = {}
+const dist = 'lib'
+const globals = {
+    'three': 'THREE',
+    'ts-browser-helpers': 'ts-browser-helpers',
+    'uiconfig.js': 'uiconfig.js',
+    '@repalash/popmotion': 'popmotion',
+    'popmotion': 'popmotion',
+    'stats.js': 'stats.js',
+};
 
 export default defineConfig({
     optimizeDeps: {
-        exclude: ['uiconfig.js', 'ts-browser-helpers'],
+        exclude: Object.keys(globals),
     },
     // define: {
     //     'process.env': process.env
     // },
+    esbuild: {
+        legalComments: 'none',
+    },
     build: {
         sourcemap: true,
         minify: isProd,
@@ -31,9 +39,10 @@ export default defineConfig({
         } : null,
         lib: {
             entry: 'src/index.ts',
-            formats: isProd ? ['es', 'umd'] : ['es'],
+            formats: ['es'],
             name: name,
-            fileName: (format) => (format === 'umd' ? browser : module).replace(dist + '/', ''),
+            fileName: 'index',
+            // fileName: (format) => (format === 'umd' ? browser : module).replace(dist + '/', ''),
         },
         outDir: dist,
         emptyOutDir: isProd,
@@ -50,7 +59,7 @@ export default defineConfig({
     },
     plugins: [
         isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
-        ...globalsReplacePlugin(globals, isProd),
+        // ...globalsReplacePlugin(globals, isProd),
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),

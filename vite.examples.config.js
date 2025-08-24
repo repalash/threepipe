@@ -1,9 +1,7 @@
 import {defineConfig} from 'vite'
 import json from '@rollup/plugin-json';
-import dts from 'vite-plugin-dts'
 import packageJson from './package.json';
 import license from 'rollup-plugin-license';
-import replace from '@rollup/plugin-replace';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -36,6 +34,7 @@ const alias = {
     'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js',
     'vue-import': 'https://unpkg.com/vue-import/dist/vue-import.esm-browser.js',
 }
+
 export default defineConfig({
     optimizeDeps: {
         exclude: ['uiconfig.js', 'ts-browser-helpers', ...Object.keys(alias)],
@@ -97,10 +96,10 @@ export default defineConfig({
         {
             name: 'transform-html-replace-js-to-ts',
             apply: 'serve',
-            transformIndexHtml (html) {
+            transformIndexHtml: { order: 'pre', handler:  (html) => {
                 const res = html.replace('src="./script.js"', 'src="./script.ts"');
                 return res
-            },
+            } },
         },
     ],
 })
