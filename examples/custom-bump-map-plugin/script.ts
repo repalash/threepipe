@@ -28,9 +28,9 @@ async function init() {
 
     const bumpMap1 = await viewer.load<ITexture>('https://threejs.org/examples/textures/brick_bump.jpg')
     const bumpMap2 = await viewer.load<ITexture>('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg')
-    customBump.enableCustomBump(material, bumpMap2, -0.2)
+    customBump.enableCustomBump(material, bumpMap2, -4)
     material.bumpMap = bumpMap1 || null
-    material.bumpScale = -0.01
+    material.bumpScale = -3
     material.setDirty()
 
     // set properties like this or from the UI

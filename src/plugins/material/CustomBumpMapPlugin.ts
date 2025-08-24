@@ -158,7 +158,8 @@ export class CustomBumpMapPlugin extends AViewerPluginSync {
                     {
                         type: 'slider',
                         label: 'Bump Scale',
-                        bounds: [-1, 1],
+                        bounds: [-20, 20],
+                        stepSize: 0.001,
                         hidden: () => !state._hasCustomBump,
                         property: [state, '_customBumpScale'],
                         // onChange: this.setDirty,
