@@ -276,7 +276,7 @@ export const customBumpMapGLTFExtension = {
 } satisfies AssetManager['gltfExtensions'][number]
 ```
 
-::: note
+::: info
 
 The glTF extension is optional to create for custom extensions that don't require textures. 
 In that case the custom properties can be serialized directly inside `userData` without a custom extension. To ensure the properties are saved, avoid using names that start with `_` in that case.

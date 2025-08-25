@@ -23,7 +23,7 @@ npm install @threepipe/plugin-r3f
 
 The R3F plugin provides React Three Fiber integration for ThreePipe, allowing you to create declarative React-based 3D experiences using familiar JSX syntax while leveraging ThreePipe's powerful viewer context and plugin system.
 
-::: note Compatibility
+::: info Compatibility
 
 The plugin has been tested with React 19+ and React Three Fiber 9+.
 
