@@ -5,6 +5,7 @@ import license from 'rollup-plugin-license';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 import fs from 'node:fs';
+import react from '@vitejs/plugin-react';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -25,12 +26,16 @@ const alias = {
     '@threepipe/plugin-configurator': path.resolve(__dirname, './plugins/configurator/src/index.ts'),
     '@threepipe/plugin-gltf-transform': path.resolve(__dirname, './plugins/gltf-transform/src/index.ts'),
     '@threepipe/plugin-assimpjs': path.resolve(__dirname, './plugins/assimpjs/src/index.ts'),
+    '@threepipe/plugin-r3f': path.resolve(__dirname, './plugins/r3f/src/index.ts'),
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/plugin-timeline-ui': path.resolve(__dirname, './plugins/timeline-ui/src/index.ts'),
     '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.4.1/dist/index.mjs',
-    'react': 'https://esm.sh/react@18/?dev',
-    'react-dom/client': 'https://esm.sh/react-dom@18/client?dev',
+    'react': 'https://esm.sh/react@19/',
+    'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
+    'react-dom': 'https://esm.sh/react-dom@19/',
+    'react-dom/client': 'https://esm.sh/react-dom@19/client',
+    '@react-three/fiber': 'https://esm.sh/@react-three/fiber@9.3.0?external=react,react-dom,three',
     'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js',
     'vue-import': 'https://unpkg.com/vue-import/dist/vue-import.esm-browser.js',
 }
@@ -46,6 +51,9 @@ export default defineConfig({
         alias,
     },
     plugins: [
+        !isProd ? react({
+            jsxRuntime: 'classic',
+        }) : react(),
         // replace({
         //     'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
         //     preventAssignment: true,
@@ -97,7 +105,9 @@ export default defineConfig({
             name: 'transform-html-replace-js-to-ts',
             apply: 'serve',
             transformIndexHtml: { order: 'pre', handler:  (html) => {
-                const res = html.replace('src="./script.js"', 'src="./script.ts"');
+                const res = html
+                    .replace('src="./script.js" data-scripts="./script.tsx', 'src="./script.tsx" data-scripts="./script.tsx')
+                    .replace('src="./script.js"', 'src="./script.ts"');
                 return res
             } },
         },

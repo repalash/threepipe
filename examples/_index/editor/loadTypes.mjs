@@ -42,6 +42,7 @@ export async function loadFileFromPath (path) {
 const ignoredPackages = new Set([
     'three',
     'react',
+    'react-dom',
     '@types/webxr',
     'style-value-types',
     'tslib',
@@ -51,6 +52,8 @@ const ignoredPackages = new Set([
 ])
 
 export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0) {
+    if(packageName.startsWith('react/')) packageName = 'react'
+    if(packageName.startsWith('react-dom')) packageName = 'react-dom'
     if(ignoredPackages.has(packageName)) return // too big, @types/three is already there...
     if(packageName === '@types/three' && !version1.startsWith('https')) return // dont load @types/three from npm, use the fork
 

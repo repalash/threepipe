@@ -178,6 +178,12 @@ function App() {
 - [**r3f-tsx-sample**](https://threepipe.org/examples/#r3f-tsx-sample/) - Typescript JSX(TSX) syntax example.
   - TypeScript integration with type safety
 
+- [**r3f-tsx-webgi**](https://threepipe.org/examples/#r3f-tsx-webgi/) - Typescript JSX(TSX) + Plugins example.
+  - TypeScript integration with webgi plugins
+
+- [**r3f-jsx-webgi**](https://threepipe.org/examples/#r3f-jsx-webgi/) - JSX + Plugins example.
+  - Babel compiled JSX with webgi plugins
+
 ### Importing and Setup
 
 **Web Browser (Import Maps)**

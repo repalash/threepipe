@@ -19,17 +19,31 @@ function ThreeViewerComponent({src, env}: {src: string, env: string}) {
             autoScale: true,
         })
 
-        Promise.all([envPromise, modelPromise]).then(([env, model])=>{
-            console.log('Loaded', model, env, viewer)
+        Promise.all([envPromise, modelPromise]).then(([environment, model])=>{
+            console.log('Loaded', model, environment, viewer)
         })
         return () => {
             // dispose the viewer and all its resources when component unmounts. You can also save the viewer instance somewhere and reuse it later if required instead of disposing.
             viewer.dispose()
         }
     }, [])
-    return (
-        <canvas id="three-canvas" style={{width: 800, height: 600}} ref={canvasRef} />
-    )
+    return <div style={{
+        position: 'relative',
+        width: '80vw',
+        height: '80vh',
+        margin: '10vh 10vw',
+        borderRadius: '0.5rem',
+        boxShadow: 'rgba(0, 0, 0, 0.25) 0px 25px 50px -12px',
+    }}>
+        <canvas
+            id="three-canvas"
+            style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '0.5rem',
+            }}
+            ref={canvasRef} />
+    </div>
 }
 
 async function init() {

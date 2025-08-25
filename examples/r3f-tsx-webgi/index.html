@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Threepipe React/TSX Sample</title>
+    <title>Threepipe R3F React/TSX + WebGi</title>
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -10,12 +10,17 @@
     <script type="importmap">
         {
             "imports": {
+              "three": "./../../dist/index.mjs",
               "threepipe": "./../../dist/index.mjs",
-              "react": "https://esm.sh/react@18",
-              "react-dom/client": "https://esm.sh/react-dom@18/client"
+              "react": "https://esm.sh/react@19",
+              "react-dom/client": "https://esm.sh/react-dom@19/client",
+              "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime",
+              "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.3.0?external=react,react-dom,three",
+              "@threepipe/plugin-r3f": "./../../plugins/r3f/dist/index.mjs",
+              "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+              "@threepipe/webgi-plugins": "https://unpkg.com/@threepipe/webgi-plugins@0.4.1/dist/index.mjs"
             }
         }
-
     </script>
 
     <style>

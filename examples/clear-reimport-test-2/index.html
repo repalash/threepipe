@@ -29,9 +29,16 @@
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
         import {_testFinish, _testStart, ThreeViewer, timeout, Color, GBufferPlugin, SSAAPlugin, BaseGroundPlugin} from 'threepipe'
+        import {SSReflectionPlugin} from '@threepipe/webgi-plugins'
 
         const viewer = new ThreeViewer({
             canvas: document.getElementById('mcanvas'),
+            plugins: [
+                GBufferPlugin,
+                SSAAPlugin,
+                SSReflectionPlugin,
+                BaseGroundPlugin
+            ]
         })
 
         async function init() {
@@ -70,7 +77,7 @@
             // now, ground should be black and background should be white
             // this is because ground material is used by reference when loaded from the config and color is changed. So when its loaded again, the color should remain black
 
-            // if we load once more but with diff options it will import the config again and the ground will be white again
+            // if we load once more but with different options it will import the config again and the ground will be white again
             const model5 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb', {
                 autoCenter: true
             })

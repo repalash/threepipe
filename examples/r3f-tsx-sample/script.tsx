@@ -3,11 +3,18 @@ import React from 'react'
 import {createRoot} from 'react-dom/client'
 import {Asset, Model, ViewerCanvas} from '@threepipe/plugin-r3f'
 
-async function init() {
-    createRoot(document.getElementById('root')!).render(
+function App() {
+    return <div style={{
+        position: 'relative',
+        width: '80vw',
+        height: '80vh',
+        margin: '10vh 10vw',
+        borderRadius: '0.5rem',
+        boxShadow: 'rgba(0, 0, 0, 0.25) 0px 25px 50px -12px',
+    }}>
         <ViewerCanvas
             id="three-canvas"
-            style={{width: 800, height: 600}}
+            style={{width: '100%', height: '100%', borderRadius: 'inherit'}}
             plugins={[LoadingScreenPlugin]}
             onMount={async(viewer) => {
                 console.log('Loaded Viewer', viewer)
@@ -17,10 +24,17 @@ async function init() {
             <React.Suspense>
                 <Asset url={'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'}
                     autoSetBackground={true}/>
-                <Model url={'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}/>
+                <Model url={'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}
+                    autoScale={true}
+                    autoCenter={true}
+                />
             </React.Suspense>
-        </ViewerCanvas>,
-    )
+        </ViewerCanvas>
+    </div>
+}
+
+async function init() {
+    createRoot(document.getElementById('root')!).render(<App/>)
 }
 
 _testStart()

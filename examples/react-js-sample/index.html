@@ -10,6 +10,14 @@
             margin: 0;
             overflow: hidden;
         }
+        #root{
+            position: relative;
+            width: 80vw;
+            height: 80vh;
+            margin: 10vh 10vw;
+            border-radius: 0.5rem;
+            box-shadow: rgba(0, 0, 0, 0.25) 0px 25px 50px -12px;
+        }
     </style>
 
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
@@ -48,7 +56,7 @@
         }, []);
         return React.createElement(
             'canvas',
-            {id: 'three-canvas', style: {width: 800, height: 600}, ref: canvasRef},
+            {id: 'three-canvas', style: {width: "100%", height: "100%", borderRadius: "inherit"}, ref: canvasRef},
         )
     }
 
