@@ -1,20 +1,20 @@
 import {ViewerRef} from './ViewerContextInternal.ts'
-import {ImportAddOptions, ImportAssetOptions} from 'threepipe'
-import {suspend, preload, clear} from 'suspend-react'
+import {ImportAssetOptions, ImportResult} from 'threepipe'
+import {clear, preload, suspend} from 'suspend-react'
 
-type InputLike = string | string[] | Readonly<string | string[]>
+type InputLike = string /* | string[]*/ | Readonly<string/* | string[]*/>
 
 function loadingFn(
     viewer: ViewerRef,
     options: ImportAssetOptions,
-    add: boolean,
+    onImport?: (results: (ImportResult | undefined)[] | undefined) => void,
     _onProgress?: (event: ProgressEvent<EventTarget>) => void, // todo
 ) {
-    return async function(...input: string[]) {
+    return async function(input: string) {
         // Go through the urls and load them
-        return Promise.all(input.map(async i=>{
-            return add ? viewer.current?.load(i, options) : viewer.current?.assetManager.importer.import(i, options) || Promise.resolve(undefined)
-        }))
+        const results = await viewer.current?.assetManager.importer.import(input, options)
+        if (onImport) onImport(results)
+        return results
     }
 }
 
@@ -26,15 +26,14 @@ function loadingFn(
 export function useViewerImporter<I extends InputLike>(
     viewer: ViewerRef,
     input: I,
-    options: ImportAssetOptions|ImportAddOptions,
-    add: boolean,
+    options: ImportAssetOptions,
+    onImport?: (obj: (ImportResult | undefined)[] | undefined) => void,
     onProgress?: (event: ProgressEvent<EventTarget>) => void,
 ) {
     // Use suspense to load async assets
-    const keys = (Array.isArray(input) ? input : [input]) as string[]
-    const results = suspend(loadingFn(viewer, options, add, onProgress), [...keys])
+    const results = suspend(loadingFn(viewer, options, onImport, onProgress), [input])
     // Return the object(s)
-    return Array.isArray(input) ? results : results[0]
+    return results
 }
 
 /**
@@ -44,10 +43,9 @@ useViewerImporter.preload = function <I extends InputLike>(
     viewer: ViewerRef,
     input: I,
     options: ImportAssetOptions,
-    add: boolean,
+    onImport: (obj: (ImportResult | undefined)[] | undefined) => void,
 ): void {
-    const keys = (Array.isArray(input) ? input : [input]) as string[]
-    return preload(loadingFn(viewer, options, add), [...keys])
+    return preload(loadingFn(viewer, options, onImport), [input])
 }
 
 /**

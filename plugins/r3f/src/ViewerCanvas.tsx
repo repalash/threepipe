@@ -21,8 +21,8 @@ import {ReactNode, useEffect, useRef, useState} from 'react'
 type CanvasWrapperProps = Omit<CanvasProps, 'gl'|'camera'|'scene'> & {
     camera?: ThreeViewerOptions['camera']
     scene?: ThreeViewerOptions['rootScene']
-    plugins: ThreeViewerOptions['plugins']
-    viewer?: Omit<ThreeViewerOptions, 'camera'|'rootScene'|'canvas'|'powerPreference'|'container'|'plugins'>
+    plugins?: ThreeViewerOptions['plugins']
+    viewer?: Omit<ThreeViewerOptions, 'camera'|'rootScene'|'canvas'|'powerPreference'|'container'>
     onMount?: (viewer: ThreeViewer)=>void
     rootChildren?: ReactNode;
 }
@@ -88,7 +88,14 @@ function AnimLoop() {
     return null
 }
 
-function CanvasWrapper({onMount, children, rootChildren, ...props}: CanvasWrapperProps) {
+function CanvasWrapper({
+    onMount, children,
+    rootChildren,
+    viewer, plugins,
+    scene: sceneProps, camera: cameraProps,
+    orthographic,
+    ...props
+}: CanvasWrapperProps) {
     const {viewerRef, useR3FLoop} = useViewerInternal()
     const cameraRef = useRef<ICamera|null>(null)
     const sceneRef = useRef<RootScene|null>(null)
@@ -99,8 +106,8 @@ function CanvasWrapper({onMount, children, rootChildren, ...props}: CanvasWrappe
         if (cameraRef.current) return
         setCounter(1)
         if (!counter) return
-        cameraRef.current = initCamera(props.camera, props.orthographic)
-        sceneRef.current = initScene(props.scene, cameraRef.current, viewerRef)
+        cameraRef.current = initCamera(cameraProps, orthographic)
+        sceneRef.current = initScene(sceneProps, cameraRef.current, viewerRef)
         setCounter(2)
     }, [counter])
 
@@ -129,7 +136,8 @@ function CanvasWrapper({onMount, children, rootChildren, ...props}: CanvasWrappe
                     camera: camera,
                     // todo alpha, antialias from p
                     cacheImportedAssets: false,
-                    ...props.viewer,
+                    ...viewer,
+                    plugins: [...viewer?.plugins ?? [], ...plugins ?? []],
                 })
 
                 if (onMount) onMount(viewerRef.current)
@@ -138,6 +146,7 @@ function CanvasWrapper({onMount, children, rootChildren, ...props}: CanvasWrappe
                 return gl
             }}
             frameloop={'demand'}
+            shadows={'percentage'}
             {...props}
             // ref={canvasRef}
             scene={scene}
