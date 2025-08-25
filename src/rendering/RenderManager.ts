@@ -9,7 +9,7 @@ import {
     NoColorSpace,
     NormalBlending,
     NoToneMapping, OneMinusConstantAlphaFactor,
-    PCFShadowMap,
+    PCFShadowMap, ShaderChunk, ShaderLib,
     ShadowMapType,
     Texture,
     Vector2,
@@ -757,6 +757,9 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
         }(this, ...size, options)
     }
+
+    static ShaderChunk = ShaderChunk
+    static ShaderLib = ShaderLib
 
     /**
      * @deprecated use renderScale instead
