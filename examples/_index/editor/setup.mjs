@@ -122,7 +122,7 @@ export function setupCodeEditor (iframe) {
             if(model._refreshingJs) return model._refreshingJs
             let changed = false
             model._refreshingJs = (async ()=> {
-                if(!uris.endsWith('.ts')) {
+                if(!uris.endsWith('.ts') && !uris.endsWith('.tsx')) {
                     const v = model.getValue()
                     if(v !== model.compiledContent) {
                         model.compiledContent = v
@@ -223,7 +223,7 @@ export function setupCodeEditor (iframe) {
         const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {};
         const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : [];
         const hasContent = exampleScript.textContent
-        const mainSource = sources.find(s=>s.endsWith('/script.ts')) || sources[0] || (hasContent ? './script.js' : null);
+        const mainSource = sources.find(s=>s.endsWith('/script.ts') || s.endsWith('/script.tsx')) || sources[0] || (hasContent ? './script.js' : null);
         if(!mainSource) {
             console.warn('No main source script found in the example script dataset');
             return;
@@ -247,7 +247,7 @@ export function setupCodeEditor (iframe) {
             js: hasContent || '',
             files: [], // extrafiles
             onChange: (model, uris, content, first = false)=>{
-                if(uris.endsWith('/script.ts') || uris.endsWith('/script.js')) {
+                if(uris.endsWith('/script.ts') || uris.endsWith('/script.tsx') || uris.endsWith('/script.js') || uris.endsWith('/script.jsx')) {
                     state.js = content;
                 }else if(uris.endsWith('/index.html')) {
                     state.html = content;
@@ -283,7 +283,7 @@ export function setupCodeEditor (iframe) {
                     let changed = false
                     for (const file of state.files) {
                         if(imports[file.key] && file.content) {
-                            const mime = file.name.endsWith('.ts') || file.name.endsWith('.js') ? 'text/javascript' :
+                            const mime = file.name.endsWith('.ts') || file.name.endsWith('.tsx') || file.name.endsWith('.js') || file.name.endsWith('.jsx') ? 'text/javascript' :
                                 file.name.endsWith('.css') ? 'text/css' : 'text/plain';
                             // imports[file.key] = 'data:' + mime + ';charset=utf-8,' + encodeURIComponent(content);
                             imports[file.key] = 'data:' + mime + ';base64,' + btoa(file.content);
@@ -398,12 +398,12 @@ export function setupCodeEditor (iframe) {
     // Function to setup show-code-btn listener in iframe
     function setupIframeCodeButton () {
         try {
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
             let setup = false
             // Function to actually setup the button once it's available
-            const setupButton = () => {
+            const setupButton = (st = true) => {
                 if(setup) return true
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                 const showCodeBtn = iframeDoc.querySelector('.show-code-btn');
                 if (showCodeBtn) {
                     setup = true
@@ -421,10 +421,11 @@ export function setupCodeEditor (iframe) {
                     iframeDoc.head.appendChild(style);
                     return true; // Success
                 }
+                setTimeout(()=>setupButton(), 1000)
                 return false; // Button not found yet
             };
-
-            if (setupButton()) return;
+            if (setupButton(false)) return;
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
             iframeDoc.addEventListener('DOMContentLoaded', () => {
                 setupButton()
             });
@@ -596,6 +597,7 @@ function setupPaneSep () {
 const icons = {
     'javascript': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="#E79627" viewBox="-40 -40 586 586" class="file-icon"><path d="M412.226 385.563c28.065 37.511-46.893 64.77-77.11 10.559l-41.05 23.822 2.516 4.167c15.464 26.04 39.62 41.294 72.27 45.673 71.481 8.55 118.148-37.034 92.817-101.767C443.667 331 396.5 324 369 305.75c-16.172-9.422-12.806-29.364.183-37.365 10.102-6.222 33.317-7.01 45.274 17.786l39.28-25.317C422.75 205 349.5 216.25 327.544 241.627 297.688 276.702 306.228 315.85 332.5 341c20.434 19.561 52.501 26.202 79.726 44.563m-185.588 79.069c22.63-9.153 35.904-28.074 39.416-56.202.305-2.848.508-184.599.508-184.599h-49.788l-.36 179.779c-1.164 11.64-8.122 19.983-18.289 21.619-17.347 2.791-28.911-2.26-40.963-24.826l-40.535 24.508c17.373 40.839 69.745 55.838 110.011 39.72M44.873 0h422.254C491.987 0 512 20.013 512 44.873v422.254c0 24.86-20.013 44.873-44.873 44.873H44.873C20.013 512 0 491.987 0 467.127V44.873C0 20.013 20.013 0 44.873 0"></path></svg>',
     'typescript': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 -1 16 16" class="file-icon"><path fill="#1E9CEF" d="M10.771 10.992a2.28 2.28 0 0 1-1.632-.759v1.29c1.055.686 2.87.56 3.5-.264a1.9 1.9 0 0 0 .253-1.889c-.656-1.321-2.214-1.4-2.668-2.238-.5-1.351 1.564-1.6 2.557-.685V5.234a2.85 2.85 0 0 0-1.566-.277 1.92 1.92 0 0 0-2.067 1.867c-.054 1.5 1.663 1.891 2.525 2.586.586.498.544 1.703-.902 1.582m-4.913.862V6.016H3.977v-.965h4.8v.965H6.9v5.838zM14.125.875v12.25H1.875V.875zM15 0H1v14h14z" class="typeScript_svg__i-color"></path></svg>',
+    'react': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="#26A2C1" viewBox="0 0 16 16" class="file-icon"><path d="M16 8c0-1.06-1.32-2.06-3.36-2.68.46-2.08.26-3.72-.66-4.26a1.5 1.5 0 0 0-.74-.18v.72c.16 0 .28.02.38.08.44.26.64 1.22.48 2.46l-.16.96a15.5 15.5 0 0 0-2.08-.36c-.44-.6-.9-1.16-1.36-1.64 1.08-.96 2.08-1.5 2.76-1.5V.88c-.9 0-2.08.64-3.26 1.74C6.8 1.52 5.64.88 4.74.88v.72c.68 0 1.68.54 2.74 1.52-.46.48-.92 1.02-1.34 1.62-.74.08-1.44.2-2.08.36a5.4 5.4 0 0 1-.16-.94c-.16-1.24.04-2.22.48-2.48.1-.06.22-.08.38-.08V.9c-.28 0-.52.06-.74.18-.92.52-1.12 2.18-.64 4.24C1.32 5.94 0 6.94 0 8s1.32 2.06 3.36 2.68c-.46 2.08-.26 3.72.66 4.26.22.12.46.18.74.18.9 0 2.08-.64 3.26-1.74 1.18 1.1 2.36 1.74 3.26 1.74.28 0 .52-.06.74-.18.92-.52 1.12-2.18.64-4.24C14.68 10.06 16 9.06 16 8m-4.24-2.18c-.12.42-.28.86-.44 1.28l-.42-.78c-.16-.26-.3-.52-.46-.76.44.08.88.16 1.32.26m-1.5 3.48c-.26.44-.52.86-.78 1.24a18 18 0 0 1-2.94 0A16 16 0 0 1 5.08 8a16 16 0 0 1 1.46-2.54 18 18 0 0 1 2.94 0A16 16 0 0 1 10.94 8c-.2.44-.44.88-.68 1.3m1.06-.42c.18.44.32.88.46 1.3-.42.1-.88.2-1.34.26.16-.26.32-.5.46-.78zM8 12.36c-.3-.32-.6-.66-.9-1.04.3.02.6.02.9.02s.6 0 .9-.02c-.28.38-.6.72-.9 1.04m-2.42-1.92c-.46-.06-.9-.16-1.34-.26.12-.42.28-.86.44-1.28l.42.78zM8 3.64c.3.32.6.66.9 1.04-.3-.02-.6-.02-.9-.02s-.6 0-.9.02c.28-.38.6-.72.9-1.04M5.58 5.56c-.16.26-.32.5-.46.78q-.24.39-.42.78c-.18-.44-.32-.88-.46-1.3.42-.1.88-.18 1.34-.26m-2.96 4.1C1.46 9.16.72 8.52.72 8s.74-1.16 1.9-1.66c.28-.12.58-.22.9-.32.18.64.44 1.3.74 1.98q-.45 1.02-.72 1.98c-.32-.1-.62-.2-.92-.32m1.76 4.66c-.44-.26-.64-1.22-.48-2.46l.16-.96c.64.16 1.34.28 2.08.36.44.6.9 1.16 1.36 1.64-1.08.96-2.08 1.5-2.74 1.5a1 1 0 0 1-.38-.08m7.74-2.5c.16 1.24-.04 2.22-.48 2.48a.7.7 0 0 1-.38.08c-.68 0-1.68-.54-2.74-1.52.46-.48.92-1.02 1.34-1.62.74-.08 1.44-.2 2.08-.36.08.32.14.64.18.94m1.26-2.16c-.28.12-.58.22-.9.32-.18-.64-.44-1.3-.74-1.98q.45-1.02.72-1.98c.32.1.62.22.92.34 1.16.5 1.9 1.14 1.9 1.66 0 .5-.76 1.14-1.9 1.64M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"></path></svg>',
     'html5': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" class="file-icon"><path fill="#F4BF75" d="m11.631 5.1.136-1.531H4.233l.4 4.672h5.216l-.187 2-1.679.459-1.67-.464L6.2 9.015H4.71l.19 2.433 3.085.875h.032v-.009l3.06-.866.423-4.76H6.014L5.886 5.1h5.744ZM2 1h12l-1.091 12.583L7.983 15l-4.892-1.417Z" class="html_svg__i-color"></path></svg>',
     'css3': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 -1 16 16" class="file-icon"><path fill="#1E9CEF" d="M3.785 2H14l-1.805 9.164L6.738 13 2 11.164l.482-2.447H4.5l-.2 1.011 2.864 1.107 3.3-1.107.461-2.328h-8.2l.395-2.045h8.206l.258-1.313h-8.2Z" class="css_svg__i-color"></path></svg>',
     'json': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class="file-icon"><path fill="#92AA5D" d="M5 3h2v2H5v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5h2v2H5c-1.07-.27-2-.9-2-2v-4a2 2 0 0 0-2-2H0v-2h1a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2m14 0a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1v2h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2v-2h2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5h-2V3zm-7 12a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m-4 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m8 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1"></path></svg>',
@@ -605,7 +607,9 @@ const icons = {
 
 const extIcos = {
     'ts': 'typescript',
+    'tsx': 'react',
     'js': 'typescript',
+    'jsx': 'react',
     'html': 'html5',
     'css': 'css3',
     'json': 'json',

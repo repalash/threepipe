@@ -62,6 +62,8 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
             target: monaco.languages.typescript.ScriptTarget.ES2020,
             allowNonTsExtensions: true,
             moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+            // react-jsx
+            jsx: monaco.languages.typescript.JsxEmit.React,
             esModuleInterop: true,
         });
 
