@@ -19,6 +19,7 @@ import {Event, Event2, EventDispatcher, VideoTexture} from 'three'
 import {generateUUID} from '../three'
 import {object3DTextureProperties, sceneTextureProperties} from '../core/object/iObjectCommons'
 import {materialTextureProperties, materialTexturePropertiesUserData} from '../core/material/iMaterialCommons'
+import {safeSetProperty} from 'ts-browser-helpers'
 
 /**
  * Event map for Object3DManager events.
@@ -138,9 +139,10 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const existing = [...this._objects].find(o => o.uuid === obj.uuid)
         if (existing) {
             if (existing && obj !== existing) {
-                console.error('AssetManager - Object with the same uuid already registered', obj, existing)
+                // console.error('AssetManager - Object with the same uuid already registered', obj, existing)
+                safeSetProperty(obj, 'uuid', generateUUID(), true, true)
             }
-            return
+            // return
         }
         if (!obj.assetType) {
             iObjectCommons.upgradeObject3D.call(obj)

@@ -6,12 +6,7 @@ import {Box3B} from '../three'
 import {ITexture} from './ITexture'
 import {IGeometry} from './IGeometry'
 
-export interface AddObjectOptions {
-    /**
-     * Add directly to the {@link RootScene} object instead of {@link RootScene.modelRoot}
-     * @default false
-     */
-    addToRoot?: boolean
+export interface AddModelOptions {
     /**
      * Automatically center the object in the scene.
      * @default false
@@ -43,6 +38,13 @@ export interface AddObjectOptions {
      * @default 2
      */
     autoScaleRadius?: number
+}
+export interface AddObjectOptions extends AddModelOptions{
+    /**
+     * Add directly to the {@link RootScene} object instead of {@link RootScene.modelRoot}
+     * @default false
+     */
+    addToRoot?: boolean
     /**
      * any attached viewer config will be ignored if this is set to true
      * @default true

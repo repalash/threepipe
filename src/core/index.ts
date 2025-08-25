@@ -37,6 +37,6 @@ export type {IGeometry, IGeometryUserData, IGeometryEventMap, IGeometrySetDirtyO
 export type {IMaterial, IMaterialEventMap, IMaterialParameters, IMaterialUserData, IMaterialSetDirtyOptions, IMaterialTemplate, IMaterialGenerator, AnimateTimeMaterial} from './IMaterial'
 export type {IObject3D, IMesh, IObject3DEventMap, ISetDirtyCommonOptions, IObjectSetDirtyOptions, IObjectProcessor, IObject3DUserData, IObjectExtension} from './IObject'
 export type {IRenderManager, IRenderManagerOptions, IWebGLRenderer, IRenderManagerEventMap, IAnimationLoopEvent, TThreeRendererMode, TThreeRendererModeUserData, IRenderManagerUpdateEvent, RendererBlitOptions} from './IRenderer'
-export type {IScene, ISceneEventMap, ISceneSetDirtyOptions, AddObjectOptions, ISceneUserData, IWidget} from './IScene'
+export type {IScene, ISceneEventMap, ISceneSetDirtyOptions, AddObjectOptions, AddModelOptions, ISceneUserData, IWidget} from './IScene'
 export type {ITexture, ITextureUserData, ITextureEventMap} from './ITexture'
 export type {ILight} from './light/ILight'

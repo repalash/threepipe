@@ -12,7 +12,7 @@ import {
     UnlitLineMaterial,
     UnlitMaterial,
 } from '../core'
-import {downloadFile} from 'ts-browser-helpers'
+import {downloadFile, safeSetProperty} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID} from '../three'
 import {AnimateTimeMaterial} from '../core/IMaterial'
@@ -118,8 +118,8 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         const mat = this.findMaterial(material.uuid)
         // todo make an option to return the same material instance and replace it, instead of replacing uuid
         if (mat) {
-            console.warn('MaterialManager: imported material uuid already exists, creating new uuid')
-            material.uuid = generateUUID()
+            // console.warn('MaterialManager: imported material uuid already exists, creating new uuid')
+            safeSetProperty(material, 'uuid', generateUUID(), true, true)
             if (material.userData.uuid) material.userData.uuid = material.uuid
         }
         // todo: check for name exists also?

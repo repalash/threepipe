@@ -222,7 +222,7 @@ export class ThreeSerialization {
                 if (material.isMaterial) {
                     if (obj?.isMaterial && obj.uuid === material.uuid) {
                         if (obj !== material && typeof obj.setValues === 'function') {
-                            console.warn('material uuid already exists, copying values to old material')
+                            console.warn('ThreeSerialization - Material uuid already exists, copying values to old material')
                             obj.setValues(material)
                         }
                         return obj

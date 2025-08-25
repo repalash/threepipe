@@ -15,13 +15,12 @@ import {type ICamera} from '../ICamera'
 import {autoGPUInstanceMeshes, bindToValue, Box3B} from '../../three'
 import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
-import {ThreeSerialization} from '../../utils'
+import {addModelProcess, centerAllGeometries, ThreeSerialization} from '../../utils'
 import {ITexture} from '../ITexture'
 import {AddObjectOptions, IScene, ISceneEventMap, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
-import {IGeometry} from '../IGeometry'
 import {getFittingDistance} from '../../three/utils/camera'
 
 @uiFolderContainer('Root Scene')
@@ -261,7 +260,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         return children.map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }
 
-    private _addObject3D(model: IObject3D|null, {autoCenter = false, centerGeometries = false, centerGeometriesKeepPosition = true, autoScale = false, autoScaleRadius = 2., addToRoot = false, license}: AddObjectOptions = {}): void {
+    private _addObject3D(model: IObject3D|null, {addToRoot = false, ...options}: AddObjectOptions = {}): void {
         const obj = model
         if (!obj) {
             console.error('Invalid object, cannot add to scene.')
@@ -270,41 +269,13 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         // eslint-disable-next-line deprecation/deprecation
         if (addToRoot) this.add(obj)
         else this.modelRoot.add(obj)
-
-        const process = () => {
-            if (autoCenter && !obj.userData.isCentered && !obj.userData.pseudoCentered && !obj.isLight) { // pseudoCentered is legacy
-                obj.autoCenter && obj.autoCenter()
-            } else {
-                obj.userData.isCentered = true // mark as centered, so that autoCenter is not called again when file is reloaded.
-            }
-            if (autoScale && !obj.userData.autoScaled && !obj.isLight) {
-                obj.autoScale && obj.autoScale(obj.userData.autoScaleRadius || autoScaleRadius)
-            } else {
-                obj.userData.autoScaled = true // mark as auto-scaled, so that autoScale is not called again when file is reloaded.
-            }
-            if (centerGeometries && !obj.userData.geometriesCentered) {
-                this.centerAllGeometries(centerGeometriesKeepPosition, obj)
-                obj.userData.geometriesCentered = true
-            } else {
-                obj.userData.geometriesCentered = true // mark as centered, so that geometry center is not called again when file is reloaded.
-            }
-        }
-        if (obj._loadingPromise) obj._loadingPromise.finally(process)
-        else process()
-
-        if (license) obj.userData.license = [obj.userData.license, license].filter(v=>v).join(', ')
-
+        addModelProcess(obj, options)
         this.setDirty({refreshScene: true})
     }
 
     @uiButton('Center All Geometries', {sendArgs: false})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
-        const geoms = new Set<IGeometry>()
-        obj = obj ?? this.modelRoot
-        obj.traverseModels && obj.traverseModels((o) => {o.geometry && geoms.add(o.geometry)}, {visible: false, widgets: false})
-        const undos: (()=>void)[] = []
-        geoms.forEach(g => undos.push(g.center2(undefined, keepPosition)))
-        return ()=>undos.forEach(u=>u())
+        return centerAllGeometries(obj ?? this.modelRoot, keepPosition)
     }
 
     clearSceneModels(dispose = false, setDirty = true): void {
