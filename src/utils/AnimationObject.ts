@@ -1,4 +1,4 @@
-import {deepAccessObject, getOrCall, onChange, serializable, serialize, uuidV4, ValOrFunc} from 'ts-browser-helpers'
+import {deepAccessObject, getOrCall, onChange, serializable, serialize, ValOrFunc} from 'ts-browser-helpers'
 import {
     generateUiConfig,
     generateValueConfig,
@@ -613,7 +613,7 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
             ]),
             generateUiConfig(this),
         ],
-        uuid: uuidV4(),
+        uuid: generateUUID(),
     }
 
 }

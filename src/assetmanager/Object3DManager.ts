@@ -529,12 +529,12 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     static readonly Object3DTextureProperties: Set<string> = object3DTextureProperties
 
     static {
-        this.MaterialTextureProperties.union(new Set([
+        new Set([
             ...UnlitMaterial.MapProperties,
             ...UnlitLineMaterial.MapProperties,
             ...PhysicalMaterial.MapProperties,
             ...LegacyPhongMaterial.MapProperties,
-        ]))
+        ]).forEach(v=>Object3DManager.MaterialTextureProperties.add(v))
     }
 }
 
