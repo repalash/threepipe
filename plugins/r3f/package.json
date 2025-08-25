@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-r3f",
     "description": "R3F wrapper for ThreePipe",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "devDependencies": {
     },
     "dependencies": {
@@ -67,7 +67,7 @@
         "replace": {
             "dependencies": {},
             "peerDependencies": {
-                "threepipe": "^0.0.61",
+                "threepipe": "^0.0.62",
                 "@react-three/fiber": "^9.3.0",
                 "react": "^19.1.1",
                 "react-dom": "^19.1.1"
