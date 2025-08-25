@@ -15,7 +15,6 @@ import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {IObject3D, ISceneEventMap} from '../../core'
 import {generateUUID} from '../../three'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
-import {Object3DManager, Object3DManagerEventMap} from '../../assetmanager'
 
 export interface GLTFAnimationPluginEventMap extends AViewerPluginEventMap{
     checkpointBegin: object
@@ -229,9 +228,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        // todo handle existing objects in the scene incase the plugin is added after the objects are loaded.
-        viewer.object3dManager.addEventListener('objectAdd', this._objectAdded)
-        viewer.object3dManager.addEventListener('objectRemove', this._objectRemoved)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
         viewer.scene.addEventListener('sceneUpdate', this._sceneUpdate)
         viewer.addEventListener('postFrame', this._postFrame)
         window.addEventListener('wheel', this._wheel)
@@ -241,8 +240,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
     onRemove(viewer: ThreeViewer): void {
         while (this._animations.length) this._animations.pop()
-        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdded)
-        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemoved)
+        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
         viewer.scene.removeEventListener('sceneUpdate', this._sceneUpdate)
         viewer.removeEventListener('postFrame', this._postFrame)
         window.removeEventListener('wheel', this._wheel)
@@ -603,9 +603,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
     // protected _rootClips: Set<AnimationClip> = new Set()
 
-    protected _objectAdded: EventListener2<'objectAdd', Object3DManagerEventMap, Object3DManager> = (ev)=>{
-        const object = ev.object as IObject3D
-        if (!this._viewer) return
+    private _objectAdd = (ev: {object?: IObject3D})=>{
+        const object = ev.object
+        if (!this._viewer || !object) return
         let changed = false
         // const isInRoot = ev.options?.addToRoot // for model stage etc
 
@@ -622,9 +622,9 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         }
     }
 
-    protected _objectRemoved: EventListener2<'objectRemove', Object3DManagerEventMap, Object3DManager> = (ev)=>{
-        if (!this._viewer) return
+    private _objectRemove = (ev: {object: IObject3D})=>{
         const object = ev.object as IObject3D
+        if (!this._viewer || !object) return
         const animation = this._animations.find(a => a.object === object)
         if (!animation) return
 

@@ -463,10 +463,6 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
 
-        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
-        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
-        viewer.object3dManager.addEventListener('materialAdd', this._materialAdd)
-        viewer.object3dManager.addEventListener('materialRemove', this._materialRemove)
         viewer.timeline.addEventListener('update', this._viewerTimelineUpdate)
 
         ;(viewer as any)._animGetters = { // used in extractAnimationKey
@@ -487,6 +483,14 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         }
 
         this._setupUiConfig(viewer.scene)
+
+        viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.getMaterials().forEach(material=>this._materialAdd({material}))
+        viewer.object3dManager.addEventListener('materialAdd', this._materialAdd)
+        viewer.object3dManager.addEventListener('materialRemove', this._materialRemove)
+
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -495,8 +499,10 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
 
         viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
         viewer.object3dManager.removeEventListener('materialAdd', this._materialAdd)
         viewer.object3dManager.removeEventListener('materialRemove', this._materialRemove)
+        viewer.object3dManager.getMaterials().forEach(material=>this._materialRemove({material}))
 
         delete (viewer as any)._animGetters
 

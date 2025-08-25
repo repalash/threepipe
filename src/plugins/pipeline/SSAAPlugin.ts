@@ -1,8 +1,8 @@
-import {EventListener2, OrthographicCamera, PerspectiveCamera} from 'three'
+import {OrthographicCamera, PerspectiveCamera} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {onChange, serialize} from 'ts-browser-helpers'
-import {ICamera, ILight, IScene, ISceneEventMap} from '../../core'
+import {ICamera, ILight, IObject3D} from '../../core'
 import {ProgressivePlugin} from './ProgressivePlugin'
 
 export type TCamera = ICamera & (PerspectiveCamera|OrthographicCamera)
@@ -38,7 +38,7 @@ export class SSAAPlugin extends AViewerPluginSync {
     private _hasSetOffsetRC = false
     private _hasSetOffsetLC = false
 
-    public trackedJitterCameras = new Set<[TCamera, {width: number, height: number}]>() // todo register other cameras and light shadows cameras when added to the scene and changed.
+    public trackedJitterCameras = new Map<TCamera, {width: number, height: number}>() // todo register other cameras and light shadows cameras when added to the scene and changed.
 
     dependencies = [ProgressivePlugin]
 
@@ -51,14 +51,17 @@ export class SSAAPlugin extends AViewerPluginSync {
         super.onAdded(viewer)
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
-        // todo use object3dmanager here instead of addSceneObject
-        viewer.scene.addEventListener('addSceneObject', this._addSceneObject)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
     }
 
     onRemove(viewer: ThreeViewer): void {
         viewer.removeEventListener('preRender', this._preRender)
         viewer.removeEventListener('postRender', this._postRender)
-        viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)
+        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
         return super.onRemove(viewer)
     }
 
@@ -69,15 +72,20 @@ export class SSAAPlugin extends AViewerPluginSync {
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
-    private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (event)=>{
-        event.object?.traverse((o: ILight)=>{
-            if (o && o.shadow && o.shadow.camera && o.shadow.mapSize) {
-                this.trackedJitterCameras.add([o.shadow.camera as TCamera, o.shadow.mapSize])
-            }
-            // if (o?.material) {
-            //     if (o.material.alphaMap) console.log(o.material) //todo why?
-            // }
-        })
+    private _objectAdd = (e: {object?: IObject3D})=>{
+        const obj = e.object as ILight
+        if (obj && obj.shadow && obj.shadow.camera && obj.shadow.mapSize) {
+            this.trackedJitterCameras.set(obj.shadow.camera as TCamera, obj.shadow.mapSize)
+        }
+    }
+
+    private _objectRemove = (e: {object?: IObject3D})=>{
+        const obj = e.object as ILight
+        if (obj && obj.shadow && obj.shadow.camera) {
+            const camera = obj.shadow.camera as TCamera
+            this._clearJitter(camera)
+            this.trackedJitterCameras.delete(camera)
+        }
     }
 
     private _jitter(camera: TCamera, size: {
@@ -116,7 +124,7 @@ export class SSAAPlugin extends AViewerPluginSync {
             height: v.renderManager.renderSize.y * v.renderManager.renderScale,
         }, v.renderManager.frameCount)
         if (this.jitterLightCameras)
-            this.trackedJitterCameras.forEach((a) => this._jitter(...a, v.renderManager.frameCount))
+            this.trackedJitterCameras.entries().forEach((a) => this._jitter(...a, v.renderManager.frameCount))
 
         this._hasSetOffsetRC = this.jitterRenderCamera
         this._hasSetOffsetLC = this.jitterLightCameras
@@ -131,7 +139,7 @@ export class SSAAPlugin extends AViewerPluginSync {
             this._hasSetOffsetRC = false
         }
         if (this._hasSetOffsetLC) {
-            this.trackedJitterCameras.forEach(([camera]) => this._clearJitter(camera))
+            this.trackedJitterCameras.keys().forEach((camera) => this._clearJitter(camera))
             this._hasSetOffsetLC = false
         }
     }
