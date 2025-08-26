@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threepipe + Flickity Carousel</title>
+    <link rel="stylesheet" href="https://unpkg.com/flickity@2.3.0/dist/flickity.css">
+    <style>
+        html, body{
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { font-family: sans-serif; }
+
+        .carousel {
+            background: #EEE;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
+        }
+
+        .carousel img {
+            display: block;
+            height: 200px;
+        }
+
+        @media screen and ( min-width: 768px ) {
+            .carousel img {
+                height: 400px;
+            }
+        }
+
+        .title{
+            position: absolute;
+            top: 4rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #2b313a;
+            font-family: sans-serif;
+            font-size: 1.5rem;
+            z-index: 10;
+        }
+    </style>
+
+
+    <script type="module" src="https://unpkg.com/flickity@2.3.0/dist/flickity.pkgd.js"></script>
+    <script src="https://unpkg.com/threepipe@latest/dist/index.js"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+</head>
+<body>
+<div class="title">
+    Flickity Image Carousel with a 3D Model Slide
+</div>
+<div class="carousel"
+     data-flickity='{ "imagesLoaded": true, "percentPosition": false }'>
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/orange-tree.jpg" alt="orange tree" />
+    <div style="width: min(600px, 80vw); height: 100%; position: relative;">
+        <canvas id="three-canvas" style="width: 100%; height: 100%;"></canvas>
+    </div>
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/submerged.jpg" alt="submerged" />
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/look-out.jpg" alt="look-out" />
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/one-world-trade.jpg" alt="One World Trade" />
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/drizzle.jpg" alt="drizzle" />
+    <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/cat-nose.jpg" alt="cat nose" />
+</div>
+<script id="example-script" type="module" data-scripts="./index.html">
+    const {ThreeViewer, LoadingScreenPlugin} = threepipe
+    // or
+    // import {ThreeViewer, LoadingScreenPlugin} from 'threepipe' // if using import maps
+    // import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
+    // import {ThreeViewer, LoadingScreenPlugin} from 'https://unpkg.com/threepipe@latest/dist/index.mjs'
+
+    const viewer = new ThreeViewer({
+        canvas: document.getElementById('three-canvas'),
+        stopPointerEventPropagation: true,
+    })
+
+    viewer.addPluginSync(LoadingScreenPlugin)
+
+    // Load an environment map
+    // https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf
+    const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+    const modelPromise = viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+        autoCenter: true,
+        autoScale: true,
+    })
+
+    Promise.all([envPromise, modelPromise]).then(([env, model])=>{
+        console.log('Loaded', model, env, viewer)
+    })
+</script>
+</body>
+</html>

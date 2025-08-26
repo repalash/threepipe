@@ -35,7 +35,9 @@ const alias = {
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
     'react-dom': 'https://esm.sh/react-dom@19/',
     'react-dom/client': 'https://esm.sh/react-dom@19/client',
+    'react-reconciler': 'https://esm.sh/react-reconciler@19/',
     '@react-three/fiber': 'https://esm.sh/@react-three/fiber@9.3.0?external=react,react-dom,three',
+    '@react-three/drei': 'https://esm.sh/@react-three/drei@10.7.4?external=react,react-dom,three,@react-three/fiber',
     'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js',
     'vue-import': 'https://unpkg.com/vue-import/dist/vue-import.esm-browser.js',
 }
@@ -125,10 +127,32 @@ export default defineConfig(async ()=>{
                 apply: 'serve',
                 transformIndexHtml: { order: 'pre', handler:  (html) => {
                     const res = html
+                        .replace('src="./script.js" data-scripts="./script.jsx', 'src="./script.jsx" data-scripts="./script.tsx')
                         .replace('src="./script.js" data-scripts="./script.tsx', 'src="./script.tsx" data-scripts="./script.tsx')
                         .replace('src="./script.js"', 'src="./script.ts"');
                     return res
                 } },
+            },
+
+            // hack to be able to use React from esm.sh
+            {
+                name: 'jsx-react-global',
+                apply: 'serve',
+                transform (code, id) {
+                    // Only process JSX files
+                    if (id.endsWith('/script.jsx') || id.endsWith('/script.tsx')) {
+                        // Check if the file imports React
+                        const hasReactImport = /import\s+(?:\*\s+as\s+)?React(?:\s*,|\s+from|\s*$)/m.test(code) ||
+                            /import\s+.*\{[^}]*React[^}]*\}.*from/m.test(code) ||
+                            /import\s+.*from\s+['"]react['"]/m.test(code);
+
+                        if (hasReactImport) {
+                            // Add window.React = React at the end of the file
+                            return code + '\nwindow.React = React;';
+                        }
+                    }
+                    return null;
+                },
             },
         ],
         server: {

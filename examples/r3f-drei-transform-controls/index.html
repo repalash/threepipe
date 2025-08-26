@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threepipe R3F Drei TransformControls</title>
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+              "three": "./../../dist/index.mjs",
+              "threepipe": "./../../dist/index.mjs",
+              "react": "https://esm.sh/react@19",
+              "react-dom/client": "https://esm.sh/react-dom@19/client",
+              "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime",
+              "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.3.0?external=react,react-dom,three",
+              "@react-three/drei": "https://esm.sh/@react-three/drei@10.7.4?external=react,react-dom,three,@react-three/fiber",
+              "@threepipe/plugin-r3f": "./../../plugins/r3f/dist/index.mjs"
+            }
+        }
+    </script>
+
+    <style>
+        html, body, #root{
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        body {
+            overflow: hidden;
+        }
+    </style>
+
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.jsx;./script.js"></script>
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>

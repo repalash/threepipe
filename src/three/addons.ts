@@ -1,3 +1,4 @@
+
 export type {GLTFLoaderPlugin, GLTF, GLTFReference, GLTFReferenceType} from 'three/examples/jsm/loaders/GLTFLoader.js'
 export {GLTFParser, GLTFBinaryExtension, GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 export {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
@@ -32,3 +33,5 @@ export {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js'
 export {FBXLoader} from 'three/examples/jsm/loaders/FBXLoader.js'
 export {STLLoader} from 'three/examples/jsm/loaders/STLLoader.js'
 export {Rhino3dmLoader} from 'three/examples/jsm/loaders/3DMLoader.js'
+export {GPUComputationRenderer} from 'three/examples/jsm/misc/GPUComputationRenderer.js'
+export {MeshSurfaceSampler} from 'three/examples/jsm/math/MeshSurfaceSampler.js'

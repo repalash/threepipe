@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": "./",
-        "allowJs": false,
+        "allowJs": true,
         "checkJs": false,
         "skipLibCheck": true,
         "allowSyntheticDefaultImports": true,
@@ -36,9 +36,9 @@
         "jsx": "react"
     },
     "include": [
-        "./**/*.mjs",
         "./**/*.ts",
-        "./**/*.tsx"
+        "./**/*.tsx",
+        "./**/*.jsx"
     ],
     "exclude": [
         "node_modules",
