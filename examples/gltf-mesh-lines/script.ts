@@ -31,7 +31,7 @@ async function init() {
 
     viewer.scene.backgroundColor = new Color(0x333333)
 
-    // await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const obj1 = await viewer.load<IObject3D>('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/refs/heads/main/Models/MeshPrimitiveModes/glTF/MeshPrimitiveModes.gltf', {
         autoScale: true,
         autoCenter: true,

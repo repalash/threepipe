@@ -30,7 +30,7 @@ async function init() {
 
     const tiles = viewer.addPluginSync(TilesRendererPlugin)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const result = await tiles.load('https://raw.githubusercontent.com/NASA-AMMOS/3DTilesRendererJS/c7a9a7f7607e8759d16c26fb83815ad1cd1fd865/example/data/tileset.json', {
         autoCenter: true,
         autoScale: true,

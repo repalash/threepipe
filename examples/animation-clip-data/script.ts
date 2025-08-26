@@ -17,11 +17,11 @@ async function init() {
     ui.appendChild(viewer.timeline.uiConfig, {expanded: true})
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
 
-    viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const anim = viewer.getPlugin(GLTFAnimationPlugin)!
     for (let i = 0; i < 10; i++) {
-        const m1 = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/Horse.glb', {
+        const m1 = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/Horse.glb', {
             autoCenter: true,
             autoScale: true,
             i,

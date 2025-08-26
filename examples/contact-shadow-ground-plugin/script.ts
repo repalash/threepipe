@@ -19,8 +19,8 @@ async function init() {
     viewer.addPluginSync(ContactShadowGroundPlugin)
 
     await Promise.all([
-        viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'),
-        viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'),
+        viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'),
+        viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
     ])
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

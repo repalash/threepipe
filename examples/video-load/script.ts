@@ -30,12 +30,13 @@ async function init() {
     viewer.scene.setBackgroundColor('#555555')
 
     const urls = [
-        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sintel.mp4',
-        'https://asset-samples.threepipe.org/minimal/big_buck_bunny_720p_1mb.mp4',
-        'https://asset-samples.threepipe.org/minimal/file_example_WEBM_480_900KB.webm',
-        'https://asset-samples.threepipe.org/minimal/file_example_MOV_480_700kB.mov',
+        'https://samples.threepipe.org/minimal/sintel.mp4',
+        'https://samples.threepipe.org/minimal/star.mp4',
+        'https://samples.threepipe.org/minimal/big_buck_bunny_720p_1mb.mp4',
+        'https://samples.threepipe.org/minimal/file_example_WEBM_480_900KB.webm',
+        'https://samples.threepipe.org/minimal/file_example_MOV_480_700kB.mov',
         // todo ogg doesnt work?
-        // 'https://asset-samples.threepipe.org/minimal/file_example_OGG_480_1_7mg.ogg',
+        // 'https://samples.threepipe.org/minimal/file_example_OGG_480_1_7mg.ogg',
     ]
 
     const geometry = new PlaneGeometry(1, 1)

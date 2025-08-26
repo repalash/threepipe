@@ -25,14 +25,14 @@ async function init() {
     })
     const popmotion = viewer.getOrAddPluginSync(PopmotionPlugin)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     viewer.scene.mainCamera.position.set(1.4, 0.097, 2.1)
     let state = 0
 
     const images = await Promise.all([
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/planets/earth_specular_2048.jpg',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/uv_grid_opengl.jpg',
+        'https://samples.threepipe.org/minimal/planets/earth_specular_2048.jpg',
+        'https://samples.threepipe.org/minimal/uv_grid_opengl.jpg',
     ].map(async i=> viewer.load<ITexture>(i)))
     if (!images[0]) {
         throw new Error('Failed to load images for animation')

@@ -45,7 +45,7 @@ async function init() {
         targetPreview.addTarget(() => ssrefl.target, 'ssrefl')
     }
 
-    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb', {
+    await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb', {
         autoCenter: true,
         autoScale: false,
     })

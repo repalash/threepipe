@@ -25,7 +25,7 @@ async function init() {
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin, {expanded: true})
 
-    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+    await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
 
     viewer.getPlugin(CameraViewPlugin)!.viewPauseTime = 0
     viewer.getPlugin(CameraViewPlugin)!.animEase = 'linear'

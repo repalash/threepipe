@@ -27,7 +27,7 @@ async function init() {
     const configurator = viewer.addPluginSync(new SwitchNodePlugin())
     configurator.enableEditContextMenus = true
 
-    // await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     // This model is already setup in the editor.
     // You can use the editor to setup the switch-nodes in the UI and then load the model here.

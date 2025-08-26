@@ -24,7 +24,7 @@ async function init() {
     targetPreview.addTarget(()=>viewer.renderManager.renderPass.transparentTarget, 'transparent', true, true)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget2, 'composer-2', false, false)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const [model, model2] = await Promise.all([
         viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/IridescenceLamp.glb', {
             autoCenter: true,

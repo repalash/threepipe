@@ -39,12 +39,12 @@
         async function init() {
             const ground = viewer.getPlugin(BaseGroundPlugin)
 
-            const model3 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model3 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
             await timeout(500)
             viewer.scene.disposeSceneModels()
             await timeout(500)
 
-            const model4 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model4 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
 
             if(model3 !== model4 || model4 !== viewer.scene.modelRoot){
                 throw 'Something went wrong, models should be the same as model root and it is loaded'

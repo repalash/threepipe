@@ -33,13 +33,13 @@
 
         async function init() {
 
-            const model = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
             viewer.scene.backgroundColor = new Color(0x000000)
             await timeout(500)
             viewer.scene.disposeSceneModels()
             await timeout(500)
             // should load white bg
-            const model2 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model2 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
         }
 
         _testStart()

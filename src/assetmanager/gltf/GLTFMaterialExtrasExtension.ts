@@ -128,7 +128,7 @@ export class GLTFMaterialExtrasExtension {
 
                     delete o.userData.gltfExtensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
 
-                    // legacy bump map scale fix, test model - test model - http://asset-samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
+                    // legacy bump map scale fix, test model - test model - http://samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
                     const assetVersion = parser.json?.asset?.version ? parseFloat(parser.json?.asset?.version) : null
                     // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
                     if ((o.userData.legacyBumpScale || assetVersion && assetVersion <= 2.0) && (o as any)?.bumpScale !== undefined && o?.bumpMap && o.defines) {

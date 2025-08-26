@@ -42,7 +42,7 @@
             viewer.deleteImportedViewerConfigOnLoad = false
             viewer.deleteImportedViewerConfigOnLoadWait = 2000
 
-            const model3 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model3 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
             viewer.scene.setBackgroundColor('#1B1B1F')
             ground.material.color.set('#1B1B1F')
             ground.material.roughness = 0.45;
@@ -55,7 +55,7 @@
             // viewer.scene.clearSceneModels()
             // await timeout(500)
             // should load white bg
-            const model4 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb', {
+            const model4 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb', {
                 autoCenter: true,
             })
 

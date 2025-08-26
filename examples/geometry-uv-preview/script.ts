@@ -10,7 +10,7 @@ async function init() {
 
     const uvPreview = viewer.addPluginSync(GeometryUVPreviewPlugin)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/IridescentDishWithOlives.glb', {
         autoCenter: true,
         autoScale: true,

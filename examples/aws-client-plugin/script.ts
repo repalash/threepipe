@@ -36,11 +36,11 @@ async function init() {
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
 
-    const modelUrl = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+    const modelUrl = 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'
     const result = await viewer.load<IObject3D>(modelUrl, {
         autoCenter: true,
         autoScale: true,

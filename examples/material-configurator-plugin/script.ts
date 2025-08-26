@@ -34,14 +34,14 @@ async function init() {
     ui.setupPluginUi(PickingPlugin)
     ui.appendChild(viewer.uiConfig)
 
-    // await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     // This model is already setup in the editor.
     // You can use the editor to setup the materials in the UI and then load the model here.
     // Another way to load the material variations is to export a json file of the plugin from the editor and load it in the same way after loading the model.
     await viewer.load<IObject3D>(
         // 'https://demo-assets.pixotronics.com/pixo/gltf/material_configurator.glb',
-        'https://asset-samples.threepipe.org/demos/classic-watch.glb',
+        'https://samples.threepipe.org/demos/classic-watch.glb',
         // 'https://demo-assets.pixotronics.com/pixo/gltf/classic-watch.glb',
         {
             autoCenter: true,

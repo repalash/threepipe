@@ -23,10 +23,10 @@ async function init() {
     const dofPlugin = viewer.addPluginSync(DepthOfFieldPlugin)
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
-    const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/kira.glb', {
+    const result = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/kira.glb', {
         autoCenter: true,
         autoScale: true,
         autoScaleRadius: 15,

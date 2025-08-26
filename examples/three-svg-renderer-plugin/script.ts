@@ -37,11 +37,11 @@ async function init() {
     viewer.addPluginSync(GLTFAnimationPlugin)// .autoplayOnLoad = true
 
     // viewer.scene.addObject(new DirectionalLight2(0xffffff, 1).rotateZ(0.5).rotateX(0.5))
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const models = [
         // working/sort of working
-        'https://threejs.org/examples/models/gltf/Horse.glb',
+        'https://samples.threepipe.org/minimal/Horse.glb',
         'https://demo-assets.pixotronics.com/pixo/gltf/jewlr1.glb',
         'https://demo-assets.pixotronics.com/pixo/gltf/engagement_ring.glb',
         'https://threejs.org/examples/models/gltf/Flamingo.glb',
@@ -50,9 +50,9 @@ async function init() {
         'https://cdn.jsdelivr.net/gh/LokiResearch/three-svg-renderer/resources/pig.gltf',
         'https://cdn.jsdelivr.net/gh/LokiResearch/three-svg-renderer/resources/vincent.gltf', // https://studio.blender.org/characters/5718a967c379cf04929a4247/v1/
         'https://threejs.org/examples/models/fbx/Samba Dancing.fbx',
-        'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
+        'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf',
         'https://threejs.org/examples/models/obj/male02/male02.obj',
-        'https://threejs.org/examples/models/gltf/kira.glb', // slow
+        'https://samples.threepipe.org/demos/kira.glb', // slow
 
         // to test
         'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets/Models/WaterBottle/glTF-Draco/WaterBottle.gltf',

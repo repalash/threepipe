@@ -27,7 +27,7 @@ async function init() {
 
     viewer.scene.backgroundColor = new Color(0x333333)
 
-    await viewer.load<IObject3D>('https://asset-samples.threepipe.org/demos/temple-lines.glb.zip', {
+    await viewer.load<IObject3D>('https://samples.threepipe.org/demos/temple-lines.glb.zip', {
         autoScale: true,
         autoCenter: true,
     })

@@ -52,7 +52,7 @@
 
             // at this point both ground and background should be black
 
-            const model3 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model3 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
 
             await timeout(500)
 
@@ -70,7 +70,7 @@
             await timeout(500)
             viewer.scene.clearSceneModels()
             await timeout(500)
-            const model4 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model4 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
 
             await timeout(1000)
 
@@ -78,7 +78,7 @@
             // this is because ground material is used by reference when loaded from the config and color is changed. So when its loaded again, the color should remain black
 
             // if we load once more but with different options it will import the config again and the ground will be white again
-            const model5 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb', {
+            const model5 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb', {
                 autoCenter: true
             })
 

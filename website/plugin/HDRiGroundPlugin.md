@@ -35,7 +35,7 @@ const viewer = new ThreeViewer({...})
 const hdriGround = viewer.addPluginSync(new HDRiGrounPlugin())
 
 // Load an hdr environment map
-await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 // set background to environment
 viewer.scene.background = 'environment'
 // or 

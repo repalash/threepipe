@@ -33,7 +33,7 @@ async function init() {
     viewer.addPluginSync(new ThreeSVGRendererPlugin(true))
 
     // viewer.scene.addObject(new DirectionalLight2(0xffffff, 1).rotateZ(0.5).rotateX(0.5))
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
     // generator.defaultMaterialClass = UnlitMaterial

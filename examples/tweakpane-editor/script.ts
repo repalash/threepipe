@@ -37,7 +37,7 @@ async function init() {
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'
 
-    await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const transfr = viewer.getPlugin(TransfrSharePlugin)
     transfr && (transfr.queryParam = 'm')

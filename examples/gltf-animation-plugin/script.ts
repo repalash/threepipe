@@ -22,8 +22,8 @@ async function init() {
     const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.setupPluginUi(GLTFAnimationPlugin)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-    const result = await viewer.load('https://threejs.org/examples/models/gltf/Horse.glb', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+    const result = await viewer.load('https://samples.threepipe.org/minimal/Horse.glb', {
         autoCenter: true,
         autoScale: true,
     })

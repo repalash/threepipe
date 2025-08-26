@@ -45,6 +45,7 @@
 <script id="example-script" type="module">
     import {LoadingScreenPlugin, _testFinish, _testStart} from 'threepipe'
     import React from 'react'
+    window.React = React;
     import {createRoot} from 'react-dom/client'
     import {ViewerCanvas, Asset, Model} from '@threepipe/plugin-r3f'
     import htm from 'https://esm.sh/htm'
@@ -62,12 +63,13 @@
             }}
         >
             <${React.Suspense}>
-                <${Asset} url=${'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'}
+                <${Asset} url=${'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'}
                           autoSetBackground=${true}/>
-                <${Model} url=${'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}/>
+                <${Model} url=${'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'}/>
             <//>
         <//>
     `)
+
 </script>
 </body>
 </html>

@@ -36,7 +36,7 @@ async function init() {
     })
 
     await viewer.setEnvironmentMap(
-        getUrlQueryParam('env') ?? 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'
+        getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'
     )
 
     GLTFLoader2.UseMeshLines = true
@@ -49,7 +49,7 @@ async function init() {
 
     // viewer.scene.backgroundColor = new Color(0x2a2a2a)
 
-    const model = (await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    const model = (await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoCenter: true,
         autoScale: true,
     }))!

@@ -35,7 +35,7 @@ async function init() {
     viewer.getPlugin(SSReflectionPlugin)!.enabled = false
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    const model = await viewer.load<IObject3D>('https://asset-samples.threepipe.org/demos/sponza-ssgi-ssr.glb')
+    const model = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/sponza-ssgi-ssr.glb')
     viewer.scene.envMapIntensity = 0.0
     viewer.getPlugin(SSGIPlugin)!.pass.stepCount = 8
 

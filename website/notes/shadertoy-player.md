@@ -181,7 +181,7 @@ Checkout the [Material Extension guide](./../guide/material-extension) for more 
 This has a default shader, but you can dynamically change the `parsFragmentSnippet` to load different ShaderToy shaders at runtime.
 
 ```typescript
-const response = await fetch('https://asset-samples.threepipe.org/shaders/tunnel-cylinders.glsl')
+const response = await fetch('https://samples.threepipe.org/shaders/tunnel-cylinders.glsl')
 const shaderText = await response.text()
 toyExtension.parsFragmentSnippet = v
 toyExtension.computeCacheKey = Math.random().toString()

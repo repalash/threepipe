@@ -20,7 +20,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 const hdris = [
     'https://threejs.org/examples/textures/equirectangular/quarry_01_1k.hdr',
     'https://threejs.org/examples/textures/equirectangular/spot1Lux.hdr',
-    'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr',
+    'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr',
     'https://dist.pixotronics.com/webgi/assets/hdr/gem_2.hdr',
     'https://hdrihaven.r2cache.com/hdr/1k/studio_small_04_1k.hdr',
     'https://hdrihaven.r2cache.com/hdr/1k/studio_small_03_1k.hdr',
@@ -71,7 +71,7 @@ async function init() {
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(false))
 
-    await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoCenter: true,
         autoScale: true,
     })

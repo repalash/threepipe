@@ -31,7 +31,7 @@ async function init() {
 
     ui.setupPluginUi(ParallaxMappingPlugin, {expanded: true})
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const cube = new Mesh(
         new BoxGeometry(1, 1, 1),
@@ -43,7 +43,7 @@ async function init() {
     const maps = [
         'https://threejs.org/examples/textures/sprite0.png',
         'https://threejs.org/examples/textures/uv_grid_opengl.jpg',
-        'https://threejs.org/examples/models/svg/style-css-inside-defs.svg',
+        'https://samples.threepipe.org/minimal/style-css-inside-defs.svg',
         'https://cdn.jsdelivr.net/gh/Rabbid76/graphics-snippets/resource/texture/lookuptable.png',
         'https://cdn.jsdelivr.net/gh/Rabbid76/graphics-snippets/resource/texture/perlin3_cp.png',
         'https://cdn.jsdelivr.net/gh/Rabbid76/graphics-snippets/resource/texture/perlin4_cp.png',

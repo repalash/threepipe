@@ -23,7 +23,7 @@ async function init() {
         autoScale: true,
     }
     const res = await Promise.all([
-        viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'),
+        viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'),
         viewer.load<IObject3D>('https://threejs.org/examples/models/stl/ascii/slotted_disk.stl', options),
         viewer.load<IObject3D>('https://threejs.org/examples/models/stl/binary/pr2_head_pan.stl', options),
     ])

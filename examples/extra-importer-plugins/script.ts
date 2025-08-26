@@ -62,7 +62,7 @@ async function init() {
 
     viewer.scene.setBackgroundColor('#555555')
     viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2))
-    await viewer.setEnvironmentMap('https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const urls = [
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3ds/portalgun/portalgun.3ds', // todo - to load textures there should be a way to set basepath to portalgun/textures

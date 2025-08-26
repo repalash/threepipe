@@ -1,10 +1,10 @@
 import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const models = [
-    'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf',
+    'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf',
     'https://threejs.org/examples/models/fbx/Samba Dancing.fbx',
     'https://threejs.org/examples/models/draco/bunny.drc',
-    'https://threejs.org/examples/models/gltf/kira.glb',
+    'https://samples.threepipe.org/demos/kira.glb',
 ]
 
 async function init(i: number) {
@@ -24,7 +24,7 @@ async function init(i: number) {
         plugins: [LoadingScreenPlugin],
     })
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         // setBackground: true,
     })
     const result = await viewer.load(models[i], {

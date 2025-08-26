@@ -26,7 +26,7 @@ async function init() {
 
     viewer.scene.setBackgroundColor('#444466')
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     console.log(generator.generators)
 

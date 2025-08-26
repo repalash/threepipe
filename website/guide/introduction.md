@@ -95,7 +95,7 @@ async function init() {
   const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true));
 
   // Load an environment map
-  await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
+  await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
     // The environment map can also be used as the scene background
     setBackground: false,
   });

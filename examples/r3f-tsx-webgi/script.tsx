@@ -18,7 +18,7 @@ _testStart()
 
 function Watch() {
     const viewer = useViewer()!
-    return <Asset url={'https://asset-samples.threepipe.org/demos/classic-watch.glb'}
+    return <Asset url={'https://samples.threepipe.org/demos/classic-watch.glb'}
         importConfig={true}
         onLoad={(asset)=>{
             console.log('Asset Loaded', asset)

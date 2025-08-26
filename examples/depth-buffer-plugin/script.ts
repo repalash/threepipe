@@ -19,8 +19,8 @@ async function init() {
 
     const depthPlugin = viewer.addPluginSync(new DepthBufferPlugin(HalfFloatType))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-    await viewer.load('https://threejs.org/examples/models/gltf/kira.glb', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+    await viewer.load('https://samples.threepipe.org/demos/kira.glb', {
         autoCenter: true,
         autoScale: true,
     })

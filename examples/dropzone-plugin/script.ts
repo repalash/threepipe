@@ -28,7 +28,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, PickingPlugin, Rhino3dmLoadPlugin],
     })
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const dropzone = viewer.getPlugin(DropzonePlugin)!
     dropzone.addEventListener('drop', (e: any) => {

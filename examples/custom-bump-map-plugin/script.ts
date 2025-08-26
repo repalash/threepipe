@@ -20,7 +20,7 @@ async function init() {
     const customBump = viewer.addPluginSync(CustomBumpMapPlugin)
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const model = new Mesh(new PlaneGeometry(4, 2), new PhysicalMaterial())
     const material = model.material

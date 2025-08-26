@@ -23,7 +23,7 @@ async function init() {
     const sharePlugin = viewer.addPluginSync(new TransfrSharePlugin())
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
 
@@ -33,7 +33,7 @@ async function init() {
     sharePlugin.baseUrls.editor = 'https://threepipe.org/examples/tweakpane-editor/index.html'
 
     const modelUrl = getUrlQueryParam(modelUrlParam) ??
-        'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+        'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'
     const result = await viewer.load<IObject3D>(modelUrl, {
         autoCenter: true,
         autoScale: true,

@@ -22,9 +22,9 @@ function App() {
             }}
         >
             <React.Suspense>
-                <Asset url={'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'}
+                <Asset url={'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'}
                     autoSetBackground={true}/>
-                <Model url={'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'}
+                <Model url={'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'}
                     autoScale={true}
                     autoCenter={true}
                 />

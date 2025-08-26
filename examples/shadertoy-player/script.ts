@@ -183,7 +183,7 @@ async function init() {
         }],
     }
 
-    const shaderFile = 'https://asset-samples.threepipe.org/shaders/tunnel-cylinders.glsl'
+    const shaderFile = 'https://samples.threepipe.org/shaders/tunnel-cylinders.glsl'
     const response = await fetch(shaderFile)
     const shaderText = await response.text()
     setShader(shaderText)

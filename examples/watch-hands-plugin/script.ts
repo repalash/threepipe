@@ -39,9 +39,9 @@ async function init() {
     ui.appendChild(viewer.uiConfig)
 
     // environment map is set in the editor, but you can also set it here
-    // await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
-    await viewer.load<IObject3D>('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+    await viewer.load<IObject3D>('https://samples.threepipe.org/demos/classic-watch.glb')
 
 }
 

@@ -88,7 +88,7 @@ Get started with pre-ready templates with model viewer and plugins that run loca
   viewer.addPluginSync(new DepthBufferPlugin())
   
   // Load an environment map
-  const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+  const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
   const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
     autoCenter: true,
     autoScale: true,
@@ -167,7 +167,7 @@ function App() {
         <meshStandardMaterial color="orange" />
       </mesh>}>
         <Asset 
-          url="https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
+          url="https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"
           autoSetBackground={true}
         />
         <Asset 
@@ -201,7 +201,7 @@ const ThreeViewerComponent = {
     onMounted(() => {
       const viewer = new ThreeViewer({ canvas: canvasRef.value });
 
-      const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+      const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr');
       const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
       Promise.all([envPromise, modelPromise]).then(([env, model]) => {
@@ -236,7 +236,7 @@ A sample [svelte](https://svelte.dev/) component in js to render a model with an
     onMount(() => {
         viewer = new ThreeViewer({canvas: canvasRef});
 
-        const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+        const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr');
         const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
         Promise.all([envPromise, modelPromise]).then(([env, model]) => {
@@ -280,7 +280,7 @@ import {ThreeViewer, IObject3D} from 'threepipe'
 const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas') as HTMLCanvasElement})
 
 // Load an environment map
-await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
 // Load a model
 const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {

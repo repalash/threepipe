@@ -35,21 +35,21 @@
 
             viewer.deleteImportedViewerConfigOnLoad = true
             viewer.deleteImportedViewerConfigOnLoadWait = 2000
-            const model3 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model3 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
             console.log(model3.children.length)
             viewer.scene.backgroundColor = new Color(0x000000)
             await timeout(500)
             viewer.scene.clearSceneModels()
             await timeout(500)
             // should load white bg
-            const model4 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model4 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
             console.log(model3.children.length, model4.children.length)
             viewer.scene.backgroundColor = new Color(0xff0000)
             await timeout(500)
             viewer.scene.clearSceneModels()
             await timeout(500)
             // should not change bg with console warn
-            const model5 = await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+            const model5 = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
         }
 
         _testStart()

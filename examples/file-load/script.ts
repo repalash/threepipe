@@ -16,8 +16,8 @@ async function init() {
 
     viewer.addPluginSync(LoadingScreenPlugin)
 
-    const env = 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr'
-    const url = 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'
+    const env = 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'
+    const url = 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'
 
     const responses = await Promise.all([
         fetch(env),

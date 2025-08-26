@@ -14,7 +14,7 @@ async function init() {
     ui.setupPluginUi(HierarchyUiPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
 
-    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb')
+    await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
 }
 
 _testStart()

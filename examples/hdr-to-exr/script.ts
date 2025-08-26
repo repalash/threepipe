@@ -6,7 +6,7 @@ async function init() {
     viewer.addPluginSync(LoadingScreenPlugin)
 
     // import a hdr file
-    const dataTexture = await viewer.import<ITexture>('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    const dataTexture = await viewer.import<ITexture>('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     if (!dataTexture) {
         console.error('Unable to import texture')
         return

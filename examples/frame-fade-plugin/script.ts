@@ -18,7 +18,7 @@ async function init() {
     })
     viewer.addPluginSync(FrameFadePlugin)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const cube = viewer.scene.addObject(new Mesh(
         new BoxGeometry(1, 1, 1),

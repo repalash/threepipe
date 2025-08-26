@@ -32,7 +32,7 @@ async function init() {
         plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, ObjectConstraintsPlugin, PopmotionPlugin, Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin],
         dropzone: false,
     })
-    await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     GLTFLoader2.UseMeshLines = true
     LineGeometryGenerator.UseMeshLines = true
@@ -91,7 +91,7 @@ async function init() {
     }
 
     // Create a model that follows the path
-    const obj = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    const obj = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoScale: true,
         autoCenter: true,
     })

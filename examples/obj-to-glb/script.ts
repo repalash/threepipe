@@ -27,7 +27,7 @@ async function init() {
     viewer.scene.disposeSceneModels()
 
     // load environment map and glb
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     await viewer.load({
         path: 'file.glb',
         file: blob,

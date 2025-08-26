@@ -28,11 +28,13 @@ async function init() {
     viewer.scene.setBackgroundColor('#555555')
 
     const urls = [
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/sprite0.png',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/uv_grid_opengl.jpg',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/svg/style-css-inside-defs.svg',
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/textures/tiltbrush/Light.webp',
-        // todo: avif
+        'https://samples.threepipe.org/minimal/sprite0.png',
+        'https://samples.threepipe.org/minimal/uv_grid_opengl.jpg',
+        'https://samples.threepipe.org/minimal/style-css-inside-defs.svg',
+        'https://samples.threepipe.org/minimal/1_webp_ll.webp',
+        'https://samples.threepipe.org/minimal/plum-blossom-large.profile0.8bpc.yuv420.alpha-full.avif',
+        // todo
+        // 'https://raw.githubusercontent.com/link-u/avif-sample-images/refs/heads/master/red-at-12-oclock-with-color-profile-12bpc.avif',
         'https://threepipe.org/favicon.ico',
     ]
 
@@ -49,6 +51,8 @@ async function init() {
         })
         const plane = new Mesh(geometry, material)
         plane.position.set(i % 3 - 1, -Math.floor(i / 3) + 1, 0)
+        const aspect = texture.image.width / texture.image.height
+        plane.scale.set(aspect >= 1 ? 1 : aspect, aspect >= 1 ? 1 / aspect : 1, 1)
         viewer.scene.addObject(plane)
         i++
     }
@@ -64,6 +68,8 @@ async function init() {
         })
         const plane = new Mesh(geometry, material)
         plane.position.set(i % 3 - 1, -Math.floor(i / 3) + 1, 0)
+        const aspect = texture.image.width / texture.image.height
+        plane.scale.set(aspect >= 1 ? 1 : aspect, aspect >= 1 ? 1 / aspect : 1, 1)
         viewer.scene.addObject(plane)
         i++
     })

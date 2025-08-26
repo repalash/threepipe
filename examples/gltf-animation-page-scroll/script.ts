@@ -11,7 +11,7 @@ async function init() {
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)
     gltfAnimation.autoplayOnLoad = false
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     await viewer.load('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Blender-Exporter@master/polly/project_polly.gltf', {
         autoCenter: true,
         autoScale: true,

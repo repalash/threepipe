@@ -28,8 +28,8 @@ async function init() {
         true, // render depth texture
         FloatType)) // render depth texture as Float type. available - UnsignedShort(16 bits), UnsignedInt(24 bits) or Float(32 bits)
 
-    await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
-    const model = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/kira.glb', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+    const model = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/kira.glb', {
         autoCenter: true,
         autoScale: true,
     })

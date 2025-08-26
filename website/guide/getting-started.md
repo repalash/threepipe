@@ -16,7 +16,7 @@ Getting started with Threepipe is easy. You can use it in your HTML/JS, React, V
 
 ## What you need
 
-- A 3D Model (GLTF, GLB, OBJ, FBX, etc). Optionally, the model, scene, and plugins can be configured, compressed and exported using the [Threepipe Editor](https://editor.threepipe.org) or [Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/). Here is a sample model with configured settings - [classic-watch.glb](https://asset-samples.threepipe.org/demos/classic-watch.glb)
+- A 3D Model (GLTF, GLB, OBJ, FBX, etc). Optionally, the model, scene, and plugins can be configured, compressed and exported using the [Threepipe Editor](https://editor.threepipe.org) or [Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/). Here is a sample model with configured settings - [classic-watch.glb](https://samples.threepipe.org/demos/classic-watch.glb)
 - A modern browser that supports [WebGL2](https://caniuse.com/webgl2) and [WebAssembly](https://caniuse.com/webassembly) (for some plugins).
 - Node.js (optional, only for local development). Node 18+ is recommended.
 - An existing project or willingness to start a new one
@@ -93,7 +93,7 @@ Now, code from any of the examples on the [Threepipe Examples](https://threepipe
   viewer.addPluginSync(new DepthBufferPlugin())
   
   // Load an environment map
-  const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+  const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
   const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
     autoCenter: true,
     autoScale: true,
@@ -156,7 +156,7 @@ import {ThreeViewer, IObject3D} from 'threepipe'
 const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas') as HTMLCanvasElement})
 
 // Load an environment map
-await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
+await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
 // Load a model
 const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
@@ -218,7 +218,7 @@ const ThreeViewerComponent = {
     onMounted(() => {
       const viewer = new ThreeViewer({ canvas: canvasRef.value });
 
-      const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+      const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr');
       const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
       Promise.all([envPromise, modelPromise]).then(([env, model]) => {
@@ -253,7 +253,7 @@ A sample [svelte](https://svelte.dev/) 4 component in js to render a model with 
     onMount(() => {
         viewer = new ThreeViewer({canvas: canvasRef});
 
-        const envPromise = viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
+        const envPromise = viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr');
         const modelPromise = viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf');
 
         Promise.all([envPromise, modelPromise]).then(([env, model]) => {
