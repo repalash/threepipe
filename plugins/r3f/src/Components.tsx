@@ -1,7 +1,15 @@
-import {AddModelOptions, addModelProcess, ImportAddOptions, ImportAssetOptions, ImportResult, IObject3D} from 'threepipe'
+import {
+    AddModelOptions,
+    addModelProcess,
+    ImportAddOptions,
+    ImportAssetOptions,
+    ImportResult,
+    IObject3D,
+} from 'threepipe'
 import {useViewerInternal} from './ViewerContextInternal.ts'
 import {useViewerImporter} from './useViewerImporter.tsx'
-import {useLayoutEffect} from 'react'
+import {Ref, useLayoutEffect} from 'react'
+import {ThreeElements} from '@react-three/fiber'
 
 // for viewer.load
 export function Asset({url, onImport, onLoad, ...options}: ImportAddOptions & {
@@ -34,10 +42,12 @@ export function Asset({url, onImport, onLoad, ...options}: ImportAddOptions & {
 }
 
 // for viewer.import
-export function Model({url, onImport, onLoad, ...options}: {
+export function Model({url, onImport, onLoad, props, ref, ...options}: {
     url: string,
     onImport?: (obj: (ImportResult | undefined)[] | undefined) => void
     onLoad?: (obj: IObject3D[]|null) => void
+    props?: ThreeElements['object3D2'],
+    ref?: Ref<IObject3D>
 } & ImportAssetOptions & AddModelOptions) {
     const {viewerRef} = useViewerInternal()
     const object = useViewerImporter(viewerRef, url, options, onImport) ?? []
@@ -51,6 +61,8 @@ export function Model({url, onImport, onLoad, ...options}: {
         if (onLoad) onLoad(arr.length ? arr : null)
     }, [object])
 
-    return Array.isArray(object) ? object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} /> : null) : object ? <primitive object={object as IObject3D} /> : null
+    return Array.isArray(object) ?
+        object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} {...props} ref={i === 0 ? ref : undefined} /> : null) :
+        object ? <primitive object={object as IObject3D} {...props} ref={ref} /> : null
 }
 

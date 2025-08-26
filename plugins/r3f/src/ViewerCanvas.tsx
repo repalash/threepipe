@@ -1,13 +1,27 @@
-import {Canvas, CanvasProps, useFrame, useThree} from '@react-three/fiber'
+import {Canvas, CanvasProps, extend, ThreeElement, useFrame, useThree} from '@react-three/fiber'
 import type {DefaultGLProps} from '@react-three/fiber/dist/declarations/src/core/renderer'
 import {
+    AmbientLight2,
+    BufferGeometry2,
     defaultObjectProcessor,
+    DirectionalLight2,
+    HemisphereLight2,
     ICamera,
+    LineMaterial2,
+    Mesh2,
+    MeshLine,
+    MeshLineMaterial,
+    Object3D2,
     OrthographicCamera2,
     PerspectiveCamera2,
+    PhysicalMaterial,
+    PointLight2,
+    RectAreaLight2,
     RootScene,
+    SpotLight2,
     ThreeViewer,
     ThreeViewerOptions,
+    UnlitMaterial,
 } from 'threepipe'
 import {
     useCreateViewerContext,
@@ -16,7 +30,7 @@ import {
     ViewerCtxProps,
     ViewerRef,
 } from './ViewerContextInternal.ts'
-import {ReactNode, useEffect, useRef, useState} from 'react'
+import {ReactNode, useEffect, useMemo, useRef, useState} from 'react'
 
 type CanvasWrapperProps = Omit<CanvasProps, 'gl'|'camera'|'scene'> & {
     camera?: ThreeViewerOptions['camera']
@@ -36,14 +50,13 @@ function initCamera(cam: CanvasWrapperProps['camera'], ortho = false): ICamera {
         new OrthographicCamera2(cam?.controlsMode ?? 'orbit') :
         new PerspectiveCamera2(cam?.controlsMode ?? 'orbit')
 
-    if (cam?.position)
-        camera.position.copy(cam.position)
-    else
-        camera.position.set(0, 0, 5)
-    if (cam?.target)
-        camera.target.copy(cam.target)
-    else
-        camera.target.set(0, 0, 0)
+    const pos = cam?.position || [0, 0, 5]
+    if (Array.isArray(pos)) camera.position.fromArray(pos)
+    else camera.position.copy(pos)
+    const tar = cam?.target || [0, 0, 0]
+    if (Array.isArray(tar)) camera.target.fromArray(tar)
+    else camera.target.copy(tar)
+
     camera.name = 'Default Camera' + (camera.type === 'OrthographicCamera' ? ' (Ortho)' : '')
     camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
 
@@ -76,6 +89,34 @@ function AnimLoop() {
         }
     }, [invalidate, useR3FLoop, viewerRef])
 
+    const set = useThree((state) => state.set)
+    const get = useThree((state) => state.get)
+
+    const makeDefaultControls = true
+    useEffect(() => {
+        if (!viewerRef.current) return
+        const controls = viewerRef.current.scene.mainCamera?.controls
+        if (!makeDefaultControls) return
+        const old = get().controls
+        set({controls})
+
+        const s = ()=>{
+            set({controls: viewerRef.current?.scene.mainCamera?.controls ?? null})
+        }
+        const l = (e: {change?: string})=>{
+            if (e.change === 'controls') s()
+        }
+        viewerRef.current.scene.mainCamera?.addEventListener('cameraUpdate', l)
+        viewerRef.current.scene.addEventListener('mainCameraChange', s)
+
+        return () => {
+            viewerRef.current?.scene.mainCamera?.removeEventListener('cameraUpdate', l)
+            viewerRef.current?.scene.removeEventListener('mainCameraChange', s)
+            set({controls: old})
+        }
+    }, [viewerRef.current])
+
+
     useFrame((_s, delta, frame)=>{
         if (!viewerRef.current) return
         timeRef.current += delta
@@ -96,6 +137,8 @@ function CanvasWrapper({
     orthographic,
     ...props
 }: CanvasWrapperProps) {
+    useMemo(() => extend(ExtendedThree), [])
+
     const {viewerRef, useR3FLoop} = useViewerInternal()
     const cameraRef = useRef<ICamera|null>(null)
     const sceneRef = useRef<RootScene|null>(null)
@@ -178,3 +221,30 @@ export function ViewerCanvas({useR3FLoop = false, ...props}: ViewerCanvasProps) 
     )
 }
 
+
+// Add types to ThreeElements elements so primitives pick up on it
+declare module '@react-three/fiber' {
+    interface ThreeElements {
+        mesh2: ThreeElement<typeof Mesh2>
+        meshLine: ThreeElement<typeof MeshLine>
+        lineMaterial2: ThreeElement<typeof LineMaterial2>
+        meshLineMaterial: ThreeElement<typeof MeshLineMaterial>
+        bufferGeometry2: ThreeElement<typeof BufferGeometry2>
+        object3D2: ThreeElement<typeof Object3D2>
+        physicalMaterial: ThreeElement<typeof PhysicalMaterial>
+        unlitMaterial: ThreeElement<typeof UnlitMaterial>
+        directionalLight2: ThreeElement<typeof DirectionalLight2>
+        pointLight2: ThreeElement<typeof PointLight2>
+        spotLight2: ThreeElement<typeof SpotLight2>
+        ambientLight2: ThreeElement<typeof AmbientLight2>
+        hemisphereLight2: ThreeElement<typeof HemisphereLight2>
+        rectAreaLight2: ThreeElement<typeof RectAreaLight2>
+    }
+}
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const ExtendedThree = {
+    Mesh2, MeshLine, LineMaterial2, MeshLineMaterial, BufferGeometry2, Object3D2,
+    PhysicalMaterial, UnlitMaterial,
+    DirectionalLight2, PointLight2, SpotLight2, AmbientLight2, HemisphereLight2, RectAreaLight2,
+}
