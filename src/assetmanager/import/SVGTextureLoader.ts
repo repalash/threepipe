@@ -7,9 +7,9 @@ import {getUrlQueryParam} from 'ts-browser-helpers'
  *
  * todo - create example for test, see sample code in gh issue.
  */
-class SVGTextureLoader extends Loader {
+class SVGTextureLoader extends Loader<Texture> {
 
-    constructor(manager: LoadingManager) {
+    constructor(manager?: LoadingManager) {
 
         super(manager)
 

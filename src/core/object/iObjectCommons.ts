@@ -282,7 +282,7 @@ export const iObjectCommons = {
             // const mat = material?.materialObject
             if (!mat) continue
             if (!mat.assetType) {
-                console.warn('Upgrading Material', mat)
+                // console.warn('Upgrading Material', mat)
                 iMaterialCommons.upgradeMaterial.call(mat)
             }
             if (removed.includes(mat)) removed = removed.filter(m=>m !== mat)

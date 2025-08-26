@@ -42,17 +42,18 @@ export function Asset({url, onImport, onLoad, ...options}: ImportAddOptions & {
 }
 
 // for viewer.import
-export function Model({url, onImport, onLoad, props, ref, ...options}: {
+export function Model({url, onImport, onLoad, props, ref, children, ...options}: {
     url: string,
     onImport?: (obj: (ImportResult | undefined)[] | undefined) => void
     onLoad?: (obj: IObject3D[]|null) => void
     props?: ThreeElements['object3D2'],
     ref?: Ref<IObject3D>
+    children?: React.ReactNode,
 } & ImportAssetOptions & AddModelOptions) {
     const {viewerRef} = useViewerInternal()
     const object = useViewerImporter(viewerRef, url, options, onImport) ?? []
 
-    // add the object to the scene when its being rendered
+    // process the object to the scene before its being rendered
     useLayoutEffect(()=>{
         const arr = (Array.isArray(object) ? object : [object]).filter(o=>o && (o as IObject3D).isObject3D) as IObject3D[]
         arr.forEach(o=>{
@@ -62,7 +63,7 @@ export function Model({url, onImport, onLoad, props, ref, ...options}: {
     }, [object])
 
     return Array.isArray(object) ?
-        object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} {...props} ref={i === 0 ? ref : undefined} /> : null) :
-        object ? <primitive object={object as IObject3D} {...props} ref={ref} /> : null
+        object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} {...props} ref={i === 0 ? ref : undefined} >{i === 0 ? children : undefined}</primitive> : null) :
+        object ? <primitive object={object as IObject3D} {...props} ref={ref} >{children}</primitive> : null
 }
 

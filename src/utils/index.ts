@@ -16,3 +16,4 @@ export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, Anim
 export {AnimationObject, extractAnimationKey} from './AnimationObject'
 export type {IAnimationObject, AnimationObjectEventMap, IAnimSet, TUpdaterType} from './AnimationObject'
 export {defaultObjectProcessor, addModelProcess, centerAllGeometries} from './objectProcessor'
+export {makeTextSvgAdvanced, buildTextSvg, TextSVGOptions, type ITextSVGOptions, fontFormatExtensionMap} from './TextSVG'
