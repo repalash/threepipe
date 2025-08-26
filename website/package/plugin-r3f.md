@@ -53,6 +53,28 @@ A component for loading 3D models (GLTF, GLB, etc.) and placing them inside the 
 
 This is the declarative equivalent of using the `viewer.import` function.
 
+### Three.js classes
+
+Most three.js classes can be used as is, similar to how they are used in React Three Fiber.
+
+To use the extra features provided by threepipe and plugins, it is preferable to use the following components:  
+
+- `mesh2` - `Mesh2`, Same as `mesh`
+- `perspectiveCamera2` - `PerspectiveCamera2`, extends `PerspectiveCamera`
+- `orthographicCamera2` - `OrthographicCamera2`, extends `OrthographicCamera`
+- `ambientLight2` - `AmbientLight2`, extends `AmbientLight`
+- `directionalLight2` - `DirectionalLight2`, extends `DirectionalLight`
+- `pointLight2` - `PointLight2`, extends `PointLight`
+- `spotLight2` - `SpotLight2`, extends `SpotLight`
+- `hemisphereLight2` - `HemisphereLight2`, extends `HemisphereLight`
+- `rectAreaLight2` - `RectAreaLight2`, extends `RectAreaLight`
+- `physicalMaterial` - `PhysicalMaterial`, extends `MeshPhysicalMaterial`
+- `unlitMaterial` - `UnlitMaterial`, extends `MeshBasicMaterial`
+- `meshLine` - `MeshLine`, extends `Line2`
+- `meshLineMaterial` - `MeshLineMaterial`, extends `LineMaterial`
+
+For any classes that are not available yet, can be extended manually in the end code, or use `primitive` from r3f. Checkout the [r3f docs](https://r3f.docs.pmnd.rs/api/typescript#extend-usage) for more details.
+
 ## Basic Usage
 
 ```tsx
@@ -73,7 +95,7 @@ function App() {
     >
       <React.Suspense fallback={<div>Loading...</div>}>
         <Asset 
-          url="https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
+          url="https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"
           autoSetBackground={true}
         />
         <Asset 

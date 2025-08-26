@@ -239,6 +239,8 @@ declare module '@react-three/fiber' {
         ambientLight2: ThreeElement<typeof AmbientLight2>
         hemisphereLight2: ThreeElement<typeof HemisphereLight2>
         rectAreaLight2: ThreeElement<typeof RectAreaLight2>
+        perspectiveCamera2: ThreeElement<typeof PerspectiveCamera2>
+        orthographicCamera2: ThreeElement<typeof OrthographicCamera2>
     }
 }
 
@@ -247,4 +249,5 @@ const ExtendedThree = {
     Mesh2, MeshLine, LineMaterial2, MeshLineMaterial, BufferGeometry2, Object3D2,
     PhysicalMaterial, UnlitMaterial,
     DirectionalLight2, PointLight2, SpotLight2, AmbientLight2, HemisphereLight2, RectAreaLight2,
+    PerspectiveCamera2, OrthographicCamera2,
 }
