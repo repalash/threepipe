@@ -10,7 +10,7 @@ import {
     Quaternion,
     Scene,
     Vector2,
-    Vector3,
+    Vector3, Vector3Tuple,
 } from 'three'
 import {Class, createCanvasElement, downloadBlob, onChange, serialize, ValOrArr} from 'ts-browser-helpers'
 import {TViewerScreenShader} from '../postprocessing'
@@ -212,8 +212,8 @@ export interface ThreeViewerOptions {
     camera?: {
         type?: 'perspective'|'orthographic',
         controlsMode?: TCameraControlsMode,
-        position?: Vector3,
-        target?: Vector3,
+        position?: Vector3|Vector3Tuple,
+        target?: Vector3|Vector3Tuple,
     } | ICamera
 
     rootScene?: RootScene
@@ -464,8 +464,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                     new OrthographicCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas) :
                     new PerspectiveCamera2(options.camera?.controlsMode ?? 'orbit', this._canvas)
             camera.name = 'Default Camera' + (camera.type === 'OrthographicCamera' ? ' (Ortho)' : '')
-            options.camera?.position ? camera.position.copy(options.camera.position) : camera.position.set(0, 0, 5)
-            options.camera?.target ? camera.target.copy(options.camera.target) : camera.target.set(0, 0, 0)
+            const pos = options.camera?.position || [0, 0, 5]
+            if (Array.isArray(pos)) camera.position.fromArray(pos)
+            else camera.position.copy(pos)
+            const tar = options.camera?.target || [0, 0, 0]
+            if (Array.isArray(tar)) camera.target.fromArray(tar)
+            else camera.target.copy(tar)
             camera.setDirty()
             camera.userData.autoLookAtTarget = true // only for when controls are disabled / not available
 
