@@ -56,7 +56,7 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
     require(['vs/editor/editor.main'], async () => {
         const codebox = document.querySelector('.codebox');
 
-        monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        const tsConfig = {
             module: monaco.languages.typescript.ModuleKind.ESNext,
             // target: monaco.languages.typescript.ScriptTarget.ES2016,
             target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -65,7 +65,10 @@ importScripts('https://unpkg.com/monaco-editor@0.52.2/min/vs/base/worker/workerM
             // react-jsx
             jsx: monaco.languages.typescript.JsxEmit.React,
             esModuleInterop: true,
-        });
+        }
+
+        monaco.languages.typescript.typescriptDefaults.setCompilerOptions(tsConfig);
+        monaco.languages.typescript.javascriptDefaults.setCompilerOptions(tsConfig);
 
         const lightPlus = monacoTM.fetchTheme('light-plus');
         const darkPlus = monacoTM.fetchTheme('dark-plus');
@@ -207,8 +210,19 @@ export async function getTsWorker () {
     window.tsWorkerClient = await worker();
     return window.tsWorkerClient;
 }
+export async function getJsWorker () {
+    await window.monacoPromise
+    if(window.jsWorkerClient) return window.jsWorkerClient;
+    const worker = await monaco.languages.typescript.getJavaScriptWorker();
+    window.jsWorkerClient = await worker();
+    return window.jsWorkerClient;
+}
 export async function getCompiledJs (uri) {
-    const client = await getTsWorker()
+    const client = await getTsWorker().catch(e=>console.warn(e)) || await getJsWorker().catch(e=>console.warn(e));
+    if(!client) {
+        console.warn('No TS/JS worker client available');
+        return;
+    }
     const diagnostics = await client.getSyntacticDiagnostics(uri);
     if(diagnostics.length > 0) { // syntax error
         const diagnostics2 = await client.getSemanticDiagnostics(uri);

@@ -122,7 +122,7 @@ export function setupCodeEditor (iframe) {
             if(model._refreshingJs) return model._refreshingJs
             let changed = false
             model._refreshingJs = (async ()=> {
-                if(!uris.endsWith('.ts') && !uris.endsWith('.tsx')) {
+                if(!uris.endsWith('.ts') && !uris.endsWith('.tsx') && !uris.endsWith('.jsx')) {
                     const v = model.getValue()
                     if(v !== model.compiledContent) {
                         model.compiledContent = v
@@ -221,7 +221,7 @@ export function setupCodeEditor (iframe) {
         const exampleStyle = parsed.querySelector('#example-style');
         const importMap = parsed.querySelector('script[type="importmap"]');
         const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {};
-        const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';') : [];
+        const sources = exampleScript.dataset.scripts ? exampleScript.dataset.scripts.split(';').filter(s=>!s.endsWith('.html')) : [];
         const hasContent = exampleScript.textContent
         const mainSource = sources.find(s=>s.endsWith('/script.ts') || s.endsWith('/script.tsx')) || sources[0] || (hasContent ? './script.js' : null);
         if(!mainSource) {
