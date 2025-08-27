@@ -26,7 +26,7 @@ export const TextPlane = /* @__PURE__ */ forwardRef(
         }: TextPlaneProps,
         ref
     ) => {
-        const [nodes, text] = useMemo(() => {
+        const [, text] = useMemo(() => {
             const n: ReactNode[] = []
             let t = ''
             Children.forEach(children, (child) => {
@@ -67,6 +67,7 @@ export const TextPlane = /* @__PURE__ */ forwardRef(
             <mesh ref={ref} renderOrder={1} {...props} >
                 {children}
                 <planeGeometry args={[fontSize * (svgTex?.image.width || bs) / bs, fontSize * (svgTex?.image.height || bs) / bs, 2, 2]}/>
+                {/* @ts-expect-error not sure why */}
                 <unlitMaterial transparent={true} map={svgTex}/>
             </mesh>
         )
