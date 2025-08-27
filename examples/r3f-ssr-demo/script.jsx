@@ -1,7 +1,7 @@
 import {
     _testFinish,
     _testStart,
-    GBufferPlugin,
+    GBufferPlugin, InteractionPromptPlugin,
     LoadingScreenPlugin,
     PickingPlugin,
     ProgressivePlugin,
@@ -11,7 +11,7 @@ import {
 } from 'threepipe'
 import React from 'react'
 import {createRoot} from 'react-dom/client'
-import {Asset, ViewerCanvas} from '@threepipe/plugin-r3f'
+import {Asset, useViewer, ViewerCanvas} from '@threepipe/plugin-r3f'
 import {useFrame, useThree} from '@react-three/fiber'
 import {RoundedBox, useCursor} from '@react-three/drei'
 import {BloomPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
@@ -39,11 +39,10 @@ function Scene () {
 function App () {
     return <div style={{
         position: 'relative',
-        width: '80vw',
-        height: '80vh',
-        margin: '10vh 10vw',
-        borderRadius: '0.5rem',
-        boxShadow: 'rgba(0, 0, 0, 0.25) 0px 25px 50px -12px',
+        width: '100vw',
+        height: '100vh',
+        margin: '0',
+        borderRadius: '0',
     }}>
         <ViewerCanvas
             id="three-canvas"
@@ -70,6 +69,7 @@ function App () {
                 SSReflectionPlugin,
                 BloomPlugin,
                 PickingPlugin,
+                InteractionPromptPlugin,
                 // Add a ground below the model
                 // BaseGroundPlugin,
             ]}
@@ -126,15 +126,17 @@ function Sphere () {
 
 const Plane = ({ color, ...props }) => (
     <RoundedBox receiveShadow castShadow smoothness={10} radius={0.015} {...props}>
-        <physicalMaterial color={color} envMapIntensity={1} roughness={0.1} metalness={0} />
+        <physicalMaterial color={color} envMapIntensity={1} roughness={0.4} metalness={0} />
     </RoundedBox>
 )
 
 function Video () {
     const [video] = React.useState(() => Object.assign(document.createElement('video'), { src: 'https://samples.threepipe.org/demos/r3f/drei_r.mp4', crossOrigin: 'Anonymous', loop: true, muted: true }))
     const { invalidate } = useThree()
+    const viewer = useViewer()
     React.useEffect(() => void video.play(), [video])
     useFrame(() => video.readyState >= video.HAVE_CURRENT_DATA && video.requestVideoFrameCallback(() => {
+        viewer.renderManager.resetShadows() // or use setDirty in object/scene
         invalidate()
     }))
 

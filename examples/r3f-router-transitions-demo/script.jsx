@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, LoadingScreenPlugin, Matrix4} from 'threepipe'
+import {_testFinish, _testStart, InteractionPromptPlugin, LoadingScreenPlugin, Matrix4, SSAOPlugin} from 'threepipe'
 import React from 'react'
 import {createRoot} from 'react-dom/client'
 import {Asset, Model, ViewerCanvas, TextPlane} from '@threepipe/plugin-r3f'
@@ -51,7 +51,7 @@ function App () {
             <ViewerCanvas
                 id="three-canvas"
                 style={{width: '100%', height: '100%', borderRadius: 'inherit'}}
-                plugins={[LoadingScreenPlugin]}
+                plugins={[LoadingScreenPlugin, InteractionPromptPlugin, SSAOPlugin]}
                 viewer={{
                     renderScale: 'auto',
                     msaa: true,
@@ -106,6 +106,7 @@ const Torus = (props) => (
 const Knot = (props) => (
     <mesh receiveShadow castShadow {...props}>
         <torusKnotGeometry args={[3, 1, 256, 32]} />
+        {/* <physicalMaterial thickness={2} transmission={1} roughness={0} metalness={0.1} />*/}
         <MeshTransmissionMaterial backside backsideThickness={5} thickness={2} />
     </mesh>
 )

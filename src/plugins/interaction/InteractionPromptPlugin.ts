@@ -171,12 +171,14 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
         if (e.change === 'deserialize' && this.animationRunning) {
             this.stopAnimation({reset: false}) // reset is false so that the new camera position is not reset
             this.startAnimation()
-        } else {
+        } else if (this._startedOnce) {
             this.lastActionTime = now()
         }
     }
+
+    private _startedOnce = false
     private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = ()=>{
-        if (this.autoStartOnObjectLoad) {
+        if (this.autoStartOnObjectLoad && !this._startedOnce) {
             this.lastActionTime = now() - this.autoStartDelay + this.autoStartOnObjectLoadDelay
         }
     }
@@ -220,6 +222,7 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
         this.cursorEl.style.opacity = '1'
         this.currentTime = 0
         this.animationRunning = true
+        this._startedOnce = true
         this._viewer.scene.mainCamera.setInteractions(false, InteractionPromptPlugin.PluginType)
         // if (this._viewer.scene.mainCamera.interactionsEnabled) {
         //     this.interactionsDisabled = true

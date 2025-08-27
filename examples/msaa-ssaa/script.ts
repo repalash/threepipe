@@ -1,5 +1,5 @@
 import {
-    _testFinish, _testStart,
+    _testFinish, _testStart, InteractionPromptPlugin,
     IObject3D,
     LoadingScreenPlugin,
     PhysicalMaterial,
@@ -22,7 +22,7 @@ async function init() {
                 importConfig: true,
             },
         },
-        plugins: [LoadingScreenPlugin],
+        plugins: [LoadingScreenPlugin, InteractionPromptPlugin],
     })
 
     viewer.addPluginSync(new SSAAPlugin())
