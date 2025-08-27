@@ -41,8 +41,8 @@ async function init() {
         }))
 
     const maps = [
-        'https://threejs.org/examples/textures/sprite0.png',
-        'https://threejs.org/examples/textures/uv_grid_opengl.jpg',
+        'https://samples.threepipe.org/minimal/sprite0.png',
+        'https://samples.threepipe.org/minimal/uv_grid_opengl.jpg',
         'https://samples.threepipe.org/minimal/style-css-inside-defs.svg',
         'https://cdn.jsdelivr.net/gh/Rabbid76/graphics-snippets/resource/texture/lookuptable.png',
         'https://cdn.jsdelivr.net/gh/Rabbid76/graphics-snippets/resource/texture/perlin3_cp.png',

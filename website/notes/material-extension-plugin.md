@@ -3,7 +3,10 @@ prev:
   text: 'Follow Path Constraint Animation'
   link: './follow-path-constraint'
   
-next: false
+next: 
+  text: 'Dynamically Loaded Files'
+  link: './dynamically-loaded-files'
+
 aside: false
 ---
 

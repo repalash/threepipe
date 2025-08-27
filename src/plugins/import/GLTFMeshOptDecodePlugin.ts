@@ -23,8 +23,11 @@ export class GLTFMeshOptDecodePlugin extends SimpleEventDispatcher<'initialized'
         return !!window.MeshoptDecoder
     }
 
-    // static DECODER_URL = 'https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_decoder.module.js'
+    /**
+     * Path to the meshopt decoder library, default uses unpkg cdn
+     */
     static DECODER_URL = 'https://unpkg.com/meshoptimizer@0.20.0/meshopt_decoder.module.js'
+    // static DECODER_URL = 'https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_decoder.module.js'
 
     protected _script?: HTMLScriptElement
 

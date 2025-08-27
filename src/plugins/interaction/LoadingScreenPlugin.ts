@@ -86,6 +86,10 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
     @onChange(LoadingScreenPlugin.prototype.refresh)
     @serialize() textColor = '#222222'
 
+    /**
+     * Default logo image shown during loading
+     * @default 'https://threepipe.org/logo.svg'
+     */
     static LS_DEFAULT_LOGO = 'https://threepipe.org/logo.svg'
 
     @uiInput('Logo Image')

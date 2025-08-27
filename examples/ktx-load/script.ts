@@ -35,20 +35,20 @@ async function init() {
     }
 
     if (formats.pvrtc) urls.push(
-        'https://threejs.org/examples/textures/compressed/disturb_PVR2bpp.ktx',
-        'https://threejs.org/examples/textures/compressed/lensflare_PVR4bpp.ktx'
+        'https://samples.threepipe.org/minimal/disturb_PVR2bpp.ktx',
+        'https://samples.threepipe.org/minimal/lensflare_PVR4bpp.ktx'
     )
     if (formats.s3tc) urls.push(
-        'https://threejs.org/examples/textures/compressed/disturb_BC1.ktx',
-        'https://threejs.org/examples/textures/compressed/lensflare_BC3.ktx'
+        'https://samples.threepipe.org/minimal/disturb_BC1.ktx',
+        'https://samples.threepipe.org/minimal/lensflare_BC3.ktx'
     )
     if (formats.etc1) urls.push(
-        'https://threejs.org/examples/textures/compressed/disturb_ETC1.ktx'
+        'https://samples.threepipe.org/minimal/disturb_ETC1.ktx'
     )
 
     if (formats.astc) urls.push(
-        'https://threejs.org/examples/textures/compressed/disturb_ASTC4x4.ktx',
-        'https://threejs.org/examples/textures/compressed/lensflare_ASTC8x8.ktx'
+        'https://samples.threepipe.org/minimal/disturb_ASTC4x4.ktx',
+        'https://samples.threepipe.org/minimal/lensflare_ASTC8x8.ktx'
     )
 
     const geometry = new PlaneGeometry(1, 1)

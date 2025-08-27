@@ -35,7 +35,7 @@ async function init() {
     viewer.addPluginSync(new BaseGroundPlugin())
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    await viewer.setEnvironmentMap('https://hdrihaven.r2cache.com/hdr/1k/empty_warehouse_01_1k.hdr', {
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/empty_warehouse_01_1k.hdr', {
         setBackground: true,
     })
     await viewer.load<IObject3D>('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/d7a3cc8e51d7c573771ae77a57f16b0662a905c6/2.0/Sponza/glTF/Sponza.gltf', {

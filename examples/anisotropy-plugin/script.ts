@@ -30,7 +30,7 @@ async function init() {
     const anisotropy = viewer.addPluginSync(AnisotropyPlugin)
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
 
-    await viewer.setEnvironmentMap('https://demo-assets.pixotronics.com/pixo/hdr/gem_2.hdr', {
+    await viewer.setEnvironmentMap('https://dist.pixotronics.com/webgi/assets/hdr/gem_2.hdr', {
         setBackground: false,
     })
     await viewer.load<IObject3D>('https://demo-assets.pixotronics.com/pixo/gltf/anisotropyScene.glb', {

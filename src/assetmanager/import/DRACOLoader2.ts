@@ -9,6 +9,12 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
     public encoderConfig: any = {type: 'js'}
     readonly isDRACOLoader2 = true
 
+    /**
+     * Path to the draco decoder/encoder libraries, default uses jsdelivr CDN
+     * You may want to set this to your own path or use {@link DRACOLoader2.SetDecoderJsString}
+     * to bundle the draco decoder js file with your app source
+     * @default 'https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/'
+     */
     public static DRACO_LIBRARY_PATH = 'https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/' // https://github.com/google/draco
     // public static DRACO_LIBRARY_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/'
     // public static DRACO_LIBRARY_PATH = 'https://threejs.org/examples/jsm/libs/draco/'

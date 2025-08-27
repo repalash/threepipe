@@ -26,8 +26,8 @@ async function init() {
     const material = model.material
     viewer.scene.addObject(model)
 
-    const bumpMap1 = await viewer.load<ITexture>('https://threejs.org/examples/textures/brick_bump.jpg')
-    const bumpMap2 = await viewer.load<ITexture>('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg')
+    const bumpMap1 = await viewer.load<ITexture>('https://samples.threepipe.org/minimal/brick_bump.webp')
+    const bumpMap2 = await viewer.load<ITexture>('https://samples.threepipe.org/minimal/planets/earth_specular_2048.jpg')
     customBump.enableCustomBump(material, bumpMap2, -4)
     material.bumpMap = bumpMap1 || null
     material.bumpScale = -3

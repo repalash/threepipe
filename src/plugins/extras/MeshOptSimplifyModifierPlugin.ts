@@ -23,8 +23,11 @@ export class MeshOptSimplifyModifierPlugin extends SimplifyModifierPlugin {
         return !!window.MeshoptSimplifier
     }
 
-    // static SIMPLIFIER_URL = 'https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_simplifier.module.js'
+    /**
+     * Path to the meshopt simplifier library, default uses unpkg cdn
+     */
     static SIMPLIFIER_URL = 'https://unpkg.com/meshoptimizer@0.20.0/meshopt_simplifier.module.js'
+    // static SIMPLIFIER_URL = 'https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_simplifier.module.js'
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)

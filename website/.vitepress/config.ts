@@ -55,6 +55,7 @@ export default defineConfig({
           {text: 'Three.js properties in glTF', link: 'notes/gltf-three-extras-ext'},
           {text: 'Follow Path Constraint Animation', link: 'notes/follow-path-constraint'},
           {text: 'Material Extension Plugin', link: 'notes/material-extension-plugin'},
+          {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
         ]
       },
       {
