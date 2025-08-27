@@ -4,6 +4,8 @@ import {createRoot} from 'react-dom/client'
 import {Asset, Model, ViewerCanvas} from '@threepipe/plugin-r3f'
 import {TransformControls} from '@react-three/drei'
 
+// TODO doesn't work in production because of three.js version?
+
 const matrix = new Matrix4()
 function Scene () {
     return <>

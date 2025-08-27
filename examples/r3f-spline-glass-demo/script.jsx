@@ -6,6 +6,8 @@ import {Environment, Float, Lightformer, MeshTransmissionMaterial, PivotControls
 import useSpline from 'https://esm.sh/@splinetool/r3f-spline?external=react,react-dom,three,@react-three/fiber'
 import {useControls} from 'https://esm.sh/leva'
 
+// TODO doesn't work in production because of three.js version?
+
 function App () {
     return <div style={{
         position: 'relative',
