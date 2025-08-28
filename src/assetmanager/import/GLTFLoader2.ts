@@ -326,8 +326,6 @@ function convertToFatLine(line: Line) {
     line2.userData = {...line2.userData, ...ud}
     // depth rendering for fat lines is not supported yet, so we disable it
     // todo handle in depth plugins
-    if (material.userData.renderToGBuffer === undefined) material.userData.renderToGBuffer = false
-    if (material.userData.renderToDepth === undefined) material.userData.renderToDepth = false
     safeSetProperty(line2, 'uuid', line.uuid, true, true)
     line.removeFromParent()
     // put at the same index

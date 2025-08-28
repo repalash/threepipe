@@ -1,7 +1,7 @@
 import {Color, Material, Texture, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {IPassID, IPipelinePass} from './Pass'
-import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
+import {ICamera, IMaterial, IObject3D, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {getOrCall, ValOrFunc} from 'ts-browser-helpers'
 
@@ -46,6 +46,26 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
         }
     }
 
+    preprocessObject = (object: IObject3D) => {
+        if (object.customDepthMaterial) {
+            const mat = object.customDepthMaterial
+            mat.allowOverride = false
+            // todo save the current forcedOverrideMaterial to restore it later?
+            object.forcedOverrideMaterial = mat
+            if (mat.transparent) {
+                console.warn('GBufferRenderPass: customDepthMaterial is set as transparent, it will not be rendered in gbuffer/depth-buffer')
+            }
+            return null
+        }
+        return object.material
+    }
+
+    postprocessObject = (object: IObject3D) => {
+        if (object.customDepthMaterial) {
+            delete object.forcedOverrideMaterial
+        }
+    }
+
     /**
      * Renders to {@link target}
      * @param renderer
@@ -61,7 +81,11 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
         const activeCubeFace = renderer.getActiveCubeFace()
         const activeMipLevel = renderer.getActiveMipmapLevel()
 
-        this.scene.traverse(({material}) => {
+        const objects = new Set<IObject3D>()
+        this.scene.traverse((object) => {
+            if (!object.visible) return
+            objects.add(object)
+            const material = this.preprocessObject(object)
             if (!material) return
             if (Array.isArray(material)) material.forEach((m)=>this.preprocessMaterial(m))
             else this.preprocessMaterial(material)
@@ -85,6 +109,8 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
         this._transmissiveMats.clear()
 
         renderer.setRenderTarget(t, activeCubeFace, activeMipLevel)
+
+        objects.forEach(o => this.postprocessObject(o))
     }
 
     beforeRender(scene: IScene, camera: ICamera, _: IRenderManager): void {

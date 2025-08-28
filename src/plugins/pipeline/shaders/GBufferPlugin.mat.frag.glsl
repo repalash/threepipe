@@ -1,14 +1,23 @@
 // Similar to meshnormal.glsl.js in three.js, check for ref
 
+#include <uv_pars_fragment>
+#include <normal_pars_fragment>
+#include <map_pars_fragment>
+#include <alphamap_pars_fragment>
+#include <alphatest_pars_fragment>
+#include <bumpmap_pars_fragment>
+#include <normalmap_pars_fragment>
+#include <logdepthbuf_pars_fragment>
+#include <clipping_planes_pars_fragment>
+
+#glMarker importsEnd
+
 #define DEPTH_NORMAL
+#define IS_DEPTH_MATERIAL
 
 //uniform float opacity;
 
-#if IS_GLSL3 > 0
-in vec3 vViewPosition;
-#else
 varying vec3 vViewPosition;
-#endif
 
 #ifdef USE_ALPHAMAP
 #define USE_UV
@@ -22,19 +31,10 @@ varying vec3 vViewPosition;
 #ifndef gl_FragColor // webgl2 with glsl3
 layout(location = 0) out vec4 gDepthNormal;
 layout(location = 1) out vec4 gFlags;
+//#define gl_FragColor gDepthNormal
 #endif
 
 #endif
-
-#include <uv_pars_fragment>
-#include <normal_pars_fragment>
-#include <map_pars_fragment>
-#include <alphamap_pars_fragment>
-#include <alphatest_pars_fragment>
-#include <bumpmap_pars_fragment>
-#include <normalmap_pars_fragment>
-#include <logdepthbuf_pars_fragment>
-#include <clipping_planes_pars_fragment>
 
 uniform vec2 cameraNearFar;
 uniform vec4 flags;
@@ -97,6 +97,8 @@ void main() {
     #include <logdepthbuf_fragment>
     #include <normal_fragment_begin>
     #include <normal_fragment_maps>
+
+    #glMarker beforeOutput
 
     #ifdef FORCED_LINEAR_DEPTH
     float linearZ = float(FORCED_LINEAR_DEPTH);

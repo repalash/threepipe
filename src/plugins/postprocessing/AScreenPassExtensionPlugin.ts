@@ -4,7 +4,8 @@ import {MaterialExtension, MaterialExtensionShader} from '../../materials'
 import {Vector4, WebGLRenderer} from 'three'
 import {IMaterial} from '../../core'
 import {shaderReplaceString} from '../../utils'
-import {GBufferPlugin, GBufferUpdater, GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
+import {GBufferPlugin} from '../pipeline/GBufferPlugin'
+import {GBufferUpdater, GBufferUpdaterContext} from '../pipeline/GBufferMaterial'
 
 /**
  * Base Screen Pass Extension Plugin

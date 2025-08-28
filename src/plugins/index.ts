@@ -7,12 +7,14 @@ export {AAssetManagerProcessStatePlugin} from './base/AAssetManagerProcessStateP
 
 // pipeline
 export {ProgressivePlugin, ProgressiveBlendPass} from './pipeline/ProgressivePlugin'
-export {GBufferPlugin, GBufferMaterial, DepthNormalMaterial} from './pipeline/GBufferPlugin'
+export {GBufferPlugin, DepthNormalMaterial} from './pipeline/GBufferPlugin'
+export {GBufferMaterial} from './pipeline/GBufferMaterial'
 export {DepthBufferPlugin} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin} from './pipeline/NormalBufferPlugin'
 export {FrameFadePlugin, FrameFadeBlendPass} from './pipeline/FrameFadePlugin'
 export type {ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
-export type {GBufferPluginPass, GBufferUpdater, GBufferUpdaterContext, GBufferPluginTarget} from './pipeline/GBufferPlugin'
+export type {GBufferPluginPass, GBufferPluginTarget} from './pipeline/GBufferPlugin'
+export type {GBufferUpdater, GBufferUpdaterContext} from './pipeline/GBufferMaterial'
 export type {DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
 export type {NormalBufferPluginPass, NormalBufferPluginTarget} from './pipeline/NormalBufferPlugin'
 export {SSAAPlugin} from './pipeline/SSAAPlugin'

@@ -21,7 +21,8 @@ import {getTexelDecoding, matDefine, matDefineBool, uniform} from '../../three'
 import ssaoPass from './shaders/SSAOPlugin.pass.glsl'
 import ssaoPatch from './shaders/SSAOPlugin.patch.glsl'
 import {uiConfigMaterialExtension} from '../../materials/MaterialExtender'
-import {GBufferPlugin, GBufferUpdaterContext} from './GBufferPlugin'
+import {GBufferPlugin} from './GBufferPlugin'
+import {GBufferUpdaterContext} from './GBufferMaterial'
 
 export type SSAOPluginTarget = WebGLRenderTarget
 

@@ -20,7 +20,7 @@ import {
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
-import type {IMaterial, PhysicalMaterial} from '../../core'
+import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
 
 // type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
@@ -86,6 +86,30 @@ export class NormalBufferPlugin
         const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, true)
+
+        // not calling super, since we don't want to check for depth here
+        // const preprocessObject = pass.preprocessObject
+        pass.preprocessObject = (object: IObject3D) => {
+            if (object.customNormalMaterial) {
+                const mat = object.customNormalMaterial
+                mat.allowOverride = false
+                // todo save the current forcedOverrideMaterial to restore it later?
+                object.forcedOverrideMaterial = mat
+                return null
+            }
+            // return preprocessObject(object)
+            return object.material
+        }
+
+        // const postprocessObject = pass.postprocessObject
+        pass.postprocessObject = (object: IObject3D) => {
+            if (object.customNormalMaterial) {
+                delete object.forcedOverrideMaterial
+            }
+            // postprocessObject(object)
+        }
+
+
         pass.before = ['render']
         pass.after = []
         pass.required = ['render']

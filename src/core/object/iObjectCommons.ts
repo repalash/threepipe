@@ -251,6 +251,41 @@ export const iObjectCommons = {
         // }
         this.material = currentMaterial
 
+
+        if (this.isLineSegments2 || this.isLine2) {
+            // setup depth, normal, gbuffer
+            Object.defineProperty(this, 'customDepthMaterial', {
+                configurable: true,
+                enumerable: true,
+                get: () => {
+                    if (this._customDepthMaterial) return this._customDepthMaterial
+                    this._customDepthMaterial = createLineDepthMaterial(this as any)
+                    return this._customDepthMaterial
+                },
+                set: (val) => {
+                    this._customDepthMaterial = val
+                    if (val) val.needsUpdate = true
+                    this.setDirty({change: 'customDepthMaterial'})
+                },
+            })
+            Object.defineProperty(this, 'customGBufferMaterial', {
+                configurable: true,
+                enumerable: true,
+                get: () => {
+                    if (this._customGBufferMaterial) return this._customGBufferMaterial
+                    this._customGBufferMaterial = createLineGBufferMaterial(this as any)
+                    return this._customGBufferMaterial
+                },
+                set: (val) => {
+                    this._customGBufferMaterial = val
+                    if (val) val.needsUpdate = true
+                    this.setDirty({change: 'customDepthMaterial'})
+                },
+            })
+            // todo createNormalMaterial
+        }
+
+
         // Legacy
         if (!(this as any).setMaterial) {
             (this as any).setMaterial = (m: IMaterial | IMaterial[]| undefined)=>{

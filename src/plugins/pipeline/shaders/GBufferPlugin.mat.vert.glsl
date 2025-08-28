@@ -1,18 +1,7 @@
 // Pretty much the same as meshnormal.glsl.js in three.js with minor changes.
 
-#define DEPTH_NORMAL
-
-#if IS_GLSL3 > 0
-out vec3 vViewPosition;
-#else
-varying vec3 vViewPosition;
-#endif
-
-#ifdef USE_ALPHAMAP
-#define USE_UV // see todo in GBufferMaterialOverride updateMaterialDefines
-#endif
-
 //#/include <common>
+#include <batching_pars_vertex>
 #include <uv_pars_vertex>
 #include <displacementmap_pars_vertex>
 #include <normal_pars_vertex>
@@ -21,9 +10,21 @@ varying vec3 vViewPosition;
 #include <logdepthbuf_pars_vertex>
 #include <clipping_planes_pars_vertex>
 
+#glMarker importsEnd
+
+#define DEPTH_NORMAL
+#define IS_DEPTH_MATERIAL
+
+varying vec3 vViewPosition;
+
+#ifdef USE_ALPHAMAP
+#define USE_UV // see todo in GBufferMaterialOverride updateMaterialDefines
+#endif
+
 void main() {
 
     #include <uv_vertex>
+	#include <batching_vertex>
 
     #include <beginnormal_vertex>
     #include <morphnormal_vertex>
@@ -39,6 +40,8 @@ void main() {
     #include <project_vertex>
     #include <logdepthbuf_vertex>
     #include <clipping_planes_vertex>
+
+    #glMarker beforeOutput
 
     vViewPosition = - mvPosition.xyz;
 

@@ -21,7 +21,7 @@ import Uncharted2ToneMappingShader from './shaders/Uncharted2ToneMapping.glsl'
 import TonemapShader from './shaders/TonemapPlugin.pars.glsl'
 import TonemapShaderPatch from './shaders/TonemapPlugin.patch.glsl'
 import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
-import {GBufferUpdaterContext} from '../pipeline/GBufferPlugin'
+import {GBufferUpdaterContext} from '../pipeline/GBufferMaterial'
 import {matDefineBool} from '../../three/utils/decorators'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
