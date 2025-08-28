@@ -80,8 +80,7 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
     createUiConfig(geometry: IGeometry): UiObjectConfig[] {
         if (!geometry.userData.generationParams) return []
         const ui = (generateUiConfig(geometry.userData.generationParams)
-            // @ts-expect-error we assume only functions will be generated since it's an object
-            ?.map(v=>v())
+            ?.flatMap(v=>getOrCall(v))
             .filter(v=>getOrCall(v.property)?.[1] !== 'type') || []) as UiObjectConfig[]
         ui.forEach(u=> {
             u.onChange = () => this.generate(geometry)
