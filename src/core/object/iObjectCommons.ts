@@ -2,7 +2,7 @@ import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {IEvent, objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEventMap, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
-import {copyObject3DUserData} from '../../utils'
+import {copyObject3DUserData, getPropDesc} from '../../utils'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B, checkTexMapReference} from '../../three'
 import {makeIObject3DUiConfig} from './IObjectUi'
@@ -10,6 +10,7 @@ import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
 import {ILight} from '../light/ILight'
 import {ITexture} from '../ITexture'
+import {createLineDepthMaterial, createLineGBufferMaterial} from '../../utils/line-material'
 
 export const iObjectCommons = {
     setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions, ...args: any[]): void {
@@ -213,13 +214,33 @@ export const iObjectCommons = {
         if (objectHasOwn(this, '_currentMaterial')) return
         this._currentMaterial = null
 
+        const {protoDesc} = getPropDesc(this, 'material')
         const currentMaterial = this.material
         delete this.material
+        Object.defineProperty(this, 'currentMaterial', {
+            configurable: true,
+            enumerable: true,
+            get() {
+                return protoDesc?.get ? protoDesc.get.call(this) : iObjectCommons.getMaterial.call(this)
+            },
+            set(val) {
+                iObjectCommons.setMaterial.call(this, val) // this has to be first
+                protoDesc?.set?.call(this, val)
+            },
+        })
         Object.defineProperty(this, 'material', {
-            get: iObjectCommons.getMaterial,
-            set: iObjectCommons.setMaterial,
+            configurable: true,
+            enumerable: true,
+            get() {
+                return this.forcedOverrideMaterial ?? this.currentMaterial
+            },
+            set(val) {
+                this.currentMaterial = val
+            },
         })
         Object.defineProperty(this, 'materials', {
+            configurable: true,
+            enumerable: true,
             get: iObjectCommons.getMaterials,
             set: iObjectCommons.setMaterials,
         })
@@ -312,12 +333,20 @@ export const iObjectCommons = {
     },
 
     initGeometry: function(this: IObject3D): void {
-        const currentGeometry = this.geometry
         this._currentGeometry = null
+        const {protoDesc} = getPropDesc(this, 'geometry')
+        const currentGeometry = this.geometry
         delete this.geometry
         Object.defineProperty(this, 'geometry', {
-            get: iObjectCommons.getGeometry,
-            set: iObjectCommons.setGeometry,
+            configurable: true,
+            enumerable: true,
+            get() {
+                return protoDesc?.get ? protoDesc.get.call(this) : iObjectCommons.getGeometry.call(this)
+            },
+            set(val) {
+                iObjectCommons.setGeometry.call(this, val) // this has to be first
+                protoDesc?.set?.call(this, val)
+            },
         })
         this.geometry = currentGeometry
 
@@ -481,11 +510,6 @@ export const object3DTextureProperties: Set<string> = new Set<string>([])
  */
 function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): IObject3D {
     if (!this) return this
-    // console.log('upgradeObject3D', this, parent, objectProcessor)
-    // if (this.__disposed) {
-    //     console.warn('re-init/re-add disposed object, things might not work as intended', this)
-    //     delete this.__disposed
-    // }
     if (!this.userData) this.userData = {}
     this.userData.uuid = this.uuid
 
@@ -544,6 +568,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
         this.userData.__meshSetup = true
 
+        // todo move this to object3dmanager and remove
         this._onGeometryUpdate = (e) => iObjectCommons.eventCallbacks.onGeometryUpdate.call(this, e)
 
         // Material, Geometry prop init
@@ -598,22 +623,12 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     // region Legacy
 
     // eslint-disable-next-line deprecation/deprecation
-    // !this.userData.dispose && (this.userData.dispose = () => {
-    //     console.warn('userData.dispose is deprecated, use dispose directly')
-    //     this.dispose && this.dispose()
-    // })
-    // eslint-disable-next-line deprecation/deprecation
     !this.modelObject && Object.defineProperty(this, 'modelObject', {
         get: ()=>{
             console.error('modelObject is deprecated, use object directly')
             return this
         },
     })
-    // eslint-disable-next-line deprecation/deprecation
-    // !this.userData.setDirty && (this.userData.setDirty = (e: any)=>{
-    //     console.error('object.userData.setDirty is deprecated, use object.setDirty directly')
-    //     this.setDirty?.(e)
-    // })
 
     // endregion
 

@@ -35,3 +35,13 @@ export {htmlDialogWrapper} from 'ts-browser-helpers'
 export {equalsPrimitive, copyPrimitive, clonePrimitive, type PrimitiveValObject, type PrimitiveVal} from 'ts-browser-helpers'
 export {recordUndoCommand, setValueUndoCommand} from 'ts-browser-helpers'
 export type {SetValueUndoCommandProps, SetValueUndoCommand, ActionUndoCommand} from 'ts-browser-helpers'
+
+export function getPropDesc(obj: any, prop: keyof typeof obj) {
+    let proto = obj
+    let protoDesc = undefined
+    while (!protoDesc && proto) {
+        proto = Object.getPrototypeOf(proto)
+        proto && (protoDesc = Object.getOwnPropertyDescriptor(proto, prop))
+    }
+    return {proto, protoDesc}
+}

@@ -1,5 +1,5 @@
 import {IMaterial, IMaterialEventMap, IMaterialSetDirtyOptions} from './IMaterial'
-import {Box3, EventListener2, Object3D, Object3DEventMap, Sphere, Vector3} from 'three'
+import {Box3, EventListener2, Material, Object3D, Object3DEventMap, Sphere, Vector3} from 'three'
 import {ChangeEvent, IUiConfigContainer, UiObjectConfig} from 'uiconfig.js'
 import {IGeometry, IGeometryEventMap, IGeometrySetDirtyOptions} from './IGeometry'
 import {IImportResultUserData} from '../assetmanager'
@@ -371,8 +371,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * To set, just set `material` property
      */
     readonly materials?: IMaterial[]
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    _currentMaterial?: IMaterial | IMaterial[] | null
+    currentMaterial?: IMaterial | IMaterial[] | null
     morphTargetDictionary?: Record<string, number>
     morphTargetInfluences?: number[]
     updateMorphTargets?(): void
@@ -441,11 +440,6 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      */
     modelObject: this
 
-
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    _onGeometryUpdate?: EventListener2<'geometryUpdate', IGeometryEventMap, IGeometry>
-
-
     objectProcessor?: IObjectProcessor
     objectExtensions?: IObjectExtension[]
 
@@ -498,6 +492,29 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     autoUpgradeChildren?: boolean
 
     /**
+     * Required for Light shadows and plugins like DepthBufferPlugin
+     */
+    customDepthMaterial?: Material
+    /**
+     * Required for PointLight shadows
+     */
+    customDistanceMaterial?: Material
+    /**
+     * Required for plugins like GBufferPlugin
+     */
+    customGBufferMaterial?: Material
+    /**
+     * Required for plugins like NormalBufferPlugin
+     */
+    customNormalMaterial?: Material
+
+    /**
+     * If this is set, it will be returned when accessing `material` property.
+     * see {@link GBufferRenderPass} for sample usage
+     */
+    forcedOverrideMaterial?: Material
+
+    /**
      * Traverse only upgraded objects with extra options
      * @param callback
      * @param options
@@ -507,6 +524,27 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
         widgets: boolean,
         [key: string]: any
     }): void
+
+    /**
+     * @internal - store for the actual material. see also {@link currentMaterial}
+     */
+    ['_currentMaterial']?: IMaterial | IMaterial[] | null
+    /**
+     * @internal - store for the actual customDepthMaterial
+     */
+    ['_customDepthMaterial']?: Material
+    /**
+     * @internal - store for the actual customNormalMaterial
+     */
+    ['_customNormalMaterial']?: Material
+    /**
+     * @internal - store for the actual customGBufferMaterial
+     */
+    ['_customGBufferMaterial']?: Material
+    /**
+     * @internal - for embedded objects
+     */
+    ['_onGeometryUpdate']?: EventListener2<'geometryUpdate', IGeometryEventMap, IGeometry>
 
     /**
      * @internal - for embedded objects

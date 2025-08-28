@@ -188,7 +188,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         renderer.outputColorSpace = NoColorSpace // or SRGBColorSpace
 
         renderer.shadowMap.enabled = true
-        renderer.shadowMap.type = PCFShadowMap // use?  THREE.PCFShadowMap. dont use VSM if need ground: https://github.com/mrdoob/three.js/issues/17473
+        renderer.shadowMap.type = PCFShadowMap // dont use VSM if need ground: https://github.com/mrdoob/three.js/issues/17473
         // renderer.shadowMap.type = BasicShadowMap // use?  THREE.PCFShadowMap. dont use VSM if need ground: https://github.com/mrdoob/three.js/issues/17473
         renderer.shadowMap.autoUpdate = false
 

@@ -280,7 +280,9 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     if (!this.materialExtensions) this.materialExtensions = []
     if (!this.registerMaterialExtensions) this.registerMaterialExtensions = iMaterialCommons.registerMaterialExtensions
     if (!this.unregisterMaterialExtensions) this.unregisterMaterialExtensions = iMaterialCommons.unregisterMaterialExtensions
-    this.onBeforeCompile = iMaterialCommons.onBeforeCompileOverride(this.onBeforeCompile)
+    // in troika text material, onBeforeCompile is a get/set property that chains it, causing infinite loop if we just override it. todo - couldnt find a better way right now than hard check, descriptors are the same
+    const skipOverride = !(this as any).isDerivedMaterial
+    this.onBeforeCompile = !skipOverride ? iMaterialCommons.onBeforeCompile : iMaterialCommons.onBeforeCompileOverride(this.onBeforeCompile)
     this.onBeforeRender = iMaterialCommons.onBeforeRenderOverride(this.onBeforeRender)
     this.onAfterRender = iMaterialCommons.onAfterRenderOverride(this.onAfterRender)
     this.customProgramCacheKey = iMaterialCommons.customProgramCacheKeyOverride(this.customProgramCacheKey)
@@ -291,3 +293,36 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     this.setDirty({change: 'upgradeMaterial'})
     return this
 }
+
+// export function extendFuncProperty(obj: any, prop: keyof typeof obj, extender: (this: any, ...rest: any[])=>any) {
+//     const {proto, protoDesc} = getPropDesc(obj, 'onBeforeCompile')
+//     let currentValue = obj[prop]
+//     function caller(this: any, fn: any) {
+//         return (...rest: any[])=>{
+//             extender.call(obj, ...rest)
+//             return fn.call(obj, ...rest)
+//         }
+//     }
+//     if (protoDesc) {
+//         if (!protoDesc.configurable) {
+//             // directly set to the extender
+//             obj[prop] = (...rest: any[])=>{
+//                 return extender.call(obj, ...rest)
+//             }
+//         } else {
+//             // this will shadow the prev property
+//             Object.defineProperty(proto || obj, prop, {
+//                 get() {
+//                     return caller.call(this, protoDesc?.get ? protoDesc.get.call(this) : currentValue)
+//                 },
+//                 set(value) {
+//                     protoDesc?.set?.call(this, value)
+//                     currentValue = value
+//                 },
+//             })
+//         }
+//     } else {
+//         // obj[prop] = iMaterialCommons.onBeforeCompileOverride(currentValue)
+//         obj[prop] = caller.call(obj, currentValue)
+//     }
+// }

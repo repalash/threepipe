@@ -297,6 +297,8 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     clone(track?: boolean): this;
 
     // optional from subclasses, added here for autocomplete
+    color?: Color
+    wireframe?: boolean
     flatShading?: boolean
     map?: ITexture | null
     alphaMap?: ITexture | null
@@ -315,9 +317,9 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     metalness?: number
     transmissionMap?: ITexture | null
     transmission?: number
-
-    color?: Color
-    wireframe?: boolean
+    emissiveMap?: ITexture | null
+    emissiveIntensity?: number
+    emissive?: Color
 
     linewidth?: number
 
