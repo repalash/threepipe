@@ -1,5 +1,5 @@
 import {embedUrlRefs, parseFileExtension, svgUrl} from 'ts-browser-helpers'
-import {uiColor, uiDropdown, uiFolderContainer, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiDropdown, uiFolderContainer, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {IAssetImporter} from '../assetmanager'
 import {LinearFilter} from 'three'
 import {ITexture} from '../core'
@@ -37,7 +37,7 @@ const onOpsChange = (ctx: TextSVGOptions)=>({
 @uiFolderContainer('Text SVG Options')
 export class TextSVGOptions implements ITextSVGOptions {
     @uiInput('Text', onOpsChange) text = 'Custom Text'
-    @uiSlider('Font Size', [2, 400], 1, onOpsChange) fontSize = 100
+    @uiSlider('Font Size', [2, 1024], 1, onOpsChange) fontSize = 100
     @uiSlider('Width', [2, 4096], 1, onOpsChange) width = 1024
     @uiSlider('Height', [2, 4096], 1, onOpsChange) height = 1024
     @uiSlider('X Offset', [-1024, 1024], 1, onOpsChange) xOffset = 0
@@ -55,9 +55,9 @@ export class TextSVGOptions implements ITextSVGOptions {
     @uiDropdown('Direction', ['auto', 'ltr', 'rtl'].map(label=>({label} as UiObjectConfig)), onOpsChange) direction: 'ltr'|'rtl' = 'ltr'
     @uiToggle('Mask Text', onOpsChange) maskText = false
     @uiToggle('Inner Shadow', onOpsChange) innerShadow = false
-    @uiColor('Text Color', onOpsChange) textColor = '#000000'
-    @uiColor('BG Fill', onOpsChange) bgFillColor = '#ffffff'
-    @uiColor('SVG BG', onOpsChange) svgBackground = '#ffffff'
+    @uiInput('Text Color', onOpsChange) textColor = '#000000'
+    @uiInput('BG Fill', onOpsChange) bgFillColor = '#ffffff'
+    @uiInput('SVG BG', onOpsChange) svgBackground = '#ffffff'
 
     onChange = ()=>{return}
     set(ops: ITextSVGOptions) {
@@ -94,6 +94,7 @@ export class TextSVGOptions implements ITextSVGOptions {
             textAnchor: this.textAnchor,
         }
     }
+    declare uiConfig: UiObjectConfig
 }
 
 export const fontFormatExtensionMap: any = {
