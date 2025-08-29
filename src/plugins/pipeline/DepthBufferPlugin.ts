@@ -1,5 +1,5 @@
 import {
-    BasicDepthPacking,
+    RGBADepthPacking,
     BufferGeometry,
     Camera,
     Color,
@@ -51,7 +51,7 @@ export class DepthBufferPlugin
 
     // @uiConfig() // not supported in this material yet
     readonly material: MeshDepthMaterial = new MeshDepthMaterialOverride({
-        depthPacking: BasicDepthPacking,
+        depthPacking: RGBADepthPacking,
         blending: NoBlending,
         transparent: true,
     })
@@ -89,7 +89,7 @@ export class DepthBufferPlugin
             tDepthBuffer: ()=>({value: this.target?.texture}),
         },
         extraDefines: {
-            ['DEPTH_PACKING']: BasicDepthPacking,
+            ['DEPTH_PACKING']: RGBADepthPacking,
             ['HAS_DEPTH_BUFFER']: ()=>this.target?.texture ? 1 : undefined,
             ['HAS_GBUFFER']: ()=>this.isPrimaryGBuffer && this.target?.texture ? 1 : undefined,
         },
@@ -160,7 +160,7 @@ export class DepthBufferPlugin
         bufferType: TextureDataType = UnsignedByteType,
         isPrimaryGBuffer = false,
         enabled = true,
-        depthPacking: DepthPackingStrategies = BasicDepthPacking,
+        depthPacking: DepthPackingStrategies = RGBADepthPacking,
     ) {
         super()
         this.enabled = enabled

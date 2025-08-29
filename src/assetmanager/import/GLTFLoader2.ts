@@ -71,10 +71,8 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width and other properties like `dashed`.
      *
      * This is the default value for the flag, it can also be controlled by using the `useMeshLines` in the import options.
-     *
-     * Note - Some bugs right now like bounding box, shadows and depth when using this.
      */
-    static UseMeshLines = false
+    static UseMeshLines = true
 
     /**
      * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
@@ -303,7 +301,6 @@ function convertToFatLine(line: Line) {
         positions = pos
     }
     line2.geometry.setPositions(positions)
-    line2.computeLineDistances()
     const colors = line.geometry.attributes.color?.array as Float32Array
     if (colors && (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors) {
         (line2.geometry as LineGeometry2|LineSegmentsGeometry2).setColors(colors)
@@ -317,6 +314,10 @@ function convertToFatLine(line: Line) {
     const {geometry, material} = line2
     const ud = line.userData
     line.userData = {}
+    if (!line.userData.__keepShadowDef) {
+        line.castShadow = line2.castShadow
+        line.receiveShadow = line2.receiveShadow
+    }
     line2.copy(line as any, false)
     line2.geometry = geometry
     line2.material = material
@@ -328,12 +329,14 @@ function convertToFatLine(line: Line) {
     // todo handle in depth plugins
     safeSetProperty(line2, 'uuid', line.uuid, true, true)
     line.removeFromParent()
+    line2.computeLineDistances()
     // put at the same index
     const index2 = parent.children.indexOf(line2)
     if (index2 >= 0 && index2 !== index) {
         parent.children.splice(index2, 1)
         parent.children.splice(index, 0, line2)
     }
+
 }
 
 declare module 'three/examples/jsm/loaders/GLTFLoader.js'{
