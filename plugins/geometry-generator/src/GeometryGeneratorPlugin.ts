@@ -17,7 +17,7 @@ import {PlaneGeometryGenerator} from './primitives/PlaneGeometryGenerator'
 import {CylinderGeometryGenerator} from './primitives/CylinderGeometryGenerator'
 import {TextGeometryGenerator} from './primitives/TextGeometryGenerator'
 import {LineGeometryGenerator} from './primitives/LineGeometryGenerator'
-import {AGeometryGenerator, updateUi} from './AGeometryGenerator'
+import {AGeometryGenerator, removeUi, updateUi} from './AGeometryGenerator'
 
 // for type autocomplete
 export interface IGeometryGeneratorMap extends Record<string, AGeometryGenerator>{
@@ -96,55 +96,52 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         generator.generate(geometry, params)
     }
 
-    onAdded(v: ThreeViewer) {
-        super.onAdded(v)
-        v.scene.addEventListener('sceneUpdate', this._sceneUpdate)
-        v.scene.addEventListener('geometryUpdate', this._geometryUpdate)
-        this.refreshObject3DGenerator()
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        viewer.scene.addEventListener('geometryUpdate', this._geometryUpdate)
+
+        viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
+
+        viewer.forPlugin<Object3DGeneratorPlugin>('Object3DGeneratorPlugin', (plugin)=>{
+            plugin.addObject3DGenerators('geometry-', Object.fromEntries(Object.keys(this.generators).map(key=>
+                [key, (params: any) => {
+                    const obj = this.generateObject(key, params)
+                    obj.name = key
+                    return obj
+                }]
+            )))
+        }, (plugin)=>{
+            plugin.removeObject3DGenerators('geometry-')
+        }, this)
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._removeObject3DGenerators()
+        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
+        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
+
         super.onRemove(viewer)
     }
 
-    protected _removeObject3DGenerators(refresh = true) {
-        const object3DGenerator = this._viewer?.getPlugin<Object3DGeneratorPlugin>('Object3DGeneratorPlugin')
-        if (!object3DGenerator) return
-        object3DGenerator.generators = Object.fromEntries(Object.entries(object3DGenerator.generators)
-            .filter(([k, _]) => !k.startsWith('geometry-'))) as any
-        refresh && object3DGenerator.uiConfig?.uiRefresh?.(true)
-        return object3DGenerator
-    }
-
-    refreshObject3DGenerator() {
-        const object3DGenerator = this._removeObject3DGenerators(false)
-        if (!object3DGenerator) return
-        Object.keys(this.generators).forEach(key=>{
-            object3DGenerator.generators['geometry-' + key] = (params: any)=>{
-                const obj = this.generateObject(key, params)
-                obj.name = key
-                return obj
-            }
+    private _objectAdd = (e: {object?: IObject3D})=>{
+        const obj = e.object
+        const type = obj?.geometry?.userData?.generationParams?.type
+        if (!type) return
+        updateUi(obj.geometry!, ()=>{
+            const geom = obj.geometry
+            if (!geom) return []
+            const gen = this.generators[type]
+            return gen?.createUiConfig ? gen.createUiConfig(geom) ?? [] : []
         })
-        object3DGenerator.uiConfig?.uiRefresh?.(true)
     }
 
-    // todo use object3dmanager
-    protected _sceneUpdate = (e: any)=>{
-        if (e.hierarchyChanged) {
-            const obj = e.object || this._viewer?.scene.modelRoot
-            if (obj) {
-                obj.traverse((o: any)=>{
-                    const type = o.geometry?.userData?.generationParams?.type
-                    if (!type) return
-                    updateUi(o.geometry, ()=>{
-                        const gen = this.generators[type]
-                        return gen?.createUiConfig ? gen.createUiConfig(o.geometry) ?? [] : []
-                    })
-                })
-            }
-        }
+    private _objectRemove = (e: {object?: IObject3D})=>{
+        const geom = e.object?.geometry
+        const type = geom?.userData?.generationParams?.type
+        if (!type) return
+        removeUi(geom)
     }
 
     // to regenerate call geometry.setDirty({regenerate: true})

@@ -67,6 +67,16 @@ export function updateUi(geometry: BufferGeometry, childrenUi: () => UiObjectCon
     }
 }
 
+export function removeUi(geometry: BufferGeometry) {
+    const uiConfig = (geometry as any).uiConfig as UiObjectConfig
+    if (!uiConfig) return
+    const index = uiConfig.children?.findIndex((c) => typeof c === 'object' && c.tags?.includes('generatedGeometry')) ?? -1
+    if (index >= 0) {
+        uiConfig.children?.splice(index, 1)
+        uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+}
+
 export abstract class AGeometryGenerator<Tp extends object=any, Tt extends string = string> implements GeometryGenerator<Tp> {
     constructor(public type: Tt) {
     }

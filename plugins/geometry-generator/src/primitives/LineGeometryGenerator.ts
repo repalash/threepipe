@@ -63,8 +63,7 @@ export class LineGeometryGenerator extends AGeometryGenerator<LineGeometryGenera
         closePath: false,
     }
 
-    // for fat lines, some bugs right now like shadows and depth when using this.
-    static UseMeshLines = false
+    static UseMeshLines = true
 
     defaultMeshClass: ()=>Class<IObject3D> = ()=> LineGeometryGenerator.UseMeshLines ? MeshLine : Line as any
     defaultMaterialClass: ()=>Class<IMaterial> = ()=> LineGeometryGenerator.UseMeshLines ? LineMaterial2 : UnlitLineMaterial
