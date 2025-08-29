@@ -1,13 +1,10 @@
-import {_testFinish, _testStart, InteractionPromptPlugin, LoadingScreenPlugin, Matrix4, SSAOPlugin} from 'threepipe'
+import {_testFinish, _testStart, InteractionPromptPlugin, LoadingScreenPlugin, SSAOPlugin} from 'threepipe'
 import React from 'react'
 import {createRoot} from 'react-dom/client'
-import {Asset, Model, ViewerCanvas, TextPlane} from '@threepipe/plugin-r3f'
-import { useGLTF, Float, Lightformer, Text, Html, ContactShadows, Environment, MeshTransmissionMaterial } from '@react-three/drei'
-import { Route, Router, Link, useLocation } from 'https://esm.sh/wouter'
-import { useHashLocation } from 'https://esm.sh/wouter/use-hash-location'
-// import { suspend } from 'https://esm.sh/suspend-react'
-import { easing } from 'https://esm.sh/maath?external=three'
-import {useFrame} from '@react-three/fiber';
+import {Model, TextPlane, ViewerCanvas} from '@threepipe/plugin-r3f'
+import {Environment, Float, Lightformer, MeshTransmissionMaterial} from '@react-three/drei'
+import {Link, Route, Router} from 'https://esm.sh/wouter'
+import {useHashLocation} from 'https://esm.sh/wouter/use-hash-location'
 
 const inter = 'https://rsms.me/inter/font-files/Inter-Regular.woff2?v=4.1'
 
@@ -83,19 +80,6 @@ async function init () {
 _testStart()
 init().finally(_testFinish)
 
-
-function Rig () {
-    useFrame((state, delta) => {
-        easing.damp3(
-            state.camera.position,
-            [Math.sin(-state.pointer.x) * 5, state.pointer.y * 3.5, 15 + Math.cos(state.pointer.x) * 10],
-            0.2,
-            delta,
-        )
-        state.camera.lookAt(0, 0, 0)
-    })
-}
-
 const Torus = (props) => (
     <mesh receiveShadow castShadow {...props}>
         <torusGeometry args={[4, 1.2, 128, 64]} />
@@ -140,10 +124,6 @@ function Status (props) {
             <TextPlane fontSize={14} font={inter} color="black" {...props}>
                 {text}
             </TextPlane>
-            {/* TODO - position is not correct */}
-            {/* <Html style={{ color: 'red', fontSize: (30 * 14) + 'px' }} transform>*/}
-            {/*    {text}*/}
-            {/* </Html>*/}
         </>
 
     )

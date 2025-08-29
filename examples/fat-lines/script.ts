@@ -1,11 +1,11 @@
 import {
     _testFinish, _testStart,
-    Color,
+    Color, DepthBufferPlugin, GBufferPlugin,
     GLTFLoader2,
     IObject3D,
     LineMaterial2,
     LoadingScreenPlugin,
-    PickingPlugin, PopmotionPlugin,
+    PickingPlugin, PopmotionPlugin, RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -17,7 +17,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, PickingPlugin],
+        plugins: [PopmotionPlugin, DepthBufferPlugin, GBufferPlugin, LoadingScreenPlugin, PickingPlugin], // depth and gbuffer plugins are optional
         dropzone: true,
     })
 
@@ -32,7 +32,7 @@ async function init() {
         autoCenter: true,
     })
 
-    const popmotion = viewer.addPluginSync(PopmotionPlugin)
+    const popmotion = viewer.getPlugin(PopmotionPlugin)!
 
     const material = viewer.materialManager.findMaterialsByName('Stone')[0] as LineMaterial2
 
@@ -52,6 +52,15 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(PickingPlugin)
 
+    const gbufferPlugin = viewer.getPlugin(GBufferPlugin)!
+    const getNormalDepth = ()=>({texture: gbufferPlugin.normalDepthTexture})
+    const getFlags = ()=>({texture: gbufferPlugin.flagsTexture})
+    const getDepthTexture = ()=>({texture: viewer.getPlugin(DepthBufferPlugin)?.texture})
+
+    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
+    targetPreview.addTarget(getNormalDepth, 'normalDepth')
+    targetPreview.addTarget(getFlags, 'gBufferFlags')
+    targetPreview.addTarget(getDepthTexture, 'depthTexture')
 }
 
 _testStart()
