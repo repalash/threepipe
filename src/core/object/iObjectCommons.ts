@@ -308,7 +308,8 @@ export const iObjectCommons = {
         return this._currentMaterial || undefined
     },
     getMaterials: function(this: IObject3D): IMaterial[] {
-        return !this._currentMaterial ? [] : Array.isArray(this._currentMaterial) ? [...this._currentMaterial] : [this._currentMaterial]
+        const current = this.currentMaterial
+        return !current ? [] : Array.isArray(current) ? [...current] : [current]
     },
 
     setMaterial: function(this: IObject3D, material: IMaterial | IMaterial[] | undefined) {
@@ -364,7 +365,7 @@ export const iObjectCommons = {
         this.refreshUi()
     },
     setMaterials: function(this: IObject3D, materials: IMaterial[]) {
-        this.material = materials || undefined
+        this.currentMaterial = materials || undefined
     },
 
     initGeometry: function(this: IObject3D): void {
@@ -511,7 +512,7 @@ export const iObjectCommons = {
 
             // this.uiConfig?.dispose?.() // todo: make uiConfig.dispose
 
-            superDispose?.call(this)
+            superDispose && superDispose.call(this)
         },
 
     getMapsForObject3D: function(this: IObject3D) {
@@ -600,6 +601,9 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     //     this.removeEventListener('removed', iObjectCommons.eventCallbacks.onRemovedFromParent)
     // })
 
+    if (this.isLineSegments2 || this.isLine2) {
+        this.isMesh = true // required for shadows etc
+    }
     if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
         this.userData.__meshSetup = true
 

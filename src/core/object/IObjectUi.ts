@@ -27,16 +27,6 @@ const defaultLineMaterial = new LineMaterial2()
 defaultLineMaterial.name = 'Default Line Material'
 defaultLineMaterial.uiConfig = undefined as any
 
-export function objectExtensionsUiConfig(this: IObject3D) {
-    return () => this.objectExtensions?.flatMap(v => {
-        v.uuid = v.uuid || generateUUID()
-        // caching the uiconfig here. todo: reset the uiconfig when cache key changes? or we could just return a dynamic/function uiconfig from getUiConfig
-        this.__objExtUiConfigs = this.__objExtUiConfigs || {}
-        if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig?.(this, this.uiConfig?.uiRefresh)
-        return this.__objExtUiConfigs[v.uuid]
-    }).filter(v => v)
-}
-
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
         {
@@ -376,4 +366,14 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
     this.uiConfig = config
     return config
 
+}
+
+export function objectExtensionsUiConfig(this: IObject3D) {
+    return () => this.objectExtensions?.flatMap(v => {
+        v.uuid = v.uuid || generateUUID()
+        // caching the uiconfig here. todo: reset the uiconfig when cache key changes? or we could just return a dynamic/function uiconfig from getUiConfig
+        this.__objExtUiConfigs = this.__objExtUiConfigs || {}
+        if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig?.(this, this.uiConfig?.uiRefresh)
+        return this.__objExtUiConfigs[v.uuid]
+    }).filter(v => v)
 }

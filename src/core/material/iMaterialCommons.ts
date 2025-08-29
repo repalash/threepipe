@@ -293,36 +293,3 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
     this.setDirty({change: 'upgradeMaterial'})
     return this
 }
-
-// export function extendFuncProperty(obj: any, prop: keyof typeof obj, extender: (this: any, ...rest: any[])=>any) {
-//     const {proto, protoDesc} = getPropDesc(obj, 'onBeforeCompile')
-//     let currentValue = obj[prop]
-//     function caller(this: any, fn: any) {
-//         return (...rest: any[])=>{
-//             extender.call(obj, ...rest)
-//             return fn.call(obj, ...rest)
-//         }
-//     }
-//     if (protoDesc) {
-//         if (!protoDesc.configurable) {
-//             // directly set to the extender
-//             obj[prop] = (...rest: any[])=>{
-//                 return extender.call(obj, ...rest)
-//             }
-//         } else {
-//             // this will shadow the prev property
-//             Object.defineProperty(proto || obj, prop, {
-//                 get() {
-//                     return caller.call(this, protoDesc?.get ? protoDesc.get.call(this) : currentValue)
-//                 },
-//                 set(value) {
-//                     protoDesc?.set?.call(this, value)
-//                     currentValue = value
-//                 },
-//             })
-//         }
-//     } else {
-//         // obj[prop] = iMaterialCommons.onBeforeCompileOverride(currentValue)
-//         obj[prop] = caller.call(obj, currentValue)
-//     }
-// }

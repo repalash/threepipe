@@ -107,7 +107,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.setDirty()
         this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, (obj)=>{
             const hasMat = obj.material
-            if (!hasMat) return false
+            if (!hasMat && !obj.userData.userSelectable) return false
             let o: IObject3D|null = obj
             let ret = false
             while (o) {

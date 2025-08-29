@@ -1,6 +1,6 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
-import {ICamera} from '../../core'
+import {ICamera, IObjectExtension} from '../../core'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import type {RenderTargetPreviewPlugin} from '../ui/RenderTargetPreviewPlugin'
 
@@ -55,59 +55,66 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<VirtualCamerasPlugin
         },
     }
 
+    private _objectExtension: IObjectExtension = {
+        uuid: 'VirtualCameraPluginExt',
+        isCompatible: object => object.isCamera,
+        getUiConfig: (object): UiObjectConfig[]|undefined => {
+            if (!object.isCamera) return undefined
+            return [{
+                type: 'button',
+                label: 'Add Virtual Camera',
+                hidden: ()=>!!this.cameras.find(f=>f.camera === object),
+                onClick: () => {
+                    if (!this._viewer) return
+                    this.addCamera(object as ICamera, undefined, true)
+                    object.setDirty()
+                    return ()=>{
+                        this.removeCamera(object as ICamera)
+                        object.setDirty()
+                    }
+                },
+            }, {
+                type: 'button',
+                label: 'Virtual Camera Enabled',
+                hidden: ()=>!this.cameras.find(f=>f.camera === object),
+                getValue: ()=>{
+                    const vCam = this.cameras.find(f => f.camera === object)
+                    return vCam ? vCam.enabled : false
+                },
+                setValue: ()=>{
+                    const vCam = this.cameras.find(f => f.camera === object)
+                    if (vCam) {
+                        vCam.enabled = !vCam.enabled
+                        return vCam.enabled
+                    }
+                    return false
+                },
+            }, {
+                type: 'button',
+                label: 'Remove Virtual Camera',
+                hidden: ()=>!this.cameras.find(f=>f.camera === object),
+                onClick: () => {
+                    if (!this._viewer) return
+                    this.removeCamera(object as ICamera)
+                    object.setDirty()
+                    return ()=>{
+                        this.addCamera(object as ICamera, undefined, true)
+                        object.setDirty()
+                    }
+                },
+            }]
+        },
+    }
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         // todo save camera state in userData?
-        viewer.object3dManager.registerObjectExtension({
-            uuid: 'VirtualCameraPluginExt',
-            isCompatible: object => object.isCamera,
-            getUiConfig: (object): UiObjectConfig[]|undefined => {
-                if (!object.isCamera) return undefined
-                return [{
-                    type: 'button',
-                    label: 'Add Virtual Camera',
-                    hidden: ()=>!!this.cameras.find(f=>f.camera === object),
-                    onClick: () => {
-                        if (!this._viewer) return
-                        this.addCamera(object as ICamera, undefined, true)
-                        object.setDirty()
-                        return ()=>{
-                            this.removeCamera(object as ICamera)
-                            object.setDirty()
-                        }
-                    },
-                }, {
-                    type: 'button',
-                    label: 'Virtual Camera Enabled',
-                    hidden: ()=>!this.cameras.find(f=>f.camera === object),
-                    getValue: ()=>{
-                        const vCam = this.cameras.find(f => f.camera === object)
-                        return vCam ? vCam.enabled : false
-                    },
-                    setValue: ()=>{
-                        const vCam = this.cameras.find(f => f.camera === object)
-                        if (vCam) {
-                            vCam.enabled = !vCam.enabled
-                            return vCam.enabled
-                        }
-                        return false
-                    },
-                }, {
-                    type: 'button',
-                    label: 'Remove Virtual Camera',
-                    hidden: ()=>!this.cameras.find(f=>f.camera === object),
-                    onClick: () => {
-                        if (!this._viewer) return
-                        this.removeCamera(object as ICamera)
-                        object.setDirty()
-                        return ()=>{
-                            this.addCamera(object as ICamera, undefined, true)
-                            object.setDirty()
-                        }
-                    },
-                }]
-            },
-        })
+        viewer.object3dManager.registerObjectExtension(this._objectExtension)
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        viewer.object3dManager.unregisterObjectExtension(this._objectExtension)
+        super.onRemove(viewer)
     }
 
     addCamera(camera: ICamera, target?: IRenderTarget, addTargetPreview = false): VirtualCamera {

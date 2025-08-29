@@ -1,19 +1,21 @@
-import {Object3D} from 'three'
+import {InstancedMesh} from 'three'
 import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
-import {IGeometry} from '../IGeometry'
 import {IMaterial} from '../IMaterial'
+import {IGeometry} from '../IGeometry'
 
-export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
-    TG extends IGeometry | undefined = undefined,
-    TM extends IMaterial | IMaterial[] | undefined = undefined
-> extends Object3D<TE> implements IObject3D<TE, TG, TM> {
+export class InstancedMesh2<
+    TGeometry extends IGeometry = IGeometry,
+    TMaterial extends IMaterial | IMaterial[] = IMaterial | IMaterial[],
+    TE extends IObject3DEventMap = IObject3DEventMap
+> extends InstancedMesh<TGeometry, TMaterial, TE> implements IObject3D<TE, TGeometry, TMaterial> {
     assetType = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
 
-    declare geometry: TG
-    declare material: TM
+    declare material: TMaterial
+    declare readonly materials: IMaterial[]
+    declare geometry: TGeometry
 
     /**
      * @deprecated use `this` instead
@@ -22,8 +24,8 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
         return this
     }
 
-    constructor() {
-        super()
+    constructor(geometry?: TGeometry, material?: TMaterial, count = 1) {
+        super(geometry, material, count)
         iObjectCommons.upgradeObject3D.call(this)
     }
 
@@ -38,7 +40,7 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
     getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
     getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
     getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: Object3D2|IObject3D, recursive?: boolean, ...args: any[]) => this
+    copy: (source: InstancedMesh2|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     declare parent: IObject3D | null
@@ -47,6 +49,5 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
 
     // endregion
 
-    ['_sChildren']?: Object3D[]
 }
 

@@ -481,8 +481,10 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         const camera = this.mainCamera as ICamera
         if (!camera) return
         if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
-            camera.near = camera.userData.minNearPlane ?? 0.5
-            camera.far = camera.userData.maxFarPlane ?? 1000
+            if (camera.userData.minNearPlane !== undefined)
+                camera.near = camera.userData.minNearPlane ?? 0.5
+            if (camera.userData.maxFarPlane !== undefined)
+                camera.far = camera.userData.maxFarPlane ?? 1000
             return
         }
 

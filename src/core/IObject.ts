@@ -283,7 +283,12 @@ export interface IObject3DUserData extends IImportResultUserData {
 
     // endregion
 
-
+    /**
+     * Auto dispose when removed from the scene.
+     * Note - this is only used when {@link Object3DManager.autoDisposeObjects} is `true`
+     * @default true
+     */
+    disposeOnIdle?: boolean
 
     __objectSetup?: boolean
     __meshSetup?: boolean
@@ -549,15 +554,15 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     /**
      * @internal - for embedded objects
      */
-    _rootPathRefreshed?: boolean
+    ['_rootPathRefreshed']?: boolean
     /**
      * @internal - when embedded objects are loading
      */
-    _rootPathRefreshing?: boolean
+    ['_rootPathRefreshing']?: boolean
     /**
      * @internal - for embedded objects
      */
-    _sChildren?: Object3D[]
+    ['_sChildren']?: Object3D[]
 
     // constructor: {
     //     // TYPE: string
