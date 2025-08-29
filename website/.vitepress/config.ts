@@ -185,7 +185,6 @@ export default defineConfig({
         text: 'Packages', collapsed: false,
         items: [
           {text: 'WebGi Rendering Plugins', link: 'https://webgi.dev/'},
-          {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
           {text: 'Tweakpane Plugin', link: 'package/plugin-tweakpane'},
           {text: 'Blueprint.js Plugin', link: 'package/plugin-blueprintjs'},
           {text: 'Tweakpane Editor Plugin', link: 'package/plugin-tweakpane-editor'},
@@ -201,6 +200,8 @@ export default defineConfig({
           {text: 'Assimpjs Plugin', link: 'package/plugin-assimpjs'},
           {text: 'Path Tracing Plugin', link: 'package/plugin-path-tracing'},
           {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
+          {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
+          {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
         ]
       },
     ],

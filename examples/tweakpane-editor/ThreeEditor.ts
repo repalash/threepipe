@@ -89,6 +89,7 @@ import {
     TemporalAAPlugin,
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
+import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
 
 export class ThreeEditor extends ThreeViewer {
 
@@ -161,6 +162,7 @@ export class ThreeEditor extends ThreeViewer {
         new AssimpJsPlugin(false),
         new ThreeGpuPathTracerPlugin(false),
         new TimelineUiPlugin(false, document.body),
+        TroikaTextPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {

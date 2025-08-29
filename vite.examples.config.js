@@ -30,7 +30,9 @@ const alias = {
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/plugin-timeline-ui': path.resolve(__dirname, './plugins/timeline-ui/src/index.ts'),
+    '@threepipe/plugin-troika-text': path.resolve(__dirname, './plugins/troika-text/src/index.ts'),
     '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.5.6/dist/index.mjs',
+    'suspend-react': 'https://esm.sh/suspend-react',
     'react': 'https://esm.sh/react@19/',
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
     'react-dom': 'https://esm.sh/react-dom@19/',
@@ -40,6 +42,8 @@ const alias = {
     '@react-three/drei': 'https://esm.sh/@react-three/drei@10.7.4?external=react,react-dom,three,@react-three/fiber',
     'vue': 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js',
     'vue-import': 'https://unpkg.com/vue-import/dist/vue-import.esm-browser.js',
+    'troika-three-text': 'https://esm.sh/troika-three-text?external=three',
+    'uiconfig-tweakpane/lib/esm': 'uiconfig-tweakpane',
 }
 export default defineConfig(async ()=>{
 
@@ -63,7 +67,12 @@ export default defineConfig(async ()=>{
 
     return {
         optimizeDeps: {
-            exclude: ['uiconfig.js', 'ts-browser-helpers', ...Object.keys(alias)],
+            exclude: ['uiconfig.js',
+                'tweakpane',
+                'tweakpane-image-plugin',
+                'ts-browser-helpers',
+                'uiconfig-tweakpane',
+                ...Object.keys(alias)],
         },
         // define: {
         //     'process.env': process.env

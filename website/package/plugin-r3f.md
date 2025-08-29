@@ -3,7 +3,10 @@ prev:
     text: 'Animation Timeline UI'
     link: './plugin-timeline-ui'
 
-next: false
+next:
+  text: 'Troika Text Plugin'
+  link: './plugin-troika-text'
+
 aside: false
 ---
 

@@ -36,3 +36,4 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-assimpjs](../package/plugin-assimpjs) - Plugin and helpers to load and use [assimpjs](https://github.com/kovacsv/assimpjs) (with fbx, other exporters) in the browser.
 - [@threepipe/plugin-timeline-ui](../package/plugin-timeline-ui) - A timeline UI component and plugin to manage global viewer timeline and animations.
 - [@threepipe/plugin-r3f](../package/plugin-r3f) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context.
+- [@threepipe/plugin-troika-text](../package/plugin-troika-text) - [troika-three-text](https://protectwise.github.io/troika/troika-three-text/) integration plugin that provides high performance SDF Text
