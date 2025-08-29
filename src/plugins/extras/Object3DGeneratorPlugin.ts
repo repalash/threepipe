@@ -15,7 +15,9 @@ import {uiButton, uiDropdown, uiPanelContainer} from 'uiconfig.js'
 import {Vector3} from 'three'
 
 /**
- * Adds support for generating different types of lights and camera objects in the viewer.
+ * Adds support for generating different types of lights and camera objects in the viewer, along with UI to do so.
+ *
+ * Custom generators can be added for more object types, check [GeometryGeneratorPlugin](https://threepipe.org/package/plugin-geometry-generator.html) for reference.
  * @category Plugins
  */
 @uiPanelContainer('Generate Scene Objects')
@@ -167,6 +169,32 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync {
     constructor() {
         super()
         this._selectedType = Object.keys(this.generators)[0]
+    }
+
+    removeObject3DGenerators(prefix: string, refresh = true) {
+        this.generators = Object.fromEntries(Object.entries(this.generators)
+            .filter(([k, _]) => !k.startsWith(prefix))) as any
+        refresh && this.uiConfig?.uiRefresh?.(true)
+        return this
+    }
+
+    removeObject3DGenerator(key: string, refresh = true) {
+        delete this.generators[key]
+        refresh && this.uiConfig?.uiRefresh?.(true)
+        return this
+    }
+
+    addObject3DGenerators(prefix: string, generators: Record<string, (params: any) => IObject3D>, refresh = true) {
+        this.removeObject3DGenerators(prefix, false)
+        Object.entries(generators).forEach(([key, callback])=>{
+            this.generators[prefix + key] = callback
+        })
+        refresh && this.uiConfig?.uiRefresh?.(true)
+    }
+    addObject3DGenerator(key: string, generator: (params: any) => IObject3D, refresh = true) {
+        this.removeObject3DGenerator(key, false)
+        this.generators[key] = generator
+        refresh && this.uiConfig?.uiRefresh?.(true)
     }
 
 }

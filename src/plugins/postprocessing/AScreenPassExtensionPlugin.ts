@@ -86,7 +86,7 @@ export abstract class AScreenPassExtensionPlugin<TE extends AViewerPluginEventMa
             gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
         }, (gbuffer)=>{
             gbuffer.unregisterGBufferUpdater(this.constructor.PluginType)
-        })
+        }, this)
         viewer.renderManager.screenPass.material.registerMaterialExtensions([this])
     }
 

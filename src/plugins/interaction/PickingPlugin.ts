@@ -145,7 +145,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }, ()=>{
             if (!this._picker) return
             this._picker.undoManager = undefined
-        })
+        }, this)
 
     }
 

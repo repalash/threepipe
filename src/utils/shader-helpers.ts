@@ -35,3 +35,10 @@ export function shaderReplaceString(shader: string, str: string|RegExp, newStr: 
     }
     return replaceAll ? shader.replaceAll(str, s) : shader.replace(str, s)
 }
+
+// todo use in material extension?
+// /**
+//  * Regular expression for matching the `void main() {` opener line in GLSL.
+//  * @type {RegExp}
+//  */
+// export const voidMainRegExp = /\bvoid\s+main\s*\(\s*\)\s*{/g

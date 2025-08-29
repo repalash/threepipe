@@ -103,7 +103,7 @@ export class TransformControlsPlugin extends AViewerPluginSync {
 
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=> {
             this.undoManager = um.undoManager
-        }, ()=> this.undoManager = undefined)
+        }, ()=> this.undoManager = undefined, this)
 
         // same logic for undo as three.js editor. todo It can be made better by syncing with the UI so it supports the hotkeys and other properties inside TransformControls2
         this.transformControls.addEventListener('mouseDown', ()=> {

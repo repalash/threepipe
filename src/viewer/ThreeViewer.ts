@@ -76,6 +76,7 @@ import {OrbitControls3} from '../three'
 import {Object3DManager} from '../assetmanager/Object3DManager'
 import {ViewerTimeline} from '../utils/ViewerTimeline'
 import {defaultObjectProcessor} from '../utils/objectProcessor'
+import {AViewerPlugin} from './AViewerPlugin'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
@@ -1584,7 +1585,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param mount
      * @param unmount
      */
-    forPlugin<T extends IViewerPlugin>(plugin: string|Class<T>, mount: (p: T) => void, unmount?: (p: T) => void): void {
+    forPlugin<T extends IViewerPlugin>(plugin: string|Class<T>, mount: (p: T) => void, unmount?: (p: T) => void, thisPlugin?: AViewerPlugin): void {
         const um = ()=>{
             if (unmount) {
                 const lis = () => {
@@ -1594,6 +1595,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                     unmount(p1)
                 }
                 this.addPluginListener('remove', lis, typeof plugin === 'string' ? plugin : (plugin as any).PluginType)
+                if (thisPlugin?.constructor.PluginType) {
+                    this.addPluginListener('remove', lis, thisPlugin.constructor.PluginType)
+                }
             }
         }
 

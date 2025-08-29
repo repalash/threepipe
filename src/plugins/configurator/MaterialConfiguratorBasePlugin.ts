@@ -39,14 +39,13 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
 
-        // todo subscribe to plugin add event if picking is not added yet.
         viewer.forPlugin(PickingPlugin, (p)=>{
             this._picking = p
             this._picking?.addEventListener('selectedObjectChanged', this._refreshUiConfig)
         }, ()=>{
             this._picking?.removeEventListener('selectedObjectChanged', this._refreshUiConfig)
             this._picking = undefined
-        })
+        }, this)
         this._previewGenerator = new MaterialPreviewGenerator()
         viewer.addEventListener('preFrame', this._refreshUi)
         viewer.addEventListener('preFrame', this._preFrame)

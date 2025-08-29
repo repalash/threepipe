@@ -142,7 +142,7 @@ export class SSAOPlugin
             gbuffer.registerGBufferUpdater(this.constructor.PluginType, this.updateGBufferFlags.bind(this))
         }, (gbuffer)=>{
             gbuffer.unregisterGBufferUpdater(this.constructor.PluginType)
-        })
+        }, this)
         this._gbufferUnpackExtensionChanged()
         viewer.renderManager.addEventListener('gbufferUnpackExtensionChanged', this._gbufferUnpackExtensionChanged)
     }
