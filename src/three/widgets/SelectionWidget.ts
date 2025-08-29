@@ -51,6 +51,7 @@ export class SelectionWidget extends Group implements IWidget {
         this.detach()
         if (!object) return this
         this._object = object
+        // todo object update doesnt work on child when parent is updated, better is to subscribe to objectUpdate of the scene and see if the attached object is in the child of the updated object, also throttle update to once per frame
         this._object.addEventListener('objectUpdate', this._updater)
         this._object.addEventListener('geometryUpdate', this._updater)
         this._updater()

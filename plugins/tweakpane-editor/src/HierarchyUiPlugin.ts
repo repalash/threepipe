@@ -161,12 +161,12 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
             pi.addEventListener('selectedObjectChanged', this._selectedObjectChanged)
         }, (pi)=>{
             pi.removeEventListener('selectedObjectChanged', this._selectedObjectChanged)
-        })
+        }, this)
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=>{
             this.undoManager = um.undoManager
         }, ()=>{
             this.undoManager = undefined
-        })
+        }, this)
 
         this.reset()
     }

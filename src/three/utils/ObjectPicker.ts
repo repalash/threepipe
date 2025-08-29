@@ -342,7 +342,10 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             while (selectedObject != null && (!selectedObject.visible || !this.selectionCondition(selectedObject))) {
                 selectedObject = selectedObject.parent
             }
-            if (selectedObject != null) intersects2.push(intersect1)
+            if (selectedObject != null) {
+                intersect1.object = selectedObject
+                intersects2.push(intersect1)
+            }
         }
         intersects = intersects2
 
