@@ -4,8 +4,8 @@ import {
     createDiv,
     downloadBlob,
     FullScreenPlugin,
-    GLTFAnimationPlugin,
-    IViewerPlugin, PickingPlugin,
+    IViewerPlugin,
+    PickingPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {
@@ -13,12 +13,12 @@ import {
     collapse,
     download,
     expand,
+    focus,
+    loopCamViews,
     playIcon,
     resetSettings,
     snapshot,
     trash,
-    focus,
-    loopCamViews,
 } from './icons'
 import tippy, {createSingleton} from 'tippy.js'
 
@@ -64,12 +64,18 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewer
             },
         },
         {
-            id: 'play-gltf',
+            id: 'play-animations',
             icon: playIcon,
-            tooltip: 'GLTF Animations',
+            tooltip: 'Animations',
             toggle: true,
             onclick: async() => {
-                viewer.getPlugin(GLTFAnimationPlugin)?.playPauseAnimation()
+                if (viewer.timeline.running) {
+                    viewer.timeline.reset()
+                    viewer.timeline.stop()
+                } else {
+                    viewer.timeline.reset()
+                    viewer.timeline.start()
+                }
             },
         },
         {
