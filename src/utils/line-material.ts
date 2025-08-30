@@ -9,6 +9,8 @@ export function createLineGBufferMaterial(object: LineSegments2 & IObject3D, lin
     blending: NoBlending, transparent: false,
 })) {
     lineDepthMaterial.onBeforeCompile = (shader) => {
+        if ((shader as any).__modified) return
+        ;(shader as any).__modified = true
         let lineMaterial = object.material as LineMaterial2
         if (lineMaterial === lineDepthMaterial as any)
             lineMaterial = object.currentMaterial as LineMaterial2
@@ -37,6 +39,8 @@ export function createLineDepthMaterial(object: LineSegments2 & IObject3D, lineD
     transparent: false,
 })) {
     lineDepthMaterial.onBeforeCompile = (shader) => {
+        if ((shader as any).__modified) return
+        ;(shader as any).__modified = true
         let lineMaterial = object.material as LineMaterial2
         if (lineMaterial === lineDepthMaterial as any)
             lineMaterial = object.currentMaterial as LineMaterial2
