@@ -147,6 +147,20 @@ export interface LoadFileOptions {
      */
     queryString?: string,
     /**
+     * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width(fat lines) and other properties.
+     *
+     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.UseMeshLines`.
+     */
+    useMeshLines?: boolean,
+
+    /**
+     * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
+     *
+     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.CreateUniqueNames`.
+     */
+    createUniqueNames?: boolean,
+
+    /**
      * for internal use
      */
     rootPath?: string,
@@ -181,23 +195,9 @@ export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
      * Pass a custom file to use for the import. This will be used in the importer, and nothing will be fetched from the path
      */
     importedFile?: IFile,
-
-    /**
-     * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width(fat lines) and other properties.
-     *
-     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.UseMeshLines`.
-     */
-    useMeshLines?: boolean,
-
-    /**
-     * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
-     *
-     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.CreateUniqueNames`.
-     */
-    createUniqueNames?: boolean,
 }
 
-// export type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
+// exp ort type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'
 
 export interface IAssetImporterEventMap {
     loaderCreate: {type: 'loaderCreate', loader: ILoader}

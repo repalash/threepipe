@@ -160,7 +160,7 @@ export interface IWidget {
     isWidget: true;
 
     object: any
-    update?(): void
+    update?(setDirty?: boolean): void
 
     dispose?(): void
 }

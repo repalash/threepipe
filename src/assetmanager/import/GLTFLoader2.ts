@@ -78,7 +78,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
      * This is useful when importing gltf files with multiple objects with the same name, and creating animations for them.
      */
-    static CreateUniqueNames = false
+    static CreateUniqueNames = true
 
     /**
      * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data

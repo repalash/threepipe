@@ -212,6 +212,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
     private _objectAdd = (e: {object?: IObject3D})=>{
         const obj = e.object
         if (!obj) return
+        if (obj.isWidget) return
         if (Array.isArray(obj.userData.animationObjects)) {
             obj.userData.animationObjects.forEach(ao=> this._addAnimationObject(ao, obj))
         }

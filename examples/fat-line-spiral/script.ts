@@ -1,6 +1,6 @@
 import {
     _testFinish,
-    _testStart,
+    _testStart, AssetExporterPlugin,
     Color, generateUiConfig,
     LineGeometry2,
     LineMaterial2,
@@ -17,7 +17,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, PickingPlugin],
+        plugins: [LoadingScreenPlugin, PickingPlugin, AssetExporterPlugin],
         dropzone: true,
     })
 
@@ -37,6 +37,8 @@ async function init() {
     line.material.vertexColors = true
     line.material.linewidth = 5 // pixels
     line.rotateX(Math.PI / 2)
+    line.name = 'Spiral Mesh'
+    line.material.name = 'Spiral Material'
     function updateSpiral() {
         const {positions, colors} = makeSpiral(spiral.radius, spiral.height, spiral.loops)
         line.geometry.setPositions(positions)
@@ -58,6 +60,7 @@ async function init() {
         expanded: true,
     })
     ui.appendChild(line.uiConfig)
+    ui.setupPluginUi(AssetExporterPlugin)
 
 }
 

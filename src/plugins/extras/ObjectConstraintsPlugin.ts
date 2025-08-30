@@ -63,6 +63,7 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
     private _objectAdd = (e: {object?: IObject3D})=>{
         const obj = e.object
         if (!obj) return
+        if (obj.isWidget) return
         if (Array.isArray(obj.userData.constraints)) {
             obj.userData.constraints.forEach(ao=> this._registerConstraint(ao, obj))
         }

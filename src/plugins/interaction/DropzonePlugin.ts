@@ -3,7 +3,7 @@ import {AViewerPluginEventMap, type ThreeViewer} from '../../viewer/'
 import {AViewerPluginSync} from '../../viewer/AViewerPlugin'
 import {Dropzone} from '../../utils'
 import {uiButton, uiConfig, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
-import type {AddAssetOptions, ImportFilesOptions, ImportResult, ImportAddOptions} from '../../assetmanager'
+import {AddAssetOptions, ImportFilesOptions, ImportResult, ImportAddOptions, GLTFLoader2} from '../../assetmanager'
 import {parseFileExtension, serialize} from 'ts-browser-helpers'
 
 export interface DropzonePluginOptions {
@@ -78,6 +78,8 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     @uiConfig() @serialize() importOptions: ImportFilesOptions = {
         autoImportZipContents: true,
         forceImporterReprocess: false,
+        useMeshLines: GLTFLoader2.UseMeshLines,
+        createUniqueNames: GLTFLoader2.CreateUniqueNames,
     }
 
     /**

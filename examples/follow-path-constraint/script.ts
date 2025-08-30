@@ -21,9 +21,6 @@ import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-
 
 // Read more about the example - https://threepipe.org/notes/follow-path-constraint
 
-/**
- * Initialize the example
- */
 async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,

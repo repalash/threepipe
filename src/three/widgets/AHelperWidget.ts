@@ -38,15 +38,16 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.detach()
     }
 
-    update() {
-        iObjectCommons.setDirty.call(this)
+    update(setDirty = true) {
+        setDirty && iObjectCommons.setDirty.call(this)
     }
 
     private _objectUpdated = false
-    private _objectUpdate() {
+    protected _objectUpdate() {
         this._objectUpdated = true
     }
-    private _objectBeforeRender() {
+    // todo in threejs onbeforerender is not called on objects, only meshes and scene, see skeleton helper
+    protected _objectBeforeRender() {
         if (!this._objectUpdated) return
         this._objectUpdated = false
         if (this.object) this.update()
