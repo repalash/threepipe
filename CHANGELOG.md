@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 
 - NA
 
+## [0.1.1] - 2025-09-01
+
+### Fixes
+
+- Revert `objectProcessor` change that resulted in breaking some material processing.
+
 ## [0.1.0] - 2025-09-01
 
 ### Changes

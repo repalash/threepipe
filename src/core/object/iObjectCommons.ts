@@ -486,7 +486,9 @@ export const iObjectCommons = {
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
         function(this: IObject3D, ...args): IObject3D {
             if (this.autoUpgradeChildren !== false) {
-                for (const a of args) iObjectCommons.upgradeObject3D.call(a, this.parentRoot || this, this.objectProcessor)
+                for (const a of args) {
+                    iObjectCommons.upgradeObject3D.call(a, this.parentRoot || this, this.objectProcessor)
+                }
             }
             return superAdd.call(this, ...args)
         },
@@ -551,13 +553,13 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return this
 
-    if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
-
     if (this.userData.__objectSetup) {
         this.objectProcessor?.processObject(this)
         return this
     }
     this.userData.__objectSetup = true
+
+    if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
 
     if (!this.objectExtensions) this.objectExtensions = []
 
