@@ -421,7 +421,6 @@ export const iObjectCommons = {
         }
         this._currentGeometry = geometry || null
         if (geometry) {
-            this.updateMorphTargets()
             this._onGeometryUpdate && geometry.addEventListener('geometryUpdate', this._onGeometryUpdate)
         }
         this.dispatchEvent({type: 'geometryChanged', geometry: geometry ?? null, oldGeometry: geom, bubbleToParent: true, object: this})
@@ -552,10 +551,14 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return this
 
-    if (this.userData.__objectSetup) return this
+    if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
+
+    if (this.userData.__objectSetup) {
+        this.objectProcessor?.processObject(this)
+        return this
+    }
     this.userData.__objectSetup = true
 
-    if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
     if (!this.objectExtensions) this.objectExtensions = []
 
     if (!this.userData.__autoBubbleToParentEvents) this.userData.__autoBubbleToParentEvents = ['select']
@@ -656,7 +659,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (this.autoUpgradeChildren !== false) {
         const children = [...this.children]
-        for (const c of children) upgradeObject3D.call(c, this)
+        for (const c of children) upgradeObject3D.call(c, this, objectProcessor)
     }
 
     // region Legacy
