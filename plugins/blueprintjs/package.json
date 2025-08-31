@@ -11,6 +11,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
+        "uiconfig-blueprint": "0.1.0-dev.12",
         "threepipe": "^0.1.0"
     },
     "overrides": {
@@ -35,7 +36,7 @@
     "source": "src/index.ts",
     "files": [
         "dist",
-        "src", "README.md", "CHANGELOG.md", "docs"
+        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
@@ -72,9 +73,7 @@
             "//"
         ],
         "replace": {
-            "dependencies": {
-                "uiconfig-blueprint": "0.1.0-dev.12"
-            }
+            "dependencies": {}
         }
     }
 }

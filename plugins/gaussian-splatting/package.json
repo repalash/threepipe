@@ -40,7 +40,7 @@
     "types": "dist/index.d.ts",
     "files": [
         "dist",
-        "src", "README.md", "CHANGELOG.md", "docs"
+        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",

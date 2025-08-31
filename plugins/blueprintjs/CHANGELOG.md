@@ -12,9 +12,13 @@ All notable changes to this plugin will be documented in this file.
 
 ## [0.5.3] - 2025-09-01
 
+### Added
+
+- Add `tsconfig.json` to package files.
+
 ### Changed
 
-- Move `uiconfig-blueprintjs` from `peerDependencies` to `dependencies`.
+- Make `uiconfig-blueprintjs` non-optional peerDependency.
 
 ## [0.5.2] - 2025-09-01
 

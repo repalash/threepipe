@@ -10,6 +10,16 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.8.3] - 2025-09-01
+
+### Added
+
+- Add `tsconfig.json` to package files.
+
+### Changed
+
+- Move `uiconfig-tweakpane` from `dependencies` to `peerDependencies`.
+
 ## [0.8.2] - 2025-09-01
 
 ### Changed
