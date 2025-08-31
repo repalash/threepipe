@@ -60,7 +60,7 @@ async function init() {
     myText.position.z = -1.5
     myText.color = 0x9966FF
     myText.curveRadius = 4
-    myText.font = 'https://cdn.jsdelivr.net/gh/pmndrs/assets@main/src/fonts/inter_light.woff'
+    myText.font = 'https://samples.threepipe.org/minimal/inter/inter_light.woff'
     // or
     // myText.font = (await import('https://unpkg.com/@pmndrs/assets@1.7.0/fonts/inter_regular.woff.js' as any)).default
 

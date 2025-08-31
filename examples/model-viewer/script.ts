@@ -1,5 +1,7 @@
 import {
-    _testFinish, _testStart, AnimationObjectPlugin,
+    _testFinish,
+    _testStart,
+    AnimationObjectPlugin,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
     ChromaticAberrationPlugin,
@@ -14,7 +16,6 @@ import {
     FrameFadePlugin,
     GBufferPlugin,
     getUrlQueryParam,
-    GLTFAnimationPlugin,
     GLTFKHRMaterialVariantsPlugin,
     GLTFMeshOptDecodePlugin,
     HalfFloatType,
@@ -26,7 +27,6 @@ import {
     LoadingScreenPlugin,
     NoiseBumpMaterialPlugin,
     Object3DGeneratorPlugin,
-    Object3DWidgetsPlugin,
     ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
     PickingPlugin,
@@ -40,7 +40,8 @@ import {
     SSAOPlugin,
     STLLoadPlugin,
     ThreeFirstPersonControlsPlugin,
-    ThreeViewer, TransformAnimationPlugin,
+    ThreeViewer,
+    TransformAnimationPlugin,
     TransformControlsPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
@@ -61,7 +62,16 @@ import {
     PNTSLoadPlugin,
     TilesRendererPlugin,
 } from '@threepipe/plugin-3d-tiles-renderer'
-import {BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSGIPlugin, AnisotropyPlugin} from '@threepipe/webgi-plugins'
+import {
+    AnisotropyPlugin,
+    BloomPlugin,
+    DepthOfFieldPlugin,
+    SSContactShadowsPlugin,
+    SSGIPlugin,
+    SSReflectionPlugin,
+    TemporalAAPlugin,
+    VelocityBufferPlugin,
+} from '@threepipe/webgi-plugins'
 
 function checkQuery(key: string, def = true) {
     return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no')!.toLowerCase())
@@ -105,7 +115,7 @@ async function init() {
         ObjectConstraintsPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
-        GLTFAnimationPlugin,
+        // GLTFAnimationPlugin,
         TransformAnimationPlugin,
         new GBufferPlugin(HalfFloatType, true, true, true),
         PickingPlugin,
@@ -143,7 +153,7 @@ async function init() {
         STLLoadPlugin,
         USDZLoadPlugin,
         BlendLoadPlugin,
-        Object3DWidgetsPlugin,
+        // Object3DWidgetsPlugin,
         Object3DGeneratorPlugin,
         GaussianSplattingPlugin,
         ContactShadowGroundPlugin,
