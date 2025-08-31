@@ -13,7 +13,15 @@ import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
 import {Fire} from './Fire'
 import {BoxGeometry, Mesh, Object3D, SRGBColorSpace, Texture, Vector3} from 'three'
 
-const wordlist = ['TEST', 'MONKEY', 'TYPE', '3D', 'TEXT', 'EXAMPLE', 'THREEJS', 'TROIKA', 'PLUGIN', 'THREEPIPE', 'VIEWER', 'CANVAS', 'RENDER', 'SCALE', 'ENVIRONMENT', 'MAP', 'LOADING', 'SCREEN', 'DEPTH', 'BUFFER', 'BLOOM', 'PICKING', 'POPOTION']
+// Vibe coded mini-game like monkeytype.com using three.js and troika text
+
+const wordlist = [
+    'TEST', 'MONKEY', 'TYPE', '3D', 'TEXT', 'EXAMPLE', 'THREEJS', 'TROIKA', 'PLUGIN', 'THREEPIPE', 'VIEWER', 'CANVAS', 'RENDER', 'SCALE', 'ENVIRONMENT', 'MAP', 'LOADING', 'SCREEN', 'DEPTH', 'BUFFER', 'BLOOM', 'PICKING',
+    'WIDGETS', 'UI', 'TWEAKPANE', 'WORD', 'SPEED', 'SCORE', 'GAME', 'OVER', 'START', 'FINISH', 'TIME', 'LEFT', 'RIGHT', 'UP', 'DOWN', 'ARROW', 'KEYBOARD', 'MOUSE', 'CLICK', 'DRAG', 'DROP', 'INPUT', 'OUTPUT', 'CODE', 'SCRIPT', 'LANGUAGE', 'JAVASCRIPT', 'TYPESCRIPT',
+    'HTML', 'CSS', 'WEBGL', 'OPENGL', 'GRAPHICS', '3D', 'MODEL', 'MESH', 'GEOMETRY', 'MATERIAL', 'LIGHT', 'SHADOW', 'CAMERA', 'SCENE', 'OBJECT', 'POSITION', 'ROTATION', 'SCALE', 'VECTOR', 'COLOR', 'TEXTURE', 'ANIMATION', 'FRAME', 'UPDATE', 'LOOP',
+    'FUNCTION', 'VARIABLE', 'CONSTANT', 'ARRAY', 'STRING', 'NUMBER', 'BOOLEAN', 'NULL', 'UNDEFINED', 'IF', 'ELSE', 'FOR', 'WHILE', 'DO', 'SWITCH', 'CASE', 'BREAK', 'CONTINUE', 'RETURN', 'CLASS', 'EXTENDS', 'IMPORT', 'EXPORT', 'DEFAULT',
+    'TRY', 'CATCH', 'FINALLY', 'THROW', 'NEW', 'THIS', 'SUPER', 'STATIC', 'PUBLIC', 'PRIVATE', 'PROTECTED', 'GET', 'SET', 'ASYNC', 'AWAIT', 'PROMISE', 'RESOLVE', 'REJECT', 'FETCH',
+]
 
 const col1 = '#ffffff'
 const col2 = '#222222'
@@ -206,13 +214,14 @@ async function init() {
 
     // maintain the same FOV when the window is resized
     viewer.scene.mainCamera.controls!.enabled = false
-    const squarePos = 3
+    const squarePos = 5
     const squareFov = 90// viewer.scene.mainCamera.fov!
     function refreshFov() {
         const size = viewer.renderManager.renderSize.clone()
         const camera = viewer.scene.mainCamera
         camera.fov = squareFov * (size.y / size.x)
-        camera.position.z = squarePos * (size.x / size.y)
+        console.log(camera.fov)
+        camera.position.z = squarePos / Math.tan(squareFov / 2 * Math.PI / 180)
         camera.updateProjectionMatrix()
     }
     refreshFov()

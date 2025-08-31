@@ -213,7 +213,8 @@
         }
         .search-bar{
             box-sizing: border-box;
-            margin-bottom: 1rem; width: 90%;
+            margin-bottom: 1rem;
+            width: 100%;
             background: transparent;
             position: relative;
         }
@@ -278,6 +279,10 @@
                 writing-mode: unset;
                 text-orientation: unset;
             }
+            .codebar, .panes-separator{
+                display: none;
+            }
+
         }
 
     </style>
@@ -380,7 +385,8 @@
                 localStorage.setItem(`tp-examples-custom-${example.id}`, content);
             }
 
-            const setEditorExample = setupCodeEditor(iframe)
+            const isMobile = window.matchMedia("only screen and (max-width: 768px)").matches;
+            const setEditorExample = isMobile ? null : setupCodeEditor(iframe)
 
             function selectTarget(target, scroll = false, updateFrame = true) {
                 const current = selected || sidebar.querySelector('a.selected')
@@ -411,7 +417,7 @@
                         iframe.srcdoc = customContent;
                     }
                 }
-                setEditorExample(target.href, allExamples, customContent,
+                setEditorExample && setEditorExample(target.href, allExamples, customContent,
                     (newName, oldName, content)=> addExample({
                         id: newName,
                         label: target.textContent + newName.replace(oldName, '').replace(/-/g, ' '),
