@@ -110,8 +110,9 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
             // font: 'https://raw.githubusercontent.com/pmndrs/assets/refs/heads/main/src/fonts/inter_bold.woff',
             ...textWrapper.userData.textParams,
         }
-        if (params.text) text.text = params.text
+        if (params.text !== undefined) text.text = params.text
         if (params.fontSize !== undefined) text.fontSize = params.fontSize
+        if (params.colorRanges !== undefined) text.colorRanges = params.colorRanges
         // if (params.color) text.color = params.color
         if (params.font !== undefined) text.font = params.font
         if (params.fontStyle) text.fontStyle = params.fontStyle
@@ -206,7 +207,7 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
         isCompatible: object => object.userData?.textParams !== undefined,
         getUiConfig: (object): UiObjectConfig[]|undefined => {
             if (!object.userData?.textParams) return undefined
-            return ([{
+            return [...([{
                 type: 'textarea',
                 label: 'Text',
                 rows: 4,
@@ -352,7 +353,10 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
                 c.onChange = () => this.updateText(object)
                 c.tags = [...c.tags || [], 'troika-text-params']
                 return c
-            })
+            }), ()=>{
+                const mat = object.children[0].material
+                return Array.isArray(mat) ? mat.map(m=>m.uiConfig) : mat?.uiConfig
+            }]
         },
     }
 }
