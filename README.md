@@ -189,6 +189,54 @@ Any children added to this component are added to the scene model root.
 
 Check it in action: https://threepipe.org/examples/#r3f-tsx-sample/
 
+### NextJs
+
+The best way to use the viewer in nextjs is to wrap it in a custom component.
+
+Here is a sample client side [react](https://react.dev) component with [nextjs](https://nextjs.org) in tsx to render a model with an environment map.
+
+```tsx
+'use client'
+import React from 'react'
+import type {ThreeViewer} from 'threepipe/dist';
+
+export default function ThreeViewerComponent({src, env}: {src: string, env: string}) {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
+
+  React.useEffect(() => {
+    if (!canvasRef.current) return
+    let viewer: ThreeViewer;
+    (async () => {
+      const { ThreeViewer } = await import('threepipe/dist')
+      viewer = new ThreeViewer({ canvas: canvasRef.current!, tonemap: false, rgbm: false, msaa: true })
+      viewer.scene.backgroundColor = null
+
+      const envPromise = viewer.setEnvironmentMap(env)
+      const modelPromise = viewer.load(src, {autoScale: true, autoCenter: true})
+
+      Promise.all([envPromise, modelPromise]).then(([envMap, model]) => {
+        console.log('Loaded', model, envMap, viewer)
+      })
+    })()
+    return () => {if (viewer) viewer.dispose()}
+  }, [src, env])
+
+  return <canvas id="three-canvas" style={{
+    width: 800, height: 600,
+    position: 'absolute', transform: 'translate(-50%, -50%)', top: '50%', left: '50%',
+  }} ref={canvasRef}/>
+}
+```
+
+The component can simply be used on any page
+
+```tsx
+<ThreeViewerComponent
+  src={"https://sample.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf"}
+  env={"https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"}
+/>
+```
+
 ### Vue.js
 
 A sample [vue.js](https://vuejs.org/) component in js to render a model with an environment map.
