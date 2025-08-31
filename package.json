@@ -51,7 +51,7 @@
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs clean-install -p",
-    "prepare": "npm run build",
+    "prepare": "npm run build && npm run build-plugins && npm run build-examples",
     "update-version": "node scripts/update-version.mjs",
     "website:dev": "vitepress dev website",
     "website:build": "vitepress build website",
