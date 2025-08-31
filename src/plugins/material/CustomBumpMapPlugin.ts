@@ -1,10 +1,10 @@
-import {Matrix3, SRGBColorSpace, Texture} from 'three'
+import {Matrix3, SRGBColorSpace} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IObject3D, ITexture, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
-import {shaderReplaceString} from '../../utils'
+import {shaderReplaceString, ThreeSerialization} from '../../utils'
 import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import CustomBumpMapPluginShader from './shaders/CustomBumpMapPlugin.glsl'
@@ -231,7 +231,7 @@ class GLTFMaterialsCustomBumpMapImport implements GLTFLoaderPlugin {
     public name: string
     public parser: GLTFParser
 
-    constructor(parser: GLTFParser) {
+    constructor(parser: GLTFParser, private _viewer?: ThreeViewer) {
         this.parser = parser
         this.name = customBumpMapGLTFExtension.name
     }
@@ -245,13 +245,23 @@ class GLTFMaterialsCustomBumpMapImport implements GLTFLoaderPlugin {
         if (!materialParams.userData) materialParams.userData = {}
         materialParams.userData._hasCustomBump = true // single _ so that its saved when cloning but not when saving
         materialParams.userData._customBumpScale = extension.customBumpScale ?? 0.0
+
+        const resources = extension.resources ? await this._viewer?.assetManager?.importConfigResources(extension.resources) : undefined
+
         const pending = []
         const tex = extension.customBumpMap
         if (tex) {
-            pending.push(parser.assignTexture(materialParams.userData, '_customBumpMap', tex).then((t: Texture) => {
-                // t.format = RGBFormat
-                t.colorSpace = SRGBColorSpace
-            }))
+            if (tex && tex.resource && typeof tex.resource === 'string') {
+                materialParams.userData._customBumpMap = ThreeSerialization.Deserialize(tex, null, resources, false)
+            } else if (tex && tex.index !== undefined) {
+                pending.push(parser.assignTexture(materialParams.userData, '_customBumpMap', tex).then((t: any) => {
+                    // t.format = RGBFormat
+                    t.colorSpace = SRGBColorSpace
+                }))
+            } else {
+                console.warn('CustomBumpMapPlugin: Invalid Texture Map in extension', tex, materialDef.name)
+                materialParams.userData._customBumpMap = null
+            }
         }
         return Promise.all(pending)
     }
@@ -278,17 +288,27 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2)=> ({
 
         materialDef.extensions = materialDef.extensions || {}
 
+        const meta = {images: {}, textures: {}}
         const extensionDef: any = {}
 
         extensionDef.customBumpScale = material.userData._customBumpScale || 1.0
 
-        if (w.checkEmptyMap(material.userData._customBumpMap)) {
+        const rootPath = material.userData._customBumpMap?.userData.rootPath
+        // this is required because gltf transform doesnt support data uris or external urls
+        if (rootPath && (rootPath.startsWith('http') || rootPath.startsWith('data:'))) {
+            extensionDef.customBumpMap = ThreeSerialization.Serialize(material.userData._customBumpMap, meta, false)
+        }
+
+        if (w.checkEmptyMap(material.userData._customBumpMap) && extensionDef.customBumpMap === undefined) {
 
             const customBumpMapDef = {index: w.processTexture(material.userData._customBumpMap)}
             w.applyTextureTransform(customBumpMapDef, material.userData._customBumpMap)
             extensionDef.customBumpMap = customBumpMapDef
 
         }
+
+        if (Object.keys(meta.textures).length || Object.keys(meta.images).length)
+            extensionDef.resources = meta
 
         materialDef.extensions[ customBumpMapGLTFExtension.name ] = extensionDef
         w.extensionsUsed[ customBumpMapGLTFExtension.name ] = true
@@ -297,7 +317,7 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2)=> ({
 
 export const customBumpMapGLTFExtension = {
     name: 'WEBGI_materials_custom_bump_map',
-    import: (p) => new GLTFMaterialsCustomBumpMapImport(p),
+    import: (p, v) => new GLTFMaterialsCustomBumpMapImport(p, v),
     export: glTFMaterialsCustomBumpMapExport,
     textures: {
         customBumpMap: 'RGB',

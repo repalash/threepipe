@@ -10,7 +10,7 @@ import {
     Object3D,
     TextureLoader,
 } from 'three'
-import {ISerializedConfig, IViewerPlugin, ThreeViewer} from '../viewer'
+import {ISerializedConfig, IViewerPlugin, type ThreeViewer} from '../viewer'
 import {AssetImporter} from './AssetImporter'
 import {getTextureDataType} from '../three'
 import {IAsset} from './IAsset'
@@ -600,7 +600,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
     gltfExtensions: {
         name: string
-        import: (parser: GLTFParser) => GLTFLoaderPlugin,
+        import: (parser: GLTFParser, viewer?: ThreeViewer) => GLTFLoaderPlugin,
         export: (parser: GLTFWriter2) => GLTFExporterPlugin,
         textures?: Record<string, string|number> // see GLTFDracoExportPlugin
     }[] = []
