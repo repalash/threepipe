@@ -35,8 +35,7 @@
             "clean-package",
             "scripts",
             "devDependencies",
-            "//",
-            "markdown-to-html"
+            "//"
         ],
         "replace": {
             "dependencies": {}

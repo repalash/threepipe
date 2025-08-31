@@ -68,8 +68,8 @@
             "clean-package",
             "scripts",
             "devDependencies",
-            "//",
-            "markdown-to-html"
+            "overrides",
+            "//"
         ],
         "replace": {
             "dependencies": {}

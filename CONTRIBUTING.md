@@ -9,11 +9,13 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 
 ## Development
 
+1. Run `npm run vite` to run vite dev server and navigate to http://localhost:5173/examples/index.html
+2. Test the examples and pick the one you are working on.
+
+OR
 1. If changing the `src/` folder - Run `npm run dev` to start the development in watch mode
 2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to start the development in watch mode for the package.
 3. Run `npm run dev-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
-4. OR run `npm run vite` to run vite dev server and navigate to http://localhost:4173/examples/index.html
-5. Test the examples and pick the one you are working on.
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
@@ -38,7 +40,7 @@ TBD
 
 For core and for each package -
 - Update the package version in `package.json` and run `npm run new:publish` to publish the package to npm.
-- Add tag like `v0.0.1` or `plugin-name-0.0.1` to the git repository.
+- Add tag like `v0.0.1` or `@threepipe/plugin-name-0.0.1` to the git repository.
 - Push/Merge to `master` on github. 
 
 ## Creating a Core Plugin
