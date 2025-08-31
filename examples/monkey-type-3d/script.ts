@@ -176,7 +176,7 @@ async function init() {
 
         if (!started || ended) return
         // Move text up every frame
-        text.position.y += 0.00025 * speed
+        text.position.y += 0.0001 * speed
         timer += e.deltaTime || 0
         const timeLeft = Math.max(0, maxTime - Math.floor(timer / 1000))
         plugin.updateText(timerText, {text: `time left:   ${timeLeft.toString().padStart(2, '0')}s`})
