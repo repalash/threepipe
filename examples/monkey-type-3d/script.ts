@@ -1,17 +1,26 @@
 import {
     _testFinish,
     _testStart,
+    BoxGeometry,
     DepthBufferPlugin,
     LoadingScreenPlugin,
-    Object3DGeneratorPlugin, Object3DWidgetsPlugin, PhysicalMaterial,
-    PickingPlugin, SpotLight2,
-    ThreeViewer, timeout,
+    Mesh,
+    Object3D,
+    Object3DGeneratorPlugin,
+    Object3DWidgetsPlugin,
+    PhysicalMaterial,
+    PickingPlugin,
+    SpotLight2,
+    SRGBColorSpace,
+    Texture,
+    ThreeViewer,
+    timeout,
+    Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {BloomPlugin} from '@threepipe/webgi-plugins'
 import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
 import {Fire} from './Fire'
-import {BoxGeometry, Mesh, Object3D, SRGBColorSpace, Texture, Vector3} from 'three'
 
 // Vibe coded mini-game like monkeytype.com using three.js and troika text
 

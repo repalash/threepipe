@@ -11,7 +11,7 @@ const exampleStyle = document.querySelector('#example-style')
 const css = exampleStyle ? exampleStyle.textContent : ''
 const importMap = document.querySelector('script[type="importmap"]')
 const imports = importMap ? JSON.parse(importMap.textContent || '{}').imports || {} : {}
-Object.entries(imports).forEach(([k, v])=>(k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://unpkg.com/' + k + '/dist/' + v.split('/dist/').pop()) : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
+Object.entries(imports).forEach(([k, v])=>(k === 'three' || k === 'threepipe' || k.startsWith('@threepipe/')) ? (imports[k] = 'https://unpkg.com/' + (k === 'three' ? 'threepipe' : k) + '/dist/' + v.split('/dist/').pop()) : '') // required for codepen to work. this is done because plugins refer to threepipe as esm
 Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\/\.\.\/\.\.\//, rootPath)) // ./../../ -> rootPath
 const ex = window.location.pathname.split('/examples/').pop().replace('index.html', '')
 Object.entries(imports).forEach(([k,v])=>imports[k] = v.replace(/^\.\//, rootPath + 'examples/' + ex)) // ./../../ -> rootPath
