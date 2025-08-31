@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.5.3] - 2025-09-01
+
+### Changed
+
+- Move `uiconfig-blueprintjs` from `peerDependencies` to `dependencies`.
+
 ## [0.5.2] - 2025-09-01
 
 ### Changed

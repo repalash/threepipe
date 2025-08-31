@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.8.2] - 2025-09-01
+
+### Changed
+
+- Move `uiconfig-tweakpane` from `peerDependencies` to `dependencies`.
+
 ## [0.8.1] - 2025-09-01
 
 ### Changed
