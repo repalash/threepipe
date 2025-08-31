@@ -5,7 +5,6 @@ import {IGeometry, IGeometryEventMap, IGeometrySetDirtyOptions} from './IGeometr
 import {IImportResultUserData} from '../assetmanager'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
-import {ValOrArr} from 'ts-browser-helpers'
 
 // export type IObject3DEventTypes = 'dispose' | 'materialUpdate' | 'objectUpdate' | 'textureUpdate' | 'geometryChanged' |
 //     'materialChanged' | 'geometryUpdate' | 'added' | 'removed' | 'select' | 'beforeDeserialize' |
@@ -343,7 +342,7 @@ export interface IObjectExtension {
      * This is called once when the material extension is registered.
      * @param material
      */
-    getUiConfig?: (material: IObject3D, refreshUi?: UiObjectConfig['uiRefresh']) => (ValOrArr<UiObjectConfig | undefined>)
+    getUiConfig?: (material: IObject3D, refreshUi?: UiObjectConfig['uiRefresh']) => (UiObjectConfig['children'] | undefined)
 
     /**
      * Function to be called when the object the extension is added on the object. This generally happens when either the object is registered or extnsion is added

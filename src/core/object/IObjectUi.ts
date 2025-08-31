@@ -9,10 +9,11 @@ import {LineMaterial2} from '../material/LineMaterial2'
 import {UnlitLineMaterial} from '../material/UnlitLineMaterial'
 import {IMaterial} from '../IMaterial'
 import {generateUUID} from '../../three'
+import {getOrCall} from 'ts-browser-helpers'
 
 declare module '../IObject' {
     interface IObject3D {
-        __objExtUiConfigs?: Record<string, UiObjectConfig|undefined>
+        __objExtUiConfigs?: Record<string, UiObjectConfig['children']|undefined>
     }
 }
 
@@ -369,11 +370,11 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
 }
 
 export function objectExtensionsUiConfig(this: IObject3D) {
-    return () => this.objectExtensions?.flatMap(v => {
+    return (parent: any) => this.objectExtensions?.flatMap(v => {
         v.uuid = v.uuid || generateUUID()
         // caching the uiconfig here. todo: reset the uiconfig when cache key changes? or we could just return a dynamic/function uiconfig from getUiConfig
         this.__objExtUiConfigs = this.__objExtUiConfigs || {}
-        if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig?.(this, this.uiConfig?.uiRefresh)
-        return this.__objExtUiConfigs[v.uuid]
+        if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig ? v.getUiConfig(this, this.uiConfig?.uiRefresh) : undefined
+        return this.__objExtUiConfigs[v.uuid]?.flatMap(m=>getOrCall(m, parent)) // todo use uiconfigmethods resolve children
     }).filter(v => v)
 }
