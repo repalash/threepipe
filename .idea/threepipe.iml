@@ -30,6 +30,9 @@
       <excludeFolder url="file://$MODULE_DIR$/plugins/blend-importer/data" />
       <excludeFolder url="file://$MODULE_DIR$/website/.worker/.wrangler" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/timeline-ui/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/experiments" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/r3f/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/troika-text/docs" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-troika-text",
     "description": "Troika Text Plugin for ThreePipe",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "devDependencies": {
         "troika-three-text": "^0.52.4"
     },
@@ -9,7 +9,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.0.64",
+        "threepipe": "^0.1.0",
         "troika-three-text": "^0.52.4"
     },
     "peerDependenciesMeta": {
@@ -37,12 +37,12 @@
         "src"
     ],
     "scripts": {
-        "new:pack": "npm run prepare 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag $npm_package_name-$npm_package_version",
-        "prepare": "npm run build && npm run docs",
+        "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
-        "docs": "rimraf docs && npx typedoc"
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
     "license": "Apache-2.0",

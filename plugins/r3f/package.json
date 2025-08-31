@@ -1,13 +1,18 @@
 {
     "name": "@threepipe/plugin-r3f",
     "description": "R3F wrapper for ThreePipe",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "devDependencies": {
     },
     "dependencies": {
         "@react-three/fiber": "^9.3.0",
         "react": "^19.1.1",
         "threepipe": "file:./../../src/"
+    },
+    "peerDependencies": {
+        "threepipe": "^0.1.0",
+        "@react-three/fiber": "^9.3.0",
+        "react": "^19.1.1"
     },
     "exports": {
         ".": {
@@ -30,12 +35,12 @@
         "src"
     ],
     "scripts": {
-        "new:pack": "npm run prepare 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag $npm_package_name-$npm_package_version",
-        "prepare": "npm run build && npm run docs",
+        "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
-        "docs": "rimraf docs && npx typedoc"
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
     "license": "Apache-2.0",
@@ -64,12 +69,7 @@
             "markdown-to-html"
         ],
         "replace": {
-            "dependencies": {},
-            "peerDependencies": {
-                "threepipe": "^0.0.63",
-                "@react-three/fiber": "^9.3.0",
-                "react": "^19.1.1"
-            }
+            "dependencies": {}
         }
     }
 }

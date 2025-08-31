@@ -1,12 +1,15 @@
 {
     "name": "@threepipe/plugin-configurator",
     "description": "Plugins for creating material and object configurators in threepipe.",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "devDependencies": {
     },
     "dependencies": {
         "threepipe": "file:./../../src/",
         "tippy.js": "^6.3.7"
+    },
+    "peerDependencies": {
+        "threepipe": "^0.1.0"
     },
     "clean-package": {
         "remove": [
@@ -15,10 +18,7 @@
             "devDependencies"
         ],
         "replace": {
-            "dependencies": {},
-            "peerDependencies": {
-                "threepipe": "^0.0.56"
-            }
+            "dependencies": {}
         }
     },
     "exports": {
@@ -41,12 +41,12 @@
         "src"
     ],
     "scripts": {
-        "new:pack": "npm run prepare && clean-package && npm pack && clean-package restore",
-        "new:publish": "git diff --exit-code --name-only HEAD * && npm run prepare && clean-package && npm publish --access public && clean-package restore && git tag plugin-configurator-$npm_package_version",
-        "prepare": "npm run build && npm run docs",
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag $npm_package_name-$npm_package_version",
+        "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
-        "docs": "rimraf docs && npx typedoc"
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
     "license": "Apache-2.0",

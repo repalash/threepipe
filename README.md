@@ -9,7 +9,6 @@ A new way to work with three.js, 3D models and rendering on the web.
 [WebGi](https://webgi.dev/)
 
 [![NPM Package](https://img.shields.io/npm/v/threepipe.svg)](https://www.npmjs.com/package/threepipe)
-[![Discord Server](https://img.shields.io/discord/956788102473584660?label=Discord&logo=discord)](https://discord.gg/apzU8rUWxY)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/repalash.svg?style=social&label=Follow%20%40repalash)](https://twitter.com/repalash)
 
@@ -58,21 +57,17 @@ And follow the instructions to create a new project.
 
 Get started with pre-ready templates with model viewer and plugins that run locally directly in your browser -
 
-- **javascript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter">
-  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
-  </a>
+- [**javascript**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter)
 
-- **typescript** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter">
-  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
-  </a>
+- [**typescript**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter)
 
-- **javascript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter">
-  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
-  </a>
+- [**javascript + plugins**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter)
 
-- **typescript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter">
-  <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
-  </a>
+- [**typescript + plugins**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter)
+
+- [**javascript + r3f**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi?file=package.json&title=Threepipe%20Starter)
+
+- [**typescript + r3f**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi-ts?file=package.json&title=Threepipe%20Starter)
 
 ### HTML/JS Quickstart (CDN)
 

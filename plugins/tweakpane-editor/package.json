@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-tweakpane-editor",
     "description": "Tweakpane Editor Plugin for ThreePipe",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "devDependencies": {
         "tippy.js": "^6.3.7",
         "treejs": "git://github.com/repalash/treejs.git#d303016bb74e75725d13e97291ac1d4727985918"
@@ -9,6 +9,10 @@
     "dependencies": {
         "threepipe": "file:./../../src/",
         "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
+    },
+    "peerDependencies": {
+        "threepipe": "^0.1.0",
+        "@threepipe/plugin-tweakpane": "^0.6.6"
     },
     "exports": {
         ".": {
@@ -28,11 +32,7 @@
             "devDependencies"
         ],
         "replace": {
-            "dependencies": {},
-            "peerDependencies": {
-                "threepipe": "^0.0.64",
-                "@threepipe/plugin-tweakpane": "^0.6.6"
-            }
+            "dependencies": {}
         }
     },
     "type": "module",
@@ -44,12 +44,12 @@
         "src"
     ],
     "scripts": {
-        "new:pack": "npm run prepare 1>&2 && clean-package && npm pack --silent && clean-package restore",
-        "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag plugin-tweakpane-editor-$npm_package_version",
-        "prepare": "npm run build && npm run docs",
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag $npm_package_name-$npm_package_version",
+        "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
-        "docs": "rimraf docs && npx typedoc"
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
     "license": "Apache-2.0",

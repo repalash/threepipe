@@ -1,6 +1,6 @@
 set -euo pipefail
 
-npm run docs
+npm run docs-all
 rm -rf _site
 mkdir _site
 cp -r src docs dist examples README.md LICENSE NOTICE _site

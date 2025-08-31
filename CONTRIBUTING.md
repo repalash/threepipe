@@ -66,6 +66,7 @@ Checklist
 - Duplicate a template plugin from `plugins/` folder - `plugin-template-vite`
 - Change `name`, `description`, `repository.directory`, `dependencies` and any other relevant fields in `package.json`
 - Change `name` in `typedoc.json`
+- Update link in plugin's `CHANGELOG.md` and `README.md`
 - Check `globals` in `vite.config.js`
 - Write plugin/package
 - Add jsdoc comments to the classes
