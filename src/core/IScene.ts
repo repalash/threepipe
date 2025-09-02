@@ -60,6 +60,10 @@ export interface AddObjectOptions extends AddModelOptions{
      */
     disposeSceneObjects?: boolean
 
+    /**
+     * Index to insert the object at in the parent's children array.
+     */
+    indexInParent?: number
 
     // TODO; add more options
 }

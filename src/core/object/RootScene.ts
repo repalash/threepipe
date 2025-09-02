@@ -22,6 +22,7 @@ import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {getFittingDistance} from '../../three/utils/camera'
+import {iCameraCommons} from './iCameraCommons.ts'
 
 @uiFolderContainer('Root Scene')
 export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene<TE&ISceneEventMap> implements IScene<TE> {
@@ -37,6 +38,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * The root object where all imported objects are added.
      */
     readonly modelRoot: IObject3D
+    // readonly lightsRoot: IObject3D // todo this can be added before modelRoot to add extra lights before the model root.
 
     @uiColor<RootScene>('Background Color', (s)=>({
         onChange: ()=>s?.onBackgroundChange(),
@@ -144,6 +146,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.dispatchEvent({type: 'renderCameraChange', lastCamera: cam, camera})
     }
 
+    objectProcessor?: IObjectProcessor
+
     /**
      * Create a scene instance. This is done automatically in the {@link ThreeViewer} and must not be created separately.
      * @param camera
@@ -153,7 +157,9 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         super()
         this.setDirty = this.setDirty.bind(this)
 
-        iObjectCommons.upgradeObject3D.call(this, undefined, objectProcessor)
+        this.objectProcessor = objectProcessor
+        iObjectCommons.upgradeObject3D.call(this)
+        this.objectProcessor?.processObject(this)
 
         // this is called from parentDispatch since scene is a parent.
         this.addEventListener('materialUpdate', (e: any)=>this.dispatchEvent({...e, type: 'sceneMaterialUpdate'}))
@@ -167,36 +173,15 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.modelRoot.name = 'Scene' // for the UI
         // this.modelRoot.addEventListener('update', this.setDirty) // todo: where was this dispatched from/used ?
 
-
         // eslint-disable-next-line deprecation/deprecation
         this.add(this.modelRoot as any)
         // this.addSceneObject(this.modelRoot as any, {addToRoot: true, autoScale: false})
 
-        // this.addSceneObject(this.defaultCamera, {addToRoot: true})
         // eslint-disable-next-line deprecation/deprecation
         this.add(this.defaultCamera)
 
         this.mainCamera = this.defaultCamera
-
-        // this.boxHelper = new Box3Helper(this.getBounds())
-        // this.boxHelper.userData.bboxVisible = false
-        // this.boxHelper.visible = false
-        // this.add(this.boxHelper)
     }
-
-    /**
-     * Add a widget (non-physical/interactive) object to the scene. like gizmos, ui components etc.
-     * @param model
-     * @param options
-     */
-    // addWidget(model: IWidget, options: AnyOptions = {}): void {
-    //     if (model.assetType !== 'widget') {
-    //         console.warn('Invalid asset type for ', model, ', adding anyway')
-    //     }
-    //     this.add(model.modelObject)
-    //
-    //     // todo: dispatch event, add event listeners, etc
-    // }
 
     /**
      * Add any object to the scene.
@@ -266,9 +251,18 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             console.error('Invalid object, cannot add to scene.')
             return
         }
-        // eslint-disable-next-line deprecation/deprecation
-        if (addToRoot) this.add(obj)
-        else this.modelRoot.add(obj)
+        const target = addToRoot ? this : this.modelRoot
+        target.add(obj)
+
+        if (options.indexInParent !== undefined) {
+            const newIndex = options.indexInParent
+            const newIndex2 = target.children.indexOf(obj)
+            if (newIndex >= 0 && newIndex2 >= 0 && newIndex !== newIndex2 && newIndex < target.children.length) {
+                target.children.splice(newIndex2, 1)
+                target.children.splice(newIndex, 0, obj) // add at new index
+            }
+        }
+
         addModelProcess(obj, options)
         this.setDirty({refreshScene: true})
     }
@@ -365,20 +359,20 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     private _mainCameraUpdate: EventListener2<'cameraUpdate', IObject3DEventMap, ICamera> = (e) => {
         if (!this._mainCamera?.parent) this.setDirty({refreshScene: false})
-        this.refreshActiveCameraNearFar()
-        if (e.key === 'fov') this.dollyActiveCameraFov()
         this.dispatchEvent({...e, type: 'mainCameraUpdate'})
         this.dispatchEvent({...e, type: 'activeCameraUpdate'}) // deprecated
+        if (e.source !== 'RootScene') {
+            if (e.key === 'fov' && this.dollyActiveCameraFov()) return
+            if (this.refreshActiveCameraNearFar(!e.projectionUpdated)) {
+                // it will call mainCameraUpdate twice, that's fine first without projectionUpdated, then with projectionUpdated
+                return
+            }
+        }
     }
 
     // cached values
     private _sceneBounds: Box3B = new Box3B
     private _sceneBoundingRadius = 0
-    /**
-     * For visualizing the scene bounds. API incomplete.
-     * @type {Box3Helper}
-     */
-    // readonly boxHelper: Box3Helper
 
     refreshScene(event?: Partial<(ISceneEventMap['objectUpdate']|ISceneEventMap['geometryUpdate']|ISceneEventMap['geometryChanged'])> & ISceneSetDirtyOptions & {type?: keyof ISceneEventMap}): this {
         const fromSelf = event && event.type === 'objectUpdate' && (event.object === this || (event as any).target === this)
@@ -388,7 +382,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.refreshActiveCameraNearFar()
         // this.dollyActiveCameraFov()
         this._sceneBounds = this.getBounds(false, true)
-        // this.boxHelper?.boxHelper?.copy?.(this._sceneBounds)
         this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
         this.dispatchEvent({...event, type: 'sceneUpdate', hierarchyChanged: ['addedToParent', 'removedFromParent'].includes(event?.change || '')})
         if (!fromSelf) iObjectCommons.setDirty.call(this, event)
@@ -400,7 +393,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     /**
      * Dispose the scene and clear all resources.
-     * WARNING - Not fully implemented yet, just clears the scene.
      */
     dispose(clear = true): void {
         this.disposeSceneModels(false, clear)
@@ -477,24 +469,28 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * Refreshes the scene active camera near far values, based on the scene bounding box.
      * This is called automatically every time the camera is updated.
      */
-    refreshActiveCameraNearFar(): void {
+    refreshActiveCameraNearFar(setDirty = true): boolean {
         const camera = this.mainCamera as ICamera
-        if (!camera) return
+        if (!camera) return false
+
+        let near = camera.near, far = camera.far
+        if (camera.userData.minNearPlane !== undefined) {
+            near = camera.userData.minNearPlane
+        }
+        if (camera.userData.maxFarPlane !== undefined) {
+            far = camera.userData.maxFarPlane
+        }
+
+        // console.log(this.autoNearFarEnabled, camera.userData.autoNearFar, camera.userData.maxFarPlane, camera.far)
         if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
-            if (camera.userData.minNearPlane !== undefined)
-                camera.near = camera.userData.minNearPlane ?? 0.5
-            if (camera.userData.maxFarPlane !== undefined)
-                camera.far = camera.userData.maxFarPlane ?? 1000
-            return
+            return iCameraCommons.setNearFar(camera, near, far, setDirty, 'RootScene')
         }
 
         // todo check if this takes too much time with large scenes(when moving the camera and not animating), but we also need to support animations
         const bbox = this.getBounds(false) // todo: can we use this._sceneBounds or will it have some issue with animation?
         const size = bbox.getSize(this._v2).length()
         if (size < 0.001) {
-            camera.near = camera.userData.minNearPlane ?? 0.5
-            camera.far = camera.userData.maxFarPlane ?? 1000
-            return
+            return iCameraCommons.setNearFar(camera, near, far, setDirty, 'RootScene')
         }
 
         camera.getWorldPosition(this._v1).sub(bbox.getCenter(this._v2))
@@ -503,8 +499,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
         // new way
         const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
-        const near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
-        let far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
+        near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
+        far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
 
         // old way, has issues when panning very far from the camera target
         // const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
@@ -513,8 +509,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         if (far < near || far - near < 0.1) {
             far = near + 0.1
         }
-        camera.near = near
-        camera.far = far
+
+        return iCameraCommons.setNearFar(camera, near, far, setDirty, 'RootScene')
 
         // todo try using minimum of all 6 endpoints of bbox.
 
@@ -526,11 +522,11 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * Refreshes the scene active camera near far values, based on the scene bounding box.
      * This is called automatically every time the camera fov is updated.
      */
-    dollyActiveCameraFov(): void {
+    dollyActiveCameraFov(): boolean {
         const camera = this.mainCamera as ICamera
-        if (!camera) return
+        if (!camera) return false
         if (!camera.userData.dollyFov) {
-            return
+            return false
         }
 
         const bbox = this.getModelBounds(false, true, true)
@@ -539,7 +535,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         const cameraZ = getFittingDistance(camera, bbox) * 1.5
         const direction = new Vector3().subVectors(camera.target, camera.position).normalize()
         camera.position.copy(direction.multiplyScalar(-cameraZ).add(camera.target))
-        camera.setDirty()
+        camera.setDirty({change: 'position', source: 'RootScene'})
+        return true
     }
 
     updateShaderProperties(material: {defines: Record<string, string|number|undefined>, uniforms: {[name: string]: IUniform}}): this {
@@ -739,3 +736,4 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     // endregion
 }
+

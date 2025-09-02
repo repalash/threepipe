@@ -86,19 +86,17 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
      * Near clipping plane.
      * This is managed by RootScene for active cameras
      * To change the minimum that's possible set {@link minNearPlane}
-     * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane}, or set directly
      */
-    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
-        near = 0.01
+    near = 0.01
 
     /**
      * Far clipping plane.
      * This is managed by RootScene for active cameras
      * To change the maximum that's possible set {@link maxFarPlane}
-     * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane} or set directly
      */
-    @onChange2(PerspectiveCamera2.prototype._nearFarChanged)
-        far = 50
+    far = 1000
 
     /**
      * Automatically make the camera look at the {@link target} on {@link setDirty} call
@@ -116,17 +114,18 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     /**
      * Minimum near clipping plane allowed. (Distance from camera)
      * Used in RootScene when {@link autoNearFar} is true.
-     * @default 0.2
+     * @default undefined (0.5 is used internally)
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        minNearPlane = 0.5
+        minNearPlane?: number = undefined
 
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
      * Used in RootScene when {@link autoNearFar} is `true`.
+     * @default undefined (1000 is used internally)
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        maxFarPlane = 1000
+        maxFarPlane?: number = undefined
 
     /**
      * Automatically move the camera(dolly) when the field of view(fov) changes.
@@ -148,10 +147,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
 
         this.refreshTarget(undefined, false)
 
-        // if (!camera)
-        //     this.targetUpdated(false)
         this.setDirty()
-
 
         // if (domElement)
         //     domElement.style.touchAction = 'none' // this is done in orbit controls anyway
@@ -167,27 +163,9 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         //     } : options1)
         // }
 
-        // this.refreshCameraControls() // this is done on set controlsMode
-        // const target = this.target
-
     }
 
-    // @serialize('camOptions') //todo handle deserialization of this
-
     // region interactionsEnabled
-
-    // private _interactionsEnabled = true
-    //
-    // get interactionsEnabled(): boolean {
-    //     return this._interactionsEnabled
-    // }
-    //
-    // set interactionsEnabled(value: boolean) {
-    //     if (this._interactionsEnabled !== value) {
-    //         this._interactionsEnabled = value
-    //         this.refreshCameraControls(true)
-    //     }
-    // }
 
     private _interactionsDisabledBy = new Set<string>()
 
@@ -238,11 +216,6 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     deactivateMain = iCameraCommons.deactivateMain
     // @ts-expect-error ts issue
     updateShaderProperties = iCameraCommons.updateShaderProperties
-
-    protected _nearFarChanged() {
-        if (this.view === undefined) return // not initialized yet
-        this.updateProjectionMatrix && this.updateProjectionMatrix()
-    }
 
     // endregion
 
@@ -413,14 +386,23 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     private _camUi: UiObjectConfig[] = [
         ...generateUiConfig(this) || [],
         {
-            type: 'input',
+            type: 'number',
             label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',
-            property: [this, 'minNearPlane'],
+            getValue: () => this.minNearPlane ?? this.near,
+            setValue: (v: number) =>{
+                if (this.autoNearFar) this.minNearPlane = v
+                else this.near = v
+            },
         },
         {
-            type: 'input',
+            type: 'number',
             label: ()=>(this.autoNearFar ? 'Max' : '') + ' Far',
-            property: [this, 'maxFarPlane'],
+            // property: [this, 'maxFarPlane'],
+            getValue: () => this.maxFarPlane ?? this.far,
+            setValue: (v: number) =>{
+                if (this.autoNearFar) this.maxFarPlane = v
+                else this.far = v
+            },
         },
         {
             type: 'input',
@@ -503,53 +485,6 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     targetUpdated(setDirty = true): void {
         if (setDirty) this.setDirty()
     }
-
-    // setCameraOptions<T extends Partial<IPerspectiveCameraOptions | IOrthographicCameraOptions>>(value: T, setDirty = true): void {
-    //     const ops: any = {...value}
-    //
-    //     this._refreshCameraOptions(false)
-    //     this.refreshCameraControls(false)
-    //     if (setDirty) this.setDirty()
-    // }
-
-    // not to be used
-    // private _changeType(setDirty = true) {
-    //     // let cam = this._camera.modelObject
-    //
-    //     // change of type, not supported now.
-    //     // if (this._options.type !== cam.type) {
-    //     //     const cam2 = this._options.type === 'PerspectiveCamera' ? new PerspectiveCamera() : new OrthographicCamera()
-    //     //     cam2.name = this._camera.name
-    //     //     cam2.near = this._camera.modelObject.near
-    //     //     cam2.far = this._camera.modelObject.far
-    //     //     cam2.zoom = this._camera.modelObject.zoom
-    //     //     cam2.scale.copy(this._camera.modelObject.scale)
-    //     //
-    //     //     const isActive = this._isMainCamera
-    //     //     if (isActive) this.deactivateMain()
-    //     //     this._camera = this._setCameraObject(cam2)
-    //     //     cam = this._camera.modelObject
-    //     //     if (isActive) this.activateMain()
-    //     //     this._camera.modelObject.updateProjectionMatrix()
-    //     // }
-    //
-    //     // this._nearFarChanged() // this updates projection matrix todo: move to setDirty
-    //
-    //     if (setDirty) this.setDirty()
-    // }
-
-
-    // private _cameraObjectUpdate = (e: any)=>{
-    //     this.setDirty(e)
-    // }
-    // private _setCameraObject(cam: OrthographicCamera | PerspectiveCamera) {
-    //     if (this._camera) this._camera.removeEventListener('objectUpdate', this._cameraObjectUpdate)
-    //     this._camera = setupIModel(cam as any)
-    //     this._camera.addEventListener('objectUpdate', this._cameraObjectUpdate)
-    //     return this._camera
-    // }
-
-    // endregion
 
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936

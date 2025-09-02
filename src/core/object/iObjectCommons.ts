@@ -1,7 +1,7 @@
 import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {IEvent, objectHasOwn} from 'ts-browser-helpers'
-import {IObject3D, IObject3DEventMap, IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
+import {IObject3D, IObject3DEventMap, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData, getPropDesc} from '../../utils'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B, checkTexMapReference} from '../../three'
@@ -175,19 +175,20 @@ export const iObjectCommons = {
     eventCallbacks: {
         onAddedToParent: function(this: IObject3D, e: Event): void {
             // added to some parent
+            // console.warn('added to parent', this, this.parent, this.objectProcessor, this.parent?.parentRoot ?? this.parent, (this.parent?.parentRoot ?? this.parent)?.objectProcessor)
             const root = this.parent?.parentRoot ?? this.parent
-            if (!this.objectProcessor && root?.objectProcessor) { // this is added so that when an upgraded(not processed) object is added to the scene, it will be processed by the scene processor
-                this.traverse(o=>{
-                    o.objectProcessor = root.objectProcessor
-                    o.objectProcessor?.processObject(o)
-                })
-            }
             if (root !== this.parentRoot) {
                 this.traverse(o=>{
                     const old = o.parentRoot
                     if (old === root) return
                     o.parentRoot = root
                     o.dispatchEvent({...e, type: 'parentRootChanged', object: o, oldParentRoot: old || undefined, bubbleToParent: false})
+                })
+            }
+            if (!this.objectProcessor && root?.objectProcessor) { // this is added so that when an upgraded(not processed) object is added to the scene, it will be processed by the scene processor
+                this.traverse(o=>{
+                    o.objectProcessor = root.objectProcessor
+                    o.objectProcessor?.processObject(o)
                 })
             }
             this.setDirty?.({...e, change: 'addedToParent'})
@@ -455,7 +456,8 @@ export const iObjectCommons = {
             if (objParent && objParent.assetType !== 'model') {
                 console.warn('Cloning an IObject with a parent that is not an \'model\' is not supported')
             }
-            iObjectCommons.upgradeObject3D.call(clone, objParent, this.objectProcessor)
+            clone.objectProcessor = this.objectProcessor
+            iObjectCommons.upgradeObject3D.call(clone, objParent)
             clone.userData.cloneParent = this.uuid
             return clone
         },
@@ -487,7 +489,7 @@ export const iObjectCommons = {
         function(this: IObject3D, ...args): IObject3D {
             if (this.autoUpgradeChildren !== false) {
                 for (const a of args) {
-                    iObjectCommons.upgradeObject3D.call(a, this.parentRoot || this, this.objectProcessor)
+                    iObjectCommons.upgradeObject3D.call(a)
                 }
             }
             return superAdd.call(this, ...args)
@@ -543,23 +545,19 @@ export const object3DTextureProperties: Set<string> = new Set<string>([])
 /**
  * Converts three.js Object3D to IObject3D, setup object events, adds utility methods, and runs objectProcessor.
  * @param parent
- * @param objectProcessor
  */
-function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectProcessor?: IObjectProcessor): IObject3D {
+function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objectProcessor?: IObjectProcessor*/): IObject3D {
     if (!this) return this
     if (!this.userData) this.userData = {}
     this.userData.uuid = this.uuid
 
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return this
-
     if (this.userData.__objectSetup) {
-        this.objectProcessor?.processObject(this)
+        // this.objectProcessor?.processObject(this)
         return this
     }
     this.userData.__objectSetup = true
-
-    if (!this.objectProcessor) this.objectProcessor = objectProcessor || this.parent?.objectProcessor || parent?.objectProcessor
 
     if (!this.objectExtensions) this.objectExtensions = []
 
@@ -571,7 +569,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
     else if (this.isWidget) this.assetType = 'widget'
     else this.assetType = 'model'
 
-    if (parent) this.parentRoot = parent
+    if (parent) this.parentRoot = parent.parentRoot || parent
 
     // const oldFunctions = {
     //     dispatchEvent: this.dispatchEvent,
@@ -661,7 +659,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     if (this.autoUpgradeChildren !== false) {
         const children = [...this.children]
-        for (const c of children) upgradeObject3D.call(c, this, objectProcessor)
+        for (const c of children) upgradeObject3D.call(c, this/* , objectProcessor*/)
     }
 
     // region Legacy
@@ -676,7 +674,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined, objectPr
 
     // endregion
 
-    this.objectProcessor?.processObject(this)
+    // this.objectProcessor?.processObject(this)
 
     return this
 }

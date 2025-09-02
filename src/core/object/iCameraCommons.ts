@@ -9,9 +9,15 @@ export const iCameraCommons = {
 
         // noinspection SuspiciousTypeOfGuard it can be string when called from bindToValue
         const isStr = typeof options === 'string'
-        const changeKey = isStr ? options as string : options?.key
-        if (!changeKey || ['zoom', 'fov', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize'].includes(changeKey))
+        const changeKey = isStr ? options as string : options?.change ?? options?.key // todo use both?
+        let projectionUpdated = false
+        if (options?.projectionUpdated !== false && (!changeKey ||
+            ['zoom', 'fov', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize', 'view', 'coordinateSystem', 'projection', 'activateMain', 'deactivateMain', 'near', 'far', 'nearFar'].includes(changeKey))
+        ) {
             this.updateProjectionMatrix()
+            projectionUpdated = true
+        }
+        projectionUpdated = projectionUpdated || options?.projectionUpdated || false
 
         if (isStr) options = undefined
 
@@ -29,8 +35,8 @@ export const iCameraCommons = {
         // todo refresh target on rotation change if autoLookAtTarget is false? (calculate distanceToTarget from the current/prev target and position
 
         this.dispatchEvent({...options, type: 'update', bubbleToParent: false, camera: this}) // does not bubble
-        this.dispatchEvent({...options, type: 'cameraUpdate', bubbleToParent: true, camera: this}) // this sets dirty in the viewer
-        iObjectCommons.setDirty.call(this, {refreshScene: false, ...options})
+        this.dispatchEvent({...options, type: 'cameraUpdate', projectionUpdated, bubbleToParent: true, camera: this}) // this sets dirty in the viewer
+        iObjectCommons.setDirty.call(this, {refreshScene: false, ...options, projectionUpdated})
     },
     activateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true, canvas?: HTMLCanvasElement): void {
         if (!_internal) {
@@ -200,6 +206,18 @@ export const iCameraCommons = {
         this.dispatchEvent({type: 'setView', ...eventOptions, camera: this, bubbleToParent: true})
     },
 
+    setNearFar(camera: ICamera, near: number, far: number, setDirty: boolean, source?: string) {
+        const changed = Math.abs(camera.near - near) + Math.abs(camera.far - far) > 0.001
+        camera.near = near
+        camera.far = far
+        if (setDirty && changed && camera.setDirty) {
+            camera.setDirty({change: 'nearFar', source})
+            return true
+        } else {
+            camera.updateProjectionMatrix()
+        }
+        return false
+    },
 }
 
 function upgradeCamera(this: ICamera) {

@@ -128,8 +128,8 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
 
     // also in userData
     autoNearFar: boolean // default = true
-    minNearPlane: number // default = 0.2
-    maxFarPlane: number // default = 1000
+    minNearPlane?: number // default = 0.2
+    maxFarPlane?: number // default = 1000
 
     // todo
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
@@ -213,7 +213,9 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
 //     camera?: ICamera | null
 //     // change?: string
 // }
-export type ICameraSetDirtyOptions = IObjectSetDirtyOptions
+export interface ICameraSetDirtyOptions extends IObjectSetDirtyOptions{
+    projectionUpdated?: boolean
+}
 
 export interface ICameraEventMap extends IObject3DEventMap {
     update: {

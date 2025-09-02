@@ -120,19 +120,17 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * Near clipping plane.
      * This is managed by RootScene for active cameras
      * To change the minimum that's possible set {@link minNearPlane}
-     * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane} or set directly
      */
-    @onChange2(OrthographicCamera2.prototype._nearFarChanged)
-        near = 0.01
+    near = 0.01
 
     /**
      * Far clipping plane.
      * This is managed by RootScene for active cameras
      * To change the maximum that's possible set {@link maxFarPlane}
-     * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane}
+     * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane} or set directly
      */
-    @onChange2(OrthographicCamera2.prototype._nearFarChanged)
-        far = 50
+    far = 50
 
     /**
      * Automatically make the camera look at the {@link target} on {@link setDirty} call
@@ -150,17 +148,18 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     /**
      * Minimum near clipping plane allowed. (Distance from camera)
      * Used in RootScene when {@link autoNearFar} is true.
-     * @default 0.2
+     * @default undefined (0.5 is used internally)
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        minNearPlane = 0.5
+        minNearPlane?: number = undefined
 
     /**
      * Maximum far clipping plane allowed. (Distance from camera)
-     * Used in RootScene when {@link autoNearFar} is true.
+     * Used in RootScene when {@link autoNearFar} is `true`.
+     * @default undefined (1000 is used internally)
      */
     @bindToValue({obj: 'userData', onChange: 'setDirty'})
-        maxFarPlane = 1000
+        maxFarPlane?: number = undefined
 
     constructor(controlsMode?: TCameraControlsMode, domElement?: HTMLCanvasElement, autoAspect?: boolean, frustumSize?: number, left?: number, right?: number, top?: number, bottom?: number, near?: number, far?: number, aspect?: number) {
         super(left, right, top, bottom, near, far)
@@ -231,11 +230,6 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * @param setDirty
      */
     refreshAspect = iCameraCommons.refreshAspect
-
-    protected _nearFarChanged() {
-        if (this.view === undefined) return // not initialized yet
-        this.updateProjectionMatrix && this.updateProjectionMatrix()
-    }
 
     refreshUi = iCameraCommons.refreshUi
     refreshTarget = iCameraCommons.refreshTarget

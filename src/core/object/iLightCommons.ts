@@ -1,5 +1,5 @@
 import {ILight} from '../light/ILight'
-import {IObjectProcessor, IObjectSetDirtyOptions} from '../IObject'
+import {IObjectSetDirtyOptions} from '../IObject'
 import {iObjectCommons} from './iObjectCommons'
 
 export const iLightCommons = {
@@ -17,10 +17,9 @@ export const iLightCommons = {
 /**
  * Converts three.js Light to ILight setup object events, adds utility methods, and runs objectProcessor.
  * @param parent
- * @param objectProcessor
  */
-function upgradeLight(this: ILight, parent?: ILight|undefined, objectProcessor?: IObjectProcessor): void {
+function upgradeLight(this: ILight, parent?: ILight|undefined): void {
     if (!this) return
 
-    iObjectCommons.upgradeObject3D.call(this, parent, objectProcessor)
+    iObjectCommons.upgradeObject3D.call(this, parent)
 }
