@@ -353,3 +353,10 @@ export interface IMaterialTemplate<T extends IMaterial = IMaterial, TP = any>{
 
     params?: TP
 }
+
+declare module 'three'{
+    // todo add to three-ts-types
+    interface IUniform{
+        needsUpdate?: boolean
+    }
+}

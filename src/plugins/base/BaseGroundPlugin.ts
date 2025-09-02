@@ -38,6 +38,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
         this._geometry.attributes.uv2.needsUpdate = true
         this._mesh = this._createMesh()
+        this._mesh.visible = false
         this._defaultMaterial = this._mesh.material
         this.refresh()
     }
@@ -223,6 +224,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
             this._mesh.setDirty({refreshScene: false, source: BaseGroundPlugin.PluginType})
             // this._viewer.scene.setDirty()
         }
+        this._mesh.visible = this.size >= 0.0001
         this._transformNeedRefresh = false
         return true
     }
