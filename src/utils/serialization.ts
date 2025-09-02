@@ -309,7 +309,7 @@ export class ThreeSerialization {
 
             ret = finalCopy(mat)
             if (ret !== undefined) return ret
-            console.error('cannot deserialize material', dat, ret, mat)
+            console.error('Serialization: cannot deserialize material', dat, ret, mat)
 
         },
     }
@@ -655,7 +655,6 @@ export class MetaImporter {
 
     /**
      * @param json
-     * @param objLoader
      * @param extraResources - preloaded resources in the format of viewer config resources.
      */
     static async ImportMeta(json: SerializationMetaType, extraResources?: Partial<SerializationResourcesType>) {
