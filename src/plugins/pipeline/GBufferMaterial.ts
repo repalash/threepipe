@@ -1,4 +1,4 @@
-import type {IMaterial, IMaterialParameters, IObject3D, PhysicalMaterial} from '../../core'
+import type {ICamera, IMaterial, IMaterialParameters, IObject3D, PhysicalMaterial} from '../../core'
 import {
     BufferGeometry,
     Camera,
@@ -83,7 +83,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
         if (isOverridden) {
             updateMaterialDefines({
                 ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined, // todo add to DepthBufferPlugin as well.
-            }, material)
+            }, this)
+
         } else {
             const setMap = (key: keyof IMaterial) => {
                 const map = material[key]
@@ -125,10 +126,13 @@ export class GBufferMaterial extends ShaderMaterial2 {
                 ['DISPLACEMENTMAP_UV']: this.uniforms.displacementMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
                 ['ALPHA_I_RGBA_PACKING']: material.userData.ALPHA_I_RGBA_PACKING ? 1 : undefined,
                 ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined, // todo add to DepthBufferPlugin as well.
-            }, material)
+            }, this)
         }
 
-        this.updateFlagsUniform(material, renderer, scene, camera, geometry, object)
+        const flags = this.uniforms.flags.value
+        this._updateFlagsUniform(flags, material, renderer, scene, camera, geometry, object)
+
+        ;(camera as ICamera).updateShaderProperties(this) // for cameraNearFar
 
         this.uniformsNeedUpdate = true
 
@@ -143,7 +147,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
     }
 
-    updateFlagsUniform(material: IMaterial & Partial<PhysicalMaterial>, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
+    protected _updateFlagsUniform(flags: Vector4, material: IMaterial & Partial<PhysicalMaterial>, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         /*
          GBuffer Flags has the following data
          1st Rendertarget has Depth and Normal buffers
@@ -154,12 +158,12 @@ export class GBufferMaterial extends ShaderMaterial2 {
           w : this field is for setting bits - lutEnable-0, tonemap-1, bloom-2, ssao(cast)-3, dof-4, diamondMask-5
         */
 
-        this.uniforms.flags.value.set(255, 255, 255, 255)
+        flags.set(255, 255, 255, 255)
 
         const materialId = material.userData.gBufferData?.materialId ?? material.userData.matId // matId for backward compatibility
-        this.uniforms.flags.value.z = materialId || 0
+        flags.z = materialId || 0
 
-        this.flagUpdaters.forEach((updater) => updater(this.uniforms.flags.value, {
+        this.flagUpdaters.forEach((updater) => updater(flags, {
             material,
             renderer,
             scene,
@@ -168,10 +172,10 @@ export class GBufferMaterial extends ShaderMaterial2 {
             object,
         }))
 
-        this.uniforms.flags.value.x /= 255
-        this.uniforms.flags.value.y /= 255
-        this.uniforms.flags.value.z /= 255
-        this.uniforms.flags.value.w /= 255
+        flags.x /= 255
+        flags.y /= 255
+        flags.z /= 255
+        flags.w /= 255
     }
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {

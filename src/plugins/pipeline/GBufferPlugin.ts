@@ -240,7 +240,8 @@ export class GBufferPlugin
 
     protected _beforeRender(scene: IScene, camera: ICamera, renderManager: IRenderManager): boolean {
         if (!super._beforeRender(scene, camera, renderManager) || !this.material) return false
-        camera.updateShaderProperties(this.material)
+        // this is done in the material now.
+        // camera.updateShaderProperties(this.material)
         return true
     }
 
