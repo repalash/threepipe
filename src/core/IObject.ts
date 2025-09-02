@@ -353,19 +353,7 @@ export interface IObjectExtension {
 
 export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG extends IGeometry | undefined= IGeometry | undefined, TM extends IMaterial | IMaterial[] | undefined = IMaterial | IMaterial[] | undefined> extends Object3D<TE>, IUiConfigContainer {
     assetType: 'model' | 'light' | 'camera' | 'widget'
-    isLight?: boolean
-    isCamera?: boolean
-    isMesh?: boolean
-    isMeshLine?: boolean
-    isLine?: boolean
-    isLine2?: boolean
-    isLineSegments?: boolean
-    isLineSegments2?: boolean
-    // isGroup?: boolean
-    isScene?: boolean
-    // isHelper?: boolean
-    isWidget?: boolean
-    isPoints?: boolean
+
     readonly isObject3D: true
 
     geometry?: TG
@@ -528,6 +516,28 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
         widgets: boolean,
         [key: string]: any
     }): void
+
+    isLight?: boolean
+    isCamera?: boolean
+    isMesh?: boolean
+    isMeshLine?: boolean
+    isLine?: boolean
+    isLine2?: boolean
+    isLineSegments?: boolean
+    isLineSegments2?: boolean
+    // isGroup?: boolean
+    isScene?: boolean
+    // isHelper?: boolean
+    isWidget?: boolean
+    isPoints?: boolean
+    isDirectionalLight?: boolean
+    isPointLight?: boolean
+    isSpotLight?: boolean
+    isHemisphereLight?: boolean
+    isAmbientLight?: boolean
+    isRectAreaLight?: boolean
+    isSkinnedMesh?: boolean
+    isInstancedMesh?: boolean
 
     /**
      * @internal - store for the actual material. see also {@link currentMaterial}

@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Add `indexInParent` parameter to `AddObjectOptions`
 - Add `projectionUpdated` parameter to `ICameraSetDirtyOptions`, which is set automatically when any projection related property is changed on cameras.
 - Add `Forced Linear Depth` (`material.userData.forcedLinearDepth`) to automatic material UI config under blending
+- Add `IUniform.needsUpdate` type.
+- Add `autoRadius` to `SSAOPluginPass`
 
 ### Changed
 
@@ -20,6 +22,11 @@ All notable changes to this project will be documented in this file.
 - Improve automatic `near`, `far` properties update in `RootScene`, when `authNearFar` is `true`.
 - Set default value for `minNearPlane` and `maxFarPlane` to `undefined`.
 - Remove automatic call to `updateProjectionMatrix` when near/far are changed. It is called in `camera.setDirty()` now, hence `setDirty` needs to be called explicitly when changing it. Alternatively, `iCameraCommons.setNearFar()` can be used to change near/far and call `setDirty` automatically.
+- Set mesh in `BaseGroundPlugin` invisible when the scene is empty.
+
+### Fixed
+
+- Fixes in `GBufferMaterial` rendering when `customGBufferMaterial` is used.
 
 ## [0.1.1] - 2025-09-01
 
