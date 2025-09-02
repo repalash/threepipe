@@ -14,7 +14,7 @@ uniform float frameCount;
 #endif
 
 uniform vec4 saoData;
-uniform vec3 saoBiasEpsilon;
+uniform vec4 saoBiasEpsilon;
 uniform vec2 screenSize;
 
 const float INV_NUM_SAMPLES = 1.0 / float(NUM_SAMPLES);
@@ -66,8 +66,8 @@ const in vec3 centerNormal) {
     #endif
     vec3 samplePosition = getPositionFromOffset(uvOffset);
     vec3 direction = samplePosition - centerPosition;
-    float d2 = dot(direction, direction);
-    float ao = max((dot(centerNormal, direction) + centerPosition.z * saoBiasEpsilon.x) / (saoBiasEpsilon.z * d2 + saoBiasEpsilon.y), 0.0);
+    float d2 = dot(direction, direction)/(saoBiasEpsilon.w * saoBiasEpsilon.w);
+    float ao = max((dot(centerNormal, direction)/saoBiasEpsilon.w - saoBiasEpsilon.x) / (saoBiasEpsilon.z * d2 + saoBiasEpsilon.y), 0.0);
     return ao;
 }
 
@@ -103,7 +103,8 @@ void main() {
 
     vec3 centerPosition = screenToView3(vUv, centerViewZ);
 
-    float occlusionSphereScreenRadius = 200. * saoData.z / (-centerPosition.z);
+    // .09 is a number to match the previous AO results.
+    float occlusionSphereScreenRadius = saoData.z * saoBiasEpsilon.w / (-centerPosition.z);
 
     //    if (occlusionSphereScreenRadius < 1.) {
     //        discard;

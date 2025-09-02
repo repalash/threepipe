@@ -1,19 +1,27 @@
 import {
     LinearSRGBColorSpace,
+    MathUtils,
     Matrix4,
     Texture,
     TextureDataType,
     UnsignedByteType,
     Vector2,
-    Vector3,
     Vector4,
     WebGLRenderTarget,
 } from 'three'
 import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
-import {uiConfig, uiFolderContainer, uiImage, uiSlider} from 'uiconfig.js'
-import {ICamera, IMaterial, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../../core'
+import {uiConfig, uiFolderContainer, uiImage, uiSlider, uiToggle} from 'uiconfig.js'
+import {
+    ICamera,
+    IMaterial,
+    IRenderManager,
+    IScene,
+    IWebGLRenderer,
+    PerspectiveCamera2,
+    PhysicalMaterial,
+} from '../../core'
 import {getOrCall, glsl, onChange2, serialize, updateBit, ValOrFunc} from 'ts-browser-helpers'
 import {MaterialExtension} from '../../materials'
 import {shaderReplaceString, shaderUtils} from '../../utils'
@@ -207,6 +215,15 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     @onChange2(SSAOPluginPass.prototype.setDirty)
         occlusionWorldRadius = 1
 
+    /**
+     * Whether to automatically adapt the occlusion radius based on the scene size.
+     * This is useful when scene is not centered or normalized
+     */
+    @serialize()
+    @onChange2(SSAOPluginPass.prototype.setDirty)
+    @uiToggle()
+        autoRadius = false
+
     @serialize()
     @uiSlider('Bias', [0.00001, 0.01], 0.00001)
     @onChange2(SSAOPluginPass.prototype.setDirty)
@@ -257,7 +274,8 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 frameCount: {value: 0}, // set in RenderManager
                 cameraNearFar: {value: new Vector2(0.1, 1000)}, // set in PerspectiveCamera2
                 projection: {value: new Matrix4()}, // set in PerspectiveCamera2
-                saoBiasEpsilon: {value: new Vector3(1, 1, 1)},
+                saoBiasEpsilon: {value: new Vector4(1, 1, 1, 1)},
+                sceneBoundingRadius: {value: 0},
 
                 // split mode
                 ssaoSplitX: {value: 0.5},
@@ -315,6 +333,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
 
     }
 
+    private _projScale = 1
     private _updateParameters() {
         // const projectionScale = 1 / (Math.tan(DEG2RAD * (camera as any).fov / 2) * 2);
         const saoData = this.material.uniforms.saoData.value
@@ -323,17 +342,29 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         saoData.z = this.occlusionWorldRadius
         // saoData.w = this.accIndex_++;
 
+        saoData.z *= this._projScale * 0.25//* 100 / 2
+
         const saoBiasEpsilon = this.material.uniforms.saoBiasEpsilon.value
         saoBiasEpsilon.x = this.bias
         saoBiasEpsilon.y = 0.001
         saoBiasEpsilon.z = this.falloff
 
+        if (this.autoRadius) {
+            saoBiasEpsilon.w = Math.min(this.material.uniforms.sceneBoundingRadius.value, 100)
+        } else {
+            saoBiasEpsilon.w = 1
+        }
+
         // this.material.uniforms.size.value.set(this._target.texture.image?.width, this._target.texture.image?.height)
     }
 
-    beforeRender(_: IScene, camera: ICamera, renderManager: IRenderManager) {
+    beforeRender(scene: IScene, camera: ICamera, renderManager: IRenderManager) {
         if (!this.enabled) return
-        this.updateShaderProperties([camera, renderManager])
+        this.updateShaderProperties([camera, renderManager, scene])
+        const fov = Math.max(1, (scene.mainCamera as PerspectiveCamera2).fov ?? 1)
+        const h = renderManager?.webglRenderer.domElement.height || 1
+        const w = 1 // renderManager?.webglRenderer.domElement.width || 1
+        this._projScale = h / (2 * w * Math.tan(0.5 * fov * MathUtils.DEG2RAD))
     }
 
     readonly materialExtension: MaterialExtension = {
