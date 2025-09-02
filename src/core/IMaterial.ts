@@ -196,7 +196,7 @@ export interface IMaterialUserData extends IImportResultUserData{
      * Force a depth value in GBuffer.
      * This is useful to force center values like 0 to the depth.
      */
-    forcedLinearDepth?: number // todo uiconfig for this in imaterial?
+    forcedLinearDepth?: number
 
     /**
      * General flag to disable multiple plugins on the material at once, like SSAO, SSR, Bloom etc.

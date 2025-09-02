@@ -126,7 +126,6 @@ export const iMaterialCommons = {
         MaterialExtender.UnregisterExtensions(this, customMaterialExtensions)
     },
 
-    // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
     onBeforeCompile: function(this: IMaterial, shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void {
         if (this.materialExtensions) MaterialExtender.ApplyMaterialExtensions(this, shader, this.materialExtensions, renderer)
 

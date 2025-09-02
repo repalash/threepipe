@@ -284,6 +284,19 @@ export const iMaterialUI = {
                         material.setDirty({change: 'userData', key: 'renderToDepth'})
                     },
                 },
+                {
+                    type: 'checkbox',
+                    label: 'Forced Linear Depth',
+                    getValue: ()=>material.userData.forcedLinearDepth ?? -1,
+                    setValue: (v: number)=>{
+                        if (v < 0 && material.userData.forcedLinearDepth === undefined) return
+                        if (v >= 0)
+                            material.userData.forcedLinearDepth = v
+                        else
+                            delete material.userData.forcedLinearDepth
+                        material.setDirty({change: 'userData', key: 'forcedLinearDepth'})
+                    },
+                },
                 material.isPhysicalMaterial ? {
                     type: 'checkbox',
                     label: 'Inverse AlphaMap',

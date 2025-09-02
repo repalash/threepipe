@@ -8,8 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `indexInParent` parameter to `AddObjectOptions`
-- `projectionUpdated` parameter to `ICameraSetDirtyOptions`, which is set automatically when any projection related property is changed on cameras.
+- Add `indexInParent` parameter to `AddObjectOptions`
+- Add `projectionUpdated` parameter to `ICameraSetDirtyOptions`, which is set automatically when any projection related property is changed on cameras.
+- Add `Forced Linear Depth` (`material.userData.forcedLinearDepth`) to automatic material UI config under blending
 
 ### Changed
 
