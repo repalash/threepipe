@@ -122,7 +122,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * To change the minimum that's possible set {@link minNearPlane}
      * To use a fixed value set {@link autoNearFar} to false and set {@link minNearPlane} or set directly
      */
-    near = 0.01
+    near = 0.1
 
     /**
      * Far clipping plane.
@@ -130,7 +130,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
      * To change the maximum that's possible set {@link maxFarPlane}
      * To use a fixed value set {@link autoNearFar} to false and set {@link maxFarPlane} or set directly
      */
-    far = 50
+    far = 2000
 
     /**
      * Automatically make the camera look at the {@link target} on {@link setDirty} call
