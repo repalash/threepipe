@@ -22,7 +22,7 @@ import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
 import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {getFittingDistance} from '../../three/utils/camera'
-import {iCameraCommons} from './iCameraCommons.ts'
+import {iCameraCommons} from './iCameraCommons'
 
 @uiFolderContainer('Root Scene')
 export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene<TE&ISceneEventMap> implements IScene<TE> {

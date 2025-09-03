@@ -17,9 +17,12 @@ Threepipe is built on top of three.js, so most vanilla three.js code should work
 However, since threepipe uses [a fork of three.js](https://github.com/repalash/three.js-modded), it is bundled within the package instead of being a separate dependency. 
 This means you can use threepipe as a drop-in replacement for three.js in many cases.
 
-The three.js fork is [updated till r158](https://github.com/repalash/three.js-modded/releases), and is regularly updated with new features and bug fixes.
+The three.js fork is [updated till r160](https://github.com/repalash/three.js-modded/releases), and is regularly updated with new features and bug fixes.
 
 ## Importing three.js objects
+
+Importing objects from three.js can be done normally when using a modern bundler like `vite 5+` on `node 22+`.
+In all other cases(import-maps, other bundlers etc), objects can be imported from `threepipe` instead of `three`, or `three` can be aliased to `threepipe`. Follow this guide for that.
 
 Classes, types, constants, and functions from three.js can be imported from `threepipe` in the same way as you would import from `three`.
 With npm modules -
@@ -27,6 +30,7 @@ With npm modules -
 import { Scene, PerspectiveCamera, WebGLRenderer, Mesh, BoxGeometry, MeshBasicMaterial } from 'threepipe';
 ```
 
+::: tip
 In many cases, threepipe provides an extended class as an alternative to the original three.js class. 
 These extended classes provide additional features and methods that are not available in the original three.js classes and provide better experience with typescript and autocomplete. It's not necessary to use these extended classes, and standard ones would work fine, but they are recommended for better experience.
 
@@ -39,6 +43,7 @@ Some examples are -
 See also - [`GeometryGeneratorPlugin`](./../package/plugin-geometry-generator), [`Object3DGeneratorPlugin`](./../plugin/Object3DGeneratorPlugin) to generate 3d objects, lights, cameras, geometries along with schema and UI configuration.
 
 Check more [here](./../guide/viewer-api#other-classes-and-interfaces)
+::: 
 
 Read the [Viewer API guide](./../guide/viewer-api) for more details on classes provided by threepipe.
 
@@ -71,14 +76,15 @@ With import map -
 
 ## Using packages that depend on `three`
 
-If you are using packages that depend on `three`, override in package.json to use `threepipe` as the `three` dependency.
+Packages that depend on `three` and use the correct module resolution settings will work out of the box with threepipe.
 
+Any modules that support newer versions of three.js should also work fine in most cases, but if you encounter issues with the npm modules, `peerDependency` version conflict etc, it is possible to override the `three` dependency, or set alias in rollup or vite config.
+
+## Overriding three module
+
+Overriding in package.json - 
 ```json
 {
-  "dependencies": {
-    "three": "./node_modules/threepipe/",
-    "threepipe": "^0.0.52"
-  },
   "overrides": {
     "three": "$three"
   }
@@ -111,5 +117,3 @@ export default defineConfig({
     ]
 })
 ```
-
-[//]: # (todo add sample with vite for above using some three.js library that has it as dependency/peerDependency)
