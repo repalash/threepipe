@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-assimpjs",
     "description": "Assimp.js Plugin for ThreePipe",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "devDependencies": {
     },
     "dependencies": {
@@ -9,7 +9,7 @@
         "assimpjs": "^0.0.10"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0"
+        "threepipe": ">=0.1.0"
     },
     "exports": {
         ".": {

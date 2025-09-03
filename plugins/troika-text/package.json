@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-troika-text",
     "description": "Troika Text Plugin for ThreePipe",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "devDependencies": {
         "troika-three-text": "^0.52.4"
     },
@@ -9,8 +9,8 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0",
-        "troika-three-text": "^0.52.4"
+        "threepipe": ">=0.1.0",
+        "troika-three-text": ">=0.52.4"
     },
     "peerDependenciesMeta": {
         "troika-three-text": {

@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.5.4] - 2025-09-03
+
+### Fixed
+
+- Fix `peerDependency` issue on npm.
+
 ## [0.5.3] - 2025-09-01
 
 ### Added
@@ -27,4 +33,6 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/blueprintjs
+[0.5.4]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blueprintjs-v0.5.4
+[0.5.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blueprintjs-v0.5.3
 [0.5.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blueprintjs-v0.5.2

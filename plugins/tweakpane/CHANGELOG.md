@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.8.4] - 2025-09-03
+
+### Fixed
+
+- Fix `peerDependency` issue on npm.
+
 ## [0.8.3] - 2025-09-01
 
 ### Added

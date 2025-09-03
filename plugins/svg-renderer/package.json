@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-svg-renderer",
     "description": "Plugins for SVG Rendering of 3d objects for Threepipe",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "devDependencies": {
         "@svgdotjs/svg.js": "^3.2.0",
         "@svgdotjs/svg.topath.js": "^2.0.3",
@@ -17,7 +17,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0"
+        "threepipe": ">=0.1.0"
     },
     "exports": {
         ".": {

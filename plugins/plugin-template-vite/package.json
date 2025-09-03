@@ -8,6 +8,10 @@
         "threepipe": "file:./../../src/",
         "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
     },
+    "peerDependencies": {
+        "threepipe": ">=0.2.0",
+        "@threepipe/plugin-tweakpane": ">=0.6.6"
+    },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
@@ -62,11 +66,7 @@
             "//"
         ],
         "replace": {
-            "dependencies": {},
-            "peerDependencies": {
-                "threepipe": "^0.0.56",
-                "@threepipe/plugin-tweakpane": "^0.6.6"
-            }
+            "dependencies": {}
         }
     }
 }

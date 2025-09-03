@@ -10,11 +10,11 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
-## [0.3.1] - 2025-09-01
+## [0.3.2] - 2025-09-03
 
 ### Changed
 
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/3d-tiles-renderer
-[0.3.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-3d-tiles-renderer-v0.3.1
+[0.3.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-3d-tiles-renderer-v0.3.2

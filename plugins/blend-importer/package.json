@@ -1,14 +1,14 @@
 {
     "name": "@threepipe/plugin-blend-importer",
     "description": "Basic importer for .blend file",
-    "version": "0.0.9",
+    "version": "0.1.0",
     "devDependencies": {
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0"
+        "threepipe": ">=0.1.0"
     },
     "exports": {
         ".": {

@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-gltf-transform",
     "description": "Utility plugins for threepipe using gltf-transform to optimize/compress glTF files.",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "devDependencies": {
         "@gltf-transform/core": "4.2.0",
         "@gltf-transform/extensions": "4.2.0",
@@ -11,7 +11,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0"
+        "threepipe": ">=0.1.0"
     },
     "exports": {
         ".": {

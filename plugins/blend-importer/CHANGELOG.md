@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.1.0] - 2025-09-03
+
+### Fixed
+
+- Fix `peerDependency` issue on npm.
+
 ## [0.0.9] - 2025-09-01
 
 ### Changed
@@ -17,4 +23,5 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/blend-importer
+[0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-v0.1.0
 [0.0.9]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-v0.0.9

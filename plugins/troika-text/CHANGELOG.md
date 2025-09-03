@@ -10,7 +10,7 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
-## [0.1.1] - 2025-09-01
+## [0.1.2] - 2025-09-03
 
 ### Changed
 

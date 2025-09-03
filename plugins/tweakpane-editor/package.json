@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-tweakpane-editor",
     "description": "Tweakpane Editor Plugin for ThreePipe",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "devDependencies": {
         "tippy.js": "^6.3.7",
         "treejs": "git://github.com/repalash/treejs.git#d303016bb74e75725d13e97291ac1d4727985918"
@@ -11,8 +11,8 @@
         "@threepipe/plugin-tweakpane": "file:./../tweakpane/src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0",
-        "@threepipe/plugin-tweakpane": "^0.6.6"
+        "threepipe": ">=0.1.0",
+        "@threepipe/plugin-tweakpane": ">=0.6.6"
     },
     "exports": {
         ".": {

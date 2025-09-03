@@ -1,14 +1,14 @@
 {
     "name": "@threepipe/plugins-extra-importers",
     "description": "Extra Threepipe plugins for importing several file types.",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "devDependencies": {
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": "^0.1.0"
+        "threepipe": ">=0.1.0"
     },
     "clean-package": {
         "remove": [

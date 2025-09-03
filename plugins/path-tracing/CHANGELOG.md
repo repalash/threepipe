@@ -10,7 +10,7 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
-## [0.1.3] - 2025-09-01
+## [0.1.4] - 2025-09-03
 
 ### Changed
 
@@ -18,3 +18,4 @@ All notable changes to this plugin will be documented in this file.
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/path-tracing
 [0.1.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-path-tracing-v0.1.3
+[0.1.4]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-path-tracing-v0.1.4
