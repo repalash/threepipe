@@ -8,11 +8,21 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- NA
+
+
+## [0.2.0] - 2025-09-03
+
+### Added
+
 - Add `indexInParent` parameter to `AddObjectOptions`
-- Add `projectionUpdated` parameter to `ICameraSetDirtyOptions`, which is set automatically when any projection related property is changed on cameras.
+- Add `projectionUpdated` parameter to `ICameraSetDirtyOptions`, which is set automatically when any projection related property is changed on cameras
 - Add `Forced Linear Depth` (`material.userData.forcedLinearDepth`) to automatic material UI config under blending
-- Add `IUniform.needsUpdate` type.
+- Add `IUniform.needsUpdate` type
 - Add `autoRadius` to `SSAOPluginPass`
+- Add `CascadedShadowsPlugin` for directional light shadows with cascades CSM. This is same as [three-csm](https://github.com/StrandedKitty/three-csm) implementation at the moment.
+- Add example - [cascaded-shadows-plugin-basic](https://threepipe.org/examples/#cascaded-shadows-plugin-basic/) - Sample usage of `CascadedShadowsPlugin`
+- Add example - [three-csm-basic](https://threepipe.org/examples/#three-csm-basic/) - Sample usage of `CSM` addon in three.js directly without a plugin.
 
 ### Changed
 
@@ -41,5 +51,6 @@ All notable changes to this project will be documented in this file.
 
 - Initial Framework Release.
 
-[unreleased]: https://github.com/repalash/threepipe/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/repalash/threepipe/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/repalash/releases/tag/v0.2.0
 [0.1.0]: https://github.com/repalash/releases/tag/v0.1.0

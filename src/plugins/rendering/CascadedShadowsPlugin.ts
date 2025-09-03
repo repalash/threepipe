@@ -6,8 +6,6 @@ import {onChange, serialize} from 'ts-browser-helpers'
 import {DirectionalLight2, ICamera, IObject3D, IObject3DEventMap, ISceneEventMap} from '../../core'
 import {shaderReplaceString} from '../../utils'
 
-// Original three-csm implementation - https://github.com/StrandedKitty/three-csm
-
 /**
  * Configuration data for CSM (Cascaded Shadow Maps) light parameters
  */
@@ -53,6 +51,7 @@ const defaultData = {
  * - Material extension for proper shadow sampling
  * - Optional fade between cascades
  *
+ * Original three-csm implementation - https://github.com/StrandedKitty/three-csm
  * @example
  * ```typescript
  * const viewer = new ThreeViewer({
