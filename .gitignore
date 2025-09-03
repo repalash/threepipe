@@ -76,3 +76,4 @@ experiments
 _site
 
 .wrangler
+/.*.md

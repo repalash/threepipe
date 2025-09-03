@@ -49,10 +49,68 @@ export type SSAOPluginTarget = WebGLRenderTarget
 export type SSAOPacking = 1 | 2 | 3 | 4
 
 /**
- * SSAO Plugin
+ * Screen Space Ambient Occlusion (SSAO) Plugin for enhanced lighting and depth perception in 3D scenes.
  *
- * Adds Screen Space Ambient Occlusion (SSAO) to the scene.
- * Adds a pass to calculate AO, which is then read by materials in the render pass.
+ * SSAO is a real-time ambient occlusion technique that approximates the soft shadows that occur in creases,
+ * holes, and surfaces that are close to each other. This plugin adds a pre-render pass that calculates
+ * ambient occlusion data which is then used by materials during the main render pass.
+ *
+ * ## Key Features
+ * - **Real-time SSAO calculation** using screen-space techniques
+ * - **Multiple packing modes** for different texture formats and optimization needs
+ * - **Per-material control** - materials can disable SSAO individually via userData
+ * - **Configurable quality settings** including sample count, radius, bias, and intensity
+ * - **Automatic serialization** of all settings with viewer configuration
+ * - **GBuffer integration** for optimized depth and normal data access
+ *
+ * ## Dependencies
+ * This plugin automatically adds {@link GBufferPlugin} as a dependency for efficient depth and normal data.
+ *
+ * ## Usage Scenarios
+ * - **Architectural visualization** - enhances depth perception in interior scenes
+ * - **Product visualization** - adds realistic ambient shadows to showcase products
+ * - **Game environments** - provides cost-effective ambient occlusion for real-time rendering
+ * - **CAD visualization** - improves understanding of complex mechanical assemblies
+ *
+ * ## Performance Considerations
+ * - Use lower `sizeMultiplier` values (0.5-0.75) for better performance on mobile devices
+ * - Combine with {@link ProgressivePlugin} and `TemporalAAPlugin` for temporal accumulation
+ * - Consider disabling SSAO on transparent or unlit materials to save processing
+ *
+ * @example Basic Usage
+ * ```typescript
+ * import {ThreeViewer, SSAOPlugin} from 'threepipe'
+ *
+ * const viewer = new ThreeViewer({
+ *   plugins: [new SSAOPlugin()]
+ * })
+ *
+ * // Access the plugin and configure settings
+ * const ssaoPlugin = viewer.getPlugin(SSAOPlugin)!
+ * ssaoPlugin.pass.intensity = 1.2
+ * ssaoPlugin.pass.radius = 0.5
+ * ```
+ *
+ * @example Per-Material Control
+ * ```typescript
+ * // Disable SSAO for a specific material
+ * material.userData.ssaoDisabled = true
+ *
+ * // Disable SSAO casting (material won't contribute to AO calculation)
+ * material.userData.ssaoCastDisabled = true
+ * ```
+ *
+ * @example High Performance Setup
+ * ```typescript
+ * const ssaoPlugin = new SSAOPlugin(
+ *   UnsignedByteType,  // Buffer type
+ *   0.5,               // Size multiplier for better performance
+ *   true,              // Enabled
+ *   1                  // Packing mode
+ * )
+ * viewer.addPlugin(ssaoPlugin)
+ * ```
+ *
  * @category Plugins
  */
 @uiFolderContainer('SSAO Plugin')
@@ -63,24 +121,61 @@ export class SSAOPlugin
     public static readonly PluginType = 'SSAOPlugin'
     public static readonly OldPluginType = 'SSAO'
 
+    /**
+     * Plugin dependencies - automatically adds GBufferPlugin for depth and normal data
+     * @internal
+     */
     dependencies = [GBufferPlugin]
 
+    /** The render target containing SSAO data */
     target?: SSAOPluginTarget
-    @uiImage('SSAO Buffer', {readOnly: true, tags: ['debug']}) texture?: Texture
 
-    @uiConfig(undefined, {unwrapContents: true}) declare protected _pass?: SSAOPluginPass
+    /** Debug texture preview of the SSAO buffer (read-only) */
+    @uiImage('SSAO Buffer', {readOnly: true, tags: ['debug']})
+        texture?: Texture
 
-    // @onChange2(SSAOPlugin.prototype._createTarget)
-    // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
-    readonly bufferType: TextureDataType // cannot be changed after creation (for now)
+    @uiConfig(undefined, {unwrapContents: true})
+    declare protected _pass?: SSAOPluginPass
 
-    // @onChange2(SSAOPlugin.prototype._createTarget)
-    // @uiSlider('Buffer Size Multiplier', [0.25, 2.0], 0.25)
-    readonly sizeMultiplier: number // cannot be changed after creation (for now)
+    /**
+     * Buffer data type for the SSAO render target.
+     * Cannot be changed after plugin creation.
+     *
+     * @remarks
+     * - `UnsignedByteType` - Standard 8-bit precision, good performance
+     * - `HalfFloatType` - 16-bit precision, better quality but slower
+     * - `FloatType` - 32-bit precision, highest quality but slowest
+     */
+    readonly bufferType: TextureDataType
 
-    // @uiDropdown
-    readonly packing: SSAOPacking // cannot be changed after creation (for now)
+    /**
+     * Render target size multiplier relative to the main canvas size.
+     * Cannot be changed after plugin creation.
+     *
+     * @remarks
+     * - `1.0` - Full resolution (highest quality)
+     * - `0.75` - 75% resolution (good balance)
+     * - `0.5` - Half resolution (better performance)
+     * - `0.25` - Quarter resolution (mobile performance)
+     */
+    readonly sizeMultiplier: number
 
+    /**
+     * SSAO data packing mode for the render target.
+     * Cannot be changed after plugin creation.
+     *
+     * @see {@link SSAOPacking} for available packing modes
+     */
+    readonly packing: SSAOPacking
+
+    /**
+     * Creates a new SSAOPlugin instance.
+     *
+     * @param bufferType - Data type for the SSAO buffer (default: UnsignedByteType)
+     * @param sizeMultiplier - Size multiplier for the render target (default: 1.0)
+     * @param enabled - Whether the plugin is initially enabled (default: true)
+     * @param packing - SSAO data packing mode (default: 1)
+     */
     constructor(
         bufferType: TextureDataType = UnsignedByteType,
         sizeMultiplier = 1,
