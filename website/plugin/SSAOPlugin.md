@@ -4,8 +4,8 @@ prev:
     link: './GBufferPlugin'
 
 next: 
-    text: 'CanvasSnapshotPlugin'
-    link: './CanvasSnapshotPlugin'
+    text: 'CascadedShadowsPlugin'
+    link: './CascadedShadowsPlugin'
 
 aside: false
 ---
@@ -43,4 +43,3 @@ material.userData.ssaoDisabled = true
 ```
 > In the target/buffer - The ssao data is in the `r` channel to remain compatible with ORM. `gba` contains the depth in vec3(xyz) format.
 > Note that its `ssaoDisabled`, so setting it to `true` will disable the effect.
-

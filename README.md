@@ -436,6 +436,7 @@ Many features will be added but the core API will not change significantly in fu
   - [STLLoadPlugin](https://threepipe.org/plugin/STLLoadPlugin.html) - Add support for loading .stl files ([STL](https://en.wikipedia.org/wiki/STL_(file_format)))
   - [KTX2LoadPlugin](https://threepipe.org/plugin/KTX2LoadPlugin.html) - Add support for loading .ktx2 files ([KTX2 - GPU Compressed Textures](https://doc.babylonjs.com/features/featuresDeepDive/materials/using/ktx2Compression))
   - [KTXLoadPlugin](https://threepipe.org/plugin/KTXLoadPlugin.html) - Add support for loading .ktx files (Note - use ktx2)
+  - [CascadedShadowsPlugin](https://threepipe.org/plugin/CascadedShadowsPlugin.html) - High-quality directional light shadows across large scenes using Cascaded Shadow Maps (CSM) technique
   - [USDZLoadPlugin](https://threepipe.org/plugin/USDZLoadPlugin.html) - Add partial support for loading .usdz, .usda files ([USDZ](https://en.wikipedia.org/wiki/Universal_Scene_Description))
   - [GLTFMeshOptDecodePlugin](https://threepipe.org/plugin/GLTFMeshOptDecodePlugin.html) - Decode glTF files with [EXT_meshopt_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md) extension.
   - [SimplifyModifierPlugin](https://threepipe.org/plugin/SimplifyModifierPlugin.html) - Boilerplate for plugin to simplify geometries

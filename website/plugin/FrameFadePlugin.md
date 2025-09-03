@@ -1,12 +1,13 @@
 ---
 prev: 
-    text: 'GeometryUVPreviewPlugin'
-    link: './GeometryUVPreviewPlugin'
+    text: 'CascadedShadowsPlugin'
+    link: './CascadedShadowsPlugin'
 
 next: 
-    text: 'VignettePlugin'
-    link: './VignettePlugin'
+    text: 'DropzonePlugin'
+    link: './DropzonePlugin'
 
+aside: false
 ---
 
 # FrameFadePlugin
@@ -16,6 +17,8 @@ next:
 [Example](https://threepipe.org/examples/#frame-fade-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/FrameFadePlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/FrameFadePlugin.html)
+
+<iframe src="https://threepipe.org/examples/frame-fade-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Frame Fade Plugin Example"></iframe>
 
 FrameFadePlugin adds a post-render pass to the render manager and blends the last frame with the current frame over time. This is useful for creating smooth transitions between frames for example when changing the camera position, material, object properties, etc. to avoid a sudden jump.
 

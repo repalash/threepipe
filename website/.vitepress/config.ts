@@ -91,6 +91,7 @@ export default defineConfig({
               {text: 'NormalBufferPlugin', link: 'plugin/NormalBufferPlugin'},
               {text: 'GBufferPlugin', link: 'plugin/GBufferPlugin'},
               {text: 'SSAOPlugin', link: 'plugin/SSAOPlugin'},
+              {text: 'CascadedShadowsPlugin', link: 'plugin/CascadedShadowsPlugin'},
               {text: 'FrameFadePlugin', link: 'plugin/FrameFadePlugin'},
             ],
           },

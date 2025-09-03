@@ -32,6 +32,7 @@ Plugins configuring the rendering pipeline and providing resources for other plu
 - [NormalBufferPlugin](../plugin/NormalBufferPlugin) - Pre-rendering of normal buffer. The buffer can be used in materials and post-processing effects.
 - [GBufferPlugin](../plugin/GBufferPlugin) - Pre-rendering of depth-normal and flags buffers in a single pass. This is a dependency to several post-processing plugins.
 - [SSAOPlugin](../plugin/SSAOPlugin) - Extends the render pipeline to add SSAO(Screen Space Ambient Occlusion) for physical materials in the scene.
+- [CascadedShadowsPlugin](../plugin/CascadedShadowsPlugin) - High-quality directional light shadows across large scenes using Cascaded Shadow Maps (CSM) technique with multiple cascade splitting modes.
 - [FrameFadePlugin](../plugin/FrameFadePlugin) - Post-render pass to smoothly fade to a new rendered frame over time. Used by the core and several plugins like configurators.
 
 ## Import

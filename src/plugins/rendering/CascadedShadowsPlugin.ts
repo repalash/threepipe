@@ -8,13 +8,22 @@ import {shaderReplaceString} from '../../utils'
 
 // Original three-csm implementation - https://github.com/StrandedKitty/three-csm
 
+/**
+ * Configuration data for CSM (Cascaded Shadow Maps) light parameters
+ */
 export interface CSMLightData {
+    /** Number of shadow cascades. Default: 3 */
     cascades?: number;
+    /** Shadow map resolution for each cascade. Default: 2048 */
     shadowMapSize?: number;
+    /** Shadow bias to prevent shadow acne. If undefined, uses light's existing bias */
     shadowBias?: number|undefined;
+    /** Near plane distance for shadow camera. If undefined, uses light's existing near */
     lightNear?: number|undefined;
+    /** Far plane distance for shadow camera. If undefined, uses light's existing far */
     lightFar?: number|undefined;
     // lightRadius?: number;
+    /** Margin around the frustum bounds for shadow calculation. Default: 200 */
     lightMargin?: number;
 }
 
@@ -30,15 +39,49 @@ const defaultData = {
     // lightRadius: 1,
 } as const satisfies CSMLightData
 
+/**
+ * Cascaded Shadow Maps (CSM) plugin for high-quality directional light shadows across large scenes.
+ *
+ * This plugin implements cascaded shadow mapping to provide better shadow quality across
+ * different distances from the camera by splitting the view frustum into multiple cascades,
+ * each with its own shadow map at an appropriate resolution.
+ *
+ * Features:
+ * - Multiple cascade splitting modes: uniform, logarithmic, practical, and custom
+ * - Automatic light attachment to first directional light found
+ * - Configurable shadow parameters per light
+ * - Material extension for proper shadow sampling
+ * - Optional fade between cascades
+ *
+ * @example
+ * ```typescript
+ * const viewer = new ThreeViewer({
+ *     plugins: [new CascadedShadowsPlugin()]
+ * })
+ *
+ * const light = new DirectionalLight2(0xffffff, 1.5)
+ * viewer.scene.addObject(light)
+ *
+ * const csmPlugin = viewer.getPlugin(CascadedShadowsPlugin)!
+ * csmPlugin.setLightParams({
+ *     cascades: 4,
+ *     shadowMapSize: 1024,
+ *     lightMargin: 100
+ * }, light)
+ * ```
+ */
 export class CascadedShadowsPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'CascadedShadowsPlugin'
 
+    /** Enable/disable the cascaded shadow maps plugin */
     @uiToggle()
     @serialize()
     @onChange('setDirty')
         enabled = true
 
+    /** Current camera used for frustum calculations */
     camera?: ICamera // todo camera onchange
+    /** Parent object containing all CSM lights */
     parent: Object3D = new Group()
 
     /**
@@ -50,11 +93,13 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
     // @onChange('refreshLights')
     //     cascades = 3
     //
+    /** Maximum far distance for shadow calculation */
     @onChange('cameraNeedsUpdate')
     @serialize()
     @uiInput()
         maxFar = 100000
 
+    /** Cascade splitting mode: uniform, logarithmic, practical, or custom */
     @onChange('cameraNeedsUpdate')
     @serialize()
     @uiDropdown(undefined, ['uniform', 'logarithmic', 'practical'/* , 'custom'*/])
@@ -67,6 +112,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
     @serialize()
         attachToFirstLight = true
 
+    /** Enable fade between cascades for smoother transitions */
     @onChange('cameraNeedsUpdate')
     @serialize()
     @uiToggle()
@@ -78,23 +124,31 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
     //  patch ui config for attached lights
     //  add light helper option?
 
+    /** The main directional light that CSM will be applied to */
     @onChange('refreshLights')
         light?: DirectionalLight&IObject3D
 
+    /** Custom callback for defining cascade splits when mode is 'custom' */
     @onChange('cameraNeedsUpdate')
         customSplitsCallback?: (amount: number, near: number, far: number, breaks: number[]) => void
 
+    /** Main camera frustum for cascade calculation */
     mainFrustum: CSMFrustum
+    /** Individual frustums for each cascade */
     frustums: CSMFrustum[] = []
+    /** Cascade break points in normalized depth [0-1] */
     breaks: number[] = []
+    /** Extended break data for shader uniforms */
     extendedBreaks: (Vector3|Vector2)[] = []
+    /** Generated directional lights for each cascade */
     lights: DirectionalLight[] = []
 
 
-    constructor() {
+    constructor(enabled = true) {
         super()
         this.injectInclude()
-        this._lastEnabled = this.enabled
+        this._lastEnabled = enabled
+        this.enabled = enabled
 
         this.mainFrustum = new CSMFrustum()
     }
@@ -105,6 +159,11 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         this.refreshLights(e)
     }
 
+    /**
+     * Configure shadow parameters for a specific light
+     * @param params - CSM light configuration parameters
+     * @param light - Target light (uses attached light if not specified)
+     */
     setLightParams(params: CSMLightData, light?: DirectionalLight&IObject3D) {
         light = light || this.light
         if (!light) {
@@ -381,7 +440,9 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             this._practicalSplit(cascades, camera.near, far, 0.5, this.breaks)
             break
         case 'custom':
-            this.customSplitsCallback!(cascades, camera.near, far, this.breaks)
+            if (this.customSplitsCallback) {
+                this.customSplitsCallback(cascades, camera.near, far, this.breaks)
+            }
             break
 
         }
@@ -566,8 +627,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             //     return {value: Math.min(this.camera?.far ?? 1000, this.maxFar)}
             // },
         },
-        computeCacheKey: (_) => {
-            // todo need uniforms also here, or just make a integer cache key for the whole plugin
+        computeCacheKey: () => {
             return (this.isDisabled() ? '1' : '0') + this.lights.length + (this.fade ? '1' : '0') + this.light?.uuid
         },
         // shaderExtender: (shader) => {
