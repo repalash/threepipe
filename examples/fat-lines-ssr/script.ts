@@ -31,8 +31,6 @@ async function init() {
         dropzone: true,
     })
 
-    viewer.scene.autoNearFarEnabled = false
-
     GLTFLoader2.UseMeshLines = true
 
     viewer.scene.backgroundColor = new Color(0x333333)

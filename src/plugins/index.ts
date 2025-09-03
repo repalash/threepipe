@@ -76,6 +76,7 @@ export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingG
 
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'
+export {CascadedShadowsPlugin, type CSMLightData, type FrustumVertices, type FrustumParams, CSMFrustum} from './rendering/CascadedShadowsPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'

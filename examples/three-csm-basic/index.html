@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Simplify Modifier Plugin</title>
+    <title>Three CSM Basic Demo (Cascaded Shadow Maps) </title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
@@ -12,12 +12,15 @@
     {
         "imports": {
           "three": "./../../dist/index.mjs",
-          "three/examples/jsm/modifiers/SimplifyModifier.js": "https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.160.1006/examples/jsm/modifiers/SimplifyModifier.js",
           "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+          "three/examples/jsm/csm/CSM.js": "https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.160.1006/examples/jsm/csm/CSM.js",
+          "three/examples/jsm/csm/CSMHelper.js": "https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.160.1006/examples/jsm/csm/CSMHelper.js",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/webgi-plugins": "https://unpkg.com/@threepipe/webgi-plugins@0.5.0/dist/index.mjs",
+          "@threepipe/plugin-geometry-generator": "./../../plugins/geometry-generator/dist/index.mjs",
+          "three-csm": "https://esm.sh/three-csm?external=three"
         }
     }
-
     </script>
     <style id="example-style">
         html, body, #canvas-container, #mcanvas {
