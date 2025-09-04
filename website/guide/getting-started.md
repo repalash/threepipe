@@ -43,11 +43,23 @@ Get started with pre-ready templates with model viewer and plugins that run loca
 <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
 </a>
 
-- **javascript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter">
+- **javascript + plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter">
 <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
 </a>
 
-- **typescript + webgi plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter">
+- **typescript + plugins** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **javascript + r3f** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **typescript + r3f** <a href="https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi-ts?file=package.json&title=Threepipe%20Starter">
+<input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
+</a>
+
+- **nextjs + plugins** <a href="https://stackblitz.com/https://stackblitz.com/edit/threepipe-nextjs-starter?file=app%2Fcomponents%2FThreeViewerComponent.tsx,app%2Fpage.tsx&title=Threepipe%20Next.js%20Starter">
 <input type="image" src="https://developer.stackblitz.com/img/open_in_stackblitz_small.svg" width="140" height="20" style="margin-bottom: -0.3rem; cursor: unset;">
 </a>
 
@@ -206,16 +218,68 @@ Check it in action: [react-tsx-sample](https://threepipe.org/examples/#react-tsx
 
 Other examples in js: [react-js-sample](https://threepipe.org/examples/#react-js-sample/) and jsx: [react-jsx-sample](https://threepipe.org/examples/#react-jsx-sample/)
 
+
 ### NextJs
 
-The best way to use the viewer in nextjs is to wrap it in a custom component.
+The best way to use the viewer in nextjs is to wrap it in a custom component which can then be used in any page.
 
 Here is a sample client side [react](https://react.dev) component with [nextjs](https://nextjs.org) in tsx to render a model with an environment map.
+
+The `'use client'` directive is required to make it a client component.
+In the client component, `threepipe` and any plugins can be imported at the top level normally, and imported using `next/dynamic` at any server side or client side pages in next.js.
 
 ```tsx
 'use client'
 import React from 'react'
-import type {ThreeViewer} from 'threepipe/dist';
+import {ThreeViewer} from 'threepipe';
+
+export default function ThreeViewerComponent({src, env}: {src: string, env: string}) {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
+
+  React.useEffect(() => {
+    if (!canvasRef.current) return
+    const viewer = new ThreeViewer({ canvas: canvasRef.current!, tonemap: false, rgbm: false, msaa: true })
+    viewer.scene.backgroundColor = null
+
+    const envPromise = viewer.setEnvironmentMap(env)
+    const modelPromise = viewer.load(src, {autoScale: true, autoCenter: true})
+
+    Promise.all([envPromise, modelPromise]).then(([envMap, model]) => {
+      console.log('Loaded', model, envMap, viewer)
+    })
+    return () => {if (viewer) viewer.dispose()}
+  }, [src, env])
+
+  return <div><canvas id="three-canvas" style={{
+    width: 800, height: 600,
+    position: 'absolute', transform: 'translate(-50%, -50%)', top: '50%', left: '50%',
+  }} ref={canvasRef}/></div>
+}
+```
+
+Then import and use the component on any page
+
+```tsx
+const ThreeViewer = dynamic(async () => import('./ThreeViewerComponent'), { ssr: false });
+export default function HomePage() {
+  return <ThreeViewer
+    src={"https://sample.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf"}
+    env={"https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"}
+  />
+}
+```
+
+Checkout the [nextjs starter on stackblitz](https://stackblitz.com/edit/threepipe-nextjs-starter) for a complete working using threepipe and several plugins in a nextjs application.
+
+### Dynamic Import
+
+`threepipe` and its plugins can be imported dynamically using js `import()` syntax to reduce the initial bundle size.
+Here is a sample client side [react](https://react.dev) component with [nextjs](https://nextjs.org) in tsx to render a model with an environment map using dynamic import.
+
+```tsx
+'use client'
+import React from 'react'
+import type {ThreeViewer} from 'threepipe';
 
 export default function ThreeViewerComponent({src, env}: {src: string, env: string}) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
@@ -224,7 +288,7 @@ export default function ThreeViewerComponent({src, env}: {src: string, env: stri
     if (!canvasRef.current) return
     let viewer: ThreeViewer;
     (async () => {
-      const { ThreeViewer } = await import('threepipe/dist')
+      const { ThreeViewer } = await import('threepipe')
       viewer = new ThreeViewer({ canvas: canvasRef.current!, tonemap: false, rgbm: false, msaa: true })
       viewer.scene.backgroundColor = null
 
@@ -238,19 +302,19 @@ export default function ThreeViewerComponent({src, env}: {src: string, env: stri
     return () => {if (viewer) viewer.dispose()}
   }, [src, env])
 
-  return <canvas id="three-canvas" style={{
+  return <div><canvas id="three-canvas" style={{
     width: 800, height: 600,
     position: 'absolute', transform: 'translate(-50%, -50%)', top: '50%', left: '50%',
-  }} ref={canvasRef}/>
+  }} ref={canvasRef}/></div>
 }
 ```
 
-The component can simply be used on any page
+The component can simply be used on any page without `next/dynamic` or `ssr: false` since it is already a client component.
 
 ```tsx
 <ThreeViewerComponent
-  src={"https://sample.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf"}
-  env={"https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"}
+    src={"https://sample.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf"}
+    env={"https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"}
 />
 ```
 
