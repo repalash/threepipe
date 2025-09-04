@@ -8,7 +8,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- NA
+- Add [`backgroundColor`](https://threepipe.org/docs/interfaces/ThreeViewerOptions.html#backgroundColor) to `ThreeViewerOptions` to set initial background color of the scene. Note that background map can be set by `load.background` in the options.
+
+### Changed
+
+- Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 
 
 ## [0.2.0] - 2025-09-03

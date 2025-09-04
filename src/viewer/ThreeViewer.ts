@@ -168,6 +168,13 @@ export interface ThreeViewerOptions {
     maxRenderScale?: number
 
     /**
+     * Default Background color of the scene.
+     * To set the background texture/map, use {@link ThreeViewerOptions.load.background} or {@link setBackgroundMap}
+     * @default '#ffffff' (white)
+     */
+    backgroundColor?: string | Color | number | null
+
+    /**
      * Model Root Scale
      * @default 1
      */
@@ -507,7 +514,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.object3dManager = new Object3DManager()
         this._scene = options.rootScene ?? new RootScene(camera, defaultObjectProcessor(this))
         if (this._scene.mainCamera !== camera) this._scene.mainCamera = camera // just in case
-        this._scene.setBackgroundColor('#ffffff')
+        this._scene.setBackgroundColor(options.backgroundColor ?? '#ffffff')
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
         this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))

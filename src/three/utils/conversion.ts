@@ -1,5 +1,9 @@
 import {Color, DataTexture, DataUtils, LinearSRGBColorSpace, RGBAFormat, UnsignedByteType, Vector4} from 'three'
 
+/**
+ * Returns a 1x1 DataTexture from a `Color` object, in `LinearSRGBColorSpace`
+ * @param color
+ */
 export function dataTextureFromColor(color: Color) {
     const dataTexture = new DataTexture(new Uint8Array([Math.floor(color.r * 255), Math.floor(color.g * 255), Math.floor(color.b * 255), 255]), 1, 1, RGBAFormat, UnsignedByteType)
     dataTexture.needsUpdate = true
@@ -7,9 +11,15 @@ export function dataTextureFromColor(color: Color) {
     return dataTexture
 }
 
+/**
+ * Returns a 1x1 DataTexture from a `Vector4` color, in `LinearSRGBColorSpace`.
+ * This can be used to create a solid color with alpha to set on a material or the scene background.
+ * @param color
+ */
 export function dataTextureFromVec4(color: Vector4) {
     const dataTexture = new DataTexture(new Uint8Array([Math.floor(color.x * 255), Math.floor(color.y * 255), Math.floor(color.z * 255), Math.floor(color.w * 255)]), 1, 1, RGBAFormat, UnsignedByteType)
     dataTexture.needsUpdate = true
+    dataTexture.colorSpace = LinearSRGBColorSpace
     return dataTexture
 }
 
