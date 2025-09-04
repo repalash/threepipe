@@ -225,6 +225,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             const light = this.lights[i]
 
             light.intensity = this.light.intensity
+            light.color = this.light.color
             light.castShadow = true
             light.shadow.mapSize.width = data.shadowMapSize
             light.shadow.mapSize.height = data.shadowMapSize
