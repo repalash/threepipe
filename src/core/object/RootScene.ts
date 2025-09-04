@@ -40,21 +40,58 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     readonly modelRoot: IObject3D
     // readonly lightsRoot: IObject3D // todo this can be added before modelRoot to add extra lights before the model root.
 
-    @uiColor<RootScene>('Background Color', (s)=>({
-        onChange: ()=>s?.onBackgroundChange(),
-    }))
     @serialize() @onChange2(RootScene.prototype.onBackgroundChange)
         backgroundColor: Color | null = null // read in three.js WebGLBackground
 
+    @uiColor<RootScene>('Background Color', (s)=>({
+        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined,
+    }))
+    protected get _backgroundColorUi() {
+        return '#' + (this.backgroundColor?.getHexString() ?? '000000')
+    }
+
+    protected set _backgroundColorUi(v) {
+        this.setBackgroundColor(v)
+    }
+
     @onChange3(RootScene.prototype.onBackgroundChange)
-    @serialize() @uiImage('Background Image')
+    @serialize() @uiImage<RootScene>('Background Image', (s)=>({
+        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined,
+    }))
         background: null | Color | ITexture | 'environment' = null
+
     /**
-     * The intensity for the environment light.
+     * Toggle the background between color and transparent.
+     */
+    @uiButton<RootScene>(undefined, (s)=>({
+        label: ()=>!s.backgroundColor ? 'Set Color Background' : 'Set Transparent BG',
+    }))
+    toggleTransparentBackground() {
+        if (!this.backgroundColor) {
+            this.backgroundColor = new Color(0xffffff) // todo save last color and image?
+        } else {
+            this.background = null
+            this.backgroundColor = null
+        }
+        this.refreshUi?.()
+        this.setDirty()
+    }
+
+    /**
+     * The intensity for the background color and map.
      */
     @serialize() @onChange3(RootScene.prototype.setDirty)
     @uiSlider('Background Intensity', [0, 10], 0.01)
         backgroundIntensity = 1
+
+    /**
+     * Enable/Disable tonemapping selectively for the background.
+     * Note - This requires both TonemapPlugin and GBufferPlugin or DepthBufferPlugin to be in the viewer to work.
+     */
+    @uiToggle('Background Tonemap'/* , (e)=>({e._viewer?.renderManager.gbufferTarget})*/) // todo let scene access the viewer
+    @onChange3(RootScene.prototype.setDirty)
+    @serialize()
+        backgroundTonemap = true
 
     /**
      * The default environment map used when rendering materials in the scene
@@ -330,6 +367,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     /**
      * Sets the backgroundColor property from a string, number or Color, and updates the scene.
+     * Note that when setting a `Color` object, it will be cloned.
      * @param color
      */
     setBackgroundColor(color: string | number | Color | null) {

@@ -22,7 +22,6 @@ import TonemapShader from './shaders/TonemapPlugin.pars.glsl'
 import TonemapShaderPatch from './shaders/TonemapPlugin.patch.glsl'
 import {AScreenPassExtensionPlugin} from './AScreenPassExtensionPlugin'
 import {GBufferUpdaterContext} from '../pipeline/GBufferMaterial'
-import {matDefineBool} from '../../three/utils/decorators'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const Uncharted2Tonemapping: ToneMapping = CustomToneMapping
@@ -46,7 +45,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
     } as const
 
     readonly extraDefines = {
-        ['TONEMAP_BACKGROUND']: '1',
+        ['TONEMAP_BACKGROUND']: ()=>this.tonemapBackground === false || this._viewer?.scene.backgroundTonemap === false ? '0' : '1',
     } as const
 
     @serialize()
@@ -68,11 +67,15 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
     @onChange(TonemapPlugin.prototype.setDirty)
     @serialize() toneMapping: ToneMapping = ACESFilmicToneMapping
 
-    @uiToggle('Tonemap Background', (t: TonemapPlugin)=>({hidden: ()=>!t._viewer?.renderManager.gbufferTarget}))
-    @matDefineBool('TONEMAP_BACKGROUND', undefined, true, TonemapPlugin.prototype.setDirty)
+    /**
+     * Global toggle to apply tonemapping on the background.
+     * The tonemapping is not applied if either this or {@link RootScene.backgroundTonemap} is false.
+     */
+    @onChange(TonemapPlugin.prototype.setDirty)
     @serialize() tonemapBackground = true
 
     // todo handle legacy deserialize
+    // moved to ScreenPass.clipBackground
     // @onChange(TonemapPlugin.prototype.setDirty)
     // @uiToggle('Clip Background')
     // @serialize() clipBackground = false
