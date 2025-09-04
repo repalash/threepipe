@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.5.4] - 2025-09-04
+
+### Changed
+
+- Update minimum version of `@threepipe/plugin-tweakpane` `peerDependency` to `0.8.4`
+
 ## [0.5.3] - 2025-09-03
 
 ### Changed
