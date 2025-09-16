@@ -10,6 +10,7 @@ export {UnlitLineMaterial, LineBasicMaterial2} from './material/UnlitLineMateria
 export {LineMaterial2, MeshLineMaterial} from './material/LineMaterial2'
 export {LegacyPhongMaterial} from './material/LegacyPhongMaterial'
 export {Object3D2} from './object/Object3D2'
+export {Group2} from './object/Group2'
 export {Mesh2} from './object/Mesh2'
 export {InstancedMesh2} from './object/InstancedMesh2'
 export {MeshLine} from './object/MeshLine'
