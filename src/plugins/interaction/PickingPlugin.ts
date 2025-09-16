@@ -222,6 +222,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, true)
     }
 
+    private _autoNearFarDisabled = false
     private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {
         if (!this._viewer) return
         this.dispatchEvent(e)
@@ -234,7 +235,20 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             else frameFade.enable(this)
         }
 
-        this._viewer.scene.autoNearFarEnabled = !selected // for widgets etc, this can be removed when they are rendered in a separate pass
+        // for widgets etc, this can be removed when they are rendered in a separate pass
+        if (selected) {
+            if (this._viewer.scene.autoNearFarEnabled) {
+                this._autoNearFarDisabled = true
+                this._viewer.scene.autoNearFarEnabled = false
+            } else {
+                this._autoNearFarDisabled = false
+            }
+        } else {
+            if (this._autoNearFarDisabled) {
+                this._viewer.scene.autoNearFarEnabled = true
+                this._autoNearFarDisabled = false
+            }
+        }
 
         if (this._pickUi) {
             const ui = this.uiConfig

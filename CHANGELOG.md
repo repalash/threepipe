@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 - Remove `uiconfig` for `tonemapBackground` in `TonemapPlugin` in favor of `backgroundTonemap` UI in `RootScene`.
+- Better toggle for `autoNearFarEnabled` in `PickingPlugin`
 
 ### Fixes
 

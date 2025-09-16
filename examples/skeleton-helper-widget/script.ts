@@ -16,7 +16,11 @@ async function init() {
         msaa: true,
         renderScale: 'auto',
         plugins: [Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin, GLTFAnimationPlugin],
-        dropzone: false,
+        dropzone: {
+            addOptions: {
+                clearSceneObjects: true,
+            },
+        },
     })
 
     await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
