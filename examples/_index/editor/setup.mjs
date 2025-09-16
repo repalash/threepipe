@@ -143,7 +143,7 @@ export function setupCodeEditor (iframe) {
             await model._refreshingJs
             model._refreshingJs = undefined
             if(!changed) return
-            const onChange = exampleState[example]?.onChange
+            const onChange = exampleState[example] ? exampleState[example].onChange : undefined
             if(onChange && model.compiledContent !== undefined) {
                 onChange(model, uris, model.compiledContent ?? model.getValue(), first)
             }
@@ -277,6 +277,12 @@ export function setupCodeEditor (iframe) {
                     baseTag = parsedHtml.createElement('base');
                     parsedHtml.head.prepend(baseTag);
                 }
+                const url = new URL(window.location.href)
+                url.pathname += example + '/';
+                url.hash = ''
+                url.search = ''
+                baseTag.href = url.href; // or any specific base URL you want
+
                 const importMap = parsedHtml.querySelector('script[type="importmap"]');
                 if (importMap) {
                     const imports = JSON.parse(importMap.textContent || '{}').imports || {};
@@ -296,21 +302,15 @@ export function setupCodeEditor (iframe) {
                 }
                 // todo
 
-                const url = new URL(window.location.href)
-                url.pathname += example + '/';
-                url.hash = ''
-                url.search = ''
-                baseTag.href = url.href; // or any specific base URL you want
-
                 if(!state.changed) {
                     state.changed = true
                     if(exampleId2 !== example) {
                         createNew(exampleId2, example, parsedHtml.documentElement.outerHTML);
                     }else{
-                        saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
+                        saveExample && saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
                     }
                 }else {
-                    saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
+                    saveExample && saveExample(exampleId2, parsedHtml.documentElement.outerHTML);
                 }
 
                 // const iframe = document.querySelector('.codebox iframe');
@@ -515,7 +515,7 @@ function simpleDrag (el, onDrag, onStop, direction) {
             const top = el.style.top ? parseInt(el.style.top) : 0;
             startX = e.pageX - left;
             startY = e.pageY - top;
-            window.addEventListener('mousemove', move);
+            window.addEventListener('pointermove', move);
         }
         else {
             throw new Error('Your target must be an html element');
@@ -525,18 +525,18 @@ function simpleDrag (el, onDrag, onStop, direction) {
     function mouseUp (e) {
         if (true === dragging) {
             dragging = false;
-            window.removeEventListener('mousemove', move);
+            window.removeEventListener('pointermove', move);
             onStop && onStop(el, e.pageX, startX, e.pageY, startY);
         }
     }
 
-    el.addEventListener('mousedown', startDragging);
-    window.addEventListener('mouseup', mouseUp);
+    el.addEventListener('pointerdown', startDragging);
+    window.addEventListener('pointerup', mouseUp);
 
     return ()=>{
-        el.removeEventListener('mousedown', startDragging);
-        window.removeEventListener('mouseup', mouseUp);
-        window.removeEventListener('mousemove', move);
+        el.removeEventListener('pointerdown', startDragging);
+        window.removeEventListener('pointerup', mouseUp);
+        window.removeEventListener('pointermove', move);
     }
 }
 
