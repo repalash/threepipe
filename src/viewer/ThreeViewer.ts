@@ -311,11 +311,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @type {boolean}
      */
     enabled = true
+
     /**
      * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
-
     @uiToggle('Enable Rendering', {tags: ['advanced']})
         renderEnabled = true // todo rename to animation loop enabled?
 

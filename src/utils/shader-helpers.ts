@@ -9,16 +9,18 @@ const errorStr1 = 'shaderReplaceString: str must be passed if str is a RegExp an
  * @param prepend - prepend new string to old string
  * @param append - append new string to old string
  * @param _str - optional string to use for replacement. This must be passed if str is a RegExp and append/prepend is true
+ * @param warn - log an error in the console when unable to find the find string
  */
 export function shaderReplaceString(shader: string, str: string|RegExp, newStr: string, {
     replaceAll = false,
     prepend = false,
     append = false,
     str: _str = undefined as string|undefined,
+    warn = true,
 } = {}) {
     // todo: use safeReplaceString from ts-browser-helpers
     const isStr = typeof str === 'string'
-    if (warnEnabled /* && ThreeViewer.ViewerDebugging */) {
+    if (warn && warnEnabled /* && ThreeViewer.ViewerDebugging */) {
         if (isStr ? !shader.includes(str) : !str.test(shader)) {
             console.error(`${str} not found in shader`)
             return shader

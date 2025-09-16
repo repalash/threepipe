@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Add [`backgroundColor`](https://threepipe.org/docs/interfaces/ThreeViewerOptions.html#backgroundColor) to `ThreeViewerOptions` to set initial background color of the scene. Note that background map can be set by `load.background` in the options.
 - Add `uiconfig` in `RootScene` to toggle transparent background.
 - Add `backgroundTonemap` in `RootScene` to toggle tonemapping of background color and map.
+- Add `Group2` class, use in `Object3DGeneratorPlugin` when creating empty object.
+- Add `warn` parameter to `shaderReplaceString`
 
 ### Changed
 

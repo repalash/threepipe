@@ -684,6 +684,8 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
 
     // todo in three.js r166 update, add shadow intensity in shader calls
     injectInclude() {
+        // for hot reload etc
+        if (ShaderChunk.lights_fragment_begin.includes('defined( USE_CSM ) && defined( CSM_CASCADES )')) return
 
         // ShaderChunk.lights_fragment_begin = CSMShader.lights_fragment_begin
         ShaderChunk.lights_fragment_begin = shaderReplaceString(
