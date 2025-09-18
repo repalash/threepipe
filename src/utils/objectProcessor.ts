@@ -23,6 +23,7 @@ export function defaultObjectProcessor(viewerF: ValOrFunc<ThreeViewer|undefined>
     }
 }
 
+// todo move to object3dmanager
 export function addModelProcess(obj: IObject3D, {
     autoCenter = false, centerGeometries = false, centerGeometriesKeepPosition = true, autoScale = false, autoScaleRadius = 2., license,
 }: AddModelOptions) {

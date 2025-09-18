@@ -13,6 +13,7 @@ import {
     UnlitLineMaterial,
     UnlitMaterial,
     upgradeTexture,
+    ILight,
 } from '../core'
 import {IObjectExtension} from '../core/IObject'
 import {Event, Event2, EventDispatcher, VideoTexture} from 'three'
@@ -35,6 +36,8 @@ export interface Object3DManagerEventMap {
     'geometryRemove': {geometry: IGeometry}
     'textureAdd': {texture: ITexture}
     'textureRemove': {texture: ITexture}
+    'lightAdd': {light: ILight}
+    'lightRemove': {light: ILight}
     'dispose': object
 }
 
@@ -49,6 +52,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     private _geometries = new Set<IGeometry>()
     private _textures = new Set<ITexture>()
     private _videos = new Set<VideoTexture & ITexture>()
+    private _lights = new Set<ILight>()
 
     getObjects() {
         return [...this._objects]
@@ -67,6 +71,9 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     }
     getVideos() {
         return [...this._videos]
+    }
+    getLights() {
+        return [...this._lights]
     }
 
     autoDisposeTextures = true
@@ -168,6 +175,10 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             }
         }
         this.dispatchEvent({type: 'objectAdd', object: obj})
+        if (obj.isLight) {
+            this._lights.add(obj as ILight)
+            this.dispatchEvent({type: 'lightAdd', light: obj as ILight})
+        }
     }
 
     unregisterObject(obj: IObject3D) {
@@ -186,6 +197,10 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             obj.dispose(false)
         }
         this.dispatchEvent({type: 'objectRemove', object: obj})
+        if (obj.isLight && this._lights.has(obj as ILight)) {
+            this._lights.delete(obj as ILight)
+            this.dispatchEvent({type: 'lightRemove', light: obj as ILight})
+        }
         return true
 
         // todo - extensions are not removed from the object, so they can be reused later
