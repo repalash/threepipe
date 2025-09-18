@@ -2,15 +2,30 @@ import {AmbientLight, Color, ColorRepresentation} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiFolderContainer, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiSlider, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
+import {objectActionsUiConfig} from '../object/IObjectUi.ts'
 
-@uiFolderContainer('Ambient Light')
+/**
+ * Extension of three.js AmbientLight with additional properties for serialization and UI
+ * Ambient light globally illuminates all objects in the scene equally.
+ *
+ * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
+ *
+ * @category Lights
+ */
 export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    declare uiConfig: UiObjectConfig
+    uiConfig = {
+        type: 'folder',
+        label: 'Ambient Light',
+        children: [
+            ...generateUiConfig(this),
+            ...objectActionsUiConfig.call(this),
+        ],
+    }
     readonly isAmbientLight2 = true
 
     @uiToggle('Enabled')

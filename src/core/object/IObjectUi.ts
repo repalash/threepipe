@@ -201,40 +201,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     return this.pivotToBoundsCenter?.(true) // return value is the undo function
                 },
             },
-            {
-                type: 'button',
-                label: 'Duplicate Object',
-                tags: ['context-menu'],
-                value: async()=>{
-                    const parent = this.parent
-                    const clone = this.clone(true) as IObject3D
-                    clone.name = this.name + ' (copy)'
-                    return {
-                        action: ()=>{
-                            if (parent && !clone.parent)
-                                parent.add(clone) // todo same index?
-                        },
-                        undo: ()=>{
-                            if (clone.parent === parent)
-                                clone.removeFromParent()
-                        },
-                    }
-                },
-            },
-            {
-                type: 'button',
-                label: 'Delete Object',
-                tags: ['context-menu'],
-                value: async()=>{
-                    const res = await ThreeViewer.Dialog.confirm('Delete Object: Are you sure you want to delete this object?')
-                    if (!res) return
-                    const parent = this.parent
-                    this.dispose(true)
-                    return ()=>{ // undo
-                        if (parent) parent.add(this)
-                    }
-                },
-            },
+            ...objectActionsUiConfig.call(this),
             {
                 type: 'folder',
                 label: 'Rotate model',
@@ -377,4 +344,41 @@ export function objectExtensionsUiConfig(this: IObject3D) {
         if (!this.__objExtUiConfigs[v.uuid]) this.__objExtUiConfigs[v.uuid] = v.getUiConfig ? v.getUiConfig(this, this.uiConfig?.uiRefresh) : undefined
         return this.__objExtUiConfigs[v.uuid]?.flatMap(m=>getOrCall(m, parent)) // todo use uiconfigmethods resolve children
     }).filter(v => v)
+}
+
+export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
+    return [{
+        type: 'button',
+        label: 'Duplicate Object',
+        tags: ['context-menu'],
+        value: async()=>{
+            const parent = this.parent
+            const clone = this.clone(true) as IObject3D
+            clone.name = this.name + ' (copy)'
+            return {
+                action: ()=>{
+                    if (parent && !clone.parent)
+                        parent.add(clone) // todo same index?
+                },
+                undo: ()=>{
+                    if (clone.parent === parent)
+                        clone.removeFromParent()
+                },
+            }
+        },
+    },
+    {
+        type: 'button',
+        label: 'Delete Object',
+        tags: ['context-menu'],
+        value: async()=>{
+            const res = await ThreeViewer.Dialog.confirm('Delete Object: Are you sure you want to delete this object?')
+            if (!res) return
+            const parent = this.parent
+            this.dispose(true)
+            return ()=>{ // undo
+                if (parent) parent.add(this)
+            }
+        },
+    }]
 }

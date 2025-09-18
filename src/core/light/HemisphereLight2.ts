@@ -2,15 +2,30 @@ import {Color, ColorRepresentation, HemisphereLight, Vector3} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiFolderContainer, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
+import {objectActionsUiConfig} from '../object/IObjectUi.ts'
 
-@uiFolderContainer('Hemisphere Light')
+/**
+ * Extension of three.js HemisphereLight with additional properties for serialization and UI
+ * A hemisphere light is positioned directly above the scene and emits light that decreases from the sky color to the ground color.
+ *
+ * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
+ *
+ * @category Lights
+ */
 export class HemisphereLight2 extends HemisphereLight implements ILight<undefined> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    declare uiConfig: UiObjectConfig
+    uiConfig = {
+        type: 'folder',
+        label: 'Hemisphere Light',
+        children: [
+            ...generateUiConfig(this),
+            ...objectActionsUiConfig.call(this),
+        ],
+    }
     readonly isHemisphereLight2 = true
 
     @uiToggle('Enabled')

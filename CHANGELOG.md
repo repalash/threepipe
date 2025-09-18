@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - Add `backgroundTonemap` in `RootScene` to toggle tonemapping of background color and map.
 - Add `Group2` class, use in `Object3DGeneratorPlugin` when creating empty object.
 - Add `warn` parameter to `shaderReplaceString`
+- Add `objectActionsUiConfig` to extended light classes (`AmbientLight2`, `DirectionalLight2`, `HemisphereLight2`, `PointLight2`, `RectAreaLight2`, `SpotLight2`) for consistent UI actions across light types.
 
 ### Changed
 

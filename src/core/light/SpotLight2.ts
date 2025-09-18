@@ -2,21 +2,31 @@ import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector2, 
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiFolderContainer, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
+import {objectActionsUiConfig} from '../object/IObjectUi.ts'
 
 /**
  * Extension of three.js SpotLight with additional properties for serialization and UI
+ * A spot light emits light from a single point in one direction, along a cone that increases in size the further from the light it gets.
  *
  * Note - gltf serialization is handled by {@link GLTFLightExtrasExtension}
+ *
+ * @category Lights
  */
-@uiFolderContainer('Spot Light')
 export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig: UiObjectConfig
+    uiConfig = {
+        type: 'folder',
+        label: 'Spot Light',
+        children: [
+            ...generateUiConfig(this),
+            ...objectActionsUiConfig.call(this),
+        ],
+    }
     readonly isSpotLight2 = true
 
     @uiToggle('Enabled')

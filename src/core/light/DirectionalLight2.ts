@@ -2,9 +2,10 @@ import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Eu
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {uiColor, uiFolderContainer, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiNumber, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange2, onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
+import {objectActionsUiConfig} from '../object/IObjectUi.ts'
 
 /**
  * Extension of three.js DirectionalLight with additional properties for serialization and UI
@@ -14,13 +15,18 @@ import {bindToValue} from '../../three'
  *
  * @category Lights
  */
-// todo: add Light section in the readme detailing these ...2 lights
-@uiFolderContainer('Directional Light')
 export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    declare uiConfig: UiObjectConfig
+    uiConfig = {
+        type: 'folder',
+        label: 'Directional Light',
+        children: [
+            ...generateUiConfig(this),
+            ...objectActionsUiConfig.call(this),
+        ],
+    }
     readonly isDirectionalLight2 = true
 
     @uiToggle('Enabled')
