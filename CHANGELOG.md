@@ -15,16 +15,21 @@ All notable changes to this project will be documented in this file.
 - Add `warn` parameter to `shaderReplaceString`
 - Add `objectActionsUiConfig` to extended light classes (`AmbientLight2`, `DirectionalLight2`, `HemisphereLight2`, `PointLight2`, `RectAreaLight2`, `SpotLight2`) for consistent UI actions across light types.
 - Dispatch `lightAdd`, `lightRemove` events, and track all lights in `Object3DManager`, add function `getLights`.
+- Add `mapMode` to `ContactShadowGroundPlugin` (Values = `'alphaMap' | 'aoMap' | 'map'`), to control which slot the depth map is assigned to in the material. Default is `aoMap`.
+- Add `refreshAttachedLight` to `CascadedShadowsPlugin` to be able to manually refresh the auto attached light.
 
 ### Changed
 
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 - Remove `uiconfig` for `tonemapBackground` in `TonemapPlugin` in favor of `backgroundTonemap` UI in `RootScene`.
 - Better toggle for `autoNearFarEnabled` in `PickingPlugin`
+- Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin. 
+  - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
 
 ### Fixes
 
 - Sync `color` with the attached light in `CascadedShadowsPlugin`.
+- Improve `attachedLight` handling in `CascadedShadowsPlugin`, to avoid issues when the light is added without `castShadow` flag.
 
 ## [0.2.0] - 2025-09-03
 

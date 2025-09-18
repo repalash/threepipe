@@ -1,5 +1,5 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {generateUiConfig, uiDropdown, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiButton, uiDropdown, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {MaterialExtension} from '../../materials'
 import {Box3, DirectionalLight, Group, MathUtils, Matrix4, Object3D, ShaderChunk, Vector2, Vector3} from 'three'
 import {onChange, serialize} from 'ts-browser-helpers'
@@ -105,7 +105,8 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         mode: 'uniform'|'logarithmic'|'practical'|'custom' = 'practical'
 
     /**
-     * Automatically attach to first found directional light in the scene if none is attached yet.
+     * Automatically attach to first found directional light in the scene that casts shadow, if none is attached yet.
+     * Call {@link refreshAttachedLight} to manually trigger light search.
      */
     @uiToggle()
     @serialize()
@@ -225,7 +226,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             const light = this.lights[i]
 
             light.intensity = this.light.intensity
-            light.color = this.light.color
+            light.color.set(this.light.color)
             light.castShadow = true
             light.shadow.mapSize.width = data.shadowMapSize
             light.shadow.mapSize.height = data.shadowMapSize
@@ -322,9 +323,9 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         this.camera = viewer.scene.mainCamera
         viewer.materialManager.registerMaterialExtension(this.materialExtension)
 
-        viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
-        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
-        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.addEventListener('lightAdd', this.refreshAttachedLight)
+        viewer.object3dManager.addEventListener('lightRemove', this.refreshAttachedLight)
+        this.refreshAttachedLight()
 
         viewer.scene.addObject(this.parent, {addToRoot: true, indexInParent: 0}) // we need to be before modelRoot so other lights dont interfere in the shader
         // this.parent = viewer.scene
@@ -337,9 +338,13 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         viewer.renderManager.removeEventListener('resize', this.cameraNeedsUpdate)
         viewer.materialManager.unregisterMaterialExtension(this.materialExtension)
 
-        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
-        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
-        viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
+        viewer.object3dManager.removeEventListener('lightAdd', this.refreshAttachedLight)
+        viewer.object3dManager.removeEventListener('lightRemove', this.refreshAttachedLight)
+        this.refreshAttachedLight()
+        if (this.light && this._lightAutoAttached) {
+            this.light = undefined
+            this._lightAutoAttached = false
+        }
 
         for (const light of this.lights) {
             // todo dispose shadowmaps
@@ -562,21 +567,28 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
     }
 
     private _lightAutoAttached = false
-    private _objectAdd = (e: {object?: IObject3D})=>{
-        if (this.light || !this.attachToFirstLight) return
-        const obj = e.object
-        if (!obj?.isDirectionalLight || !obj.castShadow) return
-        const light = obj as DirectionalLight2
-        this.light = light
-        this._lightAutoAttached = true
-    }
 
-    private _objectRemove = (e: {object?: IObject3D})=>{
-        if (!this._lightAutoAttached || !this.light) return
-        const obj = e.object as any
-        if (obj !== this.light) return
-        this.light = undefined
-        this._lightAutoAttached = false
+    /**
+     * Finds and attaches to the first directional light in the scene that casts shadows
+     */
+    @uiButton() refreshAttachedLight = () => {
+        if (this.light && this._lightAutoAttached) {
+            if (!this.light.parent) {
+                this.light = undefined
+                this._lightAutoAttached = false
+            }
+            return
+        }
+        if (!this.attachToFirstLight) return
+        const objects = this._viewer?.object3dManager.getLights() || []
+        for (const obj of objects) {
+            if (obj.isDirectionalLight && obj.castShadow) {
+                if (obj as any === this.light) return
+                this.light = obj as DirectionalLight2
+                this._lightAutoAttached = true
+                return
+            }
+        }
     }
 
     private _sversion = 0

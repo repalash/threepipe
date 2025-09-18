@@ -5,7 +5,7 @@ import {onChange, onChange2, serialize} from 'ts-browser-helpers'
 import {bindToValue, OrbitControls3} from '../../three'
 import {uiConfig, uiFolderContainer, uiNumber, uiToggle} from 'uiconfig.js'
 
-@uiFolderContainer('Ground')
+@uiFolderContainer('Ground Plane')
 export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEventMap> extends AViewerPluginSync<TE> {
     public static readonly PluginType: string = 'BaseGroundPlugin'
     public static readonly OldPluginType: string = 'Ground'

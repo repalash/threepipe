@@ -17,12 +17,12 @@ import {BaseGroundPlugin} from '../base/BaseGroundPlugin'
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {IRenderTarget} from '../../rendering'
-import {uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiDropdown, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {HVBlurHelper} from '../../three/utils/HVBlurHelper'
 import {shaderReplaceString} from '../../utils'
 import {PhysicalMaterial} from '../../core'
 
-@uiPanelContainer('Contact Shadow Ground')
+@uiPanelContainer('Ground Plane (Contact Shadows)')
 export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     static readonly PluginType = 'ContactShadowGroundPlugin'
 
@@ -45,6 +45,10 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     @onChange(ContactShadowGroundPlugin.prototype._setDirty)
         blurAmount = 1
 
+    @onChange(ContactShadowGroundPlugin.prototype._refreshMaterial)
+    @uiDropdown('Map Mode', ['aoMap', 'map', 'alphaMap'])
+    @serialize() mapMode: 'aoMap' | 'map' | 'alphaMap' = 'aoMap'
+
     shadowCamera = new OrthographicCamera(-1, 1, 1, -1, 0.001, this.shadowHeight)
     private _depthPass?: GBufferRenderPass<'contactShadowGround', WebGLRenderTarget|undefined>
     private _blurHelper?: HVBlurHelper
@@ -65,7 +69,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
             depthBuffer: true,
             minFilter: LinearFilter,
             magFilter: LinearFilter,
-            // isAntialiased: this._viewer.isAntialiased,
+            // samples?
         })
         target.texture.name = 'groundContactDepthTexture'
 
@@ -76,16 +80,16 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
             transparent: false,
             blending: NoBlending,
         })
+        material.opacity = -1. // using opacity uniform to toggle for aomap/alphamap to flip the color in the shader
         material.onBeforeCompile = (shader) => {
-            shader.uniforms.opacity.value = 1.
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
                 'gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );',
-                'gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), 1.0 );',
+                'gl_FragColor = vec4( opacity > 0. ? vec3( 1.0 - fragCoordZ ) : vec3( fragCoordZ ), 1.0 );',
                 // 'gl_FragColor = vec4( vec3( 0.0 ), ( 1.0 - fragCoordZ ) * darkness );',
             )
         }
 
-        this._depthPass = new GBufferRenderPass('contactShadowGround', target, material, new Color(0, 0, 0), 0)
+        this._depthPass = new GBufferRenderPass('contactShadowGround', target, material, new Color(1, 1, 1), 1)
         this._blurHelper = new HVBlurHelper(viewer)
         super.onAdded(viewer)
     }
@@ -166,6 +170,9 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
     protected _removeMaterial() {
         if (!this._material) return
         this._material.alphaMap = null
+        this._material.aoMap = null
+        this._material.map = null
+        if (this._material.userData.ssaoDisabled) delete this._material.userData.ssaoDisabled
         if (this._material.userData.ssreflDisabled) delete this._material.userData.ssreflDisabled
         if (this._material.userData.ssreflNonPhysical) delete this._material.userData.ssreflNonPhysical
         super._removeMaterial()
@@ -179,8 +186,17 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
                 this._material.alphaMap = null
                 this._material.setDirty()
             }
+            if (this._material?.aoMap === this._depthTex) {
+                this._material.aoMap = null
+                this._material.setDirty()
+            }
+            if (this._material?.map === this._depthTex) {
+                this._material.map = null
+                this._material.setDirty()
+            }
             if (this._material?.userData.__csgpParamsSet) {
                 delete this._material.userData.__csgpParamsSet
+                delete this._material.userData.ssaoDisabled
                 delete this._material.userData.ssreflDisabled
                 delete this._material.userData.ssreflNonPhysical
             }
@@ -195,7 +211,7 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         const mat = super._createMaterial(material)
         mat.roughness = 1
         mat.metalness = 0
-        mat.color.set(0x111111)
+        mat.color.set(0xffffff)
         mat.transparent = true
         // mat.userData.inverseAlphaMap = false // this must be false, if getting inverted colors, check clear color of gbuffer render pass.
         return mat
@@ -206,11 +222,26 @@ export class ContactShadowGroundPlugin extends BaseGroundPlugin {
         const isNewMaterial = super._refreshMaterial()
         if (!this._material) return isNewMaterial
         if (this.contactShadows) {
-            this._material.userData.ssreflDisabled = true
+            this._material.userData.ssaoDisabled = this.mapMode === 'aoMap'
+            this._material.userData.ssreflDisabled = this.mapMode === 'alphaMap'
             this._material.userData.ssreflNonPhysical = false
             this._material.userData.__csgpParamsSet = true
-            this._material.alphaMap = this._depthTex || null
+            if (this._material.alphaMap === this._depthTex) {
+                this._material.alphaMap = null
+            }
+            if (this._material.aoMap === this._depthTex) {
+                this._material.aoMap = null
+            }
+            if (this._material.map === this._depthTex) {
+                this._material.map = null
+            }
+            this._material[this.mapMode] = this._depthTex
             this._material.setDirty()
+            if (this._depthPass) {
+                this._depthPass.clearColor!.set(this.mapMode === 'aoMap' ? new Color(1, 1, 1) : new Color(0, 0, 0))
+                this._depthPass.clearAlpha = this.mapMode === 'aoMap' ? 1 : 0
+                this._depthPass.overrideMaterial!.opacity = this.mapMode === 'aoMap' ? -1 : 1
+            }
         }
         return isNewMaterial
     }
