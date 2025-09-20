@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Add `mapMode` to `ContactShadowGroundPlugin` (Values = `'alphaMap' | 'aoMap' | 'map'`), to control which slot the depth map is assigned to in the material. Default is `aoMap`.
 - Add `refreshAttachedLight` to `CascadedShadowsPlugin` to be able to manually refresh the auto attached light.
 - Add `near`, `far`, `controlsMode` settings to `makeICameraCommonUiConfig`
+- Add example - [gltf-export](https://threepipe.org/examples/#gltf-export/) - Example showing the use of `viewer.export` to export a glTF(JSON) file with and without embedded assets.
 
 ### Changed
 
@@ -28,12 +29,13 @@ All notable changes to this project will be documented in this file.
 - Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin. 
   - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
 - Make `controlsCtors` public readonly in `ICamera`
-- Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
 
 ### Fixes
 
 - Sync `color` with the attached light in `CascadedShadowsPlugin`.
 - Improve `attachedLight` handling in `CascadedShadowsPlugin`, to avoid issues when the light is added without `castShadow` flag.
+- Use `exportExt` when exporting models in AssetExporter
+- Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
 
 ## [0.2.0] - 2025-09-03
 

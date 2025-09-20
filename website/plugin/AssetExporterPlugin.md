@@ -7,6 +7,7 @@ next:
     text: 'FileTransferPlugin'
     link: './FileTransferPlugin'
 
+aside: false
 ---
 
 # AssetExporterPlugin
@@ -16,6 +17,8 @@ next:
 [Example](https://threepipe.org/examples/#asset-exporter-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/export/AssetExporterPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/AssetExporterPlugin.html)
+
+<iframe src="https://threepipe.org/examples/asset-exporter-plugin/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Asset Exporter Plugin Example"></iframe>
 
 Asset Exporter Plugin provides options and methods to export the scene, object GLB or Viewer Config.
 All the functionality is available in the viewer(and `AssetExporter`) directly, this plugin only provides an ui-config and maintains state of the options which is saved as plugin configuration along with glb/vjson file

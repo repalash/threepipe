@@ -18,6 +18,12 @@ AssetManager internally uses [AssetExporter](https://threepipe.org/docs/classes/
 AssetExporter includes some basic exporters for glb, exr, textures,
 and materials and a system to register exporters for different file types with plugins or custom exporters.
 
+## Asset Exporter Plugin
+
+Threepipe provides a plugin [AssetExporterPlugin](../plugin/AssetExporterPlugin) that adds support for exporting assets from the UI (models and configuration) along with defaults and support for compression and other plugins.
+
+<iframe src="https://threepipe.org/examples/asset-exporter-plugin/" style="width:100%;height:600px;border:none;" loading="lazy" title="Threepipe Asset Exporter Plugin Example"></iframe>
+
 ## Exporting 3D models
 
 Export the root scene as glb
@@ -40,7 +46,7 @@ const glb: Blob = await viewer.export(object, {
 downloadBlob(glb, 'object.glb')
 ```
 
-Check the example [glb-export](https://threepipe.org/examples/#glb-export/) to see a demo.
+Check the examples [glb-export](https://threepipe.org/examples/#glb-export/), [gltf-export](https://threepipe.org/examples/#gltf-export/) to see a demo.
 
 ::: tip DRACO compression
 
