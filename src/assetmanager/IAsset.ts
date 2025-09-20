@@ -16,9 +16,20 @@ export interface IAsset {
     path: string;
     file?: IFile,
     // variants?: IAssetID[],
+
+    /**
+     * @internal
+     */
     preImportedRaw?: Promise<ImportResult | ImportResult[] | undefined> // todo type
+    /**
+     * @internal
+     */
     preImported?: ImportResult[] // todo type
 
+    /**
+     * @internal - serialized options for internal caching
+     */
+    _options?: string
     [id: string]: any
 }
 

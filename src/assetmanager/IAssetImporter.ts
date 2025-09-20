@@ -75,6 +75,8 @@ export interface IImportResultUserData{
      * Cached source blob for the asset
      */
     __sourceBlob?: IFile
+
+    [key: string]: any
 }
 
 export interface ProcessRawOptions {

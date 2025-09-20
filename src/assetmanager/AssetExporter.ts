@@ -94,10 +94,10 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             }
             if (processed.blob) res = processed.blob
             else {
-                const parser = this._getWriter(ext)
+                const writer = this._getWriter(ext)
 
                 this.dispatchEvent({type: 'exportFile', obj, state:'exporting', exportOptions: options})
-                res = await parser.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
+                res = await writer.parseAsync(processed.obj, {exportExt: processed.ext ?? ext, ...options}) as BlobExt
                 res.ext = processed.ext
             }
 
@@ -120,11 +120,11 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         const exporter = this.exporters.find(e => e.ext.includes(ext))
         if (!exporter)
             throw new Error(`No exporter found for extension ${ext}`)
-        const parser = exporter?.ctor(this, exporter)
-        if (!parser) throw new Error(`Unable to create parser for extension ${ext}`)
-        this._cachedWriters.push({ext: exporter.ext, parser})
-        this.dispatchEvent({type: 'exporterCreate', exporter, parser})
-        return parser
+        const writer = exporter?.ctor(this, exporter)
+        if (!writer) throw new Error(`Unable to create writer for extension ${ext}`)
+        this._cachedWriters.push({ext: exporter.ext, parser: writer})
+        this.dispatchEvent({type: 'exporterCreate', exporter, parser: writer})
+        return writer
     }
     private _cachedWriters: {parser: IExportWriter, ext: string[]}[] = []
     private _getWriter(ext: string): IExportWriter {
@@ -139,7 +139,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             console.error('AssetExporter: light export not implemented')
             return undefined
         case 'model':
-            return {obj, ext: 'glb'}
+            return {obj, ext: options.exportExt ?? 'glb'}
             // return {obj, ext: 'gltf'}
         case 'material':
             return {obj: (obj as IMaterial).toJSON(), ext: (obj as IMaterial).constructor?.TypeSlug || 'json', typeExt: 'json'}

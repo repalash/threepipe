@@ -4,7 +4,7 @@ import {
     IImportResultUserData,
     ImportAssetOptions,
     ImportFilesOptions,
-    ImportResult,
+    ImportResult, ImportResultExtras,
     LoadFileOptions,
     ProcessRawOptions,
     RootSceneImportResult,
@@ -16,6 +16,7 @@ import {SimpleJSONLoader} from './import'
 import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
+import {IObject3D} from '../core'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -184,7 +185,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             this._cachedAssets.push(asset)
         }
 
-        let result: any = asset?.preImported
+        let result: ImportResult | ImportResult[] | undefined = asset?.preImported
         if (!result && asset?.preImportedRaw) {
             result = await asset.preImportedRaw
         }
@@ -192,22 +193,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         const path = options.pathOverride || asset.path
         // console.log(result)
         if (!options.forceImport && result) {
-            const results = await this.processRaw<T>(result, options, path) // just in case its not processed. Internal check is done to ensure it's not processed twice
-            // let isDisposed = false // if any of the objects is disposed
-            // for (const r of results) {
-            //     // todo: check if this is still required.
-            //     if ((r as RootSceneImportResult)?.userData?.rootSceneModelRoot) { // in case processImported is false we need a special case check here
-            //         if (r?.children?.find((c: any) => c.__disposed)) {
-            //             isDisposed = true
-            //             break
-            //         }
-            //     }
-            //     if (r && !r.__disposed) continue // todo add __disposed to object, material, texture, etc
-            //     isDisposed = true
-            //     break
-            // }
-            // todo: should we check if any of it's children is disposed ?
-            // if (!isDisposed || options.reimportDisposed === false)
+            const results = await this.processRaw<T>(result as any, options, path) // just in case its not processed. Internal check is done to ensure it's not processed twice
             return results
         }
 
@@ -222,21 +208,21 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (options.processRaw !== false && this.cacheImportedAssets) asset.preImported = result
 
             const arrs: any[] = []
-            const push = (r: typeof result)=>{
+            const push = (r: typeof result[number])=>{
                 if (r.userData?.rootSceneModelRoot) arrs.push(...r.children)
                 else arrs.push(r)
             }
             if (Array.isArray(result)) result.map(push)
             else push(result)
 
-            // remove preImportedRaw when any one of the assets is disposed. todo maybe do when ALL are dispoed?
+            // remove preImportedRaw when any one of the assets is disposed. todo maybe do when ALL are disposed?
             arrs.forEach(r=>r?.addEventListener && r.addEventListener('dispose', () => { // todo: recheck after dispose logic change
                 if (asset?.preImportedRaw) asset.preImportedRaw = undefined
                 if (asset?.preImported) asset.preImported = undefined
             }))
         }
 
-        return result
+        return result as any
     }
 
     async importFile<T extends ImportResult|undefined = ImportResult|undefined>(file?: File, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
@@ -498,7 +484,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
         if (res.name === '') res.name = (rootPath || rootBlob?.filePath || rootBlob?.name || '').replace(/^\//, '')
 
-        // if (res.assetType) // todo: why if?
         res.assetImporterProcessed = true // this should not be put in userData
 
         this.dispatchEvent({type: 'processRaw', data: res, options, path})
