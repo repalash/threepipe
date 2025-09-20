@@ -139,6 +139,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
      */
     isActiveCamera: boolean;
 
+    readonly controlsCtors: Map<string, TControlsCtor>;
     setControlsCtor(key: string, ctor: TControlsCtor, replace?: boolean): void;
     removeControlsCtor(key: string): void;
     refreshCameraControls(setDirty?: boolean): void

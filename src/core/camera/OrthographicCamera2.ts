@@ -252,7 +252,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     // region controls
 
     // todo: move orbit to a plugin maybe? so that its not forced
-    private _controlsCtors = new Map<string, TControlsCtor>([['orbit', (object, domElement)=>{
+    readonly controlsCtors = new Map<string, TControlsCtor>([['orbit', (object, domElement)=>{
         const elem = domElement ? !domElement.ownerDocument ? domElement.documentElement : domElement : document.body
         const controls = new OrbitControls3(object, elem)
         // this._controls.enabled = false
@@ -270,14 +270,14 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         return controls
     }]])
     setControlsCtor(key: string, ctor: TControlsCtor, replace = false): void {
-        if (!replace && this._controlsCtors.has(key)) {
+        if (!replace && this.controlsCtors.has(key)) {
             console.error('OrthographicCamera2: ' + key + ' already exists.')
             return
         }
-        this._controlsCtors.set(key, ctor)
+        this.controlsCtors.set(key, ctor)
     }
     removeControlsCtor(key: string): void {
-        this._controlsCtors.delete(key)
+        this.controlsCtors.delete(key)
     }
 
     private _controlsChanged = ()=>{
@@ -286,7 +286,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     }
     private _initCameraControls() {
         const mode = this.controlsMode
-        this._controls = this._controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
+        this._controls = this.controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
         if (!this._controls && mode !== '') console.error('OrthographicCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
         this._controls?.addEventListener('change', this._controlsChanged)
         this._currentControlsMode = this._controls ? mode : ''
@@ -305,7 +305,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     }
 
     refreshCameraControls(setDirty = true): void {
-        if (!this._controlsCtors) return // class not initialized
+        if (!this.controlsCtors) return // class not initialized
         if (this._controls) {
             if (this._currentControlsMode !== this.controlsMode ||
                 this !== this._controls.object ||
@@ -387,23 +387,6 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
 
     private _camUi: UiObjectConfig[] = [
         ...generateUiConfig(this) || [],
-        {
-            type: 'input',
-            label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',
-            property: [this, 'minNearPlane'],
-        },
-        {
-            type: 'input',
-            label: ()=>(this.autoNearFar ? 'Max' : '') + ' Far',
-            property: [this, 'maxFarPlane'],
-        },
-        ()=>({ // because _controlsCtors can change
-            type: 'dropdown',
-            label: 'Controls Mode',
-            property: [this, 'controlsMode'],
-            children: ['', 'orbit', ...this._controlsCtors.keys()].map(v=>({label: v === '' ? 'none' : v, value:v})),
-            onChange: () => this.refreshCameraControls(),
-        }),
         ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
         objectExtensionsUiConfig.call(this),
     ]

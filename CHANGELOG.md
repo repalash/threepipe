@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 - Dispatch `lightAdd`, `lightRemove` events, and track all lights in `Object3DManager`, add function `getLights`.
 - Add `mapMode` to `ContactShadowGroundPlugin` (Values = `'alphaMap' | 'aoMap' | 'map'`), to control which slot the depth map is assigned to in the material. Default is `aoMap`.
 - Add `refreshAttachedLight` to `CascadedShadowsPlugin` to be able to manually refresh the auto attached light.
+- Add `near`, `far`, `controlsMode` settings to `makeICameraCommonUiConfig`
 
 ### Changed
 
@@ -26,6 +27,8 @@ All notable changes to this project will be documented in this file.
 - Better toggle for `autoNearFarEnabled` in `PickingPlugin`
 - Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin. 
   - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
+- Make `controlsCtors` public readonly in `ICamera`
+- Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
 
 ### Fixes
 

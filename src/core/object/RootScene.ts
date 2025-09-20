@@ -284,8 +284,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     private _addObject3D(model: IObject3D|null, {addToRoot = false, ...options}: AddObjectOptions = {}): void {
         const obj = model
-        if (!obj) {
-            console.error('Invalid object, cannot add to scene.')
+        if (!obj || !obj.isObject3D) {
+            console.error('RootScene: Invalid object, cannot add to scene.')
             return
         }
         const target = addToRoot ? this : this.modelRoot
@@ -371,7 +371,10 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * @param color
      */
     setBackgroundColor(color: string | number | Color | null) {
-        this.backgroundColor = color || typeof color === 'number' ? new Color(color) : null
+        const col = color || typeof color === 'number' ? new Color(color) : null
+        if (col && this.backgroundColor && !col.equals(this.backgroundColor) ||
+            (!col || !this.backgroundColor) && col !== this.backgroundColor
+        ) this.backgroundColor = col
     }
 
     /**
@@ -498,7 +501,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     /**
      * For Programmatically toggling autoNearFar. This property is not supposed to be in the UI or serialized.
      * Use camera.userData.autoNearFar for UI and serialization
-     * This is used in PickingPlugin
+     * This is used in PickingPlugin, editor plugins
      * autoNearFar will still be disabled if this is true and camera.userData.autoNearFar is false
      */
     autoNearFarEnabled = true

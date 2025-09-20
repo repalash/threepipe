@@ -222,7 +222,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     // region controls
 
     // todo: move orbit to a plugin maybe? so that its not forced
-    private _controlsCtors = new Map<string, TControlsCtor>([['orbit', (object, domElement)=>{
+    controlsCtors = new Map<string, TControlsCtor>([['orbit', (object, domElement)=>{
         const elem = domElement ? !domElement.ownerDocument ? domElement.documentElement : domElement : document.body
         const controls = new OrbitControls3(object, elem)
         // this._controls.enabled = false
@@ -241,14 +241,14 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         return controls
     }]])
     setControlsCtor(key: string, ctor: TControlsCtor, replace = false): void {
-        if (!replace && this._controlsCtors.has(key)) {
+        if (!replace && this.controlsCtors.has(key)) {
             console.error('PerspectiveCamera2: ' + key + ' already exists.')
             return
         }
-        this._controlsCtors.set(key, ctor)
+        this.controlsCtors.set(key, ctor)
     }
     removeControlsCtor(key: string): void {
-        this._controlsCtors.delete(key)
+        this.controlsCtors.delete(key)
     }
 
     private _controlsChanged = ()=>{
@@ -257,7 +257,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     }
     private _initCameraControls() {
         const mode = this.controlsMode
-        this._controls = this._controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
+        this._controls = this.controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
         if (!this._controls && mode !== '') console.error('PerspectiveCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
         this._controls?.addEventListener('change', this._controlsChanged)
         this._currentControlsMode = this._controls ? mode : ''
@@ -276,7 +276,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     }
 
     refreshCameraControls(setDirty = true): void {
-        if (!this._controlsCtors) return // class not initialized
+        if (!this.controlsCtors) return // class not initialized
         if (this._controls) {
             if (this._currentControlsMode !== this.controlsMode ||
                 this !== this._controls.object ||
@@ -386,41 +386,10 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     private _camUi: UiObjectConfig[] = [
         ...generateUiConfig(this) || [],
         {
-            type: 'number',
-            label: ()=>(this.autoNearFar ? 'Min' : '') + ' Near',
-            getValue: () => this.minNearPlane ?? this.near,
-            setValue: (v: number) =>{
-                if (this.autoNearFar) this.minNearPlane = v
-                else this.near = v
-            },
-        },
-        {
-            type: 'number',
-            label: ()=>(this.autoNearFar ? 'Max' : '') + ' Far',
-            // property: [this, 'maxFarPlane'],
-            getValue: () => this.maxFarPlane ?? this.far,
-            setValue: (v: number) =>{
-                if (this.autoNearFar) this.maxFarPlane = v
-                else this.far = v
-            },
-        },
-        {
-            type: 'input',
-            label: 'Auto Near Far',
-            property: [this, 'autoNearFar'],
-        },
-        {
             type: 'input',
             label: 'Dolly FoV',
             property: [this, 'dollyFov'],
         },
-        ()=>({ // because _controlsCtors can change
-            type: 'dropdown',
-            label: 'Controls Mode',
-            property: [this, 'controlsMode'],
-            children: ['', 'orbit', ...this._controlsCtors.keys()].map(v=>({label: v === '' ? 'none' : v, value:v})),
-            onChange: () => this.refreshCameraControls(),
-        }),
         ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
         objectExtensionsUiConfig.call(this),
     ]

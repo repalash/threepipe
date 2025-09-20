@@ -31,6 +31,56 @@ defaultLineMaterial.uiConfig = undefined as any
 export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
     return [
         {
+            type: 'input',
+            label: 'Auto Near Far',
+            property: [this, 'autoNearFar'],
+        },
+        {
+            type: 'number',
+            label: 'Min Near',
+            hidden: ()=>!this.autoNearFar,
+            // property: [this, 'minNearPlane'],
+            getValue: ()=>{
+                return this.userData.minNearPlane ?? 0.5
+            },
+            setValue: (v: number)=>{
+                if (v === 0.5) delete this.userData.minNearPlane
+                else this.userData.minNearPlane = v
+            },
+        },
+        {
+            type: 'number',
+            label: 'Max Far',
+            hidden: ()=>!this.autoNearFar,
+            // property: [this, 'maxFarPlane'],
+            getValue: ()=>{
+                return this.userData.maxFarPlane ?? 1000
+            },
+            setValue: (v: number)=>{
+                if (v === 1000) delete this.userData.maxFarPlane
+                else this.userData.maxFarPlane = v
+            },
+        },
+        {
+            type: 'number',
+            label: 'Near',
+            readOnly: ()=>this.autoNearFar,
+            property: [this, 'near'],
+        },
+        {
+            type: 'number',
+            label: 'Far',
+            readOnly: ()=>this.autoNearFar,
+            property: [this, 'far'],
+        },
+        ()=>({ // because controlsCtors can change
+            type: 'dropdown',
+            label: 'Controls Mode',
+            property: [this, 'controlsMode'],
+            children: ['', 'orbit', ...this.controlsCtors.keys()].map(v=>({label: v === '' ? 'none' : v, value:v})),
+            onChange: () => this.refreshCameraControls(),
+        }),
+        {
             type: 'button',
             label: 'Set View',
             value: ()=>{
