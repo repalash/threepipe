@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Set canvas style to `100%`(when viewer is created) if not explicitly set in canvas inline style and no `maxWidth`/`maxHeight` is set in css. This is done to prevent canvas auto-resizing to huge sizes when not set.
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 - Remove `uiconfig` for `tonemapBackground` in `TonemapPlugin` in favor of `backgroundTonemap` UI in `RootScene`.
 - Better toggle for `autoNearFarEnabled` in `PickingPlugin`

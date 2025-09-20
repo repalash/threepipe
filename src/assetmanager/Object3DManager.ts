@@ -1,6 +1,7 @@
 import {
     IGeometry,
     iGeometryCommons,
+    ILight,
     IMaterial,
     iMaterialCommons,
     IMaterialEventMap,
@@ -13,7 +14,6 @@ import {
     UnlitLineMaterial,
     UnlitMaterial,
     upgradeTexture,
-    ILight,
 } from '../core'
 import {IObjectExtension} from '../core/IObject'
 import {Event, Event2, EventDispatcher, VideoTexture} from 'three'
@@ -179,6 +179,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             this._lights.add(obj as ILight)
             this.dispatchEvent({type: 'lightAdd', light: obj as ILight})
         }
+
     }
 
     unregisterObject(obj: IObject3D) {

@@ -424,7 +424,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * If any of the viewers are in debug mode, this will be true.
      * This is required for debugging/logging in some cases.
      */
-    public static ViewerDebugging = false // todo use in shaderReplaceString
+    public static ViewerDebugging = false
 
     /**
      * plugins that are not serialized/deserialized with the viewer from config. useful when loading files exported from the editor, etc
@@ -441,9 +441,13 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.debug = debug
         if (debug) ThreeViewer.ViewerDebugging = true
         this._canvas = options.canvas || createCanvasElement()
+        const computedStyle = getComputedStyle(this._canvas)
+        if (!this._canvas.style.width && computedStyle.maxWidth === 'none') this._canvas.style.width = '100%'
+        if (!this._canvas.style.height && computedStyle.maxHeight === 'none') this._canvas.style.height = '100%'
         let container = options.container
         if (container && !options.canvas) container.appendChild(this._canvas)
         if (!container) container = this._canvas.parentElement ?? undefined
+        if (!container) container = globalThis.document?.body
         if (!container) throw new Error('No container(or canvas).')
         this._container = container // todo listen to canvas container change
         // if (getComputedStyle(this._container).position === 'static') {
@@ -740,6 +744,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * Mark that the canvas is resized. If the size is changed, the renderer and all render targets are resized. This happens before the render of the next frame.
      */
     resize = () => {
+        // console.warn('resize')
         this._needsResize = true
         this.setDirty()
     }
@@ -776,7 +781,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
 
             if (this._needsResize) {
-                const size = [this._canvas.clientWidth, this._canvas.clientHeight]
+                const size = [Math.floor(this._canvas.clientWidth), Math.floor(this._canvas.clientHeight)]
                 if (event.xrFrame) { // todo: find a better way to resize for XR.
                     const cam = this.renderManager.webglRenderer.xr.getCamera()?.cameras[0]?.viewport
                     if (cam) {
@@ -993,7 +998,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param dispose
      * @returns {Promise<void>}
      */
-    async removePlugin(p: IViewerPlugin<ThreeViewer, false>, dispose = true): Promise<void> {
+    async removePlugin(p: IViewerPlugin<ThreeViewer, boolean>, dispose = true): Promise<void> {
         const type = p.constructor.PluginType
         if (!this.plugins[type]) return
         await p.onRemove(this)

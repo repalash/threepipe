@@ -1,4 +1,4 @@
-const warnEnabled = true
+const warnEnabled = true // todo use ThreeViewer.ViewerDebugging
 const errorStr1 = 'shaderReplaceString: str must be passed if str is a RegExp and append/prepend is true'
 /**
  * Replace a string in a shader function with added options to prepend, append, show warning when not found, and replace all occurrences.

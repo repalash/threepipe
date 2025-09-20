@@ -813,8 +813,7 @@ export class MetaImporter {
             const path = inpTexture?.userData?.rootPath
             const hasImage = usePreviewImages && inpTexture.image && images[inpTexture.image] // its possible to have both image and rootPath, then the image will be preview image.
             if (!path) continue
-            // console.warn(path, inpTexture, images)
-            const promise = importer.importSingle<ITexture>(path, {processRaw: false}).then((texture) => {
+            const promise = importer.importSingle<ITexture>(path).then((texture) => {
                 const source = texture?.source as any
                 // const image = texture?.image as any
                 if (!texture || !source) return null
@@ -830,7 +829,7 @@ export class MetaImporter {
 
                 if (!hasImage)
                     images[source2.uuid] = source2
-                texture.dispose() // todo: what happens when we reimport a cached disposed texture asset, is three.js able to recreate the webgl texture on render?
+                texture.dispose()
                 return source2
             }).catch((e) => {
                 console.error(e)
