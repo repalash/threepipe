@@ -18,4 +18,4 @@ All notable changes to this plugin will be documented in this file.
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/svg-renderer
 [0.2.4]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-svg-renderer-v0.2.4
-[0.2.5]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-svg-renderer-v0.2.5
+[0.2.5]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-svg-renderer-0.2.5

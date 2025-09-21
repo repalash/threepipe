@@ -17,4 +17,4 @@ All notable changes to this plugin will be documented in this file.
 - NA
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/template-vite
-[0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-template-vite-v0.1.0
+[0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-template-vite-0.1.0

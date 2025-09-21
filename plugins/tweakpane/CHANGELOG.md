@@ -39,4 +39,4 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/tweakpane
-[0.8.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-tweakpane-v0.8.1
+[0.8.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-tweakpane-0.8.1

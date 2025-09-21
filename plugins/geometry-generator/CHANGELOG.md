@@ -17,5 +17,5 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/geometry-generator
-[0.6.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-v0.6.2
-[0.6.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-v0.6.1
+[0.6.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.6.2
+[0.6.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.6.1

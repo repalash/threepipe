@@ -91,7 +91,6 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
             text.dispose()
         })
         // todo handle clone, dispose text on remove
-
     }
 
     updateText(textWrapper: IObject3D, params?: any) {

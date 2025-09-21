@@ -17,4 +17,4 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/timeline-ui
-[0.1.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-timeline-ui-v0.1.3
+[0.1.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-timeline-ui-0.1.3
