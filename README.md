@@ -1,20 +1,22 @@
-# ThreePipe
+# [![Threepipe](/website/public/logo-24.svg)](https://threepipe.org) ThreePipe
 
 A new way to work with three.js, 3D models and rendering on the web.
 
-[ThreePipe](https://threepipe.org/) &mdash;
+[Website](https://threepipe.org/) &mdash; 
 [Github](https://github.com/repalash/threepipe) &mdash;
 [Examples](https://threepipe.org/examples/) &mdash;
 [API Reference](https://threepipe.org/docs/) &mdash;
-[WebGi](https://webgi.dev/)
+[Realistic Rendering](https://webgi.dev/)
 
 [![NPM Package](https://img.shields.io/npm/v/threepipe.svg)](https://www.npmjs.com/package/threepipe)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/repalash.svg?style=social&label=Follow%20%40repalash)](https://twitter.com/repalash)
+[![GitHub Repo stars](https://img.shields.io/github/stars/repalash/threepipe)](https://github.com/repalash/threepipe)
 
 ThreePipe is a modern 3D framework built on top of [three.js](https://threejs.org/), written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.
 
-Key features include:
+## Features
+
 - Simple, intuitive API for creating 3D model viewers/configurators/editors on web pages, with many built-in presets for common workflows and use-cases.
 - Companion [editor](https://threepipe.org/examples/tweakpane-editor/) to create, edit and configure 3D scenes in the browser.
 - Modular architecture that allows you to easily extend the viewer, scene objects, materials, shaders, rendering, post-processing and serialization with custom functionality.
@@ -37,39 +39,66 @@ Code samples and demos covering various usecases and test are present in the [ex
 
 Try them: https://threepipe.org/examples/
 
-View the source code by pressing the code button on the top left of the example page.
+[![Threepipe Examples SSAO](website/public/images/examples-ssao.webp)](https://threepipe.org/examples/#ssao-plugin/)
 
-To make changes and run the example, click on the CodePen button on the top right of the source code.
+View and edit the source code by pressing the code button on the top left of the example page.
+
+![Threepipe Examples SSAO With Editor](website/public/images/examples-ssao-edit.webp)
+
+## Threepipe Editor
+
+A web-based editor to create, edit, configure and export 3D scenes and models for use with ThreePipe.
+
+[![Threepipe Editor](/website/public/images/threepipe-editor.webp)](https://editor.threepipe.org)
+
+![Threepipe Editor SSR](website/public/images/editor-ssr.webp) ![Threepipe Editor Edit Mode](website/public/images/editor-edit.webp)
+
+![Threepipe Editor Color Picker](website/public/images/editor-color-picker.webp) ![Threepipe Editor Buffers](website/public/images/editor-buffers.webp)
+
+![Threepipe Editor Scene](website/public/images/editor-vader.webp) ![Threepipe Editor Path Tracing](website/public/images/editor-path-tracing.webp)
 
 ## Getting Started
 
 Checkout the full [Getting Started Guide](https://threepipe.org/guide/getting-started.html) on [threepipe.org](https://threepipe.org)
 
+### What you need
+
+- A 3D Model (GLTF, GLB, OBJ, FBX, etc). 
+  - Optionally, the model, scene, and plugins can be configured, compressed and exported using the [Threepipe Editor](https://editor.threepipe.org) or [Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/).
+  - Here is a sample model with configured settings - [classic-watch.glb](https://samples.threepipe.org/demos/classic-watch.glb)
+  - Models can be downloaded from websites and marketplaces like [Poly Haven](https://polyhaven.com/), [Sketchfab](https://sketchfab.com/), [CGTrader](https://www.cgtrader.com/), [TurboSquid](https://www.turbosquid.com/), etc.
+- A modern browser(like chrome, safari) that supports [WebGL2](https://caniuse.com/webgl2) and [WebAssembly](https://caniuse.com/webassembly) (for some plugins).
+- A code editor like [VSCode](https://code.visualstudio.com/) or [WebStorm](https://www.jetbrains.com/webstorm/)
+- [Node.js](https://nodejs.org/)  (optional, only for local development). Node 18+ is recommended.
+- Basic knowledge of JavaScript/TypeScript and HTML
+- An existing project or willingness to start a new one
+
 ### Local Setup
 
 To create a new project locally
 
-```npm create threepipe@latest```
+```
+npm create threepipe@latest
+```
 
-And follow the instructions to create a new project.
+And follow the instructions to select a template and create a new project.
 
 ### Stackblitz
 
-Get started with pre-ready templates with model viewer and plugins that run locally directly in your browser -
+Pre-ready templates with model viewer and plugins can be directly run and edited on [stackblitz](https://stackblitz.com/).
 
-- [**javascript**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter)
+Basic &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [javascript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla?file=package.json&title=Threepipe%20Starter) |
+[typescript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter)
 
-- [**typescript**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-ts?file=package.json&title=Threepipe%20Starter)
+Rendering &nbsp; [javascript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter) |
+[typescript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter)
 
-- [**javascript + plugins**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi?file=package.json&title=Threepipe%20Starter)
+R3F &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [javascript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi?file=package.json&title=Threepipe%20Starter) |
+[typescript](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi-ts?file=package.json&title=Threepipe%20Starter)
 
-- [**typescript + plugins**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter)
+NextJS &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [typescript](https://stackblitz.com/edit/threepipe-nextjs-starter?file=app%2Fcomponents%2FThreeViewerComponent.tsx,app%2Fpage.tsx&title=Threepipe%20Next.js%20Starter)
 
-- [**javascript + r3f**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi?file=package.json&title=Threepipe%20Starter)
-
-- [**typescript + r3f**](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-r3f-webgi-ts?file=package.json&title=Threepipe%20Starter)
-
-- [**nextjs + plugins**](https://stackblitz.com/edit/threepipe-nextjs-starter?file=app%2Fcomponents%2FThreeViewerComponent.tsx,app%2Fpage.tsx&title=Threepipe%20Next.js%20Starter)
+[![Stackblitz Starter](website/public/images/stackblitz-starter.webp)](https://stackblitz.com/github/repalash/create-threepipe/tree/master/template-vanilla-webgi-ts?file=package.json&title=Threepipe%20Starter)
 
 ### HTML/JS Quickstart (CDN)
 
@@ -100,7 +129,72 @@ Check it in action: https://threepipe.org/examples/#html-js-sample/
 
 Check out the details about the [ThreeViewer API](https://threepipe.org/guide/viewer-api.html) and more [plugins](https://threepipe.org/guide/core-plugins.html).
 
-### React
+### NPM/YARN
+
+### Installation
+
+```bash
+npm install threepipe
+```
+
+### Loading a 3D Model
+
+First, create a canvas element in your HTML page:
+```html
+<canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
+```
+
+Then, import the viewer and create a new instance:
+
+```typescript
+import {ThreeViewer, IObject3D} from 'threepipe'
+
+// Create a viewer
+const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas') as HTMLCanvasElement})
+
+// Load an environment map
+await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+
+// Load a model
+const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    autoCenter: true,
+    autoScale: true,
+})
+```
+
+That's it! You should now see a 3D model on your page.
+
+The 3D model can be opened in the [editor](https://threepipe.org/examples/tweakpane-editor/) to view and edit the scene settings, objects, materials, lights, cameras, post-processing, etc. and exported as a GLB file. All settings are automatically serialized and saved in the GLB file, which can be loaded into the viewer. Any plugins used in the editor can be added to the viewer to add the same functionality. The plugin data is automatically loaded(if the plugin is added) when the model is added to the scene.
+
+The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), several importers, exporters and a default rendering pipeline. Additional functionality can be added with plugins.
+
+Check out the glTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#gltf-load/
+
+Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system) section to learn how to add additional functionality to the viewer.
+
+## [![webgi](https://webgi.dev/logo-24.svg)](https://webgi.dev) Realistic Graphics
+
+Threepipe includes a built-in rendering and post-processing pipeline that is highly optimized and feature packed. Several realistic rendering plugins are included in the `threepipe core` like `SSAOPlugin` for quick ambient occlusion, `SSAAPlugin` for anti-aliasing, `TonemapPlugin` for tonemapping, etc.
+
+Threepipe provides the [`@threepipe/webgi-plugins`](http://npmjs.com/package/@threepipe/webgi-plugins) package (now free) with even more advanced realistic rendering plugins like Screen Space Reflections, HDR Bloom, Depth Of Field etc that work in realtime on all devices.
+
+Follow the quickstart guide on various realistic rendering plugins and how they effect the lighting in the scene at [webgi.dev](https://webgi.dev/)
+
+[![Getting started with webgi rendering](website/public/images/webgi-dev-homepage.webp)](https://webgi.dev/)
+
+Threepipe also provides other plugins like Path Tracing for photorealistic rendering and baking, and more third party plugins for various effects and custom materials. 
+
+## Frameworks
+
+Threepipe can be used in your favourite framework or library like React, Vue.js, Svelte, etc.
+
+Below we provide minimal sample components for different UI frameworks, these can serve as a starting point to make your own viewer component with additional functionality and plugins.
+
+Checkout the `Framework Samples` section in the [Threepipe Examples](https://examples.threepipe.org) for sample usage and downloadable source code.
+
+[![Threepipe Examples Framework examples](website/public/images/examples-r3f-router.webp)](https://threepipe.org/examples/?q=framework#r3f-router-transitions-demo/)
+
+### [![React](https://img.shields.io/badge/-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev) React
 
 The best way to use the viewer in react is to wrap it in a custom component.
 
@@ -133,7 +227,7 @@ Check it in action: https://threepipe.org/examples/#react-tsx-sample/
 
 Other examples in js: https://threepipe.org/examples/#react-js-sample/ and jsx: https://threepipe.org/examples/#react-jsx-sample/
 
-### React Three Fiber (R3F)
+### [![R3F](https://img.shields.io/badge/-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://r3f.docs.pmnd.rs/) React Three Fiber (R3F)
 
 For a more declarative approach using JSX syntax, you can use the [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) package which provides React Three Fiber integration.
 
@@ -186,7 +280,7 @@ Any children added to this component are added to the scene model root.
 
 Check it in action: https://threepipe.org/examples/#r3f-tsx-sample/
 
-### NextJs
+### [![NextJs](https://img.shields.io/badge/-000000?logo=next.js)](https://nextjs.org/) NextJs
 
 The best way to use the viewer in nextjs is to wrap it in a custom component which can then be used in any page.
 
@@ -285,7 +379,7 @@ The component can simply be used on any page without `next/dynamic` or `ssr: fal
 />
 ```
 
-### Vue.js
+### [![Vue.js](https://img.shields.io/badge/-%2320232a.svg?logo=vue.js)](https://vuejs.org/) Vue.js
 
 A sample [vue.js](https://vuejs.org/) component in js to render a model with an environment map.
 
@@ -318,7 +412,7 @@ Check it in action: https://threepipe.org/examples/#vue-html-sample/
 
 Another example with Vue SFC(Single file component): https://threepipe.org/examples/#vue-sfc-sample/
 
-### Svelte
+### [![Svelte](https://img.shields.io/badge/-%2320232a.svg?logo=svelte)](https://svelte.dev/) Svelte
 
 A sample [svelte](https://svelte.dev/) component in js to render a model with an environment map.
 
@@ -352,74 +446,31 @@ For Svelte 5, simply initialize `canvasRef` to `$state()` -
 let canvasRef = $state();
 ```
 
-### NPM/YARN
-
-### Installation
-
-```bash
-npm install threepipe
-```
-
-### Loading a 3D Model
-
-First, create a canvas element in your HTML page:
-```html
-<canvas id="three-canvas" style="width: 800px; height: 600px;"></canvas>
-```
-
-Then, import the viewer and create a new instance:
-
-```typescript
-import {ThreeViewer, IObject3D} from 'threepipe'
-
-// Create a viewer
-const viewer = new ThreeViewer({canvas: document.getElementById('three-canvas') as HTMLCanvasElement})
-
-// Load an environment map
-await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
-
-// Load a model
-const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
-    autoCenter: true,
-    autoScale: true,
-})
-```
-
-That's it! You should now see a 3D model on your page.
-
-The 3D model can be opened in the [editor](https://threepipe.org/examples/tweakpane-editor/) to view and edit the scene settings, objects, materials, lights, cameras, post-processing, etc. and exported as a GLB file. All settings are automatically serialized and saved in the GLB file, which can be loaded into the viewer. Any plugins used in the editor can be added to the viewer to add the same functionality. The plugin data is automatically loaded(if the plugin is added) when the model is added to the scene.
-
-The viewer initializes with a Scene, Camera, Camera controls(Orbit Controls), several importers, exporters and a default rendering pipeline. Additional functionality can be added with plugins.
-
-Check out the glTF Load example to see it in action or to check the JS equivalent code: https://threepipe.org/examples/#gltf-load/
-
-Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system) section to learn how to add additional functionality to the viewer.
-
 ## License
-The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the Free [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE).
+
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
+
+The core framework([src](https://github.com/repalash/threepipe/tree/master/src), [dist](https://github.com/repalash/threepipe/tree/master/dist), [examples](https://github.com/repalash/threepipe/tree/master/examples) folders) and any [plugins](https://github.com/repalash/threepipe/tree/master/plugins) without a separate license are under the Free [Apache 2.0 license](https://github.com/repalash/threepipe/tree/master/LICENSE)
 
 Some plugins(in the [plugins](https://github.com/repalash/threepipe/tree/master/plugins) folder) might have different licenses. Check the individual plugin documentation and the source folder/files for more details.
 
-## Status
+## 🚀 Status 
 The project is in `beta` stage and under active development. 
 Many features will be added but the core API will not change significantly in future releases.
 
-## Table of Contents
+## 🔗 Table of Contents
 
-- [ThreePipe](#threepipe)
+- [ThreePipe](https://github.com/repalash/threepipe/)
   - [Examples](https://threepipe.org/examples/)
   - [Table of Contents](#table-of-contents)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
-    - [React](#react)
-    - [React Three Fiber (R3F)](#react-three-fiber-r3f)
-    - [Vue.js](#vuejs)
-    - [Svelte](#svelte)
     - [NPM/YARN Package](#npmyarn)
       - [Installation](#installation)
       - [Loading a 3D Model](#loading-a-3d-model)
+    - [Frameworks](#frameworks)
   - [License](#license)
-  - [Status](#status)
+  - [Status](https://threepipe.org/guide/introduction.html#status)
   - [Documentation (API Reference)](#documentation)
   - [Contributing](#contributing)
 - [Features](https://threepipe.org/guide/features.html)
@@ -520,5 +571,10 @@ Many features will be added but the core API will not change significantly in fu
 
 Check the list of all functions, classes and types in the [API Reference Docs](https://threepipe.org/docs/).
 
+[![Threepipe Docs](website/public/images/docs-viewer-api.webp)](https://threepipe.org/guide/viewer-api.html)
+
 ## Contributing
+
 Contributions to ThreePipe are welcome and encouraged! Feel free to open issues and pull requests on the GitHub repository.
+
+Read the [contributing guidelines](CONTRIBUTING.md) for more details on how to setup and work on the project.
