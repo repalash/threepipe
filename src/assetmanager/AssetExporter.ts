@@ -87,10 +87,10 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             this.dispatchEvent({type: 'exportFile', obj, state:'processing', exportOptions: options})
 
             const processed = await this.processBeforeExport(obj, options)
-            const ext = options.exportExt || processed?.typeExt || processed?.ext
+            const ext = processed?.typeExt || processed?.ext
             if (!processed || !ext) {
                 console.error(processed, options, obj)
-                throw new Error(`Unable to preprocess before export ${ext}`)
+                throw new Error(`AssetExporter - Unable to preprocess before export ${ext}`)
             }
             if (processed.blob) res = processed.blob
             else {
@@ -142,7 +142,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             return {obj, ext: options.exportExt ?? 'glb'}
             // return {obj, ext: 'gltf'}
         case 'material':
-            return {obj: (obj as IMaterial).toJSON(), ext: (obj as IMaterial).constructor?.TypeSlug || 'json', typeExt: 'json'}
+            return {obj: (obj as IMaterial).toJSON(), ext: options.exportExt || (obj as IMaterial).constructor?.TypeSlug, typeExt: 'json'}
         case 'texture':
             return options.exportExt ? {obj, ext: options.exportExt} : {obj: (obj as ITexture).toJSON(), ext: 'json'}
         case 'renderTarget':

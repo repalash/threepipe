@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
   - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
 - Make `controlsCtors` public readonly in `ICamera`
 - Avoid creating widgets for objects that have `userData.disableWidgets` set to `true`
+- Use `options.exportExt` when exporting materials in `AssetExporter`
 
 ### Fixes
 
