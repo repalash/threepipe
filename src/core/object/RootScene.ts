@@ -131,7 +131,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         fixedEnvMapDirection = false
 
     /**
-     * The default camera in the scene
+     * The default camera in the scene. This camera is always in the scene and used by default if no camera is set as main.
+     * It is also saved along with the scene JSON and shown in the UI. This is added to the scene root, hence not saved in the glTF when a scene glb is exported.
      */
     @uiConfig() @serialize() readonly defaultCamera: ICamera
 

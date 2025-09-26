@@ -88,12 +88,13 @@ export const iGeometryCommons = {
             children: [
                 {
                     type: 'input',
-                    property: [this, 'uuid'],
-                    disabled: true,
+                    property: [this, 'name'],
                 },
                 {
                     type: 'input',
-                    property: [this, 'name'],
+                    property: [this, 'uuid'],
+                    disabled: true,
+                    tags: ['advanced'],
                 },
                 {
                     type: 'divider',

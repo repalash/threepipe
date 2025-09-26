@@ -246,7 +246,7 @@ class GLTFMaterialsCustomBumpMapImport implements GLTFLoaderPlugin {
         materialParams.userData._hasCustomBump = true // single _ so that its saved when cloning but not when saving
         materialParams.userData._customBumpScale = extension.customBumpScale ?? 0.0
 
-        const resources = extension.resources ? await this._viewer?.assetManager?.importConfigResources(extension.resources) : undefined
+        const resources = extension.resources ? await this._viewer?.loadConfigResources(extension.resources) : undefined
 
         const pending = []
         const tex = extension.customBumpMap

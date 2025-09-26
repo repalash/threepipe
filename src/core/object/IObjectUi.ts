@@ -124,6 +124,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
     const config: UiObjectConfig = {
         type: 'folder',
         label: ()=>this.name || 'unnamed',
+        expanded: true,
         onChange: (ev)=>{
             // todo this calls setDirty when some material prop changes as well, that needs to be ignored.
             // console.log('onchange', this)
@@ -140,6 +141,12 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 onChange: (e)=>{
                     this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'visible'})
                 },
+            },
+            {
+                type: 'input',
+                property: [this, 'uuid'],
+                disabled: true,
+                tags: ['advanced'],
             },
             // moved to PickingPlugin
             // {
