@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin. 
   - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
 - Make `controlsCtors` public readonly in `ICamera`
+- Avoid creating widgets for objects that have `userData.disableWidgets` set to `true`
 
 ### Fixes
 
@@ -36,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Improve `attachedLight` handling in `CascadedShadowsPlugin`, to avoid issues when the light is added without `castShadow` flag.
 - Use `exportExt` when exporting models in AssetExporter
 - Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
+- Dispatch frame events and update timeline and object extensions when `ThreeViewer.renderEnabled` is `false`
 
 ## [0.2.0] - 2025-09-03
 

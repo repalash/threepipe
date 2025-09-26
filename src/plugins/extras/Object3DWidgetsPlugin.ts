@@ -94,6 +94,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
             return
         }
         o?.traverse((l: any) => {
+            if (l.userData.disableWidgets) return
             const widget = this.widgets.find(w => w.object === l)
             if (widget) {
                 widget.update && widget.update()
