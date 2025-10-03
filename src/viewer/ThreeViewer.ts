@@ -308,16 +308,18 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * If the viewer is enabled. Set this `false` to disable RAF loop.
-     * @type {boolean}
      */
     enabled = true
 
     /**
-     * Enable or disable all rendering, Animation loop including any frame/render events won't be fired when this is false.
+     * Enable or disable all rendering.
+     * When disabled, the animation loop is still running, but nothing is rendered.
+     * This can be used to pause rendering when not needed, for example when the viewer is not visible.
+     * Note: this does not pause plugins or the timeline, use {@link enabled} for that.
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
     @uiToggle('Enable Rendering', {tags: ['advanced']})
-        renderEnabled = true // todo rename to animation loop enabled?
+        renderEnabled = true // todo add a separate animation loop enabled?
 
     readonly assetManager: AssetManager
     readonly object3dManager: Object3DManager
@@ -499,7 +501,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 if (d !== undefined && d === 0) return // not converged yet.
                 // if d < 0 or undefined: not recording, do nothing
 
-                cam.controls?.update()
+                if (typeof cam.controls?.update === 'function') cam.controls?.update()
             }
         })
 
@@ -522,7 +524,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
         this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
-        this._scene.addEventListener('materialChanged', (e) => this.setDirty(this._scene, e))
+        this._scene.addEventListener('materialChanged', (e) => this.setDirty(this._scene, e)) // why? todo if needed use geometryChanged also
         this._scene.addEventListener('objectUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('textureUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('sceneUpdate', (e) => {
@@ -763,7 +765,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     }
 
     protected _animationLoop(event: IAnimationLoopEvent): void {
-        if (!this.enabled || !this.renderEnabled) return
+        if (!this.enabled) return
         if (this._isRenderingFrame) {
             this.console.warn('animation loop: frame skip') // not possible actually, since this is not async
             return
@@ -773,75 +775,82 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.renderStats?.begin()
 
         for (let i = 0; i < this.maxFramePerLoop; i++) {
+            if (this.renderEnabled) {
 
-            // from setDirty
-            if (this._needsReset) {
-                this.renderManager.reset()
-                this._needsReset = false
-            }
+                // from setDirty
+                if (this._needsReset) {
+                    this.renderManager.reset()
+                    this._needsReset = false
+                }
 
-            if (this._needsResize) {
-                const size = [Math.floor(this._canvas.clientWidth), Math.floor(this._canvas.clientHeight)]
-                if (event.xrFrame) { // todo: find a better way to resize for XR.
-                    const cam = this.renderManager.webglRenderer.xr.getCamera()?.cameras[0]?.viewport
-                    if (cam) {
-                        if (cam.x !== 0 || cam.y !== 0) {
-                            this.console.warn('x and y must be 0?')
+                if (this._needsResize) {
+                    const size = [Math.floor(this._canvas.clientWidth), Math.floor(this._canvas.clientHeight)]
+                    if (event.xrFrame) { // todo: find a better way to resize for XR.
+                        const cam = this.renderManager.webglRenderer.xr.getCamera()?.cameras[0]?.viewport
+                        if (cam) {
+                            if (cam.x !== 0 || cam.y !== 0) {
+                                this.console.warn('x and y must be 0?')
+                            }
+                            size[0] = cam.width
+                            size[1] = cam.height
+                            this.console.log('resize for xr', size)
+                        } else {
+                            this._needsResize = false
                         }
-                        size[0] = cam.width
-                        size[1] = cam.height
-                        this.console.log('resize for xr', size)
-                    } else {
+                    }
+                    if (this._needsResize) {
+                        this.renderManager.setSize(...size)
                         this._needsResize = false
                     }
                 }
-                if (this._needsResize) {
-                    this.renderManager.setSize(...size)
-                    this._needsResize = false
-                }
+
             }
 
             this.dispatchEvent({...event, type: 'preFrame', target: this}) // event will have time, deltaTime and xrFrame
 
-            const dirtyPlugins = Object.entries(this.plugins).filter(([key, plugin]) => plugin.dirty && key !== plugin.constructor.OldPluginType)
-            if (dirtyPlugins.length > 0) {
-                // console.log('dirty plugins', dirtyPlugins)
-                this.setDirty(dirtyPlugins)
-            }
+            if (this.renderEnabled) {
 
-            // again, setDirty might have been called in preFrame
-            if (this._needsReset) {
-                this.renderManager.reset()
-                this._needsReset = false
-            }
+                const dirtyPlugins = Object.entries(this.plugins).filter(([key, plugin]) => plugin.dirty && key !== plugin.constructor.OldPluginType)
+                if (dirtyPlugins.length > 0) {
+                    // console.log('dirty plugins', dirtyPlugins)
+                    this.setDirty(dirtyPlugins)
+                }
 
-            // Check if the renderManger is dirty, which happens when it's reset above or if any pass in the composer is dirty
-            const needsRender = this.renderManager.needsRender
-            if (needsRender) {
-                for (let j = 0; j < this.rendersPerFrame; j++) {
-                    this.dispatchEvent({type: 'preRender', target: this})
-                    // console.log('render')
+                // again, setDirty might have been called in preFrame
+                if (this._needsReset) {
+                    this.renderManager.reset()
+                    this._needsReset = false
+                }
 
-                    const render = ()=>{
-                        const cam = this._scene.mainCamera
-                        this._scene.renderCamera = cam
-                        if (cam.visible) this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
-                    }
-                    if (this.debug) {
-                        render()
-                    } else {
-                        try {
-                            render()
-                        } catch (e) {
-                            this.console.error('ThreeViewer: Uncaught error while rendering frame.')
-                            this.console.error(e)
-                            if (this.debug) throw e
-                            this.renderEnabled = false
-                            this.dispatchEvent({type: 'renderError', error: e})
+                // Check if the renderManger is dirty, which happens when it's reset above or if any pass in the composer is dirty
+                const needsRender = this.renderManager.needsRender
+                if (needsRender) {
+                    for (let j = 0; j < this.rendersPerFrame; j++) {
+                        this.dispatchEvent({type: 'preRender', target: this})
+                        // console.log('render')
+
+                        const render = () => {
+                            const cam = this._scene.mainCamera
+                            this._scene.renderCamera = cam
+                            if (cam.visible) this.renderManager.render(this._scene, this.renderManager.defaultRenderToScreen)
                         }
+                        if (this.debug) {
+                            render()
+                        } else {
+                            try {
+                                render()
+                            } catch (e) {
+                                this.console.error('ThreeViewer: Uncaught error while rendering frame.')
+                                this.console.error(e)
+                                if (this.debug) throw e
+                                this.renderEnabled = false
+                                this.dispatchEvent({type: 'renderError', error: e})
+                            }
+                        }
+
+                        this.dispatchEvent({type: 'postRender', target: this})
                     }
 
-                    this.dispatchEvent({type: 'postRender', target: this})
                 }
 
             }
@@ -849,7 +858,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this.timeline.update(this)
 
             this.dispatchEvent({type: 'postFrame', target: this})
-            this.renderManager.onPostFrame()
+
+            if (this.renderEnabled) this.renderManager.onPostFrame()
+
             this.object3dManager.onPostFrame(this.timeline)
 
             // this is update after postFrame, because other plugins etc will update the scene in postFrame or preFrame listeners

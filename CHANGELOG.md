@@ -25,10 +25,12 @@ All notable changes to this project will be documented in this file.
 - Add support for `forcedOverrideGeometry` in `IObject3D` to override geometry accessor of a mesh. (similar to `forcedOverrideMaterial`).
 - Add `oldTexture`, `texture` to `environmentChanged` and `backgroundChanged` events in `RootScene`, `ISceneEventMap`.
 - Add `RootScene.disposeTextures(clear = true)` to remove and dispose all textures set directly on the scene.
+- Add `IViewerPlugin.constructor.PluginTags`, these can be set and used by plugins for filtering/categorisation etc
 
 ### Changed
 
 - Set canvas style to `100%`(when viewer is created) if not explicitly set in canvas inline style and no `maxWidth`/`maxHeight` is set in css. This is done to prevent canvas auto-resizing to huge sizes when not set.
+- Change `ThreeViewer.renderEnabled` functionality to run the animation loop and fire frame events, but skip rendering using the render manager.
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 - Remove `uiconfig` for `tonemapBackground` in `TonemapPlugin` in favor of `backgroundTonemap` UI in `RootScene`.
 - Better toggle for `autoNearFarEnabled` in `PickingPlugin`
@@ -42,6 +44,7 @@ All notable changes to this project will be documented in this file.
 - `iMaterialCommons.getMapsForMaterial` now returns a `Map` of property names to textures.
 - `iMaterialCommons.getMapsForObject3D` now returns a `Map` of property names to textures.
 - Changed parameter type of `maps` in `checkTexMapReference` from `Set` to `Map`.
+- 
 
 ### Fixes
 
@@ -51,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
 - Dispatch frame events and update timeline and object extensions when `ThreeViewer.renderEnabled` is `false`
 - Subscribe to `texturesChanged` on objects and `backgroundChanged`, `environmentChanged` on scene in `Object3DManager` to correctly update texture references on objects.
+- Avoid calling `controls.update`(camera) when `update` is defined but not a function.
 
 ## [0.2.0] - 2025-09-03
 
