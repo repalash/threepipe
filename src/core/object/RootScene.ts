@@ -341,7 +341,12 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             this.environment.mapping = EquirectangularReflectionMapping // for PMREMGenerator
             this.environment.needsUpdate = true
         }
-        this.dispatchEvent({type: 'environmentChanged', environment: this.environment})
+        this.dispatchEvent({
+            type: 'environmentChanged',
+            oldTexture: ev?.oldValue?.isTexture ? ev.oldValue : null,
+            texture: this.environment?.isTexture ? this.environment : null,
+            environment: this.environment,
+        })
         this.setDirty({refreshScene: true, geometryChanged: false})
         this.refreshUi?.()
     }
@@ -351,7 +356,13 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             if (this.autoDisposeSceneMaps && typeof ev.oldValue.dispose === 'function') ev.oldValue.dispose()
         }
 
-        this.dispatchEvent({type: 'backgroundChanged', background: this.background, backgroundColor: this.backgroundColor})
+        this.dispatchEvent({
+            type: 'backgroundChanged',
+            oldTexture: ev?.oldValue && ev.oldValue.isTexture ? ev.oldValue : null,
+            texture:(this.background as ITexture)?.isTexture ? (this.background as ITexture) : null,
+            background: this.background,
+            backgroundColor: this.backgroundColor,
+        })
         this.setDirty({refreshScene: true, geometryChanged: false})
         this.refreshUi?.()
     }
@@ -445,6 +456,15 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
 
         // todo: dispose more stuff?
+        this.disposeTextures(clear)
+        return
+    }
+
+    /**
+     * Dispose and optionally remove all textures set directly on this scene.
+     * @param clear
+     */
+    disposeTextures(clear = true) {
         this.environment?.dispose()
         if ((this.background as ITexture)?.isTexture) (this.background as ITexture)?.dispose?.()
 
@@ -452,7 +472,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             this.environment = null
             this.background = null
         }
-        return
     }
 
     /**

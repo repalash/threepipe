@@ -122,9 +122,13 @@ export interface ISceneEventMap extends IObject3DEventMap {
     //     geometryChanged: boolean
     // }
     environmentChanged: {
+        oldTexture: ITexture|null
+        texture: ITexture|null
         environment: ITexture|null
     }
     backgroundChanged: {
+        oldTexture: ITexture|null
+        texture: ITexture | null
         background: Texture | Color | 'environment' | null
         backgroundColor: Color | null
     }

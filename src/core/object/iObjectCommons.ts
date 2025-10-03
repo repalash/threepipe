@@ -236,6 +236,7 @@ export const iObjectCommons = {
                 return this.forcedOverrideMaterial ?? this.currentMaterial
             },
             set(val) {
+                if (this.forcedOverrideMaterial) console.warn('IObject3D: Material is being set on an object with forcedOverrideMaterial set')
                 this.currentMaterial = val
             },
         })
@@ -291,7 +292,7 @@ export const iObjectCommons = {
         if (!(this as any).setMaterial) {
             (this as any).setMaterial = (m: IMaterial | IMaterial[]| undefined)=>{
                 const mats = this.material
-                console.error('setMaterial is deprecated, use material property directly')
+                console.error('IObject3D: setMaterial is deprecated, use material property directly')
                 this.material = m
                 return mats
             }
@@ -378,9 +379,10 @@ export const iObjectCommons = {
             configurable: true,
             enumerable: true,
             get() {
-                return protoDesc?.get ? protoDesc.get.call(this) : iObjectCommons.getGeometry.call(this)
+                return this.forcedOverrideGeometry ?? (protoDesc?.get ? protoDesc.get.call(this) : iObjectCommons.getGeometry.call(this))
             },
             set(val) {
+                if (this.forcedOverrideGeometry) console.warn('IObject3D: Geometry is being set on an object with forcedOverrideGeometry set')
                 iObjectCommons.setGeometry.call(this, val) // this has to be first
                 protoDesc?.set?.call(this, val)
             },
@@ -391,7 +393,7 @@ export const iObjectCommons = {
         if (!(this as any).setGeometry) {
             (this as any).setGeometry = (geometry: IGeometry) =>{
                 const geom = this.geometry
-                console.error('setGeometry is deprecated, use geometry property directly')
+                console.error('IObject3D: setGeometry is deprecated, use geometry property directly')
                 this.geometry = geometry
                 return geom
             }
@@ -518,8 +520,8 @@ export const iObjectCommons = {
             superDispose && superDispose.call(this)
         },
 
-    getMapsForObject3D: function(this: IObject3D) {
-        const maps = new Set<ITexture>()
+    getMapsForObject3D: function(this: IObject3D): Map<string, ITexture> {
+        const maps = new Map<string, ITexture>()
         // @ts-expect-error todo add type
         for (const prop of this.constructor?.MapProperties || object3DTextureProperties) {
             checkTexMapReference(prop, this, maps)
@@ -667,7 +669,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objec
     // eslint-disable-next-line deprecation/deprecation
     !this.modelObject && Object.defineProperty(this, 'modelObject', {
         get: ()=>{
-            console.error('modelObject is deprecated, use object directly')
+            console.error('IObject3D: modelObject is deprecated, use object directly')
             return this
         },
     })

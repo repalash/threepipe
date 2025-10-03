@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {BufferGeometry, Line, LineLoop, LineSegments, LoadingManager, Mesh, Object3D, Texture} from 'three'
+import {BufferGeometry, Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
 import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID, whiteImageData} from '../../three'
@@ -20,6 +20,7 @@ import {ILoader} from '../IImporter'
 import {ThreeSerialization} from '../../utils'
 import {
     DirectionalLight2,
+    IObject3D,
     LineGeometry2,
     LineMaterial2,
     LineSegmentsGeometry2,
@@ -77,8 +78,9 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     /**
      * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
      * This is useful when importing gltf files with multiple objects with the same name, and creating animations for them.
+     * If set to 'auto', it will only create unique names when loading a `rootSceneModelRoot`, i.e. the scene object exported with `AssetExporter`
      */
-    static CreateUniqueNames = true
+    static CreateUniqueNames: boolean | 'auto' = 'auto'
 
     /**
      * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data
@@ -129,12 +131,25 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      */
     transform(res: GLTF, _: AnyOptions): Object3D|undefined {
         // todo: support loading of multiple scenes?
-        const scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
+        let scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
         if (!scene) return undefined
+
+        if (scene && scene.children.length === 1 && !scene.userData?.rootSceneModelRoot && !scene.importedViewerConfig && scene.children[0].userData?.tpAssetId) {
+            scene = scene.children[0] as RootSceneImportResult
+        }
+        if (!scene.userData) scene.userData = {}
+        if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
+        if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
+        if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
+
+        const currentAssetId = scene.userData.tpAssetId || null
 
         const lines: Line[] = []
         const refMap = new Map<string, Object3D[]>()
         const geometries = new Set<BufferGeometry>()
+
+        const objects: IObject3D[] = []
+
         scene.traverse((node: Object3D) => {
             if (node.userData.gltfUUID) { // saved in GLTFExporter2
                 safeSetProperty(node, 'uuid', node.userData.gltfUUID, true, true)
@@ -183,7 +198,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         }
 
         const useMeshLines = this.importOptions?.useMeshLines ?? GLTFLoader2.UseMeshLines
-        // todo: move out and put the chosen setting in userData.
+        // todo: move out somewhere else
         if (useMeshLines) {
             // convert lines to mesh/fat lines
             for (const line of lines) {
@@ -228,8 +243,17 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             }
             const createUniqueName = parser.createUniqueName
             parser.createUniqueName = (originalName: string) => {
-                if (parser.importOptions?.createUniqueNames || GLTFLoader2.CreateUniqueNames && parser.importOptions?.createUniqueNames !== false) return createUniqueName.call(parser, originalName)
-                return originalName // allow duplicates
+                const auto = (parser.importOptions?.createUniqueNames ?? GLTFLoader2.CreateUniqueNames) === 'auto'
+                let cu = false
+                if (auto) {
+                    const isModelRoot = parser.json?.scenes[parser.json.scene ?? 0]?.extras?.rootSceneModelRoot
+                    cu = !isModelRoot
+                } else {
+                    cu = parser.importOptions?.createUniqueNames === true || GLTFLoader2.CreateUniqueNames === true && parser.importOptions?.createUniqueNames !== false
+                }
+                return cu ?
+                    createUniqueName.call(parser, originalName) : // default behaviour
+                    originalName // allow duplicates
             }
             const tempPathDrc = generateUUID() + '.drc'
             const tempPathKtx2 = generateUUID() + '.ktx2'

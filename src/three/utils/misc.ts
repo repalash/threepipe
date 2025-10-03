@@ -64,11 +64,11 @@ export function localToWorldQuaternion(object: Object3D, quaternion: Quaternion,
  * @param maps
  * @param deep
  */
-export function checkTexMapReference(prop: string, object: IObject3D|IMaterial|IObject3D['userData']|IMaterial['userData'], maps: Set<ITexture>, deep = false) {
+export function checkTexMapReference(prop: string, object: IObject3D|IMaterial|IObject3D['userData']|IMaterial['userData'], maps: Map<string, ITexture>, deep = false) {
     const val = deep ?
         deepAccessObject(prop, object, false) :
         prop in object ? (object as any)[prop] : undefined
     if (val && val.isTexture) {
-        maps.add(val)
+        maps.set(prop, val)
     }
 }

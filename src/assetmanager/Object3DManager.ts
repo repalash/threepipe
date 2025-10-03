@@ -8,6 +8,7 @@ import {
     IObject3D,
     IObject3DEventMap,
     iObjectCommons,
+    IScene,
     ITexture,
     LegacyPhongMaterial,
     PhysicalMaterial,
@@ -146,7 +147,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const existing = [...this._objects].find(o => o.uuid === obj.uuid)
         if (existing) {
             if (existing && obj !== existing) {
-                // console.error('AssetManager - Object with the same uuid already registered', obj, existing)
+                console.warn('Object3DManager - Object with the same uuid already registered', obj, existing)
                 safeSetProperty(obj, 'uuid', generateUUID(), true, true)
             }
             // return
@@ -158,10 +159,15 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         obj.addEventListener('parentRootChanged', this._rootChanged)
         obj.addEventListener('materialChanged', this._materialChanged)
         obj.addEventListener('geometryChanged', this._geometryChanged)
+        obj.addEventListener('texturesChanged', this._texturesChanged)
+        if ((obj as IScene).isScene) {
+            (obj as IScene).addEventListener('backgroundChanged', this._textureChanged)
+            ;(obj as IScene).addEventListener('environmentChanged', this._textureChanged)
+        }
         this._registerMaterials(obj.materials, obj)
         this._registerGeometry(obj.geometry, obj)
-        const maps = iObjectCommons.getMapsForObject3D.call(obj)
-        if (maps) for (const tex of maps) {
+        const maps: Map<string, ITexture> = iObjectCommons.getMapsForObject3D.call(obj)
+        if (maps) for (const tex of maps.values()) {
             this._registerTexture(tex, obj)
         }
         if (!obj.objectExtensions) obj.objectExtensions = []
@@ -190,8 +196,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         // obj.removeEventListener('added', this._objAdded)
         this._unregisterMaterials(obj.materials, obj)
         this._unregisterGeometry(obj.geometry, obj)
-        const maps = iObjectCommons.getMapsForObject3D.call(obj)
-        if (maps) for (const tex of maps) {
+        const maps: Map<string, ITexture> = iObjectCommons.getMapsForObject3D.call(obj)
+        if (maps) for (const tex of maps.values()) {
             this._unregisterTexture(tex, obj)
         }
         if (this.autoDisposeObjects && obj.userData?.disposeOnIdle !== false) { // todo add disposeOnIdle to types and docs
@@ -328,8 +334,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             mat.addEventListener('texturesChanged', this._texturesChanged)
         }
 
-        const maps = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
-        if (maps) for (const tex of maps) {
+        const maps: Map<string, ITexture> = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
+        if (maps) for (const tex of maps.values()) {
             this._registerTexture(tex, mat)
         }
 
@@ -349,8 +355,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             // Remove texturesChanged event listener when material is no longer used
             mat.removeEventListener('texturesChanged', this._texturesChanged)
 
-            const maps = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
-            if (maps) for (const tex of maps) {
+            const maps: Map<string, ITexture> = /* mat._mapRefs || */iMaterialCommons.getMapsForMaterial.call(mat)
+            if (maps) for (const tex of maps.values()) {
                 this._unregisterTexture(tex, mat)
             }
 
@@ -362,8 +368,9 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         }
     }
 
-    private _texturesChanged = (ev: Event2<'texturesChanged', IMaterialEventMap, IMaterial>) => {
+    private _texturesChanged = (ev: Event2<'texturesChanged', IMaterialEventMap, IMaterial|IObject3D>) => {
         if (!ev.target) return
+        // todo check for changeKey to avoid looping through all textures?
         const material = ev.target
 
         const removedTextures = ev.removedTextures
@@ -375,6 +382,15 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         if (addedTextures) for (const tex of addedTextures) {
             this._registerTexture(tex, material)
         }
+    }
+    private _textureChanged = (ev: {
+        target: IObject3D|IMaterial,
+        oldTexture: ITexture|null
+        texture: ITexture|null
+    }) => {
+        if (!ev.target) return
+        if (ev.oldTexture) this._unregisterTexture(ev.oldTexture, ev.target)
+        if (ev.texture) this._registerTexture(ev.texture, ev.target)
     }
 
     // endregion

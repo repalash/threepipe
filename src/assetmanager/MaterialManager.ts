@@ -4,7 +4,6 @@ import {
     iMaterialCommons,
     IMaterialParameters,
     IMaterialTemplate,
-    ITexture,
     LegacyPhongMaterial,
     LineMaterial2,
     ObjectShaderMaterial,
@@ -59,7 +58,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      * @param register
      * @param params
      */
-    public create<TM extends IMaterial>(nameOrType: string, params: IMaterialParameters = {}, register = true): TM | undefined {
+    public create<TM extends IMaterial>(nameOrType: string, params: IMaterialParameters = {}, register = true, uuid?: string): TM | undefined {
         let template: IMaterialTemplate<any> = {materialType: nameOrType, name: nameOrType}
         while (!template.generator) { // looping so that we can inherit templates, not fully implemented yet
             const t2 = this.findTemplate(template.materialType) // todo add a baseTemplate property to the template?
@@ -70,6 +69,9 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             template = {...template, ...t2}
         }
         const material = this._create<TM>(template, params)
+        if (uuid) {
+            safeSetProperty(material, 'uuid', uuid, true, true)
+        }
         if (material && register) this.registerMaterial(material)
         return material
     }
@@ -109,8 +111,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly.
     }
 
-    private _materialMaps = new Map<string, Set<ITexture>>()
-
     public registerMaterial(material: IMaterial): void {
         if (!material) return
         if (this._materials.includes(material)) return
@@ -142,7 +142,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      */
     public unregisterMaterial(material: IMaterial): void {
         this._materials = this._materials.filter(v=>v.uuid !== material.uuid)
-        this._materialMaps.delete(material.uuid)
         material.unregisterMaterialExtensions?.(this._materialExtensions)
         material.removeEventListener('dispose', this._disposeMaterial)
         // material.removeEventListener('materialUpdate', this._materialUpdate)

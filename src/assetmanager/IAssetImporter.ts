@@ -159,8 +159,10 @@ export interface LoadFileOptions {
      * If true, the loader will create unique names for objects in the gltf file when multiple objects with the same name are found.
      *
      * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2}. If this flag is not passed, the default value is the value of the static property `GLTFLoader2.CreateUniqueNames`.
+     * If set to 'auto'(default), it will only create unique names when loading a `rootSceneModelRoot`, i.e. the scene object exported with `AssetExporter`
+     *
      */
-    createUniqueNames?: boolean,
+    createUniqueNames?: boolean | 'auto',
 
     /**
      * for internal use
@@ -197,6 +199,12 @@ export interface ImportAssetOptions extends ProcessRawOptions, LoadFileOptions {
      * Pass a custom file to use for the import. This will be used in the importer, and nothing will be fetched from the path
      */
     importedFile?: IFile,
+
+    /**
+     * If true, the loaded asset object will be cached in the asset importer's cache (in memory).
+     * Default is true.
+     */
+    cacheAsset?: boolean
 }
 
 // exp ort type IAssetImporterEventTypes = 'onLoad' | 'onProgress' | 'onStop' | 'onError' | 'onStart' | 'loaderCreate' | 'importFile' | 'importFiles' | 'processRaw' | 'processRawStart'

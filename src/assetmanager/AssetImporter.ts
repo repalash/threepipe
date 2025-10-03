@@ -4,7 +4,7 @@ import {
     IImportResultUserData,
     ImportAssetOptions,
     ImportFilesOptions,
-    ImportResult, ImportResultExtras,
+    ImportResult,
     LoadFileOptions,
     ProcessRawOptions,
     RootSceneImportResult,
@@ -16,7 +16,6 @@ import {SimpleJSONLoader} from './import'
 import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
-import {IObject3D} from '../core'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -32,8 +31,8 @@ export interface IAssetImporterEventMap {
     loaderCreate: {type: 'loaderCreate', loader: ILoader}
     importFile: {type: 'importFile', path: string, state: 'downloading'|'done'|'error'|'adding', progress?: number, loadedBytes?: number, totalBytes?: number, error?: any}
     importFiles: {type: 'importFiles', files: Map<string, IFile>, state: 'start'|'end'}
-    processRaw: {type: 'processRaw', data: any, options: ProcessRawOptions, path?: string}
-    processRawStart: {type: 'processRawStart', data: any, options: ProcessRawOptions, path?: string}
+    processRaw: {type: 'processRaw', data: ImportResult, options: ProcessRawOptions, path?: string}
+    processRawStart: {type: 'processRawStart', data: ImportResult, options: ProcessRawOptions, path?: string}
 
     /**
      * @deprecated use the {@link importFile} event instead
@@ -175,7 +174,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         }
 
         // Cache the asset reference if it is not already cached
-        if (!this._cachedAssets.includes(asset)) {
+        if (options.cacheAsset !== false && !this._cachedAssets.includes(asset)) {
             if (Object.entries(asset).length === 1 && asset.path) {
                 const ca = this._cachedAssets.find(value => value.path === asset.path)
                 if (ca) Object.assign(asset, ca)
@@ -232,7 +231,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             return []
         }
         return this.importAsset(this._cachedAssets.find(a=>a.file === file) ?? {
-            path: file.name || file.webkitRelativePath, file,
+            path: options.pathOverride || file.name || file.webkitRelativePath,
+            file,
         }, options, onDownloadProgress)
     }
 
@@ -482,7 +482,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             res._childrenCopy = [...res.children]
         }
 
-        if (res.name === '') res.name = (rootPath || rootBlob?.filePath || rootBlob?.name || '').replace(/^\//, '')
+        if (res.name === '') res.name = (rootPath || rootBlob?.filePath || rootBlob?.name || '')
+            .replace(/^\/|\/$/, '')
+            .split('/').pop()!
 
         res.assetImporterProcessed = true // this should not be put in userData
 

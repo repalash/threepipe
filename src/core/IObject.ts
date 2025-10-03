@@ -53,10 +53,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         args?: any[]
         bubbleToParent: boolean
     } & Omit<IObjectSetDirtyOptions, 'bubbleToParent'>
-    textureUpdate: {
-        // object: IObject3D
-        // todo
-    }
+    textureUpdate: IMaterialEventMap['textureUpdate']
     geometryChanged: {
         object: IObject3D
         geometry: IGeometry|null
@@ -69,6 +66,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
         oldMaterial: IMaterial|IMaterial[]|null
         bubbleToParent: boolean
     }
+    // this is never dispatched from object
     texturesChanged: IMaterialEventMap['texturesChanged']
     geometryUpdate: {
         object: IObject3D
@@ -445,7 +443,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * A promise can be set by the object to indicate that the object is loading.
      * This can be used by the scene, viewer, plugins to defer actions until the object is loaded.
      */
-    _loadingPromise?: Promise<void>
+    _loadingPromise?: Promise<any>
 
     /**
      * For InstancedMesh, SkinnedMesh etc
@@ -504,7 +502,12 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * If this is set, it will be returned when accessing `material` property.
      * see {@link GBufferRenderPass} for sample usage
      */
-    forcedOverrideMaterial?: Material
+    forcedOverrideMaterial?: Material | Material[]
+
+    /**
+     * If this is set, it will be returned when accessing `geometry` property.
+     */
+    forcedOverrideGeometry?: IGeometry
 
     /**
      * Traverse only upgraded objects with extra options
@@ -569,7 +572,9 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      */
     ['_rootPathRefreshing']?: boolean
     /**
-     * @internal - for embedded objects
+     * If this is present, only the objects in this array will be saved in the glb/gltf files, and the object.children array will be ignored.
+     * The other properties are expected to be loaded/filled at runtime by default values or from an external asset loaded from {@link IImportResultUserData.rootPath}.
+     * @internal - for embedded objects.
      */
     ['_sChildren']?: Object3D[]
 

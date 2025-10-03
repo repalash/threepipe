@@ -19,6 +19,12 @@ All notable changes to this project will be documented in this file.
 - Add `refreshAttachedLight` to `CascadedShadowsPlugin` to be able to manually refresh the auto attached light.
 - Add `near`, `far`, `controlsMode` settings to `makeICameraCommonUiConfig`
 - Add example - [gltf-export](https://threepipe.org/examples/#gltf-export/) - Example showing the use of `viewer.export` to export a glTF(JSON) file with and without embedded assets.
+- Add `auto` to `GLTFLoader2.CreateUniqueNames` and `LoadFileOptions.createUniqueNames`. When set to auto (default), unique names are created only when importing a model root(scene)
+- Add `ImportAssetOptions.cacheAsset`(default true), can be set to `false` to disable caching an asset(in asset manager cache if provided) when importing.
+- Add parameter `uuid` in `MaterialManager.create` to set material uuid explicitly when creating a material.
+- Add support for `forcedOverrideGeometry` in `IObject3D` to override geometry accessor of a mesh. (similar to `forcedOverrideMaterial`).
+- Add `oldTexture`, `texture` to `environmentChanged` and `backgroundChanged` events in `RootScene`, `ISceneEventMap`.
+- Add `RootScene.disposeTextures(clear = true)` to remove and dispose all textures set directly on the scene.
 
 ### Changed
 
@@ -31,6 +37,11 @@ All notable changes to this project will be documented in this file.
 - Make `controlsCtors` public readonly in `ICamera`
 - Avoid creating widgets for objects that have `userData.disableWidgets` set to `true`
 - Use `options.exportExt` when exporting materials in `AssetExporter`
+- Set `GLTFLoader2.CreateUniqueNames` to `auto` by default.
+- Set asset/object/material/texture `name` to the file name being imported if it's empty string. Earlier the complete URL was set to `name`.
+- `iMaterialCommons.getMapsForMaterial` now returns a `Map` of property names to textures.
+- `iMaterialCommons.getMapsForObject3D` now returns a `Map` of property names to textures.
+- Changed parameter type of `maps` in `checkTexMapReference` from `Set` to `Map`.
 
 ### Fixes
 
@@ -39,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - Use `exportExt` when exporting models in AssetExporter
 - Avoid changing background color and dispatching events when the same color is passed to `RootScene.setBackgroundColor()`.
 - Dispatch frame events and update timeline and object extensions when `ThreeViewer.renderEnabled` is `false`
+- Subscribe to `texturesChanged` on objects and `backgroundChanged`, `environmentChanged` on scene in `Object3DManager` to correctly update texture references on objects.
 
 ## [0.2.0] - 2025-09-03
 

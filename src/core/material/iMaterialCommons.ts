@@ -96,7 +96,6 @@ export const iMaterialCommons = {
             const material: IMaterial = this.generator?.({})?.setValues(this, false) ?? superClone.call(this)
 
             if (track) {
-
                 material.userData.cloneId = material.userData.cloneId + '_' + this.userData.cloneCount
                 material.userData.cloneCount = 0
                 material.name = (material.name || 'mat') + '_' + material.userData.cloneId
@@ -189,7 +188,7 @@ export const iMaterialCommons = {
     upgradeMaterial: upgradeMaterial,
 
     getMapsForMaterial: function(this: IMaterial) {
-        const maps = new Set<ITexture>()
+        const maps = new Map<string, ITexture>()
         for (const prop of this.constructor?.MapProperties || materialTextureProperties) {
             checkTexMapReference(prop, this, maps)
         }
@@ -202,7 +201,8 @@ export const iMaterialCommons = {
     },
     refreshTextureRefs: function(this: IMaterial) {
         if (!this.__textureUpdate) this.__textureUpdate = textureUpdate.bind(this)
-        const newMaps = iMaterialCommons.getMapsForMaterial.call(this)
+        const newMaps1: Map<string, ITexture> = iMaterialCommons.getMapsForMaterial.call(this)
+        const newMaps = new Set(newMaps1.values().toArray())
         const oldMaps = this._mapRefs || new Set<ITexture>()
         let changed = false
         const added = new Set<ITexture>()

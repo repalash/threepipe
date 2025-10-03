@@ -22,6 +22,8 @@ export interface ITextureUserData{
         start?: number // in ms
         end?: number // in ms
     }
+
+    [key: string]: any
 }
 
 // export type ITextureEventTypes = 'dispose' | 'update'
@@ -36,6 +38,7 @@ export type ITextureEventMap = TextureEventMap
 declare module 'three'{
     export interface TextureEventMap{
         textureUpdate: {
+            texture: Texture
             // These are handled in dispatchEvent override in iMaterialCommons
             bubbleToObject?: boolean
             bubbleToParent?: boolean
@@ -52,6 +55,7 @@ declare module 'three'{
         //     source?: string // who is triggering the event. so that recursive events can be prevented
         // } /* & IObjectSetDirtyOptions*/
     }
+
 }
 
 export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extends Texture<TE> {
