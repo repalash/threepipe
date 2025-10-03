@@ -20,12 +20,13 @@ By default, these files are loaded from one of the reliable CDNs, or from [three
 
 ### Core
 
-- `DRACOLoader2.DRACO_LIBRARY_PATH` - The URL to the Draco decoder library used for loading compressed 3D models.
+- `DRACOLoader2.DRACO_LIBRARY_PATH` - The URL to the Draco decoder/encoder library used for loading compressed 3D models.
   - Default: `https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/`
   - Alternatives:
     - `https://www.gstatic.com/draco/versioned/decoders/1.5.6/`
     - `https://threejs.org/examples/jsm/libs/draco/`
     - `https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/`
+  - Release Files can be downloaded from - https://github.com/google/draco/releases/tag/1.5.6
   - Offline/Mobile Apps - Embedded File - Put the draco_decoder.js file in your src folder, then import it in js/ts as a string
 ```typescript
 import draco_decoder from './libs/draco_decoder.1.5.6.js?raw' // vite will load this as a string
