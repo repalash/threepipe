@@ -5,7 +5,7 @@ export function overrideThreeCache(storage: Cache | Storage) {
     threeCache.get = (url: string, responseType?: string, mimeType?: DOMParserSupportedType): Promise<any> | any => {
         if (!responseType) return oldCache.get(url)
         if (url.startsWith('data:') || url.startsWith('blob') || url.startsWith('chrome-extension')) return Promise.resolve(undefined)
-        return (storage as Cache).match(url).then(response => {
+        return (storage as Cache).match(url).then(async response => {
             if (!response) return undefined
             switch (responseType) {
             case 'arraybuffer':
@@ -39,7 +39,8 @@ export function overrideThreeCache(storage: Cache | Storage) {
         if (url.startsWith('data:') || url.startsWith('blob') || url.startsWith('chrome-extension')) return
         // noinspection JSIgnoredPromiseFromCall
         if (await storage.match(url)) await storage.delete(url)
-        await storage.put(url, new Response(data, {status: 200}))
+        // todo this can throw - Request scheme 'x' is unsupported, check if scheme is supported
+        await storage.put(url, new Response(data, {status: 200})).catch((e: any)=>{console.warn(e)})
     }
     threeCache.remove = (url: string, responseType?: string) => {
         if (!responseType) return oldCache.remove(url)

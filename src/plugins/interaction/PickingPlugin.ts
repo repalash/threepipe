@@ -2,7 +2,18 @@ import {EventListener2, Object3D} from 'three'
 import {Class, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {bindToValue, BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
-import {IMaterial, IObject3D, IScene, ISceneEventMap, IWidget} from '../../core'
+import {
+    IGeometry,
+    IMaterial,
+    IObject3D,
+    IScene,
+    ISceneEventMap,
+    IWidget,
+    LineMaterial2,
+    PhysicalMaterial,
+    UnlitLineMaterial,
+    UnlitMaterial,
+} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
 import {type UndoManagerPlugin} from './UndoManagerPlugin'
@@ -40,7 +51,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     @bindToValue({obj: '_picker', key: 'selectionMode'})
-        selectionMode: 'object' | 'material' = 'object'
+        selectionMode: 'object' | 'material' | 'geometry' | 'texture' = 'object'
 
     @serialize()
         autoFocus
@@ -84,6 +95,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._pickUi = pickUi
         this.autoFocus = autoFocus
         this.dispatchEvent = this.dispatchEvent.bind(this)
+
+        this.materialTypes.forEach(m=>m.def ? m.def.uiConfig = undefined as any : null)
+
     }
 
     getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
@@ -256,68 +270,29 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             if (selected) {
                 if ((selected as IObject3D).isObject3D) {
                     const obj = (selected as IObject3D)
-                    ui.children.push(
-                        {
-                            type: 'button',
-                            label: 'Focus',
-                            value: () => {
-                                if (!obj.isObject3D) return
-                                // const selected = this.getSelectedObject()
-                                if (selected.assetType && obj.parentRoot) // todo also check if acceptChildEvents is set on some parent?
-                                    obj.dispatchEvent({
-                                        type: 'select',
-                                        ui: true,
-                                        object: obj,
-                                        bubbleToParent: true,
-                                        focusCamera: true,
-                                    })
-                                else
-                                    this.setSelectedObject(obj, true)
-                            },
-                        },
-                        {
-                            type: 'button',
-                            label: 'Select Parent',
-                            hidden: () => !obj.parent,
-                            value: () => {
-                                if (!obj.isObject3D) return
-                                const parent = obj.parent
-                                if (parent) {
-                                    if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
-                                        parent.dispatchEvent({
-                                            type: 'select',
-                                            ui: true,
-                                            bubbleToParent: true,
-                                            object: parent,
-                                        })
-                                    else
-                                        this.setSelectedObject(parent, false)
-                                }
-                            },
-                        },
-                    )
+                    ui.children.push(...this.objectSelectionUiConfig(obj))
                 }
-                let c = selected.uiConfig
-                if (c) {
-                    if (c.type === 'folder') safeSetProperty(c, 'expanded', true, true)
-                    ui.children.push(c)
+                const c = selected.uiConfig
+                if (c?.type === 'folder') safeSetProperty(c, 'expanded', true, true)
+                if (c) ui.children.push(c)
 
-                    // todo children need to be added back to config on selection change or error
-                    // const objChildren = c.children
-                    // find all children after type divider
-                    // const dividerIndex = objChildren?.findIndex((c1) => typeof c1 === 'object' && (c1.type === 'divider' || c1.type === 'separator')) ?? -1
-                    // if (dividerIndex >= 0) {
-                    //     ui.children.push(...objChildren!.slice(dividerIndex + 1))
-                    //     c.children = objChildren!.slice(0, dividerIndex)
-                    // }
-                } else {
-                    // check materials
-                    const mats = (selected as IObject3D).materials ?? [(selected as IObject3D).material as IMaterial]
-                    for (const m of mats) {
-                        c = m?.uiConfig
-                        if (c) ui.children.push(c)
-                    }
+                const object = (selected as IObject3D)?.isObject3D ? (selected as IObject3D) : undefined
+                const materials1 = (selected as IMaterial)?.isMaterial ? selected as IMaterial : object?.material
+                const materials = materials1 ? Array.isArray(materials1) ? materials1 : [materials1] : []
+                const geometry = (selected as IGeometry)?.isBufferGeometry ? selected as IGeometry : object?.geometry
+
+                if (geometry?.uiConfig && geometry !== selected) {
+                    const c1 = geometry.uiConfig
+                    if (c1.type === 'folder') safeSetProperty(c1, 'expanded', true, true)
+                    ui.children.push(c1)
                 }
+                materials.forEach(m=>{
+                    if (m?.uiConfig && m !== selected) ui.children?.push(m.uiConfig)
+                })
+                if ((selected as IObject3D).isObject3D) {
+                    ui.children.push(...this.objectMaterialManageUiConfig(selected as IObject3D))
+                }
+
             } else {
                 ui.children.push(this._pickPromptUi)
             }
@@ -485,6 +460,110 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     get widget(): SelectionWidget | undefined {
         return this._widget
     }
+
+    // UI utils
+
+    objectSelectionUiConfig(obj: IObject3D): UiObjectConfig[] {
+        return [
+            {
+                type: 'button',
+                label: 'Focus',
+                value: () => {
+                    if (!obj.isObject3D) return
+                    // const selected = this.getSelectedObject()
+                    if (obj.assetType && obj.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                        obj.dispatchEvent({
+                            type: 'select',
+                            ui: true,
+                            object: obj,
+                            bubbleToParent: true,
+                            focusCamera: true,
+                        })
+                    else
+                        this.setSelectedObject(obj, true)
+                },
+            },
+            {
+                type: 'button',
+                label: 'Select Parent',
+                hidden: () => !obj.parent,
+                value: () => {
+                    if (!obj.isObject3D) return
+                    const parent = obj.parent
+                    if (parent) {
+                        if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+                            parent.dispatchEvent({
+                                type: 'select',
+                                ui: true,
+                                bubbleToParent: true,
+                                object: parent,
+                            })
+                        else
+                            this.setSelectedObject(parent, false)
+                    }
+                },
+            },
+        ]
+    }
+
+    objectMaterialManageUiConfig(obj: IObject3D): UiObjectConfig[] {
+        return [
+            {
+                label: 'Remove Material(s)',
+                type: 'button',
+                hidden: ()=>!this.canRemoveMaterial(obj),
+                value: ()=> this.removeMaterial(obj),
+            },
+            ...this.materialTypes.map(matType=>({
+                label: `New ${matType.name} Material`,
+                type: 'button',
+                hidden: matType.line ?
+                    ()=>!obj.isLineSegments2 || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
+                    ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === this.materialTypes[0].def) || !!obj.isLineSegments2 || !!obj.isLineSegments,
+                value: ()=>{
+                    const mat = obj.materials
+                    obj.material = [new matType.cls()]
+                    return ()=> obj.material = mat
+                },
+            })),
+        ]
+    }
+
+    canRemoveMaterial = (obj: IObject3D)=>{
+        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : []
+        return materials.length && (materials.length !== 1 || !(this.materialTypes.map(m=>m.def) as IMaterial[]).includes(materials[0]))
+    }
+    removeMaterial = (obj: IObject3D)=>{
+        const matC = obj.materials
+        const def = [this.materialTypes[0].def!]
+        if (!def[0]) throw new Error('No default material found')
+        const mat = obj.isLineSegments2 ? this.materialTypes.find(m=>m.cls === LineMaterial2)?.def :
+            obj.isLineSegments ? this.materialTypes.find(m=>m.cls === UnlitLineMaterial)?.def :
+                null
+        obj.material = mat ? [mat] : def
+        return ()=> obj.material = matC // returns undo function
+    }
+
+    // to be able to remove material from object
+    materialTypes = [{
+        cls: UnlitMaterial,
+        def: new UnlitMaterial({name: 'Default Unlit Material', userData: {isPlaceholder: true}}),
+        name: 'Unlit',
+    }, {
+        cls: UnlitLineMaterial,
+        def: new UnlitLineMaterial({name: 'Default Unlit Line Material', userData: {isPlaceholder: true}}),
+        line: true,
+        name: 'Basic Line',
+    }, {
+        cls: LineMaterial2,
+        def: new LineMaterial2({name: 'Default Line Material', userData: {isPlaceholder: true}}),
+        line: true,
+        name: 'Line',
+    }, {
+        cls: PhysicalMaterial,
+        // def: new PhysicalMaterial(),
+        name: 'Physical',
+    }]
 
 }
 

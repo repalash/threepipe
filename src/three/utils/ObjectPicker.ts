@@ -5,6 +5,7 @@ import {ICamera, IMaterial, IObject3D, ITexture, IGeometry, IWidget} from '../..
 export type SelectionObject = IObject3D | IMaterial | ITexture | IGeometry | null
 export type SelectionObjectArr = IObject3D[] | IMaterial[] | ITexture[] | IGeometry[]
 export type SelectionModeType = 'object' | 'material' | 'texture' | 'geometry'
+export type PickingModeType = 'auto' | SelectionModeType
 
 export interface HitIntersects{
     selectedObject: IObject3D | null,
@@ -20,6 +21,7 @@ export interface ObjectPickerEventMap{
     selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
     hitObject: {time: number, intersects: HitIntersects} // selectedObject should be renamed to hitObject
     selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
+    pickingModeChanged: {detail: {key: 'pickingMode', value: PickingModeType, oldValue: PickingModeType}}
 }
 
 export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
@@ -28,6 +30,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     hoverEnabled = false
     @onChangeDispatchEvent('selectionModeChanged')
         selectionMode: SelectionModeType = 'object'
+    @onChangeDispatchEvent('pickingModeChanged')
+        pickingMode: PickingModeType = 'auto'
 
     /**
      * Time threshold for a pointer click event
@@ -279,7 +283,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
         // Handle selection based on current mode
         if (obj) {
-            switch (this.selectionMode) {
+            const mode = this.pickingMode === 'auto' ? this.selectionMode : this.pickingMode
+            switch (mode) {
             case 'material':
                 if (obj.material) {
                     obj = Array.isArray(obj.material) ? obj.material[0] : obj.material

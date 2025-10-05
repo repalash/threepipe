@@ -44,7 +44,7 @@ All notable changes to this project will be documented in this file.
 - `iMaterialCommons.getMapsForMaterial` now returns a `Map` of property names to textures.
 - `iMaterialCommons.getMapsForObject3D` now returns a `Map` of property names to textures.
 - Changed parameter type of `maps` in `checkTexMapReference` from `Set` to `Map`.
-- 
+- Moved object material and geometry UI Config to `PickingPlugin`(from `object.uiConfig`). They are now populated only when the object is selected.
 
 ### Fixes
 
