@@ -1,4 +1,12 @@
-import {Cache as threeCache, EventDispatcher, EventListener, FileLoader, LoaderUtils, LoadingManager} from 'three'
+import {
+    BufferGeometry,
+    Cache as threeCache,
+    EventDispatcher,
+    EventListener,
+    FileLoader,
+    LoaderUtils,
+    LoadingManager,
+} from 'three'
 import {
     IAssetImporter,
     IImportResultUserData,
@@ -16,6 +24,7 @@ import {SimpleJSONLoader} from './import'
 import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
+import {IGeometry, UnlitMaterial} from '../core'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -84,6 +93,13 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     // static WHITE_IMAGE_DATA = new ImageData(new Uint8ClampedArray([255, 255, 255, 255]), 1, 1)
     // static WHITE_TEXTURE = new Texture(AssetImporter.WHITE_IMAGE_DATA)
 
+    // todo these are only used in export, use in import as well
+    static DummyMaterial = /* @__PURE__ */ new UnlitMaterial({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyGeometry: IGeometry = /* @__PURE__ */ new BufferGeometry() as IGeometry
+    // dummyGeometry.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0]), 3))
+    // dummyGeometry.setAttribute('normal', new BufferAttribute(new Float32Array([0, 1, 0]), 3))
+    // dummyGeometry.setAttribute('uv', new BufferAttribute(new Float32Array([0, 0]), 2))
+
     readonly importers: IImporter[] = [
         new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),
         new Importer(FileLoader, ['txt'], ['text/plain'], false),
@@ -102,6 +118,30 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         this._urlModifier = this._urlModifier.bind(this)
         this._loadingManager = new LoadingManager(this._onLoad, this._onProgress, this._onError)
         this._loadingManager.onStart = this._onStart
+        const itemStart = this._loadingManager.itemStart
+        this._loadingManager.itemStart = (url)=>{
+            this.dispatchEvent({type: 'importFile', path: url, state: 'downloading', progress: 0})
+            itemStart.call(this._loadingManager, url)
+        }
+        let errorItems: string[] = [] // not using Set here as it can have duplicates
+        const itemEnd = this._loadingManager.itemEnd
+        this._loadingManager.itemEnd = (url)=>{
+            if (errorItems.includes(url)) {
+                errorItems = errorItems.filter(u => u !== url)
+                itemEnd.call(this._loadingManager, url)
+                return
+            }
+            this.dispatchEvent({type: 'importFile', path: url, state: 'downloading', progress: 1})
+            itemEnd.call(this._loadingManager, url)
+            this.dispatchEvent({type: 'importFile', path: url, state: 'done'}) // todo: do this after processing?
+        }
+        const itemError = this._loadingManager.itemError
+        this._loadingManager.itemError = (url)=>{
+            errorItems.push(url)
+            this.dispatchEvent({type: 'importFile', path: url, state: 'error'})
+            itemError.call(this._loadingManager, url)
+        }
+
         this._loadingManager.setURLModifier(this._urlModifier)
         this._initCacheStorage(simpleCache, storage ?? true)
     }
@@ -190,7 +230,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         }
 
         const path = options.pathOverride || asset.path
-        // console.log(result)
         if (!options.forceImport && result) {
             const results = await this.processRaw<T>(result as any, options, path) // just in case its not processed. Internal check is done to ensure it's not processed twice
             return results
@@ -293,7 +332,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         // if (file?.__loadedAsset) return file.__loadedAsset
         if (this._cacheStoreInitPromise) await this._cacheStoreInitPromise
 
-        this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 0})
+        this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 0})// todo state 'starting' here? as downloading also in itemStart
         let res: ImportResult | ImportResult[] | undefined
         try {
             const loader = this.registerFile(path, file, options.fileExtension, options.fileHandler)
@@ -329,8 +368,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
             this._rootContext = undefined
 
-            this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 1})
-            this.dispatchEvent({type: 'importFile', path, state: 'adding'})
+            // this.dispatchEvent({type: 'importFile', path, state:'downloading', progress: 1})
+            // this.dispatchEvent({type: 'importFile', path, state:'adding'})
 
             if (file)
                 this._logger('AssetImporter: loaded', path)
@@ -350,7 +389,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 this.unregisterFile(path)
             return []
         }
-        this.dispatchEvent({type: 'importFile', path, state: 'done'}) // todo: do this after processing?
+        // done in itemEnd of loading manager
+        // this.dispatchEvent({type: 'importFile', path, state: 'done'}) // todo: do this after processing?
         // if (file) {
         //     file.__loadedAsset = res
         //
@@ -452,21 +492,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
         if (res.assetImporterProcessed && !options.forceImporterReprocess) return [res]
 
-        this.dispatchEvent({type: 'processRawStart', data: res, options, path})
-
-        // for testing only
-        if (res.isTexture && options._testDataTextureComplete) {
-            // if some data textures are not loading correctly, should not ideally be required
-            if (res.isDataTexture && res.image?.data) res.image.complete = true
-            if (res.image?.complete) res.needsUpdate = true
-        }
         const rootPath = res.__rootPath
         const rootPathOptions = res.__rootPathOptions
         const rootBlob = res.__rootBlob
 
         if (res.userData) {
             const userData: IImportResultUserData = res.userData
-            if (!userData.rootPath && rootPath && !rootPath.startsWith('blob:') && !rootPath.startsWith('/')) {
+            // todo when loading zip files it shouldn't set the rootPath for all assets
+            if (!userData.rootPath && rootPath && !rootPath.startsWith('blob:') /* && !rootPath.startsWith('/')*/) {
                 userData.rootPath = rootPath
                 if (rootPathOptions) userData.rootPathOptions = rootPathOptions
             }
@@ -478,6 +511,18 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 }
             }
         }
+
+        if (!path && res.userData?.rootPath) path = res.userData.rootPath
+
+        this.dispatchEvent({type: 'processRawStart', data: res, options, path})
+
+        // for testing only
+        if (res.isTexture && options._testDataTextureComplete) {
+            // if some data textures are not loading correctly, should not ideally be required
+            if (res.isDataTexture && res.image?.data) res.image.complete = true
+            if (res.image?.complete) res.needsUpdate = true
+        }
+
         if ((res as RootSceneImportResult)?.userData && (res as RootSceneImportResult).userData.rootSceneModelRoot) {
             res._childrenCopy = [...res.children]
         }
@@ -640,10 +685,8 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             // three.js built-in simple memory cache. used in FileLoader.js todo: use local storage somehow
             if (simpleCache) threeCache.enabled = true
 
-            if (storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache) {
-                overrideThreeCache(storage)
-                // todo: clear cache
-            }
+            const stro = storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache ? storage : undefined
+            overrideThreeCache(stro) // todo: ability to clear cache storage
         }
         this._storage = typeof storage === 'boolean' ? undefined : storage
     }

@@ -3,6 +3,7 @@ import {IMaterial, IObject3D, ITexture} from '../core'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportWriter} from './IExporter'
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
+import {assetExportHook} from './export/assetExportHook.ts'
 
 export interface AssetExporterEventMap {
     exporterCreate: {exporter: IExporter, parser: IExportWriter} // todo rename parser to writer
@@ -52,6 +53,8 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
 
     constructor() {
         super()
+
+        this.addEventListener('exportFile', (e)=>assetExportHook(e, AssetExporter._TRACK_ROOT_PATH))
     }
 
     public async exportObject(obj?: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
@@ -101,6 +104,8 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
                 res.ext = processed.ext
             }
 
+            res = await this.processAfterExport(res, obj, options)
+
             this.dispatchEvent({type: 'exportFile', obj, state: 'done', exportOptions: options})
 
         } catch (e) {
@@ -142,7 +147,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             return {obj, ext: options.exportExt ?? 'glb'}
             // return {obj, ext: 'gltf'}
         case 'material':
-            return {obj: (obj as IMaterial).toJSON(), ext: options.exportExt || (obj as IMaterial).constructor?.TypeSlug, typeExt: 'json'}
+            return {obj: matToJson(obj as IMaterial), ext: options.exportExt || (obj as IMaterial).constructor?.TypeSlug, typeExt: 'json'}
         case 'texture':
             return options.exportExt ? {obj, ext: options.exportExt} : {obj: (obj as ITexture).toJSON(), ext: 'json'}
         case 'renderTarget':
@@ -163,9 +168,23 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         return undefined
     }
 
+    public async processAfterExport(blob: BlobExt, _obj: IObject3D|IMaterial|ITexture|IRenderTarget, _options: ExportFileOptions = {}): Promise<BlobExt> {
+        return blob
+    }
+
     dispose(): void {
         // todo
     }
 
+    /**
+     * Check if any embedded object/asset is part of another file(with rootPath set) and track it instead of saving it again.
+     */
+    static ['_TRACK_ROOT_PATH'] = false
 
+
+}
+
+export function matToJson(mat: IMaterial) {
+    const json = mat.toJSON()
+    return json
 }
