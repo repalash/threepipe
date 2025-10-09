@@ -1,4 +1,11 @@
-import {arrayBufferToBase64, base64ToArrayBuffer, getTypedArray, Serialization, Serializer} from 'ts-browser-helpers'
+import {
+    arrayBufferToBase64,
+    base64ToArrayBuffer,
+    deepAccessObject,
+    getTypedArray, safeSetProperty,
+    Serialization,
+    Serializer,
+} from 'ts-browser-helpers'
 import {
     AnimationClip,
     ArcCurve,
@@ -34,30 +41,52 @@ import {
     Vector3,
     Vector4,
 } from 'three'
-import type {AssetImporter, AssetManager, MaterialManager} from '../assetmanager'
-import {BlobExt, IAssetImporter, ImportResultExtras} from '../assetmanager'
-import {ThreeViewer} from '../viewer'
-import {ITexture} from '../core'
-import {IRenderTarget, RenderManager} from '../rendering'
+import type {
+    AssetImporter,
+    AssetManager,
+    BlobExt,
+    IAssetImporter,
+    ImportResultExtras,
+    MaterialManager,
+} from '../assetmanager'
+import type {ThreeViewer} from '../viewer'
+import {IMaterial, IObject3D, ITexture} from '../core'
+import type {IRenderTarget, RenderManager} from '../rendering'
 import {textureToCanvas} from '../three/utils/texture'
 import {CurvePath3} from '../three'
+import {isNonRelativeUrl} from './browser-helpers'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
+
 export class ThreeSerialization {
 
     static Primitives = [
-        [Vector2, 'isVector2', ['x', 'y']],
-        [Vector3, 'isVector3', ['x', 'y', 'z']],
-        [Vector4, 'isVector4', ['x', 'y', 'z', 'w']],
-        [Quaternion, 'isQuaternion', ['x', 'y', 'z', 'w']],
-        [Euler, 'isEuler', ['x', 'y', 'z', 'order']],
-        [Color, 'isColor', ['r', 'g', 'b']],
-        [Matrix2, 'isMatrix2', ['elements']],
-        [Matrix3, 'isMatrix3', ['elements']],
-        [Matrix4, 'isMatrix4', ['elements']],
-        [Spherical, 'isSpherical', ['radius', 'phi', 'theta']],
+        [Vector2, 'isVector2', ['x', 'y'], 1],
+        [Vector3, 'isVector3', ['x', 'y', 'z'], 1],
+        [Vector4, 'isVector4', ['x', 'y', 'z', 'w'], 1],
+        [Quaternion, 'isQuaternion', ['x', 'y', 'z', 'w'], 1],
+        [Euler, 'isEuler', ['x', 'y', 'z', 'order'], 1],
+        [Color, 'isColor', ['r', 'g', 'b'], 1],
+        [Matrix2, 'isMatrix2', ['elements'], 1],
+        [Matrix3, 'isMatrix3', ['elements'], 1],
+        [Matrix4, 'isMatrix4', ['elements'], 1],
+        [Spherical, 'isSpherical', ['radius', 'phi', 'theta'], 1],
         // todo Plane etc (has Vector2)
     ] as const
+
+    static PrimitiveSerializer(cls: any, isType: string, props: string[]|Readonly<string[]>, priority = 1): Serializer {
+        return {
+            priority: priority,
+            isType: (obj: any) => obj?.[isType] /* || obj?.metadata?.type === cls.name*/,
+            serialize: (obj: any) => {
+                // if (!obj?.[isType]) throw new Error(`Expected a ${cls.name}`)
+                const ret = {[isType]: true}
+                for (const k of props) ret[k] = obj[k]
+                return ret
+            },
+            deserialize: copier(cls),
+        }
+    }
 
     static Texture: Serializer = {
         priority: 2,
@@ -69,7 +98,7 @@ export class ThreeSerialization {
             if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
             const imgData = obj.source.data
             const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
-                (obj.userData.rootPath.startsWith('http') || obj.userData.rootPath.startsWith('data:'))
+                isNonRelativeUrl(obj.userData.rootPath)
             let res = {} as any
             const ud = obj.userData
             try { // need try catch here because of hasRootPath
@@ -88,7 +117,7 @@ export class ThreeSerialization {
                 if (!meta && res.image) res.image = hasRootPath && !obj.userData.embedUrlImagePreviews ? undefined : meta2.images[res.image]
                 res.userData = Serialization.Serialize(copyTextureUserData({}, ud), meta, false)
             } catch (e) {
-                console.error('Threepipe Serialization: Unable to serialize texture')
+                console.error('ThreeSerialization: Unable to serialize texture')
                 console.error(e)
             }
             obj.userData = ud // should be outside try catch
@@ -113,13 +142,13 @@ export class ThreeSerialization {
             const data = {...dat}
             if (typeof data.image === 'string') {
                 if (!meta?.images) {
-                    console.error('Cannot deserialize texture with image url without meta.images', data)
+                    console.error('ThreeSerialization: Cannot deserialize texture with image url without meta.images', data)
                 } else {
                     data.image = meta.images[data.image]
                 }
             }
             if (!data.image || typeof data.image === 'string' || !data.image.isSource && !data.image.url) {
-                console.error('Cannot deserialize texture', data)
+                console.error('ThreeSerialization: Cannot deserialize texture', data)
                 return obj
             }
             let imageOnLoad: undefined | (()=>void)
@@ -136,7 +165,7 @@ export class ThreeSerialization {
             const textures = loader.parseTextures([data], sources)
             const uuid = Object.keys(textures)[0]
             if (!uuid || !textures[uuid]) {
-                console.error('Cannot deserialize texture', data)
+                console.error('ThreeSerialization: Cannot deserialize texture', data)
                 return obj
             }
             if (meta?.textures) meta.textures[uuid] = textures[uuid]
@@ -150,18 +179,13 @@ export class ThreeSerialization {
         serialize: (obj: any, meta?: SerializationMetaType) => {
             if (!obj?.isMaterial) throw new Error('Expected a material')
             if (meta?.materials?.[obj.uuid]) return {uuid: obj.uuid, resource: 'materials'}
-            if (obj.userData.rootPath) {
-                // todo
-                // it works for textures because image(Source) are immutable
-                console.error('TODO: handle material with root path with material inheritance/hierarchy')
-
-            }
 
             // serialize textures separately
             const meta2 = meta ?? {textures: {}, images: {}}
             const objTextures: any = {}
             const tempTextures: any = {}
-            const propList = Object.keys(obj.constructor.MaterialProperties || obj)
+
+            const propList = Object.keys(obj.constructor.MaterialProperties || obj) // todo use MapProperties? or iMaterialCommons.getMapsForMaterial
             for (const k of propList) {
                 if (k.startsWith('__')) continue // skip private/internal textures/properties
                 const v = obj[k]
@@ -186,7 +210,7 @@ export class ThreeSerialization {
                 // Remove undefined values. Note that null values are kept.
                 for (const key of Object.keys(res)) if (res[key] === undefined) delete res[key]
             } catch (e) {
-                console.error('Threepipe Serialization: Unable to serialize material')
+                console.error('ThreeSerialization: Unable to serialize material')
                 console.error(e)
             }
             obj.userData = userData
@@ -195,6 +219,7 @@ export class ThreeSerialization {
                 obj[k] = v
                 delete tempTextures[k]
             }
+
             // Add material, textures, images to meta
             // serialize textures are already added to meta by the texture serializer
             if (res) {
@@ -222,7 +247,7 @@ export class ThreeSerialization {
                 if (material.isMaterial) {
                     if (obj?.isMaterial && obj.uuid === material.uuid) {
                         if (obj !== material && typeof obj.setValues === 'function') {
-                            console.warn('ThreeSerialization - Material uuid already exists, copying values to old material')
+                            console.warn('ThreeSerialization: Material uuid already exists, copying values to old material')
                             obj.setValues(material)
                         }
                         return obj
@@ -238,14 +263,15 @@ export class ThreeSerialization {
             if (dat.resource === 'materials' && meta?.materials?.[dat.uuid]) {
                 ret = finalCopy(meta.materials[dat.uuid])
                 if (ret !== undefined) return ret
-                console.error('cannot find material in meta', dat, ret)
+                console.error('ThreeSerialization: cannot find material in meta', dat, ret)
             }
 
             const type = dat.type
             if (!type) {
-                console.error('Cannot deserialize material without type', dat)
+                console.error('ThreeSerialization: Cannot deserialize material without type', dat)
                 return obj
             }
+
             const data = {...dat} as Record<string, any>
             if (data.userData) data.userData = Serialization.Deserialize(data.userData, undefined, meta, false)
             //
@@ -270,14 +296,15 @@ export class ThreeSerialization {
             // data has deserialized textures and userData, assuming the rest can be deserialized by material.fromJSON
 
             if (!obj || !obj.isMaterial || obj.type !== type && obj.constructor?.TYPE !== type) {
-                if (obj && Object.keys(obj).length) console.warn('Material type mismatch during deserialize, creating a new material', obj, data, type, obj.constructor?.type)
+                if (obj && Object.keys(obj).length) console.warn('ThreeSerialization: Material type mismatch during deserialize, creating a new material', obj, data, type, obj.constructor?.type)
                 obj = null
             }
+
             // if obj is not null
             if (obj && (!data.uuid || obj.uuid === data.uuid)) {
                 if (obj.fromJSON) obj.fromJSON(data, meta, true)
                 else if (obj.setValues) obj.setValues(data)
-                else console.error('Cannot deserialize material, no fromJSON or setValues method', obj, data)
+                else console.error('ThreeSerialization: Cannot deserialize material, no fromJSON or setValues method', obj, data)
                 return obj
             }
 
@@ -286,11 +313,13 @@ export class ThreeSerialization {
             // generate from material manager generator and call fromJSON with internal true which will call setValues
             const materialManager = meta?._context.materialManager
             if (materialManager) {
-                const material = materialManager.create(type)
+                const uuid = dat.isMaterial ? undefined : dat.uuid
+                const register = true // todo
+                const material = materialManager.create(type, undefined, register, uuid)
                 if (material) {
                     if (material.fromJSON) material.fromJSON(data, meta, true)
                     else if (material.setValues) material.setValues(data)
-                    else console.error('Cannot deserialize material, no fromJSON or setValues method', material, data)
+                    else console.error('ThreeSerialization: Cannot deserialize material, no fromJSON or setValues method', material, data)
                     return material
                 }
             }
@@ -305,11 +334,14 @@ export class ThreeSerialization {
             const texs = {...loader.textures}
             loader.setTextures(textures)
             const mat = loader.parse(data)
+            if (data.uuid) {
+                safeSetProperty(mat, 'uuid', data.uuid, true, true)
+            }
             loader.setTextures(texs)
 
             ret = finalCopy(mat)
             if (ret !== undefined) return ret
-            console.error('Serialization: cannot deserialize material', dat, ret, mat)
+            console.error('ThreeSerialization: cannot deserialize material', dat, ret, mat)
 
         },
     }
@@ -364,12 +396,12 @@ export class ThreeSerialization {
 
             const renderManager = meta?._context.renderManager
             if (!renderManager) {
-                console.error('Cannot deserialize render target without render manager', dat)
+                console.error('ThreeSerialization: Cannot deserialize render target without render manager', dat)
                 return obj
             }
             if (dat.isWebGLCubeRenderTarget || dat.isTemporary) {
                 // todo support cube, temporary render target here
-                console.warn('Cannot deserialize WebGLCubeRenderTarget or temporary render target yet', dat)
+                console.warn('ThreeSerialization: Cannot deserialize WebGLCubeRenderTarget or temporary render target yet', dat)
                 return obj
             }
 
@@ -396,21 +428,13 @@ export class ThreeSerialization {
     }
 
     private static _init = false
+
     static Init() {
         if (this._init) return
         this._init = true
         // @ts-expect-error not sure why it's not set in three.js
         Spherical.prototype.isSpherical = true
-        Serialization.RegisterSerializer(...ThreeSerialization.Primitives.map(p=>({
-            priority: 1,
-            isType: (obj: any) => obj[p[1]],
-            serialize: (obj: any) => {
-                const ret = {[p[1]]: true}
-                for (const k of p[2]) ret[k] = obj[k]
-                return ret
-            },
-            deserialize: copier(p[0]),
-        })))
+        Serialization.RegisterSerializer(...ThreeSerialization.Primitives.map(p=>ThreeSerialization.PrimitiveSerializer(p[0], p[1], p[2], p[3])))
         Serialization.RegisterSerializer(ThreeSerialization.Texture)
         Serialization.RegisterSerializer(ThreeSerialization.Material)
         Serialization.RegisterSerializer(ThreeSerialization.RenderTarget)
@@ -456,7 +480,6 @@ export class ThreeSerialization {
 
 }
 
-
 /**
  * Deep copy/clone from source to dest, assuming both are userData objects for three.js objects/materials/textures etc.
  * This will clone any property that can be cloned (apart from Object3D, Texture, Material) and deep copy the objects and arrays.
@@ -464,22 +487,20 @@ export class ThreeSerialization {
  * @param dest
  * @param source
  * @param ignoredKeysInRoot - keys to ignore in the root object
- * @param isRoot - always true, used for recursion
  */
-export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = [], isRoot = true): any {
+export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = []): any {
     if (!source) return dest
     for (const key of Object.keys(source)) {
-        if (isRoot && ignoredKeysInRoot.includes(key)) continue
+        if (ignoredKeysInRoot.includes(key)) continue
         if (key.startsWith('__')) continue // double underscore
         const src = source[key]
         if (typeof dest[key] === 'function' || typeof src === 'function') continue
-        // todo only clone vectors, colors etc
-        const skipClone = !src || src.isTexture || src.isObject3D || src.isMaterial
+        const skipClone = !src || src.isTexture || src.isObject3D || src.isMaterial || src.isBufferGeometry || src.userDataSkipClone
         if (!skipClone && typeof src.clone === 'function')
             dest[key] = src.clone()
         // else if (!skipClone && (typeof src === 'object' || Array.isArray(src)))
         else if (!skipClone && (src.constructor === Object || Array.isArray(src)))
-            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, ignoredKeysInRoot, false)
+            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, [])
         else
             dest[key] = src
     }
@@ -491,11 +512,10 @@ export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|
  * Same as {@link copyUserData} but ignores uuid in the root object.
  * @param dest
  * @param source
- * @param isRoot
  * @param ignoredKeysInRoot
  */
-export function copyTextureUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid'], isRoot = true): any {
-    return copyUserData(dest, source, ignoredKeysInRoot, isRoot)
+export function copyTextureUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid']): any {
+    return copyUserData(dest, source, ignoredKeysInRoot)
 }
 
 
@@ -505,11 +525,10 @@ export function copyTextureUserData(dest: any, source: any, ignoredKeysInRoot = 
  * @note Keep synced with copyMaterialUserData in three.js -> Material.js
  * @param dest
  * @param source
- * @param isRoot
  * @param ignoredKeysInRoot
  */
-export function copyMaterialUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid'], isRoot = true): any {
-    return copyUserData(dest, source, ignoredKeysInRoot, isRoot)
+export function copyMaterialUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid']): any {
+    return copyUserData(dest, source, ignoredKeysInRoot)
 }
 
 
@@ -518,11 +537,10 @@ export function copyMaterialUserData(dest: any, source: any, ignoredKeysInRoot =
  * Same as {@link copyUserData} but ignores uuid in the root object.
  * @param dest
  * @param source
- * @param isRoot
  * @param ignoredKeysInRoot
  */
-export function copyObject3DUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid'], isRoot = true): any {
-    return copyUserData(dest, source, ignoredKeysInRoot, isRoot)
+export function copyObject3DUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid']): any {
+    return copyUserData(dest, source, ignoredKeysInRoot)
 }
 
 /**
@@ -543,7 +561,7 @@ function serializeMaterialUserData(data: any, userData: any, meta?: Serializatio
     }
     data.userData = Serialization.Serialize(data.userData, meta2) // here meta is required for textures otherwise images will be lost. Material.toJSON sets the result as meta if not provided.
     if (!meta) {
-        // Add textures and images to the result if meta is not provided. This is to remain compatible with how three.js saves materials. See (MaterialLoader and ThreeMaterialLoader)
+        // Add textures and images to the result if meta is not provided. This is to remain compatible with how three.js saves materials. See (MaterialLoader and JSONMaterialLoader)
         if (Object.keys(meta2.textures).length > 0) data.textures = Object.values(meta2.textures)
         if (Object.keys(meta2.images).length > 0) data.images = Object.values(meta2.images)
     }
@@ -598,7 +616,7 @@ export function convertStringsToArrayBuffersInMeta(meta: SerializationMetaType) 
                 item.url.data = base64ToArrayBuffer(dataUriMatch?.[1])
             } else { // utf-8 string, not used at the moment
                 if (item.url.type !== 'Uint8Array') {
-                    console.error('Unsupported buffer type string for ', item.url.type, 'use base64')
+                    console.error('ThreeSerialization: Unsupported buffer type string for ', item.url.type, 'use base64')
                 }
                 item.url.data = new TextEncoder().encode(item.url.data).buffer // todo: this doesnt work in ie/edge maybe, but this feature is not used.
             }
@@ -644,6 +662,7 @@ export interface SerializationMetaType extends SerializationResourcesType {
         renderManager?: RenderManager,
 
         imagePromises?: Promise<any>[],
+        viewer?: ThreeViewer,
 
         [key: string]: any,
     }
@@ -692,7 +711,7 @@ export class MetaImporter {
         // }
 
         if (Array.isArray(json.textures)) {
-            console.error('TODO: check file format')
+            console.error('ThreeSerialization: TODO: check file format')
             json.textures = json.textures.reduce((acc, cur) => {
                 if (!cur) return acc
                 acc[cur.uuid] = cur
@@ -806,6 +825,7 @@ export class MetaImporter {
     }
 
 
+    // todo see _loadObjectDependencies2
     static async LoadRootPathTextures({textures, images}: Pick<SerializationMetaType, 'textures'|'images'>, importer: IAssetImporter, usePreviewImages = true) {
         const pms = []
 
@@ -813,10 +833,12 @@ export class MetaImporter {
             const path = inpTexture?.userData?.rootPath
             const hasImage = usePreviewImages && inpTexture.image && images[inpTexture.image] // its possible to have both image and rootPath, then the image will be preview image.
             if (!path) continue
-            const promise = importer.importSingle<ITexture>(path).then((texture) => {
+            const promise = importer.importSingle<ITexture>(path, inpTexture.userData.rootPathOptions || {}).then((texture) => {
                 const source = texture?.source as any
-                // const image = texture?.image as any
-                if (!texture || !source) return null
+                if (!texture || !texture.isTexture || !source) {
+                    console.error('AssetImporter: Imported rootPath is not a Texture', path, texture)
+                    return
+                }
                 // console.log(typeof image)
                 const source2 = new Source(source.data)
                 if (inpTexture.image) source2.uuid = inpTexture.image
@@ -827,11 +849,12 @@ export class MetaImporter {
                     source2.__texCtor = texture.constructor as typeof Texture
                 }
 
-                if (!hasImage)
-                    images[source2.uuid] = source2
+                if (!hasImage) images[source2.uuid] = source2
+
                 texture.dispose()
                 return source2
             }).catch((e) => {
+                console.error('ThreeSerialization: Error loading texture from rootPath', inpTexture.userData.rootPath)
                 console.error(e)
                 delete inpTexture.userData.rootPath
                 return null
@@ -852,6 +875,15 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
     return res
 }
 
+export function mergeResources(target: Partial<SerializationResourcesType>, source: Partial<SerializationResourcesType>) {
+    for (const key of Object.keys(source)) {
+        if (key === 'object') continue
+        if (!target[key]) target[key] = {}
+        Object.assign(target[key]!, source[key]!)
+    }
+    return target
+}
+
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {
     return {
         ...resources,
@@ -861,6 +893,7 @@ export function metaFromResources(resources?: Partial<SerializationResourcesType
             assetImporter: viewer?.assetManager.importer,
             materialManager: viewer?.assetManager.materials,
             renderManager: viewer?.renderManager,
+            viewer: viewer,
         }, // clear context even if its present in resources
     }
 }
@@ -870,7 +903,6 @@ export function jsonToBlob(json: any): BlobExt {
     b.ext = 'json'
     return b
 }
-
 
 
 /**
@@ -898,7 +930,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
     } else if (texture.userData.rootPath) {
         url = texture.userData.rootPath
     } else {
-        console.error('Unable to serialize LUT texture, not loaded through asset manager.')
+        console.error('ThreeSerialization: Unable to serialize LUT texture, not loaded through asset manager.')
     }
 
     const tex = {
@@ -920,3 +952,46 @@ declare module 'three'{
         ['__texCtor']?: typeof Texture
     }
 }
+
+
+export function getPartialProps(obj: IObject3D|IMaterial, props1?: string[]) {
+    // copy properties from res1 to obj except those in sProperties
+    const props: Record<string, any> = {}
+    const sProps = Array.isArray(props1) ? props1 : []
+    for (const sProp of sProps) {
+        const deep = sProp.startsWith('userData.')
+        let res2
+        if (deep) {
+            res2 = deepAccessObject(sProp.slice('userData.'.length), obj.userData, false)
+        } else {
+            res2 = (obj as any)[sProp]
+        }
+        if (res2 !== undefined) {
+            props[sProp] = res2
+        }
+    }
+    return props
+}
+
+export function setPartialProps(props: Record<string, any>, obj: IMaterial|IObject3D) {
+    for (const sProp of Object.keys(props)) {
+        const value = props[sProp]
+        const deep = sProp.startsWith('userData.')
+        if (!deep) {
+            (obj as any)[sProp] = value
+        } else {
+            const tar = obj.userData
+            const parts = sProp.split('.')
+            const tarkey = parts.slice(1, -1)
+            const tar2 = parts.length && tarkey.length ? deepAccessObject(tarkey, tar, false) : undefined
+            if (tar2 !== undefined) {
+                const key = parts[parts.length - 1]
+                tar2[key] = value
+            } else {
+                // todo for userData deep property it will fail since parent object wouldnt exist in empty object. we need to create the empty target recursively if it doesnt exists
+                console.warn('ThreeSerialization: setSProps: invalid sProperty', sProp, 'in', obj)
+            }
+        }
+    }
+}
+

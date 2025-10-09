@@ -136,3 +136,89 @@ class MyMaterial extends ThreeMaterial{
     }
 }
 ```
+
+
+## Custom Serializers
+
+### Primitives
+
+Primitive serializers are for classes that have only `simple` properties(`number`, `string`, `boolean`, `null`, or `object`/`Array` of those), they can be registered like this - 
+```javascript
+Serialization.RegisterSerializer(
+    ThreeSerialization.PrimitiveSerializer(Vector4, 'isVector4', ['x', 'y', 'z', 'w'], 1),
+    ThreeSerialization.PrimitiveSerializer(Spherical, 'isSpherical', ['radius', 'phi', 'theta'], 1),
+    ThreeSerialization.PrimitiveSerializer(Matrix4, 'isMatrix4', ['elements'], 1),
+)
+```
+
+::: info
+The threejs classes are already registered, these samples are provided as reference
+:::
+
+### Serializable Classes
+
+Instead of using typescript and decorators, custom classes can be marked as serializable if they include 4 items - 
+- `.type` - a unique string type
+- `.toJSON()` - method to serialize the object
+- `.fromJSON()` - method to deserialize the object
+- `constructor()` - empty constructor
+
+For example, in three.js, classes like `Curve`, `Path`, `EllipseCurve`, `AnimationClip` etc include these properties and are marked as serializable like this - 
+```javascript
+Serialization.SerializableClasses.set('Curve', Curve)
+Serialization.SerializableClasses.set('Path', Path)
+Serialization.SerializableClasses.set('EllipseCurve', EllipseCurve)
+Serialization.SerializableClasses.set('AnimationClip', AnimationClip)
+```
+
+With this, whenever a json object with a specific type is found, it is automatically deserialized using the `fromJSON` method of the class.
+
+### Advanced
+
+Its possible to completely customize the serialization and deserialization process for any object, type, classes etc, by registering a custom serializer.
+
+A simple sample for `WebGLRenderTarget`. This is just provided as reference, a complete implementation is built-in in threepipe.
+```typescript
+Serialization.RegisterSerializer({
+    priority: 2,
+    isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
+    serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
+        if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
+        if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
+
+        // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
+        const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
+        let res: any = {
+            metadata: {type: 'RenderTarget'},
+            uuid: obj.uuid,
+            width: obj.width,
+            height: obj.height,
+            depth: obj.depth,
+            count: obj.count,
+            // ... other properties
+        }
+
+        if (meta?.extras) {
+            if (!meta.extras[res.uuid]) meta.extras[res.uuid] = res
+            res = {uuid: res.uuid, resource: 'extras'}
+        }
+        return res
+    },
+    deserialize: (dat: any, obj: IRenderTarget, meta?: SerializationMetaType) => {
+        if (obj?.uuid === dat.uuid) return obj
+        if (dat.isWebGLRenderTarget) return dat
+
+        const renderManager = meta?._context.renderManager
+        const res = renderManager.createTarget({
+            size: {width: dat.width, height: dat.height},
+            textureCount: dat.count,
+            ...dat.options,
+        })
+        if (!res) return res
+        res.uuid = dat.uuid
+        if (meta?.extras) meta.extras[dat.uuid] = res
+        return res
+    },
+})
+```
+
