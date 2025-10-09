@@ -2,11 +2,10 @@ import {GLTFExporter, GLTFExporterOptions} from 'three/examples/jsm/exporters/GL
 import {BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, Texture} from 'three'
 import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
-import {ThreeSerialization} from '../../utils'
+import {isNonRelativeUrl, ThreeSerialization} from '../../utils'
 import {IMaterial} from '../../core'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
-
 
     readonly TPAssetVersion = 1
 
@@ -33,7 +32,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
                 value.isTexture ||
                 value.isMaterial ||
                 value.assetType != null ||
-                key.startsWith('_') // private data
+                key.startsWith('_') // private data. todo remove private values inside userdata.ecs...
             ) {
                 temp[key] = value
                 delete userData[key]
@@ -185,7 +184,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         const mimeType = map.userData.mimeType
 
         const hasRootPath = !map.isRenderTargetTexture && map.userData.rootPath && typeof map.userData.rootPath === 'string' &&
-            (map.userData.rootPath.startsWith('http') || map.userData.rootPath.startsWith('data:'))
+            isNonRelativeUrl(map.userData.rootPath)
 
         if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
             if (map.source.data) { // handled below in GLTFWriter2.processImage
@@ -204,15 +203,6 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         }
 
         // if (!textureDef.extras) textureDef.extras = {}
-        const imageDef = json.images ? json.images[textureDef.source] : null
-        if (imageDef) {
-            if (!imageDef.extras) imageDef.extras = {}
-            if (map.source) imageDef.extras.uuid = map.source.uuid
-
-            imageDef.extras.t_uuid = map.uuid // todo: remove when extras supported by gltf-transform: https://github.com/donmccurdy/glTF-Transform/issues/645
-        }
-
-        // map uuid saved in processSampler.
 
         if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
             if (map.source.data) delete map.source.data._savePreview
@@ -242,7 +232,17 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         if (textureDef.source < 0) {
             console.error('textureDef.source cannot be saved', textureDef, map)
             delete textureDef.source // gltf spec allows undefined, not -1
+        } else {
+            const imageDef = json.images ? json.images[textureDef.source] : null
+            if (imageDef) {
+                if (!imageDef.extras) imageDef.extras = {}
+                if (map.source) imageDef.extras.uuid = map.source.uuid
+
+                imageDef.extras.t_uuid = map.uuid // todo: remove when extras supported by gltf-transform: https://github.com/donmccurdy/glTF-Transform/issues/645
+            }
         }
+
+        // map uuid saved in processSampler.
 
         return processed
     }
