@@ -103,7 +103,9 @@ export class SSAAPlugin extends AViewerPluginSync {
         //     sample.x += 1 * (Math.random() - 0.5)
         //     sample.y += 1 * (Math.random() - 0.5)
         // }
-        camera.setViewOffset(size.width, size.height, sample.x, sample.y, size.width, size.height)
+        const aspect = camera.aspect
+        const height = camera.autoAspect ? size.height : size.width / aspect
+        camera.setViewOffset(size.width, height, sample.x, sample.y, size.width, height)
         camera.userData.__jittered = true
     }
     private _clearJitter(camera: TCamera) {

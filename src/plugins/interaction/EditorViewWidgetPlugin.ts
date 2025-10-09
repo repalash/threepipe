@@ -18,6 +18,9 @@ export class EditorViewWidgetPlugin extends AViewerPluginSync {
 
     constructor(public readonly placement: DomPlacement = 'top-left', public readonly size = 128) {
         super()
+        this.setDirty = this.setDirty.bind(this)
+        this._mainCameraChange = this._mainCameraChange.bind(this)
+        this._mainCameraUpdate = this._mainCameraUpdate.bind(this)
     }
 
     widget?: ViewHelper2

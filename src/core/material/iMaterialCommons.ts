@@ -58,6 +58,8 @@ export const iMaterialCommons = {
             superSetValues.call(this, params)
 
             if (userData) copyMaterialUserData(this.userData, userData)
+            this.userData.uuid = this.uuid
+
 
             // bump map scale fix todo: move this to Material.fromJSON
             // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a

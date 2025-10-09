@@ -59,6 +59,10 @@ All notable changes to this project will be documented in this file.
 - Avoid calling `controls.update`(camera) when `update` is defined but not a function.
 - Catch uncaught errors and log as warnings when saving files/responses in storage/cache in `overrideThreeCache`
 - Texture uuid save fix in `GLTFWriter2`
+- Fix for plugin constructor replacing existing plugin when duplicate plugin is added to `ThreeViewer`
+- Prevent internal three.js `Cache` from being patched multiple times
+- Fix for `mainCameraChange` event not working in `EditorViewWidgetPlugin`
+- `SSAAPlugin` now respects `camera.aspect` when `camera.autoAspect` is `false`.
 
 ## [0.2.0] - 2025-09-03
 

@@ -930,6 +930,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
 
         if (this.plugins[type]) {
+            if (this.plugins[type] === p) return p
             this.console.error(`ThreeViewer: Plugin of type ${type} already exists, removing and disposing old plugin. This might break functionality, ensure only one plugin of a type is added`, this.plugins[type], p)
             await this.removePlugin(this.plugins[type])
         }
@@ -963,6 +964,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
 
         if (this.plugins[type]) {
+            if (this.plugins[type] === p) return p
             this.console.error(`ThreeViewer: Plugin of type ${type} already exists, removing and disposing old plugin. This might break functionality, ensure only one plugin of a type is added`, this.plugins[type], p)
             this.removePluginSync(this.plugins[type])
         }
@@ -1189,18 +1191,25 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     /**
      * Serialize all the plugins and their settings to save or create presets. Used in {@link toJSON}.
      * @param meta -  The meta object.
-     * @param filter - List of PluginType for the to include. If empty, no plugins will be serialized. If undefined, all plugins will be serialized.
+     * @param filter - List of PluginType for to include. If empty, no plugins will be serialized. If undefined, all plugins will be serialized.
      * @returns {any[]}
      */
-    serializePlugins(meta: SerializationMetaType, filter?: string[]): any[] {
+    serializePlugins(meta: SerializationMetaType, filter?: string[]): ISerializedConfig[] {
         if (filter && filter.length === 0) return []
-        return Object.entries(this.plugins).map(p=> {
+        return filter?.map(type=>{
+            const plugin = this.getPlugin(type)
+            return plugin ? this.serializePlugin(plugin, meta) : undefined
+        }).filter(p=> !!p) ?? Object.entries(this.plugins).map(p=> {
             if (filter && !filter.includes(p[1].constructor.PluginType)) return
-            if (p[0] === p[1].constructor.OldPluginType) return
-            if (this.serializePluginsIgnored.includes((p[1].constructor as any).PluginType)) return
-            // if (!p[1].toJSON) this.console.log(`Plugin of type ${p[0]} is not serializable`)
-            return p[1].serializeWithViewer !== false ? p[1].toJSON?.(meta) : undefined
+            if (p[0] === p[1].constructor.OldPluginType) return // duplicate key
+            return this.serializePlugin(p[1], meta)
         }).filter(p=> !!p)
+    }
+
+    serializePlugin(plugin: IViewerPlugin, meta: SerializationMetaType): ISerializedConfig|undefined {
+        if (this.serializePluginsIgnored.includes((plugin.constructor as any).PluginType)) return
+        // if (!plugin.toJSON) this.console.log(`Plugin of type ${p[0]} is not serializable`)
+        return plugin.serializeWithViewer !== false ? plugin.toJSON?.(meta) : undefined
     }
 
     /**
@@ -1321,6 +1330,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         const meta = getEmptyMeta()
         const data: ISerializedViewerConfig = Object.assign({
             ...this._defaultConfig,
+            metadata: {...this._defaultConfig.metadata},
             plugins: this.serializePlugins(meta, pluginFilter),
         }, ThreeSerialization.Serialize(this, meta, true))
         // this.console.log(dat)
