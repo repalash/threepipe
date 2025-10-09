@@ -47,35 +47,13 @@ export interface Object3DManagerEventMap {
  */
 export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     private _root: IObject3D | undefined
-    private _objects = new Set<IObject3D>()
+    private _objects = new Map<string, IObject3D>()
     private _objectExtensions: IObjectExtension[] = []
-    private _materials = new Set<IMaterial>()
-    private _geometries = new Set<IGeometry>()
-    private _textures = new Set<ITexture>()
-    private _videos = new Set<VideoTexture & ITexture>()
-    private _lights = new Set<ILight>()
-
-    getObjects() {
-        return [...this._objects]
-    }
-    getObjectExtensions() {
-        return [...this._objectExtensions]
-    }
-    getMaterials() {
-        return [...this._materials]
-    }
-    getGeometries() {
-        return [...this._geometries]
-    }
-    getTextures() {
-        return [...this._textures]
-    }
-    getVideos() {
-        return [...this._videos]
-    }
-    getLights() {
-        return [...this._lights]
-    }
+    private _materials = new Map<string, IMaterial>()
+    private _geometries = new Map<string, IGeometry>()
+    private _textures = new Map<string, ITexture>()
+    private _videos = new Map<string, VideoTexture & ITexture>()
+    private _lights = new Map<string, ILight>()
 
     autoDisposeTextures = true
     autoDisposeMaterials = true
@@ -93,7 +71,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
     onPostFrame(timeline: {time: number, running: boolean}) {
         // const delta = time.delta
-        for (const video of this._videos) {
+        for (const video of this._videos.values()) {
             const data = video.userData.timeline
             if (data) {
                 if (!data.enabled) continue
@@ -143,19 +121,18 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
     registerObject(obj: IObject3D) {
         if (!obj || !obj.uuid || !obj.isObject3D) return
-        if (this._objects.has(obj)) return
-        const existing = [...this._objects].find(o => o.uuid === obj.uuid)
+        const existing = this.getObject(obj.uuid)
         if (existing) {
-            if (existing && obj !== existing) {
+            if (obj !== existing) {
                 console.warn('Object3DManager - Object with the same uuid already registered', obj, existing)
                 safeSetProperty(obj, 'uuid', generateUUID(), true, true)
-            }
+            } else return
             // return
         }
         if (!obj.assetType) {
             iObjectCommons.upgradeObject3D.call(obj)
         }
-        this._objects.add(obj)
+        this._objects.set(obj.uuid, obj)
         obj.addEventListener('parentRootChanged', this._rootChanged)
         obj.addEventListener('materialChanged', this._materialChanged)
         obj.addEventListener('geometryChanged', this._geometryChanged)
@@ -182,15 +159,21 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         }
         this.dispatchEvent({type: 'objectAdd', object: obj})
         if (obj.isLight) {
-            this._lights.add(obj as ILight)
+            this._lights.set(obj.uuid, obj as ILight)
             this.dispatchEvent({type: 'lightAdd', light: obj as ILight})
         }
 
     }
 
     unregisterObject(obj: IObject3D) {
-        if (!obj || !obj.uuid || !this._objects.has(obj)) return false
-        this._objects.delete(obj)
+        if (!obj || !obj.uuid) return false
+        const existing = this._objects.get(obj.uuid)
+        if (!existing) return false
+        if (obj !== existing) {
+            console.error('Object3DManager - Object to unregister is not the same as the registered object', obj, existing)
+            return false
+        }
+        this._objects.delete(obj.uuid)
         obj.removeEventListener('materialChanged', this._materialChanged)
         obj.removeEventListener('geometryChanged', this._geometryChanged)
         // obj.removeEventListener('added', this._objAdded)
@@ -204,8 +187,8 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             obj.dispose(false)
         }
         this.dispatchEvent({type: 'objectRemove', object: obj})
-        if (obj.isLight && this._lights.has(obj as ILight)) {
-            this._lights.delete(obj as ILight)
+        if (obj.isLight && this._lights.has(obj.uuid)) {
+            this._lights.delete(obj.uuid)
             this.dispatchEvent({type: 'lightRemove', light: obj as ILight})
         }
         return true
@@ -228,7 +211,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const ind = this._objectExtensions.includes(ext)
         if (ind) return
         this._objectExtensions.push(ext)
-        for (const obj of this._objects) {
+        for (const obj of this._objects.values()) {
             if (obj.objectExtensions && !obj.objectExtensions.includes(ext)) {
                 const compatible = ext.isCompatible ? ext.isCompatible(obj) : true
                 if (compatible) {
@@ -316,7 +299,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     }
 
     private _registerMaterial(mat: IMaterial, mesh: IObject3D) {
-        if (!mat || !mat.isMaterial || !mesh || !mesh.uuid) return
+        if (!mat || !mat.isMaterial || !mesh || !mat.uuid) return
         if (!mat.assetType) {
             iMaterialCommons.upgradeMaterial.call(mat)
         }
@@ -325,9 +308,16 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             meshes = new Set<IObject3D>()
             mat.appliedMeshes = meshes
         }
-        const isNewMaterial = !this._materials.has(mat)
+        const existing = this.getMaterial(mat.uuid)
+        if (existing) {
+            if (mat !== existing) {
+                console.warn('Object3DManager - Material with the same uuid already registered', mat, existing)
+                safeSetProperty(mat, 'uuid', generateUUID(), true, true)
+            }
+        }
+        const isNewMaterial = !this._materials.has(mat.uuid)
         meshes.add(mesh)
-        this._materials.add(mat)
+        this._materials.set(mat.uuid, mat)
 
         // Add texturesChanged event listener for new materials
         if (isNewMaterial) {
@@ -349,8 +339,14 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const meshes = mat.appliedMeshes
         if (!meshes) return
         meshes.delete(mesh)
-        if (meshes.size === 0 && this._materials.has(mat)) {
-            this._materials.delete(mat)
+        const existing = this.getMaterial(mat.uuid)
+        if (existing && mat !== existing) {
+            console.error('Object3DManager - Material to unregister is not the same as the registered material', mat, existing)
+            return
+        }
+
+        if (meshes.size === 0 && existing) {
+            this._materials.delete(mat.uuid)
 
             // Remove texturesChanged event listener when material is no longer used
             mat.removeEventListener('texturesChanged', this._texturesChanged)
@@ -407,9 +403,16 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             meshes = new Set<IObject3D>()
             geom.appliedMeshes = meshes
         }
-        const isNewGeometry = !this._geometries.has(geom)
+        const existing = this.getGeometry(geom.uuid)
+        if (existing) {
+            if (geom !== existing) {
+                console.warn('Object3DManager - Geometry with the same uuid already registered', geom, existing)
+                safeSetProperty(geom, 'uuid', generateUUID(), true, true)
+            }
+        }
+        const isNewGeometry = !this._geometries.has(geom.uuid)
         meshes.add(mesh)
-        this._geometries.add(geom)
+        this._geometries.set(geom.uuid, geom)
 
         if (isNewGeometry) {
             this.dispatchEvent({type: 'geometryAdd', geometry: geom})
@@ -421,8 +424,13 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const meshes = geom.appliedMeshes
         if (!meshes) return
         meshes.delete(mesh)
-        if (meshes.size === 0 && this._geometries.has(geom)) {
-            this._geometries.delete(geom)
+        const existing = this.getGeometry(geom.uuid)
+        if (existing && geom !== existing) {
+            console.error('Object3DManager - Geometry to unregister is not the same as the registered geometry', geom, existing)
+        }
+
+        if (meshes.size === 0 && this._geometries.has(geom.uuid)) {
+            this._geometries.delete(geom.uuid)
 
             this.dispatchEvent({type: 'geometryRemove', geometry: geom})
 
@@ -443,9 +451,16 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             objects = new Set<IObject3D|IMaterial>()
             tex.appliedObjects = objects
         }
-        const isNewTexture = !this._textures.has(tex)
+        const existing = this.getTexture(tex.uuid)
+        if (existing) {
+            if (tex !== existing) {
+                console.warn('Object3DManager - Texture with the same uuid already registered', tex, existing)
+                safeSetProperty(tex, 'uuid', generateUUID(), true, true)
+            }
+        }
+        const isNewTexture = !this._textures.has(tex.uuid)
         objects.add(obj)
-        this._textures.add(tex)
+        this._textures.set(tex.uuid, tex)
         if (tex.isVideoTexture) this._registerVideo(tex as VideoTexture & ITexture)
 
         if (isNewTexture) {
@@ -458,9 +473,16 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         const objects = tex.appliedObjects
         if (!objects) return
         objects.delete(obj)
-        if (objects.size === 0 && this._textures.has(tex)) {
-            this._textures.delete(tex)
-            if (tex.isVideoTexture) this._videos.delete(tex as VideoTexture & ITexture)
+
+        const existing = this.getTexture(tex.uuid)
+        if (existing && tex !== existing) {
+            console.error('Object3DManager - Texture to unregister is not the same as the registered texture', tex, existing)
+            return
+        }
+
+        if (objects.size === 0 && this._textures.has(tex.uuid)) {
+            this._textures.delete(tex.uuid)
+            if (tex.isVideoTexture) this._videos.delete(tex.uuid)
 
             this.dispatchEvent({type: 'textureRemove', texture: tex})
 
@@ -478,7 +500,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     }
 
     private _registerVideo(tex: VideoTexture & ITexture) {
-        this._videos.add(tex)
+        this._videos.set(tex.uuid, tex)
         const elem = tex.image as HTMLVideoElement
         elem.preload = 'auto'
         elem.autoplay = true
@@ -497,7 +519,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
     findObject(nameOrUuid: string): IObject3D|undefined {
         if (!nameOrUuid) return undefined
-        const obj = this._objects.values().find(o => o.uuid === nameOrUuid)
+        const obj = this.getObject(nameOrUuid)
         if (obj) return obj
         const obj1 = this.findObjectsByName(nameOrUuid)
         if (obj1.length > 1) {
@@ -517,7 +539,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     }
     findMaterial(nameOrUuid: string): IMaterial|undefined {
         if (!nameOrUuid) return undefined
-        const mat = this._materials.values().find(m => m.uuid === nameOrUuid)
+        const mat = this.getMaterial(nameOrUuid)
         if (mat) return mat
         const mats = this.findMaterialsByName(nameOrUuid)
         if (mats.length > 1) {
@@ -539,7 +561,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     // endregion utils
 
     dispose() {
-        const objects = [...this._objects]
+        const objects = [...this._objects.values()]
         for (const o of objects) {
             this.unregisterObject(o)
             o.removeEventListener('parentRootChanged', this._rootChanged)
@@ -568,6 +590,50 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             ...LegacyPhongMaterial.MapProperties,
         ]).forEach(v=>Object3DManager.MaterialTextureProperties.add(v))
     }
+
+    // region getters
+
+    getObjects() {
+        return [...this._objects.values()]
+    }
+    getObject(uuid: string) {
+        return this._objects.get(uuid)
+    }
+    getObjectExtensions() {
+        return [...this._objectExtensions]
+    }
+    getMaterials() {
+        return [...this._materials.values()]
+    }
+    getMaterial(uuid: string) {
+        return this._materials.get(uuid)
+    }
+    getGeometries() {
+        return [...this._geometries.values()]
+    }
+    getGeometry(uuid: string) {
+        return this._geometries.get(uuid)
+    }
+    getTextures() {
+        return [...this._textures.values()]
+    }
+    getTexture(uuid: string) {
+        return this._textures.get(uuid)
+    }
+    getVideos() {
+        return [...this._videos.values()]
+    }
+    getVideo(uuid: string) {
+        return this._videos.get(uuid)
+    }
+    getLights() {
+        return [...this._lights.values()]
+    }
+    getLight(uuid: string) {
+        return this._lights.get(uuid)
+    }
+
+    // endregion getters
 }
 
 // add _playid to VideoTexture types
