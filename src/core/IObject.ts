@@ -287,6 +287,14 @@ export interface IObject3DUserData extends IImportResultUserData {
      */
     disposeOnIdle?: boolean
 
+    /**
+     * List of properties that will be saved in the glb files when this object is saved.
+     * The other properties are expected to be loaded/filled at runtime by default values or from an external object loaded from {@link IImportResultUserData.rootPath}.
+     * Note - this is not implemented, added to userData for future.
+     */
+    sProperties?: string[]
+
+
     __objectSetup?: boolean
     __meshSetup?: boolean
     // [key: string]: any // commented for noe

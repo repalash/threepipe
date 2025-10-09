@@ -134,21 +134,18 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         let scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
         if (!scene) return undefined
 
-        if (scene && scene.children.length === 1 && !scene.userData?.rootSceneModelRoot && !scene.importedViewerConfig && scene.children[0].userData?.tpAssetId) {
+        if (scene && scene.children.length === 1 && !scene.userData?.rootSceneModelRoot && !scene.importedViewerConfig && scene.name === 'AuxScene') {
             scene = scene.children[0] as RootSceneImportResult
+            scene.removeFromParent()
         }
         if (!scene.userData) scene.userData = {}
         if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
         if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
         if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
 
-        const currentAssetId = scene.userData.tpAssetId || null
-
         const lines: Line[] = []
         const refMap = new Map<string, Object3D[]>()
         const geometries = new Set<BufferGeometry>()
-
-        const objects: IObject3D[] = []
 
         scene.traverse((node: Object3D) => {
             if (node.userData.gltfUUID) { // saved in GLTFExporter2
@@ -168,6 +165,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 geometries.add((node as Mesh).geometry)
             }
         })
+
         geometries.forEach(geom=>{
             deserializeUserData(geom)
         })
@@ -205,11 +203,6 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 convertToFatLine(line)
             }
         }
-
-        if (!scene.userData) scene.userData = {}
-        if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
-        if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
-        if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
 
         return scene
     }

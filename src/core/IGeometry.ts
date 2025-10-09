@@ -16,6 +16,14 @@ export interface IGeometryUserData extends IImportResultUserData{
      * @default true
      */
     disposeOnIdle?: boolean
+
+    /**
+     * If this is a placeholder/dummy geometry.
+     * These geometries are not saved in asset/glTF files.
+     * @internal - todo implement not export same as placeholder materials
+     */
+    isPlaceholder?: boolean
+
     [key: string]: any
 }
 export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE>, IUiConfigContainer {
@@ -57,8 +65,10 @@ export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = Norma
      */
     dispose(force?: boolean): void
 
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    _uiConfig?: UiObjectConfig
+    /**
+     * @internal
+     */
+    ['_uiConfig']?: UiObjectConfig
 
 }
 // export type IGeometryEventTypes = 'dispose' | 'geometryUpdate' // | string

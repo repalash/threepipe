@@ -448,19 +448,31 @@ export const iObjectCommons = {
         },
     /** @ignore */
     clone: (superClone: IObject3D['clone']): IObject3D['clone'] =>
-        function(this: IObject3D, ...args): IObject3D {
+        function(this: IObject3D, recursive: boolean, ...rest): IObject3D {
             const userData = this.userData
-            this.userData = {}
-            const clone: any = superClone.call(this, ...args)
+            this.userData = {} // super calls JSON.stringify
+            const clone: IObject3D = superClone.call(this, recursive, ...rest)
             this.userData = userData
-            copyObject3DUserData(clone.userData, userData) // todo: do same for this.toJSON()
-            const objParent = this.parentRoot || undefined
-            if (objParent && objParent.assetType !== 'model') {
-                console.warn('Cloning an IObject with a parent that is not an \'model\' is not supported')
+            copyObject3DUserData(clone.userData, userData) // this will deep copy/clone todo: do same for this.toJSON()
+            iObjectCommons.upgradeObject3D.call(clone)
+            clone.userData.cloneParent = this.uuid // todo should this be serialized? add to userdata types?
+            if (this._sChildren) {
+                if (recursive) {
+                    clone._sChildren = []
+                    for (const c of this._sChildren) {
+                        if (!c) continue
+                        let cClone
+                        if (this.children.includes(c as any)) {
+                            const ind = this.children.indexOf(c as any)
+                            cClone = clone.children[ind] as IObject3D
+                        } else
+                            cClone = c.clone(true) as IObject3D
+                        clone._sChildren.push(cClone)
+                    }
+                } else {
+                    clone._sChildren = [...this._sChildren]
+                }
             }
-            clone.objectProcessor = this.objectProcessor
-            iObjectCommons.upgradeObject3D.call(clone, objParent)
-            clone.userData.cloneParent = this.uuid
             return clone
         },
     /** @ignore */

@@ -1,25 +1,27 @@
 import {
     BufferGeometry,
     Camera,
-    Color, Event,
+    Color,
+    Event,
     IUniform,
     Material,
     MaterialEventMap,
     MaterialParameters,
     Object3D,
-    Scene, Texture,
+    Scene,
+    Texture,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
-import type {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
+import {IDisposable, IJSONSerializable} from 'ts-browser-helpers'
 import type {MaterialExtension} from '../materials'
 import type {ChangeEvent, IUiConfigContainer} from 'uiconfig.js'
 import type {SerializationMetaType} from '../utils'
+import {AnimateTime} from '../utils'
 import type {IObject3D} from './IObject'
 import {ISetDirtyCommonOptions} from './IObject'
 import type {ITexture} from './ITexture'
 import type {IImportResultUserData} from '../assetmanager'
-import {AnimateTime} from '../utils'
 
 export type IMaterialParameters = MaterialParameters & {customMaterialExtensions?: MaterialExtension[]}
 // export type IMaterialEventTypes = 'dispose' | 'materialUpdate' | 'beforeRender' | 'beforeCompile' | 'afterRender' | 'textureUpdate' | 'beforeDeserialize'
@@ -218,6 +220,18 @@ export interface IMaterialUserData extends IImportResultUserData{
      */
     ssreflNonPhysical?: boolean
 
+    /**
+     * List of properties that will be saved in the glb/material files when this material is saved.
+     * The other properties are expected to be loaded/filled at runtime by default values or from an external material loaded from {@link IImportResultUserData.rootPath}.
+     */
+    sProperties?: string[]
+
+    /**
+     * If this is a placeholder/dummy material. These materials are not saved in asset/glTF files.
+     */
+    isPlaceholder?: boolean
+
+    // todo comment and check
     [key: string]: any
 
 
@@ -255,6 +269,13 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     // toJSON(meta?: any): any;
 
     // copyProps should be just setValues
+    /**
+     *
+     * @param parameters - An existing `Material` object or a plain JavaScript object with properties that will be copied to the material.
+     * @param allowInvalidType - Copy properties even if the type is different. Not used by default, but implemented in some material classes.
+     * @param clearCurrentUserData - clears the userData instead of merging first level. Default - true if `Material` object is passed, false if parameters object is passed
+     * @param time - parameters to animate the setting of properties
+     */
     setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): this;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
     fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
@@ -296,6 +317,12 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     clone(track?: boolean): this;
 
+    /**
+     * A promise can be set by the object to indicate that the material(or any of its properties) is loading.
+     * This can be used by the scene, viewer, plugins to defer actions until the material is loaded.
+     */
+    _loadingPromise?: Promise<void|any>
+
     // optional from subclasses, added here for autocomplete
     color?: Color
     wireframe?: boolean
@@ -334,7 +361,13 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     // [key: string]: any
 
     // private
+    /**
+     * @internal
+     */
     ['__textureUpdate']?: (e: Event<'update', Texture>)=>void
+    /**
+     * @internal
+     */
     ['_mapRefs']?: Set<ITexture>
 
 }

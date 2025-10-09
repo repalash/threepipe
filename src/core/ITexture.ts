@@ -83,9 +83,15 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
      */
     appliedObjects?: Set<IObject3D|IMaterial>
 
-    _target?: IRenderTarget // for internal use only. refers to the render target that this texture is attached to
-
     uiConfig?: UiObjectConfig
+
+    /**
+     * for internal use only. refers to the render target that this texture is attached to
+     * @internal
+     */
+    ['_target']?: IRenderTarget
+
+
 }
 
 export function upgradeTexture(this: ITexture) {

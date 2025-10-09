@@ -677,6 +677,7 @@ class OBJLoader2 extends Loader implements ILoader{
                     handler.setResourcePath(this.resourcePath)
                     handler.setCrossOrigin(this.crossOrigin)
                 }
+                // todo isNonRelativeUrl
                 if(this.currentUrl.startsWith('http') && !mtl_file.startsWith('http')) {
                     mtl_file = this.currentUrl.substring(0, this.currentUrl.lastIndexOf('/') + 1) + mtl_file
                 }
