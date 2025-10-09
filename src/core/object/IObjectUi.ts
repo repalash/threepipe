@@ -300,67 +300,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'divider',
             },
-            // moved to picking plugin
-            // geometry
-            // ()=>(this.geometry as IUiConfigContainer)?.uiConfig,
-            // material(s)
-            // ()=>Array.isArray(this.material) ? this.material.length < 1 ? undefined : {
-            //     label: 'Materials',
-            //     type: 'folder',
-            //     children: (this.material as IUiConfigContainer[]).map((a)=>a?.uiConfig).filter(a=>a),
-            // } : (this.material as IUiConfigContainer)?.uiConfig,
-            // {
-            //     label: 'Remove Material(s)',
-            //     type: 'button',
-            //     hidden: ()=>!this.materials?.length || this.materials.length === 1 && (<IMaterial[]>[defaultMaterial, defaultLineMaterial, defaultUnlitLineMaterial]).includes(this.materials[0]),
-            //     value: ()=>{
-            //         const mat = this.materials
-            //         this.material = this.isLineSegments2 ?
-            //             [defaultLineMaterial] : this.isLineSegments ?
-            //                 [defaultUnlitLineMaterial] : [defaultMaterial]
-            //         return ()=> this.material = mat
-            //     },
-            // },
-            // {
-            //     label: 'New Line Material',
-            //     type: 'button',
-            //     hidden: ()=>!this.isLineSegments2 || !(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultLineMaterial),
-            //     value: ()=>{
-            //         const mat = this.materials
-            //         this.material = [new LineMaterial2()]
-            //         return ()=> this.material = mat
-            //     },
-            // },
-            // {
-            //     label: 'New Unlit Line Material',
-            //     type: 'button',
-            //     hidden: ()=>!this.isLineSegments || !(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultUnlitLineMaterial),
-            //     value: ()=>{
-            //         const mat = this.materials
-            //         this.material = [new UnlitLineMaterial()]
-            //         return ()=> this.material = mat
-            //     },
-            // },
-            // {
-            //     label: 'New Physical Material',
-            //     type: 'button',
-            //     hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial) || !!this.isLineSegments2 || !!this.isLineSegments,
-            //     value: ()=>{
-            //         const mat = this.materials
-            //         this.material = [new PhysicalMaterial()]
-            //         return ()=> this.material = mat
-            //     },
-            // },
-            // {
-            //     label: 'New Unlit Material',
-            //     type: 'button',
-            //     hidden: ()=>!(!this.materials?.length || this.materials.length === 1 && this.materials[0] === defaultMaterial) || !!this.isLineSegments2 || !!this.isLineSegments,
-            //     value: ()=>{
-            //         const mat = this.materials
-            //         this.material = [new UnlitMaterial()]
-            //         return ()=> this.material = mat
-            //     },
-            // },
         ]
         ;(config.children as UiObjectConfig[]).push(...ui)
     }

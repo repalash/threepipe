@@ -4,6 +4,7 @@ import {Color, DoubleSide, Material} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ITexture, LineMaterial2, PhysicalMaterial} from '../../core'
 import {threeMaterialPropList} from '../../core/material/threeMaterialPropList'
+import {isNonRelativeUrl} from '../../utils'
 
 export class GLTFMaterialExtrasExtension {
     static readonly WebGiMaterialExtrasExtension = 'WEBGI_material_extras'
@@ -294,8 +295,7 @@ export class GLTFMaterialExtrasExtension {
                         if (!v) return
                         if (!v.isTexture) return
                         if (
-                            v.userData.rootPath
-                            && (v.userData.rootPath.startsWith('http') || v.userData.rootPath.startsWith('data:'))
+                            v.userData.rootPath && isNonRelativeUrl(v.userData.rootPath)
                         ) {
                             material[k] = null
                             this.materialExternalResources[material.uuid][k] = v

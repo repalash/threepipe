@@ -4,7 +4,7 @@ import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IObject3D, ITexture, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
-import {shaderReplaceString, ThreeSerialization} from '../../utils'
+import {isNonRelativeUrl, shaderReplaceString, ThreeSerialization} from '../../utils'
 import {AssetManager, GLTFWriter2} from '../../assetmanager'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import CustomBumpMapPluginShader from './shaders/CustomBumpMapPlugin.glsl'
@@ -295,7 +295,7 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2)=> ({
 
         const rootPath = material.userData._customBumpMap?.userData.rootPath
         // this is required because gltf transform doesnt support data uris or external urls
-        if (rootPath && (rootPath.startsWith('http') || rootPath.startsWith('data:'))) {
+        if (rootPath && isNonRelativeUrl(rootPath)) {
             extensionDef.customBumpMap = ThreeSerialization.Serialize(material.userData._customBumpMap, meta, false)
         }
 

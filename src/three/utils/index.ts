@@ -15,5 +15,6 @@ export {MaterialPreviewGenerator} from './MaterialPreviewGenerator'
 export {snapObject} from './snapObject'
 export {ViewHelper2, type GizmoOrientation, type DomPlacement} from './ViewHelper2'
 export {CurvePath3} from './curve'
+export {getFittingDistance} from './camera'
 
 // export {} from './constants'

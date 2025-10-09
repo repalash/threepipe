@@ -45,3 +45,14 @@ export function getPropDesc(obj: any, prop: keyof typeof obj) {
     }
     return {proto, protoDesc}
 }
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export function isNonRelativeUrl(url: string) { // todo rename to nonRelativeUrl
+    return url.startsWith('http://')
+        || url.startsWith('https://')
+        || url.startsWith('data:')
+        || url.startsWith('asset://')
+        || url.startsWith('/') // domain relative
+        || url.startsWith('//') // protocol relative
+    // not blob:
+}

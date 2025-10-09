@@ -54,7 +54,6 @@ export class GLTFViewerConfigExtension {
             const extraResources = await this._parseExtraResources(viewerConfig.resources, parser, viewer)
 
             viewerConfig.resources = await viewer.loadConfigResources(viewerConfig.resources || {}, extraResources)
-
         }
 
         if (resultScene) (resultScene as RootSceneImportResult).importedViewerConfig = viewerConfig

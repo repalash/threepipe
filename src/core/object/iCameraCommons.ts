@@ -41,6 +41,8 @@ export const iCameraCommons = {
     activateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true, canvas?: HTMLCanvasElement): void {
         if (!_internal) {
             if (options.camera === null) return this.deactivateMain(options, _internal, _refresh)
+            // if (!canvas)
+            // so that viewer can update the canvas ref set on the camera
             return this.dispatchEvent({
                 type: 'activateMain', ...options,
                 camera: this,
@@ -97,8 +99,9 @@ export const iCameraCommons = {
     },
     refreshAspect: function(this: ICamera, setDirty = true) {
         if (this.autoAspect) {
-            if (!this._canvas) console.error('ICamera: cannot calculate aspect ratio without canvas/container')
-            else {
+            if (!this._canvas) {
+                console.warn('ICamera: cannot calculate aspect ratio without canvas/container')
+            } else {
                 let aspect = this._canvas.clientWidth / this._canvas.clientHeight
                 if (!isFinite(aspect)) aspect = 1
                 this.aspect = aspect

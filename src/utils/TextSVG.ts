@@ -4,6 +4,7 @@ import {IAssetImporter} from '../assetmanager'
 import {LinearFilter} from 'three'
 import {ITexture} from '../core'
 import {DataUrlLoader} from '../assetmanager/import/DataUrlLoader'
+import {isNonRelativeUrl} from './browser-helpers.ts'
 
 export interface ITextSVGOptions{
     text: string;
@@ -131,7 +132,7 @@ export function buildTextSvg({
         ${style}
         .text-g{
             overflow:hidden; text-anchor: ${textAnchor}; 
-            font-size: ${fontSize}px; 
+            font-size: ${fontSize}px;
             font-family: ${JSON.stringify(fontFamily || 'Arial')};
             font-weight: ${fontWeight};
             font-style: ${fontStyle};
@@ -190,7 +191,7 @@ export async function makeTextSvgAdvanced(options: ITextSVGOptions, importer: IA
     let fontPath = options.fontPath || fonts[fontFamily] || ''
     let style = options.style || ''
     if (fontPath.length > 0) {
-        if (!fontPath.startsWith('http:') && !fontPath.startsWith('https:') && !fontPath.startsWith('data:') && !fontPath.startsWith('blob:') && !fontPath.startsWith('ftp:') && globalThis.window) {
+        if (!isNonRelativeUrl(fontPath) && !fontPath.startsWith('blob:') && !fontPath.startsWith('ftp:') && globalThis.window) {
             // assume relative path to current url window.location
             const url = new URL(fontPath, window.location.href)
             fontPath = url.href

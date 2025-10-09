@@ -279,6 +279,13 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
                 this.modelRoot.animations.push(animation)
             }
         }
+        if (obj._loadingPromise) {
+            if (this.modelRoot._loadingPromise) {
+                this.modelRoot._loadingPromise = Promise.allSettled([this.modelRoot._loadingPromise, obj._loadingPromise])
+            } else {
+                this.modelRoot._loadingPromise = obj._loadingPromise
+            }
+        }
         const children = obj._childrenCopy || [...obj.children]
         return children.map(c=>this.addObject(c, {...options, clearSceneObjects: false, disposeSceneObjects: false}))
     }

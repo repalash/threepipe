@@ -26,6 +26,8 @@ All notable changes to this project will be documented in this file.
 - Add `oldTexture`, `texture` to `environmentChanged` and `backgroundChanged` events in `RootScene`, `ISceneEventMap`.
 - Add `RootScene.disposeTextures(clear = true)` to remove and dispose all textures set directly on the scene.
 - Add `IViewerPlugin.constructor.PluginTags`, these can be set and used by plugins for filtering/categorisation etc
+- Add `pickingMode` to `ObjectPicker` (defaults to `auto`)
+- Add functions `isNonRelativeUrl` and `getFittingDistance`
 
 ### Changed
 
@@ -55,6 +57,8 @@ All notable changes to this project will be documented in this file.
 - Dispatch frame events and update timeline and object extensions when `ThreeViewer.renderEnabled` is `false`
 - Subscribe to `texturesChanged` on objects and `backgroundChanged`, `environmentChanged` on scene in `Object3DManager` to correctly update texture references on objects.
 - Avoid calling `controls.update`(camera) when `update` is defined but not a function.
+- Catch uncaught errors and log as warnings when saving files/responses in storage/cache in `overrideThreeCache`
+- Texture uuid save fix in `GLTFWriter2`
 
 ## [0.2.0] - 2025-09-03
 

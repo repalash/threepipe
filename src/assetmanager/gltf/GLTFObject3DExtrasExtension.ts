@@ -22,9 +22,10 @@ export class GLTFObject3DExtrasExtension {
                         return
                     }
 
-                    const hasShadowDef = ext.castShadow !== undefined || ext.receiveShadow !== undefined
-                    if (ext.castShadow !== undefined) o.castShadow = ext.castShadow
-                    if (ext.receiveShadow !== undefined) o.receiveShadow = ext.receiveShadow
+                    // if this extension is set, we use default (false) if not seet in ext. see the Export func.
+                    const hasShadowDef = true
+                    o.castShadow = ext.castShadow ?? false
+                    o.receiveShadow = ext.receiveShadow ?? false
                     if (ext.visible !== undefined) o.visible = ext.visible
                     if (ext.frustumCulled !== undefined) o.frustumCulled = ext.frustumCulled
                     if (ext.renderOrder !== undefined) o.renderOrder = ext.renderOrder
@@ -55,8 +56,8 @@ export class GLTFObject3DExtrasExtension {
 
             // non-default stuff from ObjectLoader.js
 
-            if (object.castShadow !== undefined) dat.castShadow = object.castShadow
-            if (object.receiveShadow !== undefined) dat.receiveShadow = object.receiveShadow
+            if (object.castShadow !== undefined && object.castShadow) dat.castShadow = object.castShadow
+            if (object.receiveShadow !== undefined && object.receiveShadow) dat.receiveShadow = object.receiveShadow
             if (object.visible === false) dat.visible = false
             if (object.frustumCulled === false) dat.frustumCulled = false
             if (object.renderOrder !== 0) dat.renderOrder = object.renderOrder

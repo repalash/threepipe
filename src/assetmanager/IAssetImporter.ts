@@ -16,6 +16,7 @@ export interface RootSceneImportResult extends Object3D {
         gltfAsset?: GLTF['asset']
         [key: string]: any
     }
+    _loadingPromise?: Promise<any>
 
     /**
      * copy of children to use after import, set in processRaw
@@ -88,11 +89,6 @@ export interface ProcessRawOptions {
      * default = false. If true, the importer will reprocess the imported objects, even if they are already processed.
      */
     forceImporterReprocess?: boolean,
-
-    /**
-     * internal use
-     */
-    rootPath?: string,
 
     /**
      * default = undefined, only used for textures
