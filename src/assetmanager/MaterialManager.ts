@@ -141,7 +141,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         materials.forEach(material => this.registerMaterial(material))
     }
 
-    unregisterExtensionsOnRemove = true
+    unregisterExtensionsOnRemove = false
 
     /**
      * This is done automatically on material dispose.

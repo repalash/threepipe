@@ -375,7 +375,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
 
 
-export type IMaterialGenerator<T extends IMaterial = IMaterial> = (params: any)=>T
+export type IMaterialGenerator<T extends IMaterial = IMaterial> = (params?: any)=>T
 
 export interface IMaterialTemplate<T extends IMaterial = IMaterial, TP = any>{
     templateUUID?: string,

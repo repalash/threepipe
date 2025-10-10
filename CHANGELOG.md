@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 - Add support for `userData.isPlaceholder` in `IGeometry` and `IMaterial` to mark them as placeholder that should not be saved
 - Add `AssetExporter.exportHooks` for a better way to process individual object components/assets when exporting.
 - Add support for placeholder materials during import and export of 'gltf' files. Materials with `userData.isPlaceholder` set to `true` are not exported and a dummy material is assigned during import.
+- Add property `unregisterExtensionsOnRemove` in `MaterialManager`. Defaults to `false`. Hence by default, Material Extensions are not removed from material when its disposed or removed from the scene. 
 
 ### Changed
 
@@ -56,6 +57,7 @@ All notable changes to this project will be documented in this file.
 - Better `importFile` event file tracking in `AssetImporter` using some events from `LoadingManager`.
 - Add `enableAutoNearFar` and `disableAutoNearFar` functions in `RootScene` and deprecate boolean `autoNearFarEnabled` property. These can be used by multiple plugins to enable/disable auto near/far without interfering with each other.
 - `rootPath`(the path from where an asset was loaded) is now set in `userData` even when its relative/host-relative URL. It is now also set before the `processRawStart` event in `AssetImporter`.
+- Change automatic material unregistration to happen when removed from the scene (unregister from Object3DManager), instead of material dispose.
 
 ### Fixes
 
