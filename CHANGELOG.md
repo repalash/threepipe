@@ -28,7 +28,9 @@ All notable changes to this project will be documented in this file.
 - Add `IViewerPlugin.constructor.PluginTags`, these can be set and used by plugins for filtering/categorisation etc
 - Add `pickingMode` to `ObjectPicker` (defaults to `auto`)
 - Add functions `isNonRelativeUrl` and `getFittingDistance`
-
+- Add support for `userData.isPlaceholder` in `IGeometry` and `IMaterial` to mark them as placeholder that should not be saved
+- Add `AssetExporter.exportHooks` for a better way to process individual object components/assets when exporting.
+ 
 ### Changed
 
 - Set canvas style to `100%`(when viewer is created) if not explicitly set in canvas inline style and no `maxWidth`/`maxHeight` is set in css. This is done to prevent canvas auto-resizing to huge sizes when not set.
@@ -47,6 +49,8 @@ All notable changes to this project will be documented in this file.
 - `iMaterialCommons.getMapsForObject3D` now returns a `Map` of property names to textures.
 - Changed parameter type of `maps` in `checkTexMapReference` from `Set` to `Map`.
 - Moved object material and geometry UI Config to `PickingPlugin`(from `object.uiConfig`). They are now populated only when the object is selected.
+- Auto unwrap(ignore root and take children) single scene with the name `AuxScene` in glTF/glb files.
+- Better `importFile` event file tracking in `AssetImporter` using some events from `LoadingManager`.
 
 ### Fixes
 

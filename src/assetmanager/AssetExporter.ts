@@ -3,7 +3,7 @@ import {IMaterial, IObject3D, ITexture} from '../core'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportWriter} from './IExporter'
 import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
-import {assetExportHook} from './export/assetExportHook.ts'
+import {assetExportHook, AssetExportHooks} from './export/assetExportHook.ts'
 
 export interface AssetExporterEventMap {
     exporterCreate: {exporter: IExporter, parser: IExportWriter} // todo rename parser to writer
@@ -51,10 +51,13 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         return this.exporters.find(e=>e.ext.some(e1=>ext.includes(e1)))
     }
 
+    // this can be set from outside to add custom processing during export, apart from the exportFile event
+    exportHooks: AssetExportHooks = {}
+
     constructor() {
         super()
 
-        this.addEventListener('exportFile', (e)=>assetExportHook(e, AssetExporter._TRACK_ROOT_PATH))
+        this.addEventListener('exportFile', (e)=>assetExportHook(e, this.exportHooks))
     }
 
     public async exportObject(obj?: IObject3D|IMaterial|ITexture|IRenderTarget, options: ExportFileOptions = {}): Promise<BlobExt|undefined> {
@@ -175,13 +178,6 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
     dispose(): void {
         // todo
     }
-
-    /**
-     * Check if any embedded object/asset is part of another file(with rootPath set) and track it instead of saving it again.
-     */
-    static ['_TRACK_ROOT_PATH'] = false
-
-
 }
 
 export function matToJson(mat: IMaterial) {

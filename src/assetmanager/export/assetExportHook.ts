@@ -13,18 +13,28 @@ import {BufferAttribute, BufferGeometry} from 'three'
 import {AssetImporter} from '../AssetImporter.ts'
 import {GLTFExporter2Options} from './GLTFExporter2.ts'
 import {getPartialProps, setPartialProps} from '../../utils'
-import {ValOrArr} from 'ts-browser-helpers'
 
-export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRootPath = false) => {
+export interface AssetExportHooks {
+    objectGeometry?: (obj: IObject3D, geometry: IGeometry, root: IObject3D)=>IGeometry|null|undefined
+    objectGeometryReplace?: (obj: IObject3D, geometry: IGeometry)=>void
+    object?: (obj: IObject3D, root: IObject3D)=>void
+    objectMaterials?: (obj: IObject3D, materials: IMaterial|IMaterial[]|undefined)=>void
+    objectMaterial?: (obj: IObject3D, material: IMaterial, root: IObject3D, materialIndex?: number)=>undefined | (()=>IMaterial)
+    objectMaterialsReplace?: (obj: IObject3D, materials: IMaterial|IMaterial[])=>void
+    replaceTexture?: (obj: IObject3D|IMaterial, texture: ITexture, mapName: string, root: IObject3D|IMaterial)=>ITexture|null
+    revertTextures?: (obj: IObject3D|IMaterial)=>void
+    revertObject?: (obj: IObject3D)=>void
+}
+
+export const assetExportHook = (e: AssetExporterEventMap['exportFile'], hooks: AssetExportHooks) => {
     const options = e.exportOptions || {}
     const mat = (e.obj as IMaterial).isMaterial ? e.obj as IMaterial : null
     const obj = (e.obj as IObject3D).isObject3D ? e.obj as IObject3D : null
 
     if (e.state === 'processing') {
         if (mat) {
-            const rootPath = trackRootPath ? mat.userData?.rootPath || null : null
-            const maps: Map<string, ITexture> = rootPath ? iMaterialCommons.getMapsForMaterial.call(mat) : null
-            const savedMaps = maps && rootPath ? replaceExternalTextures(maps, rootPath, mat) : null
+            const maps: Map<string, ITexture> = hooks.replaceTexture ? iMaterialCommons.getMapsForMaterial.call(mat) : null
+            const savedMaps = maps && hooks.replaceTexture ? replaceExternalTextures(maps, mat, mat, hooks.replaceTexture) : null
             mat.__exportState = {savedMaps}
         }
         if (obj) {
@@ -43,8 +53,6 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
                 matCloneMap: new Map(),
                 savedTextures: new Map(),
             }
-            // todo we should only use rootPath check if specified in options
-            const rootPath = trackRootPath ? obj.userData?.rootPath || null : null
 
             obj.traverse((obj1: IObject3D) => {
                 if (!obj1?.isObject3D) return
@@ -61,10 +69,7 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
             objectList.forEach(obj1=>{
                 if (options.preserveUUIDs !== false && obj1.uuid) obj1.userData.gltfUUID = obj1.uuid
 
-                if (rootPath && obj1._tpRootPath && obj1._tpRootPath !== rootPath) {
-                    // todo object belongs to a diff asset. we shouldn't save it
-                    console.error('Object belongs to a different asset, it should not be present in children/sChildren.', obj1, obj, rootPath)
-                }
+                hooks.object && hooks.object(obj1, obj)
 
                 // todo handle sProperties for objects as well
                 // if (obj1.userData.sProperties !== undefined) {
@@ -74,8 +79,9 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
 
                 processGLTFAnimations(obj1, options)
 
-                const geomOverride = replaceExternalGeometry(obj1, rootPath)
+                const geomOverride = replaceExternalGeometry(obj1, obj, hooks.objectGeometry)
                 if (geomOverride) {
+                    hooks.objectGeometryReplace && hooks.objectGeometryReplace(obj1, geomOverride)
                     geomMap.set(obj1, obj1.forcedOverrideGeometry)
                     obj1.forcedOverrideGeometry = geomOverride
                 }
@@ -83,8 +89,11 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
                 const current = !meshLines.has(obj1) ? processMeshLines(obj1) : null
                 if (current) meshLines.set(obj1, current)
 
-                const mats = processObjectMaterials(obj1, matCloneMap, rootPath, textures)
+                hooks.objectMaterials && hooks.objectMaterials(obj1, obj.material)
+
+                const mats = processObjectMaterials(obj1, matCloneMap, textures, obj, hooks.objectMaterial)
                 if (mats !== undefined) {
+                    hooks.objectMaterialsReplace && hooks.objectMaterialsReplace(obj1, mats)
                     fomMap.set(obj1, obj1.forcedOverrideMaterial)
                     obj1.forcedOverrideMaterial = mats
                 }
@@ -93,9 +102,9 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
                 textures.set(obj1, textures1)
             })
 
-            if (rootPath)
+            if (hooks.replaceTexture)
                 textures.forEach((textures1, obj1)=>{
-                    const savedMaps = replaceExternalTextures(textures1, rootPath, obj1)
+                    const savedMaps = replaceExternalTextures(textures1, obj1, obj, hooks.replaceTexture)
                     savedTextures.set(obj1, savedMaps)
                 })
             textures.clear()
@@ -104,6 +113,7 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
     }
     if (e.state === 'done' || e.state === 'error') {
         if (mat && mat.__exportState) {
+            hooks.revertTextures && hooks.revertTextures(mat)
             revertExternalTextures(mat.__exportState.savedMaps, mat)
             delete mat.__exportState
         }
@@ -117,16 +127,14 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
                 savedTextures,
             } = obj.__exportState
             delete obj.__exportState
-            const rootPath = trackRootPath ? obj.userData?.rootPath || null : null
 
             objectList.forEach(obj1=>{
                 if (options.preserveUUIDs !== false && obj1.userData.gltfUUID) delete obj1.userData.gltfUUID
 
                 revertMeshLines(obj1, meshLines.get(obj1))
 
-                if (obj1.userData.tpAssetRefIds) {
-                    delete obj1.userData.tpAssetRefIds
-                }
+                hooks.revertObject && hooks.revertObject(obj1)
+
                 // @ts-expect-error temp
                 if (obj1._tChildren) {
                     // @ts-expect-error temp
@@ -153,8 +161,9 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
             geomMap.clear()
 
             // revert external map references
-            if (rootPath)
+            if (hooks.revertTextures)
                 savedTextures.forEach((savedMaps, obj1)=>{
+                    hooks.revertTextures && hooks.revertTextures(obj1)
                     revertExternalTextures(savedMaps, obj1)
                 })
             savedTextures.clear()
@@ -167,27 +176,17 @@ export const assetExportHook = (e: AssetExporterEventMap['exportFile'], trackRoo
  * Find all the textures that do not belong to that rootPath (asset) and replace them with null in the material,
  * and save their ids in userData.tpAssetRefIds
  * @param maps
- * @param rootPath
  * @param obj
  */
-function replaceExternalTextures(maps: Map<string, ITexture>, rootPath: string|null, obj: IMaterial|IObject3D) {
-    const extMaps: Record<string, null> = {}
+function replaceExternalTextures(maps: Map<string, ITexture>, obj: IMaterial|IObject3D, root: IObject3D|IMaterial, cb: AssetExportHooks['replaceTexture']) {
+    const extMaps: Record<string, ITexture|null> = {}
     const savedMaps: Record<string, ITexture> = {}
     maps.forEach((texture, k) => {
-        // textures which are themselves loaded from a rootpath will not have _tpRootPath set. this is only for textures that "belong" to another asset
-        if (rootPath && texture._tpRootPath && texture._tpRootPath !== rootPath) {
-            // texture belongs to a diff asset. we shouldn't save it
-            //  replace with dummy texture or null and save id (in material.userData.tpAssetRefIds), and replace back later on
-
-            if (!obj.userData.tpAssetRefIds) obj.userData.tpAssetRefIds = {}
-            if (obj.userData.tpAssetRefIds[k]) {
-                // todo warn
-            }
-            obj.userData.tpAssetRefIds[k] = texture._tpRootPath + ':' + texture.uuid
-
-            extMaps[k] = null
+        if (!cb) return
+        const r = cb(obj, texture, k, root)
+        if (r !== texture) {
+            extMaps[k] = r
             savedMaps[k] = texture
-            return
         }
     })
     setPartialProps(extMaps, obj)
@@ -195,39 +194,22 @@ function replaceExternalTextures(maps: Map<string, ITexture>, rootPath: string|n
 }
 
 function revertExternalTextures(savedMaps: Record<string, ITexture>|null, obj: IObject3D|IMaterial) {
-    if (obj.userData.tpAssetRefIds) {
-        delete obj.userData.tpAssetRefIds
-    }
     savedMaps && setPartialProps(savedMaps, obj)
 }
 
-function replaceExternalGeometry(obj1: IObject3D, rootPath: string|null) {
+function replaceExternalGeometry(obj1: IObject3D, root: IObject3D, cb?: AssetExportHooks['objectGeometry']) {
     const geometry = obj1.geometry
     if (!geometry) return undefined
-    let geomExtRef: string | null = null
+
     let g: IGeometry|null = null
+
     if (geometry.userData.isPlaceholder) {
-
         g = AssetImporter.DummyGeometry
-
-    } else if (rootPath && geometry._tpRootPath && geometry._tpRootPath !== rootPath && !geometry.userData.rootPath) {
-        // geometry belongs to a diff asset. we should only save the asset id and the geometry uuid
-        if (!geometry.userData.uuid || geometry.userData.uuid !== geometry.uuid) {
-            console.error('Geometry from different asset must have uuid in userData', geometry, obj1)
-        }
-        g = AssetImporter.DummyGeometry
-        geomExtRef = geometry._tpRootPath + ':' + geometry.uuid
+    } else if (cb) {
+        const g1 = cb(obj1, geometry, root)
+        if (g1) g = g1
     }
     if (g && g !== geometry) {
-        if (geomExtRef !== null) {
-            if (!obj1.userData.tpAssetRefIds) obj1.userData.tpAssetRefIds = {}
-
-            if (obj1.userData.tpAssetRefIds.geometry) { // it is supposed to be deleted after export
-                console.warn('Overwriting existing userData.tpAssetRefIds.geometry', obj1.userData.tpAssetRefIds.geometry, geomExtRef, obj1)
-            }
-            obj1.userData.tpAssetRefIds.geometry = geomExtRef
-        }
-
         return g
     }
 }
@@ -295,15 +277,14 @@ function processMeshLines(obj1: IObject3D) {
     }
 }
 
-function processObjectMaterials(obj1: IObject3D, matCloneMap: Map<IMaterial, IMaterial>, rootPath: string|null, textures: Map<IObject3D | IMaterial, Map<string, ITexture>>) {
+function processObjectMaterials(obj1: IObject3D, matCloneMap: Map<IMaterial, IMaterial>, textures: Map<IObject3D | IMaterial, Map<string, ITexture>>, root: IObject3D, cb: AssetExportHooks['objectMaterial']) {
     if (!obj1.material) return
     const materials = obj1.material
     const isArr = Array.isArray(materials)
     const materialsArr = isArr ? materials : [materials]
     let mats = isArr ? [...materials] : materials
-    let materialsExtRef: ValOrArr<string | null> = isArr ? (mats as any[]).map(() => null) : null
 
-    const setMaterialRef = (i: number, material: IMaterial, ctor: ()=>IMaterial, extRef?: string) => {
+    const setMaterialRef = (i: number, material: IMaterial, ctor: ()=>IMaterial) => {
         let mat2 = matCloneMap.get(material)
         if (!mat2) {
             mat2 = ctor()
@@ -312,10 +293,8 @@ function processObjectMaterials(obj1: IObject3D, matCloneMap: Map<IMaterial, IMa
         if (isArr) {
             // @ts-expect-error ts.
             mats[i] = mat2
-            if (extRef && materialsExtRef) (materialsExtRef as any[])[i] = extRef
         } else {
             mats = mat2
-            if (extRef) materialsExtRef = extRef
         }
     }
 
@@ -323,45 +302,33 @@ function processObjectMaterials(obj1: IObject3D, matCloneMap: Map<IMaterial, IMa
         if (material.userData.isPlaceholder) {
             // material is a dummy placeholder
             setMaterialRef(i, material, ()=>AssetImporter.DummyMaterial)
-        } else if (rootPath && material._tpRootPath && material._tpRootPath !== rootPath && !material.userData.rootPath) {
-            // material belongs to a diff asset. we should only save the asset id and the material uuid
-            if (!material.userData.uuid || material.userData.uuid !== material.uuid) {
-                console.error('Material from different asset must have uuid in userData', material, obj1)
-            }
-            setMaterialRef(i, material, ()=>AssetImporter.DummyMaterial, material._tpRootPath + ':' + material.uuid)
         } else {
-            const textures1: Map<string, ITexture> = iMaterialCommons.getMapsForMaterial.call(material)
-            textures.set(material, textures1)
+            const r = cb ? cb(obj1, material, root, i) : null
+            if (r) setMaterialRef(i, material, r)
+            else {
+                const textures1: Map<string, ITexture> = iMaterialCommons.getMapsForMaterial.call(material)
+                textures.set(material, textures1)
 
-            // todo do the same sProperties thing for objects as well.
-            if (material.userData.sProperties !== undefined) { // clone the material and save only the specified properties
-                setMaterialRef(i, material, ()=>{
+                // todo do the same sProperties thing for objects as well.
+                if (material.userData.sProperties !== undefined) { // clone the material and save only the specified properties
+                    setMaterialRef(i, material, ()=>{
                     // @ts-expect-error ts.
-                    const mat3: IMaterial = new material.constructor()
-                    mat3.name = material.name
-                    // mat3.userData.tpAssetId = material.userData.tpAssetId
-                    const props = getPartialProps(material, material.userData.sProperties)
-                    setPartialProps(props, mat3)
-                    mat3.userData.uuid = material.uuid
-                    mat3.userData.sProperties = material.userData.sProperties
-                    mat3.userData.rootPath = material.userData.rootPath
-                    mat3.userData.rootPathOptions = material.userData.rootPathOptions
-                    return mat3
-                })
+                        const mat3: IMaterial = new material.constructor()
+                        mat3.name = material.name
+                        const props = getPartialProps(material, material.userData.sProperties)
+                        setPartialProps(props, mat3)
+                        mat3.userData.uuid = material.uuid
+                        mat3.userData.sProperties = material.userData.sProperties
+                        mat3.userData.rootPath = material.userData.rootPath
+                        mat3.userData.rootPathOptions = material.userData.rootPathOptions
+                        return mat3
+                    })
+                }
             }
         }
     })
 
     if (!isArr ? mats !== materials : (mats as IMaterial[]).some((m, i) => m !== (materials as IMaterial[])[i])) {
-        if (!isArr ? materialsExtRef !== null : (materialsExtRef as any[])?.some(m => m !== null)) {
-            if (!obj1.userData.tpAssetRefIds) obj1.userData.tpAssetRefIds = {}
-
-            if (obj1.userData.tpAssetRefIds.material) { // it is supposed to be deleted after export
-                console.warn('Overwriting existing userData.tpAssetRefIds.material', obj1.userData.tpAssetRefIds.material, materialsExtRef, obj1)
-            }
-            obj1.userData.tpAssetRefIds.material = materialsExtRef
-        }
-
         return mats
     }
     return
