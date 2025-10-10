@@ -18,7 +18,6 @@ All notable changes to this project will be documented in this file.
 - Add `mapMode` to `ContactShadowGroundPlugin` (Values = `'alphaMap' | 'aoMap' | 'map'`), to control which slot the depth map is assigned to in the material. Default is `aoMap`.
 - Add `refreshAttachedLight` to `CascadedShadowsPlugin` to be able to manually refresh the auto attached light.
 - Add `near`, `far`, `controlsMode` settings to `makeICameraCommonUiConfig`
-- Add example - [gltf-export](https://threepipe.org/examples/#gltf-export/) - Example showing the use of `viewer.export` to export a glTF(JSON) file with and without embedded assets.
 - Add `auto` to `GLTFLoader2.CreateUniqueNames` and `LoadFileOptions.createUniqueNames`. When set to auto (default), unique names are created only when importing a model root(scene)
 - Add `ImportAssetOptions.cacheAsset`(default true), can be set to `false` to disable caching an asset(in asset manager cache if provided) when importing.
 - Add parameter `uuid` in `MaterialManager.create` to set material uuid explicitly when creating a material.
@@ -30,15 +29,21 @@ All notable changes to this project will be documented in this file.
 - Add functions `isNonRelativeUrl` and `getFittingDistance`
 - Add support for `userData.isPlaceholder` in `IGeometry` and `IMaterial` to mark them as placeholder that should not be saved
 - Add `AssetExporter.exportHooks` for a better way to process individual object components/assets when exporting.
- 
+- Add support for placeholder materials during import and export of 'gltf' files. Materials with `userData.isPlaceholder` set to `true` are not exported and a dummy material is assigned during import.
+
 ### Changed
 
+**Breaking changes**
 - Set canvas style to `100%`(when viewer is created) if not explicitly set in canvas inline style and no `maxWidth`/`maxHeight` is set in css. This is done to prevent canvas auto-resizing to huge sizes when not set.
 - Change `ThreeViewer.renderEnabled` functionality to run the animation loop and fire frame events, but skip rendering using the render manager.
+- Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin.
+- Moved object material and geometry UI Config to `PickingPlugin`(from `object.uiConfig`). They are now populated only when the object is selected.
+- Auto unwrap(ignore root and take children) single scene with the name `AuxScene` in glTF/glb files.
+
+**Changes**
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
 - Remove `uiconfig` for `tonemapBackground` in `TonemapPlugin` in favor of `backgroundTonemap` UI in `RootScene`.
 - Better toggle for `autoNearFarEnabled` in `PickingPlugin`
-- Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin. 
   - Set `mapMode` to `alphaMap`, and `material.color` to `0x111111` to achieve the same result as before.
 - Make `controlsCtors` public readonly in `ICamera`
 - Avoid creating widgets for objects that have `userData.disableWidgets` set to `true`
@@ -48,9 +53,9 @@ All notable changes to this project will be documented in this file.
 - `iMaterialCommons.getMapsForMaterial` now returns a `Map` of property names to textures.
 - `iMaterialCommons.getMapsForObject3D` now returns a `Map` of property names to textures.
 - Changed parameter type of `maps` in `checkTexMapReference` from `Set` to `Map`.
-- Moved object material and geometry UI Config to `PickingPlugin`(from `object.uiConfig`). They are now populated only when the object is selected.
-- Auto unwrap(ignore root and take children) single scene with the name `AuxScene` in glTF/glb files.
 - Better `importFile` event file tracking in `AssetImporter` using some events from `LoadingManager`.
+- Add `enableAutoNearFar` and `disableAutoNearFar` functions in `RootScene` and deprecate boolean `autoNearFarEnabled` property. These can be used by multiple plugins to enable/disable auto near/far without interfering with each other.
+- `rootPath`(the path from where an asset was loaded) is now set in `userData` even when its relative/host-relative URL. It is now also set before the `processRawStart` event in `AssetImporter`.
 
 ### Fixes
 
@@ -67,6 +72,14 @@ All notable changes to this project will be documented in this file.
 - Prevent internal three.js `Cache` from being patched multiple times
 - Fix for `mainCameraChange` event not working in `EditorViewWidgetPlugin`
 - `SSAAPlugin` now respects `camera.aspect` when `camera.autoAspect` is `false`.
+- Fix for issues with far clipping in large scenes when using `PickingPlugin`
+- Set default camera `near` and `minNearPlane` to `0.2`, `far` and `maxFarPlane` to `10000`.
+
+### Examples
+
+- Add example - [gltf-export](https://threepipe.org/examples/#gltf-export/) - Example showing the use of `viewer.export` to export a glTF(JSON) file with and without embedded assets.
+- Add example - [sky-shader-simple](https://threepipe.org/examples/#sky-shader-simple/) - Example showing a simple sky shader from three.js addons.
+- Add example - [sky-shader-simple-ts](https://threepipe.org/examples/#sky-shader-simple-ts/) - TypeScript decorator(for UI and API) version of the above example.
 
 ## [0.2.0] - 2025-09-03
 
@@ -78,8 +91,6 @@ All notable changes to this project will be documented in this file.
 - Add `IUniform.needsUpdate` type
 - Add `autoRadius` to `SSAOPluginPass`
 - Add `CascadedShadowsPlugin` for directional light shadows with cascades CSM. This is same as [three-csm](https://github.com/StrandedKitty/three-csm) implementation at the moment.
-- Add example - [cascaded-shadows-plugin-basic](https://threepipe.org/examples/#cascaded-shadows-plugin-basic/) - Sample usage of `CascadedShadowsPlugin`
-- Add example - [three-csm-basic](https://threepipe.org/examples/#three-csm-basic/) - Sample usage of `CSM` addon in three.js directly without a plugin.
 
 ### Changed
 
@@ -95,6 +106,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fixes in `GBufferMaterial` rendering when `customGBufferMaterial` is used.
+
+### Examples
+
+- Add example - [cascaded-shadows-plugin-basic](https://threepipe.org/examples/#cascaded-shadows-plugin-basic/) - Sample usage of `CascadedShadowsPlugin`
+- Add example - [three-csm-basic](https://threepipe.org/examples/#three-csm-basic/) - Sample usage of `CSM` addon in three.js directly without a plugin.
+
 
 ## [0.1.1] - 2025-09-01
 
