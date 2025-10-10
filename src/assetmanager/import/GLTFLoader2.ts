@@ -35,6 +35,7 @@ import {
     UnlitMaterial,
 } from '../../core'
 import {ImportAddOptions} from '../AssetManager'
+import {AssetImporter} from '../AssetImporter.ts'
 
 // todo move somewhere
 const supportedEmbeddedFiles = ['hdr', 'exr', 'webp', 'avif', 'ktx', 'hdrpng', 'svg', 'cube', 'ico', 'bmp', 'gif', 'tiff'] // ktx2, drc handled separately
@@ -161,8 +162,33 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 if (!refMap.has(node.name)) refMap.set(node.name, [])
                 refMap.get(node.name)!.push(node)
             }
-            if ((node as Mesh).geometry && (node as Mesh).geometry.isBufferGeometry) {
-                geometries.add((node as Mesh).geometry)
+            const obj = node as IObject3D
+            if (obj.geometry && obj.geometry.isBufferGeometry) {
+                if (obj.geometry.userData.isPlaceholder) {
+                    obj.geometry = AssetImporter.DummyGeometry
+                } else {
+                    geometries.add(obj.geometry)
+                }
+            }
+            const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : []
+            for (let i = 0; i < mats.length; i++) {
+                const mat = mats[i]
+                if (mat?.userData.isPlaceholder) {
+                    if (mat.isLineBasicMaterial) {
+                        mats[i] = AssetImporter.DummyLineBasicMaterial
+                    } else if (mat.isLineMaterial) {
+                        mats[i] = AssetImporter.DummyLineMaterial
+                    } else {
+                        mats[i] = AssetImporter.DummyMaterial
+                    }
+                }
+            }
+            if (Array.isArray(obj.material) && obj.material.length) {
+                obj.material = mats
+            } else if (mats.length === 1) {
+                obj.material = mats[0]
+            } else {
+                // material is null
             }
         })
 
