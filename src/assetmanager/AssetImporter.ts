@@ -24,7 +24,7 @@ import {SimpleJSONLoader} from './import'
 import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
-import {IGeometry, UnlitMaterial} from '../core'
+import {IGeometry, LineMaterial2, UnlitLineMaterial, UnlitMaterial} from '../core'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -95,10 +95,19 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
     // todo these are only used in export, use in import as well
     static DummyMaterial = /* @__PURE__ */ new UnlitMaterial({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyLineBasicMaterial = /* @__PURE__ */ new UnlitLineMaterial({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyLineMaterial = /* @__PURE__ */ new LineMaterial2({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
     static DummyGeometry: IGeometry = /* @__PURE__ */ new BufferGeometry() as IGeometry
-    // dummyGeometry.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0]), 3))
-    // dummyGeometry.setAttribute('normal', new BufferAttribute(new Float32Array([0, 1, 0]), 3))
-    // dummyGeometry.setAttribute('uv', new BufferAttribute(new Float32Array([0, 0]), 2))
+
+    static {
+        AssetImporter.DummyMaterial.uiConfig = {}
+        AssetImporter.DummyLineBasicMaterial.uiConfig = {}
+        AssetImporter.DummyLineMaterial.uiConfig = {}
+        AssetImporter.DummyGeometry.uiConfig = {}
+        // AssetImporter.DummyGeometry.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0]), 3))
+        // AssetImporter.DummyGeometry.setAttribute('normal', new BufferAttribute(new Float32Array([0, 1, 0]), 3))
+        // AssetImporter.DummyGeometry.setAttribute('uv', new BufferAttribute(new Float32Array([0, 0]), 2))
+    }
 
     readonly importers: IImporter[] = [
         new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),

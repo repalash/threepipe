@@ -7,7 +7,7 @@ import {
     IMaterial,
     IObject3D,
     IScene,
-    ISceneEventMap,
+    ISceneEventMap, ITexture,
     IWidget,
     LineMaterial2,
     PhysicalMaterial,
@@ -20,6 +20,7 @@ import {type UndoManagerPlugin} from './UndoManagerPlugin'
 import {ObjectPickerEventMap, SelectionObject} from '../../three/utils/ObjectPicker'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
+import {AssetImporter} from '../../assetmanager'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -96,8 +97,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.autoFocus = autoFocus
         this.dispatchEvent = this.dispatchEvent.bind(this)
 
-        this.materialTypes.forEach(m=>m.def ? m.def.uiConfig = undefined as any : null)
-
+        // this.materialTypes.forEach(m=>m.def ? m.def.uiConfig = undefined as any : null)
     }
 
     getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
@@ -151,6 +151,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         viewer.getPlugin<DropzonePlugin>('Drop')?.addEventListener('drop', this._onDrop)
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
+        viewer.scene.addEventListener('materialChanged', this._objCompChange)
+        viewer.scene.addEventListener('geometryChanged', this._objCompChange)
+        viewer.scene.addEventListener('texturesChanged', this._objCompChange)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
 
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=>{
@@ -166,6 +169,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
+        viewer.scene.removeEventListener('materialChanged', this._objCompChange)
+        viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
+        viewer.scene.removeEventListener('texturesChanged', this._objCompChange)
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         viewer.getPlugin<DropzonePlugin>('Drop')?.removeEventListener('drop', this._onDrop)
 
@@ -204,6 +210,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         // to be able to pick widgets. see onObjectHit
         if (e.object?.userData?.isWidgetRoot && e.object.parent === this._viewer?.scene) {
             this._picker?.extraObjects.push(e.object)
+        }
+    }
+
+    private _objCompChange: EventListener2<'geometryChanged'|'materialChanged'|'texturesChanged', ISceneEventMap, IScene> = (e)=>{
+        if (e.object && e.object === this.getSelectedObject()) {
+            this.refreshUiChildren(e.object)
         }
     }
 
@@ -264,41 +276,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             }
         }
 
-        if (this._pickUi) {
-            const ui = this.uiConfig
-            ui.children = [...this._uiConfigChildren]
-            if (selected) {
-                if ((selected as IObject3D).isObject3D) {
-                    const obj = (selected as IObject3D)
-                    ui.children.push(...this.objectSelectionUiConfig(obj))
-                }
-                const c = selected.uiConfig
-                if (c?.type === 'folder') safeSetProperty(c, 'expanded', true, true)
-                if (c) ui.children.push(c)
-
-                const object = (selected as IObject3D)?.isObject3D ? (selected as IObject3D) : undefined
-                const materials1 = (selected as IMaterial)?.isMaterial ? selected as IMaterial : object?.material
-                const materials = materials1 ? Array.isArray(materials1) ? materials1 : [materials1] : []
-                const geometry = (selected as IGeometry)?.isBufferGeometry ? selected as IGeometry : object?.geometry
-
-                if (geometry?.uiConfig && geometry !== selected) {
-                    const c1 = geometry.uiConfig
-                    if (c1.type === 'folder') safeSetProperty(c1, 'expanded', true, true)
-                    ui.children.push(c1)
-                }
-                materials.forEach(m=>{
-                    if (m?.uiConfig && m !== selected) ui.children?.push(m.uiConfig)
-                })
-                if ((selected as IObject3D).isObject3D) {
-                    ui.children.push(...this.objectMaterialManageUiConfig(selected as IObject3D))
-                }
-
-            } else {
-                ui.children.push(this._pickPromptUi)
-            }
-
-            ui.uiRefresh?.()
-        }
+        this.refreshUiChildren(selected)
 
         const widget = this._widget
         if (widget && this.widgetEnabled) {
@@ -463,6 +441,44 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     // UI utils
 
+    refreshUiChildren(selected: IObject3D | IMaterial | ITexture | IGeometry | undefined) {
+        if (this._pickUi) {
+            const ui = this.uiConfig
+            ui.children = [...this._uiConfigChildren]
+            if (selected) {
+                if ((selected as IObject3D).isObject3D) {
+                    const obj = (selected as IObject3D)
+                    ui.children.push(...this.objectSelectionUiConfig(obj))
+                }
+                const c = selected.uiConfig
+                if (c?.type === 'folder') safeSetProperty(c, 'expanded', true, true)
+                if (c) ui.children.push(c)
+
+                const object = (selected as IObject3D)?.isObject3D ? (selected as IObject3D) : undefined
+                const materials1 = (selected as IMaterial)?.isMaterial ? selected as IMaterial : object?.material
+                const materials = materials1 ? Array.isArray(materials1) ? materials1 : [materials1] : []
+                const geometry = (selected as IGeometry)?.isBufferGeometry ? selected as IGeometry : object?.geometry
+
+                if (geometry?.uiConfig && geometry !== selected) {
+                    const c1 = geometry.uiConfig
+                    if (c1.type === 'folder') safeSetProperty(c1, 'expanded', true, true)
+                    ui.children.push(c1)
+                }
+                materials.forEach(m => {
+                    if (m?.uiConfig && m !== selected) ui.children?.push(m.uiConfig)
+                })
+                if ((selected as IObject3D).isObject3D) {
+                    ui.children.push(...this.objectMaterialManageUiConfig(selected as IObject3D))
+                }
+
+            } else {
+                ui.children.push(this._pickPromptUi)
+            }
+
+            ui.uiRefresh?.()
+        }
+    }
+
     objectSelectionUiConfig(obj: IObject3D): UiObjectConfig[] {
         return [
             {
@@ -518,11 +534,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 label: `New ${matType.name} Material`,
                 type: 'button',
                 hidden: matType.line ?
-                    ()=>!obj.isLineSegments2 || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
-                    ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === this.materialTypes[0].def) || !!obj.isLineSegments2 || !!obj.isLineSegments,
+                    // ()=>(!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments) || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) :
+                    ()=>!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
+                    ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) || !!obj.isLineSegments2 || !!obj.isLineSegments || !!obj.isLine,
                 value: ()=>{
                     const mat = obj.materials
-                    obj.material = [new matType.cls()]
+                    obj.material = new matType.cls()
                     return ()=> obj.material = mat
                 },
             })),
@@ -531,32 +548,34 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     canRemoveMaterial = (obj: IObject3D)=>{
         const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : []
-        return materials.length && (materials.length !== 1 || !(this.materialTypes.map(m=>m.def) as IMaterial[]).includes(materials[0]))
+        // return materials.length && (materials.length !== 1 || !(this.materialTypes.map(m=>m.def) as IMaterial[]).includes(materials[0]))
+        return materials.length && (materials.length !== 1 || !materials[0].userData?.isPlaceholder)
     }
+
     removeMaterial = (obj: IObject3D)=>{
-        const matC = obj.materials
+        const matC = obj.material
         const def = [this.materialTypes[0].def!]
         if (!def[0]) throw new Error('No default material found')
         const mat = obj.isLineSegments2 ? this.materialTypes.find(m=>m.cls === LineMaterial2)?.def :
-            obj.isLineSegments ? this.materialTypes.find(m=>m.cls === UnlitLineMaterial)?.def :
+            obj.isLine || obj.isLineSegments ? this.materialTypes.find(m=>m.cls === UnlitLineMaterial)?.def :
                 null
-        obj.material = mat ? [mat] : def
+        obj.material = mat ? mat : def[0]
         return ()=> obj.material = matC // returns undo function
     }
 
     // to be able to remove material from object
     materialTypes = [{
         cls: UnlitMaterial,
-        def: new UnlitMaterial({name: 'Default Unlit Material', userData: {isPlaceholder: true}}),
+        def: AssetImporter.DummyMaterial,
         name: 'Unlit',
     }, {
         cls: UnlitLineMaterial,
-        def: new UnlitLineMaterial({name: 'Default Unlit Line Material', userData: {isPlaceholder: true}}),
+        def: AssetImporter.DummyLineBasicMaterial,
         line: true,
         name: 'Basic Line',
     }, {
         cls: LineMaterial2,
-        def: new LineMaterial2({name: 'Default Line Material', userData: {isPlaceholder: true}}),
+        def: AssetImporter.DummyLineMaterial,
         line: true,
         name: 'Line',
     }, {
