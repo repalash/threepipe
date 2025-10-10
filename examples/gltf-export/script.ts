@@ -37,6 +37,7 @@ async function init() {
         },
         ['Download GLTF (RootPath Reference)']: async() => {
             helmet._sChildren = [] // set the serializable children to empty, so only the root object is exported, along with url that can be used to reload the object.
+            helmet.userData.rootPathRefresh = true
             const blob = await viewer.export(helmet, { // note that we are using the `helmet` (parent) object here, and not the `mesh`.
                 exportExt: 'gltf',
             })

@@ -4,6 +4,7 @@ import {
     BaseGroundPlugin,
     CameraViewPlugin,
     CanvasSnapshotPlugin,
+    CascadedShadowsPlugin,
     ChromaticAberrationPlugin,
     Class,
     ClearcoatTintPlugin,
@@ -32,7 +33,8 @@ import {
     NoiseBumpMaterialPlugin,
     NormalBufferPlugin,
     Object3DGeneratorPlugin,
-    Object3DWidgetsPlugin, ObjectConstraintsPlugin,
+    Object3DWidgetsPlugin,
+    ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
     PickingPlugin,
     PLYLoadPlugin,
@@ -55,7 +57,6 @@ import {
     ViewerUiConfigPlugin,
     VignettePlugin,
     VirtualCamerasPlugin,
-    CascadedShadowsPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
@@ -219,5 +220,6 @@ export class ThreeEditor extends ThreeViewer {
         editor.loadPlugins(this.editorModes)
 
         await FontLibrary.Init // required for text geometry generation. todo add to other editors?
+
     }
 }

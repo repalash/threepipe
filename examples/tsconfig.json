@@ -18,7 +18,7 @@
         "preserveConstEnums": true,
         "moduleResolution": "bundler",
         "skipDefaultLibCheck": true,
-        "emitDecoratorMetadata": true,
+        "emitDecoratorMetadata": false,
         "sourceMap": false,
         "paths": {
             "@threepipe/plugin-*": ["../plugins/*/src"],
