@@ -175,7 +175,7 @@ export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0)
                 // fileContents[typesPath] = types
                 registerFile(packageName + '/index.d.ts', types);
             }else if(typesFile && hasTypes !== typesFile) {
-                console.error('Package', packageName, 'has types file', typesFile, 'but also has index.d.ts file', hasTypes, 'skipping', packageName);
+                // console.warn('Package', packageName, 'has types file', typesFile, 'but also has index.d.ts file', hasTypes, 'skipping', packageName);
             }
             for (const [key, value] of Object.entries(packageJson.dependencies || {})) {
                 let version = value

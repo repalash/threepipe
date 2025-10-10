@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 - Add `AssetExporter.exportHooks` for a better way to process individual object components/assets when exporting.
 - Add support for placeholder materials during import and export of 'gltf' files. Materials with `userData.isPlaceholder` set to `true` are not exported and a dummy material is assigned during import.
 - Add property `unregisterExtensionsOnRemove` in `MaterialManager`. Defaults to `false`. Hence by default, Material Extensions are not removed from material when its disposed or removed from the scene. 
+- Add static property `JSONMaterialLoader.FindExistingMaterial`, if set to true, the loader will attempt to find any existing material with the same uuid from `MaterialManager` and deserialize into that. 
 
 ### Changed
 

@@ -7,11 +7,23 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
 
     viewer?: ThreeViewer
 
+    /**
+     * Find any existing material with the same uuid and update it instead of creating a new one
+     * This is a global flag to toggle this behavior on or off
+     * @default false
+     */
+    static FindExistingMaterial = false
+
     async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
         if (!this.viewer) throw 'Viewer not set in JSONMaterialLoader.'
 
         const json = await super.loadAsync(url, onProgress) as any
-        return await JSONMaterialLoader.DeserializeMaterialJSON(json, this.viewer)
+        let mat = undefined
+        if (JSONMaterialLoader.FindExistingMaterial && json.uuid && this.viewer) {
+            // find any existing mat with the same uuid.
+            mat = this.viewer.materialManager.findMaterial(json.uuid)
+        }
+        return await JSONMaterialLoader.DeserializeMaterialJSON(json, this.viewer, undefined, mat)
     }
 
     static async DeserializeMaterialJSON(json: any, viewer: ThreeViewer, meta?: SerializationMetaType, obj?: IMaterial|IMaterial[]) {
