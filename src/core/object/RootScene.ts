@@ -348,6 +348,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             this.environment.mapping = EquirectangularReflectionMapping // for PMREMGenerator
             this.environment.needsUpdate = true
         }
+
+        // todo dispatch texturesChanged also
         this.dispatchEvent({
             type: 'environmentChanged',
             oldTexture: ev?.oldValue?.isTexture ? ev.oldValue : null,
@@ -363,6 +365,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             if (this.autoDisposeSceneMaps && typeof ev.oldValue.dispose === 'function') ev.oldValue.dispose()
         }
 
+        // todo dispatch texturesChanged also
         this.dispatchEvent({
             type: 'backgroundChanged',
             oldTexture: ev?.oldValue && ev.oldValue.isTexture ? ev.oldValue : null,

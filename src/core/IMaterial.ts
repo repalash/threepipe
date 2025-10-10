@@ -353,6 +353,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     isRawShaderMaterial?: boolean
     isPhysicalMaterial?: boolean
     isLineMaterial?: boolean
+    isLineBasicMaterial?: boolean
     isUnlitMaterial?: boolean
     isGBufferMaterial?: boolean
     isLineMaterial2?: boolean

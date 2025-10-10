@@ -176,6 +176,12 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         this._objects.delete(obj.uuid)
         obj.removeEventListener('materialChanged', this._materialChanged)
         obj.removeEventListener('geometryChanged', this._geometryChanged)
+        obj.removeEventListener('texturesChanged', this._texturesChanged)
+        if ((obj as IScene).isScene) {
+            (obj as IScene).removeEventListener('backgroundChanged', this._textureChanged)
+            ;(obj as IScene).removeEventListener('environmentChanged', this._textureChanged)
+        }
+
         // obj.removeEventListener('added', this._objAdded)
         this._unregisterMaterials(obj.materials, obj)
         this._unregisterGeometry(obj.geometry, obj)
@@ -364,7 +370,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
         }
     }
 
-    private _texturesChanged = (ev: Event2<'texturesChanged', IMaterialEventMap, IMaterial|IObject3D>) => {
+    private _texturesChanged = (ev: Event2<'texturesChanged', IMaterialEventMap, IMaterial> | Event2<'texturesChanged', IObject3DEventMap, IObject3D>) => {
         if (!ev.target) return
         // todo check for changeKey to avoid looping through all textures?
         const material = ev.target

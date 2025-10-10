@@ -67,7 +67,10 @@ export interface IObject3DEventMap extends Object3DEventMap{
         bubbleToParent: boolean
     }
     // this is never dispatched from object
-    texturesChanged: IMaterialEventMap['texturesChanged']
+    texturesChanged: Omit<IMaterialEventMap['texturesChanged'], 'material'> & {
+        object: IObject3D
+        bubbleToParent: boolean
+    }
     geometryUpdate: {
         object: IObject3D
         geometry: IGeometry
