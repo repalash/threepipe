@@ -24,7 +24,7 @@ export interface ICameraUserData extends IObject3DUserData {
     /**
      * Maximum far plane distance. (when {@link autoNearFar} is true)
      * Or the far plane distance when {@link autoNearFar} is false.
-     * @default 1000
+     * @default 10000
      */
     maxFarPlane?: number
     /**

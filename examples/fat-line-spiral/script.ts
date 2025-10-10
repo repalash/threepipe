@@ -21,7 +21,7 @@ async function init() {
         dropzone: true,
     })
 
-    viewer.scene.autoNearFarEnabled = false
+    viewer.scene.disableAutoNearFar()
 
     viewer.scene.backgroundColor = new Color(0x333333)
 

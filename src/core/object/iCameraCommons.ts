@@ -221,6 +221,9 @@ export const iCameraCommons = {
         }
         return false
     },
+
+    defaultMinNear: 0.2,
+    defaultMaxFar: 10000,
 }
 
 function upgradeCamera(this: ICamera) {

@@ -528,13 +528,37 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     private _v1 = new Vector3()
     private _v2 = new Vector3()
 
+    private _autoNearFarDisabled = new Set<string>()
+
     /**
      * For Programmatically toggling autoNearFar. This property is not supposed to be in the UI or serialized.
      * Use camera.userData.autoNearFar for UI and serialization
      * This is used in PickingPlugin, editor plugins
      * autoNearFar will still be disabled if this is true and camera.userData.autoNearFar is false
      */
-    autoNearFarEnabled = true
+    disableAutoNearFar(id = 'default') {
+        const enabled = this._autoNearFarDisabled.size === 0
+        this._autoNearFarDisabled.add(id)
+        const camera = this.mainCamera as ICamera
+        if (enabled) {
+            let near = camera.near, far = camera.far
+            if (camera.userData.minNearPlane !== undefined) {
+                near = camera.userData.minNearPlane
+            }
+            if (camera.userData.maxFarPlane !== undefined) {
+                far = camera.userData.maxFarPlane
+            }
+            iCameraCommons.setNearFar(camera, near, far, true, 'RootScene')
+        }
+    }
+    enableAutoNearFar(id = 'default') {
+        if (!this._autoNearFarDisabled.has(id)) return
+        this._autoNearFarDisabled.delete(id)
+        const camera = this.mainCamera as ICamera
+        if (this._autoNearFarDisabled.size === 0 && camera) {
+            this.setDirty()
+        }
+    }
 
     /**
      * Refreshes the scene active camera near far values, based on the scene bounding box.
@@ -553,7 +577,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
 
         // console.log(this.autoNearFarEnabled, camera.userData.autoNearFar, camera.userData.maxFarPlane, camera.far)
-        if (!this.autoNearFarEnabled || camera.userData.autoNearFar === false) {
+        if (this._autoNearFarDisabled.size !== 0 || camera.userData.autoNearFar === false) {
             return iCameraCommons.setNearFar(camera, near, far, setDirty, 'RootScene')
         }
 
@@ -570,8 +594,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
         // new way
         const dist1 = Math.max(0.1, -this._v1.normalize().dot(camera.getWorldDirection(new Vector3())))
-        near = Math.max(Math.max(camera.userData.minNearPlane ?? 0.5, 0.001), dist1 * (dist - radius))
-        far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? 1000)
+        near = Math.max(Math.max(camera.userData.minNearPlane ?? iCameraCommons.defaultMinNear, 0.001), dist1 * (dist - radius))
+        far = Math.min(Math.max(near + radius, dist1 * (dist + radius)), camera.userData.maxFarPlane ?? iCameraCommons.defaultMaxFar)
 
         // old way, has issues when panning very far from the camera target
         // const near = Math.max(camera.userData.minNearPlane ?? 0.2, dist - radius)
@@ -803,6 +827,20 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     removeSceneModels() {
         this.clearSceneModels()
+    }
+
+    /**
+     * @deprecated use {@link enableAutoNearFar} and {@link disableAutoNearFar} instead.
+     */
+    get autoNearFarEnabled() {
+        return this._autoNearFarDisabled.size === 0
+    }
+    /**
+     * @deprecated use {@link enableAutoNearFar} and {@link disableAutoNearFar} instead.
+     */
+    set autoNearFarEnabled(v) {
+        if (v) this.enableAutoNearFar('default')
+        else this.disableAutoNearFar('default')
     }
 
     // endregion

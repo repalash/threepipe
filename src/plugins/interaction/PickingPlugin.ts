@@ -248,7 +248,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, true)
     }
 
-    private _autoNearFarDisabled = false
     private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {
         if (!this._viewer) return
         this.dispatchEvent(e)
@@ -263,17 +262,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
         // for widgets etc, this can be removed when they are rendered in a separate pass
         if (selected) {
-            if (this._viewer.scene.autoNearFarEnabled) {
-                this._autoNearFarDisabled = true
-                this._viewer.scene.autoNearFarEnabled = false
-            } else {
-                this._autoNearFarDisabled = false
-            }
+            this._viewer.scene.disableAutoNearFar('PickingPlugin')
         } else {
-            if (this._autoNearFarDisabled) {
-                this._viewer.scene.autoNearFarEnabled = true
-                this._autoNearFarDisabled = false
-            }
+            this._viewer.scene.enableAutoNearFar('PickingPlugin')
         }
 
         this.refreshUiChildren(selected)
@@ -536,7 +527,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 hidden: matType.line ?
                     // ()=>(!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments) || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) :
                     ()=>!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
-                    ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) || !!obj.isLineSegments2 || !!obj.isLineSegments || !!obj.isLine,
+                    ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) || !obj.isMesh,
                 value: ()=>{
                     const mat = obj.materials
                     obj.material = new matType.cls()
@@ -547,12 +538,14 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     canRemoveMaterial = (obj: IObject3D)=>{
+        if (!obj.material) return false
         const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : []
         // return materials.length && (materials.length !== 1 || !(this.materialTypes.map(m=>m.def) as IMaterial[]).includes(materials[0]))
         return materials.length && (materials.length !== 1 || !materials[0].userData?.isPlaceholder)
     }
 
     removeMaterial = (obj: IObject3D)=>{
+        if (!obj.material) return
         const matC = obj.material
         const def = [this.materialTypes[0].def!]
         if (!def[0]) throw new Error('No default material found')

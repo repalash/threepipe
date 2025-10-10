@@ -25,7 +25,7 @@ async function init() {
         dropzone: true,
     })
 
-    viewer.scene.autoNearFarEnabled = false
+    viewer.scene.disableAutoNearFar()
 
     GLTFLoader2.UseMeshLines = true
 

@@ -5,6 +5,7 @@ import {Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
+import {iCameraCommons} from './iCameraCommons.ts'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -25,10 +26,10 @@ export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig)
             hidden: ()=>!this.autoNearFar,
             // property: [this, 'minNearPlane'],
             getValue: ()=>{
-                return this.userData.minNearPlane ?? 0.5
+                return this.userData.minNearPlane ?? iCameraCommons.defaultMinNear
             },
             setValue: (v: number)=>{
-                if (v === 0.5) delete this.userData.minNearPlane
+                if (v === iCameraCommons.defaultMinNear) delete this.userData.minNearPlane
                 else this.userData.minNearPlane = v
             },
         },
@@ -38,10 +39,10 @@ export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig)
             hidden: ()=>!this.autoNearFar,
             // property: [this, 'maxFarPlane'],
             getValue: ()=>{
-                return this.userData.maxFarPlane ?? 1000
+                return this.userData.maxFarPlane ?? iCameraCommons.defaultMaxFar
             },
             setValue: (v: number)=>{
-                if (v === 1000) delete this.userData.maxFarPlane
+                if (v === iCameraCommons.defaultMaxFar) delete this.userData.maxFarPlane
                 else this.userData.maxFarPlane = v
             },
         },
