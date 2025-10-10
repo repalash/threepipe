@@ -337,6 +337,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
         if (isNewMaterial) {
             this.dispatchEvent({type: 'materialAdd', material: mat})
+            mat.dispatchEvent({type: '__register' as any})
         }
     }
 
@@ -367,6 +368,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             if (this.autoDisposeMaterials) {
                 mat.dispose(false)
             }
+            mat.dispatchEvent({type: '__unregister' as any})
         }
     }
 

@@ -30,13 +30,6 @@ export function Asset({url, onImport, onLoad, ...options}: ImportAddOptions & {
         })
     }, [object])
 
-    // todo check - this should happen automatically when the object is removed from the scene?
-    // useEffect(() => {
-    //     return () => {
-    //         object.dispose()
-    //     }
-    // }, [object])
-
     return Array.isArray(object) ? object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} /> : null) : object ? <primitive object={object as IObject3D} /> : null
     // return null
 }

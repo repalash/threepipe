@@ -105,10 +105,13 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
     protected _disposeMaterial = (e: {target?: IMaterial})=>{
         const mat = e.target
         if (!mat || mat.assetType !== 'material') return
-        mat.setDirty()
-        // todo: move this to Object3DManager, unregister on remove from scene, same as dispose.
-        if (!mat.appliedMeshes?.size) // todo test dispose reimport tests after this change.
-            this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly.
+        // mat.setDirty()
+        this.unregisterMaterial(mat) // not unregistering on dispose, that has to be done explicitly as its ideally for GPU resources
+    }
+    protected _registerMaterial = (e: {target?: IMaterial})=>{
+        const mat = e.target
+        if (!mat || mat.assetType !== 'material') return
+        this.registerMaterial(mat)
     }
 
     public registerMaterial(material: IMaterial): void {
@@ -125,7 +128,9 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         // todo: check for name exists also?
 
         // console.warn('Registering material', material)
-        material.addEventListener('dispose', this._disposeMaterial)
+        // material.addEventListener('dispose', this._disposeMaterial)
+        material.addEventListener('__unregister', this._disposeMaterial)
+        material.addEventListener('__register', this._registerMaterial)
         // material.addEventListener('materialUpdate', this._materialUpdate) // from set dirty
         material.registerMaterialExtensions?.(this._materialExtensions)
         material.setDirty() // this is required to be done here, as it calls refreshTextureRefs
@@ -136,14 +141,19 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         materials.forEach(material => this.registerMaterial(material))
     }
 
+    unregisterExtensionsOnRemove = true
+
     /**
      * This is done automatically on material dispose.
      * @param material
      */
     public unregisterMaterial(material: IMaterial): void {
         this._materials = this._materials.filter(v=>v.uuid !== material.uuid)
-        material.unregisterMaterialExtensions?.(this._materialExtensions)
-        material.removeEventListener('dispose', this._disposeMaterial)
+        if (this.unregisterExtensionsOnRemove) {
+            material.unregisterMaterialExtensions?.(this._materialExtensions)
+        }
+        material.removeEventListener('__unregister', this._disposeMaterial)
+        material.removeEventListener('__register', this._registerMaterial)
         // material.removeEventListener('materialUpdate', this._materialUpdate)
     }
     clearMaterials(): void {
