@@ -138,6 +138,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
         // todo: do the same in DepthBufferPlugin and NormalBufferPlugin
         // what about the material extension settings in the userData of the source materials?
+        // wont this be very expensive? todo we should expect devs to expose their own gbuffer material instance if they want to use some extension
         if (material.materialExtensions?.length) {
             this.registerMaterialExtensions(material.materialExtensions)
         }

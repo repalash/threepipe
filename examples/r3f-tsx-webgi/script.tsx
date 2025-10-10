@@ -25,8 +25,8 @@ function Watch() {
             // Configure plugin properties after loading the file
             const ground = viewer.getPlugin(BaseGroundPlugin)
             if (ground) {
-                          ground.material!.roughness = 0
-                          ground.material!.metalness = 0.8
+                ground.material!.roughness = 0
+                ground.material!.metalness = 0.8
             }
             const bloom = viewer.getPlugin(BloomPlugin)
             if (bloom) {
@@ -77,9 +77,10 @@ function App() {
                 // Add a plugin with a debug UI for tweaking parameters
                 const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
                 // Add some debug UI elements for tweaking parameters
-                ui.setupPlugins(SSAAPlugin)
-                ui.setupPlugins(SSReflectionPlugin)
-                ui.setupPlugins(BaseGroundPlugin)
+                ui.setupPluginUi(SSAAPlugin)
+                ui.setupPluginUi(SSAOPlugin)
+                ui.setupPluginUi(SSReflectionPlugin)
+                ui.setupPluginUi(BaseGroundPlugin)
                 ui.appendChild(viewer.scene.uiConfig, {expanded: true})
 
                 _testFinish()

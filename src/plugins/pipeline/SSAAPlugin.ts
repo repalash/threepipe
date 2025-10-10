@@ -91,7 +91,7 @@ export class SSAAPlugin extends AViewerPluginSync {
     private _jitter(camera: TCamera, size: {
         width: number,
         height: number
-    }, frameCount: number) {
+    }, frameCount: number, main = false) {
         if (camera.userData.disableJitter) return
         if (camera.userData.__jittered) {
             this._viewer?.console.warn('SSAAPlugin: Camera already jittered')
@@ -104,7 +104,7 @@ export class SSAAPlugin extends AViewerPluginSync {
         //     sample.y += 1 * (Math.random() - 0.5)
         // }
         const aspect = camera.aspect
-        const height = camera.autoAspect ? size.height : size.width / aspect
+        const height = camera.autoAspect || !main ? size.height : size.width / aspect
         camera.setViewOffset(size.width, height, sample.x, sample.y, size.width, height)
         camera.userData.__jittered = true
     }
@@ -124,7 +124,7 @@ export class SSAAPlugin extends AViewerPluginSync {
         if (this.jitterRenderCamera) this._jitter(cam, {
             width: v.renderManager.renderSize.x * v.renderManager.renderScale,
             height: v.renderManager.renderSize.y * v.renderManager.renderScale,
-        }, v.renderManager.frameCount)
+        }, v.renderManager.frameCount, true)
         if (this.jitterLightCameras)
             this.trackedJitterCameras.entries().forEach((a) => this._jitter(...a, v.renderManager.frameCount))
 
