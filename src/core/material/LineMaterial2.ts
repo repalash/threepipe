@@ -15,9 +15,7 @@ import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerializat
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
@@ -36,6 +34,11 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     declare ['constructor']: typeof LineMaterial2
     public static readonly TypeSlug = 'lmat'
     public static readonly TYPE = 'LineMaterial2' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['line', LineMaterial2.TYPE, LineMaterial2.TypeSlug, 'LineMaterial']
+    static {
+        ThreeSerialization.SerializableMaterials.add(LineMaterial2)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -46,8 +49,6 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-
-    generator?: IMaterialGenerator
 
     constructor({customMaterialExtensions, ...parameters}: LineMaterialParameters & IMaterialParameters = {}) {
         super()
@@ -159,7 +160,7 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     setValues(parameters: Material|(LineMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE].includes(parameters.type) && !(parameters as LineMaterial2).isLineMaterial && !(parameters as LineMaterial2).isLineMaterial2) {
+        if (parameters.type && !allowInvalidType && !['LineMaterial', this.constructor.TYPE, this.type].includes(parameters.type) && !(parameters as LineMaterial2).isLineMaterial && !(parameters as LineMaterial2).isLineMaterial2) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -241,19 +242,6 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         'linewidth',
         'resolution',
     ]
-
-    static MaterialTemplate: IMaterialTemplate<LineMaterial2, Partial<typeof LineMaterial2.MaterialProperties>> = {
-        materialType: LineMaterial2.TYPE,
-        name: 'line',
-        typeSlug: LineMaterial2.TypeSlug,
-        alias: ['line', 'line_physical', LineMaterial2.TYPE, LineMaterial2.TypeSlug, 'LineMaterial'],
-        params: {
-            color: new Color(1, 1, 1),
-        },
-        generator: (params) => {
-            return new LineMaterial2(params)
-        },
-    }
 
 }
 

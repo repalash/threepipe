@@ -12,9 +12,7 @@ import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
@@ -35,6 +33,11 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     public static readonly TypeSlug = 'bmat'
     public static readonly TYPE = 'UnlitMaterial' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['unlit', 'basic', UnlitMaterial.TYPE, UnlitMaterial.TypeSlug, 'MeshBasicMaterial', 'MeshBasicMaterial2']
+    static {
+        ThreeSerialization.SerializableMaterials.add(UnlitMaterial)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -45,8 +48,6 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-
-    generator?: IMaterialGenerator
 
     envMap: ITexture | null = null
 
@@ -120,7 +121,7 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     setValues(parameters: Material|(MeshBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['MeshBasicMaterial', 'MeshBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['MeshBasicMaterial', 'MeshBasicMaterial2', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -241,19 +242,6 @@ export class UnlitMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
         'aoMapIntensity',
         'wireframeLinewidth',
     ]
-
-    static MaterialTemplate: IMaterialTemplate<UnlitMaterial, Partial<typeof UnlitMaterial.MaterialProperties>> = {
-        materialType: UnlitMaterial.TYPE,
-        name: 'unlit',
-        typeSlug: UnlitMaterial.TypeSlug,
-        alias: ['basic', 'unlit', UnlitMaterial.TYPE, UnlitMaterial.TypeSlug, 'MeshBasicMaterial', 'MeshBasicMaterial2'],
-        params: {
-            color: new Color(1, 1, 1),
-        },
-        generator: (params) => {
-            return new UnlitMaterial(params)
-        },
-    }
 }
 
 export class MeshBasicMaterial2 extends UnlitMaterial {

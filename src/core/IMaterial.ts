@@ -252,10 +252,11 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     constructor: {
         TYPE: string
         TypeSlug: string
+        TypeAlias?: string[]
         MaterialProperties?: Record<string, any>
         MapProperties?: string[]
         InterpolateProperties?: string[]
-        MaterialTemplate?: IMaterialTemplate
+        new(...args: any[]): IMaterial
     }
     assetType: 'material'
     setDirty(options?: IMaterialSetDirtyOptions): void;
@@ -284,11 +285,6 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
     materialExtensions: MaterialExtension[]
     registerMaterialExtensions: (customMaterialExtensions: MaterialExtension[]) => void;
     unregisterMaterialExtensions: (customMaterialExtensions: MaterialExtension[]) => void;
-
-    /**
-     * Managed internally, do not change manually
-     */
-    generator?: IMaterialGenerator
 
     /**
      * Objects in the scene that are using this material.
@@ -371,21 +367,6 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     ['_mapRefs']?: Set<ITexture>
 
-}
-
-
-
-export type IMaterialGenerator<T extends IMaterial = IMaterial> = (params?: any)=>T
-
-export interface IMaterialTemplate<T extends IMaterial = IMaterial, TP = any>{
-    templateUUID?: string,
-    name: string,
-    typeSlug?: string,
-    alias?: string[], // alternate names
-    materialType: string,
-    generator?: IMaterialGenerator<T>,
-
-    params?: TP
 }
 
 declare module 'three'{

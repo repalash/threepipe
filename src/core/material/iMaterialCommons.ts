@@ -95,7 +95,7 @@ export const iMaterialCommons = {
                 this.userData.cloneCount += 1
             }
 
-            const material: IMaterial = this.generator?.({})?.setValues(this, false) ?? superClone.call(this)
+            const material: IMaterial = new this.constructor()?.setValues(this, false) ?? superClone.call(this)
 
             if (track) {
                 material.userData.cloneId = material.userData.cloneId + '_' + this.userData.cloneCount

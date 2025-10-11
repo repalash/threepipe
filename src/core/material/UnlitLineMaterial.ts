@@ -11,9 +11,7 @@ import {UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
@@ -34,6 +32,11 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
 
     public static readonly TypeSlug = 'blmat'
     public static readonly TYPE = 'UnlitLineMaterial' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['unlitline', 'basicline', UnlitLineMaterial.TYPE, UnlitLineMaterial.TypeSlug, 'LineBasicMaterial']
+    static {
+        ThreeSerialization.SerializableMaterials.add(UnlitLineMaterial)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -44,8 +47,6 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-
-    generator?: IMaterialGenerator
 
     constructor({customMaterialExtensions, ...parameters}: LineBasicMaterialParameters & IMaterialParameters = {}) {
         super()
@@ -106,7 +107,7 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
      */
     setValues(parameters: Material|(LineBasicMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['LineBasicMaterial', 'LineBasicMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['LineBasicMaterial', 'LineBasicMaterial2', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -232,19 +233,6 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
         'color',
         'linewidth',
     ]
-
-    static MaterialTemplate: IMaterialTemplate<UnlitLineMaterial, Partial<typeof UnlitLineMaterial.MaterialProperties>> = {
-        materialType: UnlitLineMaterial.TYPE,
-        name: 'unlit_line',
-        typeSlug: UnlitLineMaterial.TypeSlug,
-        alias: ['line_basic', 'unlit_line', UnlitLineMaterial.TYPE, UnlitLineMaterial.TypeSlug, 'LineBasicMaterial', 'LineBasicMaterial2'],
-        params: {
-            color: new Color(1, 1, 1),
-        },
-        generator: (params) => {
-            return new UnlitLineMaterial(params)
-        },
-    }
 }
 
 /**

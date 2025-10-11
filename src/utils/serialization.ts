@@ -2,7 +2,8 @@ import {
     arrayBufferToBase64,
     base64ToArrayBuffer,
     deepAccessObject,
-    getTypedArray, safeSetProperty,
+    getTypedArray,
+    safeSetProperty,
     Serialization,
     Serializer,
 } from 'ts-browser-helpers'
@@ -41,20 +42,12 @@ import {
     Vector3,
     Vector4,
 } from 'three'
-import type {
-    AssetImporter,
-    AssetManager,
-    BlobExt,
-    IAssetImporter,
-    ImportResultExtras,
-    MaterialManager,
-} from '../assetmanager'
+import type {AssetImporter, AssetManager, BlobExt, IAssetImporter, ImportResultExtras} from '../assetmanager'
 import type {ThreeViewer} from '../viewer'
-import {IMaterial, IObject3D, ITexture} from '../core'
+import type {IMaterial, IObject3D, ITexture} from '../core'
 import type {IRenderTarget, RenderManager} from '../rendering'
-import {textureToCanvas} from '../three/utils/texture'
-import {CurvePath3} from '../three'
 import {isNonRelativeUrl} from './browser-helpers'
+import {textureToCanvas} from '../three'
 
 const copier = (c: any) => (v: any, o: any) => o?.copy?.(v) ?? new c().copy(v)
 
@@ -172,6 +165,8 @@ export class ThreeSerialization {
             return textures[uuid]
         },
     }
+
+    static SerializableMaterials = new Set<IMaterial['constructor']>()
 
     static Material: Serializer = {
         priority: 2,
@@ -310,13 +305,29 @@ export class ThreeSerialization {
 
             // obj is null or type mismatch, so ignore obj and create a new material
 
-            // generate from material manager generator and call fromJSON with internal true which will call setValues
-            const materialManager = meta?._context.materialManager
-            if (materialManager) {
-                const uuid = dat.isMaterial ? undefined : dat.uuid
-                const register = true // todo
-                const material = materialManager.create(type, undefined, register, uuid)
+            // find a material class with the type registered in SerializableMaterials
+            const uuid = dat.isMaterial ? undefined : dat.uuid
+            let template = null as IMaterial['constructor'] | null
+            for (const m of ThreeSerialization.SerializableMaterials) {
+                if (m.TYPE === type) {
+                    template = m
+                    break
+                }
+            }
+            if (!template) {
+                for (const m of ThreeSerialization.SerializableMaterials) {
+                    if (m.TypeAlias?.includes(type)) {
+                        template = m
+                        break
+                    }
+                }
+            }
+            if (template) {
+                const material = new template()
                 if (material) {
+                    if (uuid) {
+                        safeSetProperty(material, 'uuid', uuid, true, true)
+                    }
                     if (material.fromJSON) material.fromJSON(data, meta, true)
                     else if (material.setValues) material.setValues(data)
                     else console.error('ThreeSerialization: Cannot deserialize material, no fromJSON or setValues method', material, data)
@@ -324,10 +335,11 @@ export class ThreeSerialization {
                 }
             }
 
+            // todo use loader from context to load instead of this
             console.warn('Legacy three.js material deserialization')
 
             // normal three.js material
-            const loader = new MaterialLoader() // todo: get loader from meta.loaders
+            const loader = new MaterialLoader()
             for (const [k, v] of Object.entries(textures)) {
                 data[k] = v.uuid
             }
@@ -456,7 +468,6 @@ export class ThreeSerialization {
         Serialization.SerializableClasses.set('SplineCurve', SplineCurve)
         Serialization.SerializableClasses.set('AnimationClip', AnimationClip)
         // Serialization.SerializableClasses.set('Skeleton', Skeleton) // doesnt have .type. todo add to three.js
-
     }
 
     /**
@@ -656,7 +667,6 @@ export interface SerializationMetaType extends SerializationResourcesType {
     _context: {
         assetImporter?: AssetImporter,
         objectLoader?: ObjectLoader,
-        materialManager?: MaterialManager,
         assetManager?: AssetManager,
         renderManager?: RenderManager,
 
@@ -805,9 +815,7 @@ export class MetaImporter {
                     if (r?.length > 0) resources.extras[e.uuid] = r[0]
                 } else if (e.url.data) {
                     const file = new File([getTypedArray(e.url.type, e.url.data)], e.url.path)
-                    // console.log(file, e)
                     const r = await assetImporter.importAsset({path: file.name, file})
-                    // console.log(r)
                     // todo: userdata? name? other properties?
                     if (r?.length > 0) resources.extras[e.uuid] = r[0]
                 } else {
@@ -890,7 +898,6 @@ export function metaFromResources(resources?: Partial<SerializationResourcesType
         _context: {
             assetManager: viewer?.assetManager,
             assetImporter: viewer?.assetManager.importer,
-            materialManager: viewer?.assetManager.materials,
             renderManager: viewer?.renderManager,
             viewer: viewer,
         }, // clear context even if its present in resources
@@ -902,7 +909,6 @@ export function jsonToBlob(json: any): BlobExt {
     b.ext = 'json'
     return b
 }
-
 
 /**
  * Used in {@link LUTCubeTextureWrapper} and {@link KTX2LoadPlugin} and imported in {@link ThreeViewer.loadConfigResources}

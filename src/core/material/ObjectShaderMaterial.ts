@@ -10,13 +10,11 @@ import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
-import {AnimateTime, SerializationMetaType, shaderUtils, ThreeSerialization} from '../../utils'
+import {AnimateTime, SerializationMetaType, ThreeSerialization} from '../../utils'
 import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
@@ -32,6 +30,11 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
 
     public static readonly TypeSlug = 'shmat'
     public static readonly TYPE = 'ObjectShaderMaterial' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['shader', ObjectShaderMaterial.TYPE, ObjectShaderMaterial.TypeSlug, 'ShaderMaterial']
+    static {
+        ThreeSerialization.SerializableMaterials.add(ObjectShaderMaterial)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -42,8 +45,6 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-
-    generator?: IMaterialGenerator
 
     // envMap: ITexture | null = null
 
@@ -112,7 +113,7 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
      */
     setValues(parameters: Material|(ShaderMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['ShaderMaterial', 'ShaderMaterial2', 'ExtendedShaderMaterial', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['ShaderMaterial', 'ShaderMaterial2', 'ExtendedShaderMaterial', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -234,20 +235,6 @@ export class ObjectShaderMaterial<TE extends IMaterialEventMap = IMaterialEventM
         'linewidth',
         'wireframeLinewidth',
     ]
-
-    static MaterialTemplate: IMaterialTemplate<ObjectShaderMaterial, Partial<typeof ObjectShaderMaterial.MaterialProperties>> = {
-        materialType: ObjectShaderMaterial.TYPE,
-        name: 'shader',
-        typeSlug: ObjectShaderMaterial.TypeSlug,
-        alias: ['shader', ObjectShaderMaterial.TYPE, ObjectShaderMaterial.TypeSlug, 'ShaderMaterial', 'ShaderMaterial2', 'ExtendedShaderMaterial'],
-        params: {
-            vertexShader: shaderUtils.defaultVertex,
-            fragmentShader: shaderUtils.defaultFragment,
-        },
-        generator: (params) => {
-            return new ObjectShaderMaterial(params)
-        },
-    }
 }
 
 // todo gltf material extension

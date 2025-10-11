@@ -20,6 +20,11 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
 
     static readonly TypeSlug = 'shaderMat'
     static readonly TYPE = 'ShaderMaterial2'
+    // static readonly TypeAlias = ['shader', ShaderMaterial2.TYPE, ShaderMaterial2.TypeSlug, 'ShaderMaterial', 'RawShaderMaterial']
+    // static {
+    //     ThreeSerialization.SerializableMaterials.add(ShaderMaterial2)
+    // }
+
     static readonly MaterialProperties = {
         ...threeMaterialPropList,
         fragmentShader: '',

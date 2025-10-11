@@ -1,21 +1,9 @@
-import {ColorManagement, EventDispatcher, Material, ShaderChunk} from 'three'
-import {
-    IMaterial,
-    iMaterialCommons,
-    IMaterialParameters,
-    IMaterialTemplate,
-    LegacyPhongMaterial,
-    LineMaterial2,
-    ObjectShaderMaterial,
-    PhysicalMaterial,
-    UnlitLineMaterial,
-    UnlitMaterial,
-} from '../core'
+import {EventDispatcher, Material, ShaderChunk} from 'three'
+import {AnimateTimeMaterial, IMaterial, iMaterialCommons, IMaterialParameters} from '../core'
 import {downloadFile, safeSetProperty} from 'ts-browser-helpers'
 import {MaterialExtension} from '../materials'
 import {generateUUID} from '../three'
-import {AnimateTimeMaterial} from '../core/IMaterial'
-import {shaderReplaceString} from '../utils'
+import {shaderReplaceString, ThreeSerialization} from '../utils'
 import {upgradeMaterial} from '../core/material/iMaterialCommons'
 
 /**
@@ -26,15 +14,6 @@ import {upgradeMaterial} from '../core/material/iMaterialCommons'
  * @category Asset Manager
  */
 export class MaterialManager<TEventMap extends object = object> extends EventDispatcher<TEventMap> {
-    readonly templates: IMaterialTemplate[] = [
-        PhysicalMaterial.MaterialTemplate,
-        UnlitMaterial.MaterialTemplate,
-        UnlitLineMaterial.MaterialTemplate,
-        LineMaterial2.MaterialTemplate,
-        LegacyPhongMaterial.MaterialTemplate,
-        ObjectShaderMaterial.MaterialTemplate,
-    ]
-
     private _materials: IMaterial[] = []
 
     constructor() {
@@ -43,7 +22,8 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
     }
 
     /**
-     * @param info: uuid or template name or material type
+     * @deprecated
+     * @param info - uuid or material type
      * @param params
      */
     public findOrCreate(info: string, params?: IMaterialParameters|Material): IMaterial | undefined {
@@ -53,22 +33,18 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
     }
 
     /**
-     * Create a material from the template name or material type
-     * @param nameOrType
+     * Create a material from the material type
+     * @param type
      * @param register
      * @param params
      */
-    public create<TM extends IMaterial>(nameOrType: string, params: IMaterialParameters = {}, register = true, uuid?: string): TM | undefined {
-        let template: IMaterialTemplate<any> = {materialType: nameOrType, name: nameOrType}
-        while (!template.generator) { // looping so that we can inherit templates, not fully implemented yet
-            const t2 = this.findTemplate(template.materialType) // todo add a baseTemplate property to the template?
-            if (!t2) {
-                console.warn('Template has no generator or materialType', template, nameOrType)
-                return undefined
-            }
-            template = {...template, ...t2}
+    public create<TM extends IMaterial>(type: string, params: IMaterialParameters = {}, register = true, uuid?: string): TM | undefined {
+        const mat = this.findTemplate(type)
+        if (!mat) {
+            console.error('No material template found for type', type)
+            return undefined
         }
-        const material = this._create<TM>(template, params)
+        const material = this._create<TM>(mat, params)
         if (uuid) {
             safeSetProperty(material, 'uuid', uuid, true, true)
         }
@@ -77,29 +53,17 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
     }
 
     // make global function?
-    protected _create<TM extends IMaterial>(template: IMaterialTemplate<TM>, oldMaterial?: IMaterialParameters|Partial<TM>): TM|undefined {
+    protected _create<TM extends IMaterial>(template: IMaterial['constructor'], oldMaterial?: IMaterialParameters|Partial<TM>): TM|undefined {
 
-        if (!template.generator) {
-            console.error('Template has no generator', template)
+        if (!template) {
+            console.error('No material template provided')
             return undefined
         }
 
-        const legacyColors = (oldMaterial as any)?.metadata && (oldMaterial as any)?.metadata.version <= 4.5
-        const lastColorManagementEnabled = ColorManagement.enabled
-        if (legacyColors) ColorManagement.enabled = false
-
-        const material = template.generator(template.params || {})
+        const material = new template()
         if (oldMaterial && material) material.setValues(oldMaterial, true)
 
-        if (legacyColors) ColorManagement.enabled = lastColorManagementEnabled
-
-        return material
-    }
-
-    public findTemplate(nameOrType: string, withGenerator = false): IMaterialTemplate|undefined {
-        if (!nameOrType) return undefined
-        return this.templates.find(v => (v.name === nameOrType || v.materialType === nameOrType) && (!withGenerator || v.generator))
-            || this.templates.find(v => v.alias?.includes(nameOrType) && (!withGenerator || v.generator))
+        return material as TM
     }
 
     protected _disposeMaterial = (e: {target?: IMaterial})=>{
@@ -114,7 +78,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         this.registerMaterial(mat)
     }
 
-    public registerMaterial(material: IMaterial): void {
+    registerMaterial(material: IMaterial): void {
         if (!material) return
         if (this._materials.includes(material)) return
         if (!material.assetType) upgradeMaterial.call(material)
@@ -147,7 +111,7 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      * This is done automatically on material dispose.
      * @param material
      */
-    public unregisterMaterial(material: IMaterial): void {
+    unregisterMaterial(material: IMaterial): void {
         this._materials = this._materials.filter(v=>v.uuid !== material.uuid)
         if (this.unregisterExtensionsOnRemove) {
             material.unregisterMaterialExtensions?.(this._materialExtensions)
@@ -158,21 +122,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
     }
     clearMaterials(): void {
         [...this._materials].forEach(material => this.unregisterMaterial(material))
-    }
-
-    public registerMaterialTemplate(template: IMaterialTemplate): void {
-        if (!template.templateUUID) template.templateUUID = generateUUID()
-        const mat = this.templates.find(v=>v.templateUUID === template.templateUUID)
-        if (mat) {
-            console.error('MaterialTemplate already exists', template, mat)
-            return
-        }
-        this.templates.push(template)
-    }
-
-    public unregisterMaterialTemplate(template: IMaterialTemplate): void {
-        const i = this.templates.findIndex(v=>v.templateUUID === template.templateUUID)
-        if (i >= 0) this.templates.splice(i, 1)
     }
 
     dispose(disposeRuntimeMaterials = true) {
@@ -188,11 +137,11 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         return
     }
 
-    public findMaterial(uuid: string): IMaterial | undefined {
+    findMaterial(uuid: string): IMaterial | undefined {
         return !uuid ? undefined : this._materials.find(v=>v.uuid === uuid)
     }
 
-    public findMaterialsByName(name: string|RegExp, regex = false): IMaterial[] {
+    findMaterialsByName(name: string|RegExp, regex = false): IMaterial[] {
         return this._materials.filter(v=>
             typeof name !== 'string' || regex ?
                 v.name.match(typeof name === 'string' ? '^' + name + '$' : name) !== null :
@@ -200,11 +149,11 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         )
     }
 
-    public getMaterialsOfType<TM extends IMaterial = IMaterial>(typeSlug: string | undefined): TM[] {
+    getMaterialsOfType<TM extends IMaterial = IMaterial>(typeSlug: string | undefined): TM[] {
         return typeSlug ? this._materials.filter(v=>v.constructor.TypeSlug === typeSlug) as TM[] : []
     }
 
-    public getAllMaterials(): IMaterial[] {
+    getAllMaterials(): IMaterial[] {
         return [...this._materials]
     }
 
@@ -244,15 +193,6 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
         }
         return mat
     }
-
-    // use convertToIMaterial
-    // processMaterial(material: IMaterial, options: AnyOptions&{useSourceMaterial?:boolean, materialTemplate?: string, register?: boolean}): IMaterial {
-    //     if (!material.materialObject)
-    //         material = (this._processMaterial(material, {...options, register: false}))!
-    //     if (options.register !== false) this.registerMaterial(material)
-    //
-    //     return material
-    // }
 
     protected _materialExtensions: MaterialExtension[] = []
 
@@ -331,6 +271,39 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
             }
         }
         return applied
+    }
+
+
+    /**
+     * @deprecated use {@link ThreeSerialization.SerializableMaterials} directly
+     * @param template
+     */
+    registerMaterialTemplate(template: IMaterial['constructor']): void {
+        if (!template || ThreeSerialization.SerializableMaterials.has(template)) return
+        const mat = ThreeSerialization.SerializableMaterials.values().find(v=>v.TYPE === template.TYPE)
+        if (mat) {
+            console.warn('Material template with the same type already exists', template, mat)
+        }
+        ThreeSerialization.SerializableMaterials.add(template)
+    }
+
+    /**
+     * @deprecated use {@link ThreeSerialization.SerializableMaterials} directly
+     * @param template
+     */
+    unregisterMaterialTemplate(template: IMaterial['constructor']): void {
+        if (!template) return
+        ThreeSerialization.SerializableMaterials.delete(template)
+    }
+
+    /**
+     * @deprecated use {@link ThreeSerialization.SerializableMaterials} directly
+     * @param type
+     */
+    findTemplate(type: string) {
+        if (!type) return undefined
+        return ThreeSerialization.SerializableMaterials.values().find(v => v.TYPE === type)
+            || ThreeSerialization.SerializableMaterials.values().find(v => v.TypeAlias?.includes(type))
     }
 
 }

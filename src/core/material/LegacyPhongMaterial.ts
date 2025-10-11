@@ -13,9 +13,7 @@ import {UiObjectConfig} from 'uiconfig.js'
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
@@ -32,6 +30,11 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
 
     public static readonly TypeSlug = 'phongmat'
     public static readonly TYPE = 'LegacyPhongMaterial' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['phong', LegacyPhongMaterial.TYPE, LegacyPhongMaterial.TypeSlug, 'MeshPhongMaterial']
+    static {
+        ThreeSerialization.SerializableMaterials.add(LegacyPhongMaterial)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -42,7 +45,6 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-    generator?: IMaterialGenerator
 
     envMap: ITexture | null = null
 
@@ -116,7 +118,7 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
      */
     setValues(parameters: Material|(MeshPhongMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['MeshPhongMaterial', 'MeshPhongMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['MeshPhongMaterial', 'MeshPhongMaterial2', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -314,18 +316,4 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
         'refractionRatio',
         'wireframeLinewidth',
     ]
-
-    static MaterialTemplate: IMaterialTemplate<LegacyPhongMaterial, Partial<typeof LegacyPhongMaterial.MaterialProperties>> = {
-        materialType: LegacyPhongMaterial.TYPE,
-        name: 'phong',
-        typeSlug: LegacyPhongMaterial.TypeSlug,
-        alias: ['phong', 'legacy-phong', LegacyPhongMaterial.TYPE, LegacyPhongMaterial.TypeSlug, 'MeshPhongMaterial', 'MeshPhongMaterial2', 'PhongMaterial'],
-        params: {
-            color: new Color(1, 1, 1),
-        },
-        generator: (params) => {
-            // todo: option to convert Phong to Physical(for fbx)? or add it to PhysicalMaterial.MaterialTemplate
-            return new LegacyPhongMaterial(params)
-        },
-    }
 }

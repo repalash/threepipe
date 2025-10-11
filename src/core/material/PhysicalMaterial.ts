@@ -18,9 +18,7 @@ import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerializat
 import {
     IMaterial,
     IMaterialEventMap,
-    IMaterialGenerator,
     IMaterialParameters,
-    IMaterialTemplate,
     IMaterialUserData,
 } from '../IMaterial'
 import {MaterialExtension} from '../../materials'
@@ -39,6 +37,11 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     declare ['constructor']: typeof PhysicalMaterial
     public static readonly TypeSlug = 'pmat'
     public static readonly TYPE = 'PhysicalMaterial' // not using .type because it is used by three.js
+    public static readonly TypeAlias = ['physical', 'standard', PhysicalMaterial.TYPE, PhysicalMaterial.TypeSlug, 'MeshStandardMaterial', 'MeshStandardMaterial2', 'MeshPhysicalMaterial']
+    static {
+        ThreeSerialization.SerializableMaterials.add(PhysicalMaterial)
+    }
+
     assetType = 'material' as const
 
     declare userData: IMaterialUserData
@@ -49,8 +52,6 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {return iMaterialCommons.dispose(super.dispose).call(this)}
     clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
-
-    generator?: IMaterialGenerator
 
     map: ITexture | null = null
     alphaMap: ITexture | null = null
@@ -174,7 +175,7 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
      */
     setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
         if (!parameters) return this
-        if (parameters.type && !allowInvalidType && !['MeshPhysicalMaterial', 'MeshStandardMaterial', 'MeshStandardMaterial2', this.constructor.TYPE].includes(parameters.type)) {
+        if (parameters.type && !allowInvalidType && !['MeshPhysicalMaterial', 'MeshStandardMaterial', 'MeshStandardMaterial2', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
             return this
         }
@@ -385,19 +386,6 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         'anisotropyRotation',
     ]
 
-
-    static MaterialTemplate: IMaterialTemplate<PhysicalMaterial, Partial<typeof PhysicalMaterial.MaterialProperties>> = {
-        materialType: PhysicalMaterial.TYPE,
-        name: 'physical',
-        typeSlug: PhysicalMaterial.TypeSlug,
-        alias: ['standard', 'physical', PhysicalMaterial.TYPE, PhysicalMaterial.TypeSlug, 'MeshStandardMaterial', 'MeshStandardMaterial2', 'MeshPhysicalMaterial'],
-        params: {
-            color: new Color(1, 1, 1),
-        },
-        generator: (params) => {
-            return new PhysicalMaterial(params)
-        },
-    }
 }
 
 export class MeshStandardMaterial2 extends PhysicalMaterial {
