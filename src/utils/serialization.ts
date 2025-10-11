@@ -443,7 +443,6 @@ export class ThreeSerialization {
         Serialization.SerializableClasses.set('Shape', Shape) // todo this could be large, it should be a resource in meta for duplicates
         Serialization.SerializableClasses.set('Curve', Curve)
         Serialization.SerializableClasses.set('CurvePath', CurvePath)
-        Serialization.SerializableClasses.set('CurvePath3', CurvePath3)
         Serialization.SerializableClasses.set('Path', Path)
         Serialization.SerializableClasses.set('ArcCurve', ArcCurve)
         Serialization.SerializableClasses.set('CatmullRomCurve3', CatmullRomCurve3)

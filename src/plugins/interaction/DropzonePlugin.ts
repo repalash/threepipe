@@ -56,6 +56,7 @@ export interface DropzonePluginEventMap extends AViewerPluginEventMap{
 @uiFolderContainer('Dropzone')
 export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     static readonly PluginType = 'Dropzone'
+    static readonly OldPluginType = 'DropzonePlugin' // todo swap
     declare uiConfig: UiObjectConfig
     @uiToggle() @serialize() enabled = true
     private _inputEl?: HTMLInputElement

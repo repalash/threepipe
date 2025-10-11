@@ -29,7 +29,6 @@ import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js'
 import {onChangeDispatchEvent} from 'ts-browser-helpers'
 
-
 const [POS_X, POS_Y, POS_Z, NEG_X, NEG_Y, NEG_Z] = Array(6)
     .fill(0)
     .map((_, i) => i)

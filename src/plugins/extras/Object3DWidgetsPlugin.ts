@@ -10,7 +10,7 @@ import {
     PointLightHelper2,
     SkeletonHelper2,
     SpotLightHelper2,
-} from '../../three'
+} from '../../three/widgets'
 
 export interface IObject3DHelper<T extends Object3D&IWidget = Object3D&IWidget>{
     Create: (o: Object3D)=>T,

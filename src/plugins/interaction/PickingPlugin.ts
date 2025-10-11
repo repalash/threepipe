@@ -1,7 +1,7 @@
 import {EventListener2, Object3D} from 'three'
 import {Class, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {bindToValue, BoxSelectionWidget, ObjectPicker, SelectionWidget} from '../../three'
+import {bindToValue, ObjectPicker} from '../../three'
 import {
     IGeometry,
     IMaterial,
@@ -21,6 +21,7 @@ import {ObjectPickerEventMap, SelectionObject} from '../../three/utils/ObjectPic
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
+import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -148,13 +149,18 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('hitObject', this._onObjectHit)
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
 
-        viewer.getPlugin<DropzonePlugin>('Drop')?.addEventListener('drop', this._onDrop)
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
         viewer.scene.addEventListener('geometryChanged', this._objCompChange)
         viewer.scene.addEventListener('texturesChanged', this._objCompChange)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
+
+        viewer.forPlugin<DropzonePlugin>('DropzonePlugin', (dz)=>{
+            dz.addEventListener('drop', this._onDrop)
+        }, (dz)=>{
+            dz.removeEventListener('drop', this._onDrop)
+        })
 
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=>{
             if (!this._picker) return
@@ -173,7 +179,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
         viewer.scene.removeEventListener('texturesChanged', this._objCompChange)
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
-        viewer.getPlugin<DropzonePlugin>('Drop')?.removeEventListener('drop', this._onDrop)
 
         this._widget?.removeFromParent()
         this._hoverWidget?.removeFromParent()

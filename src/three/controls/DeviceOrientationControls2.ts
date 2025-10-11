@@ -1,7 +1,7 @@
 import {Euler, EulerOrder, EventDispatcher, MathUtils, Object3D, Quaternion, Vector3} from 'three'
 import {IEvent, now, serialize} from 'ts-browser-helpers'
 import {uiButton, uiPanelContainer, uiSlider} from 'uiconfig.js'
-import {ICameraControls, ICameraControlsEventMap} from '../../core'
+import type {ICameraControls, ICameraControlsEventMap} from '../../core'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _zee = new Vector3(0, 0, 1)
