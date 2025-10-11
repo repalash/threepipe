@@ -20,8 +20,7 @@ import {
 import {IAsset, IFile} from './IAsset'
 import {IImporter, ILoader} from './IImporter'
 import {Importer} from './Importer'
-import {SimpleJSONLoader} from './import'
-import {escapeRegExp, parseFileExtension} from 'ts-browser-helpers'
+import {escapeRegExp, getOrCall, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
 import {IGeometry, LineMaterial2, UnlitLineMaterial, UnlitMaterial} from '../core'
@@ -110,7 +109,6 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     }
 
     readonly importers: IImporter[] = [
-        new Importer(SimpleJSONLoader, ['json', 'vjson'], ['application/json'], false),
         new Importer(FileLoader, ['txt'], ['text/plain'], false),
         // new Importer(RGBEPNGLoader, ['rgbe.png', 'hdr.png', 'hdrpng'], ['image/png+rgbe'], false), // todo: not working on windows?
         // new Importer(LUTCubeLoader2, ['cube'], false),
@@ -634,7 +632,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         mime = mime?.toLowerCase()
         ext = ext?.toLowerCase()
         return this.importers.find(value => value.root && (
-            ext && value.ext.includes(ext.toLowerCase()) ||
+            ext && getOrCall(value.ext)?.includes(ext.toLowerCase()) ||
             mime && value.mime.includes(mime.toLowerCase())
         )) != null
     }
@@ -646,7 +644,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         return this.importers.find(importer => {
             if (isRoot && !importer.root) return false
             if (mime && importer.mime?.find(m => mime === m)) return true
-            if (importer.ext.find(iext =>
+            if (getOrCall(importer.ext)?.find(iext =>
                 ext ? iext === ext : name?.toLowerCase()?.endsWith('.' + iext)
                 || iext?.startsWith('data:') && name?.startsWith(iext))) return true
             return false
@@ -667,7 +665,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         if (!importer) return undefined
         const loader = importer.ctor(this)
         if (!loader) return undefined
-        importer.ext.forEach(iext => {
+        getOrCall(importer.ext)?.forEach(iext => {
             const regex = new RegExp(iext.startsWith('data:') ? '^' + escapeRegExp(iext) + '[\\/\\+\\:\\,\\;]' : '\\.' + iext + '$', 'i')
             this._loadingManager.addHandler(regex, loader)
         })
@@ -675,7 +673,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             const regex = new RegExp('^data:' + escapeRegExp(imime) + '[\\/\\+\\:\\,\\;]', 'i')
             this._loadingManager.addHandler(regex, loader)
         })
-        this._loaderCache.push({loader, ext: importer.ext, mime: importer.mime})
+        this._loaderCache.push({loader, ext: getOrCall(importer.ext) || [], mime: importer.mime})
         this.dispatchEvent({type: 'loaderCreate', loader})
         return loader
     }

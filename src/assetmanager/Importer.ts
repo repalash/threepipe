@@ -1,6 +1,6 @@
 import {IAssetImporter} from './IAssetImporter'
 import {IImporter, ILoader} from './IImporter'
-import {Class} from 'ts-browser-helpers'
+import {Class, ValOrFunc} from 'ts-browser-helpers'
 
 /**
  * Importer for loading files through AssetImporter. By default, it's a wrapper for threejs loaders.
@@ -18,7 +18,7 @@ export class Importer<T extends ILoader = ILoader> implements IImporter {
     /**
      * Supported ext, must be in lower case.
      */
-    ext: string[] // ['json', 'png', 'jpg', 'data:image/png'...]
+    ext: ValOrFunc<string[]> // ['json', 'png', 'jpg', 'data:image/png'...]
     /**
      * Supported mime types, must be in lower case.
      */
@@ -27,9 +27,9 @@ export class Importer<T extends ILoader = ILoader> implements IImporter {
 
     extensions: any[] = []
 
-    constructor(cls: Class<T>, ext: string[], mime: string[], root: boolean, onCtor?: (l: T|undefined, ai: IAssetImporter, i: Importer) => T|undefined) {
+    constructor(cls: Class<T>, ext: ValOrFunc<string[]>, mime: string[], root: boolean, onCtor?: (l: T|undefined, ai: IAssetImporter, i: Importer) => T|undefined) {
         this.cls = cls
-        this.ext = ext.filter(Boolean).map(e => e.toLowerCase())
+        this.ext = ext// .filter(Boolean).map(e => e.toLowerCase())
         this.mime = mime.filter(Boolean).map(e => e.toLowerCase())
         this.root = root
         this.onCtor = onCtor

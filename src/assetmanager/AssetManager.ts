@@ -45,13 +45,14 @@ import {
     JSONMaterialLoader,
     MTLLoader2,
     OBJLoader2,
+    SimpleJSONLoader,
     SVGTextureLoader,
     VideoTextureLoader,
     ZipLoader,
 } from './import'
 import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
 import {EXRLoader} from 'three/examples/jsm/loaders/EXRLoader.js'
-import {Class, ValOrArr} from 'ts-browser-helpers'
+import {Class, getOrCall, ValOrArr} from 'ts-browser-helpers'
 import {ILoader} from './IImporter'
 import {AssetExporter} from './AssetExporter'
 import {IExporter} from './IExporter'
@@ -287,9 +288,31 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     protected _addImporters() {
         const viewer = this.viewer
         if (!viewer) return
+        const importer = this.importer
 
         // todo fix - loading manager getHandler matches backwards?
         const importers: Importer[] = [
+            new Importer(class extends SimpleJSONLoader {
+                async parseAsync(json: Record<string, any>): Promise<any> {
+                    if (json.assetType === 'config') return json
+                    // When a file with .json extension and a .type is imported, we can forward it to other loaders inheriting SimpleJSONLoader that support that type like JSONMaterialLoader
+                    // getOrCall ensures we get all materials registered at runtime
+                    const type = json.type || json.metadata?.type
+                    const imps = importer.importers.filter(i=>{
+                        const t = ((i as Importer).cls as typeof SimpleJSONLoader)?.SupportedJSONTypes
+                        if (t) return getOrCall(t)?.includes(type)
+                    })
+                    for (const imp of imps) {
+                        if (!imp) continue
+                        const loader = imp.ctor(importer) as SimpleJSONLoader
+                        const res = await loader.parseAsync(json)
+                        ;(loader as ILoader).dispose && (loader as ILoader).dispose!()
+                        if (res) return res
+                    }
+                    return super.parseAsync(json)
+                }
+            }, ['json', 'vjson'], ['application/json'], false),
+
             new Importer(SVGTextureLoader, ['svg', 'data:image/svg'], ['image/svg+xml'], false), // todo: use ImageBitmapLoader if supported (better performance)
 
             new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
@@ -297,7 +320,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             ], false), // todo: use ImageBitmapLoader if supported (better performance)
 
             new Importer<JSONMaterialLoader>(JSONMaterialLoader,
-                ['mat', ...this.materials.templates.map(t => t.typeSlug!).filter(v => v)], // todo add others
+                JSONMaterialLoader.SupportedJSONExtensions,
                 [], false, (loader) => {
                     if (loader) loader.viewer = this.viewer
                     return loader

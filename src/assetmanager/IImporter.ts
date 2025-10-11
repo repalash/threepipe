@@ -1,6 +1,6 @@
 import {Loader} from 'three'
 import {IAssetImporter} from './IAssetImporter'
-import {IDisposable} from 'ts-browser-helpers'
+import {IDisposable, ValOrFunc} from 'ts-browser-helpers'
 import {ImportAddOptions} from './AssetManager'
 
 export interface ILoader<T = any, T2 = T> extends Loader, Partial<IDisposable> {
@@ -14,7 +14,7 @@ export interface ILoader<T = any, T2 = T> extends Loader, Partial<IDisposable> {
     transform?(res: T, options: ImportAddOptions): T2|Promise<T2>
 }
 export interface IImporter {
-    ext: string[];
+    ext: ValOrFunc<string[]>;
     mime: string[];
     root: boolean;
     extensions?: any[]; // extra plugins/extensions for this importer, like for gltf loader.

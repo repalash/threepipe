@@ -4,6 +4,8 @@ import {getEmptyMeta, SerializationMetaType, ThreeSerialization} from '../../uti
 import {IMaterial} from '../../core'
 
 export class JSONMaterialLoader extends SimpleJSONLoader {
+    static SupportedJSONTypes = ()=>['Material', ...ThreeSerialization.SerializableMaterials.values().flatMap(t => [t.TYPE, ...t.TypeAlias || []])]
+    static SupportedJSONExtensions = ()=>['mat', ...ThreeSerialization.SerializableMaterials.values().map(t => t.TypeSlug)]
 
     viewer?: ThreeViewer
 
@@ -14,10 +16,8 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
      */
     static FindExistingMaterial = false
 
-    async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
+    async parseAsync(json: Record<string, any>): Promise<any> {
         if (!this.viewer) throw 'Viewer not set in JSONMaterialLoader.'
-
-        const json = await super.loadAsync(url, onProgress) as any
         let mat = undefined
         if (JSONMaterialLoader.FindExistingMaterial && json.uuid && this.viewer) {
             // find any existing mat with the same uuid.
