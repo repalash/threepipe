@@ -91,7 +91,4 @@ export {SimplifyModifierPlugin, type SimplifyOptions} from './extras/SimplifyMod
 export {MeshOptSimplifyModifierPlugin} from './extras/MeshOptSimplifyModifierPlugin'
 export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
-export * /* {EntityComponentPlugin} */from './extras/EntityComponentPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
-export {CannonPhysicsPlugin} from './extras/CannonPhysicsPlugin'
-export {SkyPlugin} from './extras/atmosphere/SkyPlugin'
