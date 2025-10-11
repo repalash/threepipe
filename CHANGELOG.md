@@ -32,6 +32,9 @@ All notable changes to this project will be documented in this file.
 - Add support for placeholder materials during import and export of 'gltf' files. Materials with `userData.isPlaceholder` set to `true` are not exported and a dummy material is assigned during import.
 - Add property `unregisterExtensionsOnRemove` in `MaterialManager`. Defaults to `false`. Hence by default, Material Extensions are not removed from material when its disposed or removed from the scene. 
 - Add static property `JSONMaterialLoader.FindExistingMaterial`, if set to true, the loader will attempt to find any existing material with the same uuid from `MaterialManager` and deserialize into that. 
+- Add static property `TypeAlias: string[]` to `IMaterial`
+- Add a way to register custom `Importer` to import files with extension `json` and a custom `type` property
+- Add support in `JSONMaterialLoader` to load material files with extension `json`. 
 
 ### Changed
 
@@ -41,6 +44,8 @@ All notable changes to this project will be documented in this file.
 - Changed default `mapMode` in `ContactShadowGroundPlugin` to `aoMap`, this is different from previous value of `alphaMap` and hence changes the default results from the plugin.
 - Moved object material and geometry UI Config to `PickingPlugin`(from `object.uiConfig`). They are now populated only when the object is selected.
 - Auto unwrap(ignore root and take children) single scene with the name `AuxScene` in glTF/glb files.
+- Remove `IMaterialTemplate` and `IMaterialGenerator`, and static property `IMaterial.MaterialTempalate`, which are now replaced with `IMaterial['constructor']`.
+- Remove `MaterialManager.templates`, replaced with `ThreeSerialization.SerializableMaterials`.
 
 **Changes**
 - Set `colorSpace` of texture returned by [dataTextureFromVec4](https://threepipe.org/docs/functions/dataTextureFromVec4.html) to `LinearSRGBColorSpace` to be consistent with other texture creation functions.
@@ -59,6 +64,9 @@ All notable changes to this project will be documented in this file.
 - Add `enableAutoNearFar` and `disableAutoNearFar` functions in `RootScene` and deprecate boolean `autoNearFarEnabled` property. These can be used by multiple plugins to enable/disable auto near/far without interfering with each other.
 - `rootPath`(the path from where an asset was loaded) is now set in `userData` even when its relative/host-relative URL. It is now also set before the `processRawStart` event in `AssetImporter`.
 - Change automatic material unregistration to happen when removed from the scene (unregister from Object3DManager), instead of material dispose.
+- Remove `MaterialManager` from `SerializationMetaType`, and remove dependency of `MaterialManager` in `ThreeSerialization` and `MetaImporter`. Materials are now not immediately registered in `MaterialManager` when deserialized.
+- Handle `null` (mouse) `pointer` in `TransformControls.js`
+- Change `IImporter.ext` type to `ValOrFunc<string[]>` from `string[]`
 
 ### Fixes
 

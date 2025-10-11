@@ -313,7 +313,7 @@ async function imageFromUrl(renderer: TweakpaneUiPlugin, config: UiObjectConfig,
     //     url = ''
     // }
     url = await renderer.prompt('Load texture: Enter Image/Texture URL', url, true)
-    if (!url || !url.startsWith('http') && !url.startsWith('data:image')) {
+    if (!url || !url.startsWith('http') && !url.startsWith('data:image')) { // todo use isNonRelativeUrl
         if (url !== null) await renderer.alert('Loading Image: Invalid URL')
         return
     } else {

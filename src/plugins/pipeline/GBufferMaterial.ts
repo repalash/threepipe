@@ -220,3 +220,14 @@ export class GBufferMaterial extends ShaderMaterial2 {
         this.wireframeLinewidth = 1
     }
 }
+
+
+/**
+ * @deprecated use GBufferMaterial instead
+ */
+export class DepthNormalMaterial extends GBufferMaterial {
+    constructor(multipleRT: boolean, parameters?: ShaderMaterialParameters & IMaterialParameters) {
+        super(multipleRT, parameters)
+        console.warn('DepthNormalMaterial is deprecated, use GBufferMaterial instead')
+    }
+}

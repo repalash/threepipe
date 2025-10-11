@@ -5,7 +5,6 @@ import {
     FloatType,
     IUniform,
     NoBlending,
-    ShaderMaterialParameters,
     Texture,
     TextureDataType,
     UnsignedByteType,
@@ -21,7 +20,7 @@ import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
 import {shaderReplaceString} from '../../utils'
 import GBufferUnpack from './shaders/GBufferPlugin.unpack.glsl'
-import {ICamera, IMaterialParameters, IObject3D, IRenderManager, IScene, ITexture} from '../../core'
+import {ICamera, IObject3D, IRenderManager, IScene, ITexture} from '../../core'
 import {GBufferMaterial, GBufferUpdater} from './GBufferMaterial'
 
 export type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
@@ -321,14 +320,4 @@ export class GBufferPlugin
         return this
     }
 
-}
-
-/**
- * @deprecated use GBufferMaterial instead
- */
-export class DepthNormalMaterial extends GBufferMaterial {
-    constructor(multipleRT: boolean, parameters?: ShaderMaterialParameters & IMaterialParameters) {
-        super(multipleRT, parameters)
-        console.warn('DepthNormalMaterial is deprecated, use GBufferMaterial instead')
-    }
 }

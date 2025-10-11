@@ -1,6 +1,6 @@
 # [![Threepipe](/website/public/logo-24.svg)](https://threepipe.org) ThreePipe
 
-A new way to work with three.js, 3D models and rendering on the web.
+Next generation tooling for web3D and photorealistic graphics.
 
 [Website](https://threepipe.org/) &mdash; 
 [Github](https://github.com/repalash/threepipe) &mdash;
@@ -578,3 +578,4 @@ Check the list of all functions, classes and types in the [API Reference Docs](h
 Contributions to ThreePipe are welcome and encouraged! Feel free to open issues and pull requests on the GitHub repository.
 
 Read the [contributing guidelines](CONTRIBUTING.md) for more details on how to setup and work on the project.
+
