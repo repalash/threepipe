@@ -24,6 +24,7 @@
         "sourceMap": true,
         "target": "ES2021",
         "strictNullChecks": true,
+        "allowImportingTsExtensions": true,
         "paths": {
             "three-mesh-halfedge": ["./src/three-mesh-halfedge"],
             "three": ["threepipe"],

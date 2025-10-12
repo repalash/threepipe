@@ -24,6 +24,7 @@
         "sourceMap": true,
         "target": "ES2021",
         "strictNullChecks": true,
+        "allowImportingTsExtensions": true,
         "lib": [
             "es2020",
             "esnext",
