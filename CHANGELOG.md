@@ -38,6 +38,7 @@ All notable changes to this project will be documented in this file.
 - Add `ThreeSerialization.PrimitiveSerializer` and `ThreeSerialization.MakeSerializable`.
 - Add more information and examples for serialization in the [Serialization Guide](https://threepipe.org/guide/serialization.html). 
 - Make many three.js utility classes serializable by default that support it like `Curve`, `Shape`(and their subclasses), `AnimationClip` etc
+- Add `DynamicImportPlugin` as a sample plugin to demonstrate dynamic imports of modules plugins with hot reload.
 
 ### Changed
 

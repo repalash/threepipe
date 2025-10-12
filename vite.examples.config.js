@@ -31,7 +31,7 @@ const alias = {
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(__dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/plugin-timeline-ui': path.resolve(__dirname, './plugins/timeline-ui/src/index.ts'),
     '@threepipe/plugin-troika-text': path.resolve(__dirname, './plugins/troika-text/src/index.ts'),
-    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.5.6/dist/index.mjs',
+    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.5.11/dist/index.mjs',
     'suspend-react': 'https://esm.sh/suspend-react',
     'react': 'https://esm.sh/react@19/',
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
@@ -167,9 +167,13 @@ export default defineConfig(async ()=>{
         server: {
             // This is the default value, and will add all files with node_modules
             // in their paths to the ignore list.
-            sourcemapIgnoreList (sourcePath, sourcemapPath) {
-                return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
-            },
+            // sourcemapIgnoreList (sourcePath, sourcemapPath) {
+            //     return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
+            // },
+            sourcemapIgnoreList: false,
+        },
+        build: {
+            sourcemap: false,
         },
     }
 })
