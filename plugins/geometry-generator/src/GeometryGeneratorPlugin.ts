@@ -62,24 +62,26 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         TGeometry extends IGeometry = IGeometry,
         TMaterial extends IMaterial = IMaterial,
         TG extends AGeometryGenerator = IGeometryGeneratorMap[T]
-    >(type: T, params?: Partial<TG['defaultParams']> & {
+    >(type: T, {mesh, geometry, material, ...params}: Partial<TG['defaultParams']> & {
         mesh?: IMesh<IObject3DEventMap, TGeometry, TMaterial>,
         geometry?: TGeometry,
         material?: TMaterial,
-    }): IMesh<IObject3DEventMap, TGeometry, TMaterial> {
+    } = {}): IMesh<IObject3DEventMap, TGeometry, TMaterial> {
         const generator = this.generators[type]
         if (!generator) throw new Error('Unknown generator type: ' + type)
-        let obj = params?.mesh
-        const geometry = obj?.geometry || params?.geometry || (generator.defaultGeometryClass ? new (generator.defaultGeometryClass())() : new this.defaultGeometryClass())
-        const material = obj?.material || params?.material || (generator.defaultMaterialClass ? new (generator.defaultMaterialClass())() : new this.defaultMaterialClass())
-        obj = obj || (generator.defaultMeshClass ? new (generator.defaultMeshClass())(geometry, material) : new this.defaultMeshClass(geometry, material)) as any
+        let obj = mesh
+        const geometry1 = obj?.geometry || geometry || (generator.defaultGeometryClass ? new (generator.defaultGeometryClass())() : new this.defaultGeometryClass())
+        const material1 = obj?.material || material || (generator.defaultMaterialClass ? new (generator.defaultMaterialClass())() : new this.defaultMaterialClass())
+        obj = obj || (generator.defaultMeshClass ? new (generator.defaultMeshClass())(geometry1, material1) : new this.defaultMeshClass(geometry1, material1)) as any
         if (!obj) return obj as any
-        if (obj.geometry !== geometry) obj.geometry = geometry as any
-        if (obj.material !== material) obj.material = material as any
+        if (obj.geometry !== geometry1) obj.geometry = geometry1 as any
+        if (obj.material !== material1) obj.material = material1 as any
         generator.generate(obj.geometry, params)
         obj.name = type
-        if (!geometry.name)
-            geometry.name = 'Generated ' + toTitleCase(type)
+        if (!geometry1.name)
+            geometry1.name = 'Generated ' + toTitleCase(type)
+        if (!material1.name)
+            material1.name = 'Material for ' + geometry1.name
         return obj
     }
     generateGeometry(type: string, params: any, geometry?: IGeometry) {

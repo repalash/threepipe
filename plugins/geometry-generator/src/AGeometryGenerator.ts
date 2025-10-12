@@ -143,6 +143,7 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
         geometry.computeBoundingBox && geometry.computeBoundingBox()
         geometry.computeBoundingSphere && geometry.computeBoundingSphere()
 
+        // todo clean params with only allowed properties
         Object.assign(geometry.userData.generationParams, params)
 
         const childrenUi = ()=>this.createUiConfig(geometry)
