@@ -5,7 +5,7 @@ import {IObject3D} from '../IObject'
 import {generateUiConfig, uiColor, uiNumber, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
-import {objectActionsUiConfig} from '../object/IObjectUi.ts'
+import {objectActionsUiConfig} from '../object/IObjectUi'
 
 /**
  * Extension of three.js PointLight with additional properties for serialization and UI

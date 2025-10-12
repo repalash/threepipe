@@ -1,9 +1,8 @@
 import {EventDispatcher, WebGLRenderTarget} from 'three'
 import {IMaterial, IObject3D, ITexture} from '../core'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportWriter} from './IExporter'
-import {EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
+import {assetExportHook, AssetExportHooks, EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
-import {assetExportHook, AssetExportHooks} from './export/assetExportHook.ts'
 
 export interface AssetExporterEventMap {
     exporterCreate: {exporter: IExporter, parser: IExportWriter} // todo rename parser to writer

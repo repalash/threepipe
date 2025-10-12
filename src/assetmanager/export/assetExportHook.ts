@@ -312,7 +312,6 @@ function processObjectMaterials(obj1: IObject3D, matCloneMap: Map<IMaterial, IMa
                 // todo do the same sProperties thing for objects as well.
                 if (material.userData.sProperties !== undefined) { // clone the material and save only the specified properties
                     setMaterialRef(i, material, ()=>{
-                    // @ts-expect-error ts.
                         const mat3: IMaterial = new material.constructor()
                         mat3.name = material.name
                         const props = getPartialProps(material, material.userData.sProperties)

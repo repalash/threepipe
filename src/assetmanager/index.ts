@@ -1,5 +1,5 @@
 export {AssetImporter} from './AssetImporter'
-export {AssetExporter} from './AssetExporter'
+export {AssetExporter, type AssetExporterEventMap} from './AssetExporter'
 export {AssetManager} from './AssetManager'
 export {Object3DManager} from './Object3DManager'
 export {Importer} from './Importer'
