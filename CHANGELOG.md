@@ -35,6 +35,9 @@ All notable changes to this project will be documented in this file.
 - Add static property `TypeAlias: string[]` to `IMaterial`
 - Add a way to register custom `Importer` to import files with extension `json` and a custom `type` property
 - Add support in `JSONMaterialLoader` to load material files with extension `json`. 
+- Add `ThreeSerialization.PrimitiveSerializer` and `ThreeSerialization.MakeSerializable`.
+- Add more information and examples for serialization in the [Serialization Guide](https://threepipe.org/guide/serialization.html). 
+- Make many three.js utility classes serializable by default that support it like `Curve`, `Shape`(and their subclasses), `AnimationClip` etc
 
 ### Changed
 

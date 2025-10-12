@@ -133,25 +133,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 disabled: true,
                 tags: ['advanced'],
             },
-            // moved to PickingPlugin
-            // {
-            //     type: 'button',
-            //     label: 'Pick/Focus', // todo: move to the plugin that does the picking
-            //     value: ()=>{
-            //         this.dispatchEvent({type: 'select', ui: true, object: this, bubbleToParent: true, focusCamera: true})
-            //     },
-            // },
-            // {
-            //     type: 'button',
-            //     label: 'Pick Parent', // todo: move to the plugin that does the picking
-            //     hidden: ()=>!this.parent,
-            //     value: ()=>{
-            //         const parent = this.parent
-            //         if (parent) {
-            //             parent.dispatchEvent({type: 'select', ui: true, bubbleToParent: true, object: parent})
-            //         }
-            //     },
-            // },
             {
                 type: 'input',
                 label: 'Name',

@@ -523,7 +523,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     /**
      * Traverse only upgraded objects with extra options
      * @param callback
-     * @param options
+     * @param options - visible: traverse only visible objects, widgets: traverse widgets also
      */
     traverseModels?(callback: (object: IObject3D) => boolean | void, options: {
         visible: boolean,

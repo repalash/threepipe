@@ -540,14 +540,10 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         const enabled = this._autoNearFarDisabled.size === 0
         this._autoNearFarDisabled.add(id)
         const camera = this.mainCamera as ICamera
-        if (enabled) {
+        if (enabled && camera.userData.autoNearFar !== false) {
             let near = camera.near, far = camera.far
-            if (camera.userData.minNearPlane !== undefined) {
-                near = camera.userData.minNearPlane
-            }
-            if (camera.userData.maxFarPlane !== undefined) {
-                far = camera.userData.maxFarPlane
-            }
+            near = camera.userData.minNearPlane ?? iCameraCommons.defaultMinNear
+            far = camera.userData.maxFarPlane ?? iCameraCommons.defaultMaxFar
             iCameraCommons.setNearFar(camera, near, far, true, 'RootScene')
         }
     }

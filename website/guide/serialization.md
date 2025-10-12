@@ -55,6 +55,8 @@ When deserialized they need an object to deserialize into.
 This ensures there is always just one instance.
 With this, the serialization system works like `toJSON` and `fromJSON` methods in three.js.
 
+To use the same functionality as decorators but in javascript, `ThreeSerialization.MakeSerializable` can be used.
+
 Check the [plugin system](https://threepipe.org/guide/features.html#plugin-system) page for more details on how to mark properties as serializable for plugins.
 
 ```typescript
@@ -157,13 +159,24 @@ The threejs classes are already registered, these samples are provided as refere
 
 ### Serializable Classes
 
+#### Specify Properties
+
+Instead of using typescript and decorators, custom classes can be marked as serializable by manually specifying the properties and a unique type and using `ThreeSerialization.MakeSerializable`
+```javascript
+ThreeSerialization.MakeSerializable(DataClass, 'DataClass', ['friction', 'restitution', 'position'])
+```
+
+This supports properties that are of primitive types, arrays, objects or any other serializable classes/types registered in the framework.
+
+#### Custom toJSON/fromJSON
+
 Instead of using typescript and decorators, custom classes can be marked as serializable if they include 4 items - 
 - `.type` - a unique string type
 - `.toJSON()` - method to serialize the object
 - `.fromJSON()` - method to deserialize the object
 - `constructor()` - empty constructor
 
-For example, in three.js, classes like `Curve`, `Path`, `EllipseCurve`, `AnimationClip` etc include these properties and are marked as serializable like this - 
+For example, in three.js, classes like `Curve`, `Path`, `EllipseCurve`, `AnimationClip` etc. include these properties and are marked as serializable like this - 
 ```javascript
 Serialization.SerializableClasses.set('Curve', Curve)
 Serialization.SerializableClasses.set('Path', Path)
