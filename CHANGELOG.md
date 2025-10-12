@@ -88,7 +88,6 @@ All notable changes to this project will be documented in this file.
 - Fix for `mainCameraChange` event not working in `EditorViewWidgetPlugin`
 - `SSAAPlugin` now respects `camera.aspect` when `camera.autoAspect` is `false`.
 - Fix for issues with far clipping in large scenes when using `PickingPlugin`
-- Set default camera `near` and `minNearPlane` to `0.2`, `far` and `maxFarPlane` to `10000`.
 
 ### Examples
 
