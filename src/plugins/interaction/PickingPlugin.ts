@@ -150,7 +150,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
 
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
-        viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
         viewer.scene.addEventListener('geometryChanged', this._objCompChange)
         viewer.scene.addEventListener('texturesChanged', this._objCompChange)
@@ -174,7 +173,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
-        viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('materialChanged', this._objCompChange)
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
         viewer.scene.removeEventListener('texturesChanged', this._objCompChange)
@@ -206,11 +204,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.camera = this._viewer.scene.mainCamera
     }
 
-    private _sceneUpdated = false
-    private _onSceneUpdate: EventListener2<'sceneUpdate', ISceneEventMap, IScene> = (e)=>{
-        if (!e.hierarchyChanged) return
-        this._sceneUpdated = true
-    }
     private _addSceneObject: EventListener2<'addSceneObject', ISceneEventMap, IScene> = (e)=>{
         // to be able to pick widgets. see onObjectHit
         if (e.object?.userData?.isWidgetRoot && e.object.parent === this._viewer?.scene) {
@@ -222,29 +215,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (e.object && e.object === this.getSelectedObject()) {
             this.refreshUiChildren(e.object)
         }
-    }
-
-
-    private _checkSelectedInScene() {
-        if (this.isDisabled() || !this._viewer) return
-        const s = this.getSelectedObject()
-        if (!s || !(s as IObject3D).isObject3D) return // ignoring checking for materials in scene
-        let inScene = false
-        ;(s as IObject3D).traverseAncestors((o) => {
-            if (inScene || o !== this._viewer!.scene) return
-            inScene = true
-        })
-        if (!inScene) this.setSelectedObject(undefined, false, false)
-    }
-
-    protected _viewerListeners = {
-        preFrame: ()=>{
-            if (!this._viewer || !this._picker) return
-            if (this._sceneUpdated) {
-                this._checkSelectedInScene()
-                this._sceneUpdated = false
-            }
-        },
     }
 
     private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{

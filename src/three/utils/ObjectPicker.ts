@@ -127,6 +127,20 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     //     this.setSelected(object)
     // }
 
+    protected _onSelectedRemoved = (e: {target: IObject3D|IMaterial}) => {
+        const obj = e.target
+        if (this._selected.includes(obj as any)) {
+            if (this._selected.length === 1) {
+                this.setSelected(null)
+            } else {
+                // todo multiselection
+                // const newSelection = this._selected.filter(o => o !== obj)
+                // this.setSelected(newSelection)
+                this.setSelected(null)
+            }
+        }
+    }
+
     setSelected(object: SelectionObject, record = true, intersects?: HitIntersects) {
         // Auto-switch selection mode based on object type
         if (object) {
@@ -150,6 +164,17 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
         this._selectedIntersects = intersects || undefined
+
+        for (const currentElement of current) {
+            if (!currentElement) continue
+            // should work for all asset types, not just IObject3D, todo fix type
+            ;(currentElement as IObject3D).removeEventListener('__unregister', this._onSelectedRemoved)
+        }
+        for (const newElement of this._selected) {
+            if (!newElement) continue
+            // unregister event is for remove from scene
+            ;(newElement as IObject3D).addEventListener('__unregister', this._onSelectedRemoved)
+        }
 
         const obj = this.selectedObject
         this.dispatchEvent({
