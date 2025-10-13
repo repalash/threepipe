@@ -39,6 +39,8 @@ All notable changes to this project will be documented in this file.
 - Add more information and examples for serialization in the [Serialization Guide](https://threepipe.org/guide/serialization.html). 
 - Make many three.js utility classes serializable by default that support it like `Curve`, `Shape`(and their subclasses), `AnimationClip` etc
 - Add `DynamicImportPlugin` as a sample plugin to demonstrate dynamic imports of modules plugins with hot reload.
+- Add constructor parameter `attach` in `AHelperWidget` to be able to manually attach later in subclasses.
+- Add utility function `getPlugins` in `ThreeViewer` to get plugins of a type or a parent type, support parent types in `addPluginListener` in `ThreeViewer`
 
 ### Changed
 
@@ -71,6 +73,7 @@ All notable changes to this project will be documented in this file.
 - Remove `MaterialManager` from `SerializationMetaType`, and remove dependency of `MaterialManager` in `ThreeSerialization` and `MetaImporter`. Materials are now not immediately registered in `MaterialManager` when deserialized.
 - Handle `null` (mouse) `pointer` in `TransformControls.js`
 - Change `IImporter.ext` type to `ValOrFunc<string[]>` from `string[]`
+- Simplify unregister logic in PickingPlugin when object is removed
 
 ### Fixes
 

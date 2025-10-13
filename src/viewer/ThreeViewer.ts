@@ -282,6 +282,17 @@ export interface ThreeViewerOptions {
 
 }
 
+function getPluginTypes(plugin: IViewerPlugin) {
+    const types: string[] = []
+    let prot = Object.getPrototypeOf(plugin)
+    while (prot) {
+        if (prot.constructor?.PluginType) types.push(prot.constructor.PluginType)
+        if (prot.constructor?.OldPluginType) types.push(prot.constructor.OldPluginType)
+        prot = Object.getPrototypeOf(prot)
+    }
+    return types
+}
+
 /**
  * Three Viewer
  *
@@ -884,6 +895,16 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      */
     getPlugin<T extends IViewerPlugin>(type: Class<T>|string): T | undefined {
         return this.plugins[typeof type === 'string' ? type : (type as any).PluginType] as T | undefined
+    }
+    getPlugins<T extends IViewerPlugin>(type: Class<T>|string): T[] {
+        const ptype = typeof type === 'string' ? type : (type as any).PluginType
+        const plugins = Object.values(this.plugins)
+        const ret = []
+        for (const plugin of plugins) {
+            const types = getPluginTypes(plugin)
+            if (types.includes(ptype)) ret.push(plugin)
+        }
+        return ret as T[]
     }
 
     /**
@@ -1585,14 +1606,22 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _onPluginAdd(p: IViewerPlugin) {
         const ev = {type: 'addPlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
-        this._pluginListeners.add.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType) || p.constructor.OldPluginType && l.p.includes(p.constructor.OldPluginType)).forEach(l=> l.l(ev))
+        const types = getPluginTypes(p)
+        this._pluginListeners.add.filter(l=>
+            !l.p.length ||
+            l.p.find(p1=>types.includes(p1))
+        ).forEach(l=> l.l(ev))
         this.setDirty(p)
     }
 
     private _onPluginRemove(p: IViewerPlugin, dispose = false) {
         const ev = {type: 'removePlugin', target: this, plugin: p} as const
         this.dispatchEvent(ev)
-        this._pluginListeners.remove.filter(l=> !l.p.length || l.p.includes(p.constructor.PluginType) || p.constructor.OldPluginType && l.p.includes(p.constructor.OldPluginType)).forEach(l=> l.l(ev))
+        const types = getPluginTypes(p)
+        this._pluginListeners.remove.filter(l=>
+            !l.p.length ||
+            l.p.find(p1=>types.includes(p1))
+        ).forEach(l=> l.l(ev))
         delete this.plugins[p.constructor.PluginType]
         if (p.constructor.OldPluginType) delete this.plugins[p.constructor.OldPluginType]
         if (dispose) p.dispose() // todo await?
