@@ -13,7 +13,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
     @onChange2(AHelperWidget.prototype.update)
         visible = true
 
-    protected constructor(object: Object3D & IUiConfigContainer) {
+    protected constructor(object: Object3D & IUiConfigContainer, attach = true) {
         super()
         this.object = object
         this.object.updateMatrixWorld()
@@ -26,7 +26,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.dispose = this.dispose.bind(this)
         this._objectUpdate = this._objectUpdate.bind(this)
         this._objectBeforeRender = this._objectBeforeRender.bind(this)
-        this.attach(object)
+        attach && this.attach(object)
         this.traverse(o => {
             o.userData.__keepShadowDef = true
             o.castShadow = false
@@ -84,7 +84,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         return this
     }
 
-    uiConfig = generateUiFolder('Widget', this)
+    uiConfig = generateUiFolder('Widget', this, {tags: 'widget'})
 
     /**
      * @deprecated - not required

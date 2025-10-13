@@ -3,9 +3,9 @@ import {onChange, serialize} from 'ts-browser-helpers'
 import hdriGroundProj from './HDRiGroundPlugin.glsl'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {shaderReplaceString} from '../../utils'
-import {uiPanelContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {uiFolderContainer, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 
-@uiPanelContainer('HDRi Ground')
+@uiFolderContainer('HDRi Ground')
 export class HDRiGroundPlugin extends AViewerPluginSync {
     static readonly PluginType = 'HDRiGroundPlugin'
 

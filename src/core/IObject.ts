@@ -439,7 +439,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     /**
      * @deprecated use object directly
      */
-    modelObject: this
+    modelObject: IObject3D
 
     objectProcessor?: IObjectProcessor
     objectExtensions?: IObjectExtension[]

@@ -69,7 +69,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     /**
      * @deprecated use `this` instead
      */
-    cameraObject: this
+    cameraObject: ICamera
     readonly controls: ICameraControls|undefined;
     // getControls<T extends TControls>(): T|undefined;
 

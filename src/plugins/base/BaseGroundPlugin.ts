@@ -38,6 +38,13 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
         this._geometry.attributes.uv2.needsUpdate = true
         this._mesh = this._createMesh()
+        this._mesh.userData.physicsMass = 0
+        this._mesh.userData.physicsBodyType = 'static'
+        this._mesh.userData.userSelectable = false
+        this._mesh.userData.isGroundMesh = true
+        this._mesh.castShadow = true
+        this._mesh.receiveShadow = true
+        if (!this._mesh.name) this._mesh.name = 'Ground Plane'
         this._mesh.visible = false
         this._defaultMaterial = this._mesh.material
         this.refresh()
@@ -233,14 +240,6 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     protected _createMesh(mesh?: Mesh2<IGeometry&PlaneGeometry, IMaterial>): Mesh2<IGeometry&PlaneGeometry, IMaterial> {
         if (!mesh) mesh = new Mesh2(this._geometry, this._createMaterial())
         else mesh.geometry = this._geometry
-        if (mesh) {
-            mesh.userData.physicsMass = 0
-            mesh.userData.userSelectable = false
-            mesh.userData.isGroundMesh = true
-            mesh.castShadow = true
-            mesh.receiveShadow = true
-            mesh.name = 'Ground Plane'
-        }
         return mesh
     }
 
