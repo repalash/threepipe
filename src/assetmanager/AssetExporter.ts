@@ -9,6 +9,7 @@ export interface AssetExporterEventMap {
     exportFile: {
         obj: IObject3D|IMaterial|ITexture|IRenderTarget,
         state: 'processing'|'exporting'|'done'|'error',
+        progress?: number, // between 0 and 1
         error?: any,
         exportOptions: ExportFileOptions
     }

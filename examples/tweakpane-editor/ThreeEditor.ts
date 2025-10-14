@@ -13,7 +13,8 @@ import {
     DepthBufferPlugin,
     DeviceOrientationControlsPlugin,
     DropzonePlugin,
-    EditorViewWidgetPlugin,
+    DynamicImportPlugin,
+    EditorViewWidgetPlugin, EntityComponentPlugin,
     FilmicGrainPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
@@ -103,6 +104,7 @@ export class ThreeEditor extends ThreeViewer {
         GLTFSpecGlossinessConverterPlugin,
         PopmotionPlugin,
         AnimationObjectPlugin,
+        EntityComponentPlugin,
         new ProgressivePlugin(),
         new SSAAPlugin(),
         GLTFAnimationPlugin,
@@ -166,6 +168,7 @@ export class ThreeEditor extends ThreeViewer {
         new TimelineUiPlugin(false, document.body),
         TroikaTextPlugin,
         new CascadedShadowsPlugin(false),
+        DynamicImportPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
@@ -176,8 +179,8 @@ export class ThreeEditor extends ThreeViewer {
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
     }
 
     async init() {

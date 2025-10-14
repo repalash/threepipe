@@ -178,20 +178,30 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
     // region import functions
 
-    async import<T extends ImportResult|undefined = ImportResult>(assetOrPath?: string | IAsset | IAsset[] | File | File[], options?: ImportAssetOptions): Promise<(T|undefined)[]> {
+    async import<T extends ImportResult|undefined = ImportResult>(
+        assetOrPath?: string | IAsset | IAsset[] | File | File[],
+        options?: ImportAssetOptions,
+        onDownloadProgress?: (e:ProgressEvent)=>void,
+        isInternal?: boolean, // if its being loaded from a File/Blob and not from a url/reference
+    ): Promise<(T|undefined)[]> {
         if (!assetOrPath) return []
-        if (Array.isArray(assetOrPath)) return (await Promise.all(assetOrPath.map(async a => this.import<T>(a, options)))).flat(1)
-        if (assetOrPath instanceof File) return await this.importFile<T>(assetOrPath, options)
-        if (typeof assetOrPath === 'object') return await this.importAsset<T>(assetOrPath, options)
-        if (typeof assetOrPath === 'string') return await this.importPath<T>(assetOrPath, options)
+        if (Array.isArray(assetOrPath)) return (await Promise.all(assetOrPath.map(async a => this.import<T>(a, options, onDownloadProgress, isInternal)))).flat(1)
+        if (assetOrPath instanceof File) return await this.importFile<T>(assetOrPath, options, onDownloadProgress)
+        if (typeof assetOrPath === 'object') return await this.importAsset<T>(assetOrPath, options, onDownloadProgress, isInternal)
+        if (typeof assetOrPath === 'string') return await this.importPath<T>(assetOrPath, options, onDownloadProgress)
         console.error('AssetImporter: Invalid asset or path', assetOrPath)
         return []
     }
-    async importSingle<T extends ImportResult|undefined = ImportResult>(asset?: string | IAsset | File, options?: ImportAssetOptions): Promise<T|undefined> {
-        return (await this.import<T>(asset, options))?.[0]
+    async importSingle<T extends ImportResult|undefined = ImportResult>(
+        asset?: string | IAsset | File,
+        options?: ImportAssetOptions,
+        onDownloadProgress?: (e:ProgressEvent)=>void,
+        isInternal?: boolean, // if its being loaded from a File/Blob and not from a url/reference
+    ): Promise<T|undefined> {
+        return (await this.import<T>(asset, options, onDownloadProgress, isInternal))?.[0]
     }
 
-    async importPath<T extends ImportResult|undefined = ImportResult|undefined>(path: string, options: ImportAssetOptions = {}): Promise<T[]> {
+    async importPath<T extends ImportResult|undefined = ImportResult|undefined>(path: string, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
         const opts = this._serializeOptions(options)
         const cached = this._cachedAssets.find(a => a.path === path && a._options === opts)
         let asset: IAsset
@@ -199,7 +209,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         else asset = {path}
         asset._options = opts
         if (options.importedFile) asset.file = options.importedFile
-        return await this.importAsset(asset, options)
+        return await this.importAsset(asset, options, onDownloadProgress, false) // note that we are not setting internal even if importedFile is present, this is intentional
     }
 
     private _serializeOptions(options: ImportAddOptions) {
@@ -214,7 +224,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     }
 
     // import and process an IAsset
-    async importAsset<T extends ImportResult|undefined = ImportResult|undefined>(asset?: IAsset, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
+    async importAsset<T extends ImportResult|undefined = ImportResult|undefined>(
+        asset?: IAsset,
+        options: ImportAssetOptions = {},
+        onDownloadProgress?: (e:ProgressEvent)=>void,
+        isInternal?: boolean, // if its being loaded from a File/Blob and not from a url/reference
+    ): Promise<T[]> {
         if (!asset) return []
         if (!asset.path && !asset.file && !options.pathOverride) {
             return [asset as any] // maybe already imported asset
@@ -242,8 +257,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             return results
         }
 
+        if (isInternal === undefined) {
+            isInternal = typeof asset.file?.arrayBuffer === 'function'
+        }
+
         // todo: add support to get cloned asset? if we want to import multiple times and everytime return a cloned asset
-        asset.preImportedRaw = this._loadFile(path, typeof asset.file?.arrayBuffer === 'function' ? asset.file : undefined, options, onDownloadProgress)
+        asset.preImportedRaw = this._loadFile(path, typeof asset.file?.arrayBuffer === 'function' ? asset.file : undefined, options, onDownloadProgress, isInternal)
         result = await asset.preImportedRaw
 
         if (!this.cacheImportedAssets) asset.preImportedRaw = undefined
@@ -270,7 +289,11 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         return result as any
     }
 
-    async importFile<T extends ImportResult|undefined = ImportResult|undefined>(file?: File, options: ImportAssetOptions = {}, onDownloadProgress?: (e:ProgressEvent)=>void): Promise<T[]> {
+    async importFile<T extends ImportResult|undefined = ImportResult|undefined>(
+        file?: File,
+        options: ImportAssetOptions = {},
+        onDownloadProgress?: (e:ProgressEvent)=>void
+    ): Promise<T[]> {
         if (!file) return []
         if (!(file instanceof File)) {
             console.error('AssetImporter: Invalid file', file)
@@ -279,7 +302,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         return this.importAsset(this._cachedAssets.find(a=>a.file === file) ?? {
             path: options.pathOverride || file.name || file.webkitRelativePath,
             file,
-        }, options, onDownloadProgress)
+        }, options, onDownloadProgress, true)
     }
 
     /**
@@ -313,13 +336,13 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         })
         if (baseFiles.length > 0) {
             for (const value of baseFiles) {
-                let res = await this._loadFile(value, undefined, options)
+                let res = await this._loadFile(value, undefined, options, undefined, true)
                 if (res) res = await this.processRaw(res, options, value)
                 loaded.set(value, res)
             }
         } else {
             for (const value of altFiles) {
-                let res = await this._loadFile(value, undefined, options)
+                let res = await this._loadFile(value, undefined, options, undefined, true)
                 if (res) res = await this.processRaw(res, options, value)
                 loaded.set(value, res)
             }
@@ -335,7 +358,13 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     }
 
     // load a single file
-    private async _loadFile(path: string, file?: IFile, options: LoadFileOptions = {}, onDownloadProgress?: (e: ProgressEvent)=>void): Promise<ImportResult | ImportResult[] | undefined> {
+    private async _loadFile(
+        path: string,
+        file?: IFile,
+        options: LoadFileOptions = {},
+        onDownloadProgress?: (e: ProgressEvent)=>void,
+        isInternal = false, // if its being loaded from a File/Blob and not from a url/reference
+    ): Promise<ImportResult | ImportResult[] | undefined> {
         // if (file?.__loadedAsset) return file.__loadedAsset
         if (this._cacheStoreInitPromise) await this._cacheStoreInitPromise
 
@@ -417,10 +446,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (options.fileHandler && !options.fileExtension) {
                 console.warn('AssetImporter - Pass fileExtension to options when using fileHandler to be able to use `rootPath`', options.fileHandler, path)
             }
-            res.__rootPath = path
-            if (options) {
-                const ser = this._serializeOptions(options)
-                if (ser) res.__rootPathOptions = JSON.parse(ser)
+            if (!isInternal && !path.startsWith('blob:') && !path.startsWith('data:')) {
+                res.__rootPath = path
+                if (options) {
+                    const ser = this._serializeOptions(options)
+                    if (ser) res.__rootPathOptions = JSON.parse(ser)
+                }
             }
             const f = file || this._fileDatabase.get(path)
             if (f) res.__rootBlob = f

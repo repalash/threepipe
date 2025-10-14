@@ -171,7 +171,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             let r = obj
 
-            const rootPath = obj.__rootPath || obj.userData?.rootPath
+            const rootPath = obj?.__rootBlob ? obj.__rootBlob.filePath || obj.__rootBlob.name : obj.__rootPath || obj.userData?.rootPath || obj.name || ''
 
             switch (obj.assetType) {
             case 'material':
@@ -509,22 +509,26 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     }
 
     protected _setupProcessState() {
-        this.importer.addEventListener('importFile', (data: any) => {
+        this.importer.addEventListener('importFile', (data) => {
+            if (!data.path || data.path.startsWith('blob:') || data.path.startsWith('data:')) return
             this.setProcessState(data.path, data.state !== 'done' ? {
                 state: data.state,
                 progress: data.progress ? data.progress * 100 : undefined,
             } : undefined)
         })
-        this.importer.addEventListener('processRawStart', (data: any) => {
+        this.importer.addEventListener('processRawStart', (data) => {
+            if (!data.path || data.path.startsWith('blob:') || data.path.startsWith('data:')) return
             this.setProcessState(data.path, {
                 state: 'processing',
                 progress: undefined,
             })
         })
-        this.importer.addEventListener('processRaw', (data: any) => {
+        this.importer.addEventListener('processRaw', (data) => {
+            if (!data.path || data.path.startsWith('blob:') || data.path.startsWith('data:')) return
             this.setProcessState(data.path, undefined)
         })
-        this.exporter.addEventListener('exportFile', (data: any) => {
+        this.exporter.addEventListener('exportFile', (data) => {
+            if (!data.obj.name) return
             this.setProcessState(data.obj.name, data.state !== 'done' ? {
                 state: data.state,
                 progress: data.progress ? data.progress * 100 : undefined,

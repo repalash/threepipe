@@ -817,13 +817,13 @@ export class MetaImporter {
                 }
                 // see LUTCubeTextureWrapper, KTX2LoadPlugin for sample use
                 if (typeof e.url === 'string') {
-                    const r = await assetImporter.importPath(e.url)
-                    if (r?.length > 0) resources.extras[e.uuid] = r[0]
+                    const r = await assetImporter.importSingle(e.url, e.userData?.rootPathOptions || {}) // todo rootPathOptions is not being set when exporting extras right now
+                    if (r) resources.extras[e.uuid] = r
                 } else if (e.url.data) {
                     const file = new File([getTypedArray(e.url.type, e.url.data)], e.url.path)
-                    const r = await assetImporter.importAsset({path: file.name, file})
+                    const r = await assetImporter.importSingle({path: file.name, file}, e.userData?.rootPathOptions || {}, undefined, false) // false is passed to mark it as external
                     // todo: userdata? name? other properties?
-                    if (r?.length > 0) resources.extras[e.uuid] = r[0]
+                    if (r) resources.extras[e.uuid] = r
                 } else {
                     console.warn('invalid URL type while loading extra resource')
                 }
