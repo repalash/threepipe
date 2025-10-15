@@ -194,6 +194,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     constructor(camera: ICamera, objectProcessor?: IObjectProcessor) {
         super()
         this.setDirty = this.setDirty.bind(this)
+        this.name = 'RootScene'
 
         this.objectProcessor = objectProcessor
         iObjectCommons.upgradeObject3D.call(this)

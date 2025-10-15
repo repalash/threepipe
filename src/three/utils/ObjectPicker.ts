@@ -131,12 +131,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         const obj = e.target
         if (this._selected.includes(obj as any)) {
             if (this._selected.length === 1) {
-                this.setSelected(null)
+                this.setSelected(null, false)
             } else {
                 // todo multiselection
                 // const newSelection = this._selected.filter(o => o !== obj)
                 // this.setSelected(newSelection)
-                this.setSelected(null)
+                this.setSelected(null, false)
             }
         }
     }

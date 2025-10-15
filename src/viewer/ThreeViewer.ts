@@ -335,6 +335,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     readonly assetManager: AssetManager
     readonly object3dManager: Object3DManager
 
+    @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
+    readonly renderManager: ViewerRenderManager
+
     /**
      * The Scene attached to the viewer, this cannot be changed.
      * @type {RootScene}
@@ -350,9 +353,6 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     @uiConfig(undefined, {label: 'Timeline', expanded: true, tags: ['advanced']})
     @serialize('timeline')
     readonly timeline = new ViewerTimeline()
-
-    @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
-    readonly renderManager: ViewerRenderManager
 
     get materialManager() {
         return this.assetManager.materials

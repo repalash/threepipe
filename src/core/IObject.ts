@@ -29,6 +29,7 @@ declare module 'three'{
             focusCamera?: boolean
             bubbleToParent?: boolean
             object: IObject3D
+            trackUndo?: boolean
             value?: IObject3D|null /* | Material*/ // todo is this required?
 
             source?: string // who is triggering the event. so that recursive events can be prevented

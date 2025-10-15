@@ -1,7 +1,7 @@
 import {Group, Sphere} from 'three'
 import {AnyOptions} from 'ts-browser-helpers'
 import {Box3B} from '../math/Box3B'
-import {IMaterial, IObject3D, IWidget} from '../../core'
+import {IMaterial, IObject3D, IWidget, RootScene} from '../../core'
 
 export class SelectionWidget extends Group implements IWidget {
     isWidget = true as const
@@ -49,6 +49,12 @@ export class SelectionWidget extends Group implements IWidget {
 
     attach(object: IObject3D): this {
         this.detach()
+        let inScene = false
+        object.traverseAncestors(c=>(c as RootScene).isRootScene && (inScene = true))
+        if (!inScene) {
+            // console.warn('SelectionWidget: attached object must be in the scene')
+            return this
+        }
         if (!object) return this
         this._object = object
         // todo object update doesnt work on child when parent is updated, better is to subscribe to objectUpdate of the scene and see if the attached object is in the child of the updated object, also throttle update to once per frame

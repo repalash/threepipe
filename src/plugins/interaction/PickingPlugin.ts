@@ -220,7 +220,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _onObjectSelectEvent: EventListener2<'select', ISceneEventMap, IScene> = (e)=>{
         if (e.source === PickingPlugin.PluginType) return
         if (e.object === undefined && e.value === undefined) console.error('PickingPlugin - Error handling object/material `select` event `e.object` or `e.value` must be set for picking, `value` can be null to unselect')
-        else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, true)
+        else this.setSelectedObject(e.object || e.value, this.autoFocus || e.focusCamera, e.trackUndo ?? true)
     }
 
     private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {

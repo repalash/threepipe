@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- Disable `rootPath` being set inside assets that are loaded from local files like when dropping or importing from file blobs.
+
+### Changed
+
+- Add `trackUndo` in `Object3DEventMap.select` (default `true`)
+- Set default `name` of `RootScene` to 'RootScene'
+- Do not attach `SelectionWidget` to an object that's not in the `RootScene` 
+- Move renderManager above scene and timeline in `ThreeViewer` UI Config
+
+## [0.3.0] - 2025-10-13
+
 ### Added
 
 - Add [`backgroundColor`](https://threepipe.org/docs/interfaces/ThreeViewerOptions.html#backgroundColor) to `ThreeViewerOptions` to set initial background color of the scene. Note that background map can be set by `load.background` in the options.
