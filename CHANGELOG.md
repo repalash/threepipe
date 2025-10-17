@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Add `renderBackground` property to `ExtendedRenderPass`
+
 ### Fixes
 
 - Disable `rootPath` being set inside assets that are loaded from local files like when dropping or importing from file blobs.

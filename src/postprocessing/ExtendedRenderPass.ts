@@ -66,6 +66,12 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     private _opaqueTarget?: WebGLRenderTarget
 
     /**
+     * Whether to render the scene background in this pass.
+     * Not serialized
+     */
+    renderBackground = true
+
+    /**
      * A render target to render opaque objects to.
      * Note that it is only used when {@link renderManager.msaa} is true
      */
@@ -160,7 +166,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
                 renderer.renderWithModes({
                     shadowMapRender: true,
-                    backgroundRender: true,
+                    backgroundRender: this.renderBackground,
                     opaqueRender: true,
                     transparentRender: true,
                     transmissionRender: false,
@@ -228,7 +234,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
                 renderer.renderWithModes({
                     shadowMapRender: true,
-                    backgroundRender: true,
+                    backgroundRender: this.renderBackground,
                     opaqueRender: true,
                     transparentRender: false,
                     transmissionRender: false,
