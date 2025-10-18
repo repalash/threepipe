@@ -1,6 +1,7 @@
 import {ViewerRef} from './ViewerContextInternal.ts'
 import {ImportAssetOptions, ImportResult} from 'threepipe'
 import {clear, preload, suspend} from 'suspend-react'
+import {useViewerInternal} from './ViewerContextInternal.ts'
 
 type InputLike = string /* | string[]*/ | Readonly<string/* | string[]*/>
 
@@ -24,14 +25,14 @@ function loadingFn(
  * Note: this hook's caller must be wrapped with `React.Suspense`
  */
 export function useViewerImporter<I extends InputLike>(
-    viewer: ViewerRef,
     input: I,
     options: ImportAssetOptions,
     onImport?: (obj: (ImportResult | undefined)[] | undefined) => void,
     onProgress?: (event: ProgressEvent<EventTarget>) => void,
 ) {
+    const {viewerRef} = useViewerInternal()
     // Use suspense to load async assets
-    const results = suspend(loadingFn(viewer, options, onImport, onProgress), [input])
+    const results = suspend(loadingFn(viewerRef, options, onImport, onProgress), [input])
     // Return the object(s)
     return results
 }

@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.2.0] - 2025-10-18
+
+### Changed
+
+- Changed signature of `useViewerImporter`. It no longer accepts `viewerRef` parameter.
+
 ## [0.1.7] - 2025-09-03
 
 ### Changed
@@ -19,3 +25,4 @@ All notable changes to this plugin will be documented in this file.
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/r3f
 [0.1.6]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-r3f-v0.1.6
 [0.1.7]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-r3f-0.1.7
+[0.2.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-r3f-0.2.0

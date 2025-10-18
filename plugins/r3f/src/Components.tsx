@@ -18,7 +18,7 @@ export function Asset({url, onImport, onLoad, ...options}: ImportAddOptions & {
     onLoad?: (obj: ImportResult[]|null) => void
 }) {
     const {viewerRef} = useViewerInternal()
-    const object = useViewerImporter(viewerRef, url, options, onImport) ?? []
+    const object = useViewerImporter(url, options, onImport) ?? []
 
     // add the object to the scene when its being rendered
     useLayoutEffect(()=>{
@@ -43,8 +43,7 @@ export function Model({url, onImport, onLoad, props, ref, children, ...options}:
     ref?: Ref<IObject3D>
     children?: React.ReactNode,
 } & ImportAssetOptions & AddModelOptions) {
-    const {viewerRef} = useViewerInternal()
-    const object = useViewerImporter(viewerRef, url, options, onImport) ?? []
+    const object = useViewerImporter(url, options, onImport) ?? []
 
     // process the object to the scene before its being rendered
     useLayoutEffect(()=>{

@@ -16,6 +16,7 @@ All notable changes to this plugin will be documented in this file.
 
 - Fix for materials being passed into `geometry.userData` when an object is created using `generateObject`
 - Fixes material UI interfering with `PickingPlugin`
+- Set default material name if none is present
 
 ## [0.6.2] - 2025-09-03
 
