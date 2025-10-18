@@ -31,10 +31,10 @@ export class KTX2LoadPlugin extends BaseImporterPlugin {
     }
 
     onRemove(viewer: ThreeViewer) {
-        super.onRemove(viewer)
         const exporter = viewer.assetManager.exporter.getExporter('gltf', 'glb')
         const index = exporter?.extensions?.indexOf(glTFTextureBasisUExtensionExport)
         if (index !== undefined && index !== -1) exporter?.extensions?.splice(index, 1)
+        super.onRemove(viewer)
     }
 
 

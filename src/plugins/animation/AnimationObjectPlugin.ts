@@ -495,7 +495,6 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
     }
 
     onRemove(viewer: ThreeViewer) {
-        super.onRemove(viewer)
         this._cleanUpUiConfig(viewer.scene)
 
         viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
@@ -506,7 +505,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         viewer.object3dManager.getMaterials().forEach(material=>this._materialRemove({material}))
 
         delete (viewer as any)._animGetters
-
+        super.onRemove(viewer)
     }
 
     fromJSON(data: any, meta?: any): this | null {

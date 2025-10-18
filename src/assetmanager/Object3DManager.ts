@@ -190,7 +190,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             this._unregisterTexture(tex, obj)
         }
         if (this.autoDisposeObjects && obj.userData?.disposeOnIdle !== false) { // todo add disposeOnIdle to types and docs
-            obj.dispose(false)
+            obj.dispose && obj.dispose(false)
         }
         this.dispatchEvent({type: 'objectRemove', object: obj})
         if (obj.isLight && this._lights.has(obj.uuid)) {

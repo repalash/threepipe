@@ -186,10 +186,10 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     }
 
     onRemove(viewer: ThreeViewer) {
-        super.onRemove(viewer)
         this._dropzone?.destroy()
         this._dropzone = undefined
         this._inputEl = undefined
+        super.onRemove(viewer)
     }
 
     private async _onFileDrop({files, nativeEvent}: {files: Map<string, File>, nativeEvent: DragEvent}) {

@@ -93,9 +93,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     // static WHITE_TEXTURE = new Texture(AssetImporter.WHITE_IMAGE_DATA)
 
     // todo these are only used in export, use in import as well
-    static DummyMaterial = /* @__PURE__ */ new UnlitMaterial({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
-    static DummyLineBasicMaterial = /* @__PURE__ */ new UnlitLineMaterial({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
-    static DummyLineMaterial = /* @__PURE__ */ new LineMaterial2({color: '#ff00ff', name: 'ExternalReferenceMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyMaterial = /* @__PURE__ */ new UnlitMaterial({color: '#ff00ff', name: 'NoneMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyLineBasicMaterial = /* @__PURE__ */ new UnlitLineMaterial({color: '#ff00ff', name: 'NoneMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
+    static DummyLineMaterial = /* @__PURE__ */ new LineMaterial2({color: '#ff00ff', name: 'NoneMaterial', userData: {isPlaceholder: true, runtimeMaterial: true}})
     static DummyGeometry: IGeometry = /* @__PURE__ */ new BufferGeometry() as IGeometry
 
     static {
@@ -236,7 +236,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         }
 
         // Cache the asset reference if it is not already cached
-        if (options.cacheAsset !== false && !this._cachedAssets.includes(asset)) {
+        if (options.cacheAsset !== false && this.cacheImportedAssets && !this._cachedAssets.includes(asset)) {
             if (Object.entries(asset).length === 1 && asset.path) {
                 const ca = this._cachedAssets.find(value => value.path === asset.path)
                 if (ca) Object.assign(asset, ca)

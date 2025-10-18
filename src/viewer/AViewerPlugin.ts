@@ -19,6 +19,7 @@ export abstract class AViewerPlugin<TE extends AViewerPluginEventMap = AViewerPl
     public static readonly PluginType: string = 'AViewerPlugin'
     public static readonly OldPluginType?: string
     protected _dirty = false
+    abstract isViewerPluginSync: IsSync extends true ? true : false
 
     uiConfig?: UiObjectConfig = undefined // if this is showing an error, remove all `get uiConfig` and use objects
 
@@ -142,6 +143,7 @@ export abstract class AViewerPlugin<TE extends AViewerPluginEventMap = AViewerPl
  */
 export abstract class AViewerPluginSync<TE extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<TE, TViewer, true> {
     declare ['constructor']: (typeof AViewerPluginSync) & (typeof AViewerPlugin)
+    isViewerPluginSync = true as const
 
     onAdded(viewer: TViewer): void {
         this._viewer = viewer
@@ -161,6 +163,7 @@ export abstract class AViewerPluginSync<TE extends AViewerPluginEventMap = AView
  */
 export abstract class AViewerPluginAsync<TE extends AViewerPluginEventMap = AViewerPluginEventMap, TViewer extends ThreeViewer = ThreeViewer> extends AViewerPlugin<TE, TViewer, false> implements IViewerPluginAsync<TViewer> {
     declare ['constructor']: (typeof AViewerPluginAsync) & (typeof AViewerPlugin)
+    isViewerPluginSync = false as const
 
     async onAdded(viewer: TViewer): Promise<void> {
         this._viewer = viewer

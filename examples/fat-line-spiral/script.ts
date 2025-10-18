@@ -1,7 +1,7 @@
 import {
     _testFinish,
     _testStart, AssetExporterPlugin,
-    Color, generateUiConfig,
+    Color, GBufferPlugin, generateUiConfig,
     LineGeometry2,
     LineMaterial2,
     LoadingScreenPlugin,

@@ -253,13 +253,13 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
     }
 
     onRemove(viewer: ThreeViewer) {
-        super.onRemove(viewer)
 
         viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
         viewer.scene.removeEventListener('objectUpdate', this._objectUpdate)
         viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
 
+        super.onRemove(viewer)
         // this._cleanUpUiConfig(viewer.scene)
     }
 

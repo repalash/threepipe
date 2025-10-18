@@ -95,7 +95,7 @@ export class NormalBufferPlugin
                 mat.allowOverride = false
                 // todo save the current forcedOverrideMaterial to restore it later?
                 object.forcedOverrideMaterial = mat
-                return null
+                return undefined
             }
             // return preprocessObject(object)
             return object.material
