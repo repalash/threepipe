@@ -44,7 +44,7 @@ export const iObjectCommons = {
             this.userData.isCentered = true
         }
         this.updateMatrix()
-        if (setDirty) this.setDirty({change: 'autoCenter', undo})
+        if (setDirty) this.setDirty && this.setDirty({change: 'autoCenter', undo})
         return this
     },
 
@@ -86,18 +86,18 @@ export const iObjectCommons = {
                 l.shadow.camera.left *= scale
                 l.shadow.camera.top *= scale
                 l.shadow.camera.bottom *= scale
-                obj.setDirty()
+                obj.setDirty && obj.setDirty()
             }
             if (l.isCamera && l.right) {
                 l.right *= scale
                 l.left *= scale
                 l.top *= scale
                 l.bottom *= scale
-                obj.setDirty()
+                obj.setDirty && obj.setDirty()
             }
         })
 
-        if (setDirty) this.setDirty({change: 'autoScale', undo})
+        if (setDirty) this.setDirty && this.setDirty({change: 'autoScale', undo})
 
         return this
     },
@@ -136,7 +136,7 @@ export const iObjectCommons = {
         this.children.forEach((object)=> {
             object.position.add(localCenter)
         })
-        if (setDirty) this.setDirty({change: 'pivotToPoint', undo: false})
+        if (setDirty) this.setDirty && this.setDirty({change: 'pivotToPoint', undo: false})
 
         return ()=>{
             // undo
@@ -147,7 +147,7 @@ export const iObjectCommons = {
             this.children.forEach((object)=> {
                 object.position.sub(localCenter)
             })
-            if (setDirty) this.setDirty({change: 'pivotToPoint', undo: true})
+            if (setDirty) this.setDirty && this.setDirty({change: 'pivotToPoint', undo: true})
         }
     },
 
@@ -267,7 +267,7 @@ export const iObjectCommons = {
                 set: (val) => {
                     this._customDepthMaterial = val
                     if (val) val.needsUpdate = true
-                    this.setDirty({change: 'customDepthMaterial'})
+                    this.setDirty && this.setDirty({change: 'customDepthMaterial'})
                 },
             })
             Object.defineProperty(this, 'customGBufferMaterial', {
@@ -281,7 +281,7 @@ export const iObjectCommons = {
                 set: (val) => {
                     this._customGBufferMaterial = val
                     if (val) val.needsUpdate = true
-                    this.setDirty({change: 'customDepthMaterial'})
+                    this.setDirty && this.setDirty({change: 'customDepthMaterial'})
                 },
             })
             // todo createNormalMaterial

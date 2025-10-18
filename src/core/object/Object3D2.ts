@@ -26,6 +26,9 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
         super()
         iObjectCommons.upgradeObject3D.call(this)
     }
+    dispose() {
+        // Override in subclasses
+    }
 
     declare userData: IObject3DUserData
 

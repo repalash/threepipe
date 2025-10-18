@@ -195,8 +195,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     dispose() {
         super.dispose()
-        this._widget?.dispose()
-        this._hoverWidget?.dispose()
+        this._widget?.dispose?.()
+        this._hoverWidget?.dispose?.()
     }
 
     private _mainCameraChange = ()=>{

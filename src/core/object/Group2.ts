@@ -8,7 +8,7 @@ export class Group2<TE extends IObject3DEventMap = IObject3DEventMap,
     TG extends IGeometry | undefined = undefined,
     TM extends IMaterial | IMaterial[] | undefined = undefined
 > extends Group<TE> implements IObject3D<TE, TG, TM> {
-    assetType = 'model' as const
+    assetType: IObject3D['assetType'] = 'model' as const
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
 
@@ -25,6 +25,10 @@ export class Group2<TE extends IObject3DEventMap = IObject3DEventMap,
     constructor() {
         super()
         iObjectCommons.upgradeObject3D.call(this)
+    }
+
+    dispose() {
+        // Override in subclasses
     }
 
     declare userData: IObject3DUserData

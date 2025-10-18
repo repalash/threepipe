@@ -44,7 +44,7 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
         if (!obj.userData.constraints.includes(constraint)) {
             obj.userData.constraints.push(constraint)
             this._registerConstraint(constraint, obj)
-            obj.setDirty({change: 'userData.constraints', source: 'ObjectConstraintsPlugin.addConstraint'})
+            obj.setDirty && obj.setDirty({change: 'userData.constraints', source: 'ObjectConstraintsPlugin.addConstraint'})
         }
 
         return constraint
@@ -56,7 +56,7 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
         if (index !== -1) {
             obj.userData.constraints.splice(index, 1)
             this._unregisterConstraint(constraint, obj)
-            obj.setDirty({change: 'userData.constraints', source: 'ObjectConstraintsPlugin.addConstraint'})
+            obj.setDirty && obj.setDirty({change: 'userData.constraints', source: 'ObjectConstraintsPlugin.addConstraint'})
         }
     }
 
@@ -332,7 +332,7 @@ export class ObjectConstraint<T extends TConstraintPropsType = TConstraintPropsT
         const tp = basicObjectConstraints[this.type as keyof typeof basicObjectConstraints]
         const res = tp?.update(data.obj, data.target, this.props, this.influence)
         if (res?.changed && res.change) {
-            data.obj.setDirty({change: res.change, source: this.uuid})
+            data.obj.setDirty && data.obj.setDirty({change: res.change, source: this.uuid})
         }
         this.needsUpdate = !(res.end ?? true)
         return res?.changed || false

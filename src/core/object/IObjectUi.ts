@@ -116,7 +116,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             if (!ev.config || ev.config.onChange) return // todo check onChange in configPath
             let key = Array.isArray(ev.config.property) ? ev.config.property[1] : ev.config.property
             key = typeof key === 'string' ? key : undefined
-            this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: !!ev.last, change: key})
+            this.setDirty && this.setDirty({uiChangeEvent: ev, refreshScene: false, refreshUi: !!ev.last, change: key})
         },
         children: [
             {

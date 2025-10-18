@@ -67,10 +67,10 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<VirtualCamerasPlugin
                 onClick: () => {
                     if (!this._viewer) return
                     this.addCamera(object as ICamera, undefined, true)
-                    object.setDirty()
+                    object.setDirty && object.setDirty()
                     return ()=>{
                         this.removeCamera(object as ICamera)
-                        object.setDirty()
+                        object.setDirty && object.setDirty()
                     }
                 },
             }, {
@@ -96,10 +96,10 @@ export class VirtualCamerasPlugin extends AViewerPluginSync<VirtualCamerasPlugin
                 onClick: () => {
                     if (!this._viewer) return
                     this.removeCamera(object as ICamera)
-                    object.setDirty()
+                    object.setDirty && object.setDirty()
                     return ()=>{
                         this.addCamera(object as ICamera, undefined, true)
-                        object.setDirty()
+                        object.setDirty && object.setDirty()
                     }
                 },
             }]

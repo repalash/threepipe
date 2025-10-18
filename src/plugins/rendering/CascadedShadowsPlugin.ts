@@ -281,7 +281,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
                     this.light.castShadow = true
                     this.light.visible = true
                     this.parent.visible = false
-                    this.light.setDirty()
+                    this.light.setDirty && this.light.setDirty()
                 }
                 this.extendedBreaks.length = 0
                 this._sversion++
