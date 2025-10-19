@@ -102,12 +102,10 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
 
     autoScale() {
         console.warn('AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('AutoCenter not supported on Lights')
-        return this
     }
 
     /**

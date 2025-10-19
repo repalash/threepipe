@@ -115,12 +115,10 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
 
     autoScale() {
         console.warn('AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('AutoCenter not supported on Lights')
-        return this
     }
 
     /**

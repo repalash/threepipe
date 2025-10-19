@@ -730,8 +730,18 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         // todo: dispose stuff from constructor etc
         if (clear) {
+            const syncPlugins = []
+            const asyncPlugins = []
             for (const [key, plugin] of [...Object.entries(this.plugins)]) {
                 if (key === plugin.constructor.OldPluginType) continue
+                // this.removePlugin(plugin, true)
+                if ((plugin as AViewerPlugin).isViewerPluginSync) syncPlugins.push(plugin)
+                else asyncPlugins.push(plugin)
+            }
+            for (const plugin of syncPlugins) {
+                this.removePluginSync(plugin, true)
+            }
+            for (const plugin of asyncPlugins) {
                 this.removePlugin(plugin, true)
             }
         }

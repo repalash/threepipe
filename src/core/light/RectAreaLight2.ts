@@ -55,12 +55,10 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
 
     autoScale() {
         console.warn('AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('AutoCenter not supported on Lights')
-        return this
     }
 
     /**
@@ -83,9 +81,9 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
-    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
-    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
+    getObjectById: (id: number) => IObject3D | undefined
+    getObjectByName: (name: string) => IObject3D | undefined
+    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     copy: (source: RectAreaLight|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this

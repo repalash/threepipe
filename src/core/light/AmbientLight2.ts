@@ -45,12 +45,10 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
 
     autoScale() {
         console.warn('AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('AutoCenter not supported on Lights')
-        return this
     }
 
     /**

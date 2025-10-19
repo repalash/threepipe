@@ -15,7 +15,7 @@ import {objectActionsUiConfig} from '../object/IObjectUi.ts'
  *
  * @category Lights
  */
-export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow> {
+export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow>, IObject3D {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
@@ -107,12 +107,10 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
 
     autoScale() {
         console.warn('DirectionalLight2: AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('DirectionalLight2: AutoCenter not supported on Lights')
-        return this
     }
 
     /**

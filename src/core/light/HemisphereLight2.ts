@@ -49,12 +49,10 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
 
     autoScale() {
         console.warn('AutoScale not supported on Lights')
-        return this
     }
 
     autoCenter() {
         console.warn('AutoCenter not supported on Lights')
-        return this
     }
 
     /**
