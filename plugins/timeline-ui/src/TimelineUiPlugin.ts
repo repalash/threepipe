@@ -102,8 +102,8 @@ export class TimelineUiPlugin extends AViewerPluginSync implements IViewerPlugin
     }
 
     onRemove(viewer: ThreeViewer) {
-        super.onRemove(viewer)
         this.dispose()
+        super.onRemove(viewer)
     }
 
     dispose() {

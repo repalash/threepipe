@@ -26,6 +26,14 @@ import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
 
+function getRootIfWidget(selected: IObject3D) {
+    while (selected.parent && selected.assetType !== 'widget') {
+        if (selected.userData.allowPicking) break // this is diff from userSelectable, its for widgets
+        selected = selected.parent
+    }
+    return selected
+}
+
 export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     @serialize()
     @onChange(PickingPlugin.prototype.setDirty)
@@ -124,6 +132,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             const hasMat = obj.material
             if (!hasMat && !obj.userData.userSelectable) return false
             let o: IObject3D|null = obj
+            o = getRootIfWidget(o)
             let ret = false
             while (o) {
                 if (!o.visible) return false
@@ -294,13 +303,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         // if a widget is picked, select the object its bound to instead
         if (selected) {
             const obj = selected
-            let isWidget = selected.assetType === 'widget'
-            while (selected.parent && !isWidget) {
-                if (selected.userData.allowPicking) break
-                selected = selected.parent
-                isWidget = selected.assetType === 'widget'
-            }
-            if (isWidget && (selected as IObject3D&IWidget).object) {
+            selected = getRootIfWidget(selected)
+            if (selected.assetType === 'widget' && (selected as IObject3D&IWidget).object) {
                 e.intersects.selectedObject = (selected as IObject3D&IWidget).object
                 e.intersects.selectedWidget = (selected as IObject3D&IWidget)
                 e.intersects.selectedHandle = obj.userData.isWidgetHandle ? obj : undefined
@@ -501,7 +505,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 type: 'button',
                 hidden: matType.line ?
                     // ()=>(!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments) || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) :
-                    ()=>!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
+                    ()=>!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments && !obj.isWireframe || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
                     ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) || !obj.isMesh,
                 value: ()=>{
                     const mat = obj.materials
@@ -524,7 +528,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         const matC = obj.material
         const def = [this.materialTypes[0].def!]
         if (!def[0]) throw new Error('No default material found')
-        const mat = obj.isLineSegments2 ? this.materialTypes.find(m=>m.cls === LineMaterial2)?.def :
+        const mat = obj.isLineSegments2 || obj.isWireframe ? this.materialTypes.find(m=>m.cls === LineMaterial2)?.def :
             obj.isLine || obj.isLineSegments ? this.materialTypes.find(m=>m.cls === UnlitLineMaterial)?.def :
                 null
         obj.material = mat ? mat : def[0]

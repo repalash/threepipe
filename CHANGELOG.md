@@ -9,10 +9,13 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Add `renderBackground` property to `ExtendedRenderPass`
+- Add `toggleEnvironmentBackground` to `RootScene` and its uiConfig. Allows to toggle the background rendering between environment and separate background map.
 
 ### Fixes
 
 - Disable `rootPath` being set inside assets that are loaded from local files like when dropping or importing from file blobs.
+- Fix for empty objects in CameraViewPlugin.animateToFitObject
+- Subscribe to objects properly in `Object3DWidgetsPlugin` using `Object3DManager`.
 
 ### Changed
 
@@ -20,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Set default `name` of `RootScene` to 'RootScene'
 - Do not attach `SelectionWidget` to an object that's not in the `RootScene` 
 - Move renderManager above scene and timeline in `ThreeViewer` UI Config
+- Keep the selection widget visible when transform controls are enabled
 
 ## [0.3.0] - 2025-10-13
 

@@ -1,5 +1,5 @@
 import {GLTFExporter, GLTFExporterOptions} from 'three/examples/jsm/exporters/GLTFExporter.js'
-import {BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, Texture} from 'three'
+import {AnimationClip, BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, Texture} from 'three'
 import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
 import {isNonRelativeUrl, ThreeSerialization} from '../../utils'
@@ -18,7 +18,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         externalImagesInExtras: boolean,
         exporterOptions: GLTFExporter2Options
     }
-    serializeUserData(object: Object3D | Material | BufferGeometry, objectDef: any): void {
+    serializeUserData(object: Object3D | Material | BufferGeometry | AnimationClip | Texture, objectDef: any): void {
 
         const userData = object.userData
         const temp: any = {}
@@ -45,7 +45,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
             delete temp[key]
         })
         object.userData = ud2
-        super.serializeUserData(object, objectDef)
+        super.serializeUserData(object as any, objectDef)
         object.userData = userData
     }
 
@@ -242,7 +242,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
             }
         }
 
-        // map uuid saved in processSampler.
+        // map uuid, extras saved in processSampler.
 
         return processed
     }

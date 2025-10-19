@@ -285,7 +285,7 @@ export const iMaterialUI = {
                     },
                 },
                 {
-                    type: 'checkbox',
+                    type: 'input',
                     label: 'Forced Linear Depth',
                     getValue: ()=>material.userData.forcedLinearDepth ?? -1,
                     setValue: (v: number)=>{

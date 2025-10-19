@@ -254,7 +254,7 @@ export const iObjectCommons = {
         this.material = currentMaterial
 
 
-        if (this.isLineSegments2 || this.isLine2) {
+        if (this.isLineSegments2 || this.isLine2 || this.isWireframe) {
             // setup depth, normal, gbuffer
             Object.defineProperty(this, 'customDepthMaterial', {
                 configurable: true,
@@ -364,7 +364,7 @@ export const iObjectCommons = {
         this._currentMaterial = !materials.length ? null : materials.length !== 1 ? materials : materials[0] || null
 
         this.dispatchEvent({type: 'materialChanged', material: this._currentMaterial ?? null, oldMaterial: oldMats ?? null, object: this, bubbleToParent: true})
-        this.refreshUi()
+        this.refreshUi && this.refreshUi()
     },
     setMaterials: function(this: IObject3D, materials: IMaterial[]) {
         this.currentMaterial = materials || undefined
@@ -427,7 +427,7 @@ export const iObjectCommons = {
             this._onGeometryUpdate && geometry.addEventListener('geometryUpdate', this._onGeometryUpdate)
         }
         this.dispatchEvent({type: 'geometryChanged', geometry: geometry ?? null, oldGeometry: geom, bubbleToParent: true, object: this})
-        this.refreshUi()
+        this.refreshUi && this.refreshUi()
 
     },
 
@@ -679,7 +679,7 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objec
     // region Legacy
 
     // eslint-disable-next-line deprecation/deprecation
-    !this.modelObject && Object.defineProperty(this, 'modelObject', {
+    !(this as any).modelObject && Object.defineProperty(this, 'modelObject', {
         get: ()=>{
             console.error('IObject3D: modelObject is deprecated, use object directly')
             return this

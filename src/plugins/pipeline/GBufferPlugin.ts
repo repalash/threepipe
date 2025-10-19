@@ -216,8 +216,17 @@ export class GBufferPlugin
                 const mat = object.customGBufferMaterial
                 mat.allowOverride = false
                 // todo save the current forcedOverrideMaterial to restore it later?
+                const current = object.material
                 object.forcedOverrideMaterial = mat
-                return null
+                const current0 = Array.isArray(current) ? current[0] : current
+                if (current0) {
+                    mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
+                    mat.userData.renderToDepth = current0.userData.renderToDepth
+                    mat.userData.pluginsDisabled = current0.userData.pluginsDisabled
+                    // todo other plugin userData
+                    mat.side = current0.side
+                }
+                return mat as IMaterial
             }
             // return preprocessObject(object)
             return object.material

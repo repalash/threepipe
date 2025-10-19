@@ -56,6 +56,13 @@ A component for loading 3D models (GLTF, GLB, etc.) and placing them inside the 
 
 This is the declarative equivalent of using the `viewer.import` function.
 
+### useViewerImporter 
+A React hook for importing 3D models programmatically within your components. 
+This is the hook equivalent of using the `viewer.import` function with support for React Suspense.
+
+### useViewer
+A React hook for accessing the ThreePipe viewer instance within your components.
+
 ### Three.js classes
 
 Most three.js classes can be used as is, similar to how they are used in React Three Fiber.
@@ -119,6 +126,46 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(<App />)
+```
+
+## Loading files
+
+You can use the `Asset` and `Model` components to load various types of files declaratively.
+
+```tsx
+<Asset 
+  url="https://samples.threepipe.org/minimal/venice_sunset_1k.hdr"
+  autoSetBackground={true}
+/>
+<Asset 
+  url="https://example.com/my-scene.glb"
+  importConfig={true}
+/>
+<Model 
+  url="https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf"
+  autoCenter={true}
+  autoScale={true}
+/>
+```
+
+To load the files manually, you can also use the `useViewerImporter` hook:
+
+```tsx
+import { useViewerImporter } from '@threepipe/plugin-r3f'
+import { useLayoutEffect } from 'react'
+
+function MyModel() {
+  const object = useViewerImporter('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    autoCenter: true,
+    autoScale: true
+  })
+
+  useLayoutEffect(()=>{
+    console.log('Imported object:', object)
+  }, [object])
+
+  return object.map((p, i)=> p ? <primitive key={(p as IObject3D).uuid ?? i} object={p as IObject3D} /> : null)
+}
 ```
 
 ## Advanced Usage

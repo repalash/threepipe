@@ -23,20 +23,13 @@ export class TransformControlsPlugin extends AViewerPluginSync {
     @onChange(TransformControlsPlugin.prototype.setDirty)
         enabled = true
 
-    private _pickingWidgetDisabled = false
     setDirty() { // todo rename to refresh or setEnabledDirty?
         if (!this._viewer) return
         const picking = this._viewer.getPlugin(PickingPlugin)!
         const enabled = !this.isDisabled()
-        if (enabled && picking.widgetEnabled) {
-            picking.widgetEnabled = false
-            this._pickingWidgetDisabled = true
-        } else if (!enabled && this._pickingWidgetDisabled) {
-            picking.widgetEnabled = true
-            this._pickingWidgetDisabled = false
-        }
         if (this.transformControls) {
-            if (enabled && picking.getSelectedObject<IObject3D>()?.isObject3D) this.transformControls.attach(picking.getSelectedObject<IObject3D>()!)
+            const selected = picking.getSelectedObject<IObject3D>()
+            if (enabled && selected?.isObject3D) this.transformControls.attach(selected)
             else this.transformControls.detach()
         }
         this._viewer.setDirty()
@@ -284,7 +277,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         this.visible = false
         this.userData.bboxVisible = false
 
-        this.size = 1.5
+        this.size = 1.25
 
         this.addEventListener('objectChange', () => {
             this?.object?.setDirty && this.object.setDirty({frameFade: false, change: 'transform'})
@@ -356,7 +349,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     @uiDropdown('Space', ['world', 'local'].map(label=>({label})))
     declare space: 'world' | 'local'
-    @uiSlider('Size', [0.1, 10], 0.1)
+    @uiSlider('Size', [0.1, 10], 0.01)
     declare size: number
     @uiToggle('Show X')
     declare showX: boolean

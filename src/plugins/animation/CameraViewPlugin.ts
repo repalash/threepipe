@@ -408,12 +408,18 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
                     o as IObject3D)
             .filter(Boolean)
 
-        const bbox = new Box3B().expandByObject(!selectedArray.length ? this._viewer.scene.modelRoot : selectedArray[0], false, true)
+        const obj = !selectedArray.length ? this._viewer.scene.modelRoot : selectedArray[0]
+        const bbox = new Box3B().expandByObject(obj, false, true)
         for (let i = 1; i < selectedArray.length; i++) {
             bbox.expandByObject(selectedArray[i], false, true)
         }
         const cameraZ = getFittingDistance(this._viewer.scene.mainCamera, bbox)
         const center = bbox.getCenter(new Vector3()) // world position
+
+        const scale = bbox.getSize(new Vector3())
+        if (scale.lengthSq() <= 0) { // It could be a light or camera with no geometry
+            obj.getWorldPosition(center)
+        }
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, cameraZ * distanceMultiplier)), center, duration, ease)
     }
 

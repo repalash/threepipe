@@ -51,11 +51,17 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
             const mat = object.customDepthMaterial
             mat.allowOverride = false
             // todo save the current forcedOverrideMaterial to restore it later?
+            const current = object.material
             object.forcedOverrideMaterial = mat
-            if (mat.transparent) {
-                console.warn('GBufferRenderPass: customDepthMaterial is set as transparent, it will not be rendered in gbuffer/depth-buffer')
+            const current0 = Array.isArray(current) ? current[0] : current
+            if (current0) {
+                mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
+                mat.userData.renderToDepth = current0.userData.renderToDepth
+                mat.userData.pluginsDisabled = current0.userData.pluginsDisabled
+                // todo other plugin userData
+                mat.side = current0.side
             }
-            return null
+            return mat as IMaterial
         }
         return object.material
     }
