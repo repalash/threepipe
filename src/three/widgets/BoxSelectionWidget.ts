@@ -15,6 +15,8 @@ export class BoxSelectionWidget extends SelectionWidget {
             worldUnits: false,
             dashed: false,
             toneMapped: false,
+            depthTest: true,
+            depthWrite: false,
         })
         matLine.userData.renderToGBuffer = false
         matLine.userData.renderToDepth = false
@@ -35,8 +37,12 @@ export class BoxSelectionWidget extends SelectionWidget {
         const selected = this.object
         if (selected) {
             const bbox = new Box3B().expandByObject(selected, false)
-            // const scale = bbox.getBoundingSphere(new Sphere()).radius
-            bbox.getSize(this.scale).multiplyScalar(this.boundingScaleMultiplier).clampScalar(0.1, 1e8)
+            const scale = bbox.getSize(this.scale)
+            if (scale.lengthSq() <= 0) { // It could be a light or camera with no geometry
+                selected.getWorldPosition(this.position)
+                scale.set(2, 2, 2)
+            }
+            scale.multiplyScalar(this.boundingScaleMultiplier).clampScalar(0.01, 1e8)
             this.setVisible(true)
         }
     }

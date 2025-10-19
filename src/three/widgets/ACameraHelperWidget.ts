@@ -13,5 +13,8 @@ export abstract class ACameraHelperWidget extends AHelperWidget {
             o.receiveShadow = false
         })
     }
+    preRender() { // req because its a camera
+        this._objectBeforeRender()
+    }
 
 }

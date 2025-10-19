@@ -11,7 +11,7 @@ export class SpotLightHelper2 extends ALightHelperWidget {
     cone: LineSegments2
     declare light: (SpotLight & IUiConfigContainer) | undefined
     @onChange(SpotLightHelper2.prototype.update)
-        material: LineMaterial2
+        hMaterial: LineMaterial2
     @onChange(SpotLightHelper2.prototype.update)
     @uiSlider(undefined, [0.1, 20], 0.01)
         lineWidth = 5
@@ -45,9 +45,9 @@ export class SpotLightHelper2 extends ALightHelperWidget {
         }
         geometry.setPositions(positions)
 
-        this.material = new LineMaterial2({
+        this.hMaterial = new LineMaterial2({
             color: 0xff0000,
-            linewidth: 5, // in world units with size attenuation, pixels otherwise
+            linewidth: 3, // in world units with size attenuation, pixels otherwise
             vertexColors: false,
             worldUnits: false,
 
@@ -56,13 +56,13 @@ export class SpotLightHelper2 extends ALightHelperWidget {
 
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
-        this.material.userData.renderToGBuffer = false
-        this.material.userData.renderToDepth = false
+        this.hMaterial.userData.renderToGBuffer = false
+        this.hMaterial.userData.renderToDepth = false
 
-        this.cone = new LineSegments2(geometry, this.material)
+        this.cone = new LineSegments2(geometry, this.hMaterial)
         this.add(this.cone)
 
         this.update()
@@ -100,8 +100,8 @@ export class SpotLightHelper2 extends ALightHelperWidget {
 
         this.cone.lookAt(this._v1)
 
-        this.material.color.set(this.color ?? this.light.color)
-        this.material.linewidth = this.lineWidth
+        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.linewidth = this.lineWidth
 
         super.update()
     }

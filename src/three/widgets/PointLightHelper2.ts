@@ -11,7 +11,7 @@ export class PointLightHelper2 extends ALightHelperWidget {
     lightSphere: Wireframe
     declare light: (PointLight & IUiConfigContainer) | undefined
     @onChange(PointLightHelper2.prototype.update)
-        material: LineMaterial2
+        hMaterial: LineMaterial2
     @onChange(PointLightHelper2.prototype.update)
     @uiSlider(undefined, [0.1, 20], 0.01)
         lineWidth = 5
@@ -28,9 +28,9 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
         const geometry = new WireframeGeometry2(new SphereGeometry(0.5, 4, 2))
 
-        this.material = new LineMaterial2({
+        this.hMaterial = new LineMaterial2({
             color: 0xff0000,
-            linewidth: 5, // in world units with size attenuation, pixels otherwise
+            linewidth: 3, // in world units with size attenuation, pixels otherwise
             vertexColors: false,
             worldUnits: false,
 
@@ -39,13 +39,13 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
-        this.material.userData.renderToGBuffer = false
-        this.material.userData.renderToDepth = false
+        this.hMaterial.userData.renderToGBuffer = false
+        this.hMaterial.userData.renderToDepth = false
 
-        this.lightSphere = new Wireframe(geometry, this.material)
+        this.lightSphere = new Wireframe(geometry, this.hMaterial)
         this.lightSphere.computeLineDistances()
         this.add(this.lightSphere)
 
@@ -70,8 +70,8 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
         if (!this.light || !this.lightSphere) return
 
-        this.material.color.set(this.color ?? this.light.color)
-        this.material.linewidth = this.lineWidth
+        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.linewidth = this.lineWidth
         this.lightSphere.scale.setScalar(this.size)
 
         super.update()

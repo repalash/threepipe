@@ -1,11 +1,11 @@
 import {Object3D, PerspectiveCamera} from 'three'
 import {generateUiFolder, IUiConfigContainer, uiToggle} from 'uiconfig.js'
-import {iObjectCommons, IWidget} from '../../core'
+import {Group2, iObjectCommons, IWidget} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
 
-export abstract class AHelperWidget extends Object3D implements IWidget {
+export abstract class AHelperWidget extends Group2 implements IWidget {
     isWidget = true as const
-    assetType = 'widget'
+    assetType = 'widget' as const
 
     object: (Object3D & IUiConfigContainer) | undefined
 
@@ -23,7 +23,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.matrix = object.matrixWorld
         this.matrixAutoUpdate = false
 
-        this.dispose = this.dispose.bind(this)
+        this.detach = this.detach.bind(this)
         this._objectUpdate = this._objectUpdate.bind(this)
         this._objectBeforeRender = this._objectBeforeRender.bind(this)
         attach && this.attach(object)
@@ -32,10 +32,8 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
             o.castShadow = false
             o.receiveShadow = false
         })
-    }
+        this.renderOrder = 100
 
-    dispose() {
-        this.detach()
     }
 
     update(setDirty = true) {
@@ -46,7 +44,7 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
     protected _objectUpdate() {
         this._objectUpdated = true
     }
-    // todo in threejs onbeforerender is not called on objects, only meshes and scene, see skeleton helper
+    // todo in threejs onbeforerender is not called on objects, lights etc, only meshes and scene, see ALightHelperWidget and skeleton helper
     protected _objectBeforeRender() {
         if (!this._objectUpdated) return
         this._objectUpdated = false
@@ -61,7 +59,6 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
             this.object.addEventListener('beforeRender', this._objectBeforeRender)
             this.object.addEventListener('objectUpdate', this._objectUpdate)
             this.object.addEventListener('geometryUpdate', this._objectUpdate)
-            this.object.addEventListener('dispose', this.dispose)
             this.uiConfig && this.object.uiConfig?.children?.push(this.uiConfig)
             this.visible = true
         }
@@ -73,7 +70,6 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
         this.object.removeEventListener('beforeRender', this._objectBeforeRender)
         this.object.removeEventListener('objectUpdate', this._objectUpdate)
         this.object.removeEventListener('geometryUpdate', this._objectUpdate)
-        this.object.removeEventListener('dispose', this.dispose)
         if (this.uiConfig) {
             const i = this.object.uiConfig?.children?.indexOf(this.uiConfig)
             if (i !== undefined && i >= 0)
@@ -86,10 +82,8 @@ export abstract class AHelperWidget extends Object3D implements IWidget {
 
     uiConfig = generateUiFolder('Widget', this, {tags: 'widget'})
 
-    /**
-     * @deprecated - not required
-     */
-    modelObject = this
-
+    dispose() {
+        this.detach()
+    }
 }
 

@@ -15,7 +15,7 @@ export class BoneHelper extends AHelperWidget {
     private _matrixWorldInv = new Matrix4()
 
     @onChange2(BoneHelper.prototype.update)
-        material: LineMaterial2
+        hMaterial: LineMaterial2
 
     @onChange2(BoneHelper.prototype.update)
     @uiSlider(undefined, [0.1, 20], 0.01)
@@ -39,10 +39,10 @@ export class BoneHelper extends AHelperWidget {
         if (color1) this.color1.set(color1)
         if (color2) this.color2.set(color2)
 
-        // Create geometry and material
+        // Create geometry and hMaterial
         const geometry = new LineSegmentsGeometry()
 
-        this.material = new LineMaterial2({
+        this.hMaterial = new LineMaterial2({
             vertexColors: true,
             linewidth: this.lineWidth,
             worldUnits: false,
@@ -50,13 +50,13 @@ export class BoneHelper extends AHelperWidget {
             alphaToCoverage: true,
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
-        this.material.userData.renderToGBuffer = false
-        this.material.userData.renderToDepth = false
+        this.hMaterial.userData.renderToGBuffer = false
+        this.hMaterial.userData.renderToDepth = false
 
-        this.lineSegments = new LineSegments2(geometry, this.material)
+        this.lineSegments = new LineSegments2(geometry, this.hMaterial)
         this.lineSegments.frustumCulled = false
         this.add(this.lineSegments)
 
@@ -76,8 +76,8 @@ export class BoneHelper extends AHelperWidget {
 
         const bone = this.object as Bone
 
-        // Update material properties
-        this.material.linewidth = this.lineWidth
+        // Update hMaterial properties
+        this.hMaterial.linewidth = this.lineWidth
 
         const vertices: number[] = []
         const colors: number[] = []

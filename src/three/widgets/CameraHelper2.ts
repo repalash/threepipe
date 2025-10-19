@@ -32,7 +32,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
         const geometry = new LineSegmentsGeometry()
         const material = new LineMaterial2({
             color: 0xffffff,
-            linewidth: 5, // in world units with size attenuation, pixels otherwise
+            linewidth: 3, // in world units with size attenuation, pixels otherwise
             vertexColors: true,
             worldUnits: false,
 
@@ -41,7 +41,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
 
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
         material.userData.renderToGBuffer = false
@@ -151,6 +151,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         const {_camera, _vector} = this
 
+        ;(this.camera as PerspectiveCamera).updateProjectionMatrix()
         _camera.projectionMatrixInverse.copy(this.camera.projectionMatrixInverse)
 
         // center / target

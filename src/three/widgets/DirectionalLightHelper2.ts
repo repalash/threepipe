@@ -13,7 +13,7 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
     declare light: (DirectionalLight&IUiConfigContainer)|undefined
 
     @onChange(DirectionalLightHelper2.prototype.update)
-        material: LineMaterial2
+        hMaterial: LineMaterial2
     @onChange(DirectionalLightHelper2.prototype.update)
     @uiSlider(undefined, [0.1, 20], 0.01)
         lineWidth = 5
@@ -30,9 +30,9 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
 
         let geometry = new LineGeometry()
 
-        this.material = new LineMaterial2({
+        this.hMaterial = new LineMaterial2({
             color: 0xff0000,
-            linewidth: 5, // in world units with size attenuation, pixels otherwise
+            linewidth: 3, // in world units with size attenuation, pixels otherwise
             vertexColors: false,
             worldUnits: false,
 
@@ -41,19 +41,19 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
 
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
-        this.material.userData.renderToGBuffer = false
-        this.material.userData.renderToDepth = false
+        this.hMaterial.userData.renderToGBuffer = false
+        this.hMaterial.userData.renderToDepth = false
 
-        this.lightPlane = new Line2(geometry, this.material)
+        this.lightPlane = new Line2(geometry, this.hMaterial)
         this.add(this.lightPlane)
 
         geometry = new LineGeometry()
         geometry.setPositions([0, 0, 0, 0, 0, 1])
 
-        this.targetLine = new Line2(geometry, this.material)
+        this.targetLine = new Line2(geometry, this.hMaterial)
         this.add(this.targetLine)
 
         this.update()
@@ -94,10 +94,10 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
             -this.size, this.size, 0,
         ])
         this.lightPlane.lookAt(this._v2)
-        this.lightPlane.material = this.material
-        this.targetLine.material = this.material
-        this.material.color.set(this.color ?? this.light.color)
-        this.material.linewidth = this.lineWidth
+        this.lightPlane.material = this.hMaterial
+        this.targetLine.material = this.hMaterial
+        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.linewidth = this.lineWidth
 
         this.targetLine.lookAt(this._v2)
         this.targetLine.scale.z = this.light.intensity / 3.

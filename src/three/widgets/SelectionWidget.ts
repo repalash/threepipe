@@ -1,14 +1,13 @@
-import {Group, Sphere} from 'three'
-import {AnyOptions} from 'ts-browser-helpers'
+import {Sphere} from 'three'
 import {Box3B} from '../math/Box3B'
-import {IMaterial, IObject3D, IWidget, RootScene} from '../../core'
+import {Group2, IMaterial, IObject3D, IWidget, RootScene} from '../../core'
 
-export class SelectionWidget extends Group implements IWidget {
+export class SelectionWidget extends Group2 implements IWidget {
     isWidget = true as const
+    assetType = 'widget' as const
 
     private _object: IObject3D | null = null
     boundingScaleMultiplier = 1.
-    setDirty?: (options?: AnyOptions) => void
 
     lineMaterial?: IMaterial
 
@@ -17,8 +16,12 @@ export class SelectionWidget extends Group implements IWidget {
         if (selected) {
             const bbox = new Box3B().expandByObject(selected, false)
             bbox.getCenter(this.position)
-            const scale = bbox.getBoundingSphere(new Sphere()).radius
-            this.scale.setScalar(scale * this.boundingScaleMultiplier)
+            let scale = bbox.getBoundingSphere(new Sphere()).radius
+            if (scale <= 0) { // It could be a light or camera with no geometry
+                selected.getWorldPosition(this.position)
+                scale = 0.1
+            }
+            this.scale.setScalar(scale * this.boundingScaleMultiplier).clampScalar(0.01, 1e8)
             this.setVisible(true)
         } else {
             this.setVisible(false)
@@ -37,7 +40,9 @@ export class SelectionWidget extends Group implements IWidget {
         this.userData.bboxVisible = false
 
         this._updater = this._updater.bind(this)
+        this.detach = this.detach.bind(this)
 
+        this.addEventListener('dispose', this.detach)
     }
 
     setVisible(v: boolean) {
@@ -76,10 +81,5 @@ export class SelectionWidget extends Group implements IWidget {
     get object(): IObject3D | null {
         return this._object
     }
-
-    dispose() {
-        this.detach()
-    }
-
 }
 

@@ -1,7 +1,6 @@
 
 export {WebGLArrayRenderTarget} from 'three'
 export {WebGL3DRenderTarget} from 'three'
-export {WebGLMultipleRenderTargets} from 'three'
 export {WebGLCubeRenderTarget} from 'three'
 export {WebGLRenderTarget} from 'three'
 export {WebGLRenderer} from 'three'
@@ -140,7 +139,6 @@ export {InterleavedBuffer} from 'three'
 export {InstancedBufferAttribute} from 'three'
 export {GLBufferAttribute} from 'three'
 export {
-    Float64BufferAttribute,
     Float32BufferAttribute,
     Float16BufferAttribute,
     Uint32BufferAttribute,
@@ -228,5 +226,5 @@ export type {MaterialEventMap, BufferGeometryEventMap, Object3DEventMap, BaseEve
 export type {Event, EventListener, EventListener2, Event2} from 'three'
 export type {MeshPhysicalMaterialParameters, MeshBasicMaterialParameters, MaterialParameters} from 'three'
 export type {TypedArray, WebXRArrayCamera} from 'three'
-export type {WebGLProgramParametersWithUniforms, WebGLProgramParameters, WebGL1PixelFormat, WebGLCapabilitiesParameters, WebGL2PixelFormat, WebGLDebug, WebGLRendererParameters, WebGLRenderTargetOptions, WebGLLightsState} from 'three'
+export type {WebGLProgramParametersWithUniforms, WebGLProgramParameters, WebGL1PixelFormat, WebGLCapabilitiesParameters, WebGL2PixelFormat, WebGLDebug, WebGLRendererParameters, RenderTargetOptions, WebGLLightsState} from 'three'
 export type {ShaderLibShader, IUniform} from 'three'

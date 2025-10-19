@@ -16,7 +16,7 @@ export class SkeletonHelper2 extends AHelperWidget {
     private _matrixWorldInv = new Matrix4()
 
     @onChange2(SkeletonHelper2.prototype.update)
-        material: LineMaterial2
+        hMaterial: LineMaterial2
 
     @onChange2(SkeletonHelper2.prototype.update)
     @uiSlider(undefined, [0.1, 20], 0.01)
@@ -42,10 +42,10 @@ export class SkeletonHelper2 extends AHelperWidget {
 
         this.bones = getBoneList(object)
 
-        // Create geometry and material
+        // Create geometry and hMaterial
         const geometry = new LineSegmentsGeometry()
 
-        this.material = new LineMaterial2({
+        this.hMaterial = new LineMaterial2({
             vertexColors: true,
             linewidth: this.lineWidth,
             // resolution: new Vector2(1024, 1024), // Required for Line2 rendering
@@ -54,13 +54,13 @@ export class SkeletonHelper2 extends AHelperWidget {
             alphaToCoverage: true,
             toneMapped: false,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false,
         })
-        this.material.userData.renderToGBuffer = false
-        this.material.userData.renderToDepth = false
+        this.hMaterial.userData.renderToGBuffer = false
+        this.hMaterial.userData.renderToDepth = false
 
-        this.lineSegments = new LineSegments2(geometry, this.material)
+        this.lineSegments = new LineSegments2(geometry, this.hMaterial)
         this.lineSegments.frustumCulled = false
         this.add(this.lineSegments)
 
@@ -79,8 +79,8 @@ export class SkeletonHelper2 extends AHelperWidget {
     update(setDirty = true) {
         if (!this.lineSegments || !this.object) return
 
-        // Update material properties
-        this.material.linewidth = this.lineWidth
+        // Update hMaterial properties
+        this.hMaterial.linewidth = this.lineWidth
 
         // Update colors in geometry
         const geometry = this.lineSegments.geometry

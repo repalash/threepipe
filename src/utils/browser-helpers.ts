@@ -47,7 +47,7 @@ export function getPropDesc(obj: any, prop: keyof typeof obj) {
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function isNonRelativeUrl(url: string) { // todo rename to nonRelativeUrl
+export function isNonRelativeUrl(url: string) { // todo rename to something better
     return url.startsWith('http://')
         || url.startsWith('https://')
         || url.startsWith('data:')

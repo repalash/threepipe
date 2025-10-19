@@ -60,6 +60,8 @@ export const iMaterialCommons = {
             if (userData) copyMaterialUserData(this.userData, userData)
             this.userData.uuid = this.uuid
 
+            // todo sprops
+
             // bump map scale fix todo: move this to Material.fromJSON
             // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
             const legacyBumpScale = (parameters as any)?.metadata && (parameters as any)?.metadata.version <= 4.6
