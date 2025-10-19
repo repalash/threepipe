@@ -290,20 +290,24 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
         if (obj.userData) {
             // todo deep merge all userdata?
-            if (obj.userData.__importData)
+            if (obj.userData.__importData) // this is with `__` as it is not automatically serialized, but it can be read in gltf exporter extensions and serialized manually
                 this.modelRoot.userData.__importData = {
                     ...this.modelRoot.userData.__importData,
                     ...obj.userData.__importData,
                 }
             if (obj.userData.gltfAsset) {
-                this.modelRoot.userData.__gltfAsset = { // todo: merge values?
-                    ...this.modelRoot.userData.__gltfAsset,
+                this.modelRoot.userData.gltfAsset = { // todo: why are we merging values?
+                    ...this.modelRoot.userData.gltfAsset,
                     ...obj.userData.gltfAsset,
+                    extras: {
+                        ...this.modelRoot.userData.gltfAsset?.extras,
+                        ...obj.userData.gltfAsset.extras,
+                    },
                 }
             }
             if (obj.userData.gltfExtras)
-                this.modelRoot.userData.__gltfExtras = {
-                    ...this.modelRoot.userData.__gltfExtras,
+                this.modelRoot.userData.gltfExtras = {
+                    ...this.modelRoot.userData.gltfExtras,
                     ...obj.userData.gltfExtras,
                 }
         }

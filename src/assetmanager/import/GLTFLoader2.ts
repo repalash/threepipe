@@ -1,7 +1,7 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {BufferGeometry, Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
-import {AnyOptions, safeSetProperty} from 'ts-browser-helpers'
+import {safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID, whiteImageData} from '../../three'
 import {
@@ -67,7 +67,38 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         GLTFMaterialsDisplacementMapExtension.Import,
         GLTFMaterialsLightMapExtension.Import,
         GLTFMaterialsAlphaMapExtension.Import,
+        (p)=>({ // saves the current path as resourcePath in the gltf document extras/userData.
+            name: '_EMBED_RESOURCE_PATH',
+            afterRoot: async(result: GLTF) => {
+                const scene = result.scene
+                if (!scene) return
+                if (result.userData.resourcePath) return // already set to something
+                result.userData.resourcePath = p.options.path
+            },
+        }),
     ]
+    private _resPathUrlModifier = { // Use the resourcePath saved in extras to resolve embedded assets if required/possible.
+        oldResourcePath: '',
+        newResourcePath: '',
+        modify: (url: string) => {
+            if (!this._resPathUrlModifier.oldResourcePath) return url
+            if (!this._resPathUrlModifier.newResourcePath) return url
+
+            let old = this._resPathUrlModifier.oldResourcePath
+            const newp = this._resPathUrlModifier.newResourcePath
+            if (old?.startsWith('/')) {
+                // see LoaderUtils.resolveURL
+                if (/^https?:\/\//i.test(newp)) {
+                    old = newp.replace(/(^https?:\/\/[^/]+).*/i, '$1') + old
+                }
+            }
+
+            if (url.startsWith(old)) {
+                return url.replace(old, newp)
+            }
+            return url
+        },
+    }
 
     /**
      * Use {@link MeshLine}(an extension of three.js `Line2`) instead of default `Line` for lines. This allows changing line width and other properties like `dashed`.
@@ -130,19 +161,25 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      * @param res
      * @param _
      */
-    transform(res: GLTF, _: AnyOptions): Object3D|undefined {
+    transform(res: GLTF, options: ImportAddOptions): Object3D|undefined {
         // todo: support loading of multiple scenes?
         let scene: RootSceneImportResult|undefined = res ? res.scene || !!res.scenes && res.scenes.length > 0 && res.scenes[0] : undefined as any
         if (!scene) return undefined
 
-        if (scene && scene.children.length === 1 && !scene.userData?.rootSceneModelRoot && !scene.importedViewerConfig && scene.name === 'AuxScene') {
+        if (scene && scene.children.length === 1 && !scene.userData?.rootSceneModelRoot && !scene.importedViewerConfig && scene.name === 'AuxScene' && !res.cameras?.length) {
             scene = scene.children[0] as RootSceneImportResult
             scene.removeFromParent()
         }
         if (!scene.userData) scene.userData = {}
-        if (res.userData) scene.userData.gltfExtras = res.userData // todo: put back in gltf in GLTFExporter2
+        if (res.userData) scene.userData.gltfExtras = res.userData
         if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
-        if (res.asset) scene.userData.gltfAsset = res.asset // todo: put back in gltf in GLTFExporter2
+        if (res.asset) scene.userData.gltfAsset = res.asset
+
+        if (options.importAsModelRoot) {
+            scene.userData.rootSceneModelRoot = true
+        } else if (options.importAsModelRoot === false && scene.userData.rootSceneModelRoot) {
+            delete scene.userData.rootSceneModelRoot
+        }
 
         const lines: Line[] = []
         const refMap = new Map<string, Object3D[]>()
@@ -246,12 +283,19 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         // Note: this should be last
         this.register(this.gltfViewerParser(viewer))
 
+
         return this
     }
 
     // loads the viewer config and handles loading the draco loader for extension
     gltfViewerParser = (viewer: ThreeViewer): (p: GLTFParser)=>GLTFLoaderPlugin => {
-        return (parser: GLTFParser) => {
+
+        return (parser: GLTFParser) => { // this is called when the parser is created
+            this._resPathUrlModifier.newResourcePath = parser.options.path
+            this._resPathUrlModifier.oldResourcePath = parser.json?.extras?.resourcePath
+            // in url modifier, see if an asset being loaded starts with userData.resourcePath, if yes, replace it with current resourcePath
+            viewer.assetManager.importer.addURLModifier(this._resPathUrlModifier.modify)
+
             parser.importOptions = this.importOptions || undefined
             const getDependency = parser.getDependency
             parser.getDependency = async(type: string, index: number) => {
@@ -312,6 +356,8 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
                 tempFiles.forEach(f=>viewer.assetManager.importer.unregisterFile(f))
 
                 await GLTFViewerConfigExtension.ImportViewerConfig(parser, viewer, result.scenes || [result.scene])
+
+                viewer.assetManager.importer.removeURLModifier(this._resPathUrlModifier.modify)
             }}
         }
     }

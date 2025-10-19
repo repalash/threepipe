@@ -159,6 +159,15 @@ export interface LoadFileOptions {
      *
      */
     createUniqueNames?: boolean | 'auto',
+    /**
+     * If true, the imported asset will be treated as a model root, and its objects will be imported under a root scene object.
+     * This is useful when importing assets that are meant to be used as root scenes, but not exported with `AssetExporter` as a scene.
+     * When this is not set (or set to undefined), it will be determined automatically based on the presence of `rootSceneModelRoot` in the asset.
+     * Note - Only for gltf, glb files or files loaded with {@link GLTFLoader2
+     *
+     * @default - undefined
+     */
+    importAsModelRoot?: boolean | undefined
 
     /**
      * for internal use

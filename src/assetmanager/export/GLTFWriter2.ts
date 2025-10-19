@@ -159,7 +159,6 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         cachedImages[ key ] = index
         return index
 
-
     }
 
     processSampler(map: Texture) {
@@ -213,20 +212,25 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
                 console.error('textureDef is null', processed, map)
                 return processed
             }
+            let uri = map.userData.rootPath
+            const basePath = this.options.exporterOptions._basePath
+            if (basePath && typeof uri === 'string' && uri.startsWith(basePath)) {
+                uri = uri.slice(basePath.length)
+            }
             if (textureDef.source >= 0) {
                 // console.warn('textureDef.source is already set', processed, map)
                 const img = this.json.images[textureDef.source]
                 if (img.uri) {
                     console.warn('uri already set', img.uri)
                 } else {
-                    img.uri = map.userData.rootPath
+                    img.uri = uri
                     img.mimeType = mimeType
                     if (!img.extras) img.extras = {}
                     img.extras.flipY = map.flipY
-                    img.extras.uri = map.userData.rootPath // uri is removed by gltf-transform if bufferView is set
+                    img.extras.uri = uri // uri is removed by gltf-transform if bufferView is set
                 }
             } else {
-                textureDef.source = this.processImageUri(map.image, map.userData.rootPath, map.flipY, mimeType)
+                textureDef.source = this.processImageUri(map.image, uri, map.flipY, mimeType)
             }
         }
         if (textureDef.source < 0) {

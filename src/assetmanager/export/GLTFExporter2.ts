@@ -13,6 +13,7 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
+import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 export interface GLTFExporter2Options {
     /**
@@ -105,6 +106,9 @@ export interface GLTFExporter2Options {
      */
     includeCustomExtensions?: boolean;
 
+    // wip - replace this base path from embedded resources url. this is expected to be path/resourcePath in GLTFLoader when this exported asset is loaded the next time.
+    _basePath?: string
+
     [key: string]: any
 }
 
@@ -173,7 +177,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
             gltfOptions.binary = true
         }
 
-        const onDone1 = (o: any)=> {
+        const onDone1 = (o: GLTF)=> {
 
             // eslint-disable-next-line @typescript-eslint/naming-convention
             onDone(Object.assign(o, {__isGLTFOutput: true}))
@@ -189,6 +193,44 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         GLTFMaterialsDisplacementMapExtension.Export,
         GLTFMaterialsLightMapExtension.Export,
         GLTFMaterialsAlphaMapExtension.Export,
+        (w)=>{ // Extension to write any gltfExtras that is imported with GLTFLoader back into the gltf json.
+            return {
+                name: '_AssetPropsWriter',
+                beforeParse: (input: any)=>{
+                    const inputs = Array.isArray(input) ? input : [input]
+                    for (const obj of inputs) {
+                        // remove from userData so its not serialized inside the node/scene
+                        if (obj.userData.gltfExtras) {
+                            obj.__gltfExtras = obj.userData.gltfExtras
+                            delete obj.userData.gltfExtras
+                        }
+                        if (obj.userData.gltfAsset) {
+                            obj.__gltfAsset = obj.userData.gltfAsset
+                            delete obj.userData.gltfAsset
+                        }
+                    }
+                },
+                afterParse: (input: any)=>{
+                    const extras = (w.json as any).extras || {}
+                    const inputs = Array.isArray(input) ? input : [input]
+                    for (const obj of inputs) {
+                        // ignoring .gltfAsset right now, is that fine? any copyright info would have been copied to userData.license during import.
+                        if (obj.__gltfAsset) {
+                            obj.userData.gltfAsset = obj.__gltfAsset
+                            delete obj.__gltfAsset
+                        }
+                        if (obj.__gltfExtras) {
+                            obj.userData.gltfExtras = obj.__gltfExtras
+                            Object.assign(extras, obj.userData.gltfExtras)
+                            delete obj.__gltfExtras
+                        }
+                    }
+                    if (Object.keys(extras).length > 0) {
+                        (w.json as any).extras = extras
+                    }
+                },
+            }
+        },
         // (w)=>new GLTFMeshGpuInstancingExporter(w), // added to threejs
     ]
 
