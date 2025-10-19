@@ -93,7 +93,7 @@ async function init() {
             if (!res) return
             const i = urls.indexOf(url)
             res.position.set(i % 4 - 1.5, 0, Math.floor(i / 4) - 1.5).multiplyScalar(1)
-            res.setDirty()
+            res.setDirty && res.setDirty()
             return res
         })))
 

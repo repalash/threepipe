@@ -36,7 +36,7 @@ async function init() {
                 to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
                 duration: 500, // ms
                 onComplete: () => isMovedUp = !isMovedUp,
-                onUpdate: () => cube.setDirty(),
+                onUpdate: () => cube.setDirty?.(),
             })
             btn.disabled = false
         },
@@ -48,7 +48,7 @@ async function init() {
                 duration: 500,
                 onUpdate: (v) => {
                     cube.rotation.y = v
-                    cube.setDirty()
+                    cube.setDirty?.()
                 },
             })
             btn.disabled = false

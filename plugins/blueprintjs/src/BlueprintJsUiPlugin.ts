@@ -18,7 +18,6 @@ import {
     Vector4,
     UiObjectConfig,
     WebGLCubeRenderTarget,
-    WebGLMultipleRenderTargets,
     WebGLRenderTarget,
     windowDialogWrapper,
     htmlDialogWrapper,
@@ -42,8 +41,6 @@ export class BlueprintJsUiPlugin extends UiConfigRendererBlueprint implements IV
         WebGLRenderTarget.prototype._ui_isPrimitive = true
         // @ts-expect-error same
         WebGLCubeRenderTarget.prototype._ui_isPrimitive = true
-        // @ts-expect-error same
-        WebGLMultipleRenderTargets.prototype._ui_isPrimitive = true
     }
 
     protected _viewer?: ThreeViewer

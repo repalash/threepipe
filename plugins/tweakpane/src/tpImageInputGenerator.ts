@@ -68,7 +68,7 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
                     setTimeout(() => {
                         if (!cc._target) return
                         // here we are not doing cc.image.tp_src because cc.image can be shared across multiple textures in MRT
-                        const dataUrl = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, Array.isArray(cc._target.texture) ? cc._target.texture.indexOf(cc) : undefined)
+                        const dataUrl = viewer.renderManager.renderTargetToDataUrl(cc._target, undefined, undefined, cc._target.textures.indexOf(cc))
                         cc.tp_src = dataUrl
                         setTimeout(()=>cc.tp_src && delete cc.tp_src, 1000) // clear after 1 second so it refreshes on next render
                         config.uiRefresh?.(false, 'postFrame')

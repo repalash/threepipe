@@ -25,7 +25,6 @@ import {
     Vector3,
     Vector4,
     WebGLCubeRenderTarget,
-    WebGLMultipleRenderTargets,
     WebGLRenderTarget,
     windowDialogWrapper,
 } from 'threepipe'
@@ -62,8 +61,6 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
         WebGLRenderTarget.prototype._ui_isPrimitive = true
         // @ts-expect-error same
         WebGLCubeRenderTarget.prototype._ui_isPrimitive = true
-        // @ts-expect-error same
-        WebGLMultipleRenderTargets.prototype._ui_isPrimitive = true
     }
 
     protected _viewer?: ThreeViewer

@@ -31,7 +31,7 @@ async function init() {
     result?.traverse(object => {
         object.visible = true
     })
-    result?.setDirty()
+    result?.setDirty && result?.setDirty()
 
 }
 

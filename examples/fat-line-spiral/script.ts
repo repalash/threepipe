@@ -61,6 +61,7 @@ async function init() {
     })
     ui.appendChild(line.uiConfig)
     ui.setupPluginUi(AssetExporterPlugin)
+    ui.setupPluginUi(GBufferPlugin)
 
 }
 

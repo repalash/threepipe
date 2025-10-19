@@ -32,7 +32,7 @@ async function init() {
         },
         ['Change Size']: ()=>{
             cube.scale.setScalar(Math.random() * 1.5 + 0.5)
-            cube.setDirty({fadeDuration: 1000}) // duration can be controlled by an option like this.
+            cube.setDirty && cube.setDirty({fadeDuration: 1000}) // duration can be controlled by an option like this.
         },
         ['Change Color (no fade)']: ()=>{
             cube.material.color.setHSL(Math.random(), 1, 0.5)

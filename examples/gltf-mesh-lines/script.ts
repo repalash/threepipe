@@ -67,8 +67,8 @@ async function init() {
     })
     o1.forEach(o=>p1.add(o))
     o2.forEach(o=>p2.add(o))
-    obj1?.dispose(true)
-    obj2?.dispose(true)
+    obj1?.dispose?.(true)
+    obj2?.dispose?.(true)
 
     mats.map(m=>{
         if (!m.appliedMeshes.size) return

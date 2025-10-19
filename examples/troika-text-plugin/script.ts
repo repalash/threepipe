@@ -43,7 +43,7 @@ async function init() {
             object.position.y = Math.cos(v * Math.PI * 2) * 2
             // object.position.z = Math.sin(v * Math.PI * 4) * 1
             object.rotation.y = v * Math.PI * 2
-            object.setDirty()
+            object.setDirty && object.setDirty()
         },
     })
 

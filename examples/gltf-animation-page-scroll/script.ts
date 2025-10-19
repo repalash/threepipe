@@ -17,7 +17,7 @@ async function init() {
         autoScale: true,
     })
 
-    const fileCamera = viewer.scene.getObjectByName<ICamera>('Correction__MovingCamera')
+    const fileCamera = viewer.scene.getObjectByName('Correction__MovingCamera') as ICamera
     if (!fileCamera) return
 
     fileCamera.autoAspect = true

@@ -25,7 +25,7 @@ async function init() {
     })
     console.log(result)
 
-    const fileCamera = viewer.scene.getObjectByName<ICamera>('Correction__MovingCamera')
+    const fileCamera = viewer.scene.getObjectByName('Correction__MovingCamera') as ICamera
     if (!fileCamera) return
 
     fileCamera.userData.autoLookAtTarget = false

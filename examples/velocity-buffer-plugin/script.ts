@@ -56,7 +56,7 @@ async function init() {
                 const angle = v * Math.PI * 2 + Math.PI / 2
                 const radius = 1.5
                 model.position.set(Math.cos(angle) * radius, Math.sin(v * Math.PI * 4), Math.sin(angle) * radius)
-                model.setDirty()
+                model.setDirty && model.setDirty()
                 viewer.setDirty() // since camera is not in the scene
             },
         })
