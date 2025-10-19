@@ -154,6 +154,16 @@ export interface ISetDirtyCommonOptions {
     key?: string
 
     /**
+     * New value that triggered the change. Set from `onChange3` etc.
+     */
+    value?: any
+
+    /**
+     * Old value before the change. Set from `onChange3` etc.
+     */
+    oldValue?: any
+
+    /**
      * Set to true if this is the last value in a user input chain. (like when mouse up on slider)
      */
     last?: boolean
@@ -299,8 +309,6 @@ export interface IObject3DUserData extends IImportResultUserData {
     sProperties?: string[]
 
 
-    __objectSetup?: boolean
-    __meshSetup?: boolean
     // [key: string]: any // commented for noe
 
     // legacy
@@ -362,7 +370,7 @@ export interface IObjectExtension {
 }
 
 export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG extends IGeometry | undefined= IGeometry | undefined, TM extends IMaterial | IMaterial[] | undefined = IMaterial | IMaterial[] | undefined> extends Object3D<TE>, IUiConfigContainer {
-    assetType: 'model' | 'light' | 'camera' | 'widget'
+    assetType?: 'model' | 'light' | 'camera' | 'widget'
 
     readonly isObject3D: true
 
@@ -385,7 +393,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * Dispatches 'objectUpdate' event on object.
      * @param e
      */
-    setDirty(e?: IObjectSetDirtyOptions): void
+    setDirty?(e?: IObjectSetDirtyOptions): void
 
     /**
      * Parent/Ancestor of this object to bubble events to. This is set internally by setupObject3D.
@@ -393,7 +401,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     parentRoot?: IObject3D | null
 
     uiConfig?: UiObjectConfig
-    refreshUi(): void
+    refreshUi?(): void
 
     // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
     userData: IObject3DUserData
@@ -406,7 +414,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * @param setDirty - true by default
      * @param undo - undo any previous autoScale operation
      */
-    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean, undo?: boolean): this
+    autoScale?(autoScaleRadius?: number, isCentered?: boolean, setDirty?: boolean, undo?: boolean): void
 
     /**
      * Moves the bounding box center of the object to the center of the world
@@ -414,7 +422,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      * @param setDirty - calls {@link setDirty} @default true
      * @param undo - undo any previous autoCenter operation
      */
-    autoCenter?(setDirty?: boolean, undo?: boolean): this
+    autoCenter?(setDirty?: boolean, undo?: boolean): void
 
     /**
      * Moves the object pivot to the center of the bounding box.
@@ -437,19 +445,15 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      */
     pivotToPoint?(point: Vector3, setDirty?: boolean): this
 
-    /**
-     * @deprecated use object directly
-     */
-    modelObject: IObject3D
-
     objectProcessor?: IObjectProcessor
     objectExtensions?: IObjectExtension[]
 
     // __disposed?: boolean
+
     /**
      * @param removeFromParent - remove from parent. Default true
      */
-    dispose(removeFromParent?: boolean): void;
+    dispose?(removeFromParent?: boolean): void;
 
     /**
      * A promise can be set by the object to indicate that the object is loading.
@@ -540,6 +544,7 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     isLine2?: boolean
     isLineSegments?: boolean
     isLineSegments2?: boolean
+    isWireframe?: boolean
     // isGroup?: boolean
     isScene?: boolean
     // isHelper?: boolean
@@ -590,6 +595,17 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
      */
     ['_sChildren']?: Object3D[]
 
+    /**
+     * If an object has been converted to IObject3D using `upgradeObject3D`, this flag is set to true.
+     * @internal
+     */
+    __objectSetup?: boolean
+    /**
+     * If a mesh has been converted to IObject3D using `upgradeObject3D`, this flag is set to true.
+     * @internal
+     */
+    __meshSetup?: boolean
+
     // constructor: {
     //     // TYPE: string
     //     // TypeSlug: string
@@ -603,13 +619,13 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
     traverseAncestors(callback: (object: IObject3D) => void): void
-    getObjectById<T extends IObject3D = IObject3D>(id: number): T | undefined
-    getObjectByName<T extends IObject3D = IObject3D>(name: string): T | undefined
-    getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
-    copy(source: this, recursive?: boolean, ...args: any[]): this
-    clone(recursive?: boolean): this
-    add(...object: Object3D[]): this
-    remove(...object: IObject3D[]): this
+    getObjectById(id: number): IObject3D | undefined
+    getObjectByName(name: string): IObject3D | undefined
+    getObjectByProperty(name: string, value: string): IObject3D | undefined
+    copy(source: IObject3D, recursive?: boolean, ...args: any[]): IObject3D&this
+    clone(recursive?: boolean): IObject3D&this
+    add(...object: (IObject3D|Object3D)[]): IObject3D&this
+    remove(...object: (IObject3D|Object3D)[]): IObject3D&this
     parent: IObject3D | null
     children: IObject3D[]
 

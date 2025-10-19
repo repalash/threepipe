@@ -16,17 +16,16 @@ import {
     Wrapping,
 } from 'three'
 import type {IRenderManager, IWebGLRenderer} from '../core'
-import {ValOrArr} from 'ts-browser-helpers'
 
-export interface IRenderTarget extends RenderTarget<Texture | Texture[]> {
-    isWebGLRenderTarget: boolean
+export interface IRenderTarget extends RenderTarget<Texture> {
+    isWebGLRenderTarget?: true
     width: number
     height: number
     depth: number
     assetType?: 'renderTarget'
     name?: string
 
-    texture: ValOrArr<Texture&{_target?: IRenderTarget}>
+    // texture: ValOrArr<Texture&{_target?: IRenderTarget}>
     uuid?: string
     sizeMultiplier?: number
     isTemporary?: boolean
@@ -64,7 +63,7 @@ export interface IRenderTarget extends RenderTarget<Texture | Texture[]> {
     samples: number;
 
     isWebGLCubeRenderTarget?: boolean
-    isWebGLMultipleRenderTargets?: boolean
+    // isWebGLMultipleRenderTargets?: boolean
     clear?(renderer: IWebGLRenderer, color: boolean, depth: boolean, stencil: boolean): void
 
     readonly renderManager?: IRenderManager

@@ -184,10 +184,10 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
     traverseAncestors(callback: (object: IObject3D) => void): void
-    getObjectById<T extends IObject3D = IObject3D>(id: number): T | undefined
-    getObjectByName<T extends IObject3D = IObject3D>(name: string): T | undefined
-    getObjectByProperty<T extends IObject3D = IObject3D>(name: string, value: string): T | undefined
-    copy(source: ICamera|Camera, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean, ...args: any[]): this
+    getObjectById(id: number): IObject3D | undefined
+    getObjectByName(name: string): IObject3D | undefined
+    getObjectByProperty(name: string, value: string): IObject3D | undefined
+    copy(source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean, ...args: any[]): this
     clone(recursive?: boolean): this
     add(...object: IObject3D[]): this
     remove(...object: IObject3D[]): this

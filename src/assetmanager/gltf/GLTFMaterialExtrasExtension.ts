@@ -52,6 +52,7 @@ export class GLTFMaterialExtrasExtension {
                     // if (ext.transparent !== undefined) o.transparent = ext.transparent // this is set by GLTFLoader based on alpha mode
 
                     if (ext.envMapIntensity !== undefined) o.envMapIntensity = ext.envMapIntensity // for when separateEnvMapIntensity is true
+                    if (ext.envMapRotation !== undefined && Array.isArray(ext.envMapRotation) && o.envMapRotation?.fromArray) o.envMapRotation.fromArray(ext.envMapRotation)
                     // if (ext.envMapSlotKey !== undefined) o.envMapSlotKey = ext.envMapSlotKey // in userdata
 
                     if (ext.blendSrc !== undefined) o.blendSrc = ext.blendSrc
@@ -190,6 +191,7 @@ export class GLTFMaterialExtrasExtension {
             if (material.alphaHash !== undefined && material.alphaHash !== threeMaterialPropList.alphaHash) dat.alphaHash = material.alphaHash
 
             if (material.envMapIntensity !== undefined && material.envMapIntensity !== PhysicalMaterial.MaterialProperties.envMapIntensity) dat.envMapIntensity = material.envMapIntensity // for when separateEnvMapIntensity is true
+            if (material.envMapRotation !== undefined && !material.envMapRotation.equals(PhysicalMaterial.MaterialProperties.envMapRotation)) dat.envMapRotation = material.envMapRotation.toArray()
             // if (material.envMapSlotKey !== undefined && material.envMapSlotKey !== threeMaterialPropList.envMapSlotKey) dat.envMapSlotKey = material.envMapSlotKey // in userData
 
             if (material.blendSrc !== undefined && material.blendSrc !== threeMaterialPropList.blendSrc) dat.blendSrc = material.blendSrc

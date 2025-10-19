@@ -36,7 +36,7 @@ export const iGeometryCommons = {
                 for (const m of meshes) {
                     m.updateMatrix()
                     m.position.copy(offset).applyMatrix4(m.matrix)
-                    if (setDirty) m.setDirty()
+                    if (setDirty && m.setDirty) m.setDirty()
                 }
             } else {
                 superCenter.call(this, offset)
@@ -54,9 +54,9 @@ export const iGeometryCommons = {
                 m.updateMatrix()
                 positions.set(m, m.position.clone())
                 m.position.set(-offset1.x, -offset1.y, -offset1.z).applyMatrix4(m.matrix)
-                if (setDirty) m.setDirty()
+                if (setDirty) m.setDirty && m.setDirty()
             }
-            if (setDirty) this.setDirty()
+            if (setDirty) this.setDirty && this.setDirty()
             return ()=>{
                 // undo
                 for (const m of meshes) {
@@ -66,17 +66,17 @@ export const iGeometryCommons = {
                         continue
                     }
                     m.position.copy(pos)
-                    if (setDirty) m.setDirty()
+                    if (setDirty && m.setDirty) m.setDirty()
                 }
-                if (setDirty) this.setDirty()
+                if (setDirty) this.setDirty && this.setDirty()
             }
         } else {
             this.center(offset1, false, false)
-            if (setDirty) this.setDirty()
+            if (setDirty) this.setDirty && this.setDirty()
             return ()=>{
                 // undo
                 this.translate(-offset1.x, -offset1.y, -offset1.z)
-                if (setDirty) this.setDirty()
+                if (setDirty) this.setDirty && this.setDirty()
             }
         }
     },
@@ -121,7 +121,7 @@ export const iGeometryCommons = {
                     value: async() => {
                         if (this.hasAttribute('normal') && !await ThreeViewer.Dialog.confirm('Normals already exist, replace with computed normals?\nThis action cannot be undone.')) return
                         this.computeVertexNormals()
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -130,7 +130,7 @@ export const iGeometryCommons = {
                     value: async() => {
                         if (this.hasAttribute('tangent') && !await ThreeViewer.Dialog.confirm('Tangents already exist, replace with computed tangents?\nThis action cannot be undone.')) return
                         this.computeTangents()
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -138,7 +138,7 @@ export const iGeometryCommons = {
                     label: 'Normalize normals',
                     value: () => {
                         this.normalizeNormals()
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -149,7 +149,7 @@ export const iGeometryCommons = {
                         if (this.attributes.index) return
                         const tolerance = parseFloat(await ThreeViewer.Dialog.prompt('Convert to Indexed: Tolerance?', '-1') ?? '-1')
                         toIndexedGeometry(this, tolerance)
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -159,7 +159,7 @@ export const iGeometryCommons = {
                     value: () => {
                         if (!this.attributes.index) return
                         this.toNonIndexed()
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -170,7 +170,7 @@ export const iGeometryCommons = {
                             if (!await ThreeViewer.Dialog.confirm('uv1 already exists, replace with uv data?\nThis action cannot be undone.')) return
                         }
                         this.setAttribute('uv1', this.getAttribute('uv'))
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {
@@ -184,7 +184,7 @@ export const iGeometryCommons = {
                         }
                         if (!await ThreeViewer.Dialog.confirm('Remove color attribute?')) return
                         this.deleteAttribute('color')
-                        this.setDirty()
+                        this.setDirty && this.setDirty()
                     },
                 },
                 {

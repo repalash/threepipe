@@ -1373,6 +1373,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     fromJSON(data: ISerializedViewerConfig, meta?: SerializationMetaType): this|null {
         const data2: Partial<ISerializedViewerConfig> = {...data} // shallow copy
 
+
+        if (meta && data2.metadata && data2.type === 'ViewerApp') {
+            meta._configMetadata = { // used in RootScene
+                ...data2.metadata,
+                viewerVersion: data2.version,
+            }
+        }
+
         // region legacy
         if (data2.backgroundIntensity !== undefined && data2.scene?.backgroundIntensity === undefined) {
             this.console.warn('old file format, backgroundIntensity moved to RootScene')
@@ -1527,7 +1535,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         version: ThreeViewer.VERSION,
         metadata: {
             generator: 'ThreePipe',
-            version: 1,
+            version: 2,
         },
         plugins: [],
     }

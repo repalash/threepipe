@@ -8,8 +8,8 @@ export class EXRExporter2 extends EXRExporter implements IExportWriter {
         const target = <IRenderTarget>obj
         if (target.isWebGLRenderTarget && !target.renderManager) throw new Error('No renderManager on renderTarget')
         if (!target.isWebGLRenderTarget && !(<DataTexture>obj).isDataTexture) throw new Error('Invalid object type')
-        if (target.isWebGLMultipleRenderTargets && options.textureIndex === undefined)
-            console.warn('No textureIndex specified for WebGLMultipleRenderTargets')
+        if (target.textures.length > 1 && options.textureIndex === undefined)
+            console.warn('RenderTarget has multiple textures, but no textureIndex specified. Using texture 0.')
         const res = target.isWebGLRenderTarget ?
             this.parse(target.renderManager!.webglRenderer, <WebGLRenderTarget>target, options) :
             this.parse(<DataTexture>obj, options)

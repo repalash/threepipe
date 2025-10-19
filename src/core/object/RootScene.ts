@@ -2,6 +2,7 @@ import {
     BufferGeometry,
     Color,
     EquirectangularReflectionMapping,
+    Euler,
     EventListener,
     EventListener2,
     IUniform,
@@ -12,7 +13,7 @@ import {
 } from 'three'
 import type {IObject3D, IObject3DEventMap, IObjectProcessor} from '../IObject'
 import {type ICamera} from '../ICamera'
-import {autoGPUInstanceMeshes, bindToValue, Box3B} from '../../three'
+import {autoGPUInstanceMeshes, Box3B} from '../../three'
 import {AnyOptions, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import {PerspectiveCamera2} from '../camera/PerspectiveCamera2'
 import {addModelProcess, centerAllGeometries, ThreeSerialization} from '../../utils'
@@ -20,7 +21,17 @@ import {ITexture} from '../ITexture'
 import {AddObjectOptions, IScene, ISceneEventMap, ISceneSetDirtyOptions, IWidget} from '../IScene'
 import {iObjectCommons} from './iObjectCommons'
 import {RootSceneImportResult} from '../../assetmanager'
-import {uiButton, uiColor, uiConfig, uiFolderContainer, uiImage, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {
+    uiButton,
+    uiColor,
+    uiConfig,
+    uiFolderContainer,
+    uiImage,
+    UiObjectConfig,
+    uiSlider,
+    uiToggle,
+    uiVector,
+} from 'uiconfig.js'
 import {getFittingDistance} from '../../three/utils/camera'
 import {iCameraCommons} from './iCameraCommons'
 
@@ -44,7 +55,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         backgroundColor: Color | null = null // read in three.js WebGLBackground
 
     @uiColor<RootScene>('Background Color', (s)=>({
-        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined,
+        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined || s.background === 'environment',
     }))
     protected get _backgroundColorUi() {
         return '#' + (this.backgroundColor?.getHexString() ?? '000000')
@@ -56,7 +67,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
     @onChange3(RootScene.prototype.onBackgroundChange)
     @serialize() @uiImage<RootScene>('Background Image', (s)=>({
-        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined,
+        hidden: ()=>s.backgroundColor === null || s.backgroundColor === undefined || s.background === 'environment',
     }))
         background: null | Color | ITexture | 'environment' = null
 
@@ -76,6 +87,22 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.refreshUi?.()
         this.setDirty()
     }
+
+    /**
+     * Toggle the background between texture and environment map.
+     */
+    @uiButton<RootScene>(undefined, (s)=>({
+        label: ()=>s.background === 'environment' ? 'Remove Env Background' : 'Set Env Background',
+        disabled: ()=>!s.environment,
+    }))
+    toggleEnvironmentBackground() {
+        if (this.background === 'environment') {
+            this.background = null
+        } else {
+            this.background = 'environment'
+        }
+    }
+
 
     /**
      * The intensity for the background color and map.
@@ -107,15 +134,16 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     @serialize() @onChange3(RootScene.prototype.setDirty)
         envMapIntensity = 1
 
-    /**
-     * Rotation in radians of the default environment map.
-     * Same as {@link environment}.rotation.
-     *
-     * Note - this is not serialized here, but inside the texture.
-     */
-    @uiSlider('Environment Rotation', [-Math.PI, Math.PI], 0.01)
-    @bindToValue({obj: 'environment', key: 'rotation', onChange: RootScene.prototype.setDirty, onChangeParams: false})
-        envMapRotation = 0
+    @serialize()
+    @uiVector<RootScene>('Environment Rotation', undefined, undefined, (t)=>({disabled: ()=>t.fixedEnvMapDirection || !t.environment}))
+    declare environmentRotation: Euler
+    @serialize()
+    @uiVector<RootScene>('Background Rotation', undefined, undefined, (t)=>({hidden: ()=>!t.background || t.background === 'environment' || !(t.background as any).isTexture || (t.background as any).mapping !== EquirectangularReflectionMapping}))
+    declare backgroundRotation: Euler
+
+    // @uiSlider('Environment Rotation', [-Math.PI, Math.PI], 0.01)
+    // @bindToValue({obj: 'environment', key: 'rotation', onChange: RootScene.prototype.setDirty, onChangeParams: false})
+    //     envMapRotation = 0
 
     /**
      * Extra textures/envmaps that can be used by objects/materials/plugins and will be serialized.
@@ -205,6 +233,13 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.addEventListener('objectUpdate', this.refreshScene)
         this.addEventListener('geometryUpdate', this.refreshScene)
         this.addEventListener('geometryChanged', this.refreshScene)
+
+        this.environmentRotation?._onChange(()=>{
+            this.setDirty({key: 'environmentRotation', value: this.environmentRotation})
+        })
+        this.backgroundRotation?._onChange(()=>{
+            this.setDirty({key: 'backgroundRotation', value: this.backgroundRotation})
+        })
 
         this.defaultCamera = camera
         this.modelRoot = new Object3D() as IObject3D
@@ -659,6 +694,14 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         if (env !== undefined) {
             this.environment = ThreeSerialization.Deserialize(env, this.environment, meta, false)
             delete json.environment
+            if (meta?._configMetadata && meta._configMetadata.version < 2) {
+                // legacy - files saved pre three.js < r162, threepipe < v0.4.0
+                if (this.environment?.rotation) {
+                    // old files used to save y rotation inside the texture.
+                    this.environmentRotation.y = this.environment.rotation
+                    this.environment.rotation = 0 // for next save
+                }
+            }
         }
         ThreeSerialization.Deserialize(json, this, meta, true)
         json.environment = env
@@ -679,10 +722,10 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
-    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
-    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
-    copy: (source: this, recursive?: boolean, ...args: any[]) => this
+    getObjectById: (id: number) => IObject3D | undefined
+    getObjectByName: (name: string) => IObject3D | undefined
+    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
+    copy: (source: RootScene|Scene|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this
     // dispatchEvent: (event: ISceneEvent) => void

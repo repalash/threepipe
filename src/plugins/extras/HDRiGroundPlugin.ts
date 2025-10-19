@@ -100,8 +100,8 @@ export class HDRiGroundPlugin extends AViewerPluginSync {
 
         if (!ShaderLib.backgroundCube.fragmentShader.includes('#ifdef HDRi_GROUND_PROJ')) {
             ShaderLib.backgroundCube.fragmentShader = shaderReplaceString(ShaderLib.backgroundCube.fragmentShader, 'void main() {', hdriGroundProj, {prepend: true})
-            ShaderLib.backgroundCube.fragmentShader = shaderReplaceString(ShaderLib.backgroundCube.fragmentShader, 'vec3 vReflect = vWorldDirection;', `
-vec3 vReflect = 
+            ShaderLib.backgroundCube.fragmentShader = shaderReplaceString(ShaderLib.backgroundCube.fragmentShader, 'vec3 worldDirection = vWorldDirection;', `
+vec3 worldDirection = 
 #ifdef HDRi_GROUND_PROJ
 hdriProject()
 #else

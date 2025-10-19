@@ -567,11 +567,11 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objec
 
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return this
-    if (this.userData.__objectSetup) {
+    if (this.__objectSetup) {
         // this.objectProcessor?.processObject(this)
         return this
     }
-    this.userData.__objectSetup = true
+    this.__objectSetup = true
 
     if (!this.objectExtensions) this.objectExtensions = []
 
@@ -621,8 +621,8 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objec
     if (this.isLineSegments2 || this.isLine2) {
         this.isMesh = true // required for shadows etc
     }
-    if ((this.isMesh || this.isLine) && !this.userData.__meshSetup) {
-        this.userData.__meshSetup = true
+    if ((this.isMesh || this.isLine) && !this.__meshSetup) {
+        this.__meshSetup = true
 
         // todo move this to object3dmanager and remove
         this._onGeometryUpdate = (e) => iObjectCommons.eventCallbacks.onGeometryUpdate.call(this, e)

@@ -1,23 +1,26 @@
 import {
     AddEquation,
     Color,
-    ColorSpace, ConstantAlphaFactor, CustomBlending,
+    ColorSpace,
+    ConstantAlphaFactor,
+    CustomBlending,
     FloatType,
     HalfFloatType,
     IUniform,
     NoBlending,
     NoColorSpace,
     NormalBlending,
-    NoToneMapping, OneMinusConstantAlphaFactor,
-    PCFShadowMap, ShaderChunk, ShaderLib,
+    NoToneMapping,
+    OneMinusConstantAlphaFactor,
+    PCFShadowMap,
+    RenderTargetOptions,
+    ShaderChunk,
+    ShaderLib,
     ShadowMapType,
-    Texture,
     Vector2,
     Vector4,
-    WebGLMultipleRenderTargets,
     WebGLRenderer,
     WebGLRenderTarget,
-    WebGLRenderTargetOptions,
     WebGLShadowMap,
 } from 'three'
 import {EffectComposer2, IPassID, IPipelinePass, sortPasses} from '../postprocessing'
@@ -29,6 +32,7 @@ import {
     type IRenderManagerOptions,
     IRenderManagerUpdateEvent,
     IScene,
+    ITexture,
     IWebGLRenderer,
     upgradeWebGLRenderer,
 } from '../core'
@@ -40,7 +44,6 @@ import {
     onChange2,
     serializable,
     serialize,
-    ValOrArr,
 } from 'ts-browser-helpers'
 import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
 import {bindToValue, generateUUID, textureDataToImageData} from '../three'
@@ -582,13 +585,13 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      * @param canvas - optional canvas to render to, if not provided a new canvas will be created.
      */
-    renderTargetToCanvas(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, textureIndex = 0, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+    renderTargetToCanvas(target: WebGLRenderTarget|IRenderTarget, textureIndex = 0, canvas?: HTMLCanvasElement): HTMLCanvasElement {
         canvas = canvas ?? document.createElement('canvas')
         canvas.width = target.width
         canvas.height = target.height
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('Unable to get 2d context')
-        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+        const texture = target.textures[textureIndex] as ITexture
         const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
         if (texture.type === HalfFloatType || texture.type === FloatType) {
             const buffer = this.renderTargetToBuffer(target as any, textureIndex)
@@ -611,8 +614,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param quality
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToDataUrl(target: WebGLMultipleRenderTargets|WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
-        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+    renderTargetToDataUrl(target: WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
+        const texture = target.textures[textureIndex] as ITexture
         const canvas = this.renderTargetToCanvas(target, textureIndex)
 
         const string = (texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
@@ -625,8 +628,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param target - render target to read from
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToBuffer(target: WebGLMultipleRenderTargets|WebGLRenderTarget, textureIndex = 0): Uint8Array|Uint16Array|Float32Array {
-        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+    renderTargetToBuffer(target: WebGLRenderTarget, textureIndex = 0): Uint8Array|Uint16Array|Float32Array {
+        const texture = target.textures[textureIndex] as ITexture
         const buffer =
             texture.type === HalfFloatType ?
                 new Uint16Array(target.width * target.height * 4) :
@@ -644,9 +647,9 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * If auto (default), then it will be picked based on the render target type.
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    exportRenderTarget(target: WebGLRenderTarget<Texture|Texture[]>, mimeType = 'auto', textureIndex = 0): BlobExt {
+    exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto', textureIndex = 0): BlobExt {
         const hdrFormats = ['image/x-exr']
-        const texture = Array.isArray(target.texture) ? target.texture[textureIndex] : target.texture
+        const texture = target.textures[textureIndex] as ITexture
         let hdr = texture.type === HalfFloatType || texture.type === FloatType
         if (mimeType === 'auto') {
             mimeType = hdr ? 'image/x-exr' : 'image/png'
@@ -667,6 +670,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         }
         const b = new Blob([buffer], {type: mimeType}) as BlobExt
         b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]
+        b.__buffer = buffer
         return b
     }
 
@@ -681,7 +685,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
     // endregion
 
-    protected _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget {
+    protected _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: RenderTargetOptions): IRenderTarget {
         const processNewTarget = this._processNewTarget
         const disposeTarget = this.disposeTarget.bind(this)
         return new class RenderTarget extends clazz implements IRenderTarget {
@@ -690,33 +694,36 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             uuid: string
             readonly assetType = 'renderTarget'
             name = 'RenderTarget'
-            // @ts-expect-error because WebGLRenderTarget does not have texture as array
-            texture: ValOrArr<Texture&{_target: IRenderTarget}>
+            // texture: ValOrArr<Texture&{_target: IRenderTarget}>
+            declare textures: ITexture[]
+            get texture(): ITexture {
+                return this.textures[0]
+            }
+            set texture(value: ITexture) {
+                this.textures[0] = value
+            }
 
             constructor(public readonly renderManager: IRenderManager, ...ps: any[]) {
                 super(...ps)
                 this.uuid = generateUUID()
-                const ops = ps[ps.length - 1] as WebGLRenderTargetOptions
+                const ops = ps[ps.length - 1] as RenderTargetOptions
                 const colorSpace = ops?.colorSpace
                 this._initTexture(colorSpace)
             }
 
             private _initTexture(colorSpace?: ColorSpace) {
-                if (Array.isArray(this.texture)) {
-                    this.texture.forEach(t => {
-                        if (colorSpace !== undefined) t.colorSpace = colorSpace
-                        t._target = this
-                        t.toJSON = () => {
-                            console.warn('Multiple render target texture.toJSON not supported yet.')
-                            return {}
-                        }
-                    })
-                } else {
-                    this.texture._target = this
-                    // if (colorSpace !== undefined) this.texture.colorSpace = colorSpace
-                    this.texture.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
+                const init = (t: ITexture)=>{
+                    if (colorSpace !== undefined) t.colorSpace = colorSpace
+                    if (!t.userData) t.userData = {}
+                    t._target = this
+                    t.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
                         isRenderTargetTexture: true,
                     }) // so that it doesn't get serialized
+                }
+                if (Array.isArray(this.textures) && this.textures.length > 1) {
+                    this.textures.forEach(init)
+                } else {
+                    init(this.texture)
                 }
             }
 

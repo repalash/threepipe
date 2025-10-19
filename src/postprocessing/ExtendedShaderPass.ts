@@ -1,7 +1,7 @@
 import {IPass} from './Pass'
 import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import {ExtendedShaderMaterial, IWebGLRenderer, ShaderMaterial2} from '../core'
-import {ShaderLibShader, ShaderMaterialParameters, Texture, WebGLRenderTarget} from 'three'
+import {ShaderLibShader, ShaderMaterialParameters, WebGLRenderTarget} from 'three'
 import {uiToggle} from 'uiconfig.js'
 import {onChange2, serialize} from 'ts-browser-helpers'
 import {IShaderPropertiesUpdater} from '../materials'
@@ -27,12 +27,11 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
     }
 
     // writes to writeBuffer
-    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget<Texture|Texture[]>|null, readBuffer?: WebGLRenderTarget<Texture|Texture[]>, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget|null, readBuffer?: WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
         renderer.renderWithModes({
             backgroundRender: false,
         }, ()=>{
-            // @ts-expect-error todo fix render target ts?
             super.render(renderer, writeBuffer || null, (this.overrideReadBuffer as WebGLRenderTarget) || readBuffer, deltaTime, maskActive)
         })
     }

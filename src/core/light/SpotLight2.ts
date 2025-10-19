@@ -143,9 +143,9 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
-    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
-    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
+    getObjectById: (id: number) => IObject3D | undefined
+    getObjectByName: (name: string) => IObject3D | undefined
+    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     copy: (source: SpotLight|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
     remove: (...object: IObject3D[]) => this

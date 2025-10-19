@@ -10,7 +10,6 @@ import {
     UnsignedByteType,
     UnsignedIntType,
     UnsignedShortType,
-    WebGLMultipleRenderTargets,
     WebGLRenderTarget,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
@@ -20,10 +19,11 @@ import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
 import {shaderReplaceString} from '../../utils'
 import GBufferUnpack from './shaders/GBufferPlugin.unpack.glsl'
-import {ICamera, IObject3D, IRenderManager, IScene, ITexture} from '../../core'
+import {ICamera, IMaterial, IObject3D, IRenderManager, IScene, ITexture} from '../../core'
 import {GBufferMaterial, GBufferUpdater} from './GBufferMaterial'
+import {IRenderTarget} from '../../rendering'
 
-export type GBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
+export type GBufferPluginTarget = WebGLRenderTarget & IRenderTarget
 // export type GBufferPluginTarget = WebGLRenderTarget
 export type GBufferPluginPass = GBufferRenderPass<'gbuffer', GBufferPluginTarget|undefined>
 
@@ -154,10 +154,10 @@ export class GBufferPlugin
                     wrapS: ClampToEdgeWrapping,
                     wrapT: ClampToEdgeWrapping,
                 })
-            if (Array.isArray(this.target.texture)) {
-                this.target.texture[0].name = 'gbufferDepthNormal'
-                this.target.texture[1].name = 'gbufferFlags'
-                this.textures = this.target.texture
+            if (Array.isArray(this.target.textures) && this.target.textures.length > 1) {
+                this.target.textures[0].name = 'gbufferDepthNormal'
+                this.target.textures[1].name = 'gbufferFlags'
+                this.textures = [...this.target.textures]
 
                 // todo flag buffer filtering?
                 // const flagTexture = this.flagsTexture

@@ -14,9 +14,8 @@ import {
     UnsignedIntType,
     Vector2,
     WebGLCubeRenderTarget,
-    WebGLMultipleRenderTargets,
     WebGLRenderTarget,
-    WebGLRenderTargetOptions,
+    RenderTargetOptions,
 } from 'three'
 
 export abstract class RenderTargetManager<TE extends object = object> extends EventDispatcher<TE> {
@@ -74,13 +73,11 @@ export abstract class RenderTargetManager<TE extends object = object> extends Ev
         size.height = Math.floor(size.height)
         const depthTex = depthTexture ? new DepthTexture(size.width, size.height, depthTextureType) : null
         if (depthTex) depthTex.format = depthTextureFormat
-        const target = this.createTargetCustom<T>(textureCount > 1 ? {
-            width: size.width,
-            height: size.height,
+        const target = this.createTargetCustom<T>(size, {
+            samples, colorSpace, type, format, depthBuffer,
             count: textureCount,
-        } : size,
-        {samples, colorSpace, type, format, depthBuffer, depthTexture: depthTex, stencilBuffer},
-        textureCount > 1 ? WebGLMultipleRenderTargets as any : WebGLRenderTarget)
+            depthTexture: depthTex, stencilBuffer,
+        })
         this._processNewTarget(target, sizeMultiplier, trackTarget)
         this._setTargetOptions(target, op)
         return target
@@ -124,14 +121,12 @@ export abstract class RenderTargetManager<TE extends object = object> extends Ev
         } else this._releasedTempTargets[key].push(target)
     }
 
-
-    createTargetCustom<T extends IRenderTarget>({
-        width,
-        height,
-        count,
-    }: {width: number, height: number, count?: number}, options: WebGLRenderTargetOptions = {}, clazz?: Class<T>): T {
+    createTargetCustom<T extends IRenderTarget>(
+        {width, height}: {width: number, height: number},
+        options: RenderTargetOptions = {},
+        clazz?: Class<T>
+    ): T {
         let size = [width, height]
-        if (count && count > 1) size.push(count)
 
         if (clazz?.prototype === WebGLCubeRenderTarget.prototype) { // todo: check for subclass also of WebGLCubeRenderTarget
             if (width !== height) throw 'Width and height of cube render target must be equal'
@@ -148,7 +143,7 @@ export abstract class RenderTargetManager<TE extends object = object> extends Ev
         }) as T
     }
 
-    protected abstract _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: WebGLRenderTargetOptions): IRenderTarget
+    protected abstract _createTargetClass(clazz: Class<WebGLRenderTarget>, size: number[], options: RenderTargetOptions): IRenderTarget
 
     dispose(clear = true) {
         this._trackedTargets.forEach(t=>t.dispose())

@@ -3,6 +3,7 @@ import {IMaterial, IObject3D, ITexture} from '../core'
 import {BlobExt, ExportFileOptions, IAssetExporter, IExporter, IExportWriter} from './IExporter'
 import {assetExportHook, AssetExportHooks, EXRExporter2, SimpleJSONExporter, SimpleTextExporter} from './export'
 import {IRenderTarget} from '../rendering'
+import {Zippable, zipSync} from 'three/examples/jsm/libs/fflate.module'
 
 export interface AssetExporterEventMap {
     exporterCreate: {exporter: IExporter, parser: IExportWriter} // todo rename parser to writer
@@ -154,12 +155,26 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         case 'texture':
             return options.exportExt ? {obj, ext: options.exportExt} : {obj: (obj as ITexture).toJSON(), ext: 'json'}
         case 'renderTarget':
-            if (obj.isWebGLMultipleRenderTargets) console.error('AssetExporter: WebGLMultipleRenderTargets export not supported')
-            else if (!obj.renderManager) return {obj, ext: 'exr'}
+            if (!obj.renderManager) return {obj, ext: 'exr'}
             else {
-                const blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget,
-                    (options.exportExt || '' !== '') && options.exportExt !== 'auto' ?
-                        options.exportExt === 'exr' ? 'image/x-exr' : 'image/' + options.exportExt : 'auto')
+                const mime = (options.exportExt || '' !== '') && options.exportExt !== 'auto' ?
+                    options.exportExt === 'exr' ? 'image/x-exr' : 'image/' + options.exportExt : 'auto'
+
+                let blob
+                if (obj.textures.length > 1) {
+                    const zippa: Zippable = {}
+                    for (let i = 0; i < obj.textures.length; i++) {
+                        const expBlob = obj.renderManager!.exportRenderTarget(obj as WebGLRenderTarget, mime, i)
+                        // zippa[(f as File).name] = new Uint8Array(await (f as File).arrayBuffer())
+                        zippa[`texture_${i}.${expBlob.ext}`] = new Uint8Array(expBlob.__buffer || await expBlob.arrayBuffer())
+                    }
+                    const zipped = zipSync(zippa)
+                    blob = new Blob([zipped], {type: 'application/zip'}) as any as BlobExt
+                    blob.ext = 'zip'
+                    blob.__buffer = zipped.buffer
+                } else {
+                    blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget, mime)
+                }
                 return {
                     obj, ext: blob.ext, blob,
                 }

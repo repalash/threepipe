@@ -28,7 +28,7 @@ import DepthBufferUnpack from './shaders/DepthBufferPlugin.unpack.glsl'
 import {threeConstMappings} from '../../three'
 import {IMaterial, PhysicalMaterial} from '../../core'
 
-// type DepthBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
+// type DepthBufferPluginTarget = WebGLRenderTarget
 export type DepthBufferPluginTarget = WebGLRenderTarget
 export type DepthBufferPluginPass = GBufferRenderPass<'depth', DepthBufferPluginTarget|undefined>
 

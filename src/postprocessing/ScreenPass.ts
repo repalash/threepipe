@@ -1,13 +1,5 @@
 import {ExtendedShaderPass} from './ExtendedShaderPass'
-import {
-    ColorSpace,
-    FrontSide,
-    NoBlending,
-    ShaderMaterialParameters,
-    SRGBColorSpace,
-    WebGLMultipleRenderTargets,
-    WebGLRenderTarget,
-} from 'three'
+import {ColorSpace, FrontSide, NoBlending, ShaderMaterialParameters, SRGBColorSpace, WebGLRenderTarget} from 'three'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer, ShaderMaterial2} from '../core'
 import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {IPassID, IPipelinePass} from './Pass'
@@ -51,9 +43,9 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
     @uiDropdown('Output Color Space', threeConstMappings.ColorSpace.uiConfig, (t: ScreenPass)=>({onChange: t.setDirty}))
         outputColorSpace: ColorSpace = SRGBColorSpace
 
-    private _lastReadBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget
+    private _lastReadBuffer?: WebGLRenderTarget
 
-    render(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, readBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget | null, readBuffer?: WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         const colorSpace = renderer.outputColorSpace
         if (!writeBuffer || this.renderToScreen) renderer.outputColorSpace = this.outputColorSpace
         // else console.warn('ScreenPass: outputColorSpace is ignored when renderToScreen is false')
@@ -63,7 +55,7 @@ export class ScreenPass extends ExtendedShaderPass implements IPipelinePass<'scr
         this._needsReRender = false
     }
 
-    reRender(renderer: IWebGLRenderer, writeBuffer?: WebGLMultipleRenderTargets | WebGLRenderTarget | null, deltaTime?: number, maskActive?: boolean) {
+    reRender(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget | null, deltaTime?: number, maskActive?: boolean) {
         if (this._lastReadBuffer) this.render(renderer, writeBuffer, this._lastReadBuffer, deltaTime, maskActive)
     }
     private _needsReRender = false

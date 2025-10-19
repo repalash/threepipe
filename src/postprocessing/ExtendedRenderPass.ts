@@ -7,7 +7,6 @@ import {
     Material,
     NoColorSpace,
     RGBAFormat,
-    Texture,
     UnsignedByteType,
     WebGLRenderTarget,
 } from 'three'
@@ -109,7 +108,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     }
 
     // names are incorrect. We read from `writeBuffer` and write to `readBuffer`. same in super class
-    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget<Texture|Texture[]>|null, readBuffer?: WebGLRenderTarget<Texture|Texture[]>, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget|null, readBuffer?: WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.enabled) return
         let needsSwap = false
 
@@ -179,7 +178,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
             // Transmissive
             {
-                const source = !readBuffer ? undefined : Array.isArray(readBuffer.texture) ? readBuffer.texture[0] : readBuffer.texture
+                const source = !readBuffer ? undefined : readBuffer.texture
                 // todo: first check if any transmissive object is there to use this buffer
                 this.renderManager.blit(writeBuffer, {clear: true, source})
                 // viewer.renderer.blit(writeBuffer.texture as any, readBuffer as any, {})

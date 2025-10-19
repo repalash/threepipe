@@ -1,4 +1,4 @@
-import {Color, Material, Texture, WebGLMultipleRenderTargets, WebGLRenderTarget} from 'three'
+import {Color, Material, WebGLRenderTarget} from 'three'
 import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js'
 import {IPassID, IPipelinePass} from './Pass'
 import {ICamera, IMaterial, IObject3D, IRenderManager, IScene, IWebGLRenderer, PhysicalMaterial} from '../core'
@@ -6,7 +6,7 @@ import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {getOrCall, ValOrFunc} from 'ts-browser-helpers'
 
 @uiFolderContainer<GBufferRenderPass>((c)=>c.passId + ' Render Pass')
-export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultipleRenderTargets | WebGLRenderTarget|undefined=WebGLMultipleRenderTargets | WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
+export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRenderTarget|undefined=WebGLRenderTarget> extends RenderPass implements IPipelinePass<TP> { // todo: extend from jittered?
     readonly isGBufferRenderPass = true
     uiConfig: UiObjectConfig
 
@@ -80,7 +80,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLMultip
      * @param deltaTime
      * @param maskActive
      */
-    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget<Texture|Texture[]>|null, _1?: WebGLRenderTarget<Texture|Texture[]>, deltaTime?: number, maskActive?: boolean) {
+    render(renderer: IWebGLRenderer, _?: WebGLRenderTarget|null, _1?: WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         if (!this.scene || !this.camera) return
 
         const t = renderer.getRenderTarget()

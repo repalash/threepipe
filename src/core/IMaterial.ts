@@ -277,9 +277,9 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      * @param clearCurrentUserData - clears the userData instead of merging first level. Default - true if `Material` object is passed, false if parameters object is passed
      * @param time - parameters to animate the setting of properties
      */
-    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): this;
+    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): IMaterial&this;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
-    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): this | null;
+    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): (IMaterial&this) | null;
 
     extraUniformsToUpload: Record<string, IUniform>
     materialExtensions: MaterialExtension[]
@@ -311,7 +311,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      *
      * @param track - if true, the clone id and count will be tracked in the userData and a suffix will be appended to the name. default - false
      */
-    clone(track?: boolean): this;
+    clone(track?: boolean): IMaterial&this
 
     /**
      * A promise can be set by the object to indicate that the material(or any of its properties) is loading.

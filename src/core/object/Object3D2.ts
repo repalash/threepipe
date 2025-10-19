@@ -8,7 +8,7 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
     TG extends IGeometry | undefined = undefined,
     TM extends IMaterial | IMaterial[] | undefined = undefined
 > extends Object3D<TE> implements IObject3D<TE, TG, TM> {
-    assetType = 'model' as const
+    assetType = 'model' as IObject3D['assetType']
     setDirty = iObjectCommons.setDirty
     refreshUi = iObjectCommons.refreshUi
 
@@ -38,15 +38,14 @@ export class Object3D2<TE extends IObject3DEventMap = IObject3DEventMap,
     traverse: (callback: (object: IObject3D) => void) => void
     traverseVisible: (callback: (object: IObject3D) => void) => void
     traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: <T extends IObject3D = IObject3D>(id: number) => T | undefined
-    getObjectByName: <T extends IObject3D = IObject3D>(name: string) => T | undefined
-    getObjectByProperty: <T extends IObject3D = IObject3D>(name: string, value: string) => T | undefined
+    getObjectById: (id: number) => IObject3D | undefined
+    getObjectByName: (name: string) => IObject3D | undefined
+    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     copy: (source: Object3D2|IObject3D, recursive?: boolean, ...args: any[]) => this
     clone: (recursive?: boolean) => this
-    remove: (...object: IObject3D[]) => this
+    // remove: (...object: IObject3D[]) => this
     declare parent: IObject3D | null
     declare children: IObject3D[]
-    dispose: (removeFromParent?: boolean) => void
 
     // endregion
 

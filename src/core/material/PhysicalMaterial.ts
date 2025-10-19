@@ -2,7 +2,7 @@ import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     BufferGeometry,
     Camera,
-    Color,
+    Color, Euler,
     IUniform,
     Material,
     MeshPhysicalMaterial,
@@ -258,6 +258,7 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         metalnessMap: null,
         alphaMap: null,
         envMap: null,
+        envMapRotation: new Euler(),
         envMapIntensity: 1,
         // refractionRatio: 0,
         wireframe: false,

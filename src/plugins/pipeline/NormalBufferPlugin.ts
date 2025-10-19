@@ -23,7 +23,7 @@ import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
 import {uiFolderContainer, uiImage} from 'uiconfig.js'
 
-// type NormalBufferPluginTarget = WebGLMultipleRenderTargets | WebGLRenderTarget
+// type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPluginTarget|undefined>
 /**

@@ -21,7 +21,7 @@ import {EventDispatcher} from 'three'
 const viewerOptions = {
     'None': '',
     ['Background Color']: 'scene.backgroundColor',
-    ['Environment Rotation']: 'scene.environment.rotation',
+    ['Environment Rotation']: 'scene.environmentRotation.y',
     ['Environment Intensity']: 'scene.envMapIntensity',
     // '[Fixed Env Map Direction']: 'scene.fixedEnvMapDirection',
     ['Camera Position']: 'scene.mainCamera.position',
@@ -322,7 +322,14 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
     private _lastTarget: any = undefined
     protected _onAccessChanged() {
         const tar = this.targetObject
-        if (tar && tar === this.getViewer() && !Object.values(viewerOptions).includes(this.access)) this.access = '' // todo check for now...
+        if (tar && tar === this.getViewer() && !Object.values(viewerOptions).includes(this.access)) {
+            this.access = ''
+            return
+        }
+        if (tar && tar === this.getViewer() && this.access === 'scene.environment.rotation') {
+            this.access = 'scene.environmentRotation.y'
+            return
+        }
         if (this.access !== this._lastAccess || !this.values.length || this._lastTarget !== tar && tar && this._lastTarget) {
             this._lastAccess = this.access
             const lastValues = this.values

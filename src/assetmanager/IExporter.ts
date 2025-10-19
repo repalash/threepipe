@@ -2,7 +2,7 @@ import {AnyOptions, IEventDispatcher} from 'ts-browser-helpers'
 import {IObject3D} from '../core'
 import {GLTFExporter2Options} from './export/GLTFExporter2'
 
-export type BlobExt = Blob&{ext:string}
+export type BlobExt = Blob&{ext:string, __buffer?: ArrayBufferLike}
 
 export interface IExportWriter {
     // parse(obj: any, options: AnyOptions): any;
