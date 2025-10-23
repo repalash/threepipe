@@ -78,6 +78,8 @@ export class ThreeSerialization {
                 return ret
             },
             deserialize: copier(cls),
+            // @ts-expect-error type in next version
+            type: isType.startsWith('is') ? isType.slice(2) : cls.name,
         }
     }
 
@@ -470,10 +472,10 @@ export class ThreeSerialization {
         // Serialization.SerializableClasses.set('Skeleton', Skeleton) // doesnt have .type. todo add to three.js
     }
 
-    static MakeSerializable(constructor: ObjectConstructor, type: string, props: (string|[string, string])[]) {
+    static MakeSerializable(constructor: ObjectConstructor, type: string, props?: (string|[string, string])[]) {
         (constructor.prototype as any).serializableClassId = type
         Serialization.SerializableClasses.set(type, constructor)
-        Serialization.TypeMap.set(constructor, props.map(p=>typeof p === 'string' ? [p, p] : p))
+        if (props) Serialization.TypeMap.set(constructor, props.map(p=>typeof p === 'string' ? [p, p] : p))
     }
 
     /**

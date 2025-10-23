@@ -18,7 +18,7 @@ export interface HitIntersects{
 
 export interface ObjectPickerEventMap{
     hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
-    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
+    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, lastValue: SelectionObject, intersects?: HitIntersects},
     hitObject: {time: number, intersects: HitIntersects} // selectedObject should be renamed to hitObject
     selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
     pickingModeChanged: {detail: {key: 'pickingMode', value: PickingModeType, oldValue: PickingModeType}}
@@ -168,12 +168,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         for (const currentElement of current) {
             if (!currentElement) continue
             // should work for all asset types, not just IObject3D, todo fix type
-            ;(currentElement as IObject3D).removeEventListener('__unregister', this._onSelectedRemoved)
+            ;(currentElement as IObject3D).removeEventListener && (currentElement as IObject3D).removeEventListener('__unregister', this._onSelectedRemoved)
         }
         for (const newElement of this._selected) {
             if (!newElement) continue
             // unregister event is for remove from scene
-            ;(newElement as IObject3D).addEventListener('__unregister', this._onSelectedRemoved)
+            ;(newElement as IObject3D).addEventListener && (newElement as IObject3D).addEventListener('__unregister', this._onSelectedRemoved)
         }
 
         const obj = this.selectedObject
@@ -182,6 +182,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
             material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
             value: obj,
+            lastValue: current.length ? current[0] : null,
             intersects,
         })
 

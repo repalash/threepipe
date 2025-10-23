@@ -301,6 +301,11 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     protected _savedSettings = {} as any
     attach(object: Object3D): this {
+        // check if object is ancestor of this
+        let isAns = false
+        this.traverseAncestors(o=>isAns = isAns || o === object)
+        if (isAns) return this
+
         if (this._savedSettings.lockProps) this.lockProps = this._savedSettings.lockProps
         Object.assign(this, this._savedSettings)
         this._savedSettings = {}

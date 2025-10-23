@@ -7,7 +7,8 @@ import {
     IMaterial,
     IObject3D,
     IScene,
-    ISceneEventMap, ITexture,
+    ISceneEventMap,
+    ITexture,
     IWidget,
     LineMaterial2,
     PhysicalMaterial,
@@ -89,7 +90,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     setDirty() {
         if (!this._viewer) return
-        if (this.isDisabled()) this.setSelectedObject(undefined)
+        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined)
         this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
@@ -110,13 +111,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
-        if (this.isDisabled()) return
         return this._picker?.selectedObject as T || undefined
     }
 
     setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
         const disabled = this.isDisabled()
-        if (disabled && !object) return
+        if (disabled && object) return
         if (!this._picker) return
         const t = this.autoFocus
         this.autoFocus = false
@@ -508,7 +508,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                     ()=>!obj.isLineSegments2 && !obj.isLine && !obj.isLineSegments && !obj.isWireframe || !(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0] === matType.def) :
                     ()=>!(!obj.materials?.length || obj.materials.length === 1 && obj.materials[0].userData?.isPlaceholder) || !obj.isMesh,
                 value: ()=>{
-                    const mat = obj.materials
+                    const mat = obj.material
                     obj.material = new matType.cls()
                     return ()=> obj.material = mat
                 },
@@ -526,13 +526,17 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     removeMaterial = (obj: IObject3D)=>{
         if (!obj.material) return
         const matC = obj.material
+        obj.material = this.getPlaceholderMaterial(obj)
+        return ()=> obj.material = matC // returns undo function
+    }
+
+    getPlaceholderMaterial(obj: IObject3D): IMaterial {
         const def = [this.materialTypes[0].def!]
         if (!def[0]) throw new Error('No default material found')
-        const mat = obj.isLineSegments2 || obj.isWireframe ? this.materialTypes.find(m=>m.cls === LineMaterial2)?.def :
-            obj.isLine || obj.isLineSegments ? this.materialTypes.find(m=>m.cls === UnlitLineMaterial)?.def :
+        const mat = obj.isLineSegments2 || obj.isWireframe ? this.materialTypes.find(m => m.cls === LineMaterial2)?.def :
+            obj.isLine || obj.isLineSegments ? this.materialTypes.find(m => m.cls === UnlitLineMaterial)?.def :
                 null
-        obj.material = mat ? mat : def[0]
-        return ()=> obj.material = matC // returns undo function
+        return mat ? mat : def[0]
     }
 
     // to be able to remove material from object
