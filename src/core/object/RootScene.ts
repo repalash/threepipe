@@ -729,9 +729,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     getObjectById: (id: number) => IObject3D | undefined
     getObjectByName: (name: string) => IObject3D | undefined
     getObjectByProperty: (name: string, value: string) => IObject3D | undefined
-    copy: (source: RootScene|Scene|IObject3D, recursive?: boolean, ...args: any[]) => this
-    clone: (recursive?: boolean) => this
-    remove: (...object: IObject3D[]) => this
     // dispatchEvent: (event: ISceneEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]

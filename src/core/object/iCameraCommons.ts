@@ -12,7 +12,7 @@ export const iCameraCommons = {
         const changeKey = isStr ? options as string : options?.change ?? options?.key // todo use both?
         let projectionUpdated = false
         if (options?.projectionUpdated !== false && (!changeKey ||
-            ['zoom', 'fov', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize', 'view', 'coordinateSystem', 'projection', 'activateMain', 'deactivateMain', 'near', 'far', 'nearFar'].includes(changeKey))
+            ['zoom', 'fov', 'left', 'right', 'top', 'bottom', 'aspect', 'frustumSize', 'view', 'coordinateSystem', 'projection', 'activateMain', 'deactivateMain', 'near', 'far', 'nearFar', 'deserialize'].includes(changeKey))
         ) {
             this.updateProjectionMatrix()
             projectionUpdated = true

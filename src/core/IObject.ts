@@ -369,7 +369,11 @@ export interface IObjectExtension {
     onRegister?: (object: IObject3D) => void
 }
 
-export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG extends IGeometry | undefined= IGeometry | undefined, TM extends IMaterial | IMaterial[] | undefined = IMaterial | IMaterial[] | undefined> extends Object3D<TE>, IUiConfigContainer {
+export interface IObject3D<
+    TE extends IObject3DEventMap = IObject3DEventMap,
+    TG extends IGeometry | undefined= IGeometry | undefined,
+    TM extends IMaterial | IMaterial[] | undefined = IMaterial | IMaterial[] | undefined
+> extends Object3D<TE>, IUiConfigContainer {
     assetType?: 'model' | 'light' | 'camera' | 'widget'
 
     readonly isObject3D: true
@@ -622,10 +626,10 @@ export interface IObject3D<TE extends IObject3DEventMap = IObject3DEventMap, TG 
     getObjectById(id: number): IObject3D | undefined
     getObjectByName(name: string): IObject3D | undefined
     getObjectByProperty(name: string, value: string): IObject3D | undefined
-    copy(source: IObject3D, recursive?: boolean, ...args: any[]): IObject3D&this
-    clone(recursive?: boolean): IObject3D&this
-    add(...object: (IObject3D|Object3D)[]): IObject3D&this
-    remove(...object: (IObject3D|Object3D)[]): IObject3D&this
+    // copy(source: IObject3D, recursive?: boolean, ...args: any[]): IObject3D
+    // clone(recursive?: boolean): IObject3D
+    // add(...object: (IObject3D|Object3D)[]): IObject3D
+    // remove(...object: (IObject3D|Object3D)[]): IObject3D
     parent: IObject3D | null
     children: IObject3D[]
 

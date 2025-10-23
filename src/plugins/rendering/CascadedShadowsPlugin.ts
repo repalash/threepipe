@@ -250,7 +250,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
 
         const changeKey = e?.change ?? e?.key
         if (!changeKey && ![
-            'intensity', 'castShadow', 'mapSize', 'bias', 'radius', 'shadow',
+            'intensity', 'castShadow', 'mapSize', 'bias', 'radius', 'shadow', 'deserialize',
         ].includes(changeKey)) this.cameraNeedsUpdate()
     }
 

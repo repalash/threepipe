@@ -1,5 +1,5 @@
 import {Camera, Euler, Object3D, OrthographicCamera, Quaternion, Vector3} from 'three'
-import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiDropdown, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
@@ -25,6 +25,11 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     private _controls?: ICameraControls
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
+
+    @uiDropdown('Controls Mode', undefined, (t: PerspectiveCamera2)=>({
+        children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
+    }))
+    @serialize()
     @onChange2(OrthographicCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
     get isMainCamera(): boolean {
@@ -453,10 +458,6 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     getObjectByName: (name: string) => IObject3D | undefined
     getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     copy: (source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
-    clone: (recursive?: boolean) => this
-    add: (...object: IObject3D[]) => this
-    remove: (...object: IObject3D[]) => this
-    // dispatchEvent: (event: ICameraEvent) => void
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

@@ -44,9 +44,6 @@ export class MeshLine<
     getObjectById: (id: number) => IObject3D | undefined
     getObjectByName: (name: string) => IObject3D | undefined
     getObjectByProperty: (name: string, value: string) => IObject3D | undefined
-    copy: (source: MeshLine | IObject3D, recursive?: boolean, ...args: any[]) => this
-    clone: (recursive?: boolean) => this
-    remove: (...object: IObject3D[]) => this
     declare parent: IObject3D | null
     declare children: IObject3D[]
     dispose: (removeFromParent?: boolean) => void
