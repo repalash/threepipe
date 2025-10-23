@@ -60,6 +60,7 @@ import {GLTFExporter2, GLTFWriter2} from './export'
 import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {ThreeSerialization} from '../utils'
 
 // todo rename to AssetImporterCacheOptions
 export interface AssetManagerOptions{
@@ -294,7 +295,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
         const importers: Importer[] = [
             new Importer(class extends SimpleJSONLoader {
                 async parseAsync(json: Record<string, any>): Promise<any> {
-                    if (json.assetType === 'config') return json
+                    if (json.assetType === 'config') return json // process later
                     // When a file with .json extension and a .type is imported, we can forward it to other loaders inheriting SimpleJSONLoader that support that type like JSONMaterialLoader
                     // getOrCall ensures we get all materials registered at runtime
                     const type = json.type || json.metadata?.type
@@ -307,6 +308,14 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
                         const loader = imp.ctor(importer) as SimpleJSONLoader
                         const res = await loader.parseAsync(json)
                         ;(loader as ILoader).dispose && (loader as ILoader).dispose!()
+                        if (res) return res // loader can return undefined if they don't want to support this file
+                    }
+                    if (json.serializableClassId) { // todo check json.type also as its supported in Serialization? or just do it anyway for any object because it could have nested serialized objects?
+                        const resources = json.resources
+                        if (json.resources) delete json.resources
+                        const meta = resources ? await viewer.loadConfigResources(resources) : undefined
+                        const res = ThreeSerialization.Deserialize(json, undefined, meta)
+                        if (meta) json.resources = meta
                         if (res) return res
                     }
                     return super.parseAsync(json)
