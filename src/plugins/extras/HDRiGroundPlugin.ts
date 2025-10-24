@@ -99,8 +99,14 @@ export class HDRiGroundPlugin extends AViewerPluginSync {
             viewer.console.error('HDRi Ground Plugin must be added before setting any cube or env map')
 
         if (!ShaderLib.backgroundCube.fragmentShader.includes('#ifdef HDRi_GROUND_PROJ')) {
-            ShaderLib.backgroundCube.fragmentShader = shaderReplaceString(ShaderLib.backgroundCube.fragmentShader, 'void main() {', hdriGroundProj, {prepend: true})
-            ShaderLib.backgroundCube.fragmentShader = shaderReplaceString(ShaderLib.backgroundCube.fragmentShader, 'vec3 worldDirection = vWorldDirection;', `
+            const voidMain = 'void main() {'
+            const split = ShaderLib.backgroundCube.fragmentShader.split(voidMain)
+            if (split.length !== 2) {
+                viewer.console.error('HDRi Ground Plugin: Could not parse backgroundCube shader')
+            } else {
+                ShaderLib.backgroundCube.fragmentShader = split[0] + `
+${hdriGroundProj}
+${voidMain}
 vec3 worldDirection = 
 #ifdef HDRi_GROUND_PROJ
 hdriProject()
@@ -108,7 +114,10 @@ hdriProject()
 vWorldDirection
 #endif
 ;
-`)
+${shaderReplaceString(split[1], 'vWorldDirection', 'worldDirection', {replaceAll: true})}
+`
+            }
+            console.log(ShaderLib.backgroundCube.fragmentShader)
         }
 
         viewer.scene.addEventListener('environmentChanged', this.setDirty)

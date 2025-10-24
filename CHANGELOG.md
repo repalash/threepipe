@@ -10,20 +10,45 @@ All notable changes to this project will be documented in this file.
 
 - Add `renderBackground` property to `ExtendedRenderPass`
 - Add `toggleEnvironmentBackground` to `RootScene` and its uiConfig. Allows to toggle the background rendering between environment and separate background map.
+- Add option `importAsModelRoot` in GLTFLoader2 options
+- Support extras in GLTF document root during and save back when exporting a gltf file
+- Add `_basePath` option in `GLTFExporter2` to clear from sub-asset uri if absolute URLs are used.
+- `GLTFLoader2` saves the current `path/resourcePath` as `resourcePath` in the gltf document extras/userData.
+- Use the resourcePath saved in extras to resolve embedded assets if required/possible.
+- Add `controlsMode` dropdown to `uiConfig` and serialize `controlsMode` in `OrthographicCamera2`, `PerspectiveCamera2`.
+- Add `lastValue` property to `selectedObjectChanged` event in `ObjectPicker` and `PickingPlugin`
+- Add automatic `type` to `ThreeSerialization.PrimitiveSerializer`
+- Use `deserialize` `changeKey` to update camera projection matrix
+- Automatically deserialize json files of serializable classes(with `serializableClassId`) when loaded with `AssetManager`.
+- Add `showFar` to `CameraHelper2` to hide fructum and far plane.
+- Export `ConvexHull` from three addons.
+- `GLTFExporter2` - feature to ability to export extra resources present in any item/node's `userData`
+- `GLTFExporter2` - bundle extra resources in glTF asset extras when a file is exported without viewer config. 
+- `GLTFLoader2` - import asset's bundled resources if available in glTF asset extras
+- `GLTFLoader2` - pass deserialized meta to `deserializeUserData` to resolve resource references.
+- Add `importedBundledResources` to `RootSceneImportResult` (similar to `importedViewerConfig`).
+- Add `meta` parameter to `toJSON` and `fromJSON` in `ThreeViewer`.
+- Better event dispatcher in `ThreeViewer` to dispatch preFrame events with sorting order.
 
 ### Fixes
 
 - Disable `rootPath` being set inside assets that are loaded from local files like when dropping or importing from file blobs.
 - Fix for empty objects in CameraViewPlugin.animateToFitObject
 - Subscribe to objects properly in `Object3DWidgetsPlugin` using `Object3DManager`.
+- Removed sync plugins synchronously during viewer dispose.
+- Fix crash when `TransformControlsPlugin` is attached to an ancestor of itself
 
 ### Changed
+
+- TODO three.js 162, 163 update changes, typescript fixes/changes
 
 - Add `trackUndo` in `Object3DEventMap.select` (default `true`)
 - Set default `name` of `RootScene` to 'RootScene'
 - Do not attach `SelectionWidget` to an object that's not in the `RootScene` 
 - Move renderManager above scene and timeline in `ThreeViewer` UI Config
 - Keep the selection widget visible when transform controls are enabled
+- Changed `autoScale` and `autoCenter` signature in `IObject3D`, they now return `void` instead of `this`
+- Use object `visible` property to prevent extra updates in widget helpers when object is invisible.
 
 ## [0.3.0] - 2025-10-13
 
