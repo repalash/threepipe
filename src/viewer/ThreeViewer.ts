@@ -106,6 +106,14 @@ export interface ISerializedViewerConfig extends ISerializedConfig{
     [key: string]: any
 }
 
+export interface ViewerEventMap{
+    preFrame: {time: number, deltaTime: number},
+}
+export interface ViewerEventListener<T extends keyof ViewerEventMap>{
+    callback: (event: ViewerEventMap[T] & {type: T, target: ThreeViewer})=> void,
+    order?: number
+}
+
 export type IConsoleWrapper = Partial<Console> & Pick<Console, 'log'|'warn'|'error'>
 
 /**
@@ -828,6 +836,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
 
             this.dispatchEvent({...event, type: 'preFrame', target: this}) // event will have time, deltaTime and xrFrame
+            this.dispatch('preFrame', {
+                time: event.time,
+                deltaTime: event.deltaTime,
+            })
 
             if (this.renderEnabled) {
 
@@ -1618,32 +1630,32 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     // todo: create/load texture utils?
 
-    /**
-     * The renderer for the viewer that's attached to the canvas. This is wrapper around WebGLRenderer and EffectComposer and manages post-processing passes and rendering logic
-     * @deprecated - use {@link renderManager} instead
-     */
-    get renderer(): ViewerRenderManager {
-        this.console.error('ThreeViewer: renderer is deprecated, use renderManager instead')
-        return this.renderManager
+    // another event system with order sorting
+    private _onListeners: {[T in keyof ViewerEventMap]?: ViewerEventListener<T>[]} = {}
+    on<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>) {
+        if (!this._onListeners[type]) this._onListeners[type] = []
+        if (this._onListeners[type].includes(listener)) {
+            return
+        }
+        this._onListeners[type].push(listener)
+        return ()=> this.off(type, listener)
+    }
+    off<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>): void {
+        const index = this._onListeners[type]?.indexOf(listener) ?? -1
+        if (index !== -1) {
+            this._onListeners[type]?.splice(index, 1)
+        }
+    }
+    dispatch<T extends keyof ViewerEventMap>(type: T, event: ViewerEventMap[T]): void {
+        const listeners = this._onListeners[type]
+        if (listeners) {
+            const sortedListeners = listeners.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            for (const listener of sortedListeners) {
+                listener.callback({...event, type, target: this})
+            }
+        }
     }
 
-    /**
-     * @deprecated use {@link assetManager} instead.
-     * Gets the Asset manager, contains useful functions for managing, loading and inserting assets.
-     */
-    getManager(): AssetManager|undefined {
-        return this.assetManager
-    }
-
-    /**
-     * Get the Plugin by the string type.
-     * @deprecated - Use {@link getPlugin} instead.
-     * @param type
-     * @returns {T | undefined}
-     */
-    getPluginByType<T extends IViewerPlugin>(type: string): T | undefined {
-        return this.plugins[type] as T | undefined
-    }
 
     private _onPluginAdd(p: IViewerPlugin) {
         const ev = {type: 'addPlugin', target: this, plugin: p} as const
@@ -1721,5 +1733,36 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         }
 
     }
+
+    // region deprecated
+
+    /**
+     * The renderer for the viewer that's attached to the canvas. This is wrapper around WebGLRenderer and EffectComposer and manages post-processing passes and rendering logic
+     * @deprecated - use {@link renderManager} instead
+     */
+    get renderer(): ViewerRenderManager {
+        this.console.error('ThreeViewer: renderer is deprecated, use renderManager instead')
+        return this.renderManager
+    }
+
+    /**
+     * @deprecated use {@link assetManager} instead.
+     * Gets the Asset manager, contains useful functions for managing, loading and inserting assets.
+     */
+    getManager(): AssetManager|undefined {
+        return this.assetManager
+    }
+
+    /**
+     * Get the Plugin by the string type.
+     * @deprecated - Use {@link getPlugin} instead.
+     * @param type
+     * @returns {T | undefined}
+     */
+    getPluginByType<T extends IViewerPlugin>(type: string): T | undefined {
+        return this.plugins[type] as T | undefined
+    }
+
+    // endregion deprecated
 
 }
