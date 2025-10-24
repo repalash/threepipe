@@ -457,7 +457,7 @@ export interface IObject3D<
     /**
      * @param removeFromParent - remove from parent. Default true
      */
-    dispose?(removeFromParent?: boolean): void;
+    dispose?(removeFromParent?: boolean): any;
 
     /**
      * A promise can be set by the object to indicate that the object is loading.

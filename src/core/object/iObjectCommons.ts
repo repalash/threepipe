@@ -510,7 +510,7 @@ export const iObjectCommons = {
         },
     /** @ignore */
     dispose: (superDispose?: IObject3D['dispose']) =>
-        function(this: IObject3D, removeFromParent = true): void {
+        function(this: IObject3D, removeFromParent = true): any {
             if (removeFromParent && this.parent) {
                 this.removeFromParent()
                 delete this.parentRoot
@@ -530,6 +530,7 @@ export const iObjectCommons = {
             // this.uiConfig?.dispose?.() // todo: make uiConfig.dispose
 
             superDispose && superDispose.call(this)
+            return this
         },
 
     getMapsForObject3D: function(this: IObject3D): Map<string, ITexture> {
