@@ -57,8 +57,10 @@ export class ColladaLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'ColladaLoadPlugin'
     protected _importer = new Importer(class extends ColladaLoader implements ILoader {
         transform(res: Collada, _: AnyOptions): Scene {
-            res.scene.userData.kinematics = res.kinematics
-            res.scene.userData.library = res.library
+            // @ts-expect-error just saving for later
+            res.scene.colladaKinematics = res.kinematics
+            // @ts-expect-error just saving for later
+            res.scene.colladaLibrary = res.library
             return res.scene
         }
     }, ['dae'], ['model/vnd.collada+xml'], false)

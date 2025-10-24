@@ -10,6 +10,13 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.2.6] - 2025-19-24
+
+### Fixes
+
+- Fixed an issue when saving collada files loaded with ColladaLoader with library in userData.
+- Kinematics and Library in the model are now saved in the result Scene under `colladaKinematics` and `colladaLibrary` instead of `userData`.
+
 ## [0.2.5] - 2025-09-03
 
 ### Changed
