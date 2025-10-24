@@ -3,7 +3,7 @@ import {getTexelDecoding} from '../../three'
 import {
     BufferGeometry,
     Camera,
-    ColorSpace,
+    ColorSpace, Group,
     IUniform,
     LinearSRGBColorSpace,
     Object3D,
@@ -48,7 +48,7 @@ export class ExtendedShaderMaterial<TE extends IMaterialEventMap = IMaterialEven
         }
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
         this.uniforms.screenSize && this._setUniformTexSize(this.uniforms.screenSize, renderer.getRenderTarget() ?? renderer.getSize(new Vector2()))
 
         for (const item of this.textures) {
@@ -63,7 +63,7 @@ export class ExtendedShaderMaterial<TE extends IMaterialEventMap = IMaterialEven
             }
         }
 
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
     }
 
     onBeforeCompile(s: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer) {

@@ -15,7 +15,7 @@ import {
     TextureDataType,
     UnsignedByteType,
     WebGLRenderer,
-    WebGLRenderTarget,
+    WebGLRenderTarget, Group,
 } from 'three'
 import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer, ViewerRenderManager} from '../../viewer'
@@ -183,8 +183,8 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
         this.reset()
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
 
         let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
         if (Array.isArray(material)) { // todo: add support for multi materials.
@@ -209,8 +209,8 @@ class MeshDepthMaterialOverride extends MeshDepthMaterial {
 
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
 
         this.reset()
     }

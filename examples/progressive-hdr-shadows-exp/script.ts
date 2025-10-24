@@ -76,7 +76,7 @@ async function init() {
         autoScale: true,
     })
 
-    viewer.scene.envMapIntensity = 1
+    viewer.scene.environmentIntensity = 1
 
     await viewer.setEnvironmentMap(hdris[0], {
         setBackground: true,

@@ -543,7 +543,7 @@ scene.backgroundIntensity = 2
 scene.environment = customTexture
 
 // Set the environment intensity
-scene.envMapIntensity = 2
+scene.environmentIntensity = 2
 
 // Set the environment map rotation
 scene.environment.rotation = Math.PI / 2
@@ -614,7 +614,7 @@ scene.refreshActiveNearFar()
 
 `scene.environment.rotation` - The rotation of the environment map around the y-axis(number).
 
-[`scene.envMapIntensity`](https://threepipe.org/docs/classes/RootScene.html#envmapintensity) - The environment intensity of the scene.
+[`scene.environmentIntensity`](https://threepipe.org/docs/classes/RootScene.html#environmentintensity) - The environment intensity of the scene.
 
 [`scene.fixedEnvMapDirection`](https://threepipe.org/docs/classes/RootScene.html#fixedEnvMapDirection) - If `true`, the environment map is rotated according to the camera. This is the same as `scene.fixedEnvMapDirection` in three.js.
 

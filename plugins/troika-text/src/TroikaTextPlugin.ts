@@ -88,7 +88,7 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
             if (text.material) dummyMesh.material = text.material
         })
         textWrapper.addEventListener('dispose', () => {
-            text.dispose()
+            text.dispose && text.dispose()
         })
         // todo handle clone, dispose text on remove
     }
@@ -134,7 +134,7 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
         // if (params.material) text.material.setValues(params.material)
         // todo outline etc
         text.sync()
-        textWrapper.setDirty()
+        textWrapper.setDirty && textWrapper.setDirty()
         return textWrapper
     }
 
@@ -185,7 +185,7 @@ export class TroikaTextPlugin extends AViewerPluginSync<TroikaTextPluginEventMap
         if (!child) return
         if (child.userData.isTextDummyMesh) {
             const material = child.material
-            child.dispose()
+            child.dispose && child.dispose()
             child.removeFromParent()
             this.setupTextWrapper(obj, material)
         }

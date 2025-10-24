@@ -2,7 +2,7 @@ import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {
     BufferGeometry,
     Camera,
-    Color, Euler,
+    Color, Euler, Group,
     IUniform,
     Material,
     MeshPhysicalMaterial,
@@ -106,9 +106,9 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         super.onBeforeCompile(shader, renderer)
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object)
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object, group)
 
         const t = this.userData.inverseAlphaMap ? 1 : 0
         if (t !== this.defines.INVERSE_ALPHAMAP) {

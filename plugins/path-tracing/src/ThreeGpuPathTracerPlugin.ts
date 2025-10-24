@@ -1,10 +1,8 @@
 import {
     AViewerPluginSync,
-    Euler,
     NoColorSpace,
     onChange,
     ProgressivePlugin,
-    Scene,
     serialize,
     ThreeViewer,
     uiButton,
@@ -210,7 +208,7 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
                 // // console.log(viewer.getPlugin(DiamondPlugin)?.envMap)
                 //
                 // this.ptRenderer.material.filterGlossyFactor = this.filterGlossyFactor
-                // this.ptRenderer.material.environmentIntensity = (viewer.scene.envMapIntensity || 1) * this.environmentMultiplier
+                // this.ptRenderer.material.environmentIntensity = (viewer.scene.environmentIntensity || 1) * this.environmentMultiplier
                 // this.ptRenderer.material.bounces = this.bounces
                 // this.ptRenderer.camera.updateMatrixWorld()
                 //
@@ -409,11 +407,5 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
         }
     }
 
-    static {
-        // @ts-expect-error polyfill for new threejs
-        Scene.prototype.backgroundRotation = new Euler(0, 0, 0, 'XYZ')
-        // @ts-expect-error polyfill
-        Scene.prototype.environmentRotation = new Euler(0, 0, 0, 'XYZ')
-    }
 }
 

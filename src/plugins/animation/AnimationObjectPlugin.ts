@@ -559,7 +559,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
 }
 
 declare module '../../assetmanager/IAssetImporter'{
-    export interface IImportResultUserData{
+    interface IImportResultUserData{
         animationObjects?: AnimationObject[]
     }
 }

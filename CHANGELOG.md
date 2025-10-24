@@ -40,8 +40,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- TODO three.js 162, 163 update changes, typescript fixes/changes
-
+- Update three.js to [r163](https://github.com/mrdoob/three.js/wiki/Migration-Guide#162--r163).
+- Deprecate `RootScene.envMapIntensity` in favor of `Scene.environmentIntensity` 
+- Remove `RootScene.environment.rotation` in favor of `Scene.environmentRotation` 
+- Remove `WebGLMultipleRenderTargets` since `WebGLRenderTarget` now supports `textureCount`, simplify render target functions.
+- Support for `WebGL1` completely dropped since WebGL2 has high adoption now.
 - Add `trackUndo` in `Object3DEventMap.select` (default `true`)
 - Set default `name` of `RootScene` to 'RootScene'
 - Do not attach `SelectionWidget` to an object that's not in the `RootScene` 
@@ -49,6 +52,8 @@ All notable changes to this project will be documented in this file.
 - Keep the selection widget visible when transform controls are enabled
 - Changed `autoScale` and `autoCenter` signature in `IObject3D`, they now return `void` instead of `this`
 - Use object `visible` property to prevent extra updates in widget helpers when object is invisible.
+- Improved type support when using `IObject3D`
+- From three - When using an instance of HTMLImageElement for a texture, the renderer uses now naturalWidth and naturalHeight instead of width and height for computing the image dimensions. This enables simplifications on app level if the images are part of the DOM and resized with CSS.
 
 ## [0.3.0] - 2025-10-13
 

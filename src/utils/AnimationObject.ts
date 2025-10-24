@@ -22,7 +22,7 @@ const viewerOptions = {
     'None': '',
     ['Background Color']: 'scene.backgroundColor',
     ['Environment Rotation']: 'scene.environmentRotation.y',
-    ['Environment Intensity']: 'scene.envMapIntensity',
+    ['Environment Intensity']: 'scene.environmentIntensity',
     // '[Fixed Env Map Direction']: 'scene.fixedEnvMapDirection',
     ['Camera Position']: 'scene.mainCamera.position',
     ['Camera Rotation']: 'scene.mainCamera.rotation',
@@ -328,6 +328,10 @@ export class AnimationObject<V = any> extends EventDispatcher<AnimationObjectEve
         }
         if (tar && tar === this.getViewer() && this.access === 'scene.environment.rotation') {
             this.access = 'scene.environmentRotation.y'
+            return
+        }
+        if (tar && tar === this.getViewer() && this.access === 'scene.envMapIntensity') {
+            this.access = 'scene.environmentIntensity'
             return
         }
         if (this.access !== this._lastAccess || !this.values.length || this._lastTarget !== tar && tar && this._lastTarget) {

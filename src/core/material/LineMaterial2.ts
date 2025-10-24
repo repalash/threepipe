@@ -2,7 +2,7 @@ import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle, 
 import {
     BufferGeometry,
     Camera,
-    Color,
+    Color, Group,
     IUniform,
     Material,
     Object3D,
@@ -88,15 +88,15 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     autoUpdateResolution = true
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
         if (this.autoUpdateResolution) renderer.getSize(this.resolution)
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object)
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object, group)
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object)
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
+        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object, group)
     }
 
     // endregion

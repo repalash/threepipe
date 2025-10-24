@@ -38,7 +38,7 @@ async function init() {
     //     autoScale: true,
     // })
     viewer.scene.backgroundColor?.set('#454e61')
-    viewer.scene.envMapIntensity = 0.15
+    viewer.scene.environmentIntensity = 0.15
 
     const ambientLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6)
     viewer.scene.modelRoot.add(ambientLight)

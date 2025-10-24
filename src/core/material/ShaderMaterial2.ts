@@ -1,6 +1,6 @@
 import {
     BufferGeometry,
-    Camera,
+    Camera, Group,
     IUniform,
     Material,
     Object3D,
@@ -90,14 +90,14 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
         super.onBeforeCompile(shader, renderer)
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object)
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object, group)
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D): void {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
-        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object)
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group): void {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
+        iMaterialCommons.onAfterRender.call(this, renderer, scene, camera, geometry, object, group)
     }
 
     // endregion

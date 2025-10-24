@@ -138,10 +138,12 @@ export const iMaterialCommons = {
     },
     /** @ignore */
     onBeforeRender: function(this: IMaterial, renderer, scene: Scene & Partial<IScene>, camera, geometry, object) {
-        if (this.envMapIntensity !== undefined && !this.userData.separateEnvMapIntensity && scene.envMapIntensity !== undefined) {
-            this.userData.__envIntensity = this.envMapIntensity
-            this.envMapIntensity = scene.envMapIntensity
-        }
+
+        // moved to three.js WebGLRenderer
+        // if (this.envMapIntensity !== undefined && !this.userData.separateEnvMapIntensity && scene.envMapIntensity !== undefined) {
+        //     this.userData.__envIntensity = this.envMapIntensity
+        //     this.envMapIntensity = scene.envMapIntensity
+        // }
         if (this.defines && this.envMap !== undefined && scene.fixedEnvMapDirection !== undefined) {
             if (scene.fixedEnvMapDirection) {
                 if (!this.defines.FIX_ENV_DIRECTION) {
@@ -157,10 +159,10 @@ export const iMaterialCommons = {
     } as IMaterial['onBeforeRender'],
     /** @ignore */
     onAfterRender: function(this: IMaterial, renderer, scene: Scene & Partial<IScene>, camera, geometry, object) {
-        if (this.userData.__envIntensity !== undefined) {
-            this.envMapIntensity = this.userData.__envIntensity
-            delete this.userData.__envIntensity
-        }
+        // if (this.userData.__envIntensity !== undefined) {
+        //     this.envMapIntensity = this.userData.__envIntensity
+        //     delete this.userData.__envIntensity
+        // }
         this.dispatchEvent({type: 'afterRender', renderer, scene, camera, geometry, object})
     } as IMaterial['onAfterRender'],
 

@@ -2,14 +2,13 @@ import {AGeometryGenerator} from '../AGeometryGenerator'
 import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js'
 import {FontLibrary} from '../FontLibrary'
 import {Float32BufferAttribute} from 'threepipe'
-import {Font} from 'three/examples/jsm/loaders/FontLoader.js'
+import {Font, FontData} from 'three/examples/jsm/loaders/FontLoader.js'
 
-export type FontJSON = Record<string, any>
 export interface TextGeometryGeneratorParams {
     text: string,
-    font: string | FontJSON,
+    font: string | FontData,
     size: number,
-    height: number,
+    depth: number,
     curveSegments: number,
     bevelEnabled: boolean,
     bevelThickness: number,
@@ -33,7 +32,7 @@ export class TextGeometryGenerator extends AGeometryGenerator<TextGeometryGenera
         text: 'Hello World',
         font: '',
         size: 1,
-        height: 0.25,
+        depth: 0.25,
         curveSegments: 12,
         bevelEnabled: true,
         bevelThickness: 0.02,
@@ -50,7 +49,7 @@ export class TextGeometryGenerator extends AGeometryGenerator<TextGeometryGenera
         const textGeometry = new TextGeometry(params.text, {
             font: typeof params.font === 'string' ? FontLibrary.GetFont(params.font) : new Font(params.font),
             size: params.size,
-            height: params.height,
+            depth: params.depth,
             curveSegments: params.curveSegments,
             bevelEnabled: params.bevelEnabled,
             bevelThickness: params.bevelThickness,

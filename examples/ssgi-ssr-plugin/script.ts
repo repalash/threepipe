@@ -36,7 +36,7 @@ async function init() {
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/sponza-ssgi-ssr.glb')
-    viewer.scene.envMapIntensity = 0.0
+    viewer.scene.environmentIntensity = 0.0
     viewer.getPlugin(SSGIPlugin)!.pass.stepCount = 8
 
     ui.setupPluginUi(SSGIPlugin)

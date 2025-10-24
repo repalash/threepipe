@@ -50,7 +50,7 @@ async function init() {
             mat.emissiveIntensity *= 10
         }
     })
-    viewer.scene.envMapIntensity = 0.0
+    viewer.scene.environmentIntensity = 0.0
 
     ui.setupPluginUi(ssgi)
     ui.setupPluginUi(SSReflectionPlugin)

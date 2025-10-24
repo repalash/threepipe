@@ -36,7 +36,7 @@ async function init() {
     viewer.scene.backgroundColor = new Color(0x333333)
 
     // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
-    // viewer.scene.envMapIntensity = 0.1
+    // viewer.scene.environmentIntensity = 0.1
 
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/temple-lines.glb.zip', {
         autoScale: true,

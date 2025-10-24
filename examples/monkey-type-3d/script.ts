@@ -178,8 +178,7 @@ async function init() {
 
         spotLight.position.x = Math.sin((e.time || 0) / 1000) * 0.2
         // text.position.y += 0.5
-        viewer.scene.environment!.rotation += 0.0013
-
+        viewer.scene.environmentRotation.y += 0.0013
 
         viewer.setDirty()
 
@@ -262,7 +261,7 @@ async function init() {
                 gameOverText.visible = false
                 startLabel.visible = false
                 text.position.set(0, 0, 0)
-                if (viewer.scene.environment) viewer.scene.environment.rotation = 0
+                viewer.scene.environmentRotation.y = 0
                 viewer.setDirty()
                 return
             } else {

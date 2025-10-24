@@ -132,7 +132,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     @uiSlider('Environment Intensity', [0, 10], 0.01)
     @serialize() @onChange3(RootScene.prototype.setDirty)
-        envMapIntensity = 1
+        environmentIntensity = 1
 
     @serialize()
     @uiVector<RootScene>('Environment Rotation', undefined, undefined, (t)=>({disabled: ()=>t.fixedEnvMapDirection || !t.environment}))
@@ -683,7 +683,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     toJSON(meta?: any): any {
         const o = ThreeSerialization.Serialize(this, meta, true)
-        // console.log(o)
+        o.envMapIntensity = o.environmentIntensity // for backward compatibility, remove later
         return o
     }
 
@@ -707,6 +707,13 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
                 }
             }
         }
+
+        // some files have both for backwards compatibility, prefer environmentIntensity
+        if (json.environmentIntensity !== undefined && json.envMapIntensity !== undefined) {
+            json = {...json}
+            delete json.envMapIntensity
+        }
+
         ThreeSerialization.Deserialize(json, this, meta, true)
         json.environment = env
         return this
@@ -830,20 +837,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     }
 
     /**
-     * @deprecated use {@link envMapIntensity} instead
-     */
-    get environmentIntensity(): number {
-        return this.envMapIntensity
-    }
-
-    /**
-     * @deprecated use {@link envMapIntensity} instead
-     */
-    set environmentIntensity(value: number) {
-        this.envMapIntensity = value
-    }
-
-    /**
      * Add any processed scene object to the scene.
      * @deprecated renamed to {@link addObject}
      * @param imported
@@ -882,6 +875,18 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     set autoNearFarEnabled(v) {
         if (v) this.enableAutoNearFar('default')
         else this.disableAutoNearFar('default')
+    }
+
+    /**
+     * @deprecated Use environmentIntensity instead.
+     */
+    get envMapIntensity() {
+        console.warn('RootScene.envMapIntensity is deprecated, use environmentIntensity instead.')
+        return this.environmentIntensity
+    }
+    set envMapIntensity(value: number) {
+        console.warn('RootScene.envMapIntensity is deprecated, use environmentIntensity instead.')
+        this.environmentIntensity = value
     }
 
     // endregion

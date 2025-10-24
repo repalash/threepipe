@@ -4,7 +4,7 @@ import {
     Camera,
     DoubleSide,
     GLSL1,
-    GLSL3,
+    GLSL3, Group,
     NormalMapTypes,
     Object3D,
     Scene,
@@ -62,8 +62,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
     normalMapType: NormalMapTypes = TangentSpaceNormalMap
     flatShading = false
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
 
         let isOverridden = false
 
@@ -179,8 +179,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
         flags.w /= 255
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
 
         let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
         if (Array.isArray(material)) { // todo: add support for multi materials.

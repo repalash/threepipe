@@ -2,7 +2,7 @@ import {
     BufferGeometry,
     Camera,
     Color,
-    DoubleSide,
+    DoubleSide, Group,
     HalfFloatType,
     LinearSRGBColorSpace,
     MeshNormalMaterial,
@@ -139,8 +139,8 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
         this.reset()
     }
 
-    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onBeforeRender(renderer, scene, camera, geometry, object)
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
 
         if (!(object as any).material) return
         const material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
@@ -168,8 +168,8 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
 
     }
 
-    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
-        super.onAfterRender(renderer, scene, camera, geometry, object)
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
         this.reset()
     }
 

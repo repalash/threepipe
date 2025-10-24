@@ -32,7 +32,7 @@ function Watch() {
             if (bloom) {
                 bloom.pass.threshold = 2
             }
-            viewer.scene.envMapIntensity = 0.5 // Set the environment map intensity
+            viewer.scene.environmentIntensity = 0.5 // Set the environment map intensity
 
         }}
     />

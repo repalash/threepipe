@@ -117,11 +117,9 @@ vWorldDirection
 ${shaderReplaceString(split[1], 'vWorldDirection', 'worldDirection', {replaceAll: true})}
 `
             }
-            console.log(ShaderLib.backgroundCube.fragmentShader)
         }
 
         viewer.scene.addEventListener('environmentChanged', this.setDirty)
     }
-
 
 }

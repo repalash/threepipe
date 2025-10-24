@@ -150,7 +150,7 @@ export interface IMaterialUserData extends IImportResultUserData{
     renderToDepth?: boolean
 
     /**
-     * Flag to tell the scene to prefer `material.envMapIntensity` over `scene.envMapIntensity`
+     * Flag to tell the scene to prefer `material.envMapIntensity` over `scene.environmentIntensity`
      * only for materials that have envMapIntensity
      */
     separateEnvMapIntensity?: boolean // default: false
@@ -171,7 +171,6 @@ export interface IMaterialUserData extends IImportResultUserData{
     cloneId?: string
     cloneCount?: number
 
-    __envIntensity?: number // temp storage for envMapIntensity while rendering
     __isVariation?: boolean
 
     inverseAlphaMap?: boolean // only for physical material right now
