@@ -228,3 +228,4 @@ export type {MeshPhysicalMaterialParameters, MeshBasicMaterialParameters, Materi
 export type {TypedArray, WebXRArrayCamera} from 'three'
 export type {WebGLProgramParametersWithUniforms, WebGLProgramParameters, WebGL1PixelFormat, WebGLCapabilitiesParameters, WebGL2PixelFormat, WebGLDebug, WebGLRendererParameters, RenderTargetOptions, WebGLLightsState} from 'three'
 export type {ShaderLibShader, IUniform} from 'three'
+export type {Intersection} from 'three'

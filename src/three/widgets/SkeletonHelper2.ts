@@ -72,7 +72,7 @@ export class SkeletonHelper2 extends AHelperWidget {
     }
 
     updateMatrixWorld(force?: boolean) {
-        if (this.object) this.autoUpdate && this.update(false)
+        if (this.object && this.visible) this.autoUpdate && this.update(false)
         super.updateMatrixWorld(force)
     }
 

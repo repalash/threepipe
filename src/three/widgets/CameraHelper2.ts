@@ -11,6 +11,8 @@ import {ACameraHelperWidget} from './ACameraHelperWidget'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import {LineMaterial2} from '../../core'
+import {uiToggle} from 'uiconfig.js'
+import {onChange2} from 'ts-browser-helpers'
 
 /**
  * Fork of CameraHelper from three.js
@@ -25,6 +27,17 @@ export class CameraHelper2 extends ACameraHelperWidget {
 
     line: LineSegments2
     pointMap: Record<string, number[]>
+
+    // Store original colors for reapplication
+    private _colorFrustum = new Color(0xffaa00)
+    private _colorCone = new Color(0xff0000)
+    private _colorUp = new Color(0x00aaff)
+    private _colorTarget = new Color(0xffffff)
+    private _colorCross = new Color(0x333333)
+
+    @uiToggle()
+    @onChange2(CameraHelper2.prototype.update)
+        showFar = false
 
     constructor(camera: PerspectiveCamera|OrthographicCamera) {
         super(camera)
@@ -62,13 +75,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
 
         // colors
 
-        const colorFrustum = new Color(0xffaa00)
-        const colorCone = new Color(0xff0000)
-        const colorUp = new Color(0x00aaff)
-        const colorTarget = new Color(0xffffff)
-        const colorCross = new Color(0x333333)
-
-        this.setColors(colorFrustum, colorCone, colorUp, colorTarget, colorCross)
+        this.setColors(this._colorFrustum, this._colorCone, this._colorUp, this._colorTarget, this._colorCross)
 
     }
 
@@ -79,58 +86,62 @@ export class CameraHelper2 extends ACameraHelperWidget {
         const colorAttribute = geometry.getAttribute('instanceColorStart')
         const colorAttribute2 = geometry.getAttribute('instanceColorEnd')
 
-        function setXYZ(i: number, color: Color) {
+        let i = 0
+        function setXYZ(color: Color) {
 
-            colorAttribute.setXYZ(i / 2, color.r, color.g, color.b)
-            colorAttribute2.setXYZ(i / 2, color.r, color.g, color.b)
+            colorAttribute.setXYZ(i, color.r, color.g, color.b)
+            colorAttribute2.setXYZ(i, color.r, color.g, color.b)
+            i++
 
         }
-        // near
-
-        setXYZ(0, frustum) // n1, n2
-        setXYZ(2, frustum) // n2, n4
-        setXYZ(4, frustum) // n4, n3
-        setXYZ(6, frustum) // n3, n1
-
-        // far
-
-        setXYZ(8, frustum) // f1, f2
-        setXYZ(10, frustum) // f2, f4
-        setXYZ(12, frustum) // f4, f3
-        setXYZ(14, frustum) // f3, f1
-
-        // sides
-
-        setXYZ(16, frustum) // n1, f1
-        setXYZ(18, frustum) // n2, f2
-        setXYZ(20, frustum) // n3, f3
-        setXYZ(22, frustum) // n4, f4
-
-        // cone
-
-        setXYZ(24, cone) // p, n1
-        setXYZ(26, cone) // p, n2
-        setXYZ(28, cone) // p, n3
-        setXYZ(30, cone) // p, n4
 
         // up
 
-        setXYZ(32, up) // u1, u2
-        setXYZ(34, up) // u2, u3
-        setXYZ(36, up) // u3, u1
-
-        // target
-
-        setXYZ(38, target) // c, t
-        setXYZ(40, cross) // p, c
+        setXYZ(up) // u1, u2
+        setXYZ(up) // u2, u3
+        setXYZ(up) // u3, u1
 
         // cross
 
-        setXYZ(42, cross) // cn1, cn2
-        setXYZ(44, cross) // cn3, cn4
+        setXYZ(cross) // cn1, cn2
+        setXYZ(cross) // cn3, cn4
 
-        setXYZ(46, cross) // cf1, cf2
-        setXYZ(48, cross) // cf3, cf4
+        setXYZ(cross) // cf1, cf2
+        setXYZ(cross) // cf3, cf4
+
+        // near
+
+        setXYZ(frustum) // n1, n2
+        setXYZ(frustum) // n2, n4
+        setXYZ(frustum) // n4, n3
+        setXYZ(frustum) // n3, n1
+
+        // cone
+
+        setXYZ(cone) // p, n1
+        setXYZ(cone) // p, n2
+        setXYZ(cone) // p, n3
+        setXYZ(cone) // p, n4
+
+        // far
+
+        setXYZ(frustum) // f1, f2
+        setXYZ(frustum) // f2, f4
+        setXYZ(frustum) // f4, f3
+        setXYZ(frustum) // f3, f1
+
+        // sides
+
+        setXYZ(frustum) // n1, f1
+        setXYZ(frustum) // n2, f2
+        setXYZ(frustum) // n3, f3
+        setXYZ(frustum) // n4, f4
+
+        // target
+
+        setXYZ(target) // c, t
+        setXYZ(cross) // p, c
+
 
         colorAttribute.needsUpdate = true
         colorAttribute2.needsUpdate = true
@@ -138,7 +149,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
     }
 
     update() {
-        if (!this.camera) return
+        if (!this.camera || !this.line) return
 
         const geometry = this.line.geometry
         const pointMap = this.pointMap
@@ -197,6 +208,11 @@ export class CameraHelper2 extends ACameraHelperWidget {
         geometry.computeBoundingBox()
         geometry.computeBoundingSphere()
 
+        // Update colors to reflect showFar state
+        this.setColors(this._colorFrustum, this._colorCone, this._colorUp, this._colorTarget, this._colorCross)
+
+        this.line.geometry.instanceCount = this.showFar ? Infinity : 15
+
         super.update()
     }
 
@@ -247,52 +263,54 @@ function generateVertices() {
 
     const pointMap: any = {}
 
-    // near
-
-    addLine('n1', 'n2')
-    addLine('n2', 'n4')
-    addLine('n4', 'n3')
-    addLine('n3', 'n1')
-
-    // far
-
-    addLine('f1', 'f2')
-    addLine('f2', 'f4')
-    addLine('f4', 'f3')
-    addLine('f3', 'f1')
-
-    // sides
-
-    addLine('n1', 'f1')
-    addLine('n2', 'f2')
-    addLine('n3', 'f3')
-    addLine('n4', 'f4')
-
-    // cone
-
-    addLine('p', 'n1')
-    addLine('p', 'n2')
-    addLine('p', 'n3')
-    addLine('p', 'n4')
-
-    // up
+    // up - 0
 
     addLine('u1', 'u2')
     addLine('u2', 'u3')
     addLine('u3', 'u1')
 
-    // target
-
-    addLine('c', 't')
-    addLine('p', 'c')
-
-    // cross
+    // cross - 3
 
     addLine('cn1', 'cn2')
     addLine('cn3', 'cn4')
 
     addLine('cf1', 'cf2')
     addLine('cf3', 'cf4')
+
+    // frustum at the end
+
+    // near - 7
+
+    addLine('n1', 'n2')
+    addLine('n2', 'n4')
+    addLine('n4', 'n3')
+    addLine('n3', 'n1')
+
+    // cone - 11
+
+    addLine('p', 'n1')
+    addLine('p', 'n2')
+    addLine('p', 'n3')
+    addLine('p', 'n4')
+
+    // far - 15
+
+    addLine('f1', 'f2')
+    addLine('f2', 'f4')
+    addLine('f4', 'f3')
+    addLine('f3', 'f1')
+
+    // sides - 19
+
+    addLine('n1', 'f1')
+    addLine('n2', 'f2')
+    addLine('n3', 'f3')
+    addLine('n4', 'f4')
+
+    // target - 21
+
+    addLine('c', 't')
+    addLine('p', 'c')
 
     function addLine(a: string, b: string) {
 

@@ -16,6 +16,7 @@ export abstract class ALightHelperWidget extends AHelperWidget {
     }
 
     preRender() { // req because its a light
+        if (!this.visible) return
         this._objectBeforeRender()
     }
 }

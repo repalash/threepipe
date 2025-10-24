@@ -23,6 +23,8 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
         this.matrix = object.matrixWorld
         this.matrixAutoUpdate = false
 
+        // this.userData.bboxVisible = false // todo autoNearFar?
+
         this.detach = this.detach.bind(this)
         this._objectUpdate = this._objectUpdate.bind(this)
         this._objectBeforeRender = this._objectBeforeRender.bind(this)
@@ -46,6 +48,7 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
     }
     // todo in threejs onbeforerender is not called on objects, lights etc, only meshes and scene, see ALightHelperWidget and skeleton helper
     protected _objectBeforeRender() {
+        if (!this.visible) return
         if (!this._objectUpdated) return
         this._objectUpdated = false
         if (this.object) this.update()
