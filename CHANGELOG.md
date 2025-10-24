@@ -55,6 +55,12 @@ All notable changes to this project will be documented in this file.
 - Improved type support when using `IObject3D`
 - From three - When using an instance of HTMLImageElement for a texture, the renderer uses now naturalWidth and naturalHeight instead of width and height for computing the image dimensions. This enables simplifications on app level if the images are part of the DOM and resized with CSS.
 
+### Examples
+
+- Add example - [entity-component-plugin](https://threepipe.org/examples/#entity-component-plugin/) - Sample usage of `EntityComponentPlugin` to add components to objects.
+- Add example - [entity-component-custom](https://threepipe.org/examples/#entity-component-custom/) - Sample usage of `EntityComponentPlugin` with a custom component.
+- Add example - [gltf-export-base-path](https://threepipe.org/examples/#gltf-export-base-path/) - Example showing the use of `viewer.export` to export a glTF(JSON) file while preserving resource/base path.
+
 ## [0.3.0] - 2025-10-13
 
 ### Added

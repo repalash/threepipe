@@ -23,6 +23,12 @@ export interface EntityComponentPluginEventMap extends AViewerPluginEventMap{
     removeComponentType: {cls: TObject3DComponent}
 }
 
+/**
+ * Entity Component System plugin for threepipe.
+ * Allows attaching reusable components to IObject3D instances.
+ * Components can have their own serializable/runtime state, lifecycle methods, and update logic.
+ * Components are defined as classes extending Object3DComponent.
+ */
 export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPluginEventMap> {
     public static readonly PluginType = 'EntityComponentPlugin'
 
@@ -87,9 +93,6 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     constructor(running = true) {
         super()
         this.componentTypes.set(Object3DComponent.ComponentType, Object3DComponent)
-        // todo add these samples in tweakpane editor? or a separate example
-        // this.componentTypes.set(MoveInCircleComponent.ComponentType, MoveInCircleComponent)
-        // this.componentTypes.set(SampleBodyComponent.ComponentType, SampleBodyComponent)
         this._running = running
     }
 

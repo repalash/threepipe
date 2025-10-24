@@ -4,5 +4,4 @@ export {Object3DComponent, type TObject3DComponent} from './Object3DComponent'
 export {getComponentTypes, setupComponent, ReferenceManager} from './setupComponent'
 
 // Sample components
-export {MoveInCircleComponent} from './MoveInCircleComponent'
 export {SampleBodyComponent} from './SampleBodyComponent'

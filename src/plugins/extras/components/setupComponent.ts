@@ -30,6 +30,7 @@ function setCompStateProp(v: any, comp: Object3DComponent, propKey: keyof typeof
         console.error('Object3DComponent: unsupported type for state property', propKey, v)
         return
     }
+    // todo skip type checking when running in production
     if (!TypeSystem.CanAssign(valType, propType)) {
         console.error('Object3DComponent: assigned value type is not compatible with state property type', propKey, v, valType, propType)
         return

@@ -60,7 +60,13 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         GLTFLoader.ObjectConstructors.OrthographicCamera = OrthographicCamera0 // todo
     }
 
+    /**
+     * Saves the current resource path in the gltf document extras/userData, which is then exported along with the asset when its exported using GLTFExporter2.
+     * This value is then used the next time that file is imported to correctly resolve external assets from the original resource path.
+     * [wip]
+     */
     static ['_EmbedResourcePath'] = false
+    static ['_UseResourcePath'] = true
 
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [
         GLTFObject3DExtrasExtension.Import,
@@ -84,6 +90,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         oldResourcePath: '',
         newResourcePath: '',
         modify: (url: string) => {
+            if (!GLTFLoader2._UseResourcePath) return url
             if (!this._resPathUrlModifier.oldResourcePath) return url
             if (!this._resPathUrlModifier.newResourcePath) return url
 
