@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.1.3] - 2025-10-24
+
+### Changed
+
+- Minor null checks for threepipe > 0.3.0
+
 ## [0.1.2] - 2025-09-03
 
 ### Changed
@@ -23,5 +29,7 @@ All notable changes to this plugin will be documented in this file.
 - First Release.
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/troika-text
-[0.1.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-troika-text-0.1.1
 [0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-troika-text-0.1.0
+[0.1.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-troika-text-0.1.1
+[0.1.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-troika-text-0.1.2
+[0.1.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-troika-text-0.1.3
