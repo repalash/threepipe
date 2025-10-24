@@ -55,6 +55,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
     private _videos = new Map<string, VideoTexture & ITexture>()
     private _lights = new Map<string, ILight>()
 
+    // todo wait sometime before disposing to avoid disposing and creating again immediately in the same frame
     autoDisposeTextures = true
     autoDisposeMaterials = true
     autoDisposeGeometries = true

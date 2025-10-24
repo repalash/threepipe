@@ -93,3 +93,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
+
+// ecs
+export {EntityComponentPlugin, ECS, type EntityComponentPluginEventMap} from './extras/EntityComponentPlugin'
+export * from './extras/components/index'

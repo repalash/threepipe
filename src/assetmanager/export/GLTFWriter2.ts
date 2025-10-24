@@ -165,9 +165,12 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     processSampler(map: Texture) {
         const samplerIndex = super.processSampler(map)
 
-        // todo: uncomment when sampler extras supported by gltf-transform: https://github.com/donmccurdy/glTF-Transform/issues/645
-
         // const samplerDef = this.json.samplers[samplerIndex]
+        // if (!samplerDef) return samplerIndex
+
+        // this.serializeUserData(map, samplerDef) // todo check when serializeUserData added to three.js core
+
+        // todo: uncomment when sampler extras supported by gltf-transform: https://github.com/donmccurdy/glTF-Transform/issues/645
         // if (!samplerDef.extras) samplerDef.extras = {}
         // samplerDef.extras.uuid = map.uuid
 
