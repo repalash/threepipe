@@ -3,9 +3,10 @@ import type {GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ISerializedViewerConfig, ThreeViewer} from '../../viewer'
 import {Group, ImageUtils} from 'three'
 import {RGBEPNGLoader} from '../import/RGBEPNGLoader'
-import {SerializationResourcesType} from '../../utils'
+import {SerializationMetaType, SerializationResourcesType} from '../../utils'
 import {RootSceneImportResult} from '../IAssetImporter'
 import {halfFloatToRgbe} from '../../three'
+import {GLTFWriter2} from '../export'
 
 export class GLTFViewerConfigExtension {
 
@@ -48,17 +49,22 @@ export class GLTFViewerConfigExtension {
             ...viewerConfig1,
         }
         if (viewerConfig.resources) {
-            await this._parseArrayBuffers(viewerConfig.resources, parser)
-
-            // Find empty resources and try to find them in the glTF as a dependency by saved UUID.
-            const extraResources = await this._parseExtraResources(viewerConfig.resources, parser, viewer)
-
-            viewerConfig.resources = await viewer.loadConfigResources(viewerConfig.resources || {}, extraResources)
+            viewerConfig.resources = await this.ImportResources(viewerConfig.resources, parser, viewer)
         }
 
         if (resultScene) (resultScene as RootSceneImportResult).importedViewerConfig = viewerConfig
 
         return viewerConfig
+    }
+
+    static async ImportResources(resources: Partial<SerializationResourcesType>, parser: GLTFParser, viewer: ThreeViewer): Promise<any> {
+        if (resources.__isLoadedResources) return resources
+        await this._parseArrayBuffers(resources, parser)
+
+        // Find empty resources and try to find them in the glTF as a dependency by saved UUID.
+        const extraResources = await this._parseExtraResources(resources, parser, viewer)
+
+        return await viewer.loadConfigResources(resources || {}, extraResources)
     }
 
     /**
@@ -165,25 +171,34 @@ export class GLTFViewerConfigExtension {
      * @param writer
      * @constructor
      */
-    static ExportViewerConfig(viewer: ThreeViewer, writer: GLTFWriter): void {
-        const viewerData = viewer.toJSON(true, undefined)
-
-        const json = writer.json
-        this._bundleExtraResources(json, viewerData)
-
-        this._bundleArrayBuffers(viewerData, writer)
+    static ExportViewerConfig(viewer: ThreeViewer, writer: GLTFWriter2) {
+        const itemCount = Object.entries(writer.serializationMeta).reduce((acc, res) => acc + (res[0].startsWith('_') ? 0 : Object.keys(res[1]).length), 0)
+        const meta = itemCount ? writer.serializationMeta : undefined
+        const viewerData = viewer.toJSON(true, undefined, meta)
 
         const scene = writer.json.scenes[writer.json.scene || 0]
         if (!scene.extensions) scene.extensions = {}
         writer.extensionsUsed[this.ViewerConfigGLTFExtension] = true
         scene.extensions[this.ViewerConfigGLTFExtension] = viewerData
+
+        const resources = viewerData.resources
+        if (!resources) return undefined
+        GLTFViewerConfigExtension.BundleExtraResources(writer.json, resources)
+        GLTFViewerConfigExtension.BundleArrayBuffers(resources, writer)
+
+        if (meta) { // it will be saved in the GLTF.asset.extras
+            delete viewerData.resources
+            return resources
+        }
+        return undefined
     }
 
-    private static _bundleArrayBuffers(viewerData: any, writer: GLTFWriter) {
+    static BundleArrayBuffers(resources: Partial<SerializationMetaType>, writer: GLTFWriter) {
         // For DataTextures like env map with custom rgbe encoding
         // Create objects of TypedArray
         const buffers: any = []
-        Object.values(viewerData.resources).forEach((res: any) => {
+        Object.entries(resources).forEach(([key, res]: [string, any]) => {
+            if (key.startsWith('_')) return
             if (res) Object.values(res).forEach((item: any) => {
                 if (!item.url) return
                 if (item.url.type === 'Uint16Array' && item.url.data) {
@@ -247,12 +262,13 @@ export class GLTFViewerConfigExtension {
      * Find the resources that are in the viewer config AND in writer.json and use the ones in writer and remove from viewer Config.
      * For now (for the lack of a better way) we can let the resources be exported twice and removed from resources. Overhead will be just for some images.
      * @param json
-     * @param viewerData
+     * @param resources
      * @private
      */
-    private static _bundleExtraResources(json: GLTFWriter['json'], viewerData: any) {
-        if (json.textures && json.samplers && json.images && viewerData.resources.textures)
-            [...Object.entries(viewerData.resources.textures)].forEach(([uuid, texture]: [string, any]) => {
+    static BundleExtraResources(json: GLTFWriter['json'], resources: Partial<SerializationMetaType>) {
+        const {textures, materials} = resources
+        if (json.textures && json.samplers && json.images && textures)
+            [...Object.entries(textures)].forEach(([uuid, texture]: [string, any]) => {
                 const tex = json.textures.find((t: any) => // find same texture in gltf writer
                     t.extras?.uuid === uuid ||
                     json.samplers[t.sampler]?.extras?.uuid === uuid ||
@@ -260,18 +276,18 @@ export class GLTFViewerConfigExtension {
                 )
                 if (!tex) return
                 // console.log('Removing texture', uuid, tex, texture)
-                if (texture.image && viewerData.resources.images && viewerData.resources.images[texture.image]) {
-                    delete viewerData.resources.images[texture.image] // assuming images are only referenced once.
+                if (texture.image && resources.images && resources.images[texture.image]) {
+                    delete resources.images[texture.image] // assuming images are only referenced once.
                 }
-                viewerData.resources.textures[uuid] = {} // set to empty, can be read from the gltf data after loading gltf
+                textures[uuid] = {} // set to empty, can be read from the gltf data after loading gltf
             })
 
         // todo: test
-        if (json.materials && viewerData.resources.materials)
-            [...Object.entries(viewerData.resources.materials)].forEach(([uuid, _]: [string, any]) => {
+        if (json.materials && materials)
+            [...Object.entries(materials)].forEach(([uuid, _]: [string, any]) => {
                 const mat = json.materials.find((m: any) => m.extras?.uuid === uuid) // same material in gltf writer
                 if (!mat) return
-                viewerData.resources.materials[uuid] = {} // set to empty, can be read from the gltf data after loading gltf
+                materials[uuid] = {} // set to empty, can be read from the gltf data after loading gltf
             })
 
         // todo: do same for object references?

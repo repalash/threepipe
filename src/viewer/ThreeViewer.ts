@@ -1197,7 +1197,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._scene.loadModelRoot(obj, options)
             if (options?.importConfig !== false) {
                 if (obj.importedViewerConfig) {
-                    await this.importConfig(obj.importedViewerConfig)
+                    await this.importConfig(obj.importedViewerConfig, obj.importedBundledResources)
                     // @ts-expect-error no type for this
                     if (obj._deletedImportedViewerConfig) delete obj._deletedImportedViewerConfig
                 // @ts-expect-error no type for this
@@ -1212,6 +1212,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                     obj._deletedImportedViewerConfig = true // for console warning above
                 }, this.deleteImportedViewerConfigOnLoadWait)
             }
+
+            setTimeout(()=>{
+                if (!obj.importedBundledResources) return
+                delete obj.importedBundledResources
+                // @ts-expect-error no type for this
+                obj._deletedImportedBundledResources = true // for console warning above
+            }, this.deleteImportedViewerConfigOnLoadWait)
+
             res = this._scene.modelRoot as T
         } else {
             this._scene.addObject(imported, options)
@@ -1335,7 +1343,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param json - The serialized JSON object returned from {@link exportConfig} or {@link toJSON}.
      * @returns {Promise<this>} - The viewer instance with the imported config.
      */
-    async importConfig(json: ISerializedConfig|ISerializedViewerConfig): Promise<this | IViewerPlugin | undefined> {
+    async importConfig(json: ISerializedConfig|ISerializedViewerConfig, meta?: SerializationMetaType): Promise<this | IViewerPlugin | undefined> {
         if (json.type !== this.type && <string>json.type !== 'ViewerApp' && <string>json.type !== 'ThreeViewer') {
             if (this.getPlugin(json.type)) {
                 return this.importPluginConfig(json)
@@ -1344,7 +1352,23 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 return undefined
             }
         }
-        const resources = await this.loadConfigResources(json.resources || {})
+        let resources = await this.loadConfigResources(json.resources || {})
+        if (meta) {
+            // merge resources
+            const resources2: typeof resources = {_context: resources._context} as any
+            const keys = [...Object.keys(resources), ...Object.keys(meta || {})]
+            for (const key of keys) {
+                if (key === 'object')
+                    resources2[key] = resources[key] || meta[key]
+                else
+                    resources2[key] = {
+                        ...resources[key],
+                        ...meta[key],
+                    }
+            }
+            resources = resources2
+        }
+        json.resources = resources
         this.fromJSON(<ISerializedViewerConfig>json, resources)
         return this
     }
@@ -1355,10 +1379,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * @param pluginFilter - List of PluginType to include. If empty, no plugins will be serialized. If undefined/not-passed, all plugins will be serialized.
      * @returns {any} - Serializable JSON object.
      */
-    toJSON(binary = true, pluginFilter?: string[]): ISerializedViewerConfig {
+    toJSON(binary = true, pluginFilter?: string[], meta?: SerializationMetaType): ISerializedViewerConfig {
         if (typeof binary !== 'boolean') binary = true // its a meta, ignore it
         if (pluginFilter !== undefined && !Array.isArray(pluginFilter)) pluginFilter = undefined // non standard param.
-        const meta = getEmptyMeta()
+        meta = meta || getEmptyMeta()
         const data: ISerializedViewerConfig = Object.assign({
             ...this._defaultConfig,
             metadata: {...this._defaultConfig.metadata},
@@ -1464,9 +1488,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         return this
     }
 
-    loadConfigResources = async(json: Partial<SerializationMetaType>, extraResources?: Partial<SerializationResourcesType>): Promise<any> => {
+    loadConfigResources = async(json: Partial<SerializationMetaType>, extraResources?: Partial<SerializationResourcesType>) => {
         // this.console.log(json)
-        if (json.__isLoadedResources) return json
+        if (json.__isLoadedResources) return json as SerializationMetaType
         const meta = metaFromResources(json, this)
         return await MetaImporter.ImportMeta(meta, extraResources)
     }

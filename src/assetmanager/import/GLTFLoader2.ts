@@ -17,7 +17,7 @@ import {
 } from '../gltf'
 import {RootSceneImportResult} from '../IAssetImporter'
 import {ILoader} from '../IImporter'
-import {ThreeSerialization} from '../../utils'
+import {SerializationMetaType, ThreeSerialization} from '../../utils'
 import {
     DirectionalLight2,
     IObject3D,
@@ -60,6 +60,8 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         GLTFLoader.ObjectConstructors.OrthographicCamera = OrthographicCamera0 // todo
     }
 
+    static ['_EmbedResourcePath'] = false
+
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [
         GLTFObject3DExtrasExtension.Import,
         GLTFLightExtrasExtension.Import,
@@ -70,9 +72,10 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         (p)=>({ // saves the current path as resourcePath in the gltf document extras/userData.
             name: '_EMBED_RESOURCE_PATH',
             afterRoot: async(result: GLTF) => {
+                if (!GLTFLoader2._EmbedResourcePath) return
                 const scene = result.scene
                 if (!scene) return
-                if (result.userData.resourcePath) return // already set to something
+                // if (result.userData.resourcePath) return // already set to something
                 result.userData.resourcePath = p.options.path
             },
         }),
@@ -118,6 +121,8 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
      * Preparsers are run on the arraybuffer/string before parsing to read the glb/gltf data
      */
     preparsers: GLTFPreparser[] = []
+
+    static BundledResourcesKey = 'BundledResources'
 
     async preparse(data: ArrayBuffer | string, path: string): Promise<ArrayBuffer | string> {
         for (const preparser of this.preparsers) {
@@ -230,7 +235,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         })
 
         geometries.forEach(geom=>{
-            deserializeUserData(geom)
+            deserializeUserData(geom, res._bundledResources)
         })
 
         if (res.animations.length > 0) {
@@ -267,6 +272,8 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             }
         }
 
+        scene.importedBundledResources = res._bundledResources
+
         return scene
     }
 
@@ -301,7 +308,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             parser.getDependency = async(type: string, index: number) => {
                 // deserialize userdata properly. note - this does not do geometry, that's done separately after load
                 const res = await getDependency.call(parser, type, index)
-                deserializeUserData(res)
+                deserializeUserData(res, parser.bundledResources)
                 return res
             }
             const createUniqueName = parser.createUniqueName
@@ -350,15 +357,23 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
             const tempFiles = supportedEmbeddedFiles.map(f=>generateUUID() + '.' + f)
             tempFiles.forEach(f=>viewer.assetManager.importer.registerFile(f))
 
-            return {name: 'GLTF2_HELPER_PLUGIN', afterRoot: async(result: GLTF) => {
-                if (needsDrc) viewer.assetManager.importer.unregisterFile(tempPathDrc)
-                if (ktx2) viewer.assetManager.importer.unregisterFile(tempPathKtx2)
-                tempFiles.forEach(f=>viewer.assetManager.importer.unregisterFile(f))
+            return {name: 'GLTF2_HELPER_PLUGIN',
+                beforeRoot: async() => {
+                    const bundled = parser.json.extras?.[GLTFLoader2.BundledResourcesKey]
+                    if (!bundled || bundled.__isLoadedResources) return
 
-                await GLTFViewerConfigExtension.ImportViewerConfig(parser, viewer, result.scenes || [result.scene])
+                    parser.bundledResources = await GLTFViewerConfigExtension.ImportResources(bundled, parser, viewer)
+                },
+                afterRoot: async(result: GLTF) => {
+                    result._bundledResources = parser.bundledResources
+                    await GLTFViewerConfigExtension.ImportViewerConfig(parser, viewer, result.scenes || [result.scene])
 
-                viewer.assetManager.importer.removeURLModifier(this._resPathUrlModifier.modify)
-            }}
+                    if (needsDrc) viewer.assetManager.importer.unregisterFile(tempPathDrc)
+                    if (ktx2) viewer.assetManager.importer.unregisterFile(tempPathKtx2)
+                    tempFiles.forEach(f=>viewer.assetManager.importer.unregisterFile(f))
+
+                    viewer.assetManager.importer.removeURLModifier(this._resPathUrlModifier.modify)
+                }}
         }
     }
 }
@@ -435,11 +450,24 @@ declare module 'three/examples/jsm/loaders/GLTFLoader.js'{
     }
 }
 
-function deserializeUserData(res: {userData: any}) {
+function deserializeUserData(res: {userData: any}, meta?: SerializationMetaType) {
     if (res && res.userData) {
         const gltfExtensions = res.userData.gltfExtensions
         delete res.userData.gltfExtensions
-        res.userData = ThreeSerialization.Deserialize(res.userData, {})
+        // if (meta) {
+        //     meta._dRoot = res.userData
+        // }
+        res.userData = ThreeSerialization.Deserialize(res.userData, {}, meta)
         res.userData.gltfExtensions = gltfExtensions
+    }
+}
+
+declare module 'three/examples/jsm/loaders/GLTFLoader.js' {
+    export interface GLTF {
+        _bundledResources?: SerializationMetaType
+    }
+
+    export interface GLTFParser {
+        bundledResources?: SerializationMetaType
     }
 }

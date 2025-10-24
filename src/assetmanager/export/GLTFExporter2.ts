@@ -14,6 +14,8 @@ import {
     GLTFViewerConfigExtension,
 } from '../gltf'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {metaToResources, SerializationMetaType} from '../../utils'
+import {GLTFLoader2} from '../import'
 
 export interface GLTFExporter2Options {
     /**
@@ -185,7 +187,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         return super.parse(input, onDone1, onError, gltfOptions, new GLTFWriter2())
     }
 
-    static ExportExtensions: ((parser: GLTFWriter2) => GLTFExporterPlugin)[] = [
+    static ExportExtensions: ((writer: GLTFWriter2) => GLTFExporterPlugin)[] = [
         GLTFMaterialExtrasExtension.Export,
         GLTFObject3DExtrasExtension.Export,
         GLTFLightExtrasExtension.Export,
@@ -234,7 +236,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         // (w)=>new GLTFMeshGpuInstancingExporter(w), // added to threejs
     ]
 
-    setup(viewer: ThreeViewer, extraExtensions?: ((parser: GLTFWriter2) => GLTFExporterPlugin)[]): this {
+    setup(viewer: ThreeViewer, extraExtensions?: ((writer: GLTFWriter2) => GLTFExporterPlugin)[]): this {
         for (const ext of GLTFExporter2.ExportExtensions) this.register(ext)
         if (extraExtensions) for (const ext of extraExtensions) this.register(ext)
 
@@ -243,15 +245,30 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         return this
     }
 
-    gltfViewerWriter(viewer: ThreeViewer): (parser: GLTFWriter2) => GLTFExporterPlugin {
+    // BundledResources or viewer config writer
+    gltfViewerWriter(viewer: ThreeViewer): (writer: GLTFWriter2) => GLTFExporterPlugin {
         return (writer: GLTFWriter2) => ({
             afterParse: (input: any)=>{
                 input = Array.isArray(input) ? input[0] : input
+                let resources: Partial<SerializationMetaType>|undefined = undefined
                 if (!input?.userData?.rootSceneModelRoot ||
                     writer.options?.exporterOptions?.viewerConfig === false ||
                     input?.userData?.__exportViewerConfig === false
-                ) return
-                GLTFViewerConfigExtension.ExportViewerConfig(viewer, writer)
+                ) {
+                    resources = metaToResources(writer.serializationMeta)
+                    GLTFViewerConfigExtension.BundleExtraResources(writer.json, resources)
+                    GLTFViewerConfigExtension.BundleArrayBuffers(resources, writer)
+                } else {
+                    // resources will be bundled in the viewer config extension.
+                    // note this has to be absolutely at the end of parse. writer.serializationMeta is used and converted to resources inside this
+                    resources = GLTFViewerConfigExtension.ExportViewerConfig(viewer, writer)
+                }
+                if (!resources) return
+                const itemCount = Object.values(resources).reduce((sum, arr) => sum + Object.keys(arr).length, 0)
+                if (itemCount === 0) return // no resources to bundle
+                const extras = (writer.json as any).extras || {}
+                extras[GLTFLoader2.BundledResourcesKey] = resources
+                ;(writer.json as any).extras = extras
             },
         })
     }

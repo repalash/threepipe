@@ -5,9 +5,11 @@ import {ILoader} from './IImporter'
 import {ICamera, IMaterial, IObject3D, ITexture} from '../core'
 import {ISerializedConfig, ISerializedViewerConfig} from '../viewer'
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {SerializationMetaType} from '../utils'
 
 export interface RootSceneImportResult extends Object3D {
     readonly visible: true
+    importedBundledResources?: SerializationMetaType
     importedViewerConfig?: ISerializedViewerConfig
     userData: {
         rootSceneModelRoot?: true

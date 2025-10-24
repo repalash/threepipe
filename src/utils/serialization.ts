@@ -482,7 +482,7 @@ export class ThreeSerialization {
      * Serialize an object
      * {@link Serialization.Serialize}
      */
-    static Serialize(obj: any, meta?: Record<string, Record<string, any>>, isThis = false) {
+    static Serialize(obj: any, meta?: SerializationMetaType, isThis = false) {
         if (!this._init) this.Init()
         return Serialization.Serialize(obj, meta, isThis)
     }
@@ -491,7 +491,7 @@ export class ThreeSerialization {
      * Deserialize an object
      * {@link Serialization.Deserialize}
      */
-    static Deserialize(data: any, obj: any, meta?: Record<string, any>, isThis = false) {
+    static Deserialize(data: any, obj: any, meta?: SerializationMetaType, isThis = false) {
         if (!this._init) this.Init()
         return Serialization.Deserialize(data, obj, meta, isThis)
     }
@@ -653,6 +653,7 @@ export function getEmptyMeta(res?: Partial<SerializationResourcesType>): Seriali
         skeletons: {...res?.skeletons},
         animations: {...res?.animations},
         extras: {...res?.extras},
+        typed: {...res?.typed},
         _context: {},
     }
 }
@@ -666,7 +667,8 @@ export interface SerializationResourcesType {
     skeletons: Record<string, any>,
     animations: Record<string, any>,
     extras: Record<string, any>,
-    object?: any,
+    typed: Record<string, any>,
+    object?: any, // todo what is this used for?
 
     [key: string]: any,
 
@@ -698,6 +700,7 @@ export class MetaImporter {
         if (json.__isLoadedResources) return json
 
         const resources: SerializationMetaType = metaFromResources()
+        resources.__isLoadedResources = true
         resources._context = json._context
 
         convertStringsToArrayBuffersInMeta(json)
@@ -811,7 +814,7 @@ export class MetaImporter {
 
         if (json.extras) {
             resources.extras = json.extras
-            for (const e of (Object.values(json.extras) as any as any[])) {
+            for (const e of (Object.values(json.extras) as any as any[])) { // todo parallel import
                 if (!e.uuid) continue
                 if (!e.url) {
                     resources.extras[e.uuid] = ThreeSerialization.Deserialize(e, undefined, resources)
@@ -834,8 +837,20 @@ export class MetaImporter {
         }
         if (extraResources && extraResources.extras) resources.extras = {...resources.extras, ...extraResources.extras}
 
+        resources.typed = {}
+        if (json.typed) {
+            for (const [key, item] of Object.entries(json.typed)) {
+                if (typeof item.rootPath === 'string' && item.external) { // todo parallel import
+                    const r = await assetImporter.importSingle(item.rootPath, item.rootPathOptions || {})
+                    if (r) resources.typed[key] = r
+                } else {
+                    resources.typed[key] = ThreeSerialization.Deserialize(item, undefined, resources)
+                }
+            }
+        }
+        if (extraResources && extraResources.typed) resources.typed = {...resources.typed, ...extraResources.typed}
+
         // console.log(resources, json)
-        resources.__isLoadedResources = true
         return resources
     }
 
@@ -888,15 +903,6 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
     const res: Partial<SerializationResourcesType> = {...meta}
     if (res._context) delete res._context
     return res
-}
-
-export function mergeResources(target: Partial<SerializationResourcesType>, source: Partial<SerializationResourcesType>) {
-    for (const key of Object.keys(source)) {
-        if (key === 'object') continue
-        if (!target[key]) target[key] = {}
-        Object.assign(target[key]!, source[key]!)
-    }
-    return target
 }
 
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {
