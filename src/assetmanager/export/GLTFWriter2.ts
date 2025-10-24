@@ -2,12 +2,13 @@ import {GLTFExporter, GLTFExporterOptions} from 'three/examples/jsm/exporters/GL
 import {AnimationClip, BufferGeometry, Material, MeshStandardMaterial, Object3D, PixelFormat, Texture} from 'three'
 import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
-import {isNonRelativeUrl, ThreeSerialization} from '../../utils'
+import {getEmptyMeta, isNonRelativeUrl, ThreeSerialization} from '../../utils'
 import {IMaterial} from '../../core'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
     readonly TPAssetVersion = 1
+    serializationMeta = getEmptyMeta()
 
     constructor() {
         super()
@@ -39,7 +40,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
             }
         })
 
-        const ud2 = ThreeSerialization.Serialize(userData)
+        const ud2 = ThreeSerialization.Serialize(userData, this.serializationMeta)
         Object.entries(temp).forEach(([key, value]) => {
             userData[key] = value
             delete temp[key]
