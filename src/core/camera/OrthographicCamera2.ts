@@ -26,7 +26,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
 
-    @uiDropdown('Controls Mode', undefined, (t: PerspectiveCamera2)=>({
+    @uiDropdown('Controls Mode', undefined, (t: OrthographicCamera2)=>({
         children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
     }))
     @serialize()

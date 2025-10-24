@@ -159,7 +159,6 @@ export class ThreeEditor extends ThreeViewer {
         MaterialConfiguratorPlugin, SwitchNodePlugin,
         AWSClientPlugin, TransfrSharePlugin,
 
-        // todo add these to 3dviewer.xyz
         EnvironmentControlsPlugin, GlobeControlsPlugin,
         B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin,
         TilesRendererPlugin, DeepZoomImageLoadPlugin, /* SlippyMapTilesLoadPlugin,*/

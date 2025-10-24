@@ -68,6 +68,7 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync {
             if (this.isDisabled() || !material?.userData._noiseBumpMat?.hasBump) return
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#glMarker beforeAccumulation', NoiseBumpMaterialPluginPatch, {prepend: true})
             shader.defines && (shader.defines.USE_UV = '')
+            // @ts-expect-error this is not req anymore actually.
             shader.extensionDerivatives = true
         },
         onObjectRender: (_: IObject3D, material) => {

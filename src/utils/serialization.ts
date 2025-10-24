@@ -482,7 +482,7 @@ export class ThreeSerialization {
      * Serialize an object
      * {@link Serialization.Serialize}
      */
-    static Serialize(obj: any, meta?: SerializationMetaType, isThis = false) {
+    static Serialize(obj: any, meta?: Partial<SerializationMetaType>, isThis = false) {
         if (!this._init) this.Init()
         return Serialization.Serialize(obj, meta, isThis)
     }
@@ -491,7 +491,7 @@ export class ThreeSerialization {
      * Deserialize an object
      * {@link Serialization.Deserialize}
      */
-    static Deserialize(data: any, obj: any, meta?: SerializationMetaType, isThis = false) {
+    static Deserialize(data: any, obj: any, meta?: Partial<SerializationMetaType>, isThis = false) {
         if (!this._init) this.Init()
         return Serialization.Deserialize(data, obj, meta, isThis)
     }
@@ -903,6 +903,15 @@ export function metaToResources(meta?: SerializationMetaType): Partial<Serializa
     const res: Partial<SerializationResourcesType> = {...meta}
     if (res._context) delete res._context
     return res
+}
+
+export function mergeResources(target: Partial<SerializationResourcesType>, source: Partial<SerializationResourcesType>) {
+    for (const key of Object.keys(source)) {
+        if (key === 'object') continue
+        if (!target[key]) target[key] = {}
+        Object.assign(target[key]!, source[key]!)
+    }
+    return target
 }
 
 export function metaFromResources(resources?: Partial<SerializationResourcesType>, viewer?: ThreeViewer): SerializationMetaType {

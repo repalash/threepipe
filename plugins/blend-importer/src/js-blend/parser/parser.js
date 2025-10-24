@@ -612,6 +612,7 @@ function worker_code () {
         offset = 0;
 
         // todo gzip, zstd(28 b5 2f fd, https://projects.blender.org/archive/blender-file/issues/93858)
+        //  some blend files are basically zip files, we can just built in fflate
         // Make sure we have a .blend __blender_file__. All blend files have the first 12bytes
         // set with BLENDER-v### in Utf-8
         const magic = toString(_data, offset, 7)

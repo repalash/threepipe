@@ -70,8 +70,8 @@ const link3 = await sharePlugin.shareEditorLink()
 
 // to encrypt
 const assetExporterPlugin = viewer.getPlugin(AssetExporterPlugin) // this is a dependency, so automatically added
-assetExporterPlugin.encrypt = true
-// assetExporterPlugin.encryptKey = 'password' // user will be prompted for password when exporting if this is commented 
+assetExporterPlugin.exportOptions.encrypt = true
+// assetExporterPlugin.exportOptions.encryptKey = 'password' // user will be prompted for password when exporting if this is commented 
 
 await sharePlugin.shareViewerLink()
 ```
