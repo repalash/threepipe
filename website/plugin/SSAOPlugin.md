@@ -283,7 +283,7 @@ The [`SSAOPlugin`](https://threepipe.org/docs/classes/SSAOPlugin.html) works in 
 
 ## See Also
 
-### ThreePipe Documentation
+### Threepipe Documentation
 - **[GBufferPlugin](./GBufferPlugin)** - Required dependency for depth/normal data
 - **[ProgressivePlugin](./ProgressivePlugin)** - Temporal accumulation for quality improvement
 - **[DepthBufferPlugin](./DepthBufferPlugin)** - Enhanced depth buffer precision

@@ -3,26 +3,26 @@
 layout: home
 
 hero:
-  name: "ThreePipe"
-  text: "3D on the Web\nMade Easy"
-  tagline: "Effortlessly create 3D web experiences, from quick demos to advanced applications, with Three.js"
+  name: "Threepipe"
+  text: "Next generation 3D tooling for the web"
+  tagline: "Next generation 3D tooling \nfor web- \n🪐 rendering\n🌀 visualization\nand 🕹️ games"
   image:
-    src: /logo.svg
+    src: /logo-filled.png
     alt: Threepipe
   actions:
     - theme: brand
-      text: Examples
-      link: https://threepipe.org/examples
-      target: _blank
-    - theme: alt
       text: Get Started
       link: ./guide/getting-started
-    - theme: brand
-      text: 3D glTF Editor
+    - theme: alt
+      text: About
+      link: ./guide/introduction
+    - theme: alt
+      text: 3D Editor ↗
       link: https://editor.threepipe.org
     - theme: alt
-      text: About Threepipe
-      link: ./guide/introduction
+      text: Examples ↗
+      link: https://threepipe.org/examples
+      target: _blank
 
 features:
   - title: Start quickly
@@ -100,3 +100,6 @@ features:
     linkText: Checkout iJewel3D
 
 ---
+<ClientOnly>
+<SetupViewer/>
+</ClientOnly>

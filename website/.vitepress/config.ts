@@ -2,17 +2,17 @@ import {defineConfig} from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "ThreePipe",
+  title: "Threepipe",
   description: "Effortlessly create 3D web experiences, from quick demos to advanced applications, with Three.js",
   themeConfig: {
-    logo: '/logo.svg',
+    logo: {src: '/logo-filled.png', height: '80px', style: {height: '40px', marginRight: '4px'}},
     outline: 'deep',
 
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Examples', link: 'https://threepipe.org/examples' },
-      { text: '3D Editor', link: 'https://editor.threepipe.org' },
+      { text: '3D Editor', link: 'https://editor.threepipe.org/' },
       { text: 'API Reference', link: 'https://threepipe.org/docs' }
     ],
 
@@ -213,7 +213,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'ThreePipe - Make 3D applications on the web',
+      message: 'Threepipe - Next generation 3D tooling for the web',
       copyright: 'Copyright © 2023-present, <a href="https://repalash.com/">repalash</a>. All rights reserved.',
     },
 

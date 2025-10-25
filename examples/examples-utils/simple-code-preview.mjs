@@ -29,7 +29,7 @@ scripts.length && setupCodePreview(
     scripts.map(s=>(typeof s === 'string' && s.endsWith('.js')) ? s : (codePath + examplePath + ex + (s.textContent ? 'index.html' : s))), // todo: github link
     (c) => '// Threepipe example: ' + window.location.href + '\n' + (c),
     {
-        title: 'ThreePipe: ' + document.title,
+        title: 'Threepipe: ' + document.title,
         css,
     },
     `
