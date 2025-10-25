@@ -1,4 +1,4 @@
-# [![Threepipe](/website/public/logo-24.svg)](https://threepipe.org) ThreePipe
+# [![Threepipe](/website/public/logo-24.svg)](https://threepipe.org) Threepipe
 
 Next generation tooling for web3D and photorealistic graphics.
 
@@ -13,7 +13,7 @@ Next generation tooling for web3D and photorealistic graphics.
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/repalash.svg?style=social&label=Follow%20%40repalash)](https://twitter.com/repalash)
 [![GitHub Repo stars](https://img.shields.io/github/stars/repalash/threepipe)](https://github.com/repalash/threepipe)
 
-ThreePipe is a modern 3D framework built on top of [three.js](https://threejs.org/), written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.
+Threepipe is a modern 3D framework built on top of [three.js](https://threejs.org/), written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.
 
 ## Features
 
@@ -47,7 +47,7 @@ View and edit the source code by pressing the code button on the top left of the
 
 ## Threepipe Editor
 
-A web-based editor to create, edit, configure and export 3D scenes and models for use with ThreePipe.
+A web-based editor to create, edit, configure and export 3D scenes and models for use with Threepipe.
 
 [![Threepipe Editor](/website/public/images/threepipe-editor.webp)](https://editor.threepipe.org)
 

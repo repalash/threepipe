@@ -105,17 +105,17 @@ export async function setupViewer() {
     viewer.deleteImportedViewerConfigOnLoad = false
     viewer.renderManager.stableNoise = true;
     // await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
-    await viewer.load('/watch-2.glb', {
+    const res = await viewer.load('https://webgi.dev/watch-2.glb', {
         autoCenter: true,
         autoScale: true,
     });
     if(baseGround) {
         baseGround.mapMode = 'alphaMap'
         baseGround.size = 20
-        if(mobile){
-            baseGround.material.transparent = true
-            baseGround.material.opacity = 0.01
-        }
+        // if(mobile){
+        //     baseGround.material.transparent = true
+        //     baseGround.material.opacity = 0.01
+        // }
     }
 
 
@@ -129,17 +129,7 @@ export async function setupViewer() {
     // let debugEnabled = false
 
     const splitLine = document.createElement('div')
-    splitLine.style.background = 'var(--vp-c-brand-1)'
-    splitLine.style.opacity = '0.2'
-    splitLine.style.position = 'absolute'
-    splitLine.style.width = '2px'
-    splitLine.style.height = '100%'
-    splitLine.style.pointerEvents = 'none'
-    splitLine.style.zIndex = '1000'
-    splitLine.style.transform = 'translateX(-50%)'
-    splitLine.style.top = '0px'
-    splitLine.style.left = '50%'
-    splitLine.style.display = 'none'
+    splitLine.classList.add('split-line')
     viewer.container.appendChild(splitLine)
 
     window.addEventListener('mousemove', (e)=>{
@@ -250,54 +240,28 @@ function handleDarkMode(viewer) {
 const models = [
     {
         label: 'Watch',
-        path: '/watch-2.glb',
-        // icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch"><circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></svg>`,
+        path: 'https://webgi.dev/watch-2.glb',
         icon: '1',
     },
     {
         label: 'City',
-        path: '/gi-city-2.glb',
+        path: 'https://webgi.dev/gi-city-2.glb',
         bg: false,
-        // icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch"><circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></svg>`,
         icon: '2',
     },
     {
         label: 'Car',
-        // path: '/gi-city-8.glb',
-        path: '/car-scene.glb',
+        // path: 'https://webgi.dev/gi-city-8.glb',
+        path: 'https://webgi.dev/car-scene.glb',
         bg: false,
-        // icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch"><circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></svg>`,
         icon: '3',
     },
     {
         label: 'Robot',
-        path: '/robot.glb',
+        path: 'https://webgi.dev/robot.glb',
         bg: true,
-        // icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch"><circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></svg>`,
         icon: '4',
     },
-    // {
-    //     label: 'Engine',
-    //     path: '/engine-ssr-compressed.glb',
-    //     bg: true,
-    //     // icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch"><circle cx="12" cy="12" r="6"/><polyline points="12 10 12 12 13 13"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/></svg>`,
-    //     icon: '5',
-    // },
-    // {
-    //     label: 'Dress',
-    //     path: '/dress-red.glb',
-    //     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shirt"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>`,
-    // },
-    // {
-    //     label: 'Shoes',
-    //     path: '/shoes-nike.glb',
-    //     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-footprints"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>`,
-    // },
-    // {
-    //     label: 'Ring',
-    //     path: '/ring-pearl.glb',
-    //     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gem"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg>`,
-    // },
 ]
 function addModelTabs(viewer) {
     const container = viewer.container

@@ -231,3 +231,17 @@
     99.99%  { transform: rotate(360deg) scaleY(-1); }  /* rotate */
     100% { transform: rotate(360deg) scaleY(1); }  /* pause before looping */
 }
+
+.split-line{
+    background: var(--vp-c-brand-1);
+    opacity: 0.2;
+    position: absolute;
+    width: 2px;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    transform: translateX(-50%);
+    top: 0px;
+    left: 50%;
+    display: none;
+}

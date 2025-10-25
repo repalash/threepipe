@@ -36,7 +36,10 @@
     },
     "include": [
         "./src/**/*",
-        "node_modules/@types/wicg-file-system-access/index.d.ts"
+        "node_modules/@types/wicg-file-system-access/index.d.ts",
+        "website/**/*.ts",
+        "website/**/*.vue",
+        "website/**/*.md"
     ],
     "exclude": [
         "node_modules",
@@ -44,5 +47,8 @@
         "examples",
         "experiments",
         "**/*.spec.ts"
-    ]
+    ],
+    "vueCompilerOptions": {
+        "vitePressExtensions": [".md"],
+    }
 }
