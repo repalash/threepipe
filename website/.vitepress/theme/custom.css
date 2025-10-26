@@ -73,10 +73,14 @@
 /* homepage canvas stuff */
 .canvas-container{
     width: 100vw;
-    height: 60vh;
+    height: 65vh;
     transform: translateX(-50%);
     left: 50%;
     position: absolute;
+}
+
+.VPNav{
+    background-color: var(--vp-c-bg);
 }
 
 @media (min-width: 960px) {
@@ -84,14 +88,11 @@
         height: 50vh;
     }
 
-    .VPNav{
-        background-color: var(--vp-c-bg);
-    }
-
     .canvas-container{
         width: 60vw;
         transform: translateX(calc(-100% + 32px));
         left: 100%;
+        max-width: 1000px;
         /*height: 60vh;*/
     }
     .VPHomeHero .main > .actions{
@@ -109,6 +110,10 @@
     .VPHomeFeatures{
         margin-top: 30px;
     }
+}
+
+.VPHomeHero .main > .heading > .text{
+    text-shadow: 1px 2px 4px rgba(100,100,100,0.4);
 }
 
 .VPHomeHero .main > .heading > .text{
@@ -169,10 +174,23 @@
     display: flex;
     gap: 10px;
     z-index: 1000;
+    user-select: none;
+    width: max-content;
+    height: max-content;
+}
+.btn-bar {
+    position: absolute;
+    bottom: 30px;
+    left: auto;
+    right: 30px;
+    /*transform: translateX(-50%);*/
+    display: flex;
+    gap: 10px;
+    z-index: 1000;
 }
 .model-tab {
-    background: rgba(151, 151, 151, 0.5);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
     border: none;
     border-radius: 50%;
     width: 30px;
@@ -181,18 +199,35 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.3s, transform 0.3s;
+    transition: background 0.3s, transform 0.3s, color 0.3s;
+    color: #111111;
     font-size: 12px;
 }
+.model-tabs .model-tab > svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2px;
+}
+.btn-bar .model-tab > svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2px;
+}
 .model-tab:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.7);
 }
 .model-tab-selected {
-    transform: scale(1.1);
-    outline: 1px solid currentColor;
+    color: var(--vp-c-blue-3);
+    background: rgba(255, 255, 255, 0.7);
+    /*transform: scale(1.1);*/
+    /*outline: 1px solid var(--vp-c-blue-1);*/
 }
 .hidden {
     display: none;
+}
+.model-tab.disabled{
+    pointer-events: none;
+    /*opacity: 0;*/
 }
 
 @media (max-width: 600px) {
@@ -203,14 +238,22 @@
 @media (max-width: 960px) {
     .model-tabs {
         top: 64px;
-        right: 0px;
-        left: auto;
+        right: auto;
+        left: 130px;
     }
     .model-tab {
         width: 24px;
         height: 24px;
         font-size: 80%;
     }
+    .btn-bar{
+        top: 64px;
+        bottom: auto;
+    }
+}
+
+#assetManagerLoadingScreen{
+    backdrop-filter: blur(0px) !important;
 }
 
 .loadingScreenLoadingElement{

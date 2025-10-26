@@ -24,7 +24,7 @@ export default {
             document.head.appendChild(script)
             const script2 = document.createElement('script')
             script2.type = 'module'
-            script2.src = '/home-viewer.js'
+            script2.src = '/scripts/home-viewer.js'
             document.head.appendChild(script2)
             console.log(script2)
             // setupViewer()
