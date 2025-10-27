@@ -16,13 +16,17 @@ const viewer = new ThreeViewer({
 
 async function init() {
 
+    viewer.scene.mainCamera.position.set(5, 0.14, 3)
+    viewer.scene.mainCamera.target.set(-0.2, 0, 0)
+
     viewer.addPluginSync(Rhino3dmLoadPlugin)
 
     // load a 3dm file
-    const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/3dm/Rhino_Logo.3dm', {
+    const result = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/Pistons.3dm', {
         autoCenter: true,
         autoScale: true,
     })
+    // await viewer.load<IObject3D>('https://threejs.org/examples/models/3dm/Rhino_Logo.3dm')
 
     // export to glb
     const blob = await viewer.export(result)

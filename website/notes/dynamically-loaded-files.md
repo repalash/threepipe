@@ -161,7 +161,7 @@ These files are used in the examples for testing and development. Not to be used
   - https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_colorize_tileset.json
   - https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64o256_colorize/0528_0260184_to_s64o256_sky/0528_0260184_to_s64o256_sky_tileset.json
   - https://raw.githubusercontent.com/link-u/avif-sample-images/refs/heads/master/red-at-12-oclock-with-color-profile-12bpc.avif
-  - https://threejs.org/examples/models/3dm/Rhino_Logo.3dm
+  - https://samples.threepipe.org/minimal/Pistons.3dm
   - https://threejs.org/examples/models/draco/bunny.drc
   - https://threejs.org/examples/models/fbx/Samba%20Dancing.fbx
   - https://threejs.org/examples/models/gltf/BoomBox.glb

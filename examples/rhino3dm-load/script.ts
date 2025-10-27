@@ -16,12 +16,15 @@ async function init() {
         plugins: [LoadingScreenPlugin],
     })
 
+    viewer.scene.mainCamera.position.set(5, 0.14, 3)
+    viewer.scene.mainCamera.target.set(-0.2, 0, 0)
+
     viewer.addPluginSync(Rhino3dmLoadPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
-    const result = await viewer.load<IObject3D>('https://threejs.org/examples/models/3dm/Rhino_Logo.3dm', {
+    const result = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/Pistons.3dm', {
         autoCenter: true,
         autoScale: true,
     })
