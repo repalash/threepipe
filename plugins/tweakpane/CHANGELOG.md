@@ -10,7 +10,13 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
-## [0.9.0] - 2025-10-27
+## [0.10.1] - 2025-10-27
+
+### Changed
+
+- Update [uiconfig-tweakpane](https://threepipe.org/) in `devDependencies` to [1.0.1](https://github.com/repalash/threepipe/releases/tag/v1.0.1)
+
+## [0.10.0] - 2025-10-27
 
 ### Changed
 
