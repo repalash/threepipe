@@ -4,7 +4,7 @@ import {IAssetImporter} from '../assetmanager'
 import {LinearFilter} from 'three'
 import {ITexture} from '../core'
 import {DataUrlLoader} from '../assetmanager/import/DataUrlLoader'
-import {isNonRelativeUrl} from './browser-helpers.ts'
+import {isNonRelativeUrl} from './browser-helpers'
 
 export interface ITextSVGOptions{
     text: string;
@@ -124,6 +124,7 @@ export function buildTextSvg({
     textAnchor = 'middle',
     style = '',
 }: ITextSVGOptions) {
+    // noinspection CssInvalidPropertyValue
     const s = `
 <svg style="background-color:${svgBackground}" width="${width}" height="${height}" viewBox="0 0 ${boxWidth} ${boxHeight}"
  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">

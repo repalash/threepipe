@@ -1,8 +1,8 @@
 import {IAnimationLoopEvent, IObject3D} from '../../../core'
 import {UiObjectConfig} from 'uiconfig.js'
-import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes.ts'
+import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes'
 import {onChange2} from 'ts-browser-helpers'
-import {refreshAllStateProperties} from './setupComponent.ts'
+import {refreshAllStateProperties} from './setupComponent'
 
 export type TObject3DComponent = typeof Object3DComponent
 

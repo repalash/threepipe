@@ -35,7 +35,7 @@ import {
     UnlitMaterial,
 } from '../../core'
 import {ImportAddOptions} from '../AssetManager'
-import {AssetImporter} from '../AssetImporter.ts'
+import {AssetImporter} from '../AssetImporter'
 
 // todo move somewhere
 const supportedEmbeddedFiles = ['hdr', 'exr', 'webp', 'avif', 'ktx', 'hdrpng', 'svg', 'cube', 'ico', 'bmp', 'gif', 'tiff'] // ktx2, drc handled separately

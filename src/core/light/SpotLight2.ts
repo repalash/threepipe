@@ -2,10 +2,10 @@ import {Color, ColorRepresentation, Euler, SpotLight, SpotLightShadow, Vector2, 
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiInput, uiNumber, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
-import {objectActionsUiConfig} from '../object/IObjectUi.ts'
+import {objectActionsUiConfig} from '../object/IObjectUi'
 
 /**
  * Extension of three.js SpotLight with additional properties for serialization and UI
@@ -19,7 +19,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig = {
+    uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Spot Light',
         children: [

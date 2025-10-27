@@ -2,10 +2,10 @@ import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Eu
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiNumber, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange2, onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
-import {objectActionsUiConfig} from '../object/IObjectUi.ts'
+import {objectActionsUiConfig} from '../object/IObjectUi'
 
 /**
  * Extension of three.js DirectionalLight with additional properties for serialization and UI
@@ -19,7 +19,7 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig = {
+    uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Directional Light',
         children: [

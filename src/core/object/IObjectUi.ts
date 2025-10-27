@@ -5,7 +5,7 @@ import {Vector3} from 'three'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
-import {iCameraCommons} from './iCameraCommons.ts'
+import {iCameraCommons} from './iCameraCommons'
 
 declare module '../IObject' {
     interface IObject3D {

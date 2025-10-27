@@ -247,7 +247,7 @@ export interface IMaterialUserData extends IImportResultUserData{
 
 export interface AnimateTimeMaterial extends AnimateTime{from?: IMaterial}
 
-export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends Material<TE>, IJSONSerializable, IDisposable, IUiConfigContainer {
+export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> extends Material<TE>, IJSONSerializable<any, SerializationMetaType>, IDisposable, IUiConfigContainer {
     constructor: {
         TYPE: string
         TypeSlug: string
@@ -276,9 +276,9 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      * @param clearCurrentUserData - clears the userData instead of merging first level. Default - true if `Material` object is passed, false if parameters object is passed
      * @param time - parameters to animate the setting of properties
      */
-    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): IMaterial&this;
+    setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): void;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
-    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): (IMaterial&this) | null;
+    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): /* this*/ any | null;
 
     extraUniformsToUpload: Record<string, IUniform>
     materialExtensions: MaterialExtension[]
@@ -310,7 +310,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      *
      * @param track - if true, the clone id and count will be tracked in the userData and a suffix will be appended to the name. default - false
      */
-    clone(track?: boolean): IMaterial&this
+    clone(track?: boolean): /* this*/ any
 
     /**
      * A promise can be set by the object to indicate that the material(or any of its properties) is loading.

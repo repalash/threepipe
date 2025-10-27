@@ -1,4 +1,4 @@
-import {Object3DComponent} from './Object3DComponent.ts'
+import {Object3DComponent} from './Object3DComponent'
 import {Vector3} from 'three'
 import {IAnimationLoopEvent} from '../../../core'
 import {uiButton} from 'uiconfig.js'

@@ -1,4 +1,4 @@
-import {AssetExporterEventMap} from '../AssetExporter.ts'
+import {AssetExporterEventMap} from '../AssetExporter'
 import {
     IGeometry,
     IMaterial,
@@ -10,8 +10,8 @@ import {
     MeshLineSegments,
 } from '../../core'
 import {BufferAttribute, BufferGeometry} from 'three'
-import {AssetImporter} from '../AssetImporter.ts'
-import {GLTFExporter2Options} from './GLTFExporter2.ts'
+import {AssetImporter} from '../AssetImporter'
+import {GLTFExporter2Options} from './GLTFExporter2'
 import {getPartialProps, setPartialProps} from '../../utils'
 
 export interface AssetExportHooks {
@@ -347,7 +347,7 @@ function revertMeshLines(obj1: IObject3D, g1?: IGeometry) {
 }
 
 
-declare module '../../core/IObject.ts' {
+declare module '../../core/IObject' {
     interface IObject3D{
         __exportState?: {
             objectList: Set<IObject3D>,
@@ -359,7 +359,7 @@ declare module '../../core/IObject.ts' {
         }
     }
 }
-declare module '../../core/IMaterial.ts' {
+declare module '../../core/IMaterial' {
     interface IMaterial{
         __exportState?: {
             savedMaps: Record<string, ITexture>|null

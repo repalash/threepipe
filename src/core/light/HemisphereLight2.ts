@@ -2,9 +2,9 @@ import {Color, ColorRepresentation, HemisphereLight, Vector3} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
-import {objectActionsUiConfig} from '../object/IObjectUi.ts'
+import {objectActionsUiConfig} from '../object/IObjectUi'
 
 /**
  * Extension of three.js HemisphereLight with additional properties for serialization and UI
@@ -18,7 +18,7 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     assetType = 'light' as const
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
-    uiConfig = {
+    uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Hemisphere Light',
         children: [

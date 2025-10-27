@@ -3,11 +3,16 @@ import {
     BufferGeometry2,
     Class,
     IGeometry,
-    IMaterial, IMesh, IObject3D, IObject3DEventMap, ISceneEventMap,
+    IMaterial,
+    IMesh,
+    IObject3D,
+    IObject3DEventMap,
+    ISceneEventMap,
     Mesh2,
     type Object3DGeneratorPlugin,
     PhysicalMaterial,
-    ThreeViewer, toTitleCase,
+    ThreeViewer,
+    toTitleCase,
 } from 'threepipe'
 import {TorusGeometryGenerator} from './primitives/TorusGeometryGenerator'
 import {CircleGeometryGenerator} from './primitives/CircleGeometryGenerator'

@@ -9,8 +9,8 @@ import {
     setupComponent,
     TObject3DComponent,
 } from './components'
-import {ViewerEventMap} from '../../viewer/ThreeViewer.ts'
-import {teardownComponent} from './components/setupComponent.ts'
+import {ViewerEventMap} from '../../viewer/ThreeViewer'
+import {teardownComponent} from './components/setupComponent'
 
 export type FunctionPropertyNames<T> = {
     [K in keyof T]: T[K] extends (((...args: any[]) => any)|undefined) ? K : never;

@@ -24,7 +24,7 @@
         "target": "ES2020",
         "strictNullChecks": true,
         "jsx": "react-jsx",
-        "allowImportingTsExtensions": true,
+        "allowImportingTsExtensions": false,
         "paths": {
         },
         "lib": [

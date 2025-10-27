@@ -173,11 +173,11 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
      * @param clearCurrentUserData - if undefined, then depends on material.isMaterial. if true, the current userdata is cleared before setting the new values, because it can have data which wont be overwritten if not present in the new material.
      * @param time - optional data to animate(lerp) from current value to the target value.
      */
-    setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): this {
-        if (!parameters) return this
+    setValues(parameters: Material|(MeshPhysicalMaterialParameters&{type?:string}), allowInvalidType = true, clearCurrentUserData: boolean|undefined = undefined, time?: AnimateTime): void {
+        if (!parameters) return
         if (parameters.type && !allowInvalidType && !['MeshPhysicalMaterial', 'MeshStandardMaterial', 'MeshStandardMaterial2', this.constructor.TYPE, this.type].includes(parameters.type)) {
             console.error('Material type is not supported:', parameters.type)
-            return this
+            return
         }
 
         // Blender exporter used to export a scalar. See three.js:#7459
@@ -191,11 +191,11 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
 
         this.userData.uuid = this.uuid
-        return this
     }
 
     copy(source: Material|any): this {
-        return this.setValues(source, false)
+        this.setValues(source, false)
+        return this
     }
 
     /**
@@ -222,7 +222,8 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     fromJSON(data: any, meta?: SerializationMetaType, _internal = false): this | null {
         if (_internal) {
             ThreeSerialization.Deserialize(data, this, meta, true)
-            return this.setValues(data)
+            this.setValues(data)
+            return this
         }
         this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true})
         return this

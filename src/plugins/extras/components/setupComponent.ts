@@ -1,8 +1,8 @@
-import {Object3DComponent} from './Object3DComponent.ts'
-import {ComponentCtx, StatePropConfig, TypedType, TypeSystem} from './componentTypes.ts'
+import {Object3DComponent} from './Object3DComponent'
+import {ComponentCtx, StatePropConfig, TypedType, TypeSystem} from './componentTypes'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {generateUiConfig, generateValueConfig, UiObjectConfig} from 'uiconfig.js'
-import {ReferenceManager} from './ReferenceManager.ts'
+import {ReferenceManager} from './ReferenceManager'
 
 interface PropMeta {
     config: StatePropConfig;
