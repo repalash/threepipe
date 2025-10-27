@@ -309,6 +309,16 @@ export function objectExtensionsUiConfig(this: IObject3D) {
     }).filter(v => v)
 }
 
+export function incrementObjectCloneName(obj: IObject3D, clone: IObject3D) {
+    const match = obj.name.match(/\(copy( (\d+))?\)$/)
+    if (match) {
+        const copyNum = match[2] ? parseInt(match[2]) + 1 : 2
+        clone.name = obj.name.replace(/\(copy( \d+)?\)$/, `(copy ${copyNum})`)
+    } else {
+        clone.name = obj.name + ' (copy)'
+    }
+}
+
 export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     return [{
         type: 'button',
@@ -317,7 +327,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
         value: async()=>{
             const parent = this.parent
             const clone = this.clone(true) as IObject3D
-            clone.name = this.name + ' (copy)'
+            incrementObjectCloneName.call(this, clone)
             return {
                 action: ()=>{
                     if (parent && !clone.parent)

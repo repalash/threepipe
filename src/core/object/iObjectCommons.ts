@@ -564,7 +564,7 @@ export const object3DTextureProperties: Set<string> = new Set<string>([])
 function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objectProcessor?: IObjectProcessor*/): IObject3D {
     if (!this) return this
     if (!this.userData) this.userData = {}
-    this.userData.uuid = this.uuid
+    // this.userData.uuid = this.uuid
 
     // not checking assetType but custom var __objectSetup because its required in types sometimes, check PerspectiveCamera2
     // if (this.assetType) return this
