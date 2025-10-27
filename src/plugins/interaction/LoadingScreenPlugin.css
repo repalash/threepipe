@@ -18,10 +18,11 @@
   transition: opacity 0.5s ease-in-out, min-width 0.5s, min-height 0.5s, bottom 0.5s, right 0.5s;
   overflow: hidden;
   background: transparent;
-  backdrop-filter: blur(16px);
   background-blend-mode: luminosity;
   --b-opacity: 0.8;
   --b-background: #fff;
+  --b-blur: 24px;
+  backdrop-filter: blur(var(--b-blur));
   pointer-events: none;
 }
 #assetManagerLoadingScreen::before {

@@ -209,7 +209,8 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         this._setHTML(this.loadingElement, this.spinners[this.loader].html)
         this._mainDiv.style.setProperty('--b-opacity', this.backgroundOpacity.toString())
         this._mainDiv.style.setProperty('--b-background', this.background)
-        ;(this._mainDiv.style as any).backdropFilter = `blur(${this.backgroundBlur}px)`
+        this._mainDiv.style.setProperty('--b-blur', this.backgroundBlur + 'px')
+        // ;(this._mainDiv.style as any).backdropFilter = `blur(${this.backgroundBlur}px)`
         this._mainDiv.style.color = this.textColor
         this._setHTML(this.logoElement, this.logoImage ? `<img class="loadingScreenLogoImage" src=${JSON.stringify(this.logoImage)}/>` : '')
         if (updateVisibility) {
