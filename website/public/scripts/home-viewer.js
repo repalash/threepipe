@@ -1,5 +1,5 @@
-import * as THREE from 'https://esm.sh/threepipe/dist';
-import {TweakpaneUiPlugin} from 'https://esm.sh/@threepipe/plugin-tweakpane?external=threepipe';
+import * as THREE from 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs';
+// import {TweakpaneUiPlugin} from 'https://unpkg.com/@threepipe/plugin-tweakpane/dist/index.mjs';
 import {
     BloomPlugin,
     DepthOfFieldPlugin,
@@ -7,7 +7,7 @@ import {
     SSReflectionPlugin,
     TemporalAAPlugin,
     WatchHandsPlugin
-} from 'https://esm.sh/@threepipe/webgi-plugins?external=threepipe';
+} from 'https://unpkg.com/@threepipe/webgi-plugins/dist/index.mjs';
 import {setupAbstract, teardownAbstract} from "./home-3d-abstract.js";
 // import './home.css'
 const {
@@ -231,21 +231,21 @@ export async function setupViewer() {
     const dof = viewer.getPlugin(DepthOfFieldPlugin)
     dof.enabled = false
 
-    if(viewer.debug) {
-        // await viewer.fitToView(undefined, 0.5)
-        // prompt.startAnimation()
-        // prompt.autoStartDelay = 1000
-        const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true));
-        ui.setupPluginUi(LoadingScreenPlugin);
-        ui.setupPluginUi(ContactShadowGroundPlugin);
-        // ui.setupPluginUi(PickingPlugin);
-
-        ui.setupPluginUi(SSAOPlugin);
-        ui.setupPluginUi(SSReflectionPlugin);
-        ui.setupPluginUi(SSGIPlugin);
-        ui.setupPluginUi(TemporalAAPlugin);
-        ui.setupPluginUi(BloomPlugin);
-    }
+    // if(viewer.debug) {
+    //     // await viewer.fitToView(undefined, 0.5)
+    //     // prompt.startAnimation()
+    //     // prompt.autoStartDelay = 1000
+    //     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true));
+    //     ui.setupPluginUi(LoadingScreenPlugin);
+    //     ui.setupPluginUi(ContactShadowGroundPlugin);
+    //     // ui.setupPluginUi(PickingPlugin);
+    //
+    //     ui.setupPluginUi(SSAOPlugin);
+    //     ui.setupPluginUi(SSReflectionPlugin);
+    //     ui.setupPluginUi(SSGIPlugin);
+    //     ui.setupPluginUi(TemporalAAPlugin);
+    //     ui.setupPluginUi(BloomPlugin);
+    // }
 
 }
 
@@ -287,7 +287,7 @@ function handleDarkMode(viewer) {
     function handleDarkModeChange() {
         if (document.documentElement.classList.contains('dark')) {
             setMode(true)
-            console.log('Dark mode is enabled');
+            // console.log('Dark mode is enabled');
         } else {
             setMode(false)
             console.log('Light mode is enabled');
