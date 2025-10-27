@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.4.1] - 2025-10-27
+## [0.4.2] - 2025-10-27
 
 - Several typescript and other fixes related to issues with some typescript versions/settings.
-- Update three.js version in package-lock.json
+- Update three.js version in package.json `peerDependencies` to `r163`
 
 ## [0.4.0] - 2025-10-27
 

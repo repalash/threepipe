@@ -1,6 +1,6 @@
 {
   "name": "threepipe",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A modern 3D viewer framework built on top of three.js, written in TypeScript, designed to make creating high-quality, modular, and extensible 3D experiences on the web simple and enjoyable.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -145,7 +145,7 @@
     "uiconfig.js": ">=0.3.1"
   },
   "peerDependencies": {
-    "three": "https://pkg.threepipe.org/dep/three/-/v0.160.1008/package.tgz"
+    "three": "https://pkg.threepipe.org/dep/three/-/v0.163.10003/package.tgz"
   },
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",
