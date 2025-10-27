@@ -4,7 +4,7 @@ import {Class, Serialization} from 'ts-browser-helpers'
 
 export interface ComponentCtx {
     viewer: ThreeViewer
-    ecs: EntityComponentPlugin,
+    ecs: EntityComponentPlugin
     // throws error if the plugin is not found instead of returning undefined
     plugin: <T extends IViewerPlugin>(type: Class<T> | string) => T
 }
@@ -39,26 +39,6 @@ export type TypedType = JSPropTypes | ClassName
     | PropTypeObject
     | {type: ClassName}
 
-/**
- * Sample usage -
- * ```typescript
- * export const physicsBodyType = ['static', 'dynamic', 'kinematic'] as const
- * export type PhysicsBodyType = typeof physicsBodyType[number]
- * export class PhysicsComponent extends Object3DComponent {
- *     static ComponentType = 'PhysicsComponent'
- *     static StateProperties: ComponentDefn['StateProperties'] = ['mass', {
- *         key: 'type',
- *         type: literalStrings(physicsBodyType),
- *     }]
- *     // ...
- * }
- * ```
- * @param type
- */
-export function literalStrings<T extends string|number|boolean = string|number|boolean>(type: T[] | readonly T[]) {
-    return {oneOf: type.map(t=>typeof t === 'number' || typeof t === 'boolean' ? `${t}` : `"${t}"`) as (`"${T}"`)[], type: 'Union'} as const
-}
-
 export interface StatePropConfig<T = any> {
     key: string
     label?: string
@@ -67,14 +47,14 @@ export interface StatePropConfig<T = any> {
     // description?: string
 }
 
-export class CtxProxy {
-    isCtxProxy = true
-    // todo when env is set, loop through all properties and set env if they are EnvProxy too
-    ctx?: ComponentCtx
-    constructor(ctx?: ComponentCtx) {
-        this.ctx = ctx
-    }
-}
+// export class CtxProxy {
+//     isCtxProxy = true
+//     // todo when env is set, loop through all properties and set env if they are EnvProxy too
+//     ctx?: ComponentCtx
+//     constructor(ctx?: ComponentCtx) {
+//         this.ctx = ctx
+//     }
+// }
 
 export interface ComponentDefn {ComponentType: string, StateProperties?: (string|StatePropConfig)[]}
 
@@ -254,4 +234,24 @@ export class TypeSystem {
         }
         return false
     }
+}
+
+/**
+ * Sample usage -
+ * ```typescript
+ * export const physicsBodyType = ['static', 'dynamic', 'kinematic'] as const
+ * export type PhysicsBodyType = typeof physicsBodyType[number]
+ * export class PhysicsComponent extends Object3DComponent {
+ *     static ComponentType = 'PhysicsComponent'
+ *     static StateProperties: ComponentDefn['StateProperties'] = ['mass', {
+ *         key: 'type',
+ *         type: literalStrings(physicsBodyType),
+ *     }]
+ *     // ...
+ * }
+ * ```
+ * @param type
+ */
+export function literalStrings<T extends string|number|boolean = string|number|boolean>(type: T[] | readonly T[]) {
+    return {oneOf: type.map(t=>typeof t === 'number' || typeof t === 'boolean' ? `${t}` : `"${t}"`) as (`"${T}"`)[], type: 'Union'} as const
 }

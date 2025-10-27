@@ -41,29 +41,29 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     start() {
         if (this._running) return
         this._running = true
-        this.components.forEach(c=>{
+        this._components.forEach(c=>{
             try {
                 c.start()
             } catch (e) {
                 console.error('EntityComponentPlugin: Error starting component', c, e)
             }
         })
-        if (this._viewer && this.components.size) this._viewer.setDirty(this)
+        if (this._viewer && this._components.size) this._viewer.setDirty(this)
     }
     stop() {
         if (!this._running) return
         this._running = false
-        this.components.forEach(c=>{
+        this._components.forEach(c=>{
             try {
                 c.stop()
             } catch (e) {
                 console.error('EntityComponentPlugin: Error stopping component', c, e)
             }
         })
-        if (this._viewer && this.components.size) this._viewer.setDirty(this)
+        if (this._viewer && this._components.size) this._viewer.setDirty(this)
     }
 
-    readonly components: Map<string, Object3DComponent> = new Map()
+    private readonly _components: Map<string, Object3DComponent> = new Map()
     readonly componentTypes: Map<string, TObject3DComponent> = new Map()
 
     static readonly ObjectToComponents: WeakMap<IObject3D, Object3DComponent[]> = new Map()
@@ -155,7 +155,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         if (this.isDisabled() || !this._running || !this._viewer?.renderEnabled) return
         let dirty = false
         // todo component exec sort order?
-        this.components.forEach((comp)=>{
+        this._components.forEach((comp)=>{
             try {
                 const res = comp.update(e as IAnimationLoopEvent)
                 if (res === true) dirty = true
@@ -219,7 +219,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         // undo/redo action
         const action = {
             undo: ()=>{
-                const r = this.removeComponent(action.component.uuid)
+                const r = this.removeComponent(obj, action.component.uuid)
                 if (r) action.redo = r.undo
             },
             redo: ()=>{
@@ -230,11 +230,10 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return action
     }
 
-    removeComponent(id: string) {
+    removeComponent(obj: IObject3D, id: string) {
         if (!this._viewer) return
-        const comp = this.components.get(id)
+        const comp = this._components.get(obj.uuid + id)
         if (!comp) return
-        const obj = comp.object
         const type = comp.constructor.ComponentType
         const state = this.unregisterComponent(comp)
         const data = EntityComponentPlugin.GetObjectData(obj)
@@ -251,7 +250,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
                 if (action.state) this.addComponent(obj, {type, state: action.state}, id)
             },
             redo: ()=>{
-                this.removeComponent(id)
+                this.removeComponent(obj, id)
             },
         }
         return action
@@ -322,10 +321,10 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             state = {type: 'Object3DComponent', state: {}}
         }
         if (id) {
-            const comp = this.components.get(id)
+            const comp = this._components.get(obj.uuid + id)
             if (comp) {
                 if (comp.object !== obj) {
-                    console.warn(`EntityComponentPlugin: component with id ${id} already exists on a different object`)
+                    console.error(`EntityComponentPlugin: component with id ${id} already exists on a different object`)
                     comp.object = obj
                 }
                 if (comp.constructor.ComponentType !== state.type) {
@@ -339,6 +338,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             }
         }
         const cls = this.componentTypes.get((state as ComponentJSON).type)
+        // todo why making a new one for every component?
         const ctx: ComponentCtx = {
             viewer: this._viewer,
             ecs: this,
@@ -359,7 +359,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             console.error('EntityComponentPlugin: Error creating component of type ' + state.type, e)
             return null
         }
-        this.components.set(comp.uuid, comp)
+        this._components.set(obj.uuid + comp.uuid, comp)
         EntityComponentPlugin.ObjectToComponents.set(obj, [...EntityComponentPlugin.ObjectToComponents.get(obj) || [], comp])
         try {
             comp.init(obj, state.state)
@@ -394,7 +394,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
                 console.error('EntityComponentPlugin: Error destroying component', comp, e)
             }
         }
-        this.components.delete(comp.uuid)
+        this._components.delete(obj.uuid + comp.uuid)
         teardownComponent(comp)
         const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
         const index = comps.indexOf(comp)
@@ -448,7 +448,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
                     ()=>{
                         const data = EntityComponentPlugin.GetObjectData(obj)
                         const children = !data ? [] : Object.keys(data).map((k)=>{
-                            const comp = this.components.get(k)
+                            const comp = this._components.get(obj.uuid + k)
                             return comp?.uiConfig
                         }).filter(c=>!!c) as UiObjectConfig[]
                         return children
@@ -484,7 +484,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         if (!data) return
         Object.entries(data).forEach(([k, v])=>{
             if (e.componentType && v.type !== e.componentType) return
-            const comp = this.components.get(k)
+            const comp = this._components.get(obj.uuid + k)
             if (comp) {
                 if (comp.object !== obj) {
                     console.warn(`EntityComponentPlugin: component with id ${k} exists on a different object`)

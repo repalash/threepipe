@@ -8,11 +8,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add `EntityComponentPlugin`, `Object3DComponent` to add reusable, serializable components to objects in the scene.
 - Add `renderBackground` property to `ExtendedRenderPass`
 - Add `toggleEnvironmentBackground` to `RootScene` and its uiConfig. Allows to toggle the background rendering between environment and separate background map.
 - Add option `importAsModelRoot` in GLTFLoader2 options
 - Support extras in GLTF document root during and save back when exporting a gltf file
-- Add `_basePath` option in `GLTFExporter2` to clear from sub-asset uri if absolute URLs are used.
 - `GLTFLoader2` saves the current `path/resourcePath` as `resourcePath` in the gltf document extras/userData.
 - Use the resourcePath saved in extras to resolve embedded assets if required/possible.
 - Add `controlsMode` dropdown to `uiConfig` and serialize `controlsMode` in `OrthographicCamera2`, `PerspectiveCamera2`.
@@ -29,6 +29,8 @@ All notable changes to this project will be documented in this file.
 - Add `importedBundledResources` to `RootSceneImportResult` (similar to `importedViewerConfig`).
 - Add `meta` parameter to `toJSON` and `fromJSON` in `ThreeViewer`.
 - Better event dispatcher in `ThreeViewer` to dispatch preFrame events with sorting order.
+- Add parameter `inSceneRoot` to Object3DWidgetsPlugin (default false). If set to true, all objects in the `RootScene` will be attached a widget, otherwise only objects in `RootScene.modelRoot`.
+- Add `_basePath` option in `GLTFExporter2` to clear from sub-asset uri if absolute URLs are used.
 
 ### Fixes
 
@@ -54,6 +56,7 @@ All notable changes to this project will be documented in this file.
 - Use object `visible` property to prevent extra updates in widget helpers when object is invisible.
 - Improved type support when using `IObject3D`
 - From three - When using an instance of HTMLImageElement for a texture, the renderer uses now naturalWidth and naturalHeight instead of width and height for computing the image dimensions. This enables simplifications on app level if the images are part of the DOM and resized with CSS.
+- Set background blur inside CSS class instead of setting directly on element style in `LoadingScreenPlugin`
 
 ### Examples
 

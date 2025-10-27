@@ -1,8 +1,7 @@
 import {IAnimationLoopEvent, IObject3D} from '../../../core'
-import {generateUUID} from '../../../three'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes.ts'
-import {onChange2, serialize} from 'ts-browser-helpers'
+import {onChange2} from 'ts-browser-helpers'
 import {refreshAllStateProperties} from './setupComponent.ts'
 
 export type TObject3DComponent = typeof Object3DComponent
@@ -10,16 +9,28 @@ export type TObject3DComponent = typeof Object3DComponent
 export class Object3DComponent {
     declare ['constructor']: TObject3DComponent & ComponentDefn
 
-    @serialize()
     @onChange2('onEnabledChange')
         enabled: boolean
 
-    static StateProperties: ComponentDefn['StateProperties'] = []
+    static StateProperties: ComponentDefn['StateProperties'] = ['enabled']
     static ComponentType = 'Object3DComponent'
     readonly isObject3DComponent = true
+
+    protected _object: IObject3D | null = null
+    get object() {
+        if (!this._object) {
+            throw new Error('Cannot access object at this point.')
+        }
+        return this._object
+    }
+    set object(_: IObject3D) {
+        console.error('Object3DComponent: object is read-only')
+    }
+
     // name: string
-    object: IObject3D
-    uuid = generateUUID()
+
+    // uuid = generateUUID()
+    uuid = Math.random().toString(32).slice(2, 10)
     declare uiConfig?: UiObjectConfig
     declare state: never // so that this name can never be used
     protected _state: ComponentJSON['state']
@@ -55,7 +66,6 @@ export class Object3DComponent {
 
         // todo this has to be done after the subclass constructor, not before. move to the plugin
         // this.name = this.type
-        this.object = null as any
     }
 
     // hooks
@@ -74,12 +84,12 @@ export class Object3DComponent {
 
     init(object: IObject3D, state: ComponentJSON['state']) {
         if (!object) throw new Error('Object3DComponent: no object')
-        this.object = object
+        this._object = object
         this.setState(state)
     }
 
     destroy() {
-        this.object = null as any
+        this._object = null as any
         this.stateChangeHandlers = {}
         const state = this._state
         this._state = {}
@@ -94,11 +104,5 @@ export class Object3DComponent {
         if (!this.stateChangeHandlers[key]) this.stateChangeHandlers[key] = []
         this.stateChangeHandlers[key].push(fn)
     }
-
-    onEnabledChange() {
-        // todo dispatch
-    }
-
-
 
 }

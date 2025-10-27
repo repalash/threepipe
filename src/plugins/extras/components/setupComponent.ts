@@ -2,51 +2,14 @@ import {Object3DComponent} from './Object3DComponent.ts'
 import {ComponentCtx, StatePropConfig, TypedType, TypeSystem} from './componentTypes.ts'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {generateUiConfig, generateValueConfig, UiObjectConfig} from 'uiconfig.js'
-import {SerializationMetaType, ThreeSerialization} from '../../../utils'
+import {ReferenceManager} from './ReferenceManager.ts'
 
-function getComponentStateProperties(comp: typeof Object3DComponent) {
-    const stateProps = new Set<string|StatePropConfig>()
-    let base = comp
-    while (base && base !== Object3DComponent && base !== Function.prototype) {
-        if (base.StateProperties) {
-            base.StateProperties.forEach(p=>stateProps.add(p))
-        }
-        base = Object.getPrototypeOf(base)
-    }
-    const props: StatePropConfig[] = []
-    stateProps.forEach(p=>props.push(typeof p === 'string' ? {key:p} : p))
-    return props
-}
-
-function setCompStateProp(v: any, comp: Object3DComponent, propKey: keyof typeof comp, propType: TypedType, defaultValue: any, oldValueRaw?: ItemRef | any) {
-    if (v === undefined) {
-        console.error('Object3DComponent: state property cannot be set to undefined', propKey, v)
-        return
-    }
-    const oldValue = oldValueRaw !== undefined ? getCompStateProp(comp, propKey, defaultValue, oldValueRaw) : comp[propKey]
-    if (oldValue === v) return
-    const valType = TypeSystem.GetType(v)
-    if (!valType) {
-        console.error('Object3DComponent: unsupported type for state property', propKey, v)
-        return
-    }
-    // todo skip type checking when running in production
-    if (!TypeSystem.CanAssign(valType, propType)) {
-        console.error('Object3DComponent: assigned value type is not compatible with state property type', propKey, v, valType, propType)
-        return
-    }
-    if (oldValueRaw === undefined)
-        oldValueRaw = comp.stateRef[propKey]
-    if (oldValueRaw !== undefined && (oldValueRaw as ItemRef).isItemRef) {
-        const ref = oldValueRaw as ItemRef
-        ReferenceManager.Remove(ref.id, comp, ref)
-    }
-
-    assignVal(valType, v, defaultValue, comp, propKey)
-
-    if (oldValue !== undefined && oldValue !== v) {
-        comp.stateChangeHandlers[propKey]?.forEach(fn => fn(v, oldValue, propKey))
-    }
+interface PropMeta {
+    config: StatePropConfig;
+    propType: TypedType;
+    defaultValue: any;
+    defaultValueType: TypedType;
+    propKey: keyof Object3DComponent;
 }
 
 export function getComponentTypes(comp: typeof Object3DComponent) {
@@ -57,52 +20,6 @@ export function getComponentTypes(comp: typeof Object3DComponent) {
         base = Object.getPrototypeOf(base)
     }
     return types
-}
-
-function assignVal(valType: TypedType, v: any, defaultValue: any, comp: Object3DComponent, propKey: keyof typeof comp) {
-    let res
-    const refDefNew = TypeSystem.GetClass(valType)
-    if (refDefNew) {
-        const newRefId = refDefNew.getId(v)
-        if (!newRefId) {
-            console.error('Object3DComponent: cannot get reference id for value of state property', propKey, v)
-            return
-        } else {
-            res = ReferenceManager.Add(newRefId, v, comp)
-        }
-    } else {
-        // if it's not a class instance and same as default value, we can just delete it from stateRef to save space
-        if (v === defaultValue) {
-            res = undefined
-        } else {
-            res = v
-        }
-    }
-    if (res === undefined) delete comp.stateRef[propKey]
-    else comp.stateRef[propKey] = res
-}
-
-function getCompStateProp(comp: Object3DComponent, propKey: keyof typeof comp, defaultValue: any, val?: any, warn = true) {
-    val = val ?? comp.stateRef[propKey]
-
-    if (val === undefined) return defaultValue
-    if ((val as ItemRef).isItemRef) {
-        const value = ReferenceManager.Get(val as ItemRef)
-        if (!value) {
-            if (warn) console.error('Object3DComponent: reference not found for state property', propKey, val)
-            return null // todo we should not return null, should be special error object or something
-        }
-        return value
-    }
-    return val
-}
-
-interface PropMeta {
-    config: StatePropConfig;
-    propType: TypedType;
-    defaultValue: any;
-    defaultValueType: TypedType;
-    propKey: keyof Object3DComponent;
 }
 
 export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
@@ -157,10 +74,10 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
 
         Object.defineProperty(comp, propKey, {
             get: ()=>{
-                return getCompStateProp(comp, propKey, defaultValue)
+                return getStateProperty(comp, propKey, defaultValue)
             },
             set: (v)=>{
-                setCompStateProp(v, comp, propKey, propType, defaultValue)
+                setStateProperty(v, comp, propKey, propType, defaultValue)
                 // todo set dirty on object?
             },
             enumerable: true,
@@ -169,87 +86,42 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
 
         assignVal(defaultValueType, defaultValue, defaultValue, comp, propKey)
 
-        propsMeta.push({
+        const prop = {
             config: stateProp, propType, defaultValue, defaultValueType, propKey,
-        })
+        }
+        propsMeta.push(prop)
 
         if (uiChildren) {
-
-            // todo flatten nested union types
-            const types = typeof propType === 'string' ? [propType] : 'oneOf' in propType ? Array.from(propType.oneOf) : ['unknown']
-
-            const canBeNull = types.includes('null')/* || types.includes('undefined')*/
-            const refClasses = types.map(t=>TypeSystem.GetClass(t)).filter(t=>t !== undefined)
-            if (refClasses.length === types.length && !canBeNull
-                || refClasses.length === types.length - 1 && canBeNull
-            ) {
-                const newConfig: UiObjectConfig = {
-                    type: 'reference' as const,
-                    label: stateProp.label ?? propKey + '',
-                    property: [comp, propKey],
-                    classTypes: refClasses,
-                    allowNull: canBeNull,
-                    defaultValue: defaultValue,
-                    // todo onchange refresh parent
-                }
-                uiChildren.push(newConfig) // push before this prop config
-            }
-
-            // filter only the types that are literal types
-            const literalTypes = types.map(t=>typeof t === 'string' ?
-                t.startsWith('"') && t.endsWith('"') ? JSON.parse(t) :
-                    !isNaN(Number(t)) ? Number(t) :
-                        t === 'true' ? true : t === 'false' ? false :
-                            typeof t === 'number' || typeof t === 'boolean' ? t : undefined // just in case
-                : undefined).filter(t=>t !== undefined)
-
-            uiChildren.push(()=> {
-                // should we bind to stateRef? but it could be changed, also it could be deleted when default value is set
-                const config = generateValueConfig(comp, propKey, stateProp.label, undefined, false)
-                // todo use other metadata like description, hooks
-                if (config) {
-
-                    // all types are literal types, can be a dropdown. we can do more advanced type analysis later
-                    if (literalTypes.length > 0 && literalTypes.length === types.length) {
-                        if (config.type === 'input' || config.type === 'number' || config.type === 'string') {
-                            config.type = 'dropdown'
-                            config.children = literalTypes.map(t => {
-                                const label = typeof t === 'string' ? t : typeof t === 'number' ? t.toString() : typeof t === 'boolean' ? t ? 'true' : 'false' : t + ''
-                                return {label: label, value: t}
-                            })
-                        }
-                    }
-
-                    return config
-                }
-                return undefined
-            })
+            const uiC = generateComponentUi(comp, prop)
+            if (uiC?.length) uiChildren.push([...uiC])
         }
     })
-    comp.__propsMeta = propsMeta
+
+    ComponentCache.InstanceProperties.set(comp, propsMeta)
+
     // todo sort children based on props order
     comp.uiConfig = uiConfig
 }
 
 export function refreshAllStateProperties(comp: Object3DComponent, lastState: Object3DComponent['stateRef']) {
     if (!comp.isObject3DComponent) throw new Error('EntityComponentPlugin: invalid component instance')
-    const props = comp.__propsMeta ?? []
+    const props = ComponentCache.InstanceProperties.get(comp)
+    if (!props) return
 
-    props.forEach(({propKey, defaultValue, propType})=>{
+    for (const {propKey, defaultValue, propType} of props) {
         // console.log('[Object3DComponent] refresh state property', propKey)
-
         const oldValueRaw = lastState ? lastState[propKey] : undefined
 
         const valRaw = comp.stateRef[propKey]
+
         let val
-        if (valRaw && (valRaw as ItemRef).isItemRef && (valRaw as ItemRef)._itemObject) {
-            val = (valRaw as ItemRef)._itemObject
-            ;(valRaw as ItemRef)._itemObject = undefined
-        } else val = getCompStateProp(comp, propKey, defaultValue, valRaw, false)
+        const cc = ReferenceManager.GetCached(valRaw)
+        if (cc !== undefined) val = cc
+        else val = getStateProperty(comp, propKey, defaultValue, valRaw, false)
 
-        setCompStateProp(val, comp, propKey, propType, defaultValue, oldValueRaw)
+        setStateProperty(val, comp, propKey, propType, defaultValue, oldValueRaw)
 
-    })
+    }
 }
 
 export function teardownComponent(comp: Object3DComponent) {
@@ -258,142 +130,166 @@ export function teardownComponent(comp: Object3DComponent) {
     // props.forEach(p=>{
     // })
     ReferenceManager.Delete(comp)
-    delete comp.__propsMeta
+    ComponentCache.InstanceProperties.delete(comp)
 }
 
-class ItemRef {
-    readonly isItemRef = true
-    id: string
-    constructor(id?: string) {
-        this.id = id || ''
-    }
-    toJSON(meta?: SerializationMetaType) {
-        if (!this.id) return {}
-        if (meta) {
-            if (!meta.typed) meta.typed = {}
-            if (!meta.typed[this.id]) {
-                const item = ReferenceManager.Get(this)
-                if (item) {
-                    if (item.__rootPath) {
-                        meta.typed[this.id] = {
-                            external: true,
-                            rootPath: item.__rootPath,
-                            rootPathOptions: item.__rootPathOptions,
-                        }
+
+class ComponentCache {
+    static TypeProperties: WeakMap<typeof Object3DComponent, StatePropConfig[]> = new Map()
+    static InstanceProperties: WeakMap<Object3DComponent, PropMeta[]> = new Map()
+}
+
+function getComponentStateProperties(comp: typeof Object3DComponent) {
+    const cache = ComponentCache.TypeProperties.get(comp)
+    if (cache) return cache
+
+    const stateProps : Map<string, [StatePropConfig, any]> = new Map()
+    let base = comp
+    while (base && base !== Function.prototype) {
+        if (base.StateProperties) {
+            for (const p of base.StateProperties) {
+                const key = typeof p === 'string' ? p : p.key
+                const exis = stateProps.get(key)
+                if (exis) {
+                    const cons = exis[1]
+                    if (cons === base) {
+                        // same class property duplicate
+                        console.error('Object3DComponent: duplicate state property in class', key, base)
                     } else {
-                        meta.typed[this.id] = ThreeSerialization.Serialize(item, meta)
+                        // derived class property overrides base class property
+                        console.warn('Object3DComponent: state property overridden in derived class', key, base, cons)
                     }
+                    continue
                 }
+                stateProps.set(key, [typeof p === 'string' ? {key: p} : p, base])
             }
         }
-        return {id: this.id}
+        if (base === Object3DComponent) break
+        base = Object.getPrototypeOf(base)
     }
+    return Array.from(stateProps.values()).map(v=>v[0])
+}
 
-    ['_itemObject']: any
+function getStateProperty(comp: Object3DComponent, propKey: keyof typeof comp, defaultValue: any, val?: any, warn = true) {
+    val = val ?? comp.stateRef[propKey]
 
-    fromJSON(data: any, meta?: SerializationMetaType) {
-        if (data && typeof data.id === 'string') {
-            this.id = data.id
-            if (meta?.typed) {
-                const itemData = meta.typed[this.id]
-                const isLoaded = meta.__isLoadedResources
-                const itemObject = isLoaded && itemData ? itemData : ThreeSerialization.Deserialize(itemData, meta)
-                if (itemObject?.external && itemObject.rootPath) {
-                    console.warn('External resource is expected to be loaded already in ImportMeta phase:', itemObject)
-                } else {
-                    this._itemObject = itemObject
-                    if (isLoaded) meta.typed[this.id] = itemObject // cache the deserialized object, isLoaded is also true when resources are being loaded in ImportMeta
-                }
-            }
-        }
-        return this
+    if (val === undefined) return defaultValue
+
+    const resolved = ReferenceManager.GetOp(val, warn)
+    if (resolved !== undefined) return resolved
+
+    return val
+}
+
+function setStateProperty(v: any, comp: Object3DComponent, propKey: keyof typeof comp, propType: TypedType, defaultValue: any, oldValueRaw?: any) {
+    if (v === undefined) {
+        console.error('Object3DComponent: state property cannot be set to undefined', propKey, v)
+        return
+    }
+    const oldValue = oldValueRaw !== undefined ? getStateProperty(comp, propKey, defaultValue, oldValueRaw) : comp[propKey]
+    if (oldValue === v) return
+    const valType = TypeSystem.GetType(v)
+    if (!valType) {
+        console.error('Object3DComponent: unsupported type for state property', propKey, v)
+        return
+    }
+    // todo skip type checking when running in production
+    if (!TypeSystem.CanAssign(valType, propType)) {
+        console.error('Object3DComponent: assigned value type is not compatible with state property type', propKey, v, valType, propType)
+        return
+    }
+    if (oldValueRaw === undefined)
+        oldValueRaw = comp.stateRef[propKey]
+
+    ReferenceManager.RemoveOp(oldValueRaw, comp)
+
+    assignVal(valType, v, defaultValue, comp, propKey)
+
+    if (oldValue !== undefined && oldValue !== v) {
+        comp.stateChangeHandlers[propKey]?.forEach(fn => fn(v, oldValue, propKey))
     }
 }
-ThreeSerialization.MakeSerializable(ItemRef as any, 'ItemRef')
 
-interface Item{
-    id: string;
-    refs: Map<any, Set<ItemRef>>;
-    object: any
-}
-export class ReferenceManager {
-
-    static Objects: Map<string, Item> = new Map()
-
-    static Get(ref: ItemRef) {
-        const item = this.Objects.get(ref.id)
-        return item ? item.object : null
-    }
-
-    // static GetObjects(ids: string[]) {
-    //     const objects: Item[] = []
-    //     for (const id of ids) {
-    //         const item = this.Objects.get(id)
-    //         if (item?.object) objects.push(item)
-    //     }
-    //     return objects
-    // }
-
-    static Add(id: string, object: any, refOwner: any) {
-        let item = this.Objects.get(id)
-        if (!item) {
-            item = {
-                id,
-                refs: new Map<any, Set<ItemRef>>(),
-                object,
-            }
-            this.Objects.set(id, item)
-        }
-        // const count = item.refs.get(refOwner) || 0
-        // item.refs.set(refOwner, count + 1)
-        let refSet = item.refs.get(refOwner)
-        if (!refSet) {
-            refSet = new Set<ItemRef>()
-            item.refs.set(refOwner, refSet)
-        }
-        const ref = new ItemRef(id)
-        refSet.add(ref)
-        return ref
-    }
-
-    static Remove(id: string, refOwner: any, ref: ItemRef) {
-        const item = this.Objects.get(id)
-        if (item) {
-            const refs = item.refs.get(refOwner)
-            if (refs && refs.has(ref)) {
-                refs.delete(ref)
-                if (refs.size === 0) {
-                    item.refs.delete(refOwner)
-                    if (item.refs.size === 0) {
-                        this.Objects.delete(id)
-                    }
-                }
-            }
-        }
-    }
-
-    static Delete(object: any) {
-        if (object) {
-            for (const [id, item] of [...this.Objects]) {
-                // object references
-                item.refs.delete(object)
-                if (item.refs.size === 0) {
-                    this.Objects.delete(id)
-                }
-                // refs to object
-                if (item.object === object) {
-                    this.Objects.delete(id)
-                }
-            }
+function assignVal(valType: TypedType, v: any, defaultValue: any, comp: Object3DComponent, propKey: keyof typeof comp) {
+    let res
+    const refDefNew = TypeSystem.GetClass(valType)
+    if (refDefNew) {
+        const newRefId = refDefNew.getId(v)
+        if (!newRefId) {
+            console.error('Object3DComponent: cannot get reference id for value of state property', propKey, v)
+            return
         } else {
-            // this.Objects.clear()
+            res = ReferenceManager.Add(newRefId, v, comp)
+        }
+    } else {
+        // if it's not a class instance and same as default value, we can just delete it from stateRef to save space
+        if (v === defaultValue) {
+            res = undefined
+        } else {
+            res = v
         }
     }
-
+    if (res === undefined) delete comp.stateRef[propKey]
+    else comp.stateRef[propKey] = res
 }
 
-declare module './Object3DComponent.ts'{
-    interface Object3DComponent{
-        __propsMeta?: PropMeta[];
+function generateComponentUi(comp: Object3DComponent, prop: PropMeta) {
+    const {config: stateProp, propType, defaultValue, propKey} = prop
+
+    // todo flatten nested union types
+    const types = typeof propType === 'string' ? [propType] : 'oneOf' in propType ? Array.from(propType.oneOf) : ['unknown']
+
+    const canBeNull = types.includes('null')/* || types.includes('undefined')*/
+    const classTypes = types.map(t=>TypeSystem.GetClass(t)).filter(t=>t !== undefined)
+
+    const res: UiObjectConfig[] = []
+    // only class types or null
+    if (classTypes.length === types.length && !canBeNull
+        || classTypes.length === types.length - 1 && canBeNull
+    ) {
+        const newConfig: UiObjectConfig = {
+            type: 'reference' as const,
+            label: stateProp.label ?? propKey + '',
+            property: [comp, propKey],
+            classTypes: classTypes,
+            allowNull: canBeNull,
+            defaultValue: defaultValue,
+            // todo onchange refresh parent
+        }
+        res.push(newConfig)
     }
+
+    // filter only the types that are literal types
+    const literalTypes = types.map(t=>typeof t === 'string' ?
+        t.startsWith('"') && t.endsWith('"') ? JSON.parse(t) :
+            !isNaN(Number(t)) ? Number(t) :
+                t === 'true' ? true : t === 'false' ? false :
+                    typeof t === 'number' || typeof t === 'boolean' ? t : undefined // just in case
+        : undefined).filter(t=>t !== undefined)
+
+    const uiC = ()=> {
+        // should we bind to stateRef? but it could be changed, also it could be deleted when default value is set
+        const config = generateValueConfig(comp, propKey, stateProp.label, undefined, false)
+        // todo use other metadata like description, hooks
+        if (config) {
+
+            // all types are literal types, can be a dropdown. we can do more advanced type analysis later
+            if (literalTypes.length > 0 && literalTypes.length === types.length) {
+                if (config.type === 'input' || config.type === 'number' || config.type === 'string') {
+                    config.type = 'dropdown'
+                    config.children = literalTypes.map(t => {
+                        const label = typeof t === 'string' ? t : typeof t === 'number' ? t.toString() : typeof t === 'boolean' ? t ? 'true' : 'false' : t + ''
+                        return {label: label, value: t}
+                    })
+                }
+            }
+
+            return config
+        }
+        return undefined
+    }
+    res.push(uiC)
+
+    return res
 }
+
