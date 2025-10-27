@@ -43,18 +43,24 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
 
     toJSON: any = null
+    inSceneRoot = false
 
-    constructor(enabled = true) {
+    constructor(enabled = true, inSceneRoot = false) {
         super()
         this.enabled = enabled
+        this.inSceneRoot = inSceneRoot
     }
 
     private _widgetRoot = new Group2()
+
+    private _modelRoot?: IObject3D
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this._widgetRoot.userData.isWidgetRoot = true
         this._widgetRoot.name = 'Widgets Root'
+        this._modelRoot = this.inSceneRoot ? viewer.scene : viewer.scene.modelRoot
+
         viewer.scene.addObject(this._widgetRoot, {addToRoot: true, autoScale: false, autoCenter: false})
 
         viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
@@ -98,9 +104,16 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
             return
         }
         if (o.userData.disableWidgets) return
-        let inWidget = false
-        o.traverseAncestors(c=>inWidget = inWidget || c === this._widgetRoot || !!c.isWidget || c.assetType === 'widget')
-        if (inWidget) return
+        let ignored = false
+        let inSceneRoot = false
+        o.traverseAncestors(c=> {
+            ignored = ignored
+                || c === this._widgetRoot || !!c.isWidget || c.assetType === 'widget' // inside a widget
+                || !!c.userData.disableWidgets
+            inSceneRoot = inSceneRoot || c === this._modelRoot
+        })
+        if (ignored) return
+        if (!inSceneRoot) return
 
         const widget = this.widgets.find(w => w.object === o)
         if (widget) {
