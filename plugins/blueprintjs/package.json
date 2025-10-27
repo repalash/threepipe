@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-blueprintjs",
     "description": "Blueprint.js UI Plugin for ThreePipe",
-    "version": "0.5.4",
+    "version": "0.6.0",
     "devDependencies": {
         "uiconfig-blueprint": "0.1.0-dev.12",
         "ts-browser-helpers": "file:./../../node_modules/ts-browser-helpers",
@@ -12,7 +12,7 @@
     },
     "peerDependencies": {
         "uiconfig-blueprint": "0.1.0-dev.12",
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.4.0"
     },
     "overrides": {
         "ts-browser-helpers": "$ts-browser-helpers",

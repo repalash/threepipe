@@ -10,6 +10,13 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.7.3] - 2025-10-27
+
+### Changed
+
+- The `height` parameter of `TextGeometryGenerator` has been renamed to `depth`.
+- Update [threepipe](https://threepipe.org/) in `peerDependencies` to [0.4.0](https://github.com/repalash/threepipe/releases/tag/v0.4.0)
+
 ## [0.6.3] - 2025-10-12
 
 ### Fixed

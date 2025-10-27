@@ -4,8 +4,8 @@ layout: home
 
 hero:
   name: "Threepipe"
-  text: "Next generation 3D tooling for the web"
-  tagline: "Next generation 3D tooling \nfor web- \n🪐 rendering\n🌀 visualization\nand 🕹️ games"
+  text: "Next generation 3D toolkit for the web"
+  tagline: "Next generation 3D toolkit \nfor web- \n🪐 rendering\n🌀 visualization\n🕹️ games"
   image:
     src: /logo-filled.png
     alt: Threepipe

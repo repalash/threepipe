@@ -1,6 +1,6 @@
 # [![Threepipe](/website/public/logo-24.svg)](https://threepipe.org) Threepipe
 
-Next generation tooling for web3D and photorealistic graphics.
+Next generation toolkit for web3D and photorealistic graphics.
 
 [Website](https://threepipe.org/) &mdash; 
 [Github](https://github.com/repalash/threepipe) &mdash;

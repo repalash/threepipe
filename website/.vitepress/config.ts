@@ -213,7 +213,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'Threepipe - Next generation 3D tooling for the web',
+      message: 'Threepipe - Next generation 3D toolkit for the web',
       copyright: 'Copyright © 2023-present, <a href="https://repalash.com/">repalash</a>. All rights reserved.',
     },
 

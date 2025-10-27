@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-timeline-ui",
     "description": "Timeline UI Plugin for ThreePipe",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "devDependencies": {
         "react": "^18.3.1",
         "react-dom": "^18.3.1"

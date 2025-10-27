@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.2.0] - 2025-10-27
+
+### Changed
+
+- Update [threepipe](https://threepipe.org/) `peerDependency` to [0.4.0](https://github.com/repalash/threepipe/releases/tag/v0.4.0)
+
 ## [0.1.4] - 2025-09-03
 
 ### Changed
@@ -19,3 +25,4 @@ All notable changes to this plugin will be documented in this file.
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/path-tracing
 [0.1.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-path-tracing-v0.1.3
 [0.1.4]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-path-tracing-0.1.4
+[0.2.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-path-tracing-0.2.0

@@ -83,6 +83,18 @@
     background-color: var(--vp-c-bg);
 }
 
+.dark .name.clip{
+    color: white;
+    background-clip: unset;
+    -webkit-background-clip: unset;
+    background: unset;
+    -webkit-text-fill-color: unset;
+}
+
+.dark .heading .text{
+    color: #c6c6c6;
+}
+
 @media (min-width: 960px) {
     .VPHomeHero .container {
         height: 50vh;
@@ -122,6 +134,7 @@
 }
 .VPHomeHero .main > .tagline{
     display: none;
+    font-weight: 300;
 }
 
 @media (min-width: 960px) {

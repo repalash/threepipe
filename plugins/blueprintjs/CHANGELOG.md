@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.6.0] - 2025-10-27
+
+### Fixed
+
+- Update [threepipe](https://threepipe.org/) in `peerDependencies` to [0.4.0](https://github.com/repalash/threepipe/releases/tag/v0.4.0)
+
 ## [0.5.4] - 2025-09-03
 
 ### Fixed
