@@ -1,7 +1,6 @@
 import {IAnimationLoopEvent, IObject3D} from '../../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes'
-import {onChange2} from 'ts-browser-helpers'
 import {refreshAllStateProperties} from './setupComponent'
 
 export type TObject3DComponent = typeof Object3DComponent
@@ -9,8 +8,7 @@ export type TObject3DComponent = typeof Object3DComponent
 export class Object3DComponent {
     declare ['constructor']: TObject3DComponent & ComponentDefn
 
-    @onChange2('onEnabledChange')
-        enabled: boolean
+    enabled = true
 
     static StateProperties: ComponentDefn['StateProperties'] = ['enabled']
     static ComponentType = 'Object3DComponent'
