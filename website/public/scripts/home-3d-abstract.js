@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs';
+import * as THREE from 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs?o=threepipe.org';
 
 const sphere = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 32, 32),

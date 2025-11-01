@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs';
+import * as THREE from 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs?o=threepipe.org';
 // import {TweakpaneUiPlugin} from 'https://unpkg.com/@threepipe/plugin-tweakpane/dist/index.mjs';
 import {
     BloomPlugin,
@@ -7,7 +7,7 @@ import {
     SSReflectionPlugin,
     TemporalAAPlugin,
     WatchHandsPlugin
-} from 'https://unpkg.com/@threepipe/webgi-plugins/dist/index.mjs';
+} from 'https://unpkg.com/@threepipe/webgi-plugins@0.5.11/dist/index.mjs?o=threepipe.org';
 import {setupAbstract, teardownAbstract} from "./home-3d-abstract.js";
 // import './home.css'
 const {

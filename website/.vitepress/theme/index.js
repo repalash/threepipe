@@ -7,7 +7,7 @@ import 'vitepress-plugin-nprogress/lib/css/index.css'
 // import {setupViewer} from "./home-viewer.js";
 
 const importMap = {
-    threepipe: 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs',
+    threepipe: 'https://unpkg.com/threepipe@0.4.2/dist/index.mjs?o=threepipe.org',
 }
 
 export default {
