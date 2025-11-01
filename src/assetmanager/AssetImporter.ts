@@ -724,7 +724,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (simpleCache) threeCache.enabled = true
 
             const stro = storage && window.Cache && typeof window.Cache === 'function' && storage instanceof window.Cache ? storage : undefined
-            overrideThreeCache(stro) // todo: ability to clear cache storage
+            overrideThreeCache(stro)
         }
         this._storage = typeof storage === 'boolean' ? undefined : storage
     }

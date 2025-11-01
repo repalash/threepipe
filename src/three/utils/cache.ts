@@ -1,12 +1,17 @@
 import {Cache as threeCache} from 'three'
 
 export function overrideThreeCache(storage?: Cache | Storage) {
-    if ((threeCache as any).isPatched) {
-        console.error('Three Cache is already patched')
-        return
+    if ((threeCache as any)._orig) {
+        if ((threeCache as any)._storage) {
+            if ((threeCache as any)._storage === storage) return
+            Object.assign(threeCache, (threeCache as any)._orig)
+            delete (threeCache as any)._orig
+            delete (threeCache as any)._storage
+        }
     }
     const oldCache = {...threeCache}
-    ;(threeCache as any).isPatched = true
+    ;(threeCache as any)._orig = oldCache
+    ;(threeCache as any)._storage = storage
     threeCache.get = (url: string, responseType?: string, mimeType?: DOMParserSupportedType): Promise<any> | any => {
         if (!responseType) return oldCache.get(url)
         if (url.startsWith('data:') || url.startsWith('blob') || url.startsWith('chrome-extension')) return Promise.resolve(undefined)
