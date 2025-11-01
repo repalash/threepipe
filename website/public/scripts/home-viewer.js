@@ -24,6 +24,13 @@ let currentModel = null
 const ppSplit = {splitLine: document.createElement('div'), enabled: false, x: 1}
 const models = [
     {
+        label: 'Abstract',
+        path: 'https://webgi.dev/lights-only-env.glb',
+        bg: false,
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shapes-icon lucide-shapes"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>',
+        ground: true,
+    },
+    {
         label: 'Watch',
         path: 'https://webgi.dev/watch-2.glb',
         bg: false,
@@ -50,13 +57,6 @@ const models = [
         path: 'https://webgi.dev/robot-2.glb',
         bg: false,
         icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot-icon lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
-        ground: true,
-    },
-    {
-        label: 'Abstract',
-        path: 'https://webgi.dev/lights-only-env.glb',
-        bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shapes-icon lucide-shapes"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>',
         ground: true,
     },
 ]
@@ -156,6 +156,7 @@ export async function setupViewer() {
         },
         debug: getUrlQueryParam('debug') !== null,
         maxHDRIntensity: 8,
+        assetManager: {storage: false},
         plugins: [GBufferPlugin,
             InteractionPromptPlugin,
             CameraViewPlugin,
@@ -461,4 +462,5 @@ function addButtonBar(viewer) {
     updateButtonsActiveState(viewer)
 }
 
-setupViewer()
+window.setupViewer = setupViewer;
+

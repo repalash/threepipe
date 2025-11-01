@@ -23,10 +23,17 @@ export default {
     enhanceApp: (ctx) => {
         DefaultTheme.enhanceApp(ctx)
         vitepressNprogress(ctx)
-        ctx.app.component('SetupViewer', async ()=>{
-            await createScript('https://cdn.jsdelivr.net/npm/threepipe@0.4.2/dist/index.js?o=threepipe.org')
-            await createScript('https://cdn.jsdelivr.net/npm/@threepipe/webgi-plugins@0.5.11/dist/index.js?o=threepipe.org')
-            await createScript('/scripts/home-viewer.js', 'module')
+        ctx.app.component('SetupViewer', ()=>{
+            if(window.setupViewer) {
+                window.setupViewer()
+                return
+            }
+            (async ()=> {
+                await createScript('https://cdn.jsdelivr.net/npm/threepipe@0.4.2/dist/index.js?o=threepipe.org')
+                await createScript('https://cdn.jsdelivr.net/npm/@threepipe/webgi-plugins@0.5.11/dist/index.js?o=threepipe.org')
+                await createScript('/scripts/home-viewer.js', 'module')
+                window.setupViewer && window.setupViewer();
+            })()
         })
     }
 }
