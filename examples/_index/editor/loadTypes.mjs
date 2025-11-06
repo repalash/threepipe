@@ -179,9 +179,8 @@ export function loadTypesFromTarGz (packageName, version1 = 'latest', level = 0)
             }
             for (const [key, value] of Object.entries(packageJson.dependencies || {})) {
                 let version = value
-                if(value[0] === '^') version = value.slice(1);
-                else if(value[0] === '~') version = value.slice(1);
-                else if(value[0] === '>') version = value.slice(1);
+                version = version.replace(/^[\^~><=]+/, ''); // Remove leading operators
+                version = version.split(/\s+/)[0]; // Take first part if there's a range (e.g., ">=0.1.0 <1.0.0")
                 if(!version.includes('.')) version = 'latest'
                 console.log('Loading dependency', key, 'version', version, 'for package', packageName);
                 loadTypesFromTarGz(key, version, level + 1)
