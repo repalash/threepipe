@@ -18,7 +18,7 @@ A common workflow is drop a 3d model into the editor, enable the required plugin
 
 ## Tweakpane Editor
 
-[Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/) - A simple editor to simply tweak the scene and plugins. It provides a tab-bar to manage different plugin categories. It is built on top of the [Tweakpane](https://cocopon.github.io/tweakpane/) library with custom themes. This can be quickly added to any apps as a debug UI, to create scenes, presets etc.
+[Tweakpane Editor](https://threepipe.org/examples/tweakpane-editor/) - A simple editor to simply tweak the scene and plugins. It provides a tab-bar to manage different plugin categories. It is built on top of the [Tweakpane](https://tweakpane.github.io/docs/) library with custom themes. This can be quickly added to any apps as a debug UI, to create scenes, presets etc.
 
 ## Threepipe Editor
 

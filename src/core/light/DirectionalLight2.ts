@@ -130,12 +130,12 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
-    traverse: (callback: (object: IObject3D) => void) => void
-    traverseVisible: (callback: (object: IObject3D) => void) => void
-    traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: (id: number) => IObject3D | undefined
-    getObjectByName: (name: string) => IObject3D | undefined
-    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
+    declare traverse: (callback: (object: IObject3D) => void) => void
+    declare traverseVisible: (callback: (object: IObject3D) => void) => void
+    declare traverseAncestors: (callback: (object: IObject3D) => void) => void
+    declare getObjectById: (id: number) => IObject3D | undefined
+    declare getObjectByName: (name: string) => IObject3D | undefined
+    declare getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

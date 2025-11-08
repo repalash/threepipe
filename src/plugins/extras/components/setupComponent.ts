@@ -93,7 +93,7 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
 
         if (uiChildren) {
             const uiC = generateComponentUi(comp, prop)
-            if (uiC?.length) uiChildren.push([...uiC])
+            if (uiC?.length) uiChildren.push(...uiC)
         }
     })
 
@@ -272,6 +272,11 @@ function generateComponentUi(comp: Object3DComponent, prop: PropMeta) {
         const config = generateValueConfig(comp, propKey, stateProp.label, undefined, false)
         // todo use other metadata like description, hooks
         if (config) {
+            if (typeof config === 'object') {
+                config.uuid = propKey // similar to react key
+                config.dispatchMode = 'immediate' // todo make this the default in uiconfig/uiconfig-react
+                // config.multiline = true
+            }
 
             // all types are literal types, can be a dropdown. we can do more advanced type analysis later
             if (literalTypes.length > 0 && literalTypes.length === types.length) {

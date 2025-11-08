@@ -5,12 +5,13 @@ import {IObject3D, IObject3DEventMap, IObjectSetDirtyOptions} from '../IObject'
 import {copyObject3DUserData, getPropDesc} from '../../utils'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B, checkTexMapReference} from '../../three'
-import {makeIObject3DUiConfig} from './IObjectUi'
+import {incrementObjectCloneName, makeIObject3DUiConfig} from './IObjectUi'
 import {iGeometryCommons} from '../geometry/iGeometryCommons'
 import {iMaterialCommons} from '../material/iMaterialCommons'
 import {ILight} from '../light/ILight'
 import {ITexture} from '../ITexture'
 import {createLineDepthMaterial, createLineGBufferMaterial} from '../../utils/line-material'
+import {ThreeViewer} from '../../viewer'
 
 export const iObjectCommons = {
     setDirty: function(this: IObject3D, options?: IObjectSetDirtyOptions, ...args: any[]): void {
@@ -548,6 +549,34 @@ export const iObjectCommons = {
         return maps
     },
 
+    deleteObject: async(object: IObject3D, e?: any)=>{ // e is supposed to be mouse or keyboard event from ui interaction
+        const res =
+            e?.shiftKey ? true :
+                await ThreeViewer.Dialog.confirm('Delete Object: Are you sure you want to delete this object?')
+        if (!res) return
+        const parent = object.parent
+        object.dispose && object.dispose(true)
+        return ()=>{ // undo
+            if (parent) parent.add(object)
+        }
+    },
+    duplicateObject: async(object: IObject3D, e?: any)=>{ // e is supposed to be mouse or keyboard event from ui interaction
+        const parent = object.parent
+        const clone = object.clone(true) as IObject3D
+        incrementObjectCloneName(object, clone)
+        const select = e ? !e.shiftKey : false
+        return {
+            action: ()=>{
+                if (parent && !clone.parent)
+                    parent.add(clone) // todo same index?
+                select && clone.dispatchEvent({type: 'select', value: clone, object: clone, ui: !!e, bubbleToParent: true, trackUndo: false})
+            },
+            undo: ()=>{
+                if (clone.parent === parent)
+                    clone.removeFromParent()
+            },
+        }
+    },
 }
 
 export const sceneTextureProperties: Set<string> = new Set<string>([

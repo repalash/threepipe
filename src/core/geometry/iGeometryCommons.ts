@@ -102,6 +102,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Center Geometry',
+                    tags: ['context-menu'],
                     value: async() => {
                         if (!await ThreeViewer.Dialog.confirm('This will move the objects based on the geometry center, do you want to continue?')) return
                         return this.center2()
@@ -110,6 +111,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Center Geometry (keep position)',
+                    tags: ['context-menu'],
                     value: async() => {
                         if (!await ThreeViewer.Dialog.confirm('This will move the geometry center keeping the object position, do you want to continue?')) return
                         return this.center2(undefined, true)
@@ -118,6 +120,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Compute vertex normals',
+                    tags: ['context-menu'],
                     value: async() => {
                         if (this.hasAttribute('normal') && !await ThreeViewer.Dialog.confirm('Normals already exist, replace with computed normals?\nThis action cannot be undone.')) return
                         this.computeVertexNormals()
@@ -127,6 +130,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Compute vertex tangents',
+                    tags: ['context-menu'],
                     value: async() => {
                         if (this.hasAttribute('tangent') && !await ThreeViewer.Dialog.confirm('Tangents already exist, replace with computed tangents?\nThis action cannot be undone.')) return
                         this.computeTangents()
@@ -136,6 +140,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Normalize normals',
+                    tags: ['context-menu'],
                     value: () => {
                         this.normalizeNormals()
                         this.setDirty && this.setDirty()
@@ -145,6 +150,7 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Convert to indexed',
                     hidden: () => !!this.index,
+                    tags: ['context-menu'],
                     value: async() => {
                         if (this.attributes.index) return
                         const tolerance = parseFloat(await ThreeViewer.Dialog.prompt('Convert to Indexed: Tolerance?', '-1') ?? '-1')
@@ -156,6 +162,7 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Convert to non-indexed',
                     hidden: () => !this.index,
+                    tags: ['context-menu'],
                     value: () => {
                         if (!this.attributes.index) return
                         this.toNonIndexed()
@@ -165,6 +172,7 @@ export const iGeometryCommons = {
                 {
                     type: 'button',
                     label: 'Create uv1 from uv',
+                    tags: ['context-menu'],
                     value: async() => {
                         if (this.hasAttribute('uv1')) {
                             if (!await ThreeViewer.Dialog.confirm('uv1 already exists, replace with uv data?\nThis action cannot be undone.')) return
@@ -177,6 +185,7 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Remove vertex color attribute',
                     hidden: () => !this.hasAttribute('color'),
+                    tags: ['context-menu'],
                     value: async() => {
                         if (!this.hasAttribute('color')) {
                             await ThreeViewer.Dialog.alert('No color attribute found')
@@ -191,6 +200,7 @@ export const iGeometryCommons = {
                     type: 'button',
                     label: 'Auto GPU Instances',
                     hidden: ()=> !this.appliedMeshes || this.appliedMeshes.size < 2,
+                    tags: ['context-menu'],
                     value: async()=>{
                         if (!await ThreeViewer.Dialog.confirm('This will automatically create Instanced Mesh from geometry instances. This action is irreversible, do you want to continue?')) return
                         autoGPUInstanceMeshes(this)

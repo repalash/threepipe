@@ -396,7 +396,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     ]
 
     uiConfig: UiObjectConfig = {
-        type: 'panel',
+        type: 'folder',
         label: 'Picker',
         expanded: true,
         children: [

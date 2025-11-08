@@ -10,6 +10,7 @@ import {
     Raycaster,
     Vector3
 } from 'three';
+import {Object3DEventMap} from "three/src/core/Object3D";
 
 
 export type TransformControlsMode = "translate" | "rotate" | "scale";
@@ -69,7 +70,7 @@ export interface TransformControlsEventMap {
     "eye-changed": { value: unknown };
 }
 
-export class TransformControls extends Object3D<TransformControlsEventMap> {
+export class TransformControls extends Object3D<TransformControlsEventMap&Object3DEventMap> {
     constructor(object: Camera, domElement?: HTMLElement);
 
     domElement: HTMLElement;

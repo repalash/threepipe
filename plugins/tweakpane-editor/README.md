@@ -1,6 +1,6 @@
 # @threepipe/tweakpane-editor
 
-Integration and plugin for [threepipe](https://threepipe.org/) to use create editors using [Tweakpane](https://cocopon.github.io/tweakpane/).
+Integration and plugin for [threepipe](https://threepipe.org/) to use create editors using [Tweakpane](https://tweakpane.github.io/docs/).
 
 [Github](https://github.com/repalash/threepipe/tree/dev/plugins/tweakpane-editor) &mdash;
 [Examples](https://threepipe.org/examples/?q=editor#tweakpane-editor) &mdash;

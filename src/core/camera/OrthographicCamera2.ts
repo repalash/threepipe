@@ -240,7 +240,6 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     refreshTarget = iCameraCommons.refreshTarget
     activateMain = iCameraCommons.activateMain
     deactivateMain = iCameraCommons.deactivateMain
-    // @ts-expect-error ts issue
     updateShaderProperties = iCameraCommons.updateShaderProperties
 
     refreshFrustum(setDirty = true) {
@@ -289,11 +288,12 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         if (this._controls && this._controls.target) this.refreshTarget(undefined, false)
         this.setDirty({change: 'controls'})
     }
+
     private _initCameraControls() {
         const mode = this.controlsMode
         this._controls = this.controlsCtors.get(mode)?.(this, this._canvas) ?? undefined
-        if (!this._controls && mode !== '') console.error('OrthographicCamera2 - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
-        this._controls?.addEventListener('change', this._controlsChanged)
+        if (!this._controls && mode !== '') console.error('ICamera - Unable to create controls with mode ' + mode + '. Are you missing a plugin?')
+        this._controls?.addEventListener && this._controls.addEventListener('change', this._controlsChanged)
         this._currentControlsMode = this._controls ? mode : ''
         // todo maybe set target like this:
         //  if (this._controls) this._controls.target = this.target
@@ -302,7 +302,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     private _disposeCameraControls() {
         if (this._controls) {
             if (this._controls.target === this.target) this._controls.target = new Vector3() // just in case
-            this._controls?.removeEventListener('change', this._controlsChanged)
+            this._controls?.removeEventListener && this._controls.removeEventListener('change', this._controlsChanged)
             this._controls?.dispose()
         }
         this._currentControlsMode = ''
@@ -451,13 +451,13 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
-    traverse: (callback: (object: IObject3D) => void) => void
-    traverseVisible: (callback: (object: IObject3D) => void) => void
-    traverseAncestors: (callback: (object: IObject3D) => void) => void
-    getObjectById: (id: number) => IObject3D | undefined
-    getObjectByName: (name: string) => IObject3D | undefined
-    getObjectByProperty: (name: string, value: string) => IObject3D | undefined
-    copy: (source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
+    declare traverse: (callback: (object: IObject3D) => void) => void
+    declare traverseVisible: (callback: (object: IObject3D) => void) => void
+    declare traverseAncestors: (callback: (object: IObject3D) => void) => void
+    declare getObjectById: (id: number) => IObject3D | undefined
+    declare getObjectByName: (name: string) => IObject3D | undefined
+    declare getObjectByProperty: (name: string, value: string) => IObject3D | undefined
+    declare copy: (source: ICamera|Camera|IObject3D, recursive?: boolean, distanceFromTarget?: number, worldSpace?: boolean) => this
     declare parent: IObject3D | null
     declare children: IObject3D[]
 

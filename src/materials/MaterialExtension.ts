@@ -140,5 +140,5 @@ export interface MaterialExtension{
 }
 
 export interface IShaderPropertiesUpdater {
-    updateShaderProperties(material: {defines: Record<string, string | number | undefined>, uniforms: {[name: string]: IUniform}}): this;
+    updateShaderProperties(material: {defines: Record<string, string | number | undefined>, uniforms: {[name: string]: IUniform}}): void;
 }

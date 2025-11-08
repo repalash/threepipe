@@ -6,6 +6,7 @@ import {ThreeViewer} from '../../viewer'
 import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
+import {iObjectCommons} from './iObjectCommons'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -187,6 +188,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Auto Scale',
+                tags: ['context-menu', 'interaction'],
                 hidden: ()=>!this.autoScale,
                 // prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
                 value: async()=>{
@@ -205,6 +207,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Auto Center',
+                tags: ['context-menu', 'interaction'],
                 value: ()=>{
                     // const res = await ThreeViewer.Dialog.confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
                     // if (!res) return
@@ -309,13 +312,24 @@ export function objectExtensionsUiConfig(this: IObject3D) {
     }).filter(v => v)
 }
 
-export function incrementObjectCloneName(obj: IObject3D, clone: IObject3D) {
-    const match = obj.name.match(/\(copy( (\d+))?\)$/)
+export function incrementObjectCloneName(obj: IObject3D, clone: IObject3D, name?: string) {
+    name = name ?? obj.name
+    const match = name.match(/\(copy( (\d+))?\)$/)
     if (match) {
-        const copyNum = match[2] ? parseInt(match[2]) + 1 : 2
-        clone.name = obj.name.replace(/\(copy( \d+)?\)$/, `(copy ${copyNum})`)
+        let copyNum = match[2] ? parseInt(match[2]) + 1 : 2
+        let newName = name.replace(/\(copy( \d+)?\)$/, `(copy ${copyNum})`)
+        const parent = obj.parent
+        if (parent && parent !== clone.parent) {
+            const names = new Set(parent.children.filter(c=>c !== obj).map(c=>c.name))
+            for (let i = 0; i < 1000; i++) {
+                if (!names.has(newName)) break
+                copyNum++
+                newName = name.replace(/\(copy( \d+)?\)$/, `(copy ${copyNum})`)
+            }
+        }
+        clone.name = newName
     } else {
-        clone.name = obj.name + ' (copy)'
+        clone.name = name + ' (copy)'
     }
 }
 
@@ -324,34 +338,16 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
         type: 'button',
         label: 'Duplicate Object',
         tags: ['context-menu'],
-        value: async()=>{
-            const parent = this.parent
-            const clone = this.clone(true) as IObject3D
-            incrementObjectCloneName.call(this, clone)
-            return {
-                action: ()=>{
-                    if (parent && !clone.parent)
-                        parent.add(clone) // todo same index?
-                },
-                undo: ()=>{
-                    if (clone.parent === parent)
-                        clone.removeFromParent()
-                },
-            }
+        value: async(e?: any)=>{
+            return iObjectCommons.duplicateObject(this, e)
         },
     },
     {
         type: 'button',
         label: 'Delete Object',
         tags: ['context-menu'],
-        value: async()=>{
-            const res = await ThreeViewer.Dialog.confirm('Delete Object: Are you sure you want to delete this object?')
-            if (!res) return
-            const parent = this.parent
-            this.dispose && this.dispose(true)
-            return ()=>{ // undo
-                if (parent) parent.add(this)
-            }
+        value: async(e?: any)=>{
+            return iObjectCommons.deleteObject(this, e)
         },
     }]
 }

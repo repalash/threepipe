@@ -1,6 +1,6 @@
 # @threepipe/tweakpane
 
-Integration and plugin for [threepipe](https://threepipe.org/) to use [Tweakpane](https://cocopon.github.io/tweakpane/) components with [uiconfig](https://github.com/repalash/uiconfig.js).
+Integration and plugin for [threepipe](https://threepipe.org/) to use [Tweakpane](https://tweakpane.github.io/docs/) components with [uiconfig](https://github.com/repalash/uiconfig.js).
 
 [Github](https://github.com/repalash/threepipe/tree/dev/plugins/tweakpane) &mdash;
 [Examples](https://threepipe.org/examples/?q=ui#object-uiconfig/) &mdash;
