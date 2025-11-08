@@ -22,20 +22,6 @@ import {ICamera, type ICameraSetDirtyOptions} from './ICamera'
 //     source?: any // todo - add to new type...
 // }
 
-declare module 'three'{
-    export interface Object3DEventMap{
-        select: { // todo remove?
-            ui?: boolean
-            focusCamera?: boolean
-            bubbleToParent?: boolean
-            object: IObject3D
-            trackUndo?: boolean
-            value?: IObject3D|null /* | Material*/ // todo is this required?
-
-            source?: string // who is triggering the event. so that recursive events can be prevented
-        } /* & IObjectSetDirtyOptions*/
-    }
-}
 // [key: keyof Object3DEventMap]: Object3DEventMap[key] & {
 //     bubbleToParent?: boolean
 // }
@@ -115,6 +101,18 @@ export interface IObject3DEventMap extends Object3DEventMap{
         oldParentRoot: IObject3D|undefined
         bubbleToParent: boolean
     }
+
+    select: { // todo remove?
+        ui?: boolean
+        focusCamera?: boolean
+        bubbleToParent?: boolean
+        object: IObject3D
+        trackUndo?: boolean
+        value?: IObject3D|null /* | Material*/ // todo is this required?
+
+        source?: string // who is triggering the event. so that recursive events can be prevented
+    } /* & IObjectSetDirtyOptions*/
+
 }
 // Record<keyof IObject3DEventMap0, IObject3DEventMap0[keyof IObject3DEventMap0] & {
 //     // bubbleToParent?: boolean

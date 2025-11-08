@@ -294,6 +294,8 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         clearcoatNormalScale: new Vector2(1, 1),
         clearcoatNormalMap: null,
 
+        dispersion: 0,
+
         reflectivity: 0.5, // because this is used in Material.js->toJSON and fromJSON instead of ior
 
         iridescence: 0,

@@ -45,7 +45,16 @@ import {
     serializable,
     serialize,
 } from 'ts-browser-helpers'
-import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiMonitor, uiSlider, uiToggle} from 'uiconfig.js'
+import {
+    uiButton,
+    uiConfig,
+    uiDropdown,
+    uiFolderContainer,
+    uiMonitor,
+    UiObjectConfig,
+    uiSlider,
+    uiToggle,
+} from 'uiconfig.js'
 import {bindToValue, generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
 import {IRenderManagerEventMap, RendererBlitOptions} from '../core/IRenderer'
@@ -115,7 +124,10 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     @uiButton('Rebuild Pipeline', {sendArgs: false, tags: ['advanced']})
     rebuildPipeline(setDirty = true): void {
         this._passesNeedsUpdate = true
-        if (setDirty) this._updated({change: 'rebuild'})
+        if (setDirty) {
+            this._updated({change: 'rebuild'})
+            this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
+        }
     }
 
     /**
@@ -282,6 +294,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     reset(): void {
         this._frameCount = 0
         this._dirty = true
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 0)
         // do NOT call _updated from here.
     }
 
@@ -304,6 +317,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         [...this._composer.passes].forEach(p1=>this._composer.removePass(p1))
         p.forEach(p1=>this._composer.addPass(p1))
         this._updated({change: 'passRefresh'})
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     }
 
     dispose(clear = true): void {
@@ -335,6 +349,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         pass.onRegister?.(this)
         this.rebuildPipeline(false)
         this._updated({change: 'registerPass', pass})
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     }
 
     unregisterPass(pass: IPipelinePass): void {
@@ -344,6 +359,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             this._passes.splice(i, 1)
             this.rebuildPipeline(false)
             this._updated({change: 'unregisterPass', pass})
+            this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
         }
     }
 
@@ -416,6 +432,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this._renderer.useLegacyLights = v
         this._updated({change: 'useLegacyLights', data: v})
         this.resetShadows()
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     }
 
     get clock() {
@@ -679,6 +696,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
     // region Events Dispatch
 
+    uiConfig?: UiObjectConfig
     private _updated(data?: IRenderManagerUpdateEvent) {
         this.dispatchEvent({...data, type: 'update'})
     }
