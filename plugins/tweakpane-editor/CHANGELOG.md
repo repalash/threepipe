@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.5.5] - 2025-11-08
+
+### Changed
+
+- HierarchyUiPlugin - Bubble object `select` event to parent
+
 ## [0.5.4] - 2025-09-04
 
 ### Changed

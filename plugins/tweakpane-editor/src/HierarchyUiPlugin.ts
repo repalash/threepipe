@@ -134,7 +134,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
                 onItemLabelClick: (item: any) => {
                     const obj1 = this._viewer?.scene.modelRoot.getObjectByProperty('uuid', item)
                     if (!obj1 || !obj.visible) return
-                    obj1.dispatchEvent({type: 'select', value: obj1, object: obj1, ui: true})
+                    obj1.dispatchEvent({type: 'select', value: obj1, object: obj1, ui: true, bubbleToParent: true})
                 },
             })
         }).then(()=>{
