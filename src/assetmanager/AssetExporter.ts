@@ -69,6 +69,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
         const excluded: IObject3D[] = []
         if (obj.assetType === 'model') {
             obj.traverse((o)=>{
+                // todo this wont work when we are exporting invisible objects as well
                 if (o.userData.excludeFromExport && o.visible) {
                     o.visible = false
                     excluded.push(o)

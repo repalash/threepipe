@@ -84,6 +84,7 @@ export const iGeometryCommons = {
         if (this.uiConfig) return this.uiConfig
         return {
             label: 'Geometry',
+            uuid: 'geom',
             type: 'folder',
             children: [
                 {
@@ -99,15 +100,18 @@ export const iGeometryCommons = {
                 ()=>this.groups.length ? {
                     type: 'folder',
                     label: 'Groups',
+                    uuid: 'groups',
                     tags: ['advanced'],
                     children: this.groups.map((g, i) => ({
                         type: 'folder',
                         label: `Group ${i}`,
+                        uuid: 'group-' + i,
                         tags: ['advanced'],
                         children: [
                             {
                                 type: 'input',
                                 label: 'Start',
+                                uuid: 'start',
                                 getValue: () => g.start,
                                 setValue: (v: number) => {
                                     g.start = v
@@ -117,6 +121,7 @@ export const iGeometryCommons = {
                             {
                                 type: 'input',
                                 label: 'Count',
+                                uuid: 'count',
                                 getValue: () => g.count,
                                 setValue: (v: number) => {
                                     g.count = v
@@ -126,6 +131,7 @@ export const iGeometryCommons = {
                             {
                                 type: 'input',
                                 label: 'Material Index',
+                                uuid: 'mi',
                                 getValue: () => g.materialIndex,
                                 setValue: (v: number) => {
                                     g.materialIndex = v

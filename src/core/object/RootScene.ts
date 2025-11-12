@@ -450,12 +450,8 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
             console.warn('sceneUpdate is deprecated, use refreshScene instead.')
             options.refreshScene = true
         }
-        if (options?.refreshScene) {
-            this.refreshScene(options)
-        } else {
-            this.dispatchEvent({type: 'update', bubbleToParent: false, object: this}) // todo remove
-            iObjectCommons.setDirty.call(this, {...options, scene: this})
-        } // this sets dirty in the viewer
+        this.dispatchEvent({type: 'update', bubbleToParent: false, object: this}) // todo remove
+        iObjectCommons.setDirty.call(this, {...options, scene: this})
         return this
     }
 
@@ -487,7 +483,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this._sceneBounds = this.getBounds(false, true)
         this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
         this.dispatchEvent({...event, type: 'sceneUpdate', hierarchyChanged: ['addedToParent', 'removedFromParent'].includes(event?.change || '')})
-        if (!fromSelf) iObjectCommons.setDirty.call(this, event)
+        if (!fromSelf) iObjectCommons.setDirty.call(this, {...event, scene: this})
         return this
     }
 
