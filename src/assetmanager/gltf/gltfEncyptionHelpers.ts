@@ -44,7 +44,7 @@ export const glbEncryptionPreparser: IGLBEncryptionPreparser = {
         return encryption.key || window && window.prompt && window.prompt('GLTFEncryption: Please enter the password/key for the model: ' + path) || ''
     },
     async process(data: string | ArrayBuffer, path: string) {
-        if (typeof data === 'string') return data
+        if (typeof data === 'string' || data.byteLength < 100) return data
         const prefixBytes = 100
         const prefix = new TextDecoder().decode(new Uint8Array(data, 0, prefixBytes))
         if (!prefix.includes('GLBWrapper')) return data

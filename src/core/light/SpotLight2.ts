@@ -35,7 +35,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
 
     @uiColor('Color', (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
-    @uiSlider('Intensity', [0, 30], 0.01)
+    @uiNumber('Intensity')
     @onChange3('setDirty')
     declare intensity: number
     @uiSlider('Angle', [0, 2], 0.01)

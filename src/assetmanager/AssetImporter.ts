@@ -565,7 +565,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             res._childrenCopy = [...res.children]
         }
 
-        if (res.name === '') res.name = (rootPath || rootBlob?.filePath || rootBlob?.name || '')
+        if (res.name === '') res.name = (rootBlob?.filePath || rootBlob?.name || rootPath || '')
             .replace(/^\/|\/$/, '')
             .split('/').pop()!
 

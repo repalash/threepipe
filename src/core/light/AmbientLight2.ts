@@ -2,7 +2,7 @@ import {AmbientLight, Color, ColorRepresentation} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
 
@@ -34,7 +34,7 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
 
     @uiColor('Color', (that: AmbientLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
-    @uiSlider('Intensity', [0, 30], 0.01)
+    @uiNumber('Intensity')
     @onChange3('setDirty')
     declare intensity: number
 

@@ -96,6 +96,45 @@ export const iGeometryCommons = {
                     disabled: true,
                     tags: ['advanced'],
                 },
+                ()=>this.groups.length ? {
+                    type: 'folder',
+                    label: 'Groups',
+                    tags: ['advanced'],
+                    children: this.groups.map((g, i) => ({
+                        type: 'folder',
+                        label: `Group ${i}`,
+                        tags: ['advanced'],
+                        children: [
+                            {
+                                type: 'input',
+                                label: 'Start',
+                                getValue: () => g.start,
+                                setValue: (v: number) => {
+                                    g.start = v
+                                    this.setDirty && this.setDirty()
+                                },
+                            },
+                            {
+                                type: 'input',
+                                label: 'Count',
+                                getValue: () => g.count,
+                                setValue: (v: number) => {
+                                    g.count = v
+                                    this.setDirty && this.setDirty()
+                                },
+                            },
+                            {
+                                type: 'input',
+                                label: 'Material Index',
+                                getValue: () => g.materialIndex,
+                                setValue: (v: number) => {
+                                    g.materialIndex = v
+                                    this.setDirty && this.setDirty()
+                                },
+                            },
+                        ],
+                    })),
+                } : null,
                 {
                     type: 'divider',
                 },

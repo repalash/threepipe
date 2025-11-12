@@ -1,6 +1,6 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {BufferGeometry, Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
+import {BufferGeometry, Group, Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
 import {safeSetProperty} from 'ts-browser-helpers'
 import {ThreeViewer} from '../../viewer'
 import {generateUUID, whiteImageData} from '../../three'
@@ -130,6 +130,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     preparsers: GLTFPreparser[] = []
 
     static BundledResourcesKey = 'BundledResources'
+    static AllowEmptyFiles = true
 
     async preparse(data: ArrayBuffer | string, path: string): Promise<ArrayBuffer | string> {
         for (const preparser of this.preparsers) {
@@ -141,6 +142,16 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     parse(data: ArrayBuffer | string, path: string, onLoad: (gltf: GLTF) => void, onError?: (event: ErrorEvent) => void, url?: string) {
         this.preparse.call(this, data, url || path)
             .then((res: ArrayBuffer|string) => {
+                if (!res || !(res as ArrayBuffer).byteLength && typeof res !== 'string') {
+                    // empty file
+                    if (GLTFLoader2.AllowEmptyFiles) {
+                        onLoad && onLoad({scene: new Group(), scenes: [], animations: [], cameras: []} as any)
+                    } else {
+                        onError && onError(new ErrorEvent('GLTFLoader2: empty file'))
+                    }
+                    return
+                }
+
                 const val = Texture.DEFAULT_IMAGE
 
                 // this will be used when doing new Texture(). Which is done for not found images or when some error happens in loading. See FBXLoader.

@@ -1,4 +1,4 @@
-import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiPanelContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {uiButton, uiConfig, uiDropdown, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from './PickingPlugin'
 import {JSUndoManager, onChange} from 'ts-browser-helpers'
@@ -15,7 +15,7 @@ import {
 import {Euler, MathUtils, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
-@uiPanelContainer('Transform Controls')
+@uiFolderContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'TransformControlsPlugin'
 

@@ -35,7 +35,7 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
 
     @uiColor('Color', (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
-    @uiSlider('Intensity', [0, 30], 0.01)
+    @uiNumber('Intensity')
     @onChange3('setDirty')
     declare intensity: number
     @uiNumber('Distance')
