@@ -172,8 +172,9 @@ function getComponentStateProperties(comp: typeof Object3DComponent) {
     const cache = ComponentCache.TypeProperties.get(comp)
     if (cache) return cache
 
-    const stateProps : Map<string, [StatePropConfig, any]> = new Map()
+    const stateProps : Map<string, [StatePropConfig, any, number]> = new Map()
     let base = comp
+    let order = 0
     while (base && base !== Function.prototype) {
         if (base.StateProperties) {
             for (const p of base.StateProperties) {
@@ -190,13 +191,18 @@ function getComponentStateProperties(comp: typeof Object3DComponent) {
                     }
                     continue
                 }
-                stateProps.set(key, [typeof p === 'string' ? {key: p} : p, base])
+                // todo check order in prop config also
+                stateProps.set(key, [typeof p === 'string' ? {key: p} : p, base, order])
+                order += 0.001
             }
         }
         if (base === Object3DComponent) break
         base = Object.getPrototypeOf(base)
+        order -= 1
     }
-    return Array.from(stateProps.values()).map(v=>v[0])
+    return Array.from(stateProps.values())
+        .sort((a, b)=>a[2] - b[2])
+        .map(v=>v[0])
 }
 
 function getStateProperty(comp: Object3DComponent, propKey: keyof typeof comp, defaultValue: any, val?: any, warn = true) {
