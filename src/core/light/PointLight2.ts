@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, PointLight, PointLightShadow, Vector2, Vecto
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 import {objectActionsUiConfig} from '../object/IObjectUi'
@@ -32,6 +32,10 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     @uiToggle('Enabled')
     @onChange3('setDirty')
     declare visible: boolean
+
+    @uiInput('Name')
+    @onChange3('setDirty')
+    declare name: string
 
     @uiColor('Color', (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color

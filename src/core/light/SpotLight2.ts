@@ -33,6 +33,10 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     @onChange3('setDirty')
     declare visible: boolean
 
+    @uiInput('Name')
+    @onChange3('setDirty')
+    declare name: string
+
     @uiColor('Color', (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
     @uiNumber('Intensity')

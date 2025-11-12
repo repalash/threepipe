@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, DirectionalLight, DirectionalLightShadow, Eu
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange2, onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 import {objectActionsUiConfig} from '../object/IObjectUi'
@@ -32,6 +32,10 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
     @uiToggle('Enabled')
     @onChange3('setDirty')
     declare visible: boolean
+
+    @uiInput('Name')
+    @onChange3('setDirty')
+    declare name: string
 
     @uiColor('Color', (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
@@ -70,7 +74,7 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
     @bindToValue({obj: 'shadow', key: 'radius', onChange: 'setDirty'})
         shadowRadius: number
 
-    @uiSlider('Shadow Frustum', [0.1, 50], 0.01)
+    @uiNumber('Shadow Frustum')
     @onChange2(DirectionalLight2.prototype._shadowFrustumChanged)
         shadowFrustum: number
 

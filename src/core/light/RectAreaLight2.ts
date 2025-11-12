@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, RectAreaLight} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
 
@@ -31,6 +31,10 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     @uiToggle('Enabled')
     @onChange3('setDirty')
     declare visible: boolean
+
+    @uiInput('Name')
+    @onChange3('setDirty')
+    declare name: string
 
     @uiColor('Color', (that: RectAreaLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color

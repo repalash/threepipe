@@ -24,10 +24,12 @@ export interface EntityComponentPluginEventMap extends AViewerPluginEventMap{
 }
 
 /**
- * Entity Component System plugin for threepipe.
+ * Entity Component Framework plugin for threepipe.
  * Allows attaching reusable components to IObject3D instances.
  * Components can have their own serializable/runtime state, lifecycle methods, and update logic.
  * Components are defined as classes extending Object3DComponent.
+ *
+ * This system is not documented at the moment.
  */
 export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPluginEventMap> {
     public static readonly PluginType = 'EntityComponentPlugin'

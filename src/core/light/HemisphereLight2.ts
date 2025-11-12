@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, HemisphereLight, Vector3} from 'three'
 import {ILight} from './ILight'
 import {iLightCommons} from '../object/iLightCommons'
 import {IObject3D} from '../IObject'
-import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiToggle, uiVector, uiInput} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
 
@@ -31,6 +31,10 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     @uiToggle('Enabled')
     @onChange3('setDirty')
     declare visible: boolean
+
+    @uiInput('Name')
+    @onChange3('setDirty')
+    declare name: string
 
     @uiColor('Sky Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
     declare color: Color
