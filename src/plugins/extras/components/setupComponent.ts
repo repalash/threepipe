@@ -92,13 +92,42 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
         propsMeta.push(prop)
 
         if (uiChildren) {
-            const uiC = generateComponentUi(comp, prop)
+            const uiC = generateComponentPropertyUi(comp, prop)
             if (uiC?.length) uiChildren.push(...uiC)
         }
     })
 
     ComponentCache.InstanceProperties.set(comp, propsMeta)
 
+    uiChildren?.push({
+        type: 'button',
+        label: 'Reset to Default',
+        uuid: 'reset_to_default',
+        tags: ['context-menu'],
+        value: () => {
+            const lastState = {} as any
+            propsMeta.forEach(({propKey, defaultValue}) => {
+                // @ts-expect-error todo fix ts
+                comp[propKey] = defaultValue
+                lastState[propKey] = comp[propKey]
+            })
+            return ()=>{
+                // undo
+                propsMeta.forEach(({propKey}) => {
+                    // @ts-expect-error todo fix ts
+                    comp[propKey] = lastState[propKey]
+                })
+            }
+        },
+    }, {
+        type: 'button',
+        label: 'Remove Component',
+        uuid: 'remove_component',
+        tags: ['context-menu'],
+        value: () => {
+            return ctx.ecp.removeComponent(comp.object, comp.uuid)
+        },
+    })
     // todo sort children based on props order
     comp.uiConfig = uiConfig
 }
@@ -233,7 +262,7 @@ function assignVal(valType: TypedType, v: any, defaultValue: any, comp: Object3D
     else comp.stateRef[propKey] = res
 }
 
-function generateComponentUi(comp: Object3DComponent, prop: PropMeta) {
+function generateComponentPropertyUi(comp: Object3DComponent, prop: PropMeta) {
     const {config: stateProp, propType, defaultValue, propKey} = prop
 
     // todo flatten nested union types

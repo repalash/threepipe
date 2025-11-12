@@ -45,7 +45,8 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             try {
                 c.start()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error starting component', c, e)
+                console.error('EntityComponentPlugin: Error starting component', c)
+                console.error(e)
             }
         })
         if (this._viewer && this._components.size) this._viewer.setDirty(this)
@@ -57,7 +58,8 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             try {
                 c.stop()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error stopping component', c, e)
+                console.error('EntityComponentPlugin: Error stopping component', c)
+                console.error(e)
             }
         })
         if (this._viewer && this._components.size) this._viewer.setDirty(this)
@@ -215,7 +217,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             data[comp.uuid].type = comp.constructor.ComponentType
             data[comp.uuid].state = comp.stateRef
         }
-        obj.setDirty && obj.setDirty({change: `userData.${EntityComponentPlugin.UserDataKey}`, source: 'EntityComponentPlugin.addComponent'})
+        obj.setDirty && obj.setDirty({change: `userData.${EntityComponentPlugin.UserDataKey}`, source: 'EntityComponentPlugin.addComponent', refreshUi: true})
         // undo/redo action
         const action = {
             undo: ()=>{
@@ -242,7 +244,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             if (Object.keys(data).length === 0) {
                 delete obj.userData[EntityComponentPlugin.UserDataKey]
             }
-            obj.setDirty && obj.setDirty({change: `userData.${EntityComponentPlugin.UserDataKey}`, source: 'EntityComponentPlugin.removeComponent'})
+            obj.setDirty && obj.setDirty({change: `userData.${EntityComponentPlugin.UserDataKey}`, source: 'EntityComponentPlugin.removeComponent', refreshUi: true})
         }
         const action = {
             state: state,
@@ -297,7 +299,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         let obj: IObject3D|null = object
         let comp: InstanceType<T> | null = null
         while (!comp && obj) {
-            comp = EntityComponentPlugin.GetComponent(object, type)
+            comp = EntityComponentPlugin.GetComponent(obj, type)
             obj = obj.parent
         }
         return comp
@@ -307,7 +309,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         let obj: IObject3D|null = object
         const comps: InstanceType<T>[] = []
         while (obj) {
-            comps.push(...EntityComponentPlugin.GetComponents(object, type))
+            comps.push(...EntityComponentPlugin.GetComponents(obj, type))
             obj = obj.parent
         }
         return comps
@@ -341,7 +343,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         // todo why making a new one for every component?
         const ctx: ComponentCtx = {
             viewer: this._viewer,
-            ecs: this,
+            ecp: this,
             plugin: (p)=>{
                 const i = this._viewer?.getPlugin(p)
                 if (!i) {
@@ -356,7 +358,8 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             if (id) comp.uuid = id
             setupComponent(comp, ctx)
         } catch (e) {
-            console.error('EntityComponentPlugin: Error creating component of type ' + state.type, e)
+            console.error('EntityComponentPlugin: Error creating component of type ' + state.type)
+            console.error(e)
             return null
         }
         this._components.set(obj.uuid + comp.uuid, comp)
@@ -364,13 +367,15 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         try {
             comp.init(obj, state.state)
         } catch (e) {
-            console.error('EntityComponentPlugin: Error initializing component', comp, e)
+            console.error('EntityComponentPlugin: Error initializing component', comp)
+            console.error(e)
         }
         this.dispatchEvent({type: 'registerComponent', component: comp, object: obj})
         try {
             if (this.running) comp.start()
         } catch (e) {
-            console.error('EntityComponentPlugin: Error starting component', comp, e)
+            console.error('EntityComponentPlugin: Error starting component', comp)
+            console.error(e)
         }
         return comp
     }
@@ -385,13 +390,15 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             try {
                 if (this.running) comp.stop()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error stopping component', comp, e)
+                console.error('EntityComponentPlugin: Error stopping component', comp)
+                console.error(e)
             }
-            this.dispatchEvent({type: 'unregisterComponent', component: comp, object: obj})
+            // this.dispatchEvent({type: 'unregisterComponent', component: comp, object: obj})
             try {
                 state = comp.destroy()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error destroying component', comp, e)
+                console.error('EntityComponentPlugin: Error destroying component', comp)
+                console.error(e)
             }
         }
         this._components.delete(obj.uuid + comp.uuid)
@@ -404,6 +411,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
                 EntityComponentPlugin.ObjectToComponents.delete(obj)
             }
         }
+        if (obj) this.dispatchEvent({type: 'unregisterComponent', component: comp, object: obj})
         return state
     }
 

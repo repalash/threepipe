@@ -79,6 +79,13 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         super.onRemove(viewer)
     }
 
+    refreshObject = (object?: IObject3D)=>{
+        const r = this._createWidget(object)
+        if (!r) {
+            this._removeWidget(object)
+        }
+    }
+
     protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: IViewerEvent)=>void> = {
         preRender: ()=>{
             this.widgets.forEach(w => w.preRender && w.preRender())
@@ -101,9 +108,9 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
 
     private _createWidget(o?: IObject3D) {
         if (!o || o.assetType === 'widget' || o === this._widgetRoot || o.isWidget) {
-            return
+            return false
         }
-        if (o.userData.disableWidgets) return
+        if (o.userData.disableWidgets) return false
         let ignored = false
         let inSceneRoot = false
         o.traverseAncestors(c=> {
@@ -112,13 +119,13 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
                 || !!c.userData.disableWidgets
             inSceneRoot = inSceneRoot || c === this._modelRoot
         })
-        if (ignored) return
-        if (!inSceneRoot) return
+        if (ignored) return false
+        if (!inSceneRoot) return false
 
         const widget = this.widgets.find(w => w.object === o)
         if (widget) {
             widget.update && widget.update()
-            return
+            return true
         }
         const helpers = this.helpers.filter(h => h.Check(o))
         for (const h of helpers) {
@@ -127,6 +134,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
             this._widgetRoot.add(w)
             this._registerWidget(w)
         }
+        return true
     }
 
     private _removeWidget(o?: IObject3D) {

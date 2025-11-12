@@ -4,7 +4,7 @@ import {Class, Serialization} from 'ts-browser-helpers'
 
 export interface ComponentCtx {
     viewer: ThreeViewer
-    ecs: EntityComponentPlugin
+    ecp: EntityComponentPlugin
     // throws error if the plugin is not found instead of returning undefined
     plugin: <T extends IViewerPlugin>(type: Class<T> | string) => T
 }
