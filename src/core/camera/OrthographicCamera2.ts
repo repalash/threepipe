@@ -302,8 +302,8 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     private _disposeCameraControls() {
         if (this._controls) {
             if (this._controls.target === this.target) this._controls.target = new Vector3() // just in case
-            this._controls?.removeEventListener && this._controls.removeEventListener('change', this._controlsChanged)
-            this._controls?.dispose()
+            this._controls.removeEventListener && this._controls.removeEventListener('change', this._controlsChanged)
+            this._controls.dispose && this._controls.dispose()
         }
         this._currentControlsMode = ''
         this._controls = undefined
@@ -392,7 +392,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
 
     private _camUi: UiObjectConfig[] = [
         ...generateUiConfig(this) || [],
-        ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
+        ...makeICameraCommonUiConfig.call(this),
         objectExtensionsUiConfig.call(this),
     ]
 

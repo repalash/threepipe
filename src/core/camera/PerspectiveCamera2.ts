@@ -282,8 +282,8 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     private _disposeCameraControls() {
         if (this._controls) {
             if (this._controls.target === this.target) this._controls.target = new Vector3() // just in case
-            this._controls?.removeEventListener && this._controls.removeEventListener('change', this._controlsChanged)
-            this._controls?.dispose()
+            this._controls.removeEventListener && this._controls.removeEventListener('change', this._controlsChanged)
+            this._controls.dispose && this._controls.dispose()
         }
         this._currentControlsMode = ''
         this._controls = undefined
@@ -404,7 +404,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
             label: 'Dolly FoV',
             property: [this, 'dollyFov'],
         },
-        ()=>makeICameraCommonUiConfig.call(this, this.uiConfig),
+        ...makeICameraCommonUiConfig.call(this),
         objectExtensionsUiConfig.call(this),
     ]
 

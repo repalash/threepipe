@@ -14,8 +14,17 @@ declare module '../IObject' {
     }
 }
 
-export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig): UiObjectConfig[] {
+export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
     return [
+        {
+            type: 'checkbox',
+            label: 'Auto LookAt Target',
+            getValue: ()=>this.userData.autoLookAtTarget ?? false,
+            setValue: (v: boolean)=>{
+                this.userData.autoLookAtTarget = v
+                this.uiConfig?.uiRefresh?.(true, 'postFrame')
+            },
+        },
         {
             type: 'input',
             label: 'Auto Near Far',
@@ -69,36 +78,30 @@ export function makeICameraCommonUiConfig(this: ICamera, config: UiObjectConfig)
         {
             type: 'button',
             label: 'Set View',
+            tags: ['context-menu'],
             value: ()=>{
                 this.setViewToMain({ui: true})
-                config.uiRefresh?.(true, 'postFrame') // config is parent config
+                this.uiConfig?.uiRefresh?.(true, 'postFrame') // config is parent config
             },
         },
         {
             type: 'button',
             label: 'Activate main',
             hidden: ()=>this?.isMainCamera,
+            tags: ['context-menu'],
             value: ()=>{
                 this.activateMain({ui: true})
-                config.uiRefresh?.(true, 'postFrame')
+                this.uiConfig?.uiRefresh?.(true, 'postFrame')
             },
         },
         {
             type: 'button',
             label: 'Deactivate main',
+            tags: ['context-menu'],
             hidden: ()=>!this?.isMainCamera,
             value: ()=>{
                 this.deactivateMain({ui: true})
-                config.uiRefresh?.(true, 'postFrame')
-            },
-        },
-        {
-            type: 'checkbox',
-            label: 'Auto LookAt Target',
-            getValue: ()=>this.userData.autoLookAtTarget ?? false,
-            setValue: (v: boolean)=>{
-                this.userData.autoLookAtTarget = v
-                config.uiRefresh?.(true, 'postFrame')
+                this.uiConfig?.uiRefresh?.(true, 'postFrame')
             },
         },
     ]
@@ -187,7 +190,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             },
             {
                 type: 'button',
-                label: 'Auto Scale',
+                label: 'Scale to Radius',
                 tags: ['context-menu', 'interaction'],
                 hidden: ()=>!this.autoScale,
                 // prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
@@ -208,6 +211,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'button',
                 label: 'Auto Center',
                 tags: ['context-menu', 'interaction'],
+                hidden: ()=>!this.autoCenter,
                 value: ()=>{
                     // const res = await ThreeViewer.Dialog.confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
                     // if (!res) return
@@ -290,7 +294,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
     }
     // todo: if we are replacing all the cameras in the scene, is this even required?
     if (this.isCamera) {
-        const ui: UiObjectConfig[] = makeICameraCommonUiConfig.call(this as ICamera, config)
+        const ui: UiObjectConfig[] = makeICameraCommonUiConfig.call(this as ICamera)
         ;(config.children as UiObjectConfig[]).push(...ui)
     }
     (config.children as UiObjectConfig[]).push(objectExtensionsUiConfig.call(this))

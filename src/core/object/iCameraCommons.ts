@@ -64,7 +64,7 @@ export const iCameraCommons = {
     deactivateMain: function(this: ICamera, options: Omit<ICameraEventMap['activateMain'], 'bubbleToParent'> = {}, _internal = false, _refresh = true, clearCanvas = false): void {
         if (!_internal) return this.dispatchEvent({
             type: 'activateMain', ...options,
-            camera: null,
+            camera: undefined,
             bubbleToParent: true,
         }) // this will be used by RootScene to deactivate other cameras and activate this one
         if (!this.userData.__isMainCamera) return
