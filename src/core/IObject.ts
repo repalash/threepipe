@@ -85,7 +85,12 @@ export interface IObject3DEventMap extends Object3DEventMap{
     }
     activateMain: {
         ui?: boolean
-        camera?: ICamera | null
+        /**
+         * Set to the camera being activated as main camera.
+         * If null, the default camera will be set
+         * If undefined, the last activated camera will be set, or the default camera if no camera was activated before.
+         */
+        camera?: ICamera | null | undefined
         bubbleToParent: boolean
         // object: IObject3D
     }

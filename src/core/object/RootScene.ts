@@ -76,6 +76,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     @uiButton<RootScene>(undefined, (s)=>({
         label: ()=>!s.backgroundColor ? 'Set Color Background' : 'Set Transparent BG',
+        tags: ['context-menu'],
     }))
     toggleTransparentBackground() {
         if (!this.backgroundColor) {
@@ -93,7 +94,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     @uiButton<RootScene>(undefined, (s)=>({
         label: ()=>s.background === 'environment' ? 'Remove Env Background' : 'Set Env Background',
-        disabled: ()=>!s.environment,
+        disabled: ()=>!s.environment, tags: ['context-menu'],
     }))
     toggleEnvironmentBackground() {
         if (this.background === 'environment') {
@@ -120,12 +121,14 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
     @serialize()
         backgroundTonemap = true
 
+    private _environment: ITexture | null = null
     /**
      * The default environment map used when rendering materials in the scene
      */
     @uiImage('Environment')
-    @serialize() @onChange3(RootScene.prototype._onEnvironmentChange)
-        environment: ITexture | null = null
+    @serialize()
+    // Note: getter/setter defined in constructor using Object.defineProperty
+    declare environment: ITexture | null
 
     /**
      * The intensity for the environment light.
@@ -255,6 +258,23 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.add(this.defaultCamera)
 
         this.mainCamera = this.defaultCamera
+
+        Object.defineProperty(this, 'environment', {
+            configurable: true,
+            enumerable: true,
+            get: () => {
+                // Return override environment if we're in render step and override is set
+                if (this._isMainRendering && this.overrideRenderEnvironment !== null) {
+                    return this.overrideRenderEnvironment
+                }
+                return this._environment
+            },
+            set: (value: ITexture | null) => {
+                const oldValue = this._environment
+                this._environment = value
+                this._onEnvironmentChange({key: 'environment', value, oldValue, target: this})
+            },
+        })
     }
 
     /**
@@ -352,7 +372,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.setDirty({refreshScene: true})
     }
 
-    @uiButton('Center All Geometries', {sendArgs: false})
+    @uiButton('Center All Geometries', {sendArgs: false, tags: ['context-menu']})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         return centerAllGeometries(obj ?? this.modelRoot, keepPosition)
     }
@@ -378,7 +398,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
     }
 
-    private _onEnvironmentChange(ev?: {value: ITexture|null, oldValue: ITexture|null}) {
+    private _onEnvironmentChange(ev?: {value: ITexture|null, oldValue: ITexture|null, key?: string, target?: any}) {
         if (ev?.oldValue && ev.oldValue !== ev.value) {
             if (this.autoDisposeSceneMaps && typeof ev.oldValue.dispose === 'function') ev.oldValue.dispose()
         }
@@ -554,7 +574,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         })
     }
 
-    @uiButton('Auto GPU Instance Meshes')
+    @uiButton('Auto GPU Instance Meshes', {tags: ['context-menu']})
     autoGPUInstanceMeshes() {
         const geoms = new Set<BufferGeometry>()
         this.modelRoot.traverseModels!((o) => {o.geometry && geoms.add(o.geometry)}, {visible: false, widgets: false})
@@ -723,6 +743,20 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         super.addEventListener(type, listener)
     }
 
+    /**
+     * Override environment map to use during rendering.
+     * When set and _isMainRendering is true, this will be returned instead of the normal environment.
+     */
+    overrideRenderEnvironment: ITexture | null = null;
+
+    /**
+     * Flag to indicate if we're currently in the render step.
+     * Set by ViewerApp during rendering.
+     * @internal
+     */
+    ['_isMainRendering'] = false
+
+
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
@@ -765,7 +799,6 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      * @param rootObject - The object to point at.
      * @param centerOffset - The distance offset from the object to point at.
      * @param targetOffset - The distance offset for the target from the center of object to point at.
-     * @param options - Not used yet.
      */
     resetCamera(rootObject:Object3D|undefined = undefined, centerOffset = new Vector3(1, 1, 1), targetOffset = new Vector3(0, 0, 0)): void {
         if (this._mainCamera) {

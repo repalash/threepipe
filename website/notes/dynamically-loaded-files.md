@@ -86,7 +86,6 @@ These samples are provided and used in examples for testing and development.
   - https://samples.threepipe.org/minimal/studio_small_04_1k.hdr
   - https://samples.threepipe.org/minimal/studio_small_05_1k.hdr
   - https://samples.threepipe.org/minimal/studio_small_06_1k.hdr
-  - https://samples.threepipe.org/minimal/venice_sunset_1k.hdr
   - https://samples.threepipe.org/minimal/1_webp_ll.webp
   - https://samples.threepipe.org/minimal/sprite0.png
   - https://samples.threepipe.org/minimal/brick_bump.webp

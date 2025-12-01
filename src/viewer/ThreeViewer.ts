@@ -440,6 +440,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _lastCameraTarget: Vector3 = new Vector3()
     private _tempVec: Vector3 = new Vector3()
     private _tempQuat: Quaternion = new Quaternion()
+    private _lastMainCamera: ICamera | undefined = undefined
 
     /**
      * If any of the viewers are in debug mode, this will be true.
@@ -859,6 +860,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 const needsRender = this.renderManager.needsRender
                 if (needsRender) {
                     for (let j = 0; j < this.rendersPerFrame; j++) {
+                        this._scene._isMainRendering = true
                         this.dispatchEvent({type: 'preRender', target: this})
                         // console.log('render')
 
@@ -881,6 +883,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                             }
                         }
 
+                        this._scene._isMainRendering = false
                         this.dispatchEvent({type: 'postRender', target: this})
                     }
 
@@ -1547,9 +1550,27 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             const camera = this._scene.mainCamera
             camera.setViewFromCamera(event.camera) // default is worldSpace
         } else if (event.type === 'activateMain') {
-            event.camera?.setCanvas(this._canvas, false)
+            let camera = event.camera
+            // If event.camera is undefined, restore the last saved camera
+            if (camera === undefined && this._lastMainCamera) {
+                if (this._lastMainCamera.parent) {
+                    camera = this._lastMainCamera
+                }
+                this._lastMainCamera = undefined
+            }
+
+            // Save the current mainCamera before replacing it (only if we have a new camera to set)
+            if (camera && this._scene.mainCamera !== camera) {
+                this._lastMainCamera = this._scene.mainCamera
+            }
+
+            camera?.setCanvas(this._canvas, false)
             // this._scene.mainCamera.setCanvas(undefined, false) // todo is this required?
-            this._scene.mainCamera = event.camera || undefined // event.camera should have been upgraded when added to the scene.
+
+            // If camera is null, set mainCamera to undefined (will use default camera)
+            // If camera is a camera object, use it
+            // If camera is undefined and no lastMainCamera, it becomes undefined
+            this._scene.mainCamera = camera === null ? undefined : camera || undefined
         }
     }
 
