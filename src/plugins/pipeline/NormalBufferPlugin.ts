@@ -132,7 +132,7 @@ export class NormalBufferPlugin
 
 }
 
-class MeshNormalMaterialOverride extends MeshNormalMaterial {
+export class MeshNormalMaterialOverride extends MeshNormalMaterial {
 
     constructor(parameters: MeshNormalMaterialParameters) {
         super(parameters)
@@ -165,6 +165,9 @@ class MeshNormalMaterialOverride extends MeshNormalMaterial {
 
         if (material.wireframe !== undefined) this.wireframe = material.wireframe
         if (material.wireframeLinewidth !== undefined) this.wireframeLinewidth = material.wireframeLinewidth
+
+        // @ts-expect-error todo add to type
+        renderer.resetCurrentMaterial && renderer.resetCurrentMaterial()
 
     }
 

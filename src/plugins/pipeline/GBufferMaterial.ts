@@ -145,6 +145,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
         // this.transparent = true
         this.needsUpdate = true
+        // @ts-expect-error todo add to type
+        renderer.resetCurrentMaterial && renderer.resetCurrentMaterial()
 
     }
 
