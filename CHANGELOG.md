@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.4.3] - 2025-12-01
+
+### Changed
+
+- `updateShaderProperties` now returns `void` instead of `this` in all objects implementing `IShaderPropertiesUpdater`
+- `Object3DComponent` UI refresh fix.
+- Use `trackUndo: false` on select event when a new object is generated with `Object3DGeneratorPlugin`.
+- `PickingPlugin` renders a `folder` instead of `panel`
+- Move `select` event type from `Object3DEventMap` to `IObject3DEventMap`
+- Add `dispersion` to `PhysicalMaterial.MaterialProperties` for future three.js
+- Refresh `RenderManager` `uiConfig` on property changes like resize.
+- Check for empty files in `glbEncryptionPreparser` and `GLTFLoader2`, loading empty glb files now return an empty `Group` (can be controlled with `GLTFLoader2.AllowEmptyFiles`)
+- Prefer `rootBlob` over `rootPath` when setting names in `AssetImporter`(only for assets loaded from files/blobs and without a name for the root asset)
+- Add `groups` UI in geometry ui config
+- Remove bounds for light intensity UI Config (for all lights)
+- Rename `ecs` to `ecp` in `ComponentCtx` for `EntityComponentPlugin`
+- Better error logging, several small fixes in `EntityComponentPlugin`
+- `Object3DWidgetsPlugin` - add function `refreshObject` to check adn recreate widget for an object if required.
+- Fix for `RootScene.refreshScene` being called multiple times on calling `setDirty` on the scene.
+- Add context buttons to `Object3DComponent` uiConfig
+- Sort `Object3DComponent` `uiConfig` based on where the properties are defined
+- Lights - Add `uiConfig` for `name` property and its update event.
+- Small improvements to camera and object uiconfig.
+- Some refactor and added helper functions in `EntityComponentPlugin`.
+- Support for non-standard `renderer.resetCurrentMaterial`(`WebGLRenderer`) in GBuffer, Depth and Normal material overrides.
+- Export `MeshDepthMaterialOverride` and `MeshNormalMaterialOverride`
+- Set `allowOverride` to `false` for helper(widget) materials.
+- Add support for `overrideRenderEnvironment` in `RootScene`.
+- Save last camera in the viewer when `activateMain` is called, to revert to the correct camera on `deactivateMain`
+
 ## [0.4.2] - 2025-10-27
 
 - Several typescript and other fixes related to issues with some typescript versions/settings.
