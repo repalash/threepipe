@@ -12,13 +12,17 @@ interface PropMeta {
     propKey: keyof Object3DComponent;
 }
 
+// const compType = /* @__PURE__ */ new WeakMap<typeof Object3DComponent, Set<string>>()
 export function getComponentTypes(comp: typeof Object3DComponent) {
+    // const cache = compType.get(comp)
+    // if (cache) return cache
     const types = new Set<string>()
     let base = comp
     while (base && base !== Object3DComponent && base !== Function.prototype) {
         if (base.ComponentType) types.add(base.ComponentType)
         base = Object.getPrototypeOf(base)
     }
+    // compType.set(comp, types)
     return types
 }
 
@@ -29,7 +33,7 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
 
     const uiConfig = comp.uiConfig ?? {
         type: 'folder',
-        label: comp.constructor.ComponentType,
+        label: ()=>comp._sType ? `Missing (${comp._sType})` : comp.constructor.ComponentType,
         expanded: false,
         children: generateUiConfig(comp),
     }

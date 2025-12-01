@@ -5,8 +5,10 @@ import {Class, Serialization} from 'ts-browser-helpers'
 export interface ComponentCtx {
     viewer: ThreeViewer
     ecp: EntityComponentPlugin
+    // object: IObject3D
     // throws error if the plugin is not found instead of returning undefined
     plugin: <T extends IViewerPlugin>(type: Class<T> | string) => T
+    // component: <T extends TObject3DComponent>(type: T | string) => InstanceType<T>
 }
 
 const jsPropTypes = {

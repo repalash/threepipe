@@ -2,6 +2,7 @@ import {IAnimationLoopEvent, IObject3D} from '../../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes'
 import {refreshAllStateProperties} from './setupComponent'
+import {EntityComponentPlugin} from '../EntityComponentPlugin'
 
 export type TObject3DComponent = typeof Object3DComponent
 
@@ -103,4 +104,17 @@ export class Object3DComponent {
         this.stateChangeHandlers[key].push(fn)
     }
 
+
+    /**
+     * @internal
+     */
+    ['_sType']?: string
+
+    getComponent<T extends TObject3DComponent>(type: T | string, self = false) {
+        const obj = this._object
+        if (!obj) return self ? null : this.ctx.ecp.getComponentOfType(type)
+        if (self) return EntityComponentPlugin.GetComponent(obj, type)
+        return EntityComponentPlugin.GetComponentInParent(obj, type) ||
+            this.ctx.ecp.getComponentOfType(type)
+    }
 }

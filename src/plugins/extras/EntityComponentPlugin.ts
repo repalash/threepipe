@@ -43,31 +43,39 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     start() {
         if (this._running) return
         this._running = true
-        this._components.forEach(c=>{
+        for (const comp of this._components.values()) {
             try {
-                c.start()
+                comp.start()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error starting component', c)
+                console.error('EntityComponentPlugin: Error starting component', comp)
                 console.error(e)
             }
-        })
+        }
         if (this._viewer && this._components.size) this._viewer.setDirty(this)
     }
     stop() {
         if (!this._running) return
         this._running = false
-        this._components.forEach(c=>{
+        for (const comp of this._components.values()) {
             try {
-                c.stop()
+                comp.stop()
             } catch (e) {
-                console.error('EntityComponentPlugin: Error stopping component', c)
+                console.error('EntityComponentPlugin: Error stopping component', comp)
                 console.error(e)
             }
-        })
+        }
         if (this._viewer && this._components.size) this._viewer.setDirty(this)
     }
 
+    componentsDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
+        type: T, ...args: Parameters<NonNullable<Object3DComponent[T]>>
+    ) {
+        EntityComponentPlugin.ComponentsDispatch([...this._components.values()], type as any, args)
+    }
+
     private readonly _components: Map<string, Object3DComponent> = new Map()
+    private _typeToComponents: Map<string, Set<Object3DComponent>> = new Map()
+
     readonly componentTypes: Map<string, TObject3DComponent> = new Map()
 
     static readonly ObjectToComponents: WeakMap<IObject3D, Object3DComponent[]> = new Map()
@@ -75,18 +83,26 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     static ObjectDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
         object: IObject3D,
         type: T,
-        event: Record<string, any>
+        ...args: Parameters<NonNullable<Object3DComponent[T]>>
     ) {
         const comps = EntityComponentPlugin.ObjectToComponents.get(object)
         if (comps) {
-            for (const comp of comps) {
-                const l = comp[type]
-                if (typeof l === 'function') {
-                    try {
-                        l.call(comp, event)
-                    } catch (err) {
-                        console.error(`EntityComponentPlugin: Error in component ${comp.constructor.ComponentType} handling ${type}`, comp, err)
-                    }
+            EntityComponentPlugin.ComponentsDispatch(comps, type, args)
+        }
+    }
+
+    static ComponentsDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
+        comps: Object3DComponent[],
+        type: T,
+        args: Parameters<NonNullable<Object3DComponent[T]>>,
+    ) {
+        for (const comp of comps) {
+            const l = comp[type]
+            if (typeof l === 'function') {
+                try {
+                    l.apply(comp, args)
+                } catch (err) {
+                    console.error(`EntityComponentPlugin: Error in component ${comp.constructor.ComponentType} handling ${type}`, comp, err)
                 }
             }
         }
@@ -260,27 +276,6 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return action
     }
 
-    static GetComponents<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
-        if (!obj) return []
-        const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
-        const typeStr = typeof type === 'string' ? type : type.ComponentType
-        return comps.filter(c=>{
-            const types = getComponentTypes(c.constructor)
-            return types.has(typeStr)
-        }) as InstanceType<T>[]
-    }
-    static GetComponent<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
-        if (!obj) return null
-        const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
-        const typeTarget = typeof type === 'string' ? [type] : [...getComponentTypes(type)]
-        for (const c of comps) {
-            const types = getComponentTypes(c.constructor)
-            for (const t of typeTarget) {
-                if (types.has(t)) return c as InstanceType<T>
-            }
-        }
-        return null
-    }
     static GetComponentData<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
         if (!obj) return null
         const data = EntityComponentPlugin.GetObjectData(obj)
@@ -296,6 +291,29 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return null
     }
 
+    static GetComponents<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
+        if (!obj) return []
+        const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
+        const typeTarget = typeof type === 'string' ? [type] : [...getComponentTypes(type)]
+        return comps.filter(c=>{
+            const types = getComponentTypes(c.constructor)
+            return typeTarget.some(t=>types.has(t))
+        }) as InstanceType<T>[]
+    }
+
+    static GetComponent<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
+        if (!obj) return null
+        const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
+        const typeTarget = typeof type === 'string' ? [type] : [...getComponentTypes(type)]
+        for (const c of comps) {
+            const types = getComponentTypes(c.constructor)
+            for (const t of typeTarget) {
+                if (types.has(t)) return c as InstanceType<T>
+            }
+        }
+        return null
+    }
+
     static GetComponentInParent<T extends TObject3DComponent = TObject3DComponent>(object: IObject3D, type: string|T) {
         if (!object) return null
         let obj: IObject3D|null = object
@@ -306,6 +324,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         }
         return comp
     }
+
     static GetComponentsInParent<T extends TObject3DComponent = TObject3DComponent>(object: IObject3D, type: string|T) {
         if (!object) return []
         let obj: IObject3D|null = object
@@ -315,6 +334,30 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             obj = obj.parent
         }
         return comps
+    }
+
+    /**
+     * Get all components of a specific type from the plugin instance
+     * @param type - The component type (string or class)
+     * @returns Array of components matching the specified type
+     */
+    getComponentsOfType<T extends TObject3DComponent = TObject3DComponent>(type: string|T): InstanceType<T>[] {
+        const typeStr = typeof type === 'string' ? type : type.ComponentType
+        const compSet = this._typeToComponents.get(typeStr)
+        if (!compSet) return []
+        return [...compSet] as InstanceType<T>[]
+    }
+
+    /**
+     * Get the first component of a specific type from the plugin instance
+     * @param type - The component type (string or class)
+     * @returns The first component matching the specified type, or null if not found
+     */
+    getComponentOfType<T extends TObject3DComponent = TObject3DComponent>(type: string|T): InstanceType<T> | null {
+        const typeStr = typeof type === 'string' ? type : type.ComponentType
+        const compSet = this._typeToComponents.get(typeStr)
+        if (!compSet || compSet.size === 0) return null
+        return compSet.values().next().value as InstanceType<T>
     }
 
     registerComponent(obj: IObject3D, state: ComponentJSON, id?: string) {
@@ -341,22 +384,37 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
                 return comp
             }
         }
-        const cls = this.componentTypes.get((state as ComponentJSON).type)
+        const cls = this.componentTypes.get(state.type)
+
         // todo why making a new one for every component?
         const ctx: ComponentCtx = {
             viewer: this._viewer,
             ecp: this,
+            // object: obj,
             plugin: (p)=>{
-                const i = this._viewer?.getPlugin(p)
+                const i = ctx.viewer?.getPlugin(p)
                 if (!i) {
                     throw new Error(`EntityComponentPlugin: cannot find plugin ${typeof p === 'string' ? p : p.name}`)
                 }
                 return i
             },
+            // component(c) {
+            //     const comp = EntityComponentPlugin.GetComponent(ctx.object, c)
+            //     if (!comp) {
+            //         throw new Error(`EntityComponentPlugin: cannot find component ${typeof c === 'string' ? c : c.name} on object`)
+            //     }
+            //     return comp
+            // },
         }
         let comp
         try {
+            // todo when cls doesnt exist, and a component type is registered, it needs to be recreated
             comp = cls ? new cls() : new Object3DComponent()
+            if (!cls) {
+                console.error('EntityComponentPlugin: unknown component type ' + state.type, obj)
+                comp._sType = state.type
+            }
+
             if (id) comp.uuid = id
             setupComponent(comp, ctx)
         } catch (e) {
@@ -366,6 +424,11 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         }
         this._components.set(obj.uuid + comp.uuid, comp)
         EntityComponentPlugin.ObjectToComponents.set(obj, [...EntityComponentPlugin.ObjectToComponents.get(obj) || [], comp])
+
+        const typeSet = this._typeToComponents.get(comp.constructor.ComponentType) || new Set()
+        typeSet.add(comp)
+        this._typeToComponents.set(comp.constructor.ComponentType, typeSet)
+
         try {
             comp.init(obj, state.state)
         } catch (e) {
@@ -404,6 +467,15 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
             }
         }
         this._components.delete(obj.uuid + comp.uuid)
+
+        const typeSet = this._typeToComponents.get(comp.constructor.ComponentType)
+        if (typeSet) {
+            typeSet.delete(comp)
+            if (typeSet.size === 0) {
+                this._typeToComponents.delete(comp.constructor.ComponentType)
+            }
+        }
+
         teardownComponent(comp)
         const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
         const index = comps.indexOf(comp)
@@ -423,6 +495,15 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         const obj = e.object
         if (!obj) return
         if (obj.isWidget) return
+
+        // Add getComponent method to object
+        if (!obj.getComponent) {
+            obj.getComponent = <T extends TObject3DComponent>(type: T | string, self = false) => {
+                if (self) return EntityComponentPlugin.GetComponent(obj, type)
+                return EntityComponentPlugin.GetComponentInParent(obj, type) ||
+                    this.getComponentOfType(type)
+            }
+        }
 
         if (!(obj as any)._compUiInit && obj.uiConfig?.children && EntityComponentPlugin.AddObjectUiConfig) {
             (obj as any)._compUiInit = true
@@ -481,6 +562,11 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         if (!obj) return
         const data = EntityComponentPlugin.GetObjectData(obj)
 
+        // Remove getComponent method from object
+        if (obj.getComponent) {
+            delete obj.getComponent
+        }
+
         // remove ui config by tags
         if ((obj as any)._compUiInit && obj.uiConfig?.children) {
             (obj as any)._compUiInit = false
@@ -519,3 +605,17 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
 }
 
 export const ECS = EntityComponentPlugin
+
+// Augment IObject3D interface to include getComponent method
+declare module '../../core/IObject' {
+    interface IObject3D {
+        /**
+         * Get a component attached to this object or in its parent hierarchy, or get a component of the specified type from the global registry.
+         * This method is added by EntityComponentPlugin when the object is added to the scene.
+         * @param type - The component type (string or class)
+         * @param self - If true, only search this object; if false, search parents and global registry
+         * @returns The component instance if found, or null
+         */
+        getComponent?<T extends TObject3DComponent>(type: T | string, self?: boolean): InstanceType<T> | null
+    }
+}
