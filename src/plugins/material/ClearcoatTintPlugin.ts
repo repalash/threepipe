@@ -72,7 +72,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
 
             // todo: we are considering all light is coming from env map, but we should consider light coming from light sources by seperating light and env map attenuation
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-                'outgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + clearcoatSpecular * material.clearcoat;',
+                'outgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + ( clearcoatSpecularDirect + clearcoatSpecularIndirect ) * material.clearcoat;',
                 'outgoingLight *= clearcoatTint(dotNVcc, dotNVcc, material.clearcoat);\n', {prepend: true})
 
             shader.defines && (shader.defines.USE_UV = '')
