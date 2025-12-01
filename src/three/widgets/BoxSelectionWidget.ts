@@ -17,6 +17,8 @@ export class BoxSelectionWidget extends SelectionWidget {
             toneMapped: false,
             depthTest: true,
             depthWrite: false,
+
+            allowOverride: false,
         })
         matLine.userData.renderToGBuffer = false
         matLine.userData.renderToDepth = false

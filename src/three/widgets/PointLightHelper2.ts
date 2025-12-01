@@ -41,6 +41,8 @@ export class PointLightHelper2 extends ALightHelperWidget {
             transparent: true,
             depthTest: true,
             depthWrite: false,
+
+            allowOverride: false,
         })
         this.hMaterial.userData.renderToGBuffer = false
         this.hMaterial.userData.renderToDepth = false

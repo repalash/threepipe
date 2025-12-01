@@ -71,6 +71,7 @@ export class LineHelper extends AHelperWidget {
             color: this.handleColor,
             transparent: true,
             opacity: 0.95,
+            allowOverride: false,
         })
         this._cubeMaterial.userData.renderToGBuffer = false
         this._cubeMaterial.userData.renderToDepth = false

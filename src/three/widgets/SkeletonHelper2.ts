@@ -56,6 +56,8 @@ export class SkeletonHelper2 extends AHelperWidget {
             transparent: true,
             depthTest: true,
             depthWrite: false,
+
+            allowOverride: false,
         })
         this.hMaterial.userData.renderToGBuffer = false
         this.hMaterial.userData.renderToDepth = false

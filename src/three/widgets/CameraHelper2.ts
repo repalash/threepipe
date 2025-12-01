@@ -56,6 +56,8 @@ export class CameraHelper2 extends ACameraHelperWidget {
             transparent: true,
             depthTest: true,
             depthWrite: false,
+
+            allowOverride: false,
         })
         material.userData.renderToGBuffer = false
         material.userData.renderToDepth = false
