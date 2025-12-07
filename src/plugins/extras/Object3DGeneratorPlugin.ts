@@ -13,6 +13,7 @@ import {
 } from '../../core'
 import {uiButton, uiDropdown, uiPanelContainer} from 'uiconfig.js'
 import {Vector3} from 'three'
+import type {UndoManagerPlugin} from '../interaction/UndoManagerPlugin'
 
 /**
  * Adds support for generating different types of lights and camera objects in the viewer, along with UI to do so.
@@ -32,12 +33,19 @@ export class Object3DGeneratorPlugin extends AViewerPluginSync {
     protected _selectedType = ''
 
     @uiButton('Generate', {sendArgs: false})
-    generate(type?: string, params?: any, addToScene = true, select = true) {
+    generate(type?: string, params?: any, addToScene = true, select = true, trackUndo = true): IObject3D | undefined {
         if (!this._viewer) throw new Error('No viewer')
         const obj = this.generators[type ?? this._selectedType]?.(params)
-        addToScene && obj && this._viewer.scene.addObject(obj)
-        select && obj && obj.dispatchEvent({type: 'select', value: obj, object: obj, ui: true, bubbleToParent: true, trackUndo: false})
-        return obj
+        if (addToScene && obj) {
+            const cmd = {
+                redo: ()=>this._viewer?.scene.addObject(obj),
+                undo: ()=>obj.dispose ? obj.dispose(true) : obj.removeFromParent(),
+            }
+            if (trackUndo) this._viewer?.getPlugin<UndoManagerPlugin>('UndoManagerPlugin')?.undoManager?.record(cmd)
+            cmd.redo()
+            select && obj.dispatchEvent({type: 'select', value: obj, object: obj, ui: true, bubbleToParent: true, trackUndo: false})
+        }
+        return obj || undefined
     }
 
     generators: Record<string, (params?: any)=>IObject3D> = {

@@ -5,7 +5,7 @@ import {
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
     PickingPlugin,
-    ThreeViewer,
+    ThreeViewer, UndoManagerPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin} from '@threepipe/plugin-tweakpane-editor'
@@ -15,7 +15,7 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [PickingPlugin, Object3DWidgetsPlugin, HierarchyUiPlugin, LoadingScreenPlugin],
+        plugins: [PickingPlugin, Object3DWidgetsPlugin, HierarchyUiPlugin, LoadingScreenPlugin, UndoManagerPlugin],
     })
     const generator = viewer.addPluginSync(Object3DGeneratorPlugin)
 
