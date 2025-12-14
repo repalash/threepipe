@@ -107,7 +107,7 @@ export interface ISerializedViewerConfig extends ISerializedConfig{
 }
 
 export interface ViewerEventMap{
-    preFrame: {time: number, deltaTime: number},
+    preFrame: {time: number, deltaTime: number, timeline: {time: number, delta: number}},
 }
 export interface ViewerEventListener<T extends keyof ViewerEventMap>{
     callback: (event: ViewerEventMap[T] & {type: T, target: ThreeViewer})=> void,
@@ -840,6 +840,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this.dispatch('preFrame', {
                 time: event.time,
                 deltaTime: event.deltaTime,
+                timeline: this.timeline,
             })
 
             if (this.renderEnabled) {

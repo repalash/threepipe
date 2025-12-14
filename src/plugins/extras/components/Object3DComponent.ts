@@ -1,8 +1,9 @@
-import {IAnimationLoopEvent, IObject3D} from '../../../core'
+import {IObject3D} from '../../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes'
 import {refreshAllStateProperties} from './setupComponent'
 import {EntityComponentPlugin} from '../EntityComponentPlugin'
+import {ViewerEventMap} from '../../../viewer/ThreeViewer'
 
 export type TObject3DComponent = typeof Object3DComponent
 
@@ -77,8 +78,12 @@ export class Object3DComponent {
         // called when scene is stopped or component is removed from an object when scene is playing
     }
 
-    update(_e: IAnimationLoopEvent): boolean|void {
+    update(_e: ViewerEventMap['preFrame']): boolean|void {
         // called every frame
+    }
+
+    preFrame(_e: ViewerEventMap['preFrame']): boolean|void {
+        // called every frame, before update, even when not running(paused/edit mode)
     }
 
     init(object: IObject3D, state: ComponentJSON['state']) {

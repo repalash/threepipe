@@ -61,6 +61,7 @@ import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ThreeSerialization} from '../utils'
+import {PolyhavenMaterialGLTFLoader} from './import/PolyhavenMaterialGLTFLoader'
 
 // todo rename to AssetImporterCacheOptions
 export interface AssetManagerOptions{
@@ -360,6 +361,8 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true),
 
             new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'webm', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm'], true),
+
+            new Importer<PolyhavenMaterialGLTFLoader>(PolyhavenMaterialGLTFLoader, ['phmatgltf'], [], true),
         ]
 
         this.importer.addImporter(...importers)

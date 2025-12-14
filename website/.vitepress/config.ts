@@ -217,7 +217,6 @@ export default defineConfig({
       copyright: 'Copyright © 2023-present, <a href="https://repalash.com/">repalash</a>. All rights reserved.',
     },
 
-
     // https://vitepress.dev/reference/default-theme-search#minisearch-options
     search: {
       provider: 'local',

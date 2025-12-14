@@ -1,5 +1,5 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {IAnimationLoopEvent, IObject3D} from '../../core'
+import {IObject3D} from '../../core'
 import {UiObjectConfig} from 'uiconfig.js'
 import {
     ComponentCtx,
@@ -70,7 +70,7 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     componentsDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
         type: T, ...args: Parameters<NonNullable<Object3DComponent[T]>>
     ) {
-        EntityComponentPlugin.ComponentsDispatch([...this._components.values()], type as any, args)
+        return EntityComponentPlugin.ComponentsDispatch([...this._components.values()], type as any, args)
     }
 
     private readonly _components: Map<string, Object3DComponent> = new Map()
@@ -87,8 +87,9 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     ) {
         const comps = EntityComponentPlugin.ObjectToComponents.get(object)
         if (comps) {
-            EntityComponentPlugin.ComponentsDispatch(comps, type, args)
+            return EntityComponentPlugin.ComponentsDispatch(comps, type, args)
         }
+        return []
     }
 
     static ComponentsDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
@@ -96,16 +97,18 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         type: T,
         args: Parameters<NonNullable<Object3DComponent[T]>>,
     ) {
+        const res = []
         for (const comp of comps) {
             const l = comp[type]
             if (typeof l === 'function') {
                 try {
-                    l.apply(comp, args)
+                    res.push([comp, l.apply(comp, args)])
                 } catch (err) {
                     console.error(`EntityComponentPlugin: Error in component ${comp.constructor.ComponentType} handling ${type}`, comp, err)
                 }
             }
         }
+        return res
     }
 
     static UserDataKey = EntityComponentPlugin.PluginType
@@ -172,17 +175,17 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
     }
 
     private _preFrame = (e: ViewerEventMap['preFrame'])=>{
-        if (this.isDisabled() || !this._running || !this._viewer?.renderEnabled) return
+        if (this.isDisabled() || !this._viewer?.renderEnabled || e.deltaTime <= 0) return
+        const args = [e] as const
         let dirty = false
         // todo component exec sort order?
-        this._components.forEach((comp)=>{
-            try {
-                const res = comp.update(e as IAnimationLoopEvent)
-                if (res === true) dirty = true
-            } catch (err: any) {
-                console.error(`EntityComponentPlugin: Error updating component ${comp.constructor.ComponentType}`, comp, err)
-            }
-        })
+        let res = this.componentsDispatch('preFrame', ...args)
+        if (!dirty && res.find(a=>!!a[1])) dirty = true
+        if (this._running && e.timeline.delta > 0) { // todo might be better to subscribe to timeline update event directly for this
+            // todo component exec sort order?
+            res = this.componentsDispatch('update', ...args)
+            if (!dirty && res.find(a=>!!a[1])) dirty = true
+        }
         if (dirty) this._viewer?.setDirty(this)
     }
 

@@ -1,9 +1,8 @@
 import {Object3DComponent} from './Object3DComponent'
 import {Vector3} from 'three'
-import {IAnimationLoopEvent} from '../../../core'
 import {uiButton} from 'uiconfig.js'
 import {timeout} from 'ts-browser-helpers'
-
+import {ViewerEventMap} from '../../../viewer/ThreeViewer'
 /**
  * Sample component that simulates a basic rigid body with forces, impulses, and velocity
  */
@@ -18,7 +17,7 @@ export class SampleBodyComponent extends Object3DComponent {
     velocity = new Vector3()
     acceleration = new Vector3()
 
-    update({deltaTime}: IAnimationLoopEvent) {
+    update({deltaTime}: ViewerEventMap['preFrame']) {
         if (!this.object || !this.running) return
 
         const dt = (deltaTime ?? 16) / 1000 // ~60fps fallback
