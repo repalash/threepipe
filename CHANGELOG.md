@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 - Add `TransformControlsPlugin.selectionFilterTest` to filter/swap objects that can be selected for transform controls.
 - Set `allowOverride` `false` for materials in `TransformControls`
 - `Object3DGeneratorPlugin` - separate `object-empty` and `object-group` to generate `Object3D` and `Group` respectively.
+- Add `PolyhavenMaterialGLTFLoader` to load Polyhaven materials(called textures) available as glTF files.
+- Add `timeline` to `preFrame` event in `ThreeViewer`
+- Add editor snapshots in docs
+- Add `preFrame` dispatch for plugins in `EntityComponentPlugin`
+- Add documentation pages for webgi package plugins.
 
 ## [0.4.3] - 2025-12-01
 
