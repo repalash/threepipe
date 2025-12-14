@@ -17,6 +17,8 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/material/ClearcoatTintPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/ClearcoatTintPlugin.html)
 
+<iframe src="https://threepipe.org/examples/clearcoat-tint-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Bloom Plugin Example"></iframe>
+
 ClearcoatTintPlugin adds a material extension to PhysicalMaterial which adds tint and thickness to the built-in clearcoat properties.
 It also adds a UI to the material to edit the settings.
 It uses `WEBGI_materials_clearcoat_tint` glTF extension to save the settings in glTF/glb files.

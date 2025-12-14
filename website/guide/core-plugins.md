@@ -35,6 +35,22 @@ Plugins configuring the rendering pipeline and providing resources for other plu
 - [CascadedShadowsPlugin](../plugin/CascadedShadowsPlugin) - High-quality directional light shadows across large scenes using Cascaded Shadow Maps (CSM) technique with multiple cascade splitting modes.
 - [FrameFadePlugin](../plugin/FrameFadePlugin) - Post-render pass to smoothly fade to a new rendered frame over time. Used by the core and several plugins like configurators.
 
+## Advanced Rendering
+
+Advanced rendering plugins from the `@threepipe/webgi-plugins` package for high-quality visuals and realistic effects.
+
+- [TemporalAAPlugin](../plugin/TemporalAAPlugin) - Temporal Anti-Aliasing using motion vectors for smoother, higher quality rendering with reduced aliasing artifacts.
+- [VelocityBufferPlugin](../plugin/VelocityBufferPlugin) - Pre-rendering of velocity/motion vector buffer for temporal effects like TAA and motion blur.
+- [BloomPlugin](../plugin/BloomPlugin) - HDR bloom effect with threshold, intensity, and radius controls for glowing highlights.
+- [SSReflectionPlugin](../plugin/SSReflectionPlugin) - Screen Space Reflections for realistic mirror-like reflections on metallic and glossy surfaces.
+- [SSContactShadowsPlugin](../plugin/SSContactShadowsPlugin) - Screen Space Contact Shadows for enhanced shadow detail at object-surface intersections.
+- [DepthOfFieldPlugin](../plugin/DepthOfFieldPlugin) - Depth of Field effect with interactive focal point selection for realistic camera focus.
+- [SSGIPlugin](../plugin/SSGIPlugin) - Screen Space Global Illumination with color bleeding and ambient occlusion for realistic indirect lighting.
+- [AnisotropyPlugin](../plugin/AnisotropyPlugin) - Anisotropic material reflections for brushed metal, fabric, hair, and other directional surfaces.
+- [AdvancedGroundPlugin](../plugin/AdvancedGroundPlugin) - Enhanced ground plane with planar reflections and baked soft shadows for professional presentations.
+- [OutlinePlugin](../plugin/OutlinePlugin) - Selection outlines and highlights that integrate with PickingPlugin for interactive feedback.
+- [WatchHandsPlugin](../plugin/WatchHandsPlugin) - Automatic watch hand animation based on real-time for watch visualizations and product configurators.
+
 ## Import
 
 Plugins to add importers/loaders for different file formats.

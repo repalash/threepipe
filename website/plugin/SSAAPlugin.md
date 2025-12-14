@@ -7,15 +7,18 @@ next:
     text: 'DepthBufferPlugin'
     link: './DepthBufferPlugin'
 
+aside: false
 ---
 
-# SSAAPlugin
+# SSAAPlugin (Super-Sample Anti-Aliasing Plugin)
 
 [//]: # (todo: image)
 
 [Example](https://threepipe.org/examples/#ssaa-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/SSAAPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/SSAAPlugin.html)
+
+<iframe src="https://threepipe.org/examples/ssaa-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Bloom Plugin Example"></iframe>
 
 SSAA Plugin adds support for [Super Sampling Anti-Aliasing](https://en.wikipedia.org/wiki/Supersampling) to the viewer. Simply add the plugin to the viewer to use it.
 

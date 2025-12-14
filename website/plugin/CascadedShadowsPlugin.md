@@ -10,7 +10,7 @@ next:
 aside: false
 ---
 
-# CascadedShadowsPlugin
+# CascadedShadowsPlugin (CSM)
 
 [Example](https://threepipe.org/examples/#cascaded-shadows-plugin-basic/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/rendering/CascadedShadowsPlugin.ts) &mdash;

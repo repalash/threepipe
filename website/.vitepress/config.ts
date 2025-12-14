@@ -74,7 +74,7 @@ export default defineConfig({
             ],
           },
           {
-            text: 'Post-processing', collapsed: true,
+            text: 'Basic Post-processing', collapsed: true,
             items: [
               {text: 'TonemapPlugin', link: 'plugin/TonemapPlugin'},
               {text: 'VignettePlugin', link: 'plugin/VignettePlugin'},
@@ -86,13 +86,29 @@ export default defineConfig({
             text: 'Rendering Pipeline', collapsed: true,
             items: [
               {text: 'ProgressivePlugin', link: 'plugin/ProgressivePlugin'},
-              {text: 'SSAAPlugin', link: 'plugin/SSAAPlugin'},
+              {text: 'SSAAPlugin (Super Sampling Anti-Aliasing)', link: 'plugin/SSAAPlugin'},
               {text: 'DepthBufferPlugin', link: 'plugin/DepthBufferPlugin'},
               {text: 'NormalBufferPlugin', link: 'plugin/NormalBufferPlugin'},
               {text: 'GBufferPlugin', link: 'plugin/GBufferPlugin'},
-              {text: 'SSAOPlugin', link: 'plugin/SSAOPlugin'},
-              {text: 'CascadedShadowsPlugin', link: 'plugin/CascadedShadowsPlugin'},
+              {text: 'SSAOPlugin (Screen Space Ambient Occlusion)', link: 'plugin/SSAOPlugin'},
+              {text: 'CascadedShadowsPlugin (CSM)', link: 'plugin/CascadedShadowsPlugin'},
               {text: 'FrameFadePlugin', link: 'plugin/FrameFadePlugin'},
+            ],
+          },
+          {
+            text: 'Realistic Rendering (webgi)', collapsed: true,
+            items: [
+              {text: 'TemporalAAPlugin', link: 'plugin/TemporalAAPlugin'},
+              {text: 'VelocityBufferPlugin', link: 'plugin/VelocityBufferPlugin'},
+              {text: 'BloomPlugin', link: 'plugin/BloomPlugin'},
+              {text: 'SSReflectionPlugin (Screen Space Reflections)', link: 'plugin/SSReflectionPlugin'},
+              {text: 'SSContactShadowsPlugin', link: 'plugin/SSContactShadowsPlugin'},
+              {text: 'DepthOfFieldPlugin', link: 'plugin/DepthOfFieldPlugin'},
+              {text: 'SSGIPlugin (Screen Space Global Illumination)', link: 'plugin/SSGIPlugin'},
+              {text: 'AnisotropyPlugin', link: 'plugin/AnisotropyPlugin'},
+              {text: 'AdvancedGroundPlugin', link: 'plugin/AdvancedGroundPlugin'},
+              {text: 'OutlinePlugin', link: 'plugin/OutlinePlugin'},
+              {text: 'WatchHandsPlugin', link: 'plugin/WatchHandsPlugin'},
             ],
           },
           {
