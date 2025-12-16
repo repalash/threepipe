@@ -107,7 +107,7 @@ async function init() {
 
     // Constraint controls
     ui.appendChild(objConstraint.uiConfig, {expanded: true})
-    ui.appendChild(pathLine.geometry?.uiConfig, {expanded: false, label: 'Line'})
+    ui.appendChild(pathLine?.geometry?.uiConfig, {expanded: false, label: 'Line'})
 
     // Position camera to get a good view of the scene
     viewer.scene.mainCamera.position.set(14, 8, 14)

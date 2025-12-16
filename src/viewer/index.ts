@@ -1,5 +1,5 @@
 export {AViewerPlugin, AViewerPluginAsync, AViewerPluginSync, type AViewerPluginEventMap} from './AViewerPlugin'
 export {ThreeViewer} from './ThreeViewer'
-export type {IViewerEventTypes, ISerializedViewerConfig, ISerializedConfig, IViewerEvent, ThreeViewerOptions, IConsoleWrapper} from './ThreeViewer'
+export type {IViewerEventTypes, ISerializedViewerConfig, ISerializedConfig, IViewerEvent, ThreeViewerOptions, IConsoleWrapper, ViewerEventMap, ViewerEventListener} from './ThreeViewer'
 export {ViewerRenderManager, type ViewerRenderManagerOptions} from './ViewerRenderManager'
 export type {IViewerPlugin, IViewerPluginSync, IViewerPluginAsync} from './IViewerPlugin'

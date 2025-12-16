@@ -1,11 +1,13 @@
 import {
     _testFinish,
     _testStart,
-    EntityComponentPlugin, IAnimationLoopEvent,
+    EntityComponentPlugin,
     IObject3D,
-    LoadingScreenPlugin, Object3DComponent,
+    LoadingScreenPlugin,
+    Object3DComponent,
     SampleBodyComponent,
     ThreeViewer,
+    ViewerEventMap,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
@@ -73,7 +75,7 @@ export class MoveInCircleComponent extends Object3DComponent {
 
     static ComponentType = 'MoveInCircleComponent'
 
-    update({time}: IAnimationLoopEvent) {
+    update({time}: ViewerEventMap['preFrame']) {
         if (!this.running) return
         if (!this.object) return
         this.object.position.x = Math.cos(time * this.timeScale / 100) * this.radius

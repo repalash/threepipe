@@ -362,7 +362,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'webm', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm'], true),
 
-            new Importer<PolyhavenMaterialGLTFLoader>(PolyhavenMaterialGLTFLoader, ['phmatgltf'], [], true),
+            new Importer(PolyhavenMaterialGLTFLoader, ['phmatgltf'], [], true),
         ]
 
         this.importer.addImporter(...importers)

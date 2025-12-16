@@ -26,7 +26,6 @@
         "jsx": "react-jsx",
         "allowImportingTsExtensions": false,
         "paths": {
-            "threepipe": ["./src/"],
         },
         "lib": [
             "es2020",

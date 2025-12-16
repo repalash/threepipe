@@ -232,6 +232,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.dispatchEvent({type: 'resize'})
         this._updated({change: 'size', data: this._renderSize.toArray()})
         this.reset()
+        this.uiConfig?.uiRefresh?.(true, 'postFrame', 0)
 
     }
 
@@ -294,7 +295,6 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     reset(): void {
         this._frameCount = 0
         this._dirty = true
-        this.uiConfig?.uiRefresh?.(true, 'postFrame', 0)
         // do NOT call _updated from here.
     }
 
