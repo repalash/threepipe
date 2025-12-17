@@ -107,7 +107,12 @@ export interface ISerializedViewerConfig extends ISerializedConfig{
 }
 
 export interface ViewerEventMap{
-    preFrame: {time: number, deltaTime: number, timeline: {time: number, delta: number}},
+    preFrame: {
+        time: number,
+        deltaTime: number,
+        timeline: {time: number, delta: number},
+        resized: boolean,
+    },
 }
 export interface ViewerEventListener<T extends keyof ViewerEventMap>{
     callback: (event: ViewerEventMap[T] & {type: T, target: ThreeViewer})=> void,
@@ -805,6 +810,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.renderStats?.begin()
 
         for (let i = 0; i < this.maxFramePerLoop; i++) {
+            let isResized = false
             if (this.renderEnabled) {
 
                 // from setDirty
@@ -831,6 +837,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                     if (this._needsResize) {
                         this.renderManager.setSize(...size)
                         this._needsResize = false
+                        isResized = true
                     }
                 }
 
@@ -841,6 +848,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 time: event.time,
                 deltaTime: event.deltaTime,
                 timeline: this.timeline,
+                resized: isResized,
             })
 
             if (this.renderEnabled) {

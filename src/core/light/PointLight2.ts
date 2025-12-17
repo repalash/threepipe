@@ -59,11 +59,14 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     @onChange3('setDirty')
     declare castShadow: boolean
 
-    @uiVector('Shadow Map Size')
+    @uiVector('Shadow Map Size', undefined, undefined, (that: PointLight2)=>({onChange: ()=>that._mapSizeChanged()}))
     @bindToValue({obj: 'shadow', key: 'mapSize', onChange: PointLight2.prototype._mapSizeChanged, onChangeParams: false})
         shadowMapSize: Vector2
 
-    protected _mapSizeChanged() {
+    /**
+     * @internal
+     */
+    ['_mapSizeChanged']() {
         this.shadow.map?.dispose()
         this.shadow.mapPass?.dispose()
         this.shadow.map = null as any

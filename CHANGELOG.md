@@ -14,10 +14,13 @@ All notable changes to this project will be documented in this file.
 - Set `allowOverride` `false` for materials in `TransformControls`
 - `Object3DGeneratorPlugin` - separate `object-empty` and `object-group` to generate `Object3D` and `Group` respectively.
 - Add `PolyhavenMaterialGLTFLoader` to load Polyhaven materials(called textures) available as glTF files.
-- Add `timeline` to `preFrame` event in `ThreeViewer`
+- Add `timeline`(object), `resized`(boolean) to `preFrame` event in `ThreeViewer`
 - Add editor snapshots in docs
 - Add `preFrame` dispatch for plugins in `EntityComponentPlugin`
 - Add documentation pages for webgi package plugins.
+- Fix shadow map not being recreated when changing shadow map size from the UI (directional, spot, point), made `_mapSizeChanged` internal public function (from protected).
+- Add ability to undo after removing constraints from an object from the UI.
+- `ObjectConstraint.remove` now returns an undo function.  
 
 ## [0.4.3] - 2025-12-01
 

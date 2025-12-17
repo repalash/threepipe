@@ -128,7 +128,13 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
         this._constraintObjects.get(obj)!.add(constraint)
         this._refreshConstraint(constraint)
         constraint.refresh = ()=>this._refreshConstraint(constraint)
-        constraint.remove = ()=>this.removeConstraint(obj, constraint)
+        constraint.remove = ()=>{
+            this.removeConstraint(obj, constraint)
+            return ()=>{
+                // undo function
+                this.addConstraint(obj, constraint)
+            }
+        }
 
         const uiConfig = constraint.uiConfig
         const constraintIndex = obj.userData.constraints?.indexOf(constraint) ?? -1
@@ -224,6 +230,8 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
                 {
                     type: 'button',
                     label: 'Add Constraint',
+                    icon: 'plus',
+                    tags: ['context-menu', 'header-action'],
                     onClick: () => {
                         const c = this.addConstraint(obj as any)
                         return ()=> this.removeConstraint(obj as any, c) // undo function
@@ -354,11 +362,22 @@ export class ObjectConstraint<T extends TConstraintPropsType = TConstraintPropsT
         this.needsUpdate = true
         return true
     }
-    // @uiButton()
+
+    /**
+     * Refreshes the constraint, re-evaluating its target and properties.
+     */
     refresh?: () => void
 
+    /**
+     * Removes this constraint from the object it is attached to.
+     * @return A function that can be called to undo the removal of the constraint.
+     */
     remove?: () => void
 
+    /**
+     * Refresh the constraint and mark it as dirty.
+     * @internal
+     */
     refresh2 = () => {
         this.refresh && this.refresh()
         this.setDirty()
@@ -403,6 +422,9 @@ export class ObjectConstraint<T extends TConstraintPropsType = TConstraintPropsT
             },
             {
                 type: 'button',
+                tags: ['context-menu'],
+                label: 'Remove Constraint',
+                icon: 'cross',
                 property: [this, 'remove'],
             },
         ],
