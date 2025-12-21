@@ -328,6 +328,10 @@ function generateComponentPropertyUi(comp: Object3DComponent, prop: PropMeta) {
                 }
             }
 
+            if (prop.config.uiConfig) {
+                Object.assign(config, prop.config.uiConfig)
+            }
+
             return config
         }
         return undefined

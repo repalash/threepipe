@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - Fix shadow map not being recreated when changing shadow map size from the UI (directional, spot, point), made `_mapSizeChanged` internal public function (from protected).
 - Add ability to undo after removing constraints from an object from the UI.
 - `ObjectConstraint.remove` now returns an undo function.  
+- Add `uiConfig` for GLTF Animation Actions (for clipData). 
+- Add `active` parameter in action clipData.
+- Add `uiConfig` to `StatePropConfig` (for `Object3DComponent`)
 
 ## [0.4.3] - 2025-12-01
 

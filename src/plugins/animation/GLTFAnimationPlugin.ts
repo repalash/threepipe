@@ -1,6 +1,6 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {absMax, now, onChange, onChange2, PointerDragHelper, serialize} from 'ts-browser-helpers'
-import {uiButton, uiDropdown, uiFolderContainer, uiMonitor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {generateUiConfig, uiButton, uiDropdown, uiMonitor, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
 import {
     AnimationAction,
     AnimationClip,
@@ -47,10 +47,10 @@ export interface IObjectAnimation {
  *
  * @category Plugins
  */
-@uiFolderContainer('GLTF Animations')
+// @uiFolderContainer('GLTF Animations')
 export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEventMap> {
     enabled = true
-    declare uiConfig: UiObjectConfig
+    // declare uiConfig: UiObjectConfig
 
     static readonly PluginType = 'GLTFAnimation'
 
@@ -283,8 +283,11 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
      */
     stopOnCheckpointEnd = true
 
-    autoUnpauseActions = true
-    autoEnableActions = true
+    @uiToggle()
+        autoUnpauseActions = true
+    @uiToggle()
+        autoEnableActions = true
+
     activeActionWeight: number | null = 1
     inactiveActionWeight: number | null = 0
 
@@ -531,6 +534,8 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         this._animations.map(a=>{
             a.actions.forEach(a1=>{
                 const startTime = a1.clipData?.startTime || 0
+                const active = a1.clipData?.active ?? true
+
                 if (a1.clipData?.timeScale !== undefined) {
                     a1.timeScale = a1.clipData.timeScale
                 }
@@ -544,7 +549,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
                     clipDuration *= this.loopRepetitions
                 }
 
-                const isActive = t >= startTime && (!isFinite(clipDuration) || t < clipDuration / Math.abs(a1.timeScale) + startTime)
+                const isActive = active && (t >= startTime && (!isFinite(clipDuration) || t < clipDuration / Math.abs(a1.timeScale) + startTime))
 
                 if (this.autoUnpauseActions && a1.paused && isActive) {
                     a1.paused = false
@@ -679,6 +684,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             const action = animation.mixer.clipAction(clip)
             action.clipData = {
                 uid: generateUUID(),
+                active: true,
                 name: clip.name,
                 startTime: 0,
                 timeScale: 1,
@@ -693,6 +699,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         animation.actions.forEach(ac => ac.clampWhenFinished = true)
 
         this._animations.push(animation)
+        this.uiConfig?.uiRefresh?.(true, 'postFrame')
         this.dispatchEvent({type: 'addAnimation', animation})
         // todo remove on object dispose/remove
 
@@ -750,6 +757,47 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
     ) - window.innerHeight
 
 
+    uiConfig: UiObjectConfig = {
+        type: 'folder',
+        label: 'GLTF Animation',
+        children: [
+            ...generateUiConfig(this),
+            () => {
+                return this._animations.map(anim=>{
+                    const c = {
+                        type: 'folder',
+                        label: `Animation - ${anim.object.name || anim.object.uuid}`,
+                        children: [
+                            ...anim.actions.map(action=>{
+                                const clip = action.getClip()
+                                const clipData = action.clipData
+                                return !clipData ? null : {
+                                    type: 'folder',
+                                    label: `Clip - ${clip.name}`,
+                                    children: [
+                                        {type: 'checkbox', label: 'Active', property: [clipData, 'active']},
+                                        {type: 'input', label: 'Name', property: [clipData, 'name']},
+                                        {type: 'monitor', label: 'Duration', getValue: () => clip.duration.toFixed(3)},
+                                        {
+                                            type: 'number',
+                                            label: 'Start Time',
+                                            property: [clipData, 'startTime'],
+                                        },
+                                        {
+                                            type: 'number',
+                                            label: 'Time Scale',
+                                            property: [clipData, 'timeScale'],
+                                        },
+                                    ],
+                                }
+                            }),
+                        ],
+                    }
+                    return c
+                })
+            },
+        ],
+    }
 }
 
 declare module 'three'{
@@ -757,9 +805,10 @@ declare module 'three'{
         _startTime: number | null
         clipData?: { // serialized data
             uid: string
-            name: string
-            startTime: number
-            timeScale: number
+            name?: string
+            active?: boolean
+            startTime?: number
+            timeScale?: number
         }
     }
 }

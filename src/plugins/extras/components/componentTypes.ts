@@ -1,6 +1,7 @@
 import {IViewerPlugin, ThreeViewer} from '../../../viewer'
 import type {EntityComponentPlugin} from '../EntityComponentPlugin.ts'
 import {Class, Serialization} from 'ts-browser-helpers'
+import {UiObjectConfig} from 'uiconfig.js'
 
 export interface ComponentCtx {
     viewer: ThreeViewer
@@ -46,6 +47,7 @@ export interface StatePropConfig<T = any> {
     label?: string
     type?: TypedType
     default?: T
+    uiConfig?: Partial<UiObjectConfig>
     // description?: string
 }
 
