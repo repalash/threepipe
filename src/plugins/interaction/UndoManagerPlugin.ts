@@ -35,6 +35,14 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         this.limit = limit
     }
 
+    undo() {
+        this.undoManager?.undo()
+    }
+
+    redo() {
+        this.undoManager?.redo()
+    }
+
     protected _refresh() {
         if (!this.undoManager) return
         this.undoManager.enabled = this.enabled

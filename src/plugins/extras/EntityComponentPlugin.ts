@@ -73,12 +73,11 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return EntityComponentPlugin.ComponentsDispatch([...this._components.values()], type as any, args)
     }
 
-    private readonly _components: Map<string, Object3DComponent> = new Map()
-    private _typeToComponents: Map<string, Set<Object3DComponent>> = new Map()
+    private readonly _components: Map<string, Object3DComponent> = new Map() // key = object.uuid + component.uuid
+    private _typeToComponents: Map<string, Set<Object3DComponent>> = new Map() // key = component type
+    readonly componentTypes: Map<string, TObject3DComponent> = new Map() // key = component type
 
-    readonly componentTypes: Map<string, TObject3DComponent> = new Map()
-
-    static readonly ObjectToComponents: WeakMap<IObject3D, Object3DComponent[]> = new Map()
+    static readonly ObjectToComponents: WeakMap<IObject3D, Object3DComponent[]> = new Map() // key = object
 
     static ObjectDispatch<T extends FunctionPropertyNames<Object3DComponent>>(
         object: IObject3D,
@@ -210,6 +209,13 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return data || null
     }
 
+    /**
+     * Add a component to an object
+     * @param obj - Target object
+     * @param stateOrType - Component state json or type string or component class
+     * @param id - Optional component id, if not provided a random uuid will be generated
+     * @returns Undo/redo action, added component is in action.component
+     */
     addComponent<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, stateOrType: ComponentJSON|string|T, id?: string) {
         if (!this._viewer) throw new Error('EntityComponentPlugin: no viewer')
         const state = !stateOrType ?
@@ -253,6 +259,11 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return action
     }
 
+    /**
+     * Remove a component from an object
+     * @param obj
+     * @param id
+     */
     removeComponent(obj: IObject3D, id: string) {
         if (!this._viewer) return
         const comp = this._components.get(obj.uuid + id)
@@ -294,9 +305,10 @@ export class EntityComponentPlugin extends AViewerPluginSync<EntityComponentPlug
         return null
     }
 
-    static GetComponents<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type: string|T) {
+    static GetComponents<T extends TObject3DComponent = TObject3DComponent>(obj: IObject3D, type?: string|T) {
         if (!obj) return []
         const comps = EntityComponentPlugin.ObjectToComponents.get(obj) || []
+        if (!type) return comps as InstanceType<T>[]
         const typeTarget = typeof type === 'string' ? [type] : [...getComponentTypes(type)]
         return comps.filter(c=>{
             const types = getComponentTypes(c.constructor)

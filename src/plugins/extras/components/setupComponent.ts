@@ -188,10 +188,10 @@ function getComponentStateProperties(comp: typeof Object3DComponent) {
                     const cons = exis[1]
                     if (cons === base) {
                         // same class property duplicate
-                        console.error('Object3DComponent: duplicate state property in class', key, base)
+                        console.error('Object3DComponent: duplicate state property in class', {key, base})
                     } else {
                         // derived class property overrides base class property
-                        console.warn('Object3DComponent: state property overridden in derived class', key, base, cons)
+                        console.warn('Object3DComponent: state property overridden in derived class', {key, base, constructor: cons})
                     }
                     continue
                 }

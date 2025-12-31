@@ -10,9 +10,8 @@ export type TObject3DComponent = typeof Object3DComponent
 export class Object3DComponent {
     declare ['constructor']: TObject3DComponent & ComponentDefn
 
-    enabled = true
-
-    static StateProperties: ComponentDefn['StateProperties'] = ['enabled']
+    // enabled = true
+    static StateProperties: ComponentDefn['StateProperties'] = [/* 'enabled'*/]
     static ComponentType = 'Object3DComponent'
     readonly isObject3DComponent = true
 
