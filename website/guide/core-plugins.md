@@ -136,6 +136,7 @@ Plugins related UI, plugins creating UI element. Check the [packages](./threepip
 
 - [RenderTargetPreviewPlugin](../plugin/RenderTargetPreviewPlugin) - Preview any render target in a UI panel over the canvas
 - [GeometryUVPreviewPlugin](../plugin/GeometryUVPreviewPlugin) - Preview UVs of any geometry in a UI panel over the canvas
+- [TailwindCSSCDNPlugin](../plugin/TailwindCSSCDNPlugin) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
 - [SceneUiConfigPlugin](https://threepipe.org/docs/classes/SceneUiConfigPlugin.html) - A dummy plugin to show only the scene ui config using any UI plugin
 - [ViewerUiConfigPlugin](https://threepipe.org/docs/classes/ViewerUiConfigPlugin.html) - A dummy plugin to show only the viewer ui config using any UI plugin
 

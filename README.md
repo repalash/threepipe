@@ -517,6 +517,7 @@ Many features will be added but the core API will not change significantly in fu
   - [TransformAnimationPlugin](https://threepipe.org/plugin/TransformAnimationPlugin.html) - Add support for saving, loading, animating, between object transforms
   - [RenderTargetPreviewPlugin](https://threepipe.org/plugin/RenderTargetPreviewPlugin.html) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](https://threepipe.org/plugin/GeometryUVPreviewPlugin.html) - Preview UVs of any geometry in a UI panel over the canvas
+  - [TailwindCSSCDNPlugin](https://threepipe.org/plugin/TailwindCSSCDNPlugin.html) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
   - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass

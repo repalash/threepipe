@@ -24,6 +24,8 @@ All notable changes to this project will be documented in this file.
 - Add `uiConfig` for GLTF Animation Actions (for clipData). 
 - Add `active` parameter in action clipData.
 - Add `uiConfig` to `StatePropConfig` (for `Object3DComponent`)
+- Remove `enabled` from `Object3DComponent`. It needs to be implemented in subclass if required.
+- Add `TailwindCSSCDNPlugin`
 
 ## [0.4.3] - 2025-12-01
 
