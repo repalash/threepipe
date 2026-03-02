@@ -97,6 +97,7 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
         })
         return ui
     }
+
     protected abstract _generateData(params: Tp): {
         indices?: number[] | BufferAttribute
         vertices: number[] | BufferAttribute
