@@ -42,7 +42,7 @@
     "build": "npm run update-version && npm run compile && vite build",
     "compile": "rimraf lib && npm run compile:esm && npm run copy:inlines && npm run postcompile:esm",
     "new:pack": "npm run prepare 1>&2 && npm run docs-all 1>&2 && clean-package && npm pack --silent && clean-package restore",
-    "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish \"$PKG\" && git tag v$npm_package_version",
+    "new:publish": "git tag v$npm_package_version && git push origin v$npm_package_version",
     "build-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json",
     "dev-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
