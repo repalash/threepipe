@@ -39,7 +39,7 @@ for (const pkg of changes) {
             console.log(`  Packed: ${tarball}`);
 
             // Publish
-            execSync(`npm publish ${accessFlag} "${tarball}"`, {cwd, stdio: 'inherit'});
+            execSync(`npm publish --provenance ${accessFlag} "${tarball}"`, {cwd, stdio: 'inherit'});
             console.log(`  ✓ Published ${pkg.name}@${pkg.to}`);
         } finally {
             // Always restore package.json
