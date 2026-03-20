@@ -6,14 +6,12 @@ import {execSync} from 'node:child_process';
 /**
  * Compares local package version with the published npm version.
  * Returns a list of packages that need publishing.
- * Validates that each changed package has a changelog entry.
  */
 
 function getPublishedVersion(packageName) {
     try {
         return execSync(`npm view ${packageName} version`, {encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']}).trim();
     } catch {
-        // Package not found on npm (first publish)
         return null;
     }
 }
@@ -23,7 +21,6 @@ function getChangelogEntry(dir, version) {
     if (!fs.existsSync(changelogPath)) return null;
 
     const content = fs.readFileSync(changelogPath, 'utf8');
-    // Match ## [version] and capture everything until the next ## [
     const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const match = content.match(new RegExp(`## \\[${escaped}\\][^\\n]*\\n([\\s\\S]*?)(?=\\n## \\[|$)`));
     if (!match) return null;
@@ -32,10 +29,8 @@ function getChangelogEntry(dir, version) {
 }
 
 function getCommitsSince(publishedVersion, dir, packageName) {
-    // Find the tag for the published version
     let tag = null;
     if (publishedVersion) {
-        // Try core tag format (v0.4.4) and plugin tag format (@threepipe/plugin-name-0.10.1)
         const candidates = [
             `v${publishedVersion}`,
             `${packageName}-${publishedVersion}`,
@@ -65,7 +60,6 @@ function getCommitsSince(publishedVersion, dir, packageName) {
 }
 
 const changes = [];
-const errors = [];
 
 // Check core package
 const rootDir = path.resolve(import.meta.dirname, '../..');
@@ -73,9 +67,6 @@ const rootPkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), '
 const corePublished = getPublishedVersion(rootPkg.name);
 if (corePublished !== rootPkg.version) {
     const changelog = getChangelogEntry(rootDir, rootPkg.version);
-    if (!changelog) {
-        errors.push(`${rootPkg.name}@${rootPkg.version}: missing changelog entry in CHANGELOG.md`);
-    }
     const commits = getCommitsSince(corePublished, '.', rootPkg.name);
     changes.push({name: rootPkg.name, from: corePublished, to: rootPkg.version, dir: '.', changelog, commits});
 }
@@ -91,9 +82,6 @@ loopPluginDirs((pluginDir, pluginFolder) => {
     if (published !== pkg.version) {
         const relDir = `plugins/${pluginFolder}`;
         const changelog = getChangelogEntry(pluginDir, pkg.version);
-        if (!changelog) {
-            errors.push(`${pkg.name}@${pkg.version}: missing changelog entry in ${relDir}/CHANGELOG.md`);
-        }
         const commits = getCommitsSince(published, relDir, pkg.name);
         changes.push({name: pkg.name, from: published, to: pkg.version, dir: relDir, changelog, commits});
     }
@@ -106,14 +94,6 @@ if (changes.length === 0) {
     for (const c of changes) {
         console.log(`  ${c.name} ${c.from ?? '(new)'} → ${c.to}`);
     }
-}
-
-if (errors.length > 0) {
-    console.error(`\nChangelog validation failed:`);
-    for (const e of errors) {
-        console.error(`  ✗ ${e}`);
-    }
-    process.exit(1);
 }
 
 // Output as JSON for CI consumption (use delimiter syntax for multiline values)

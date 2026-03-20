@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Add `uiConfig` to `StatePropConfig` (for `Object3DComponent`)
 - Remove `enabled` from `Object3DComponent`. It needs to be implemented in subclass if required.
 - Add `TailwindCSSCDNPlugin`
+- Add undo support in `Object3DGeneratorPlugin`.
 - Add `undo`, `redo` helper functions in `UndoManagerPlugin`.
 
 ## [0.4.3] - 2025-12-01

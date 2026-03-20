@@ -2,9 +2,14 @@ import path from 'node:path';
 import {execSync} from 'node:child_process';
 
 /**
- * Publishes packages that were detected as changed by publish-check.mjs.
+ * Publishes packages that passed build verification.
  * Expects PUBLISH_CHANGES env var with JSON array of {name, from, to, dir}.
  * dir is relative to the repository root.
+ *
+ * Assumes:
+ * - Build artifacts (dist/, lib/) are already present (from artifact download)
+ * - Docs have already been generated (from check job)
+ * - Dependencies are installed via npm ci --ignore-scripts
  */
 
 const changes = JSON.parse(process.env.PUBLISH_CHANGES || '[]');
@@ -15,22 +20,31 @@ if (changes.length === 0) {
 }
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
+const cleanPackageBin = path.resolve(repoRoot, 'node_modules/.bin/clean-package');
 let failed = 0;
 
 for (const pkg of changes) {
     const cwd = path.resolve(repoRoot, pkg.dir);
+    const isCore = pkg.dir === '.';
+    const accessFlag = isCore ? '' : '--access public';
+
     console.log(`\nPublishing ${pkg.name}@${pkg.to}...`);
     try {
-        const isCore = !pkg.name.startsWith('@');
-        const accessFlag = isCore ? '' : '--access public';
+        // Clean package.json for publishing
+        execSync(cleanPackageBin, {cwd, stdio: 'inherit'});
 
-        // Run new:pack to build, generate docs, and create tarball
-        const tarball = execSync('npm run -s new:pack', {cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit']}).trim();
-        console.log(`  Packed: ${tarball}`);
+        try {
+            // Pack
+            const tarball = execSync('npm pack --silent', {cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit']}).trim();
+            console.log(`  Packed: ${tarball}`);
 
-        // Publish the tarball
-        execSync(`npm publish ${accessFlag} "${tarball}"`, {cwd, stdio: 'inherit'});
-        console.log(`  ✓ Published ${pkg.name}@${pkg.to}`);
+            // Publish
+            execSync(`npm publish ${accessFlag} "${tarball}"`, {cwd, stdio: 'inherit'});
+            console.log(`  ✓ Published ${pkg.name}@${pkg.to}`);
+        } finally {
+            // Always restore package.json
+            execSync(`${cleanPackageBin} restore`, {cwd, stdio: 'inherit'});
+        }
     } catch (error) {
         console.error(`  ✗ Failed to publish ${pkg.name}@${pkg.to}: ${error.message}`);
         failed++;
