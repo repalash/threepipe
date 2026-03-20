@@ -120,6 +120,7 @@ export default defineConfig({
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
               {text: 'TransformControlsPlugin', link: 'plugin/TransformControlsPlugin'},
+              {text: 'PivotControlsPlugin', link: 'plugin/PivotControlsPlugin'},
               {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
               {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},

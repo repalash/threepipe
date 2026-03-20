@@ -86,6 +86,7 @@ Plugins to add/configure interaction and user editable elements to the viewer.
 - [FullScreenPlugin](../plugin/FullScreenPlugin) - Provides helpers for entering the fullscreen mode in browsers.
 - [InteractionPromptPlugin](../plugin/InteractionPromptPlugin) - Adds an animated hand icon over canvas and rotates the camera to prompt the user to interact.
 - [TransformControlsPlugin](../plugin/TransformControlsPlugin) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
+- [PivotControlsPlugin](../plugin/PivotControlsPlugin) - Adds interactive pivot gizmos with all transform handles visible simultaneously (translation, rotation, scaling)
 - [EditorViewWidgetPlugin](../plugin/EditorViewWidgetPlugin) - Adds an interactive ViewHelper/AxisHelper that syncs with the main camera.
 - [DeviceOrientationControlsPlugin](../plugin/DeviceOrientationControlsPlugin) - Adds a controlsMode to the mainCamera for device orientation controls(gyroscope rotation control).
 - [PointerLockControlsPlugin](../plugin/PointerLockControlsPlugin) - Adds a controlsMode to the mainCamera for pointer lock controls.

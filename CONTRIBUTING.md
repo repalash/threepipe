@@ -20,7 +20,9 @@ OR
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
 
-Some examples requires env variables. 
+**Note**: If you see `Cannot access 'X' before initialization` errors after adding or moving source files, delete the `.vite/` cache folder and reload. Vite's transform cache can become stale when the module graph changes.
+
+Some examples requires env variables.
 - Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file, and build the examples again.
 
 ## Testing
@@ -61,6 +63,7 @@ Checklist
 - Add info to `README.md`
 - Add info to `./website/guide/core-plugins.md`
 - Add info to `./website/plugin/PluginName.md`
+- Add entry to sidebar in `./website/.vitepress/config.ts`
 
 ## Creating a Package/Plugin package
 
@@ -81,6 +84,7 @@ Checklist
 - Add example and any other tests to `tests/`
 - Add info to `README.md`
 - Add info to `./website/guide/threepipe-packages.md`
-- Add info to `./website/package/plugin-name.md` and add to `./website/.vitepress/config.ts`
+- Add info to `./website/package/plugin-name.md`
+- Add entry to sidebar in `./website/.vitepress/config.ts`
 - `npm run build` and test with example
 - Publish package with `npm run new:publish`. Check that tag is added to git like `plugin-name-v0.0.1`

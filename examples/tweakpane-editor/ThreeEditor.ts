@@ -52,6 +52,7 @@ import {
     TonemapPlugin,
     TransformAnimationPlugin,
     TransformControlsPlugin,
+    PivotControlsPlugin,
     UndoManagerPlugin,
     UnsignedByteType,
     USDZLoadPlugin,
@@ -117,6 +118,7 @@ export class ThreeEditor extends ThreeViewer {
         PickingPlugin,
         ObjectConstraintsPlugin,
         new TransformControlsPlugin(false),
+        new PivotControlsPlugin(false),
         OutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
@@ -172,7 +174,7 @@ export class ThreeEditor extends ThreeViewer {
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],

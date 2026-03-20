@@ -3,9 +3,9 @@ prev:
     text: 'InteractionPromptPlugin'
     link: './InteractionPromptPlugin'
 
-next: 
-    text: 'ObjectConstraintsPlugin'
-    link: './ObjectConstraintsPlugin'
+next:
+    text: 'PivotControlsPlugin'
+    link: './PivotControlsPlugin'
 
 ---
 
