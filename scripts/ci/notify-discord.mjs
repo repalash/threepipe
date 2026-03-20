@@ -1,8 +1,9 @@
 /**
- * Sends a Discord webhook notification with the list of packages to publish.
+ * Sends a Discord webhook notification with the list of packages to publish,
+ * including changelog entries and recent commits.
  * Expects environment variables:
  *   DISCORD_WEBHOOK_URL - Discord webhook URL
- *   PUBLISH_CHANGES - JSON array of {name, from, to}
+ *   PUBLISH_CHANGES - JSON array of {name, from, to, changelog, commits}
  *   GITHUB_RUN_ID - GitHub Actions run ID
  *   GITHUB_REPOSITORY - GitHub repository (owner/repo)
  *   GITHUB_SERVER_URL - GitHub server URL
@@ -24,13 +25,43 @@ if (changes.length === 0) {
     process.exit(0);
 }
 
-const lines = changes.map(c => `- \`${c.name}\` ${c.from ?? '(new)'} → ${c.to}`);
 const approveUrl = `${serverUrl}/${repo}/actions/runs/${runId}`;
+
+// Build package list
+const packageLines = changes.map(c => `- \`${c.name}\` ${c.from ?? '(new)'} → ${c.to}`);
+
+// Build changelog section
+const changelogSections = changes
+    .filter(c => c.changelog)
+    .map(c => `**${c.name}@${c.to}**\n${c.changelog}`);
+
+// Build commits section
+const commitSections = changes
+    .filter(c => c.commits)
+    .map(c => `**${c.name}**\n${c.commits}`);
+
+// Discord embed description has a 4096 char limit
+let description = packageLines.join('\n');
+
+if (changelogSections.length > 0) {
+    description += `\n\n**Changelog**\n${changelogSections.join('\n\n')}`;
+}
+
+if (commitSections.length > 0) {
+    description += `\n\n**Commits**\n${commitSections.join('\n\n')}`;
+}
+
+description += `\n\n[Approve publish](${approveUrl})`;
+
+// Truncate if too long for Discord embed
+if (description.length > 4000) {
+    description = description.slice(0, 3950) + `\n...\n\n[Approve publish](${approveUrl})`;
+}
 
 const body = {
     embeds: [{
         title: 'threepipe — Packages ready to publish',
-        description: lines.join('\n') + `\n\n[Approve publish](${approveUrl})`,
+        description,
         color: 0x5865F2,
     }],
 };
