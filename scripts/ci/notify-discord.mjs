@@ -30,51 +30,66 @@ const approveUrl = `${serverUrl}/${repo}/actions/runs/${runId}`;
 // Build package list
 const packageLines = changes.map(c => `- \`${c.name}\` ${c.from ?? '(new)'} → ${c.to}`);
 
-// Build changelog section
+let message = `## threepipe — Packages ready to publish\n${packageLines.join('\n')}`;
+
+// Build changelog sections
 const changelogSections = changes
     .filter(c => c.changelog)
-    .map(c => `**${c.name}@${c.to}**\n${c.changelog}`);
-
-// Build commits section
-const commitSections = changes
-    .filter(c => c.commits)
-    .map(c => `**${c.name}**\n${c.commits}`);
-
-// Discord embed description has a 4096 char limit
-let description = packageLines.join('\n');
+    .map(c => `### ${c.name}@${c.to}\n${c.changelog}`);
 
 if (changelogSections.length > 0) {
-    description += `\n\n**Changelog**\n${changelogSections.join('\n\n')}`;
+    message += `\n\n## Changelog\n${changelogSections.join('\n\n')}`;
 }
+
+// Build commits sections
+const commitSections = changes
+    .filter(c => c.commits)
+    .map(c => `### ${c.name}\n${c.commits}`);
 
 if (commitSections.length > 0) {
-    description += `\n\n**Commits**\n${commitSections.join('\n\n')}`;
+    message += `\n\n## Commits\n${commitSections.join('\n\n')}`;
 }
 
-description += `\n\n[Approve publish](${approveUrl})`;
+message += `\n\n**[Approve publish](${approveUrl})**`;
 
-// Truncate if too long for Discord embed
-if (description.length > 4000) {
-    description = description.slice(0, 3950) + `\n...\n\n[Approve publish](${approveUrl})`;
+// Discord message content has a 2000 char limit, use multiple messages if needed
+const messages = [];
+if (message.length <= 2000) {
+    messages.push(message);
+} else {
+    // Split: first message has packages + changelog, second has commits + approve link
+    let first = `## threepipe — Packages ready to publish\n${packageLines.join('\n')}`;
+    if (changelogSections.length > 0) {
+        first += `\n\n## Changelog\n${changelogSections.join('\n\n')}`;
+    }
+    // Truncate first message if still too long
+    if (first.length > 2000) {
+        first = first.slice(0, 1950) + '\n...';
+    }
+    messages.push(first);
+
+    let second = '';
+    if (commitSections.length > 0) {
+        second = `## Commits\n${commitSections.join('\n\n')}`;
+    }
+    second += `\n\n**[Approve publish](${approveUrl})**`;
+    if (second.length > 2000) {
+        second = second.slice(0, 1950) + `\n...\n\n**[Approve publish](${approveUrl})**`;
+    }
+    messages.push(second);
 }
 
-const body = {
-    embeds: [{
-        title: 'threepipe — Packages ready to publish',
-        description,
-        color: 0x5865F2,
-    }],
-};
+for (const msg of messages) {
+    const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content: msg}),
+    });
 
-const response = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
-});
-
-if (!response.ok) {
-    console.error(`Discord webhook failed: ${response.status} ${response.statusText}`);
-    process.exit(1);
+    if (!response.ok) {
+        console.error(`Discord webhook failed: ${response.status} ${response.statusText}`);
+        process.exit(1);
+    }
 }
 
 console.log('Discord notification sent.');
