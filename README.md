@@ -510,6 +510,7 @@ Many features will be added but the core API will not change significantly in fu
   - [InteractionPromptPlugin](https://threepipe.org/plugin/InteractionPromptPlugin.html) - Adds an animated hand icon over canvas to prompt the user to interact
   - [TransformControlsPlugin](https://threepipe.org/plugin/TransformControlsPlugin.html) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
   - [PivotControlsPlugin](https://threepipe.org/plugin/PivotControlsPlugin.html) - Adds interactive pivot gizmos with all transform handles visible simultaneously (translation, rotation, scaling)
+  - [PivotEditPlugin](https://threepipe.org/plugin/PivotEditPlugin.html) - Interactive pivot point (origin) editing with presets and drag-to-move
   - [ContactShadowGroundPlugin](https://threepipe.org/plugin/ContactShadowGroundPlugin.html) - Adds a ground plane at runtime with contact shadows
   - [GLTFAnimationPlugin](https://threepipe.org/plugin/GLTFAnimationPlugin.html) - Add support for playing and seeking glTF animations
   - [PopmotionPlugin](https://threepipe.org/plugin/PopmotionPlugin.html) - Integrates with popmotion.io library for animation/tweening

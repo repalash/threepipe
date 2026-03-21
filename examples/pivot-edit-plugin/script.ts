@@ -3,8 +3,8 @@ import {
     IObject3D,
     LoadingScreenPlugin,
     PickingPlugin,
-    PivotControlsPlugin,
     PivotEditPlugin,
+    TransformControlsPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -20,23 +20,18 @@ async function init() {
     viewer.scene.setBackgroundColor(0x151822)
 
     const picking = viewer.addPluginSync(PickingPlugin)
-
-    const pivotControlsPlugin = viewer.addPluginSync(PivotControlsPlugin)
+    const transformControls = viewer.addPluginSync(TransformControlsPlugin)
     const pivotEdit = viewer.addPluginSync(PivotEditPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf')
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    ui.setupPluginUi(PivotControlsPlugin, {expanded: true})
+    ui.setupPluginUi(TransformControlsPlugin, {expanded: true})
     ui.setupPluginUi(PivotEditPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
 
-    // Get the underlying pivot controls (instance of PivotControls2)
-    const pivotControls = pivotControlsPlugin.pivotControls
-    console.log(pivotControls)
-
-    // Pivot controls plugin automatically tracks the selected object in the PickingPlugin and shows the pivot controls
+    // Select the model to show controls
     picking.setSelectedObject(model)
 
 }

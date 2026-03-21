@@ -35,3 +35,7 @@ const transfromControlsPlugin = viewer.addPluginSync(new TransformControlsPlugin
 // Get the underlying transform controls
 console.log(transfromControlsPlugin.transformControls)
 ```
+
+## Pivot Point Editing
+
+To interactively edit an object's pivot point (origin), use the [PivotEditPlugin](./PivotEditPlugin) alongside this plugin. It provides a separate translate-only gizmo for moving the pivot while keeping the object mesh in place.

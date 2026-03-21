@@ -4,8 +4,8 @@ prev:
     link: './TransformControlsPlugin'
 
 next:
-    text: 'ObjectConstraintsPlugin'
-    link: './ObjectConstraintsPlugin'
+    text: 'PivotEditPlugin'
+    link: './PivotEditPlugin'
 
 aside: false
 ---
@@ -119,3 +119,7 @@ pc.scaleLimits = [[0.1, 10], [0.1, 10], [0.1, 10]]
 | Snapping | Shift+drag (configurable values) | Shift+drag (fixed values) |
 | Annotations | Value overlay during drag | None |
 | Coordinate space | World / Local | World / Local |
+
+## Pivot Point Editing
+
+To interactively edit an object's pivot point (origin), use the [PivotEditPlugin](./PivotEditPlugin) alongside this plugin. It provides a separate translate-only gizmo for moving the pivot while keeping the object mesh in place.

@@ -121,6 +121,7 @@ export default defineConfig({
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
               {text: 'TransformControlsPlugin', link: 'plugin/TransformControlsPlugin'},
               {text: 'PivotControlsPlugin', link: 'plugin/PivotControlsPlugin'},
+              {text: 'PivotEditPlugin', link: 'plugin/PivotEditPlugin'},
               {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
               {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},
