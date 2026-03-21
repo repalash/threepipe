@@ -47,6 +47,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     static readonly OldPluginType = 'PickingPlugin' // todo: swap
     private _picker?: ObjectPicker
     private _widget?: SelectionWidget
+    private _extraWidgets: SelectionWidget[] = []
+    private _selectionWidgetClass?: Class<SelectionWidget>
     private _hoverWidget?: SelectionWidget
     private _pickUi: boolean
 
@@ -85,7 +87,35 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             this._widget.attach(this._picker!.selectedObject as IObject3D)
         else
             this._widget.detach()
+        this._updateExtraWidgets()
         this.uiConfig?.uiRefresh?.(true)
+    }
+
+    private _updateExtraWidgets() {
+        if (!this._viewer || !this._selectionWidgetClass) return
+        const allSelected = this._picker?.selectedObjects as IObject3D[] || []
+        // Extra objects = all selected except the primary (index 0, handled by _widget)
+        const extras = allSelected.filter((o, i) => i > 0 && o?.isObject3D)
+
+        // Detach unused extra widgets
+        for (let i = extras.length; i < this._extraWidgets.length; i++) {
+            this._extraWidgets[i].detach()
+        }
+
+        // Create new widgets if needed, attach to objects
+        for (let i = 0; i < extras.length; i++) {
+            if (!this._extraWidgets[i]) {
+                const w = new this._selectionWidgetClass()
+                if (w.lineMaterial) {
+                    w.lineMaterial.color!.set('#ff8844')
+                    w.lineMaterial.opacity = 0.7
+                }
+                this._extraWidgets.push(w)
+                this._viewer.scene.addObject(w, {addToRoot: true})
+            }
+            if (this.widgetEnabled) this._extraWidgets[i].attach(extras[i])
+            else this._extraWidgets[i].detach()
+        }
     }
 
     setDirty() {
@@ -95,6 +125,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
         super()
+        this._selectionWidgetClass = selection
         if (selection) {
             this._widget = new selection()
             this._hoverWidget = new selection()
@@ -112,6 +143,51 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
         return this._picker?.selectedObject as T || undefined
+    }
+
+    getSelectedObjects<T extends SelectionObject = SelectionObject>(): T[] {
+        return (this._picker?.selectedObjects || []) as T[]
+    }
+
+    toggleSelectedObject(object: SelectionObject) {
+        if (!this._picker || this.isDisabled() || !object) return
+        const current = [...this._picker.selectedObjects] as any[]
+        const idx = current.indexOf(object)
+        if (idx >= 0) {
+            current.splice(idx, 1)
+        } else {
+            current.unshift(object) // last clicked = primary (index 0)
+        }
+        this._picker.setSelected(current.length ? current.length === 1 ? current[0] : current : null, true)
+    }
+
+    selectAll() {
+        if (!this._picker || !this._viewer || this.isDisabled()) return
+        const objects: IObject3D[] = []
+        this._viewer.scene.modelRoot.traverse((o: any) => {
+            if (o.isObject3D && o.visible && o.assetType === 'model' && o.userData.userSelectable !== false && o.material) {
+                objects.push(o)
+            }
+        })
+        if (objects.length) {
+            this._picker.setSelected(objects.length === 1 ? objects[0] : objects as any, true)
+        }
+    }
+
+    clearSelection() {
+        if (!this._picker) return
+        this._picker.setSelected(null, true)
+    }
+
+    private _onKeyDown = (event: KeyboardEvent) => {
+        if (this.isDisabled()) return
+        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
+        if ((event.ctrlKey || event.metaKey) && event.code === 'KeyA') {
+            event.preventDefault()
+            this.selectAll()
+        } else if (event.code === 'Escape') {
+            this.clearSelection()
+        }
     }
 
     setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
@@ -149,6 +225,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.extraObjects.push(...viewer.scene.children.filter(r=>r.userData.isWidgetRoot))
         // todo remove listener
         this._viewer?.scene.addEventListener('addSceneObject', this._addSceneObject)
+        this._viewer?.scene.addEventListener('sceneUpdate', this._sceneUpdate)
 
         if (this._widget) viewer.scene.addObject(this._widget, {addToRoot: true})
         if (this._hoverWidget) viewer.scene.addObject(this._hoverWidget, {addToRoot: true})
@@ -157,6 +234,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('hoverObjectChanged', this._hoverObjectChanged)
         this._picker.addEventListener('hitObject', this._onObjectHit)
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
+
+        window.addEventListener('keydown', this._onKeyDown)
 
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
@@ -181,14 +260,19 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     onRemove(viewer: ThreeViewer) {
+        window.removeEventListener('keydown', this._onKeyDown)
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('materialChanged', this._objCompChange)
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
         viewer.scene.removeEventListener('texturesChanged', this._objCompChange)
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
+        viewer.scene.removeEventListener('addSceneObject', this._addSceneObject)
+        viewer.scene.removeEventListener('sceneUpdate', this._sceneUpdate)
 
         this._widget?.removeFromParent()
         this._hoverWidget?.removeFromParent()
+        for (const w of this._extraWidgets) w.removeFromParent()
+        this._extraWidgets = []
 
         if (this._picker) {
             this._picker.removeEventListener('selectedObjectChanged', this._selectedObjectChanged)
@@ -206,6 +290,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         super.dispose()
         this._widget?.dispose?.()
         this._hoverWidget?.dispose?.()
+        for (const w of this._extraWidgets) w.dispose?.()
+        this._extraWidgets = []
     }
 
     private _mainCameraChange = ()=>{
@@ -217,6 +303,14 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         // to be able to pick widgets. see onObjectHit
         if (e.object?.userData?.isWidgetRoot && e.object.parent === this._viewer?.scene) {
             this._picker?.extraObjects.push(e.object)
+        }
+    }
+
+    private _sceneUpdate = (e: any)=>{
+        // Clean up extraObjects when widget roots are removed from scene
+        if (e?.change === 'removedFromParent' && e.object?.userData?.isWidgetRoot && this._picker) {
+            const idx = this._picker.extraObjects.indexOf(e.object)
+            if (idx >= 0) this._picker.extraObjects.splice(idx, 1)
         }
     }
 
@@ -258,6 +352,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             if ((selected as IObject3D)?.isObject3D) widget.attach((selected as IObject3D))
             else widget.detach()
         }
+
+        // Multi-selection: attach extra widgets to additional selected objects
+        this._updateExtraWidgets()
 
         // if (selected) selected.dispatchEvent({type: 'selected', source: PickingPlugin.PluginType, object: selected})
 

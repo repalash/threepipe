@@ -13,6 +13,7 @@ import {
     UnlitMaterial,
 } from '../../core'
 import {Euler, Object3D, Vector3} from 'three'
+import {MultiSelectHelper} from './MultiSelectHelper'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
 /**
@@ -39,9 +40,21 @@ export class PivotControlsPlugin extends AViewerPluginSync {
         const picking = this._viewer.getPlugin(PickingPlugin)!
         const enabled = !this.isDisabled()
         if (this.pivotControls) {
-            const selected = picking.getSelectedObject<IObject3D>()
-            if (enabled && selected?.isObject3D) this.pivotControls.attach(selected)
-            else this.pivotControls.detach()
+            if (!enabled) {
+                this.pivotControls.detach()
+                this._multi.clear(this._viewer!)
+            } else {
+                const objects = picking.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+                if (objects.length > 1) {
+                    this.pivotControls.attach(this._multi.setup(objects, this._viewer!))
+                } else if (objects.length === 1) {
+                    this._multi.clear(this._viewer!)
+                    this.pivotControls.attach(objects[0])
+                } else {
+                    this._multi.clear(this._viewer!)
+                    this.pivotControls.detach()
+                }
+            }
         }
         this._viewer.setDirty()
     }
@@ -76,6 +89,8 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     }
     undoManager?: JSUndoManager
 
+    private _multi = new MultiSelectHelper()
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
@@ -102,9 +117,14 @@ export class PivotControlsPlugin extends AViewerPluginSync {
             if (!this.pivotControls) return
             if (this.isDisabled()) {
                 if (this.pivotControls.object) this.pivotControls.detach()
+                this._multi.clear(this._viewer!)
                 return
             }
-            if (event.object) {
+            const objects = (event.objects || []).filter((o: any) => o?.isObject3D) as IObject3D[]
+            if (objects.length > 1) {
+                this.pivotControls.attach(this._multi.setup(objects, this._viewer!))
+            } else if (event.object) {
+                this._multi.clear(this._viewer!)
                 const obj: IObject3D | null = event.intersects?.selectedHandle ?? event.intersects?.selectedObject ?? event.object
                 if (!obj || !obj.isObject3D) {
                     this.pivotControls.detach()
@@ -112,6 +132,7 @@ export class PivotControlsPlugin extends AViewerPluginSync {
                 }
                 this.pivotControls.attach(obj)
             } else {
+                this._multi.clear(this._viewer!)
                 this.pivotControls.detach()
             }
         })
@@ -120,9 +141,12 @@ export class PivotControlsPlugin extends AViewerPluginSync {
             this.undoManager = um.undoManager
         }, () => this.undoManager = undefined, this)
 
-        // Undo/redo: capture state on mouseDown, record command on mouseUp
         this.pivotControls.addEventListener('mouseDown', () => {
             if (!this.pivotControls) return
+            if (this._multi.hasMultiSelect) {
+                this._multi.captureStart()
+                return
+            }
             const object = this.pivotControls.object
             if (!object) return
             this._transformState.obj = object
@@ -131,8 +155,16 @@ export class PivotControlsPlugin extends AViewerPluginSync {
             this._transformState.scale = object.scale.clone()
         })
 
+        this.pivotControls.addEventListener('objectChange', () => {
+            if (this._multi.hasMultiSelect) this._multi.applyDelta()
+        })
+
         this.pivotControls.addEventListener('mouseUp', (event) => {
             if (!this.pivotControls) return
+            if (this._multi.hasMultiSelect && this._multi.hasStartStates) {
+                if (this.undoManager) this._multi.recordUndo(this.undoManager)
+                return
+            }
             const object = this.pivotControls.object
             if (!object) return
             if (this._transformState.obj !== object || !this.undoManager) return
@@ -164,6 +196,7 @@ export class PivotControlsPlugin extends AViewerPluginSync {
 
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
+        this._multi.clear(viewer)
         if (this.pivotControls) {
             this.pivotControls.detach()
             viewer.scene.remove(this.pivotControls as any)

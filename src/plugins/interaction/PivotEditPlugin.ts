@@ -107,6 +107,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
         }, () => this.undoManager = undefined, this)
 
         this._onKeyDown = (event: KeyboardEvent) => {
+            if (this.isDisabled()) return
             if (event.metaKey || event.ctrlKey) return
             if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
             if (event.code === 'KeyP') {

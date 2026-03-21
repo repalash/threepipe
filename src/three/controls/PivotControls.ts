@@ -553,7 +553,8 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
         this.position.copy(objectWorldPos)
 
         // In local space, orient gizmo to match object's world rotation (without scale)
-        if (this.space === 'local') {
+        // Force world space for multi-select dummy (has no meaningful rotation)
+        if (this.space === 'local' && !this.object.userData?.isMultiSelectDummy) {
             this.object.matrixWorld.decompose(_worldPos, this.quaternion, _camPos) // _camPos used as temp for scale
         } else {
             this.quaternion.identity()

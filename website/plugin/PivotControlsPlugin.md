@@ -107,6 +107,10 @@ pc.rotationLimits = [undefined, [-Math.PI, Math.PI], undefined]
 pc.scaleLimits = [[0.1, 10], [0.1, 10], [0.1, 10]]
 ```
 
+## Multi-Object Transform
+
+When multiple objects are selected (Shift+Click), the gizmo appears at the median position of all selected objects. All transform operations apply to the group simultaneously, maintaining relative positions. The coordinate space is forced to world mode during multi-select. See [PickingPlugin](./PickingPlugin) for multi-selection controls.
+
 ## Comparison with TransformControlsPlugin
 
 | Feature | PivotControlsPlugin | TransformControlsPlugin |
