@@ -81,6 +81,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     @onChange(PickingPlugin.prototype._widgetEnabledChange)
         widgetEnabled = true
 
+    @bindToValue({obj: '_picker', key: 'multiSelectEnabled'})
+        multiSelectEnabled = true
+
     protected _widgetEnabledChange() {
         if (!this._widget) return
         if (this.widgetEnabled && (this._picker?.selectedObject as IObject3D)?.isObject3D)
@@ -150,7 +153,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     toggleSelectedObject(object: SelectionObject) {
-        if (!this._picker || this.isDisabled() || !object) return
+        if (!this._picker || this.isDisabled() || !object || !this.multiSelectEnabled) return
         const current = [...this._picker.selectedObjects] as any[]
         const idx = current.indexOf(object)
         if (idx >= 0) {
@@ -162,7 +165,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     selectAll() {
-        if (!this._picker || !this._viewer || this.isDisabled()) return
+        if (!this._picker || !this._viewer || this.isDisabled() || !this.multiSelectEnabled) return
         const objects: IObject3D[] = []
         this._viewer.scene.modelRoot.traverse((o: any) => {
             if (o.isObject3D && o.visible && o.assetType === 'model' && o.userData.userSelectable !== false && o.material) {
@@ -234,6 +237,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('hoverObjectChanged', this._hoverObjectChanged)
         this._picker.addEventListener('hitObject', this._onObjectHit)
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
+        this._picker.addEventListener('multiSelectChanged', this._multiSelectChanged)
 
         window.addEventListener('keydown', this._onKeyDown)
 
@@ -279,6 +283,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             this._picker.removeEventListener('hoverObjectChanged', this._hoverObjectChanged)
             this._picker.removeEventListener('hitObject', this._onObjectHit)
             this._picker.removeEventListener('selectionModeChanged', this._selectionModeChanged)
+            this._picker.removeEventListener('multiSelectChanged', this._multiSelectChanged)
             this._picker.dispose()
             this._picker.undoManager = undefined // because setting above
             this._picker = undefined
@@ -417,6 +422,16 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
     }
 
+    private _multiSelectChanged = (e: any)=>{
+        if (!this._viewer) return
+        this.dispatchEvent(e)
+        // When disabling, reduce to primary object only
+        if (!this.multiSelectEnabled && this._picker && this._picker.selectedObjects.length > 1) {
+            const primary = this._picker.selectedObject
+            this._picker.setSelected(primary, false)
+        }
+    }
+
     public async focusObject(selected?: Object3D|null) {
         this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
     }
@@ -489,6 +504,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             label: 'Widget Enabled',
             type: 'checkbox',
             property: [this, 'widgetEnabled'],
+        },
+        {
+            label: 'Multi-Select',
+            type: 'checkbox',
+            property: [this, 'multiSelectEnabled'],
         },
     ]
 

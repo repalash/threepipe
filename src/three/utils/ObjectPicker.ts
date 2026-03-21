@@ -22,12 +22,16 @@ export interface ObjectPickerEventMap{
     hitObject: {time: number, intersects: HitIntersects} // selectedObject should be renamed to hitObject
     selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
     pickingModeChanged: {detail: {key: 'pickingMode', value: PickingModeType, oldValue: PickingModeType}}
+    multiSelectChanged: {detail: {key: 'multiSelectEnabled', value: boolean, oldValue: boolean}}
 }
 
 export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _firstHit: IObject3D | undefined
 
     hoverEnabled = false
+    /** Allow selecting multiple objects with Shift/Ctrl+Click. */
+    @onChangeDispatchEvent('multiSelectChanged')
+        multiSelectEnabled = true
     @onChangeDispatchEvent('selectionModeChanged')
         selectionMode: SelectionModeType = 'object'
     @onChangeDispatchEvent('pickingModeChanged')
@@ -299,7 +303,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         this.updateMouseFromEvent(event)
         const {obj, intersects} = this._hitObject()
 
-        if ((event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
+        if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
             // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
             const current = [...this._selected] as IObject3D[]
             const idx = current.indexOf(obj as IObject3D)

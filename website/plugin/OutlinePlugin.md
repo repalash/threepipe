@@ -23,7 +23,7 @@ The plugin renders selected objects to a separate depth buffer and processes it 
 
 ## Features
 
-- **Automatic Selection Outlines**: Integrates with PickingPlugin for click-to-select feedback
+- **Automatic Selection Outlines**: Integrates with PickingPlugin for click-to-select feedback, including multi-selection
 - **Customizable Appearance**: Adjust color, thickness, and intensity
 - **Optional Highlight Fill**: Semi-transparent overlay on selected objects
 - **Smooth Animations**: Fade in/out effects when selecting/deselecting
@@ -340,7 +340,7 @@ ui.setupPluginUi(OutlinePlugin)
 
 ### How It Works
 
-1. **Selection Detection**: Listens to PickingPlugin's `selectedObjectChanged` event
+1. **Selection Detection**: Listens to PickingPlugin's `selectedObjectChanged` event. Supports both single and multi-selection (Shift+Click). When multiple objects are selected, all of them receive outlines.
 2. **Depth Rendering**: Renders selected objects to a separate depth buffer
 3. **Edge Detection**: Processes the depth buffer to find edges
 4. **Outline Generation**: Applies thickness and color to detected edges

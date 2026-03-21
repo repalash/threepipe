@@ -80,7 +80,11 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 
 ## Multi-Selection
 
-Picking Plugin supports selecting multiple objects simultaneously using modifier keys.
+Picking Plugin supports selecting multiple objects simultaneously using modifier keys. Multi-selection is enabled by default and can be disabled:
+
+```typescript
+pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
+```
 
 ### Keyboard Shortcuts
 
