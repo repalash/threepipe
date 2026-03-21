@@ -141,6 +141,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     }
 
     protected _onSceneUpdate(event?: ISceneEventMap['addSceneObject' | 'sceneUpdate'] & Event<'addSceneObject' | 'sceneUpdate', IScene>) {
+        if (event?.object?.assetType === 'widget' || event?.object?.userData?.isWidgetRoot) return
         if (event?.geometryChanged === false) return
         if (event?.updateGround !== false)
             this.refreshTransform()

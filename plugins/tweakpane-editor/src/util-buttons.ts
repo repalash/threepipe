@@ -6,6 +6,8 @@ import {
     FullScreenPlugin,
     IViewerPlugin,
     PickingPlugin,
+    PivotControlsPlugin,
+    PivotEditPlugin,
     ThreeViewer,
 } from 'threepipe'
 import {
@@ -15,6 +17,7 @@ import {
     expand,
     focus,
     loopCamViews,
+    pivotEdit,
     playIcon,
     resetSettings,
     snapshot,
@@ -87,6 +90,20 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewer
                 const controls = viewer.scene.mainCamera.controls
                 if (controls?.autoRotate === undefined) return
                 controls.autoRotate = !controls.autoRotate
+            },
+        },
+        {
+            id: 'pivot-controls',
+            icon: pivotEdit,
+            tooltip: 'Pivot Controls',
+            toggle: true,
+            onclick: async() => {
+                const pcp = viewer.getPlugin(PivotControlsPlugin)
+                if (!pcp) return
+                pcp.enabled = !pcp.enabled
+                // Also toggle PivotEditPlugin visibility with controls
+                const pep = viewer.getPlugin(PivotEditPlugin)
+                if (pep) pep.enabled = pcp.enabled
             },
         },
         {

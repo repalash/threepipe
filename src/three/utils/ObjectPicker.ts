@@ -18,16 +18,20 @@ export interface HitIntersects{
 
 export interface ObjectPickerEventMap{
     hoverObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, intersects?: HitIntersects},
-    selectedObjectChanged: {object: IObject3D | null, material: IMaterial | null, value: SelectionObject, lastValue: SelectionObject, intersects?: HitIntersects},
+    selectedObjectChanged: {object: IObject3D | null, objects: SelectionObjectArr, material: IMaterial | null, value: SelectionObject, lastValue: SelectionObject, lastValues: SelectionObjectArr, intersects?: HitIntersects},
     hitObject: {time: number, intersects: HitIntersects} // selectedObject should be renamed to hitObject
     selectionModeChanged: {detail: {key: 'selectionMode', value: SelectionModeType, oldValue: SelectionModeType}}
     pickingModeChanged: {detail: {key: 'pickingMode', value: PickingModeType, oldValue: PickingModeType}}
+    multiSelectChanged: {detail: {key: 'multiSelectEnabled', value: boolean, oldValue: boolean}}
 }
 
 export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _firstHit: IObject3D | undefined
 
     hoverEnabled = false
+    /** Allow selecting multiple objects with Shift/Ctrl+Click. */
+    @onChangeDispatchEvent('multiSelectChanged')
+        multiSelectEnabled = true
     @onChangeDispatchEvent('selectionModeChanged')
         selectionMode: SelectionModeType = 'object'
     @onChangeDispatchEvent('pickingModeChanged')
@@ -123,6 +127,10 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return this._selected.length > 0 ? this._selected[0] : null
     }
 
+    get selectedObjects(): SelectionObjectArr {
+        return [...this._selected] as SelectionObjectArr
+    }
+
     // set selectedObject(object) {
     //     this.setSelected(object)
     // }
@@ -130,14 +138,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     protected _onSelectedRemoved = (e: {target: IObject3D|IMaterial}) => {
         const obj = e.target
         if (this._selected.includes(obj as any)) {
-            if (this._selected.length === 1) {
-                this.setSelected(null, false)
-            } else {
-                // todo multiselection
-                // const newSelection = this._selected.filter(o => o !== obj)
-                // this.setSelected(newSelection)
-                this.setSelected(null, false)
-            }
+            const newSelection = this._selected.filter(o => o !== obj)
+            this.setSelected(newSelection.length ? newSelection.length === 1 ? newSelection[0] : newSelection as any : null, false)
         }
     }
 
@@ -156,11 +158,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         }
 
         const currentIntersects = this._selectedIntersects
-        if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
-            && currentIntersects?.selectedObject === intersects?.selectedObject
-            && currentIntersects?.selectedWidget === intersects?.selectedWidget
-            && currentIntersects?.selectedHandle === intersects?.selectedHandle
-        ) return
+        // Check if selection actually changed
+        if (Array.isArray(object)) {
+            if (this._selected.length === object.length && this._selected.every((o, i) => o === (object as any)[i])) return
+        } else {
+            if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
+                && currentIntersects?.selectedObject === intersects?.selectedObject
+                && currentIntersects?.selectedWidget === intersects?.selectedWidget
+                && currentIntersects?.selectedHandle === intersects?.selectedHandle
+            ) return
+        }
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
         this._selectedIntersects = intersects || undefined
@@ -180,14 +187,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         this.dispatchEvent({
             type: 'selectedObjectChanged',
             object: (obj as IObject3D)?.isObject3D ? (obj as IObject3D) : null,
+            objects: [...this._selected] as SelectionObjectArr,
             material: (obj as IMaterial)?.isMaterial ? (obj as IMaterial) : null,
             value: obj,
             lastValue: current.length ? current[0] : null,
+            lastValues: [...current] as SelectionObjectArr,
             intersects,
         })
 
         record && this.undoManager?.record({
-            undo: () => this.setSelected(current.length ? current[0] : null, false, currentIntersects),
+            undo: () => this.setSelected(current.length ? current.length === 1 ? current[0] : current as any : null, false, currentIntersects),
             redo: () => this.setSelected(object, false, intersects),
         })
     }
@@ -293,7 +302,22 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
         const {obj, intersects} = this._hitObject()
-        this.setSelected(obj, true, intersects || undefined)
+
+        if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
+            // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
+            const current = [...this._selected] as IObject3D[]
+            const idx = current.indexOf(obj as IObject3D)
+            if (idx >= 0) {
+                current.splice(idx, 1)
+            } else {
+                current.unshift(obj as IObject3D) // insert at front — primary/active object
+            }
+            // Don't pass intersects for multi-select — the click is for selection management,
+            // not for identifying a handle/widget target for transform controls.
+            this.setSelected(current.length ? current.length === 1 ? current[0] : current as any : null, true)
+        } else {
+            this.setSelected(obj, true, intersects || undefined)
+        }
     }
 
     private _hitObject() {

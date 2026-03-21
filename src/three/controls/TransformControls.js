@@ -279,9 +279,10 @@ class TransformControls extends Object3D {
         const axis = this.axis;
         const mode = this.mode;
         const object = this.object;
-        let space = this.space;
+        const isMultiDummy = object && object.userData && object.userData.isMultiSelectDummy;
+        let space = isMultiDummy ? 'world' : this.space;
 
-        if ( mode === 'scale' ) {
+        if ( mode === 'scale' && !isMultiDummy ) {
 
             space = 'local';
 
@@ -586,6 +587,7 @@ class TransformControls extends Object3D {
 
         this.object = undefined;
         this.visible = false;
+        this.dragging = false;
         this.axis = null;
 
         return this;
@@ -1205,7 +1207,8 @@ class TransformControlsGizmo extends Object3D {
 
     updateMatrixWorld( force ) {
 
-        const space = ( this.mode === 'scale' ) ? 'local' : this.space; // scale always oriented to local rotation
+        const isMultiDummy = this.object && this.object.userData && this.object.userData.isMultiSelectDummy;
+        const space = ( this.mode === 'scale' && !isMultiDummy ) ? 'local' : isMultiDummy ? 'world' : this.space;
 
         const quaternion = ( space === 'local' ) ? this.worldQuaternion : _identityQuaternion;
 
@@ -1538,11 +1541,12 @@ class TransformControlsPlane extends Mesh {
 
     updateMatrixWorld( force ) {
 
-        let space = this.space;
+        const isMultiDummy2 = this.object && this.object.userData && this.object.userData.isMultiSelectDummy;
+        let space = isMultiDummy2 ? 'world' : this.space;
 
         this.position.copy( this.worldPosition );
 
-        if ( this.mode === 'scale' ) space = 'local'; // scale always oriented to local rotation
+        if ( this.mode === 'scale' && !isMultiDummy2 ) space = 'local'; // scale always oriented to local rotation
 
         _v1.copy( _unitX ).applyQuaternion( space === 'local' ? this.worldQuaternion : _identityQuaternion );
         _v2.copy( _unitY ).applyQuaternion( space === 'local' ? this.worldQuaternion : _identityQuaternion );

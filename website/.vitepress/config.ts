@@ -56,6 +56,7 @@ export default defineConfig({
           {text: 'Follow Path Constraint Animation', link: 'notes/follow-path-constraint'},
           {text: 'Material Extension Plugin', link: 'notes/material-extension-plugin'},
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
+          {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
         ]
       },
       {
@@ -120,6 +121,8 @@ export default defineConfig({
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
               {text: 'TransformControlsPlugin', link: 'plugin/TransformControlsPlugin'},
+              {text: 'PivotControlsPlugin', link: 'plugin/PivotControlsPlugin'},
+              {text: 'PivotEditPlugin', link: 'plugin/PivotEditPlugin'},
               {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
               {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},

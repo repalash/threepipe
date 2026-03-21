@@ -18,6 +18,8 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
     toJSON: any = undefined
 
     treeView?: Tree = undefined
+    private _lastPointerShift = false
+    private _onPointerDown = (e: PointerEvent) => { this._lastPointerShift = e.shiftKey || e.ctrlKey || e.metaKey }
 
     hierarchyDiv = createDiv({
         innerHTML: '',
@@ -99,6 +101,8 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         }
 
         if (!e?.hierarchyChanged) return
+        // Don't rebuild for widget/root-level changes (e.g., selection widgets added to scene root)
+        if (e.object && (e.object.assetType === 'widget' || e.object.userData?.isWidgetRoot)) return
         this._needsReset = true
     }
 
@@ -134,7 +138,12 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
                 onItemLabelClick: (item: any) => {
                     const obj1 = this._viewer?.scene.modelRoot.getObjectByProperty('uuid', item)
                     if (!obj1 || !obj.visible) return
-                    obj1.dispatchEvent({type: 'select', value: obj1, object: obj1, ui: true, bubbleToParent: true})
+                    const picking = this._viewer?.getPlugin(PickingPlugin)
+                    if (picking && this._lastPointerShift) {
+                        picking.toggleSelectedObject(obj1)
+                    } else {
+                        obj1.dispatchEvent({type: 'select', value: obj1, object: obj1, ui: true, bubbleToParent: true})
+                    }
                 },
             })
         }).then(()=>{
@@ -156,6 +165,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         super.onAdded(viewer)
         viewer.scene.addEventListener('sceneUpdate', this.reset)
         viewer.addEventListener('postFrame', this._postFrame)
+        document.addEventListener('pointerdown', this._onPointerDown, true)
 
         viewer.forPlugin<PickingPlugin>('PickingPlugin', (pi)=>{
             pi.addEventListener('selectedObjectChanged', this._selectedObjectChanged)
@@ -181,13 +191,20 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         for (const li of elems) {
             li.classList.remove('treejs-node-selected')
         }
-        const selected = picking.getSelectedObject() as Object3D|undefined
-        if (selected?.uuid) {
-            const li = liElem[selected?.uuid]
-            if (li) {
-                li.classList.add('treejs-node-selected')
-                li.scrollIntoView({block: 'nearest', inline: 'nearest'})
+        const allSelected = picking.getSelectedObjects() as Object3D[]
+        for (const selected of allSelected) {
+            if (selected?.uuid) {
+                const li = liElem[selected.uuid]
+                if (li) {
+                    li.classList.add('treejs-node-selected')
+                }
             }
+        }
+        // Scroll primary into view
+        const primary = allSelected[0] as Object3D | undefined
+        if (primary?.uuid) {
+            const li = liElem[primary.uuid]
+            if (li) li.scrollIntoView({block: 'nearest', inline: 'nearest'})
         }
     }
 
@@ -195,6 +212,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         // todo: remove UI element.
         viewer.scene.removeEventListener('sceneUpdate', this.reset)
         viewer.removeEventListener('postFrame', this._postFrame)
+        document.removeEventListener('pointerdown', this._onPointerDown, true)
         viewer.getPlugin(PickingPlugin)?.removeEventListener('selectedObjectChanged', this._selectedObjectChanged)
         return super.onRemove(viewer)
     }

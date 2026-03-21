@@ -14,6 +14,7 @@ import {
 } from '../../core'
 import {Euler, MathUtils, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
+import {MultiSelectHelper} from './MultiSelectHelper'
 
 @uiFolderContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync {
@@ -28,9 +29,21 @@ export class TransformControlsPlugin extends AViewerPluginSync {
         const picking = this._viewer.getPlugin(PickingPlugin)!
         const enabled = !this.isDisabled()
         if (this.transformControls) {
-            const selected = picking.getSelectedObject<IObject3D>()
-            if (enabled && selected?.isObject3D) this.transformControls.attach(selected)
-            else this.transformControls.detach()
+            if (!enabled) {
+                this.transformControls.detach()
+                this._multi.clear(this._viewer!)
+            } else {
+                const objects = picking.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+                if (objects.length > 1) {
+                    this.transformControls.attach(this._multi.setup(objects, this._viewer!))
+                } else if (objects.length === 1) {
+                    this._multi.clear(this._viewer!)
+                    this.transformControls.attach(objects[0])
+                } else {
+                    this._multi.clear(this._viewer!)
+                    this.transformControls.detach()
+                }
+            }
         }
         this._viewer.setDirty()
     }
@@ -67,6 +80,8 @@ export class TransformControlsPlugin extends AViewerPluginSync {
 
     selectionFilterTest: ((obj: IObject3D)=>IObject3D|null)|undefined = undefined
 
+    private _multi = new MultiSelectHelper()
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
@@ -93,9 +108,14 @@ export class TransformControlsPlugin extends AViewerPluginSync {
             if (!this.transformControls) return
             if (this.isDisabled()) {
                 if (this.transformControls.object) this.transformControls.detach()
+                this._multi.clear(this._viewer!)
                 return
             }
-            if (event.object) {
+            const objects = (event.objects || []).filter((o: any) => o?.isObject3D) as IObject3D[]
+            if (objects.length > 1) {
+                this.transformControls.attach(this._multi.setup(objects, this._viewer!))
+            } else if (event.object) {
+                this._multi.clear(this._viewer!)
                 let obj: IObject3D|null = event.intersects?.selectedHandle ?? event.intersects?.selectedObject ?? event.object
                 if (this.selectionFilterTest) obj = this.selectionFilterTest(obj)
                 if (!obj || !obj.isObject3D) {
@@ -104,6 +124,7 @@ export class TransformControlsPlugin extends AViewerPluginSync {
                 }
                 this.transformControls.attach(obj)
             } else {
+                this._multi.clear(this._viewer!)
                 this.transformControls.detach()
             }
         })
@@ -112,20 +133,30 @@ export class TransformControlsPlugin extends AViewerPluginSync {
             this.undoManager = um.undoManager
         }, ()=> this.undoManager = undefined, this)
 
-        // same logic for undo as three.js editor. todo It can be made better by syncing with the UI so it supports the hotkeys and other properties inside TransformControls2
         this.transformControls.addEventListener('mouseDown', ()=> {
             if (!this.transformControls) return
+            if (this._multi.hasMultiSelect) {
+                this._multi.captureStart()
+                return
+            }
             const object = this.transformControls.object
             if (!object) return
-
             this._transformState.obj = object
             this._transformState.position = object.position.clone()
             this._transformState.rotation = object.rotation.clone()
             this._transformState.scale = object.scale.clone()
         })
 
+        this.transformControls.addEventListener('objectChange', ()=> {
+            if (this._multi.hasMultiSelect) this._multi.applyDelta()
+        })
+
         this.transformControls.addEventListener('mouseUp', ()=> {
             if (!this.transformControls) return
+            if (this._multi.hasMultiSelect && this._multi.hasStartStates) {
+                if (this.undoManager) this._multi.recordUndo(this.undoManager)
+                return
+            }
             const object = this.transformControls.object
             if (!object) return
 
@@ -157,6 +188,7 @@ export class TransformControlsPlugin extends AViewerPluginSync {
 
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
+        this._multi.clear(viewer)
         if (this.transformControls) {
             this.transformControls.detach()
             viewer.scene.remove(this.transformControls)

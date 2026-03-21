@@ -3,7 +3,9 @@ prev:
   text: 'Material Extension Plugin'
   link: './material-extension-plugin'
 
-next: false
+next:
+  text: 'Widget Handle Picking'
+  link: './widget-handle-picking'
 aside: false
 ---
 

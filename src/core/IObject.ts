@@ -448,9 +448,10 @@ export interface IObject3D<
      *
      * @param point - point to move the pivot to
      * @param setDirty - calls {@link setDirty} @default true
+     * @param compensateSharedGeometry - adjust positions of other meshes sharing the same geometry so they stay in place @default true
      * @returns undo function
      */
-    pivotToPoint?(point: Vector3, setDirty?: boolean): this
+    pivotToPoint?(point: Vector3, setDirty?: boolean, compensateSharedGeometry?: boolean): this
 
     objectProcessor?: IObjectProcessor
     objectExtensions?: IObjectExtension[]

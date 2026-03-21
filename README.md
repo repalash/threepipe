@@ -503,12 +503,14 @@ Many features will be added but the core API will not change significantly in fu
   - [GBufferPlugin](https://threepipe.org/plugin/GBufferPlugin.html) - Pre-rendering of depth-normal and flags buffers in a single pass ([deferred shading](https://en.wikipedia.org/wiki/Deferred_shading))
   - [SSAOPlugin](https://threepipe.org/plugin/SSAOPlugin.html) - Add [SSAO(Screen Space Ambient Occlusion)](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) for physical materials.
   - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas with anti-aliasing and other options
-  - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting objects in the viewer with user interactions and selection widgets
+  - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting and multi-selecting objects in the viewer with user interactions and selection widgets
   - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene/object GLB or Viewer Configuration JSON
   - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas
   - [FullScreenPlugin](https://threepipe.org/plugin/FullScreenPlugin.html) - Adds support for moving the canvas or the container fullscreen mode in browsers
   - [InteractionPromptPlugin](https://threepipe.org/plugin/InteractionPromptPlugin.html) - Adds an animated hand icon over canvas to prompt the user to interact
   - [TransformControlsPlugin](https://threepipe.org/plugin/TransformControlsPlugin.html) - Adds support for moving, rotating and scaling objects in the viewer with interactive widgets
+  - [PivotControlsPlugin](https://threepipe.org/plugin/PivotControlsPlugin.html) - Adds interactive pivot gizmos with all transform handles visible simultaneously (translation, rotation, scaling)
+  - [PivotEditPlugin](https://threepipe.org/plugin/PivotEditPlugin.html) - Interactive pivot point (origin) editing with presets and drag-to-move
   - [ContactShadowGroundPlugin](https://threepipe.org/plugin/ContactShadowGroundPlugin.html) - Adds a ground plane at runtime with contact shadows
   - [GLTFAnimationPlugin](https://threepipe.org/plugin/GLTFAnimationPlugin.html) - Add support for playing and seeking glTF animations
   - [PopmotionPlugin](https://threepipe.org/plugin/PopmotionPlugin.html) - Integrates with popmotion.io library for animation/tweening

@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'TransformControlsPlugin'
-  link: './TransformControlsPlugin'
+  text: 'PivotEditPlugin'
+  link: './PivotEditPlugin'
 
 next:
   text: 'EditorViewWidgetPlugin'

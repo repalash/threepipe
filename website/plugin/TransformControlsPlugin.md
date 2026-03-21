@@ -3,9 +3,9 @@ prev:
     text: 'InteractionPromptPlugin'
     link: './InteractionPromptPlugin'
 
-next: 
-    text: 'ObjectConstraintsPlugin'
-    link: './ObjectConstraintsPlugin'
+next:
+    text: 'PivotControlsPlugin'
+    link: './PivotControlsPlugin'
 
 ---
 
@@ -35,3 +35,11 @@ const transfromControlsPlugin = viewer.addPluginSync(new TransformControlsPlugin
 // Get the underlying transform controls
 console.log(transfromControlsPlugin.transformControls)
 ```
+
+## Multi-Object Transform
+
+When multiple objects are selected (Shift+Click), the gizmo appears at the median position of all selected objects. Translating, rotating, and scaling applies to all selected objects simultaneously, maintaining their relative positions. The coordinate space is forced to world mode during multi-select. Undo/redo records a single step for the entire group operation. See [PickingPlugin](./PickingPlugin) for multi-selection controls.
+
+## Pivot Point Editing
+
+To interactively edit an object's pivot point (origin), use the [PivotEditPlugin](./PivotEditPlugin) alongside this plugin. It provides a separate translate-only gizmo for moving the pivot while keeping the object mesh in place.

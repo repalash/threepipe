@@ -77,3 +77,45 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 })
 
 ```
+
+## Multi-Selection
+
+Picking Plugin supports selecting multiple objects simultaneously using modifier keys. Multi-selection is enabled by default and can be disabled:
+
+```typescript
+pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
+```
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Shift+Click** | Toggle object in/out of selection |
+| **Ctrl/Cmd+Click** | Toggle object in/out of selection |
+| **Click** (no modifier) | Replace selection with single object |
+| **Ctrl/Cmd+A** | Select all visible model objects |
+| **Escape** | Clear entire selection |
+
+### API
+
+```typescript
+// Get all selected objects
+const objects = pickingPlugin.getSelectedObjects()
+
+// Toggle an object in/out of selection
+pickingPlugin.toggleSelectedObject(object)
+
+// Select all visible model objects
+pickingPlugin.selectAll()
+
+// Clear entire selection
+pickingPlugin.clearSelection()
+
+// The selectedObjectChanged event includes the full selection array
+pickingPlugin.addEventListener('selectedObjectChanged', (e) => {
+    console.log('Primary:', e.object)    // last clicked object
+    console.log('All:', e.objects)        // full selection array
+})
+```
+
+Multi-selection works with [TransformControlsPlugin](./TransformControlsPlugin) and [PivotControlsPlugin](./PivotControlsPlugin) for group transforms. [PivotEditPlugin](./PivotEditPlugin) operates on single objects and exits edit mode when the selection changes.
