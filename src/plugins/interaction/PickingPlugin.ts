@@ -141,7 +141,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this.autoFocus = autoFocus
         this.dispatchEvent = this.dispatchEvent.bind(this)
 
-        // this.materialTypes.forEach(m=>m.def ? m.def.uiConfig = undefined as any : null)
     }
 
     getSelectedObject<T extends SelectionObject = SelectionObject>(): T|undefined {
@@ -193,7 +192,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }
     }
 
-    setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: listen to object disposed
+    setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: also listen to 'dispose' event on selected object (ObjectPicker only listens to '__unregister' for scene removal)
         const disabled = this.isDisabled()
         if (disabled && object) return
         if (!this._picker) return
@@ -226,7 +225,6 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         })
 
         this._picker.extraObjects.push(...viewer.scene.children.filter(r=>r.userData.isWidgetRoot))
-        // todo remove listener
         this._viewer?.scene.addEventListener('addSceneObject', this._addSceneObject)
         this._viewer?.scene.addEventListener('sceneUpdate', this._sceneUpdate)
 
@@ -361,12 +359,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         // Multi-selection: attach extra widgets to additional selected objects
         this._updateExtraWidgets()
 
-        // if (selected) selected.dispatchEvent({type: 'selected', source: PickingPlugin.PluginType, object: selected})
-
         this._viewer.setDirty()
 
         if (this.autoFocus && this.selectionMode === 'object') {
-            // this._viewer.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
             this.focusObject(selected as IObject3D | undefined)
         }
 
@@ -383,15 +378,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             else widget.detach()
         }
 
-        // if (selected) selected.dispatchEvent({type: 'selected', source: PickingPlugin.PluginType, object: selected})
-
         this._viewer?.setDirty()
 
         if (this.autoFocusHover && this.selectionMode === 'object') {
-            // this._viewer?.resetCamera({rootObject: selected, centerOffset: new Vector3(4, 4, 4)})
             this.focusObject(selected as IObject3D | undefined)
         }
-
 
     }
 
@@ -432,7 +423,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }
     }
 
-    public async focusObject(selected?: Object3D|null) {
+    public async focusObject(selected?: Object3D|null): Promise<void> {
         this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
     }
 
