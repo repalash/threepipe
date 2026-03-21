@@ -586,6 +586,7 @@ class TransformControls extends Object3D {
 
         this.object = undefined;
         this.visible = false;
+        this.dragging = false;
         this.axis = null;
 
         return this;

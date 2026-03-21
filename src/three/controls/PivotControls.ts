@@ -536,10 +536,11 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
     }
 
     detach(): this {
+        if (this._dragging) this._endDrag()
         this.object = undefined
         this.visible = false
         this._activeHandle = null
-        this._dragging = false
+        this._hideAnnotation()
         this.dispatchEvent({type: 'change'})
         return this
     }
@@ -691,6 +692,12 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
         if (!this._dragging || !this._activeHandle) return
 
         event.stopPropagation()
+        this.domElement.releasePointerCapture(event.pointerId)
+        this._endDrag()
+    }
+
+    private _endDrag(): void {
+        if (!this._activeHandle) return
         this._onDragEnd(this._activeHandle)
         this._hideAnnotation()
 
@@ -698,7 +705,6 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
         this._activeHandle = null
         this._dragging = false
 
-        this.domElement.releasePointerCapture(event.pointerId)
         this.dispatchEvent({type: 'mouseUp', mode})
         this.dispatchEvent({type: 'dragging-changed', value: false})
     }

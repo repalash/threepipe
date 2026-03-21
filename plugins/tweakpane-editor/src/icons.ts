@@ -32,3 +32,9 @@ export const snapshot = '<svg xmlns="http://www.w3.org/2000/svg" style="width:10
 export const download = '<svg xmlns="http://www.w3.org/2000/svg" style="width:100%; height:100%;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">\n' +
     '  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />\n' +
     '</svg>'
+
+// Pivot edit: origin/crosshair dot icon
+export const pivotEdit = '<svg xmlns="http://www.w3.org/2000/svg" style="width:100%; height:100%;" fill="currentColor" viewBox="0 0 24 24">\n' +
+    '  <circle cx="12" cy="12" r="3" />\n' +
+    '  <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2v6m0 8v6M2 12h6m8 0h6" />\n' +
+    '</svg>'

@@ -120,7 +120,7 @@ export class ThreeEditor extends ThreeViewer {
         ObjectConstraintsPlugin,
         new TransformControlsPlugin(false),
         new PivotControlsPlugin(false),
-        PivotEditPlugin,
+        new PivotEditPlugin(false),
         OutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,

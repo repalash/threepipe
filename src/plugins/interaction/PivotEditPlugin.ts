@@ -3,8 +3,8 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from './PickingPlugin'
 import {JSUndoManager, onChange} from 'ts-browser-helpers'
 import {OrbitControls3, TransformControls} from '../../three'
-import {IObject3D, UnlitLineMaterial, UnlitMaterial} from '../../core'
-import {Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
+import {Group2, IObject3D, UnlitLineMaterial, UnlitMaterial} from '../../core'
+import {Group, Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import type {TransformControlsPlugin} from './TransformControlsPlugin'
 import type {PivotControlsPlugin} from './PivotControlsPlugin'
@@ -44,18 +44,24 @@ export class PivotEditPlugin extends AViewerPluginSync {
 
     @uiSlider('Marker Scale', [0.1, 5], 0.1)
     @onChange(PivotEditPlugin.prototype._onDirty)
-        markerScale = 1
+        markerScale = 0.5
 
     @uiColor('Marker Color')
     @onChange(PivotEditPlugin.prototype._onMarkerColorChange)
         markerColor = 0xffff00
 
+    constructor(enabled = true) {
+        super()
+        this.enabled = enabled
+    }
+
     toJSON: any = undefined
 
     private _pivotGizmo: TransformControls | null = null
+    private _markerRoot: Group2 | null = null // assetType='model' root for raycasting
+    private _markerWidget: Group | null = null // assetType='widget' wrapper for handle resolution
     private _pivotMarker: Mesh | null = null
     private _selectedObject: IObject3D | null = null
-    private _startPosition = new Vector3()
     undoManager?: JSUndoManager
 
     protected _viewerListeners = {
@@ -68,14 +74,32 @@ export class PivotEditPlugin extends AViewerPluginSync {
         super.onAdded(viewer)
 
         const picking = viewer.getPlugin(PickingPlugin)!
+
+        // Intercept pivot marker clicks before selection happens.
+        // hitObject fires before setSelected, so setting selectedObject to the
+        // current selection prevents any selection change — no other plugin sees the click.
+        picking.addEventListener('hitObject', (event) => {
+            if (event.intersects?.selectedHandle?.userData.isPivotMarker) {
+                // Keep current selection so setSelected sees no change and skips the event
+                event.intersects.selectedObject = this._selectedObject
+                event.intersects.selectedHandle = undefined
+                event.intersects.selectedWidget = undefined
+                this.editPivot = !this.editPivot
+                this._onEditPivotChange()
+            }
+        })
+
         picking.addEventListener('selectedObjectChanged', (event) => {
-            this._selectedObject = event.object as IObject3D | null
-            if (this.editPivot && !this._selectedObject) {
+            const newObject = event.object as IObject3D | null
+            const objectChanged = newObject !== this._selectedObject
+            this._selectedObject = newObject
+            if (this._markerWidget) (this._markerWidget as any).object = this._selectedObject
+            // Exit edit mode on object change or deselection
+            if (this.editPivot && objectChanged) {
                 this.editPivot = false
                 this._onEditPivotChange()
             }
             this._updateMarker()
-            if (this.editPivot) this._attachGizmo()
         })
 
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um) => {
@@ -95,21 +119,36 @@ export class PivotEditPlugin extends AViewerPluginSync {
         }
         window.addEventListener('keydown', this._onKeyDown)
 
-        // Create pivot marker
+        // Create pivot marker as a widget handle, pickable via PickingPlugin.
+        // Structure: _markerRoot (Group2, assetType='model', isWidgetRoot)
+        //            └── _markerWidget (Group, assetType='widget', object=selectedObject)
+        //                └── _pivotMarker (Mesh, isWidgetHandle, isPivotMarker)
         const mat = new MeshBasicMaterial({
             color: this.markerColor, depthTest: false, depthWrite: false,
             toneMapped: false, transparent: true, opacity: 0.9,
         })
         this._pivotMarker = new Mesh(new SphereGeometry(1, 8, 8), mat)
         this._pivotMarker.renderOrder = 1000
-        this._pivotMarker.visible = false
-        this._pivotMarker.userData.bboxVisible = false
-        this._pivotMarker.traverse(c => {
+        this._pivotMarker.userData.isWidgetHandle = true
+        this._pivotMarker.userData.isPivotMarker = true
+
+        this._markerWidget = new Group()
+        ;(this._markerWidget as any).isWidget = true
+        ;(this._markerWidget as any).assetType = 'widget'
+        ;(this._markerWidget as any).object = this._selectedObject
+        this._markerWidget.add(this._pivotMarker)
+
+        this._markerRoot = new Group2()
+        this._markerRoot.userData.isWidgetRoot = true
+        this._markerRoot.add(this._markerWidget)
+        this._markerRoot.visible = false
+
+        this._markerRoot.traverse(c => {
             c.castShadow = false
             c.receiveShadow = false
             c.userData.__keepShadowDef = true
         })
-        viewer.scene.addObject(this._pivotMarker as any, {addToRoot: true})
+        viewer.scene.addObject(this._markerRoot as any, {addToRoot: true})
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -118,10 +157,14 @@ export class PivotEditPlugin extends AViewerPluginSync {
             this._onKeyDown = null
         }
         this._destroyGizmo(viewer)
-        if (this._pivotMarker) {
-            viewer.scene.remove(this._pivotMarker as any)
-            this._pivotMarker.geometry.dispose()
-            ;(this._pivotMarker.material as MeshBasicMaterial).dispose()
+        if (this._markerRoot) {
+            viewer.scene.remove(this._markerRoot as any)
+            if (this._pivotMarker) {
+                this._pivotMarker.geometry.dispose()
+                ;(this._pivotMarker.material as MeshBasicMaterial).dispose()
+            }
+            this._markerRoot = null
+            this._markerWidget = null
             this._pivotMarker = null
         }
         super.onRemove(viewer)
@@ -167,15 +210,15 @@ export class PivotEditPlugin extends AViewerPluginSync {
     // ========================================================================
 
     private _updateMarker(): void {
-        if (!this._pivotMarker || !this._viewer) return
-        if (!this.showPivotMarker || !this._selectedObject) {
-            this._pivotMarker.visible = false
+        if (!this._markerRoot || !this._pivotMarker || !this._viewer) return
+        if (this.isDisabled() || !this.showPivotMarker || !this._selectedObject) {
+            this._markerRoot.visible = false
             return
         }
         this._selectedObject.updateWorldMatrix(true, false)
         _pos.setFromMatrixPosition(this._selectedObject.matrixWorld)
-        this._pivotMarker.position.copy(_pos)
-        this._pivotMarker.visible = true
+        this._markerRoot.position.copy(_pos)
+        this._markerRoot.visible = true
 
         // Constant screen-size (same formula as TransformControls)
         const camera = this._viewer.scene.mainCamera as any
@@ -216,12 +259,6 @@ export class PivotEditPlugin extends AViewerPluginSync {
                 c.castShadow = false
                 c.receiveShadow = false
                 c.userData.__keepShadowDef = true
-            })
-
-            this._pivotGizmo.addEventListener('mouseDown', () => {
-                if (!this._selectedObject) return
-                this._selectedObject.updateWorldMatrix(true, false)
-                this._startPosition.setFromMatrixPosition(this._selectedObject.matrixWorld)
             })
 
             this._pivotGizmo.addEventListener('mouseUp', () => {
