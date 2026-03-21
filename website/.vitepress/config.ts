@@ -56,6 +56,7 @@ export default defineConfig({
           {text: 'Follow Path Constraint Animation', link: 'notes/follow-path-constraint'},
           {text: 'Material Extension Plugin', link: 'notes/material-extension-plugin'},
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
+          {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
         ]
       },
       {
