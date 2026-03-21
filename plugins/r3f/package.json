@@ -36,7 +36,6 @@
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
-        "new:publish": "git diff --exit-code --name-only HEAD * && PKG=$(npm run -s new:pack) && npm publish --access public \"$PKG\" && git tag $npm_package_name-$npm_package_version",
         "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
