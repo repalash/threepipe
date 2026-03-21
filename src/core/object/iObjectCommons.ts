@@ -109,7 +109,7 @@ export const iObjectCommons = {
         return iObjectCommons.pivotToPoint.call(this, center, setDirty)
     },
 
-    pivotToPoint: function<T extends IObject3D>(this: T, point: Vector3, setDirty = true): ()=>void {
+    pivotToPoint: function<T extends IObject3D>(this: T, point: Vector3, setDirty = true, compensateSharedGeometry = true): ()=>void {
         const worldCenter = new Vector3().copy(point)
         const localCenter = new Vector3().copy(worldCenter)
 
@@ -129,11 +129,24 @@ export const iObjectCommons = {
         // local center
         localCenter.applyMatrix4(worldMatrixInv).negate()
 
-        // Shift the geometry
+        // Shift the geometry and compensate other meshes sharing it
+        const otherMeshPositions = new Map<IObject3D, Vector3>()
         if (this.geometry) {
+            // Adjust positions of other meshes using the same geometry so they stay in place
+            const appliedMeshes = compensateSharedGeometry ? this.geometry.appliedMeshes as Set<IObject3D> | undefined : undefined
+            if (appliedMeshes) {
+                for (const mesh of appliedMeshes) {
+                    if (mesh === this) continue
+                    otherMeshPositions.set(mesh, mesh.position.clone())
+                    mesh.updateMatrix()
+                    const offset = new Vector3(-localCenter.x, -localCenter.y, -localCenter.z).applyMatrix4(mesh.matrix)
+                    mesh.position.copy(offset)
+                    if (setDirty) mesh.setDirty && mesh.setDirty({change: 'pivotToPoint'})
+                }
+            }
             this.geometry.translate(localCenter.x, localCenter.y, localCenter.z)
         }
-        // Add offsets
+        // Add offsets to children
         this.children.forEach((object)=> {
             object.position.add(localCenter)
         })
@@ -144,6 +157,11 @@ export const iObjectCommons = {
             this.position.copy(lastPosition)
             if (this.geometry) {
                 this.geometry.translate(-localCenter.x, -localCenter.y, -localCenter.z)
+                // Restore other meshes' positions
+                for (const [mesh, pos] of otherMeshPositions) {
+                    mesh.position.copy(pos)
+                    if (setDirty) mesh.setDirty && mesh.setDirty({change: 'pivotToPoint'})
+                }
             }
             this.children.forEach((object)=> {
                 object.position.sub(localCenter)
