@@ -8,7 +8,13 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- Add pivot controls and pivot edit toolbar buttons with toggle support
+- Add pivot edit icon (`pivotEdit`) to icon set
+
+### Changed
+
+- `HierarchyUiPlugin` — support Shift/Ctrl/Cmd click for multi-select in hierarchy panel via `PickingPlugin.toggleSelectedObject`
+- `HierarchyUiPlugin` — skip hierarchy rebuild for widget and widget root object changes to avoid unnecessary UI refreshes
 
 ## [0.5.5] - 2025-11-08
 

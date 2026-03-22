@@ -3,8 +3,8 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from './PickingPlugin'
 import {JSUndoManager, onChange} from 'ts-browser-helpers'
 import {OrbitControls3, TransformControls} from '../../three'
-import {Group2, IObject3D, UnlitLineMaterial, UnlitMaterial} from '../../core'
-import {Group, Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
+import {Group2, IObject3D, IWidget, UnlitLineMaterial, UnlitMaterial} from '../../core'
+import {Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import type {TransformControlsPlugin} from './TransformControlsPlugin'
 import type {PivotControlsPlugin} from './PivotControlsPlugin'
@@ -59,8 +59,8 @@ export class PivotEditPlugin extends AViewerPluginSync {
 
     private _pivotGizmo: TransformControls | null = null
     private _markerRoot: Group2 | null = null // assetType='model' root for raycasting
-    private _markerWidget: Group | null = null // assetType='widget' wrapper for handle resolution
-    private _pivotMarker: Mesh | null = null
+    private _markerWidget: (Group2 & IWidget) | null = null // assetType='widget' wrapper for handle resolution
+    private _pivotMarker: Mesh<SphereGeometry, MeshBasicMaterial> | null = null
     private _selectedObject: IObject3D | null = null
     undoManager?: JSUndoManager
 
@@ -93,7 +93,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
             const newObject = event.object as IObject3D | null
             const objectChanged = newObject !== this._selectedObject
             this._selectedObject = newObject
-            if (this._markerWidget) (this._markerWidget as any).object = this._selectedObject
+            if (this._markerWidget) this._markerWidget.object = this._selectedObject
             // Exit edit mode on object change or deselection
             if (this.editPivot && objectChanged) {
                 this.editPivot = false
@@ -133,10 +133,13 @@ export class PivotEditPlugin extends AViewerPluginSync {
         this._pivotMarker.userData.isWidgetHandle = true
         this._pivotMarker.userData.isPivotMarker = true
 
-        this._markerWidget = new Group()
-        ;(this._markerWidget as any).isWidget = true
-        ;(this._markerWidget as any).assetType = 'widget'
-        ;(this._markerWidget as any).object = this._selectedObject
+        const markerWidget = new Group2() as Group2 & IWidget
+        markerWidget.isWidget = true as const
+        markerWidget.assetType = 'widget' as const
+        markerWidget.object = this._selectedObject
+        markerWidget.attach = (obj: any) => { markerWidget.object = obj; return markerWidget }
+        markerWidget.detach = () => { markerWidget.object = undefined; return markerWidget }
+        this._markerWidget = markerWidget
         this._markerWidget.add(this._pivotMarker)
 
         this._markerRoot = new Group2()
@@ -149,7 +152,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
             c.receiveShadow = false
             c.userData.__keepShadowDef = true
         })
-        viewer.scene.addObject(this._markerRoot as any, {addToRoot: true})
+        viewer.scene.addObject(this._markerRoot, {addToRoot: true})
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -159,10 +162,10 @@ export class PivotEditPlugin extends AViewerPluginSync {
         }
         this._destroyGizmo(viewer)
         if (this._markerRoot) {
-            viewer.scene.remove(this._markerRoot as any)
+            viewer.scene.remove(this._markerRoot)
             if (this._pivotMarker) {
                 this._pivotMarker.geometry.dispose()
-                ;(this._pivotMarker.material as MeshBasicMaterial).dispose()
+                this._pivotMarker.material.dispose()
             }
             this._markerRoot = null
             this._markerWidget = null
@@ -355,7 +358,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
     }
 
     private _onMarkerColorChange(): void {
-        if (this._pivotMarker) (this._pivotMarker.material as MeshBasicMaterial).color.set(this.markerColor)
+        if (this._pivotMarker) this._pivotMarker.material.color.set(this.markerColor)
         if (this._viewer) this._viewer.setDirty()
     }
 

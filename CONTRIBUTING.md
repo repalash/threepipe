@@ -64,6 +64,7 @@ Checklist
 - Add info to `./website/guide/core-plugins.md`
 - Add info to `./website/plugin/PluginName.md`
 - Add entry to sidebar in `./website/.vitepress/config.ts`
+- Update CHANGELOG.md
 
 ## Creating a Package/Plugin package
 
@@ -88,3 +89,4 @@ Checklist
 - Add entry to sidebar in `./website/.vitepress/config.ts`
 - `npm run build` and test with example
 - Publish package with `npm run new:publish`. Check that tag is added to git like `plugin-name-v0.0.1`
+- Update core CHANGELOG.md with link to new package. 

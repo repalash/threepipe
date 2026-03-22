@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.5.0]
+
+### Added
+
+- Add `PivotControlsPlugin` — interactive pivot gizmos with all transform handles (translation, rotation, scaling) visible simultaneously
+- Add `PivotEditPlugin` — interactive pivot point (origin) editing with presets (center, bottom, origin) and drag-to-move gizmo, toggle with `P` key
+- Add `MultiSelectHelper` — shared helper for multi-object transform support in both `TransformControlsPlugin` and `PivotControlsPlugin`
+- Add multi-select support in `PickingPlugin` — hold Shift/Ctrl/Cmd to select multiple objects, with `multiSelectEnabled` toggle and `getSelectedObjects()`, `toggleSelectedObject()` methods
+- Add multi-select support in `TransformControlsPlugin` — transform multiple selected objects together via a median-positioned dummy
+- Add `PivotControls` (three.js level) — standalone pivot control gizmo implementation with arrow, slider, rotator, and scaler handles
+- Add widget handle picking support in `ObjectPicker` — resolve widget handles from raycast hits for interactive gizmo interaction
+- Add `compensateSharedGeometry` parameter to `pivotToPoint` — adjusts positions of other meshes sharing the same geometry so they stay in place
+
+### Changed
+
+- `PickingPlugin` — `selectedObjectChanged` event now includes `objects` and `lastValues` arrays for multi-select
+- `ObjectPicker` — `setSelected` now accepts arrays for multi-select, removed old multiselection TODOs
+- `TransformControlsPlugin` — refactored to use `MultiSelectHelper`, supports multi-object transforms with undo/redo
+- `HierarchyUiPlugin` (tweakpane-editor) — support Shift/Ctrl/Cmd click for multi-select in hierarchy panel, skip hierarchy rebuild for widget changes
+- `BaseGroundPlugin` — ignore widget and widget root objects when refreshing ground transform
+- Added pivot controls and pivot edit toolbar buttons to tweakpane editor
+- Add CI publish workflow with automated build verification, npm publishing, and Discord notifications
+
 ## [0.4.4]
 
 ### Changed
