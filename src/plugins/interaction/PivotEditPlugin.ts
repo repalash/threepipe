@@ -80,10 +80,8 @@ export class PivotEditPlugin extends AViewerPluginSync {
         // current selection prevents any selection change — no other plugin sees the click.
         picking.addEventListener('hitObject', (event) => {
             if (event.intersects?.selectedHandle?.userData.isPivotMarker) {
-                // Keep current selection so setSelected sees no change and skips the event
-                event.intersects.selectedObject = this._selectedObject
-                event.intersects.selectedHandle = undefined
-                event.intersects.selectedWidget = undefined
+                // Mark consumed so the picker skips selection changes for this click
+                event.intersects.consumed = true
                 this.editPivot = !this.editPivot
                 this._onEditPivotChange()
             }

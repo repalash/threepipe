@@ -14,6 +14,8 @@ export interface HitIntersects{
     mouse: Vector2,
     selectedWidget?: (IWidget&IObject3D) | null,
     selectedHandle?: Object3D | null,
+    /** When set to true by a hitObject listener, the picker will skip selection changes for this click. */
+    consumed?: boolean,
 }
 
 export interface ObjectPickerEventMap{
@@ -303,6 +305,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         this.updateMouseFromEvent(event)
         const {obj, intersects} = this._hitObject()
 
+        if (intersects?.consumed) return
+
         if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
             // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
             const current = [...this._selected] as IObject3D[]
@@ -363,7 +367,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return {obj, intersects}
     }
 
-    checkIntersection() {
+    checkIntersection(): HitIntersects | null {
         const camera = this._camera
 
         if (!camera) return null
