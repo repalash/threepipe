@@ -23,6 +23,8 @@ async function init() {
     const transformControls = viewer.addPluginSync(TransformControlsPlugin)
     const pivotEdit = viewer.addPluginSync(PivotEditPlugin)
 
+    console.log(transformControls, pivotEdit)
+
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf')
 

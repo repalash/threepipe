@@ -22,7 +22,7 @@ async function init() {
     const picking = viewer.addPluginSync(PickingPlugin)
 
     const pivotControlsPlugin = viewer.addPluginSync(PivotControlsPlugin)
-    const pivotEdit = viewer.addPluginSync(PivotEditPlugin)
+    viewer.addPluginSync(PivotEditPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf')
