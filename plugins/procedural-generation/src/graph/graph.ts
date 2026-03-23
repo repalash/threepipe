@@ -37,8 +37,8 @@ export type ResolvedInputs<T extends Record<string, InputDef>> = {
 
 /** A node definition: name, input/output defs, and a pure evaluate function. */
 export interface NodeDef<
-    TIn extends Record<string, InputDef> = Record<string, InputDef>,
-    TOut extends Record<string, InputDef> = Record<string, InputDef>
+    TIn extends Record<string, InputDef> = any,
+    TOut extends Record<string, InputDef> = any
 > {
     readonly name: string
     readonly inputDefs: {readonly [K in keyof TIn]: TIn[K]}
@@ -47,7 +47,36 @@ export interface NodeDef<
 }
 
 /** A connection between two nodes: from an output to an input. */
-export type Connection = readonly [fromNode: NodeDef, fromOutput: string, toNode: NodeDef, toInput: string]
+export interface Connection<
+    TOut extends Record<string, InputDef> = any,
+    TIn extends Record<string, InputDef> = any,
+    K1 extends string = string,
+    K2 extends string = string,
+> {
+    readonly from: NodeDef<any, TOut>
+    readonly fromOutput: K1
+    readonly to: NodeDef<TIn, any>
+    readonly toInput: K2
+}
+
+/**
+ * Create a type-checked connection. Validates:
+ * 1. fromOutput exists on the source node's outputs
+ * 2. toInput exists on the target node's inputs
+ * 3. The resolved output type is assignable to the resolved input type
+ */
+export function connect<
+    TOut extends Record<string, InputDef>,
+    TIn extends Record<string, InputDef>,
+    K1 extends keyof TOut & string,
+    K2 extends keyof TIn & string,
+>(
+    from: NodeDef<any, TOut>, fromOutput: K1,
+    to: NodeDef<TIn, any>,
+    toInput: K2 & ([ResolvedInputs<TOut>[K1]] extends [ResolvedInputs<TIn>[K2]] ? unknown : never),
+): Connection {
+    return {from, fromOutput, to, toInput}
+}
 
 /** A graph definition: nodes + connections + precomputed topological order. */
 export interface GraphDef {
@@ -69,16 +98,47 @@ export function defineNode<
     return Object.freeze({name, inputDefs: inputs, outputDefs: outputs, evaluate})
 }
 
+/** Merge override values into an input schema, preserving PropDef ui metadata. */
+export function applyDefaults<TIn extends Record<string, InputDef>>(
+    inputs: TIn,
+    overrides: Partial<ResolvedInputs<TIn>>,
+): TIn {
+    const merged = {...inputs} as Record<string, InputDef>
+    for (const key in overrides) {
+        if (isPropDef(merged[key])) {
+            merged[key] = {...(merged[key] as PropDef), default: overrides[key]}
+        } else {
+            merged[key] = overrides[key] as any
+        }
+    }
+    return merged as TIn
+}
+
+/** Define a reusable node type. Returns a factory that creates named instances with overridden defaults. */
+export function defineNodeType<
+    TIn extends Record<string, InputDef>,
+    TOut extends Record<string, InputDef>,
+>(
+    inputs: TIn,
+    outputs: TOut,
+    evaluate: (inputs: ResolvedInputs<TIn>) => ResolvedInputs<TOut>,
+) {
+    return (name: string, overrides?: Partial<ResolvedInputs<TIn>>): NodeDef<TIn, TOut> => {
+        const merged = overrides ? applyDefaults(inputs, overrides) : inputs
+        return defineNode(name, merged, outputs, evaluate)
+    }
+}
+
 /** Create a graph definition from nodes and connections. Validates and computes topological order. */
 export function defineGraph(
     nodes: readonly NodeDef[],
     connections: readonly Connection[],
 ): GraphDef {
-    for (const [fromNode, fromOutput, toNode, toInput] of connections) {
-        if (!nodes.includes(fromNode)) throw new Error(`Connection from unknown node '${fromNode.name}'`)
-        if (!nodes.includes(toNode)) throw new Error(`Connection to unknown node '${toNode.name}'`)
-        if (!(fromOutput in fromNode.outputDefs)) throw new Error(`${fromNode.name} has no output '${fromOutput}'`)
-        if (!(toInput in toNode.inputDefs)) throw new Error(`${toNode.name} has no input '${toInput}'`)
+    for (const conn of connections) {
+        if (!nodes.includes(conn.from)) throw new Error(`Connection from unknown node '${conn.from.name}'`)
+        if (!nodes.includes(conn.to)) throw new Error(`Connection to unknown node '${conn.to.name}'`)
+        if (!(conn.fromOutput in conn.from.outputDefs)) throw new Error(`${conn.from.name} has no output '${conn.fromOutput}'`)
+        if (!(conn.toInput in conn.to.inputDefs)) throw new Error(`${conn.to.name} has no input '${conn.toInput}'`)
     }
     return Object.freeze({nodes, connections, order: topoSort(nodes, connections)})
 }
@@ -93,10 +153,10 @@ function topoSort(nodes: readonly NodeDef[], connections: readonly Connection[])
         dependents.set(node, new Set())
     }
 
-    for (const [fromNode, , toNode] of connections) {
-        if (fromNode !== toNode && !dependents.get(fromNode)!.has(toNode)) {
-            dependents.get(fromNode)!.add(toNode)
-            inDegree.set(toNode, (inDegree.get(toNode) ?? 0) + 1)
+    for (const conn of connections) {
+        if (conn.from !== conn.to && !dependents.get(conn.from)!.has(conn.to)) {
+            dependents.get(conn.from)!.add(conn.to)
+            inDegree.set(conn.to, (inDegree.get(conn.to) ?? 0) + 1)
         }
     }
 

@@ -60,22 +60,22 @@ export function createRuntime(graph: GraphDef): Runtime {
     // For each node, which downstream nodes depend on it?
     const downstream = new Map<NodeDef, Set<NodeDef>>()
     for (const node of graph.nodes) downstream.set(node, new Set())
-    for (const [fromNode, , toNode] of graph.connections) {
-        if (fromNode !== toNode) downstream.get(fromNode)!.add(toNode)
+    for (const conn of graph.connections) {
+        if (conn.from !== conn.to) downstream.get(conn.from)!.add(conn.to)
     }
 
     // Connections grouped by target node (for resolving inputs during evaluate)
     const incomingByNode = new Map<NodeDef, Connection[]>()
     for (const node of graph.nodes) incomingByNode.set(node, [])
     for (const conn of graph.connections) {
-        incomingByNode.get(conn[2])!.push(conn)
+        incomingByNode.get(conn.to)!.push(conn)
     }
 
     // Which inputs are connected (not settable)
     const connectedInputs = new Map<NodeDef, Set<string>>()
     for (const node of graph.nodes) connectedInputs.set(node, new Set())
-    for (const [, , toNode, toInput] of graph.connections) {
-        connectedInputs.get(toNode)!.add(toInput)
+    for (const conn of graph.connections) {
+        connectedInputs.get(conn.to)!.add(conn.toInput)
     }
 
     return {
@@ -130,8 +130,8 @@ export function createRuntime(graph: GraphDef): Runtime {
                 if (!s.dirty) continue
 
                 // Pull connected inputs from upstream outputs
-                for (const [fromNode, fromOutput, , toInput] of incomingByNode.get(node)!) {
-                    s.inputs[toInput] = state.get(fromNode)!.outputs[fromOutput]
+                for (const conn of incomingByNode.get(node)!) {
+                    s.inputs[conn.toInput] = state.get(conn.from)!.outputs[conn.fromOutput]
                 }
 
                 // Run evaluate

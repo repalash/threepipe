@@ -1,4 +1,4 @@
-import {defineNode, defineGraph, createRuntime} from '../src/graph'
+import {defineNode, defineGraph, connect, createRuntime} from '../src/graph'
 
 // Benchmark: create a 10k node linear chain and measure times
 
@@ -14,9 +14,9 @@ console.timeEnd('defineNode × 10k')
 
 // 2. Define connections (linear chain)
 console.time('build connections')
-const connections: any[] = []
+const connections = []
 for (let i = 0; i < N - 1; i++) {
-    connections.push([nodes[i], 'out', nodes[i + 1], 'val'])
+    connections.push(connect(nodes[i], 'out', nodes[i + 1], 'val'))
 }
 console.timeEnd('build connections')
 

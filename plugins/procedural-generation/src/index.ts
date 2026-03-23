@@ -47,7 +47,7 @@ export {
 } from './blender/geometry_nodes'
 
 // Graph system
-export {defineNode, defineGraph, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef} from './graph/graph'
+export {defineNode, defineNodeType, defineGraph, connect, applyDefaults, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef, type ResolvedInputs} from './graph/graph'
 export {createRuntime, type Runtime} from './graph/runtime'
 export {graphUiConfig, nodeUiConfig} from './graph/ui'
 

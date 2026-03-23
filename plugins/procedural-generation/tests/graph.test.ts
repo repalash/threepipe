@@ -1,4 +1,4 @@
-import {defineNode, defineGraph, createRuntime} from '../src/graph'
+import {defineNode, defineGraph, connect, createRuntime} from '../src/graph'
 
 // ─── Test harness ───────────────────────────────────────────────────
 
@@ -33,8 +33,8 @@ const nodeC = defineNode('C', {val: 0}, {text: ''}, (inp) => ({text: inp.val.toS
 const graph1 = defineGraph(
     [nodeA, nodeB, nodeC],
     [
-        [nodeA, 'doubled', nodeB, 'val'],
-        [nodeB, 'plusTen', nodeC, 'val'],
+        connect(nodeA, 'doubled', nodeB, 'val'),
+        connect(nodeB, 'plusTen', nodeC, 'val'),
     ],
 )
 
@@ -65,10 +65,10 @@ const diamond_D = defineNode('D', {b: 0, c: 0}, {sum: 0}, (inp) => ({sum: inp.b 
 const graph2 = defineGraph(
     [diamond_A, diamond_B, diamond_C, diamond_D],
     [
-        [diamond_A, 'out', diamond_B, 'val'],
-        [diamond_A, 'out', diamond_C, 'val'],
-        [diamond_B, 'out', diamond_D, 'b'],
-        [diamond_C, 'out', diamond_D, 'c'],
+        connect(diamond_A, 'out', diamond_B, 'val'),
+        connect(diamond_A, 'out', diamond_C, 'val'),
+        connect(diamond_B, 'out', diamond_D, 'b'),
+        connect(diamond_C, 'out', diamond_D, 'c'),
     ],
 )
 
@@ -107,8 +107,8 @@ const piRound = defineNode('round', {pi: 0}, {rounded: 0}, (inp) => ({
 const graph3 = defineGraph(
     [piTerms, piSum, piRound],
     [
-        [piTerms, 'terms', piSum, 'terms'],
-        [piSum, 'pi', piRound, 'pi'],
+        connect(piTerms, 'terms', piSum, 'terms'),
+        connect(piSum, 'pi', piRound, 'pi'),
     ],
 )
 
@@ -146,9 +146,9 @@ const labelNode = defineNode('label', {n: 0, value: 0, even: false}, {text: ''},
 const graph4 = defineGraph(
     [fibNode, isEvenNode, labelNode],
     [
-        [fibNode, 'value', isEvenNode, 'value'],
-        [fibNode, 'value', labelNode, 'value'],
-        [isEvenNode, 'even', labelNode, 'even'],
+        connect(fibNode, 'value', isEvenNode, 'value'),
+        connect(fibNode, 'value', labelNode, 'value'),
+        connect(isEvenNode, 'even', labelNode, 'even'),
     ],
 )
 
@@ -203,23 +203,23 @@ const bJoin = defineNode('join',
 const graph5 = defineGraph(
     [bPreprocess, bGroundWalls, bMiddleWalls, bTrimWalls, bPillars, bProps, bSigns, bJoin],
     [
-        [bPreprocess, 'segments', bGroundWalls, 'segments'],
-        [bPreprocess, 'segments', bMiddleWalls, 'segments'],
-        [bPreprocess, 'segments', bTrimWalls, 'segments'],
-        [bPreprocess, 'segments', bProps, 'segments'],
-        [bPreprocess, 'segments', bSigns, 'segments'],
-        [bPreprocess, 'numFloors', bGroundWalls, 'numFloors'],
-        [bPreprocess, 'numFloors', bMiddleWalls, 'numFloors'],
-        [bPreprocess, 'numFloors', bTrimWalls, 'numFloors'],
-        [bPreprocess, 'numFloors', bPillars, 'numFloors'],
-        [bPreprocess, 'numFloors', bProps, 'numFloors'],
-        [bPreprocess, 'numFloors', bSigns, 'numFloors'],
-        [bGroundWalls, 'walls', bJoin, 'groundWalls'],
-        [bMiddleWalls, 'walls', bJoin, 'middleWalls'],
-        [bTrimWalls, 'walls', bJoin, 'trimWalls'],
-        [bPillars, 'pillars', bJoin, 'pillars'],
-        [bProps, 'props', bJoin, 'props'],
-        [bSigns, 'signs', bJoin, 'signs'],
+        connect(bPreprocess, 'segments', bGroundWalls, 'segments'),
+        connect(bPreprocess, 'segments', bMiddleWalls, 'segments'),
+        connect(bPreprocess, 'segments', bTrimWalls, 'segments'),
+        connect(bPreprocess, 'segments', bProps, 'segments'),
+        connect(bPreprocess, 'segments', bSigns, 'segments'),
+        connect(bPreprocess, 'numFloors', bGroundWalls, 'numFloors'),
+        connect(bPreprocess, 'numFloors', bMiddleWalls, 'numFloors'),
+        connect(bPreprocess, 'numFloors', bTrimWalls, 'numFloors'),
+        connect(bPreprocess, 'numFloors', bPillars, 'numFloors'),
+        connect(bPreprocess, 'numFloors', bProps, 'numFloors'),
+        connect(bPreprocess, 'numFloors', bSigns, 'numFloors'),
+        connect(bGroundWalls, 'walls', bJoin, 'groundWalls'),
+        connect(bMiddleWalls, 'walls', bJoin, 'middleWalls'),
+        connect(bTrimWalls, 'walls', bJoin, 'trimWalls'),
+        connect(bPillars, 'pillars', bJoin, 'pillars'),
+        connect(bProps, 'props', bJoin, 'props'),
+        connect(bSigns, 'signs', bJoin, 'signs'),
     ],
 )
 
@@ -265,8 +265,8 @@ const cycleB = defineNode('cycB', {x: 0}, {out: 0}, (inp) => ({out: inp.x}))
 let threw = false
 try {
     defineGraph([cycleA, cycleB], [
-        [cycleA, 'out', cycleB, 'x'],
-        [cycleB, 'out', cycleA, 'x'],
+        connect(cycleA, 'out', cycleB, 'x'),
+        connect(cycleB, 'out', cycleA, 'x'),
     ])
 } catch { threw = true }
 assert(threw, 'Cycle detection throws')
