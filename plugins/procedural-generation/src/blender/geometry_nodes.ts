@@ -202,3 +202,90 @@ export function inputNamedAttribute(
 ): any[] {
     return items.map(item => item[name])
 }
+
+// ─── from_loc_rot_scale (EulerXYZ) ─────────────────────────────────
+// source: blenlib/BLI_math_matrix.hh — from_loc_rot_scale, from_rotation(EulerXYZBase)
+//
+// Computes a 4x4 column-major world matrix from position, EulerXYZ rotation, and scale.
+// This is the core of Instance on Points (node_geo_instance_on_points.cc line 109):
+//   dst_transform = math::from_loc_rot_scale<float4x4>(positions[i], rotations[i], scales[i])
+//
+// The rotation matrix for EulerXYZ (BLI_math_matrix.hh lines 991-1018):
+//   mat[col][row] with: i=x, j=y, k=z
+//   mat[0][0] = cos_j * cos_k
+//   mat[1][0] = sin_j * sin_i_cos_k - cos_i_sin_k
+//   mat[2][0] = sin_j * cos_i_cos_k + sin_i_sin_k
+//   mat[0][1] = cos_j * sin_k
+//   mat[1][1] = sin_j * sin_i_sin_k + cos_i_cos_k
+//   mat[2][1] = sin_j * cos_i_sin_k - sin_i_cos_k
+//   mat[0][2] = -sin_j
+//   mat[1][2] = cos_j * sin_i
+//   mat[2][2] = cos_j * cos_i
+//
+// Then: result = R * S (scale applied per-column), location set directly.
+
+/** Build a 4x4 column-major world matrix from position, EulerXYZ rotation (radians), and scale. */
+export function fromLocRotScale(
+    px: number, py: number, pz: number,
+    rx: number, ry: number, rz: number,
+    sx: number, sy: number, sz: number,
+): number[] {
+    const ci = Math.cos(rx), si = Math.sin(rx)
+    const cj = Math.cos(ry), sj = Math.sin(ry)
+    const ck = Math.cos(rz), sk = Math.sin(rz)
+    const ci_ck = ci * ck, ci_sk = ci * sk
+    const si_ck = si * ck, si_sk = si * sk
+
+    // Rotation matrix (column-major: mat[col][row])
+    const r00 = cj * ck
+    const r10 = sj * si_ck - ci_sk
+    const r20 = sj * ci_ck + si_sk
+    const r01 = cj * sk
+    const r11 = sj * si_sk + ci_ck
+    const r21 = sj * ci_sk - si_ck
+    const r02 = -sj
+    const r12 = cj * si
+    const r22 = cj * ci
+
+    // R * S (scale applied per-column) + location
+    // Column-major output: [col0, col1, col2, col3]
+    return [
+        r00 * sx, r01 * sx, r02 * sx, 0,  // col 0 (X axis * sx)
+        r10 * sy, r11 * sy, r12 * sy, 0,  // col 1 (Y axis * sy)
+        r20 * sz, r21 * sz, r22 * sz, 0,  // col 2 (Z axis * sz)
+        px, py, pz, 1,                      // col 3 (translation)
+    ]
+}
+
+// ─── Join Geometry ──────────────────────────────────────────────────
+// source: nodes/geometry/nodes/node_geo_join_geometry.cc
+//
+// Concatenates geometry arrays in input link order.
+// The point indices in the result are sequential: first input's points get indices
+// 0..N-1, second input starts at N, etc. This ordering is critical for downstream
+// nodes that use point indices (randomBool, randomInt, Instance on Points Pick Instance).
+
+/** Join geometry arrays in order. Returns concatenated array with sequential indices. */
+export function joinGeometry<T>(...arrays: T[][]): T[] {
+    const result: T[] = []
+    for (const arr of arrays) {
+        for (const item of arr) result.push(item)
+    }
+    return result
+}
+
+// ─── Transform Geometry (Components mode) ───────────────────────────
+// source: nodes/geometry/nodes/node_geo_transform_geometry.cc
+//
+// In Components mode: builds a 4x4 matrix from (translation, rotation, scale)
+// using from_loc_rot_scale, then transforms all point positions.
+// When rotation is identity and scale is (1,1,1), it's a pure translation.
+
+/** Transform point positions: new_pos = pos * scale + translation (simplified for common case). */
+export function transformPoints<T extends {x: number, y: number, z: number}>(
+    points: T[],
+    tx: number, ty: number, tz: number,
+    sx = 1, sy = 1, sz = 1,
+): T[] {
+    return points.map(p => ({...p, x: p.x * sx + tx, y: p.y * sy + ty, z: p.z * sz + tz}))
+}

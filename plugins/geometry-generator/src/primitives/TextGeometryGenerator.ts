@@ -1,7 +1,6 @@
-import {AGeometryGenerator} from '../AGeometryGenerator'
+import {AGeometryGenerator, Float32BufferAttribute} from 'threepipe'
 import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js'
 import {FontLibrary} from '../FontLibrary'
-import {Float32BufferAttribute} from 'threepipe'
 import {Font, FontData} from 'three/examples/jsm/loaders/FontLoader.js'
 
 export interface TextGeometryGeneratorParams {

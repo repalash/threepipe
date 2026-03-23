@@ -138,31 +138,49 @@ For nodes not yet ported, read the Blender source and implement in TypeScript. L
 - **Frame** — organizational, ignore
 - **Math/Compare/Boolean** — plain JS math
 
-## Phase 4: Implement with defineNodeType
+## Phase 4: Implement as a GraphModule
 
-Each Blender node group becomes a `defineNodeType`. The evaluate function contains the node group's logic.
+Write a `.ts` file that exports `graphModule: GraphModule`. This file is consumed by both the comparison script (Phase 5) and the browser viewer (Phase 6).
+
+Import from the `/graph` subpath (works in both Node.js and browser):
 
 ```typescript
-import {defineNodeType} from '@threepipe/plugin-procedural-generation'
+import {
+    defineNodeType, defineGraph,
+    type GraphModule, type GeneratedInstance,
+} from '@threepipe/plugin-procedural-generation/graph'
+```
 
+Each Blender node group becomes a `defineNodeType`. Output nodes must produce `GeneratedInstance[]` with full 4x4 world matrices:
+
+```typescript
 const MyNodeGroup = defineNodeType(
-    // Inputs: connected (raw values) + settable (PropDef with UI)
     {
         geometry: [] as SomeType[],              // connected from upstream
         count: {default: 5, ui: {label: 'Count', bounds: [1, 50], stepSize: 1}},
         seed: {default: 42, ui: {label: 'Seed', bounds: [0, 999], stepSize: 1}},
     },
-    // Outputs
-    {result: [] as SomeType[]},
-    // Evaluate — one function, shared across all instances
+    {instances: [] as GeneratedInstance[]},
     (inp) => ({
-        result: computeSomething(inp.geometry, inp.count, inp.seed)
+        instances: computeInstances(inp.geometry, inp.count, inp.seed)
     }),
 )
 
-// Create instances with different defaults
 const instance1 = MyNodeGroup('Instance 1', {count: 10, seed: 577})
 const instance2 = MyNodeGroup('Instance 2', {count: 3, seed: 704})
+```
+
+Export the graph module:
+
+```typescript
+export const graphModule: GraphModule = {
+    graphs: [{
+        graph: defineGraph([groupInput, instance1, instance2, join], [...connections]),
+        outputs: [{node: join, output: 'instances'}],
+    }],
+    assets: ['module_a.glb', 'module_b.glb'],
+    assetsPath: './assets/',
+}
 ```
 
 ### Key patterns from the Buildify port
@@ -193,53 +211,47 @@ Convert in ONE place at the data boundary. Never scatter axis swaps.
 
 **Do NOT proceed until this passes 100%.**
 
-Your generator must output the same JSON format as the ground truth — full 16-float world matrices per instance. See `porting/scripts/output_format.md` for the format spec.
+Run the comparison script on your graph module:
 
-Run the standard comparison script:
 ```bash
-npx tsx porting/scripts/compare_ground_truth.ts generated.json ground_truth.json
+./plugins/procedural-generation/porting/scripts/compare.sh my_graph.ts ground_truth.json
 ```
 
-This compares **all 16 values of the world matrix** per instance. It reports full matrix matches vs position-only matches. A position-only match (rotation/scale wrong) is NOT a pass — the visual output will look wrong even if positions are correct.
+This imports your graph, evaluates it, and compares against ground truth. It checks **all 16 values of the world matrix** per instance. It reports full matrix matches vs position-only matches. A position-only match (rotation/scale wrong) is NOT a pass — the visual output will look wrong even if positions are correct.
 
 When it fails, check the rotation mismatches first. Common causes:
 - Assuming fixed rotation per wall face when it varies per point (corner vs side)
 - Missing coordinate conversion for rotation (not just position)
 - Wrong axis convention in the rotation matrix
 
-## Phase 6: Wire into the Graph System
+## Phase 6: Wire into Browser Example
 
-Connect nodes with `connect()`, create a graph with `defineGraph()`, and generate auto UI:
+Since your graph.ts already exports `graphModule`, the example is a thin wrapper:
 
 ```typescript
-import {defineGraph, connect, createRuntime, graphUiConfig} from '@threepipe/plugin-procedural-generation'
+import {_testStart, _testFinish} from 'threepipe'
+import {launchGraphViewer} from '@threepipe/plugin-procedural-generation'
+import {graphModule} from './graph'
 
-const graph = defineGraph(
-    [preprocess, instance1, instance2, join],
-    [
-        connect(preprocess, 'geometry', instance1, 'geometry'),
-        connect(preprocess, 'geometry', instance2, 'geometry'),
-        connect(instance1, 'result', join, 'a'),
-        connect(instance2, 'result', join, 'b'),
-    ],
-)
-
-const rt = createRuntime(graph)
-rt.evaluate()
-
-// Auto-generated UI — one folder per node with settable inputs
-const uiConfig = graphUiConfig(rt, () => {
-    rt.evaluate()
-    rebuildScene()
-}, 'My Generator')
+_testStart()
+launchGraphViewer(graphModule, {
+    cameraPos: [30, 25, 40],
+    cameraTarget: [0, 15, 0],
+}).finally(_testFinish)
 ```
+
+`launchGraphViewer` handles: asset loading, runtime creation, scene building from `GeneratedInstance[]` world matrices, auto-generated UI from PropDef metadata, and selective recompute on UI changes.
+
+For custom scene setup, use `createRuntime` + `graphUiConfig` directly (see `examples/buildify-demo-1/`).
 
 See [Graph System Guide](../docs/graph.md) for the full API.
 
 ## Reference
 
 - [Graph System Guide](../docs/graph.md) — defineNode, defineNodeType, connect, createRuntime, graphUiConfig
-- [Buildify Demo 2](../../examples/buildify-demo-2/) — complete worked example with 8 nodes
+- [GraphModule interface](../src/graph/module.ts) — standard export shape for graph .ts files
+- [Buildify Demo 3](../../examples/buildify-demo-3/) — graph module example (graph.ts + thin viewer script.ts)
+- [Buildify Demo 1](../../examples/buildify-demo-1/) — complete worked example with custom scene setup
 - [Blender source](../../../.repos/blender-gn-source/) — C++ implementations of geometry nodes (at repo root `.repos/blender-gn-source/`)
 - [tree_clipper](https://github.com/Algebraic-UG/tree_clipper) — bl_rna property discovery approach (used in our extraction script)
 - [geonodes](https://github.com/al1brn/geonodes) — typed Python wrappers for every node (useful for socket type reference)
@@ -254,6 +266,10 @@ All scripts in `porting/scripts/`. Tested on Blender 4.0.2 and 5.0.1.
 | `extract_geo_nodes.py` | Dump node tree to JSON (all nodes, links, sockets, sub-groups) |
 | `export_assets.py` | Export referenced collections/objects as .glb |
 | `export_ground_truth.py` | Evaluate modifier and export instance data as JSON (full world matrices) |
-| `compare_ground_truth.ts` | Compare generated output vs ground truth — full 16-value matrix comparison |
-| `create_test_blend.py` | Create a minimal test .blend for script validation |
-| `output_format.md` | Standard JSON format generators must produce |
+| `export_intermediate.py` | Export intermediate point cloud from any node input — for debugging point ordering |
+| `compare.sh` | Convenience wrapper — evaluates a graph .ts and compares against ground truth |
+| `compare_graph.ts` | Import a GraphModule, evaluate, compare all 16 matrix values against ground truth |
+| `compare_ground_truth.ts` | Compare raw JSON files — full 16-value matrix comparison (legacy/debugging) |
+| `create_test_blend.py` | Create minimal test .blend for script validation |
+| `output_format.md` | Standard format for GraphModule outputs and ground truth JSON |
+| `tsconfig.json` | Path aliases for tsx to resolve `@threepipe/plugin-procedural-generation/graph` |

@@ -4,11 +4,13 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [Unreleased]
+## [1.0.0]
 
-### Added
+### Breaking Changes
 
-- NA
+- Basic geometry generators (plane, box, sphere, circle, torus, cylinder) have been moved to core threepipe and are no longer part of this package.
+- `GeometryGeneratorPlugin` has been renamed to `GeometryGeneratorExtrasPlugin`. It now only provides extra generators (text, line) and FontLibrary.
+- If you were importing basic generators from this package, remove the dependency and use the built-in generators from core threepipe instead.
 
 ## [0.7.3] - 2025-10-27
 

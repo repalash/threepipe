@@ -1,5 +1,5 @@
-import {AGeometryGenerator} from '../AGeometryGenerator'
 import {
+    AGeometryGenerator,
     ArcCurve,
     BufferGeometry2,
     CatmullRomCurve3,

@@ -44,6 +44,7 @@ export {
     normalizeAngle, alignEulerToEdgeNormal, pointOnSegment,
     meshToCurveSplitTrim, resampleCurve,
     meshGrid, separateGeometry, storeNamedAttribute, inputNamedAttribute,
+    fromLocRotScale, joinGeometry, transformPoints,
     type CurveSegment, type Vec2, type GridPoint,
 } from './blender/geometry_nodes'
 export {
@@ -56,6 +57,8 @@ export {
 export {defineNode, defineNodeType, defineGraph, connect, applyDefaults, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef, type ResolvedInputs} from './graph/graph'
 export {createRuntime, type Runtime} from './graph/runtime'
 export {graphUiConfig, nodeUiConfig} from './graph/ui'
+export type {GraphModule, GraphEntry, GeneratedInstance, OutputRef} from './graph/module'
+export {launchGraphViewer, loadAssets, buildSceneFromInstances, type GraphViewerOptions} from './viewer/GraphViewer'
 
 // Generators
 export {TerrainGenerator, type TerrainParams} from './generators/TerrainGenerator'

@@ -12,7 +12,11 @@ aside: false
 
 # @threepipe/plugin-geometry-generator
 
-Exports [GeometryGeneratorPlugin](https://threepipe.org/plugins/geometry-generator/docs/classes/BlendLoadPlugin.html) with several Geometry generators to create parametric and updatable geometries like plane, circle, sphere, box, torus, cylinder, cone, curve, text etc.
+::: tip
+Basic geometry generators (plane, box, sphere, circle, torus, cylinder) have moved to core `threepipe` as [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin). This package now provides extra generators: `TextGeometryGenerator`, `LineGeometryGenerator`, `FontLibrary`, and `GeometryGeneratorExtrasPlugin`.
+:::
+
+Exports extra geometry generators (text, line) and `GeometryGeneratorExtrasPlugin` to extend the core [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) with text and line geometry support.
 
 [Example](https://threepipe.org/examples/#geometry-generator-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/geometry-generator/src/index.ts) &mdash;

@@ -1,6 +1,8 @@
 # @threepipe/geometry-generator
 
-Plugins and helpers for [threepipe](https://threepipe.org/) to generate primitive geometries that can be regenerated at runtime.
+> **Breaking Change (v1.0.0):** Basic geometry generators (plane, box, sphere, circle, torus, cylinder) have been moved to core threepipe. This package now only provides extra generators (text, line) and FontLibrary via `GeometryGeneratorExtrasPlugin`. If you were using basic generators from this package, remove the dependency and use the built-in generators from core threepipe instead.
+
+Plugins and helpers for [threepipe](https://threepipe.org/) to generate extra geometries (text, line) that can be regenerated at runtime.
 
 [Github](https://github.com/repalash/threepipe/tree/dev/plugins/geometry-generator) &mdash;
 [Examples](https://threepipe.org/examples/?q=geometry#geometry-generator-plugin/) &mdash;

@@ -24,6 +24,14 @@ export interface IGeometryUserData extends IImportResultUserData{
      */
     isPlaceholder?: boolean
 
+    /**
+     * Parameters used to generate this geometry via {@link GeometryGeneratorPlugin}.
+     * Stored so the geometry can be re-generated from UI or API.
+     */
+    generationParams?: {
+        type: string
+    }
+
     [key: string]: any
 }
 export interface IGeometry<Attributes extends NormalOrGLBufferAttributes = NormalBufferAttributes, TE extends IGeometryEventMap = IGeometryEventMap> extends BufferGeometry<Attributes, TE>, IUiConfigContainer {

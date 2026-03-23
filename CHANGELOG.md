@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.6.0]
+
+### Added
+
+- Add `ShapeTubeExtrudePlugin` — interactive extrusion of flat geometry along a curve path with configurable cross-sections, shape scaling, and multi-material splits
+- Add `tube`, `shape`, and `tubeShape` geometry generators to `GeometryGeneratorPlugin` for creating tubes along curves, flat 2D shapes, and tubes with arbitrary cross-sections
+- Add `TubeShapeGeometry` — extrudes a closed 2D Shape along a 3D Curve path with support for arbitrary cross-section shapes
+- Add `EllipseCurve3D` — 3D version of three.js EllipseCurve for creating circular/elliptical 3D paths
+
+### Changed
+
+- Move basic geometry generators (plane, box, sphere, circle, torus, cylinder) into core threepipe. `@threepipe/plugin-geometry-generator` now only provides extra generators (text, line) and FontLibrary.
+
 ## [0.5.0]
 
 ### Added

@@ -15,9 +15,10 @@ import {
     Object3DWidgetsPlugin,
     PickingPlugin,
     TransformControlsPlugin,
+    GeometryGeneratorPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+import {GeometryGeneratorExtrasPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
 
 // Read more about the example - https://threepipe.org/notes/follow-path-constraint
 
@@ -26,7 +27,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         renderScale: 'auto',
-        plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, ObjectConstraintsPlugin, PopmotionPlugin, Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin],
+        plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, GeometryGeneratorExtrasPlugin, ObjectConstraintsPlugin, PopmotionPlugin, Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin],
         dropzone: false,
     })
     await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')

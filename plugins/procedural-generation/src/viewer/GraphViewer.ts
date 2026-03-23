@@ -24,12 +24,13 @@ import {
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {createRuntime} from '../graph/runtime'
 import {graphUiConfig} from '../graph/ui'
+import {createGraphOverlay} from '../graph/visualizer'
 import type {GraphModule, GeneratedInstance} from '../graph/module'
 import type {ModuleMap} from '../generators/buildify_demo_1'
 
 // ─── Asset loading ───────────────────────────────────────────────────
 
-async function loadAssets(
+export async function loadAssets(
     viewer: ThreeViewer,
     assets: string[],
     basePath: string,
@@ -57,7 +58,7 @@ const _pos = new Vector3()
 const _quat = new Quaternion()
 const _scale = new Vector3()
 
-function buildSceneFromInstances(
+export function buildSceneFromInstances(
     instances: GeneratedInstance[],
     modules: ModuleMap,
 ): Group2 {
@@ -173,33 +174,30 @@ export async function launchGraphViewer(
     const modules = await loadAssets(viewer, gm.assets, basePath)
     console.log(`Loaded ${modules.size}/${gm.assets.length} assets`)
 
-    // Create runtime
-    const rt = createRuntime(gm.graph)
-    rt.evaluate()
+    // Create one runtime per graph
+    const runtimes = gm.graphs.map(({graph}) => {
+        const rt = createRuntime(graph)
+        rt.evaluate()
+        return rt
+    })
 
     // Build scene
     let roots: Group2[] = []
 
     const rebuild = () => {
-        rt.evaluate()
-        // Remove old
         for (const r of roots) r.removeFromParent()
         roots = []
-        // Build new from each output
-        for (const ref of gm.outputs) {
-            const instances = rt.get(ref.node, ref.output) as GeneratedInstance[]
-            if (!Array.isArray(instances)) continue
-            const group = buildSceneFromInstances(instances, modules)
-            group.name = ref.node.name
-            // Log bounding box for debugging
-            const box = new Box3()
-            group.traverse((c: any) => { if (c.isMesh && c.geometry) c.geometry.computeBoundingBox?.() })
-            box.setFromObject(group)
-            console.log(`${ref.node.name}: ${instances.length} inst → ${group.children.length} rendered`)
-            console.log(`  bbox min: (${box.min.x.toFixed(2)}, ${box.min.y.toFixed(2)}, ${box.min.z.toFixed(2)})`)
-            console.log(`  bbox max: (${box.max.x.toFixed(2)}, ${box.max.y.toFixed(2)}, ${box.max.z.toFixed(2)})`)
-            viewer.scene.addObject(group)
-            roots.push(group)
+        for (let gi = 0; gi < gm.graphs.length; gi++) {
+            runtimes[gi].evaluate()
+            for (const ref of gm.graphs[gi].outputs) {
+                const instances = runtimes[gi].get(ref.node, ref.output) as GeneratedInstance[]
+                if (!Array.isArray(instances)) continue
+                const group = buildSceneFromInstances(instances, modules)
+                group.name = ref.node.name
+                console.log(`${ref.node.name}: ${instances.length} inst → ${group.children.length} rendered`)
+                viewer.scene.addObject(group)
+                roots.push(group)
+            }
         }
         viewer.setDirty()
     }
@@ -211,10 +209,28 @@ export async function launchGraphViewer(
     viewer.scene.mainCamera.target = new Vector3(...cameraTarget)
     viewer.scene.mainCamera.setDirty?.()
 
-    // UI
+    // UI — one folder per graph
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(SSAOPlugin)
-    ui.appendChild(graphUiConfig(rt, rebuild, 'Procedural Generation'))
+    for (let gi = 0; gi < runtimes.length; gi++) {
+        const label = gm.graphs[gi].outputs[0]?.node.name ?? `Graph ${gi}`
+        ui.appendChild(graphUiConfig(runtimes[gi], rebuild, label))
+    }
+
+    // Graph visualizer toggle
+    ui.appendChild({
+        type: 'button', label: 'Show Graph',
+        onChange: () => {
+            const existing = document.getElementById('graph-overlay')
+            if (existing) { existing.remove(); return }
+            const overlay = createGraphOverlay(gm.graphs.map((g, i) => ({
+                graph: g.graph,
+                label: g.outputs[0]?.node.name ?? `Graph ${i}`,
+            })))
+            overlay.id = 'graph-overlay'
+            document.body.appendChild(overlay)
+        },
+    })
 
     return {viewer, rebuild}
 }

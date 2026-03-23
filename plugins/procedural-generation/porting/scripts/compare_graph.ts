@@ -192,36 +192,39 @@ async function main() {
         process.exit(1)
     }
 
-    if (!graphModule.graph || !graphModule.outputs || graphModule.outputs.length === 0) {
-        console.error(`\n✗ ERROR: graphModule is missing required fields (graph, outputs)`)
+    if (!graphModule.graphs || graphModule.graphs.length === 0) {
+        console.error(`\n✗ ERROR: graphModule is missing required fields (graphs)`)
         process.exit(1)
     }
 
-    // 2. Create runtime and evaluate
-    const rt = createRuntime(graphModule.graph)
-    rt.evaluate()
-
-    // 3. Collect instances from all declared outputs
+    // 2. Evaluate each graph and collect instances
     const allGenerated: GeneratedInstance[][] = []
-    for (const ref of graphModule.outputs) {
-        const instances = rt.get(ref.node, ref.output) as GeneratedInstance[]
-        if (!Array.isArray(instances)) {
-            console.error(`\n✗ ERROR: Output '${ref.output}' on node '${ref.node.name}' is not an array`)
-            process.exit(1)
-        }
-        // Validate format
-        if (instances.length > 0) {
-            const first = instances[0]
-            if (!first.world_matrix || first.world_matrix.length !== 16) {
-                console.error(`\n✗ ERROR: Instances must have world_matrix (16 floats). Got: ${JSON.stringify(first).slice(0, 100)}`)
-                console.error('See porting/scripts/output_format.md for the required format.')
+    const labels: string[] = []
+
+    for (const entry of graphModule.graphs) {
+        const rt = createRuntime(entry.graph)
+        rt.evaluate()
+
+        for (const ref of entry.outputs) {
+            const instances = rt.get(ref.node, ref.output) as GeneratedInstance[]
+            if (!Array.isArray(instances)) {
+                console.error(`\n✗ ERROR: Output '${ref.output}' on node '${ref.node.name}' is not an array`)
                 process.exit(1)
             }
+            if (instances.length > 0) {
+                const first = instances[0]
+                if (!first.world_matrix || first.world_matrix.length !== 16) {
+                    console.error(`\n✗ ERROR: Instances must have world_matrix (16 floats). Got: ${JSON.stringify(first).slice(0, 100)}`)
+                    console.error('See porting/scripts/output_format.md for the required format.')
+                    process.exit(1)
+                }
+            }
+            allGenerated.push(instances)
+            labels.push(ref.node.name || `Output ${allGenerated.length - 1}`)
         }
-        allGenerated.push(instances)
     }
 
-    // 4. Load ground truth
+    // 3. Load ground truth
     const gtConfigs = loadGroundTruth(gtPath)
 
     console.log(`\nGraph outputs: ${allGenerated.length} config(s), Ground truth: ${gtConfigs.length} config(s)`)
@@ -231,12 +234,11 @@ async function main() {
         console.warn(`  Will compare min(${allGenerated.length}, ${gtConfigs.length}) configs`)
     }
 
-    // 5. Compare each config
+    // 4. Compare each config
     const n = Math.min(allGenerated.length, gtConfigs.length)
     let allPass = true
     for (let i = 0; i < n; i++) {
-        const label = graphModule.outputs[i].node.name || `Config ${i}`
-        const pass = compareInstances(allGenerated[i], gtConfigs[i], label)
+        const pass = compareInstances(allGenerated[i], gtConfigs[i], labels[i])
         if (!pass) allPass = false
     }
 

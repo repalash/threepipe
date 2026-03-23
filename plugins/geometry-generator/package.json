@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-geometry-generator",
-    "description": "Geometry generator plugin to create updatable parametric objects/geometries.",
-    "version": "0.7.0",
+    "description": "Extra geometry generators (text, line) and FontLibrary for threepipe. Basic generators (plane, box, sphere, circle, torus, cylinder) have moved to core threepipe.",
+    "version": "1.0.0",
     "devDependencies": {
     },
     "dependencies": {

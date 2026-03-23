@@ -1,23 +1,14 @@
-import {
-    BufferAttribute,
-    BufferGeometry,
-    BufferGeometry2,
-    Class,
-    Float32BufferAttribute,
-    generateUiConfig,
-    getOrCall,
-    IGeometry, IMaterial, IObject3D, LineGeometry2, Mesh2, PhysicalMaterial,
-    UiObjectConfig,
-} from 'threepipe'
+import {BufferAttribute, BufferGeometry, Float32BufferAttribute} from 'three'
+import {Class, getOrCall} from 'ts-browser-helpers'
+import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
+import {IGeometry} from '../../core/IGeometry'
+import {IMaterial} from '../../core/IMaterial'
+import {IObject3D} from '../../core/IObject'
+import {BufferGeometry2} from '../../core/geometry/BufferGeometry2'
+import {LineGeometry2} from '../../core/geometry/LineGeometry2'
+import {Mesh2} from '../../core/object/Mesh2'
+import {PhysicalMaterial} from '../../core/material/PhysicalMaterial'
 
-declare module 'threepipe'{
-    interface IGeometryUserData{
-        generationParams?: {
-            type: string
-            // [key: string]: any
-        }
-    }
-}
 export interface GeometryGenerator<T=any>{
     generate(g?: IGeometry, parameters?: T): IGeometry
     createUiConfig?(geometry: IGeometry): UiObjectConfig[]
@@ -77,6 +68,15 @@ export function removeUi(geometry: BufferGeometry) {
     }
 }
 
+/**
+ * Abstract base class for geometry generators.
+ *
+ * Provides the framework for generating parametric geometries with automatic
+ * UI configuration and buffer management. Subclasses implement {@link _generateData}
+ * to define the actual vertex/index data for a specific geometry type.
+ *
+ * @category Plugins
+ */
 export abstract class AGeometryGenerator<Tp extends object=any, Tt extends string = string> implements GeometryGenerator<Tp> {
     constructor(public type: Tt) {
     }

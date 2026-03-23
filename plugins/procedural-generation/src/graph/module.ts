@@ -29,20 +29,32 @@ export interface OutputRef {
     output: string
 }
 
-/**
- * Standard export shape for a procedural graph file.
- *
- * Usage in a graph .ts file:
- * ```ts
- * export const graphModule: GraphModule = { graph, outputs: [...], assets: [...] }
- * ```
- */
-export interface GraphModule {
+/** A single graph with its output references. */
+export interface GraphEntry {
     /** The graph definition. */
     graph: GraphDef
     /** Which node outputs produce GeneratedInstance[] arrays. */
     outputs: OutputRef[]
-    /** Asset filenames the viewer needs to load (e.g. ['window.glb', 'door.glb']). */
+}
+
+/**
+ * Standard export shape for a procedural graph file.
+ * Each entry in `graphs` is an independent graph with its own runtime.
+ *
+ * Usage in a graph .ts file:
+ * ```ts
+ * export const graphModule: GraphModule = {
+ *     graphs: [
+ *         { graph: buildingGraph, outputs: [{node: join, output: 'instances'}] },
+ *     ],
+ *     assets: ['window.glb', 'door.glb'],
+ * }
+ * ```
+ */
+export interface GraphModule {
+    /** One or more independent graphs, each evaluated with its own runtime. */
+    graphs: GraphEntry[]
+    /** Asset filenames the viewer needs to load. Shared across all graphs. */
     assets: string[]
     /** Base path for assets. Defaults to './assets/' in the viewer. */
     assetsPath?: string

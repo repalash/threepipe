@@ -2,6 +2,7 @@ import {
     _testFinish,
     _testStart,
     AnimationObjectPlugin,
+    GeometryGeneratorPlugin,
     IMaterial,
     LineMaterial2,
     LoadingScreenPlugin,
@@ -9,8 +10,9 @@ import {
     Path,
     PickingPlugin,
     ThreeViewer,
+    Vector3,
 } from 'threepipe'
-import {FontLibrary, GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
@@ -21,6 +23,7 @@ async function init() {
         plugins: [PickingPlugin, Object3DGeneratorPlugin, LoadingScreenPlugin, AnimationObjectPlugin],
     })
     const generator = viewer.addPluginSync(GeometryGeneratorPlugin)
+    viewer.addPluginSync(GeometryGeneratorExtrasPlugin)
 
     await FontLibrary.Init // required for text geometry generation
 
@@ -75,6 +78,22 @@ async function init() {
         console.log(obj)
     })
 
+    // ── Camera ──
+    const camera = viewer.scene.mainCamera
+    camera.position.set(0.08, 0.17, 8.67)
+    camera.target = new Vector3(-0.19, 1.18, 0)
+    camera.setDirty?.()
+
+    const baseFov = 38
+    function refreshFov() {
+        const size = viewer.renderManager.renderSize
+        camera.fov = baseFov * (size.y / size.x)
+        camera.updateProjectionMatrix()
+    }
+    refreshFov()
+    viewer.renderManager.addEventListener('resize', refreshFov)
+
+    // ── UI ──
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(AnimationObjectPlugin)
     ui.setupPluginUi(GeometryGeneratorPlugin)

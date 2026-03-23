@@ -1,4 +1,4 @@
-import {Vector3} from 'threepipe'
+import {Vector3} from 'three'
 import {AGeometryGenerator} from '../AGeometryGenerator'
 
 export interface SphereGeometryGeneratorParams {

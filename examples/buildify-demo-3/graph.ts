@@ -274,21 +274,19 @@ function gfExtraFilter(
     return result
 }
 
-// ─── Asset options for dropdowns ────────────────────────────────────
+// ─── Node types (top-level, matching Blender's node editor) ─────────
 
-const wallModuleOptions = (prefix: string) => {
+const allModuleOptions = [...new Set(['B1', 'B2', 'B3'].flatMap(prefix => {
     const p = (name: string) => `object_${prefix}_${name}.glb`
     return [p('Ground_floor'), p('Ground_floor_corner'), p('Window'), p('Window_corner'),
         p('Top_floor_window'), p('Top_floor_window_corner'), p('Top_floors_div'),
         p('Top_floors_div_corner'), p('Roof_side'), p('Roof_middle'), p('Roof_corner')]
-}
-const allModuleOptions = [...new Set(['B1', 'B2', 'B3'].flatMap(wallModuleOptions))]
+}))]
 const modOpts = {options: allModuleOptions}
 
-// ─── Single building node type ──────────────────────────────────────
-// All modifier inputs in one node, matching Blender's modifier panel.
-
-const ProceduralBuildingType = defineNodeType(
+// Group Input — all 40 modifier inputs. Outputs mirror inputs (pass-through).
+// This is the equivalent of Blender's Group Input nodes.
+const GroupInputType = defineNodeType(
     {
         // Dimensions
         X: {default: 5, ui: {label: 'X', bounds: [1, 15], stepSize: 1}},
@@ -299,152 +297,303 @@ const ProceduralBuildingType = defineNodeType(
         gfHeight: {default: 3.5, ui: {label: 'GF height', bounds: [2.0, 6.0], stepSize: 0.1}},
         winHeight: {default: 4.0, ui: {label: 'Window height', bounds: [2.0, 6.0], stepSize: 0.1}},
         divHeight: {default: 0.6, ui: {label: 'Div height', bounds: [0.1, 2.0], stepSize: 0.1}},
-        // Module slots (ObjectInfo equivalents)
-        gfObj: {default: 'object_B1_Ground_floor.glb', ui: {label: 'GF', ...modOpts}},
-        gfCornerObj: {default: 'object_B1_Ground_floor_corner.glb', ui: {label: 'GF corner', ...modOpts}},
-        windowObj: {default: 'object_B1_Window.glb', ui: {label: 'Window', ...modOpts}},
-        windowCornerObj: {default: 'object_B1_Window_corner.glb', ui: {label: 'Window corner', ...modOpts}},
-        tfWindowObj: {default: 'object_B1_Top_floor_window.glb', ui: {label: 'TF window', ...modOpts}},
-        tfWindowCornerObj: {default: 'object_B1_Top_floor_window_corner.glb', ui: {label: 'TF window corner', ...modOpts}},
-        divSideObj: {default: 'object_B1_Top_floors_div.glb', ui: {label: 'Div side', ...modOpts}},
-        divCornerObj: {default: 'object_B1_Top_floors_div_corner.glb', ui: {label: 'Div corner', ...modOpts}},
-        roofSideObj: {default: 'object_B1_Roof_side.glb', ui: {label: 'Roof side', ...modOpts}},
-        roofMiddleObj: {default: 'object_B1_Roof_middle.glb', ui: {label: 'Roof middle', ...modOpts}},
-        roofCornerObj: {default: 'object_B1_Roof_corner.glb', ui: {label: 'Roof corner', ...modOpts}},
-        // Extra controls
+        // Module objects
+        gfObj: {default: '', ui: {label: 'GF', ...modOpts}},
+        gfCornerObj: {default: '', ui: {label: 'GF corner', ...modOpts}},
+        windowObj: {default: '', ui: {label: 'Window', ...modOpts}},
+        windowCornerObj: {default: '', ui: {label: 'Window corner', ...modOpts}},
+        tfWindowObj: {default: '', ui: {label: 'TF window', ...modOpts}},
+        tfWindowCornerObj: {default: '', ui: {label: 'TF window corner', ...modOpts}},
+        divSideObj: {default: '', ui: {label: 'Div side', ...modOpts}},
+        divCornerObj: {default: '', ui: {label: 'Div corner', ...modOpts}},
+        roofSideObj: {default: '', ui: {label: 'Roof side', ...modOpts}},
+        roofMiddleObj: {default: '', ui: {label: 'Roof middle', ...modOpts}},
+        roofCornerObj: {default: '', ui: {label: 'Roof corner', ...modOpts}},
+        // Extra 1
+        extra1Members: [] as string[],
         extra1Amount: {default: 50, ui: {label: 'Extra 1 Amount', bounds: [0, 100], stepSize: 1}},
         extra1Seed: {default: 1, ui: {label: 'Extra 1 Seed', bounds: [0, 100], stepSize: 1}},
         extra1InclWin: {default: true, ui: {label: 'Extra 1 Incl. windows'}},
         extra1InclTF: {default: false, ui: {label: 'Extra 1 Incl. top floors'}},
+        // Extra 2
+        extra2Members: [] as string[],
         extra2Amount: {default: 50, ui: {label: 'Extra 2 Amount', bounds: [0, 100], stepSize: 1}},
         extra2Seed: {default: 1, ui: {label: 'Extra 2 Seed', bounds: [0, 100], stepSize: 1}},
         extra2InclWin: {default: true, ui: {label: 'Extra 2 Incl. windows'}},
         extra2InclTF: {default: true, ui: {label: 'Extra 2 Incl. top floors'}},
+        // GF Extra 1
+        gfExtra1Members: [] as string[],
         gfExtra1Amount: {default: 50, ui: {label: 'GF Extra 1 Amount', bounds: [0, 100], stepSize: 1}},
         gfExtra1Seed: {default: 1, ui: {label: 'GF Extra 1 Seed', bounds: [0, 100], stepSize: 1}},
         gfExtra1InclSides: {default: true, ui: {label: 'GF Extra 1 Incl. sides'}},
         gfExtra1InclCorners: {default: true, ui: {label: 'GF Extra 1 Incl. corners'}},
+        // GF Extra 2
+        gfExtra2Members: [] as string[],
         gfExtra2Amount: {default: 50, ui: {label: 'GF Extra 2 Amount', bounds: [0, 100], stepSize: 1}},
         gfExtra2Seed: {default: 1, ui: {label: 'GF Extra 2 Seed', bounds: [0, 100], stepSize: 1}},
         gfExtra2InclSides: {default: true, ui: {label: 'GF Extra 2 Incl. sides'}},
         gfExtra2InclCorners: {default: true, ui: {label: 'GF Extra 2 Incl. corners'}},
-        // Collection members (internal — arrays of GLB filenames)
-        extra1Members: [] as string[],
-        extra2Members: [] as string[],
-        gfExtra1Members: [] as string[],
-        gfExtra2Members: [] as string[],
-        // Internal (won't appear in UI)
+        // Origin (internal)
+        originX: 0,
+    },
+    {
+        // Outputs mirror all inputs as pass-through
+        X: 0, Y: 0, Z: 0, topFloors: 0, modLen: 0, gfHeight: 0, winHeight: 0, divHeight: 0,
+        gfObj: '', gfCornerObj: '', windowObj: '', windowCornerObj: '',
+        tfWindowObj: '', tfWindowCornerObj: '', divSideObj: '', divCornerObj: '',
+        roofSideObj: '', roofMiddleObj: '', roofCornerObj: '',
+        extra1Members: [] as string[], extra1Amount: 0, extra1Seed: 0, extra1InclWin: false, extra1InclTF: false,
+        extra2Members: [] as string[], extra2Amount: 0, extra2Seed: 0, extra2InclWin: false, extra2InclTF: false,
+        gfExtra1Members: [] as string[], gfExtra1Amount: 0, gfExtra1Seed: 0, gfExtra1InclSides: false, gfExtra1InclCorners: false,
+        gfExtra2Members: [] as string[], gfExtra2Amount: 0, gfExtra2Seed: 0, gfExtra2InclSides: false, gfExtra2InclCorners: false,
+        originX: 0,
+    },
+    (inp) => ({...inp}),
+)
+
+// Internal node types — receive all values via connections from GroupInput
+
+const WindowsPointsType = defineNodeType(
+    {X: 0, Y: 0, Z: 0, topFloors: 0, modLen: 0, gfHeight: 0, winHeight: 0, divHeight: 0},
+    {gf: [] as WallPoint[], gfCorner: [] as WallPoint[], window: [] as WallPoint[], windowCorner: [] as WallPoint[], topFloorSide: [] as WallPoint[], topFloorCorner: [] as WallPoint[]},
+    (inp) => windowsPoints(inp.X, inp.Y, inp.Z, inp.topFloors, inp.modLen, inp.gfHeight, inp.winHeight, inp.divHeight),
+)
+
+const RoofPointsType = defineNodeType(
+    {X: 0, Y: 0, Z: 0, topFloors: 0, modLen: 0, gfHeight: 0, winHeight: 0, divHeight: 0},
+    {divSide: [] as WallPoint[], divCorner: [] as WallPoint[], roofSide: [] as WallPoint[], roofMiddle: [] as WallPoint[], roofCorner: [] as WallPoint[]},
+    (inp) => roofPointsFn(inp.X, inp.Y, inp.Z, inp.topFloors, inp.modLen, inp.gfHeight, inp.winHeight, inp.divHeight),
+)
+
+const WindowsInstancesType = defineNodeType(
+    {
+        gf: [] as WallPoint[], gfCorner: [] as WallPoint[],
+        window: [] as WallPoint[], windowCorner: [] as WallPoint[],
+        topFloor: [] as WallPoint[], topFloorCorner: [] as WallPoint[],
+        gfObj: '', gfCornerObj: '', windowObj: '', windowCornerObj: '', tfWindowObj: '', tfWindowCornerObj: '',
         originX: 0,
     },
     {instances: [] as GeneratedInstance[]},
-    (inp) => {
-        const {X, Y, Z, topFloors, modLen, gfHeight: gfH, winHeight: winH, divHeight: divH, originX} = inp
-
-        // Windows + Roof points
-        const wp = windowsPoints(X, Y, Z, topFloors, modLen, gfH, winH, divH)
-        const rp = roofPointsFn(X, Y, Z, topFloors, modLen, gfH, winH, divH)
-
-        // Wall instances
-        const walls = [
-            ...pointsToInstances(wp.gf, inp.gfObj, originX),
-            ...pointsToInstances(wp.gfCorner, inp.gfCornerObj, originX),
-            ...pointsToInstances(wp.window, inp.windowObj, originX),
-            ...pointsToInstances(wp.windowCorner, inp.windowCornerObj, originX),
-            ...pointsToInstances(wp.topFloorSide, inp.tfWindowObj, originX),
-            ...pointsToInstances(wp.topFloorCorner, inp.tfWindowCornerObj, originX),
-            ...pointsToInstances(rp.divSide, inp.divSideObj, originX),
-            ...pointsToInstances(rp.divCorner, inp.divCornerObj, originX),
-            ...pointsToInstances(rp.roofSide, inp.roofSideObj, originX),
-            ...pointsToInstances(rp.roofMiddle, inp.roofMiddleObj, originX),
-            ...pointsToInstances(rp.roofCorner, inp.roofCornerObj, originX),
-        ]
-
-        // Extras
-        const ex1pts = extraFilter(wp.window, wp.windowCorner, wp.topFloorSide, wp.topFloorCorner,
-            inp.extra1Amount, inp.extra1Seed, inp.extra1InclWin, inp.extra1InclTF)
-        const ex2pts = extraFilter(wp.window, wp.windowCorner, wp.topFloorSide, wp.topFloorCorner,
-            inp.extra2Amount, inp.extra2Seed, inp.extra2InclWin, inp.extra2InclTF)
-        const gfe1pts = gfExtraFilter(wp.gf, wp.gfCorner,
-            inp.gfExtra1Amount, inp.gfExtra1Seed, inp.gfExtra1InclSides, inp.gfExtra1InclCorners)
-        const gfe2pts = gfExtraFilter(wp.gf, wp.gfCorner,
-            inp.gfExtra2Amount, inp.gfExtra2Seed, inp.gfExtra2InclSides, inp.gfExtra2InclCorners)
-
-        const extras = [
-            ...filteredToInstances(ex1pts, inp.extra1Members, originX),
-            ...filteredToInstances(ex2pts, inp.extra2Members, originX),
-            ...filteredToInstances(gfe1pts, inp.gfExtra1Members, originX),
-            ...filteredToInstances(gfe2pts, inp.gfExtra2Members, originX),
-        ]
-
-        return {instances: [...walls, ...extras]}
-    },
+    (inp) => ({instances: [
+        ...pointsToInstances(inp.gf, inp.gfObj, inp.originX),
+        ...pointsToInstances(inp.gfCorner, inp.gfCornerObj, inp.originX),
+        ...pointsToInstances(inp.window, inp.windowObj, inp.originX),
+        ...pointsToInstances(inp.windowCorner, inp.windowCornerObj, inp.originX),
+        ...pointsToInstances(inp.topFloor, inp.tfWindowObj, inp.originX),
+        ...pointsToInstances(inp.topFloorCorner, inp.tfWindowCornerObj, inp.originX),
+    ]}),
 )
+
+const RoofInstancesType = defineNodeType(
+    {
+        divSide: [] as WallPoint[], divCorner: [] as WallPoint[],
+        roofSide: [] as WallPoint[], roofMiddle: [] as WallPoint[], roofCorner: [] as WallPoint[],
+        divSideObj: '', divCornerObj: '', roofSideObj: '', roofMiddleObj: '', roofCornerObj: '',
+        originX: 0,
+    },
+    {instances: [] as GeneratedInstance[]},
+    (inp) => ({instances: [
+        ...pointsToInstances(inp.divSide, inp.divSideObj, inp.originX),
+        ...pointsToInstances(inp.divCorner, inp.divCornerObj, inp.originX),
+        ...pointsToInstances(inp.roofSide, inp.roofSideObj, inp.originX),
+        ...pointsToInstances(inp.roofMiddle, inp.roofMiddleObj, inp.originX),
+        ...pointsToInstances(inp.roofCorner, inp.roofCornerObj, inp.originX),
+    ]}),
+)
+
+const ExtraType = defineNodeType(
+    {
+        window: [] as WallPoint[], windowCorner: [] as WallPoint[],
+        topFloor: [] as WallPoint[], topFloorCorner: [] as WallPoint[],
+        members: [] as string[], amount: 0, seed: 0, inclWin: false, inclTF: false, originX: 0,
+    },
+    {instances: [] as GeneratedInstance[]},
+    (inp) => ({instances: filteredToInstances(
+        extraFilter(inp.window, inp.windowCorner, inp.topFloor, inp.topFloorCorner, inp.amount, inp.seed, inp.inclWin, inp.inclTF),
+        inp.members, inp.originX,
+    )}),
+)
+
+const GFExtraType = defineNodeType(
+    {
+        gf: [] as WallPoint[], gfCorner: [] as WallPoint[],
+        members: [] as string[], amount: 0, seed: 0, inclSides: false, inclCorners: false, originX: 0,
+    },
+    {instances: [] as GeneratedInstance[]},
+    (inp) => ({instances: filteredToInstances(
+        gfExtraFilter(inp.gf, inp.gfCorner, inp.amount, inp.seed, inp.inclSides, inp.inclCorners),
+        inp.members, inp.originX,
+    )}),
+)
+
+const JoinType = defineNodeType(
+    {a: [] as GeneratedInstance[], b: [] as GeneratedInstance[]},
+    {instances: [] as GeneratedInstance[]},
+    (inp) => ({instances: [...inp.a, ...inp.b]}),
+)
+
+// ─── Building graph factory ─────────────────────────────────────────
+// One call = one building graph with all internal nodes + connections.
+// Matches the "Procedural Building" node tree in Blender.
+
+interface BuildingParams {
+    dims: {X: number, Y: number, Z: number, topFloors: number, modLen: number, gfH: number, winH: number, divH: number}
+    originX: number
+    prefix: string
+    extra1: {members: string[], amount: number, seed: number, inclWin: boolean, inclTF: boolean}
+    extra2: {members: string[], amount: number, seed: number, inclWin: boolean, inclTF: boolean}
+    gfExtra1: {members: string[], amount: number, seed: number, inclSides: boolean, inclCorners: boolean}
+    gfExtra2: {members: string[], amount: number, seed: number, inclSides: boolean, inclCorners: boolean}
+}
+
+function createBuildingGraph(name: string, p: BuildingParams) {
+    const obj = (n: string) => `object_${p.prefix}_${n}.glb`
+    const d = p.dims
+
+    // Group Input — the single node with all modifier inputs (UI controls)
+    const gi = GroupInputType(name, {
+        X: d.X, Y: d.Y, Z: d.Z, topFloors: d.topFloors,
+        modLen: d.modLen, gfHeight: d.gfH, winHeight: d.winH, divHeight: d.divH,
+        gfObj: obj('Ground_floor'), gfCornerObj: obj('Ground_floor_corner'),
+        windowObj: obj('Window'), windowCornerObj: obj('Window_corner'),
+        tfWindowObj: obj('Top_floor_window'), tfWindowCornerObj: obj('Top_floor_window_corner'),
+        divSideObj: obj('Top_floors_div'), divCornerObj: obj('Top_floors_div_corner'),
+        roofSideObj: obj('Roof_side'), roofMiddleObj: obj('Roof_middle'), roofCornerObj: obj('Roof_corner'),
+        extra1Members: p.extra1.members, extra1Amount: p.extra1.amount, extra1Seed: p.extra1.seed, extra1InclWin: p.extra1.inclWin, extra1InclTF: p.extra1.inclTF,
+        extra2Members: p.extra2.members, extra2Amount: p.extra2.amount, extra2Seed: p.extra2.seed, extra2InclWin: p.extra2.inclWin, extra2InclTF: p.extra2.inclTF,
+        gfExtra1Members: p.gfExtra1.members, gfExtra1Amount: p.gfExtra1.amount, gfExtra1Seed: p.gfExtra1.seed, gfExtra1InclSides: p.gfExtra1.inclSides, gfExtra1InclCorners: p.gfExtra1.inclCorners,
+        gfExtra2Members: p.gfExtra2.members, gfExtra2Amount: p.gfExtra2.amount, gfExtra2Seed: p.gfExtra2.seed, gfExtra2InclSides: p.gfExtra2.inclSides, gfExtra2InclCorners: p.gfExtra2.inclCorners,
+        originX: p.originX,
+    })
+
+    // Internal nodes — all inputs connected from GroupInput
+    const wp = WindowsPointsType(`${name} Windows points`)
+    const rp = RoofPointsType(`${name} Roof points`)
+    const wi = WindowsInstancesType(`${name} Windows instances`)
+    const ri = RoofInstancesType(`${name} Roof instances`)
+    const ex1 = ExtraType(`${name} Extra 1`)
+    const ex2 = ExtraType(`${name} Extra 2`)
+    const gfe1 = GFExtraType(`${name} GF Extra 1`)
+    const gfe2 = GFExtraType(`${name} GF Extra 2`)
+    const joinW = JoinType(`${name} Join Walls`)
+    const joinE = JoinType(`${name} Join Extras`)
+    const joinE2 = JoinType(`${name} Join GF Extras`)
+    const joinE3 = JoinType(`${name} Join All Extras`)
+    const joinFinal = JoinType(`${name}`)
+
+    const graph = defineGraph(
+        [gi, wp, rp, wi, ri, ex1, ex2, gfe1, gfe2, joinW, joinE, joinE2, joinE3, joinFinal],
+        [
+            // GroupInput → Windows points (dimensions)
+            connect(gi, 'X', wp, 'X'), connect(gi, 'Y', wp, 'Y'), connect(gi, 'Z', wp, 'Z'),
+            connect(gi, 'topFloors', wp, 'topFloors'), connect(gi, 'modLen', wp, 'modLen'),
+            connect(gi, 'gfHeight', wp, 'gfHeight'), connect(gi, 'winHeight', wp, 'winHeight'), connect(gi, 'divHeight', wp, 'divHeight'),
+            // GroupInput → Roof points (dimensions)
+            connect(gi, 'X', rp, 'X'), connect(gi, 'Y', rp, 'Y'), connect(gi, 'Z', rp, 'Z'),
+            connect(gi, 'topFloors', rp, 'topFloors'), connect(gi, 'modLen', rp, 'modLen'),
+            connect(gi, 'gfHeight', rp, 'gfHeight'), connect(gi, 'winHeight', rp, 'winHeight'), connect(gi, 'divHeight', rp, 'divHeight'),
+            // GroupInput → Windows instances (module objects + origin)
+            connect(gi, 'gfObj', wi, 'gfObj'), connect(gi, 'gfCornerObj', wi, 'gfCornerObj'),
+            connect(gi, 'windowObj', wi, 'windowObj'), connect(gi, 'windowCornerObj', wi, 'windowCornerObj'),
+            connect(gi, 'tfWindowObj', wi, 'tfWindowObj'), connect(gi, 'tfWindowCornerObj', wi, 'tfWindowCornerObj'),
+            connect(gi, 'originX', wi, 'originX'),
+            // GroupInput → Roof instances (module objects + origin)
+            connect(gi, 'divSideObj', ri, 'divSideObj'), connect(gi, 'divCornerObj', ri, 'divCornerObj'),
+            connect(gi, 'roofSideObj', ri, 'roofSideObj'), connect(gi, 'roofMiddleObj', ri, 'roofMiddleObj'), connect(gi, 'roofCornerObj', ri, 'roofCornerObj'),
+            connect(gi, 'originX', ri, 'originX'),
+            // GroupInput → Extra 1
+            connect(gi, 'extra1Members', ex1, 'members'), connect(gi, 'extra1Amount', ex1, 'amount'),
+            connect(gi, 'extra1Seed', ex1, 'seed'), connect(gi, 'extra1InclWin', ex1, 'inclWin'), connect(gi, 'extra1InclTF', ex1, 'inclTF'),
+            connect(gi, 'originX', ex1, 'originX'),
+            // GroupInput → Extra 2
+            connect(gi, 'extra2Members', ex2, 'members'), connect(gi, 'extra2Amount', ex2, 'amount'),
+            connect(gi, 'extra2Seed', ex2, 'seed'), connect(gi, 'extra2InclWin', ex2, 'inclWin'), connect(gi, 'extra2InclTF', ex2, 'inclTF'),
+            connect(gi, 'originX', ex2, 'originX'),
+            // GroupInput → GF Extra 1
+            connect(gi, 'gfExtra1Members', gfe1, 'members'), connect(gi, 'gfExtra1Amount', gfe1, 'amount'),
+            connect(gi, 'gfExtra1Seed', gfe1, 'seed'), connect(gi, 'gfExtra1InclSides', gfe1, 'inclSides'), connect(gi, 'gfExtra1InclCorners', gfe1, 'inclCorners'),
+            connect(gi, 'originX', gfe1, 'originX'),
+            // GroupInput → GF Extra 2
+            connect(gi, 'gfExtra2Members', gfe2, 'members'), connect(gi, 'gfExtra2Amount', gfe2, 'amount'),
+            connect(gi, 'gfExtra2Seed', gfe2, 'seed'), connect(gi, 'gfExtra2InclSides', gfe2, 'inclSides'), connect(gi, 'gfExtra2InclCorners', gfe2, 'inclCorners'),
+            connect(gi, 'originX', gfe2, 'originX'),
+            // Windows points → instances
+            connect(wp, 'gf', wi, 'gf'), connect(wp, 'gfCorner', wi, 'gfCorner'),
+            connect(wp, 'window', wi, 'window'), connect(wp, 'windowCorner', wi, 'windowCorner'),
+            connect(wp, 'topFloorSide', wi, 'topFloor'), connect(wp, 'topFloorCorner', wi, 'topFloorCorner'),
+            // Roof points → instances
+            connect(rp, 'divSide', ri, 'divSide'), connect(rp, 'divCorner', ri, 'divCorner'),
+            connect(rp, 'roofSide', ri, 'roofSide'), connect(rp, 'roofMiddle', ri, 'roofMiddle'), connect(rp, 'roofCorner', ri, 'roofCorner'),
+            // Extras receive window/topFloor/gf points
+            connect(wp, 'window', ex1, 'window'), connect(wp, 'windowCorner', ex1, 'windowCorner'),
+            connect(wp, 'topFloorSide', ex1, 'topFloor'), connect(wp, 'topFloorCorner', ex1, 'topFloorCorner'),
+            connect(wp, 'window', ex2, 'window'), connect(wp, 'windowCorner', ex2, 'windowCorner'),
+            connect(wp, 'topFloorSide', ex2, 'topFloor'), connect(wp, 'topFloorCorner', ex2, 'topFloorCorner'),
+            connect(wp, 'gf', gfe1, 'gf'), connect(wp, 'gfCorner', gfe1, 'gfCorner'),
+            connect(wp, 'gf', gfe2, 'gf'), connect(wp, 'gfCorner', gfe2, 'gfCorner'),
+            // Joins
+            connect(wi, 'instances', joinW, 'a'), connect(ri, 'instances', joinW, 'b'),
+            connect(ex1, 'instances', joinE, 'a'), connect(ex2, 'instances', joinE, 'b'),
+            connect(gfe1, 'instances', joinE2, 'a'), connect(gfe2, 'instances', joinE2, 'b'),
+            connect(joinE, 'instances', joinE3, 'a'), connect(joinE2, 'instances', joinE3, 'b'),
+            connect(joinW, 'instances', joinFinal, 'a'), connect(joinE3, 'instances', joinFinal, 'b'),
+        ],
+    )
+
+    return {graph, output: {node: joinFinal, output: 'instances' as const}}
+}
 
 // ─── 3 Buildings ────────────────────────────────────────────────────
 
-function b(prefix: string) {
-    const p = (name: string) => `object_${prefix}_${name}.glb`
-    return {
-        gfObj: p('Ground_floor'), gfCornerObj: p('Ground_floor_corner'),
-        windowObj: p('Window'), windowCornerObj: p('Window_corner'),
-        tfWindowObj: p('Top_floor_window'), tfWindowCornerObj: p('Top_floor_window_corner'),
-        divSideObj: p('Top_floors_div'), divCornerObj: p('Top_floors_div_corner'),
-        roofSideObj: p('Roof_side'), roofMiddleObj: p('Roof_middle'), roofCornerObj: p('Roof_corner'),
-    }
+const b1Params: BuildingParams = {
+    dims: {X: 5, Y: 3, Z: 5, topFloors: 2, modLen: 3, gfH: 3.5, winH: 4, divH: 0.6000000238418579},
+    originX: -0.09106839448213577, prefix: 'B1',
+    extra1: {members: ['object_B1_Awning.glb'], amount: 50, seed: 1, inclWin: true, inclTF: false},
+    extra2: {members: ['object_B1_Plants.glb', 'object_B1_Plants_001.glb', 'object_B1_Plants_002.glb', 'object_B1_Plants_003.glb'], amount: 50, seed: 1, inclWin: true, inclTF: true},
+    gfExtra1: {members: ['object_B1_GF_plant.glb'], amount: 50, seed: 1, inclSides: true, inclCorners: true},
+    gfExtra2: {members: ['object_B1_GF_awning.glb'], amount: 50, seed: 1, inclSides: true, inclCorners: true},
+}
+const b2Params: BuildingParams = {
+    dims: {X: 8, Y: 5, Z: 5, topFloors: 1, modLen: 2, gfH: 3.5, winH: 3.799999952316284, divH: 0.4000000059604645},
+    originX: -30.8080997467041, prefix: 'B2',
+    extra1: {members: ['object_B2_Air.glb'], amount: 50, seed: 2, inclWin: true, inclTF: false},
+    extra2: {members: ['object_B2_Balcony.glb'], amount: 50, seed: 2, inclWin: true, inclTF: true},
+    gfExtra1: {members: ['object_B2_GF_Plant.glb'], amount: 50, seed: 2, inclSides: true, inclCorners: true},
+    gfExtra2: {members: ['object_B2_GF_awning.glb'], amount: 50, seed: 2, inclSides: true, inclCorners: true},
+}
+const b3Params: BuildingParams = {
+    dims: {X: 5, Y: 4, Z: 5, topFloors: 1, modLen: 2.5999999046325684, gfH: 3.799999952316284, winH: 3.5, divH: 0.4000000059604645},
+    originX: 26.19099998474121, prefix: 'B3',
+    extra1: {members: ['object_B3_Air.glb', 'object_B3_Air_001.glb', 'object_B3_Plants.glb', 'object_B3_Plants_001.glb', 'object_B3_Plants_002.glb', 'object_B3_Plants_003.glb', 'object_B3_Plants_004.glb', 'object_B3_Plants_005.glb'], amount: 50, seed: 3, inclWin: true, inclTF: false},
+    extra2: {members: ['object_B3_Awning.glb'], amount: 50, seed: 3, inclWin: true, inclTF: true},
+    gfExtra1: {members: ['object_B3_GF_awning.glb'], amount: 100, seed: 3, inclSides: true, inclCorners: false},
+    gfExtra2: {members: ['object_B3_GF_awning_2.glb'], amount: 100, seed: 3, inclSides: false, inclCorners: true},
 }
 
-const b1 = ProceduralBuildingType('Building 1', {
-    X: 5, Y: 3, Z: 5, topFloors: 2, modLen: 3, gfHeight: 3.5, winHeight: 4, divHeight: 0.6000000238418579,
-    originX: -0.09106839448213577, ...b('B1'),
-    extra1Members: ['object_B1_Awning.glb'], extra1Amount: 50, extra1Seed: 1, extra1InclWin: true, extra1InclTF: false,
-    extra2Members: ['object_B1_Plants.glb', 'object_B1_Plants_001.glb', 'object_B1_Plants_002.glb', 'object_B1_Plants_003.glb'],
-    extra2Amount: 50, extra2Seed: 1, extra2InclWin: true, extra2InclTF: true,
-    gfExtra1Members: ['object_B1_GF_plant.glb'], gfExtra1Amount: 50, gfExtra1Seed: 1, gfExtra1InclSides: true, gfExtra1InclCorners: true,
-    gfExtra2Members: ['object_B1_GF_awning.glb'], gfExtra2Amount: 50, gfExtra2Seed: 1, gfExtra2InclSides: true, gfExtra2InclCorners: true,
-})
+const b1 = createBuildingGraph('Building 1', b1Params)
+const b2 = createBuildingGraph('Building 2', b2Params)
+const b3 = createBuildingGraph('Building 3', b3Params)
 
-const b2 = ProceduralBuildingType('Building 2', {
-    X: 8, Y: 5, Z: 5, topFloors: 1, modLen: 2, gfHeight: 3.5, winHeight: 3.799999952316284, divHeight: 0.4000000059604645,
-    originX: -30.8080997467041, ...b('B2'),
-    extra1Members: ['object_B2_Air.glb'], extra1Amount: 50, extra1Seed: 2, extra1InclWin: true, extra1InclTF: false,
-    extra2Members: ['object_B2_Balcony.glb'], extra2Amount: 50, extra2Seed: 2, extra2InclWin: true, extra2InclTF: true,
-    gfExtra1Members: ['object_B2_GF_Plant.glb'], gfExtra1Amount: 50, gfExtra1Seed: 2, gfExtra1InclSides: true, gfExtra1InclCorners: true,
-    gfExtra2Members: ['object_B2_GF_awning.glb'], gfExtra2Amount: 50, gfExtra2Seed: 2, gfExtra2InclSides: true, gfExtra2InclCorners: true,
-})
+// ─── Collect all assets ─────────────────────────────────────────────
 
-const b3 = ProceduralBuildingType('Building 3', {
-    X: 5, Y: 4, Z: 5, topFloors: 1, modLen: 2.5999999046325684, gfHeight: 3.799999952316284, winHeight: 3.5, divHeight: 0.4000000059604645,
-    originX: 26.19099998474121, ...b('B3'),
-    extra1Members: ['object_B3_Air.glb', 'object_B3_Air_001.glb', 'object_B3_Plants.glb', 'object_B3_Plants_001.glb', 'object_B3_Plants_002.glb', 'object_B3_Plants_003.glb', 'object_B3_Plants_004.glb', 'object_B3_Plants_005.glb'],
-    extra1Amount: 50, extra1Seed: 3, extra1InclWin: true, extra1InclTF: false,
-    extra2Members: ['object_B3_Awning.glb'], extra2Amount: 50, extra2Seed: 3, extra2InclWin: true, extra2InclTF: true,
-    gfExtra1Members: ['object_B3_GF_awning.glb'], gfExtra1Amount: 100, gfExtra1Seed: 3, gfExtra1InclSides: true, gfExtra1InclCorners: false,
-    gfExtra2Members: ['object_B3_GF_awning_2.glb'], gfExtra2Amount: 100, gfExtra2Seed: 3, gfExtra2InclSides: false, gfExtra2InclCorners: true,
-})
-
-const graph = defineGraph([b1, b2, b3], [])
-
-// Collect all asset filenames from the assets directory
-const allAssets: string[] = []
-const addAssets = (...names: string[]) => names.forEach(n => { if (!allAssets.includes(n)) allAssets.push(n) })
-for (const prefix of ['B1', 'B2', 'B3']) {
-    const p = (name: string) => `object_${prefix}_${name}.glb`
-    addAssets(p('Ground_floor'), p('Ground_floor_corner'), p('Window'), p('Window_corner'),
+const assets = [...new Set([b1Params, b2Params, b3Params].flatMap(bp => {
+    const p = (name: string) => `object_${bp.prefix}_${name}.glb`
+    return [
+        p('Ground_floor'), p('Ground_floor_corner'), p('Window'), p('Window_corner'),
         p('Top_floor_window'), p('Top_floor_window_corner'), p('Top_floors_div'), p('Top_floors_div_corner'),
-        p('Roof_side'), p('Roof_middle'), p('Roof_corner'))
-}
-// Extra member GLBs
-for (const node of [b1, b2, b3]) {
-    const d = node.inputDefs as any
-    for (const key of ['extra1Members', 'extra2Members', 'gfExtra1Members', 'gfExtra2Members']) {
-        const arr = d[key] as string[] | undefined
-        if (arr) addAssets(...arr)
-    }
-}
+        p('Roof_side'), p('Roof_middle'), p('Roof_corner'),
+        ...bp.extra1.members, ...bp.extra2.members, ...bp.gfExtra1.members, ...bp.gfExtra2.members,
+    ]
+}))]
+
+// ─── Export ─────────────────────────────────────────────────────────
 
 export const graphModule: GraphModule = {
-    graph,
-    outputs: [{node: b1, output: 'instances'}, {node: b2, output: 'instances'}, {node: b3, output: 'instances'}],
-    assets: allAssets,
+    graphs: [
+        {graph: b1.graph, outputs: [b1.output]},
+        {graph: b2.graph, outputs: [b2.output]},
+        {graph: b3.graph, outputs: [b3.output]},
+    ],
+    assets,
     assetsPath: './assets/',
 }

@@ -1,27 +1,20 @@
 /**
  * Procedural Building Example
  *
- * Demonstrates the full building generation pipeline:
- * - Box body with face classification (walls, roof, floor)
- * - Wall grid point distribution for facade module placement
- * - Rule-based instancing: doors on ground floor front, windows elsewhere
- * - ModuleKit for style-swappable architectural modules
- * - Multiple roof styles: flat (parapet), gabled, hipped
- * - Horizontal ledges between floors
- * - Per-building color variation
+ * A proper building with walls, windows, doors, floors, and roof.
+ * Each window has: wall surround + recessed glass + frame + sill.
+ * Ground floor has a door with thicker panel.
+ * Horizontal ledges between floors, cornice at top, plinth at base.
+ * Three roof types and three architectural styles.
  *
  * How to test:
- * 1. A building with windows, door, and flat roof should appear
- * 2. Use "Building Params" to change dimensions:
- *    - Floors: 1-12, more floors = taller building
- *    - Width/Depth: changes footprint
- *    - BaysX/BaysZ: more bays = more windows per wall
- * 3. Switch Roof Style: Flat (parapet rim), Gabled (two slopes), Hipped (pyramid)
- * 4. Switch Style: Modern (dark frames, gray), Classical (white frames, cream), Industrial (metal, gray)
- * 5. Change Seed: different wall color and module variation
- * 6. Verify: door appears on the front wall ground floor center bay
- * 7. Verify: windows don't appear on the roof
- * 8. Verify: ledges appear between floors
+ * 1. Building with visible windows (glass behind frame), door on front
+ * 2. Change Floors → building gets taller with more rows of windows
+ * 3. Change Front Bays → more/fewer windows per wall
+ * 4. Switch Roof: Flat (parapet walls), Gabled (two slopes + gable infill), Hipped (pyramid)
+ * 5. Switch Style: Modern (dark frames), Classical (white frames + 3-part cornice), Industrial (gray)
+ * 6. Change Seed → wall color changes
+ * 7. Orbit to see all 4 walls, look inside to see floor slabs
  */
 
 import {
@@ -30,8 +23,11 @@ import {
     DirectionalLight2,
     GBufferPlugin,
     HemisphereLight2,
+    Mesh2,
     Object3DGeneratorPlugin,
+    PhysicalMaterial,
     PickingPlugin,
+    PlaneGeometry,
     SSAOPlugin,
     ThreeViewer,
     Vector3,
@@ -51,25 +47,31 @@ async function init() {
     })
 
     const ssao = viewer.getPlugin(SSAOPlugin)
-    if (ssao) ssao.pass.intensity = 0.5
+    if (ssao?.pass) ssao.pass.intensity = 0.5
 
-    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
-        setBackground: true,
-    })
+    await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {setBackground: true})
 
-    const sunLight = new DirectionalLight2(0xffeebb, 2.5)
-    sunLight.position.set(20, 30, 25)
-    sunLight.castShadow = true
-    sunLight.shadow.camera.left = -20
-    sunLight.shadow.camera.right = 20
-    sunLight.shadow.camera.top = 25
-    sunLight.shadow.camera.bottom = -5
-    sunLight.shadow.mapSize.setScalar(2048)
-    sunLight.shadow.bias = -0.0005
-    viewer.scene.addObject(sunLight)
+    const sun = new DirectionalLight2(0xffeebb, 2.5)
+    sun.position.set(15, 25, 20)
+    sun.castShadow = true
+    sun.shadow.camera.left = -20
+    sun.shadow.camera.right = 20
+    sun.shadow.camera.top = 25
+    sun.shadow.camera.bottom = -2
+    sun.shadow.mapSize.setScalar(2048)
+    sun.shadow.bias = -0.0005
+    viewer.scene.addObject(sun)
+    viewer.scene.addObject(new HemisphereLight2(0x88bbdd, 0x443322, 0.4))
 
-    const skyLight = new HemisphereLight2(0x88bbdd, 0x445522, 0.4)
-    viewer.scene.addObject(skyLight)
+    // Ground plane
+    const ground = new Mesh2(
+        new PlaneGeometry(40, 40) as any,
+        new PhysicalMaterial({color: 0x888880, roughness: 0.95, metalness: 0}) as any,
+    )
+    ground.rotation.x = -Math.PI / 2
+    ground.receiveShadow = true
+    ground.name = 'Ground'
+    viewer.scene.addObject(ground)
 
     const procGen = viewer.addPluginSync(ProceduralGeneratorPlugin)
     procGen.generators.building = new BuildingGenerator()
@@ -80,15 +82,15 @@ async function init() {
         floors: 4,
         floorHeight: 3.0,
         groundFloorHeight: 3.8,
-        baysX: 4,
-        baysZ: 3,
+        baysPerWallFront: 4,
+        baysPerWallSide: 3,
         roofStyle: 'flat',
-        style: 'modern',
+        style: 'classical',
         seed: 42,
     })
     viewer.scene.addObject(building)
 
-    viewer.scene.mainCamera.position.set(15, 12, 20)
+    viewer.scene.mainCamera.position.set(12, 10, 16)
     viewer.scene.mainCamera.target = new Vector3(0, 6, 0)
     viewer.scene.mainCamera.setDirty?.()
 

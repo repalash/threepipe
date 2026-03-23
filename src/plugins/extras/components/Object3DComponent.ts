@@ -1,9 +1,10 @@
 import {IObject3D} from '../../../core'
 import {UiObjectConfig} from 'uiconfig.js'
-import {ComponentCtx, ComponentDefn, ComponentJSON} from './componentTypes'
+import {ComponentDefn, ComponentJSON} from './componentTypes'
 import {refreshAllStateProperties} from './setupComponent'
 import {EntityComponentPlugin} from '../EntityComponentPlugin'
 import {ViewerEventMap} from '../../../viewer/ThreeViewer'
+import {ComponentCtx} from './componentCtx'
 
 export type TObject3DComponent = typeof Object3DComponent
 

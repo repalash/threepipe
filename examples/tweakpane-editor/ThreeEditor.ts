@@ -16,6 +16,7 @@ import {
     DynamicImportPlugin,
     EditorViewWidgetPlugin, EntityComponentPlugin,
     FilmicGrainPlugin,
+    GeometryGeneratorPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
     FullScreenPlugin,
@@ -65,7 +66,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
-import {FontLibrary, GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
+import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {AWSClientPlugin, TransfrSharePlugin} from '@threepipe/plugin-network'
@@ -150,6 +151,7 @@ export class ThreeEditor extends ThreeViewer {
         new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
         GeometryGeneratorPlugin,
+        GeometryGeneratorExtrasPlugin,
         GaussianSplattingPlugin,
         // BaseGroundPlugin,
         ContactShadowGroundPlugin,

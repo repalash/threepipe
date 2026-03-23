@@ -77,3 +77,6 @@ _site
 
 .wrangler
 /.*.md
+compose.dev.yaml
+.aibox
+.repos

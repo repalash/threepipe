@@ -1,6 +1,7 @@
 import {
     _testFinish,
     _testStart,
+    GeometryGeneratorPlugin,
     IObject3D,
     LoadingScreenPlugin,
     makeTextSvgAdvanced, PickingPlugin,
@@ -8,7 +9,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {BloomPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {

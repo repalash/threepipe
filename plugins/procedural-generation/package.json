@@ -16,6 +16,10 @@
             "import": "./dist/index.mjs",
             "require": "./dist/index.js"
         },
+        "./graph": {
+            "types": "./src/graph/index.ts",
+            "import": "./src/graph/index.ts"
+        },
         "./dist/": {
             "import": "./dist/",
             "require": "./dist/"

@@ -2,6 +2,7 @@ import {
     _testFinish, _testStart,
     EditorViewWidgetPlugin,
     GBufferPlugin,
+    GeometryGeneratorPlugin,
     LoadingScreenPlugin,
     PickingPlugin,
     ThreeViewer,
@@ -9,7 +10,6 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {ThreeSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 
 async function init() {
 

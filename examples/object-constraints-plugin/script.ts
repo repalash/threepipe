@@ -11,8 +11,9 @@ import {
     PopmotionPlugin,
     ThreeViewer,
     TransformControlsPlugin,
+    GeometryGeneratorPlugin,
 } from 'threepipe'
-import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+import {GeometryGeneratorExtrasPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 // Read more about the plugin - https://threepipe.org/plugin/object-constraint-plugin
@@ -25,6 +26,7 @@ async function init() {
         plugins: [
             Object3DGeneratorPlugin,
             GeometryGeneratorPlugin,
+            GeometryGeneratorExtrasPlugin,
             ObjectConstraintsPlugin,
             PopmotionPlugin,
             Object3DWidgetsPlugin,

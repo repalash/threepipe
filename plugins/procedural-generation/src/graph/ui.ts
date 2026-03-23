@@ -9,24 +9,73 @@ import type {UiObjectConfig} from 'uiconfig.js'
 import {resolveDefault, resolveUi, type NodeDef, type InputDef} from './graph'
 import type {Runtime} from './runtime'
 
-/** Generate a complete UiObjectConfig tree for a graph runtime. */
+/** Generate a complete UiObjectConfig tree for a graph runtime.
+ *  Shows all settable PropDef inputs from all nodes, flattened into one folder
+ *  like Blender's modifier panel. Inputs are labeled as "NodeName: InputLabel". */
 export function graphUiConfig(
     rt: Runtime,
     onChange: () => void,
     label = 'Node Graph',
 ): UiObjectConfig {
-    const folders: UiObjectConfig[] = []
+    const children: UiObjectConfig[] = []
 
     for (const node of rt.graph.nodes) {
-        const folder = nodeUiConfig(rt, node, onChange)
-        if (folder) folders.push(folder)
+        const inputs = rt.settableInputs(node)
+        if (inputs.length === 0) continue
+
+        const defs: Record<string, InputDef> = node.inputDefs
+
+        const visible = inputs.filter(name => {
+            const ui = resolveUi(defs[name])
+            return ui && !ui.hidden
+        })
+        if (visible.length === 0) continue
+
+        // Proxy for property binding
+        const proxy: Record<string, unknown> = {}
+        for (const name of visible) proxy[name] = resolveDefault(defs[name])
+
+        for (const name of visible) {
+            const val = resolveDefault(defs[name])
+            const ui = resolveUi(defs[name])
+            const inputLabel = ui?.label ?? name
+
+            let base: UiObjectConfig
+            if (typeof val === 'boolean') {
+                base = {type: 'checkbox', label: inputLabel, property: [proxy, name]}
+            } else if (typeof val === 'string') {
+                base = ui?.options
+                    ? {type: 'dropdown', label: inputLabel, property: [proxy, name], children: ui.options.map((o: string) => ({label: o}))}
+                    : {type: 'input', label: inputLabel, property: [proxy, name]}
+            } else if (typeof val === 'number') {
+                if (ui?.bounds) {
+                    const isInt = Number.isInteger(val)
+                    base = {type: 'slider', label: inputLabel, property: [proxy, name],
+                        bounds: ui.bounds, stepSize: isInt ? 1 : 0.1}
+                } else {
+                    base = {type: 'number', label: inputLabel, property: [proxy, name]}
+                }
+            } else {
+                base = {type: 'input', label: inputLabel, property: [proxy, name]}
+            }
+
+            children.push({
+                ...base,
+                ...ui,
+                label: inputLabel,
+                onChange: () => {
+                    rt.set(node, name, proxy[name])
+                    onChange()
+                },
+            } satisfies UiObjectConfig)
+        }
     }
 
     return {
         type: 'folder',
         label,
         expanded: true,
-        children: folders,
+        children,
     }
 }
 
@@ -42,12 +91,12 @@ export function nodeUiConfig(
 
     const defs: Record<string, InputDef> = node.inputDefs
 
-    // Filter: only show inputs that have ui metadata or are numeric
+    // Filter: only show PropDef inputs with ui metadata (not raw values)
     const visible = inputs.filter(name => {
         const ui = resolveUi(defs[name])
-        if (ui?.hidden) return false
-        const val = resolveDefault(defs[name])
-        return ui !== undefined || typeof val === 'number'
+        if (!ui) return false  // raw values (not PropDef) are internal — never show
+        if (ui.hidden) return false
+        return true
     })
     if (visible.length === 0) return null
 
@@ -58,14 +107,30 @@ export function nodeUiConfig(
     const children: UiObjectConfig[] = visible.map(name => {
         const val = resolveDefault(defs[name])
         const ui = resolveUi(defs[name])
-        const isInt = typeof val === 'number' && Number.isInteger(val)
+
+        // Pick the right control type based on the value type and ui metadata
+        let base: UiObjectConfig
+        if (typeof val === 'boolean') {
+            base = {type: 'checkbox', label: name, property: [proxy, name]}
+        } else if (typeof val === 'string') {
+            base = ui?.options
+                ? {type: 'dropdown', label: name, property: [proxy, name], children: ui.options.map((o: string) => ({label: o}))}
+                : {type: 'input', label: name, property: [proxy, name]}
+        } else if (typeof val === 'number') {
+            // Use slider only if bounds are provided, otherwise plain number input
+            if (ui?.bounds) {
+                const isInt = Number.isInteger(val)
+                base = {type: 'slider', label: name, property: [proxy, name],
+                    bounds: ui.bounds, stepSize: isInt ? 1 : 0.1}
+            } else {
+                base = {type: 'number', label: name, property: [proxy, name]}
+            }
+        } else {
+            base = {type: 'input', label: name, property: [proxy, name]}
+        }
 
         return {
-            type: 'slider',
-            label: name,
-            property: [proxy, name],
-            bounds: (isInt ? [0, 100] : [0, 10]) as [number, number],
-            stepSize: isInt ? 1 : 0.1,
+            ...base,
             ...ui,
             onChange: () => {
                 rt.set(node, name, proxy[name])
