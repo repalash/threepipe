@@ -114,3 +114,91 @@ export function resampleCurve(
     }
     return points
 }
+
+// ─── Mesh Grid ──────────────────────────────────────────────────────
+// source: nodes/geometry/nodes/node_geo_mesh_primitive_grid.cc
+//
+// Creates a grid of points in the XY plane (Blender convention).
+// Returns vertex positions and face indices.
+
+export interface GridPoint {
+    x: number
+    y: number
+    z: number
+    /** Index in the grid (row * cols + col) */
+    index: number
+    /** Column index */
+    col: number
+    /** Row index */
+    row: number
+}
+
+/** Create a grid of points. Matches Blender's Grid node (vertices, not faces).
+ *  Blender iterates X first (column-major): for each X column, all Y rows. */
+export function meshGrid(
+    sizeX: number, sizeY: number,
+    verticesX: number, verticesY: number,
+): GridPoint[] {
+    const nx = Math.max(2, verticesX)
+    const ny = Math.max(2, verticesY)
+    const points: GridPoint[] = []
+    // Column-major order to match Blender's vertex ordering
+    for (let ix = 0; ix < nx; ix++) {
+        for (let iy = 0; iy < ny; iy++) {
+            points.push({
+                x: (ix / (nx - 1) - 0.5) * sizeX,
+                y: (iy / (ny - 1) - 0.5) * sizeY,
+                z: 0,
+                index: ix * ny + iy,
+                col: ix,
+                row: iy,
+            })
+        }
+    }
+    return points
+}
+
+// ─── Separate Geometry ──────────────────────────────────────────────
+// source: nodes/geometry/nodes/node_geo_separate_geometry.cc
+//
+// Splits an array into two parts based on a boolean selection per element.
+
+/** Split an array by a boolean selection. Returns [selected, inverted]. */
+export function separateGeometry<T>(
+    items: T[],
+    selection: boolean[],
+): [selected: T[], inverted: T[]] {
+    const selected: T[] = []
+    const inverted: T[] = []
+    for (let i = 0; i < items.length; i++) {
+        if (selection[i]) selected.push(items[i])
+        else inverted.push(items[i])
+    }
+    return [selected, inverted]
+}
+
+// ─── Named Attributes ──────────────────────────────────────────────
+// source: nodes/geometry/nodes/node_geo_input_named_attribute.cc
+// source: nodes/geometry/nodes/node_geo_store_named_attribute.cc
+//
+// Simple key-value store per element. In our system, attributes are stored
+// as properties on the point/element objects.
+
+/** Store a named attribute on each element. Mutates in place. */
+export function storeNamedAttribute(
+    items: Record<string, any>[],
+    name: string,
+    values: any[],
+): void {
+    for (let i = 0; i < items.length; i++) {
+        items[i][name] = values[i]
+    }
+}
+
+/** Read a named attribute from each element. Returns array of values. */
+export function inputNamedAttribute(
+    items: Record<string, any>[],
+    name: string,
+): any[] {
+    return items.map(item => item[name])
+}

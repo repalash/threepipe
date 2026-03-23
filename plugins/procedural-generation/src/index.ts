@@ -43,8 +43,14 @@ export {randomInt, randomFloat, randomBool, randomVector} from './blender/random
 export {
     normalizeAngle, alignEulerToEdgeNormal, pointOnSegment,
     meshToCurveSplitTrim, resampleCurve,
-    type CurveSegment, type Vec2,
+    meshGrid, separateGeometry, storeNamedAttribute, inputNamedAttribute,
+    type CurveSegment, type Vec2, type GridPoint,
 } from './blender/geometry_nodes'
+export {
+    mapRange, mapRangeStepped, mapRangeSmoothstep,
+    clamp, mixFloat, mixVector,
+    compare, compareFloat, booleanMath, mathOp,
+} from './blender/math_nodes'
 
 // Graph system
 export {defineNode, defineNodeType, defineGraph, connect, applyDefaults, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef, type ResolvedInputs} from './graph/graph'

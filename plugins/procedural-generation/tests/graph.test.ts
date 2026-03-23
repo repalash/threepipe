@@ -1,4 +1,4 @@
-import {defineNode, defineGraph, connect, createRuntime} from '../src/graph'
+import {defineNode, defineNodeType, defineGraph, connect, createRuntime, resolveDefault, resolveUi} from '../src/graph'
 
 // ─── Test harness ───────────────────────────────────────────────────
 
@@ -287,6 +287,67 @@ rtSolo.set(standalone, 'x', 100)
 computed = rtSolo.evaluate()
 assertEq(computed, 1, 'Setting new value re-dirties and recomputes')
 assertEq(rtSolo.get(standalone, 'doubled'), 200, 'Output updated after recompute')
+
+// ─── Test 7: defineNodeType ──────────────────────────────────────────
+
+section('Test 7: defineNodeType')
+
+const adderType = defineNodeType(
+    {x: 0, y: 0, bias: {default: 10, ui: {label: 'Bias', bounds: [0, 100], stepSize: 1}}},
+    {sum: 0},
+    (inp) => ({sum: inp.x + inp.y + inp.bias}),
+)
+
+// Instance with overrides
+const adder1 = adderType('Adder 1', {x: 5, bias: 20})
+const adder2 = adderType('Adder 2', {y: 3})
+const adder3 = adderType('Adder 3') // no overrides
+
+// Check names
+assertEq(adder1.name, 'Adder 1', 'Instance has correct name')
+assertEq(adder2.name, 'Adder 2', 'Instance has correct name')
+
+// Check overridden defaults are resolved correctly
+assertEq(resolveDefault(adder1.inputDefs.x), 5, 'Override applied: x=5')
+assertEq(resolveDefault(adder1.inputDefs.y), 0, 'Non-overridden keeps schema default: y=0')
+assertEq(resolveDefault(adder1.inputDefs.bias), 20, 'PropDef override applied: bias=20')
+
+// Check PropDef ui metadata survives the merge
+const biasUi1 = resolveUi(adder1.inputDefs.bias)
+assert(biasUi1 !== undefined, 'PropDef ui preserved after override')
+assertEq(biasUi1?.label, 'Bias', 'PropDef ui.label preserved')
+assertEq(biasUi1?.bounds?.[1], 100, 'PropDef ui.bounds preserved')
+
+// Check no-override instance keeps all schema defaults
+assertEq(resolveDefault(adder3.inputDefs.x), 0, 'No-override instance: x=0')
+assertEq(resolveDefault(adder3.inputDefs.bias), 10, 'No-override instance: bias=10')
+const biasUi3 = resolveUi(adder3.inputDefs.bias)
+assertEq(biasUi3?.label, 'Bias', 'No-override instance: ui preserved')
+
+// Check instance2 only overrides y
+assertEq(resolveDefault(adder2.inputDefs.x), 0, 'adder2: x kept default')
+assertEq(resolveDefault(adder2.inputDefs.y), 3, 'adder2: y overridden to 3')
+
+// Instances work with runtime
+const graphNT = defineGraph(
+    [adder1, adder2],
+    [],
+)
+const rtNT = createRuntime(graphNT)
+rtNT.evaluate()
+assertEq(rtNT.get(adder1, 'sum'), 25, 'adder1: 5+0+20=25')
+assertEq(rtNT.get(adder2, 'sum'), 13, 'adder2: 0+3+10=13')
+
+// Override at runtime via set
+rtNT.set(adder1, 'y', 100)
+rtNT.evaluate()
+assertEq(rtNT.get(adder1, 'sum'), 125, 'adder1 after set y=100: 5+100+20=125')
+
+// Instances share the evaluate function but have independent state
+rtNT.set(adder2, 'x', 50)
+rtNT.evaluate()
+assertEq(rtNT.get(adder1, 'sum'), 125, 'adder1 unchanged after adder2 set')
+assertEq(rtNT.get(adder2, 'sum'), 63, 'adder2: 50+3+10=63')
 
 // ─── Summary ────────────────────────────────────────────────────────
 
