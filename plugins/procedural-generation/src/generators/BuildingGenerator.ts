@@ -1,22 +1,24 @@
 /**
- * Procedural building generator using wall-module assembly.
+ * Procedural building generator.
  *
- * Each wall is divided into a grid of bays (columns) × floors (rows).
- * Each bay cell is filled with a module — a small assembly of box geometries:
- * - Wall surround (4 boxes framing the window opening)
- * - Glass pane (recessed thin box)
- * - Sill (protruding box below window)
- * - Or solid wall / door variant
+ * Produces a proper building with:
+ * - Walls built from box assemblies around window/door openings (no boolean cuts)
+ * - Recessed glass panes with visible frames and sills
+ * - Doors on ground floor with thicker panels
+ * - Horizontal ledges (string courses) between floors
+ * - Cornice at roofline, plinth at base
+ * - Floor slabs visible from inside
+ * - Flat, gabled, or hipped roof
+ * - Style-dependent colors and material properties
  *
- * This is the same approach used by Buildify, Coan's PBG, and real architectural modeling:
- * you build the wall WITH the opening from pieces, never cutting a hole.
+ * Each wall is built in local coordinates (centered on X, Y from 0 upward, Z=0),
+ * then rotated and translated to its final position.
+ * All geometry per material is merged into single meshes for efficient rendering.
  *
- * Reference dimensions from Neufert "Architects' Data":
- * - Residential floor height: 2.8-3.2m
- * - Commercial ground floor: 3.5-4.0m
- * - Standard window: 1.0-1.4m wide × 1.2-1.6m tall
- * - Sill height: 0.8-1.0m from floor
- * - Door: 0.9-1.2m wide × 2.1-2.4m tall
+ * Reference dimensions: Neufert "Architects' Data"
+ * Window: 1.0-1.4m wide × 1.2-1.6m tall, sill at 0.8-1.0m
+ * Door: 0.9-1.2m wide × 2.1-2.4m tall
+ * Floor height: 2.8-3.2m residential, 3.5-4.0m commercial ground floor
  */
 
 import {
@@ -47,6 +49,13 @@ export interface BuildingParams {
     roofPitch: number
     style: 'modern' | 'classical' | 'industrial'
     seed: number
+}
+
+// Helper to create a box at a specific position
+function box(w: number, h: number, d: number, x: number, y: number, z: number): BoxGeometry {
+    const g = new BoxGeometry(w, h, d)
+    g.translate(x, y, z)
+    return g
 }
 
 export class BuildingGenerator extends AProceduralGenerator<BuildingParams> {
@@ -105,256 +114,268 @@ export class BuildingGenerator extends AProceduralGenerator<BuildingParams> {
         const baysF = Math.max(1, Math.floor(params.baysPerWallFront))
         const baysS = Math.max(1, Math.floor(params.baysPerWallSide))
         const totalH = groundH + (floors - 1) * floorH
-        const wallThick = 0.25
+        const wT = 0.25 // wall thickness
 
-        // Style colors — wider ranges so seed changes are visually obvious
-        const wallHue = rng.range(0.02, 0.15)
-        const wallColor = new Color().setHSL(wallHue, rng.range(0.05, 0.3), rng.range(0.65, 0.9))
-        const frameColor = params.style === 'modern' ? new Color(0x333333)
-            : params.style === 'classical' ? new Color(0xf0f0f0)
-                : new Color(0x555555)
-        const glassColor = new Color(0x88bbdd)
-        const roofColor = params.style === 'classical' ? new Color(0x8b6045) : new Color(0x555555)
-
+        // --- Materials ---
+        const wallColor = new Color().setHSL(rng.range(0.02, 0.15), rng.range(0.05, 0.3), rng.range(0.65, 0.9))
+        const frameColor = params.style === 'modern' ? 0x333333 : params.style === 'classical' ? 0xf0f0f0 : 0x555555
         const wallMat = new PhysicalMaterial({color: wallColor, roughness: 0.85, metalness: 0}) as IMaterial
         const frameMat = new PhysicalMaterial({color: frameColor, roughness: 0.3, metalness: params.style === 'modern' ? 0.7 : 0}) as IMaterial
-        const glassMat = new PhysicalMaterial({color: glassColor, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.35}) as IMaterial
-        const roofMat = new PhysicalMaterial({color: roofColor, roughness: 0.8, metalness: 0}) as IMaterial
+        const glassMat = new PhysicalMaterial({color: 0x6699bb, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.3}) as IMaterial
+        const doorMat = new PhysicalMaterial({color: params.style === 'modern' ? 0x333333 : 0x654321, roughness: 0.6, metalness: params.style === 'modern' ? 0.3 : 0}) as IMaterial
+        const roofMat = new PhysicalMaterial({color: params.style === 'classical' ? 0x8b6045 : 0x555555, roughness: 0.8, metalness: 0}) as IMaterial
+        const plinthMat = new PhysicalMaterial({color: new Color(wallColor).offsetHSL(0, -0.05, -0.15), roughness: 0.9, metalness: 0}) as IMaterial
+        wallMat.name = 'Wall'; frameMat.name = 'Frame'; glassMat.name = 'Glass'
+        doorMat.name = 'Door'; roofMat.name = 'Roof'; plinthMat.name = 'Plinth'
 
-        // Generate 4 walls
-        const walls: {wallW: number, bays: number, normal: Vector3, origin: Vector3}[] = [
-            {wallW: W, bays: baysF, normal: new Vector3(0, 0, 1), origin: new Vector3(0, 0, D / 2)},
-            {wallW: W, bays: baysF, normal: new Vector3(0, 0, -1), origin: new Vector3(0, 0, -D / 2)},
-            {wallW: D, bays: baysS, normal: new Vector3(1, 0, 0), origin: new Vector3(W / 2, 0, 0)},
-            {wallW: D, bays: baysS, normal: new Vector3(-1, 0, 0), origin: new Vector3(-W / 2, 0, 0)},
+        // --- Build each wall ---
+        const wallDefs: {wallW: number, bays: number, nx: number, nz: number, ox: number, oz: number}[] = [
+            {wallW: W, bays: baysF, nx: 0, nz: 1, ox: 0, oz: D / 2},   // front
+            {wallW: W, bays: baysF, nx: 0, nz: -1, ox: 0, oz: -D / 2}, // back
+            {wallW: D, bays: baysS, nx: 1, nz: 0, ox: W / 2, oz: 0},   // right
+            {wallW: D, bays: baysS, nx: -1, nz: 0, ox: -W / 2, oz: 0}, // left
         ]
 
-        for (let wi = 0; wi < walls.length; wi++) {
-            const wall = walls[wi]
+        const allWall: BoxGeometry[] = []
+        const allGlass: BoxGeometry[] = []
+        const allFrame: BoxGeometry[] = []
+        const allDoor: BoxGeometry[] = []
+
+        for (let wi = 0; wi < wallDefs.length; wi++) {
+            const wd = wallDefs[wi]
             const isFront = wi === 0
-            const bayW = wall.wallW / wall.bays
+            const bayW = wd.wallW / wd.bays
+            const angle = Math.atan2(wd.nx, wd.nz)
+            const cosA = Math.cos(angle), sinA = Math.sin(angle)
 
-            // Collect all geometry for this wall to merge into one mesh per material
-            const wallGeos: BoxGeometry[] = []
-            const glassGeos: BoxGeometry[] = []
-            const frameGeos: BoxGeometry[] = []
+            // Transform a local-space box to world position on this wall
+            const place = (g: BoxGeometry) => {
+                const pos = g.getAttribute('position')
+                for (let i = 0; i < pos.count; i++) {
+                    const lx = pos.getX(i), ly = pos.getY(i), lz = pos.getZ(i)
+                    pos.setXYZ(i, lx * cosA + lz * sinA + wd.ox, ly, -lx * sinA + lz * cosA + wd.oz)
+                }
+                pos.needsUpdate = true
+            }
 
-            for (let bay = 0; bay < wall.bays; bay++) {
-                const bayCenter = (bay + 0.5) * bayW - wall.wallW / 2
+            for (let bay = 0; bay < wd.bays; bay++) {
+                const bx = (bay + 0.5) * bayW - wd.wallW / 2 // bay center X in local coords
 
-                for (let floor = 0; floor < floors; floor++) {
-                    const isGround = floor === 0
+                for (let fl = 0; fl < floors; fl++) {
+                    const isGround = fl === 0
                     const fh = isGround ? groundH : floorH
-                    const floorBase = isGround ? 0 : groundH + (floor - 1) * floorH
-                    const isDoor = isGround && isFront && bay === Math.floor(wall.bays / 2)
+                    const fy = isGround ? 0 : groundH + (fl - 1) * floorH // floor base Y
+                    const isDoor = isGround && isFront && bay === Math.floor(wd.bays / 2)
 
-                    // Window/door dimensions
-                    const winW = isDoor ? Math.min(1.1, bayW * 0.5) : Math.min(bayW * 0.55, 1.3)
-                    const winH = isDoor ? Math.min(2.3, fh - 0.3) : Math.min(fh * 0.45, 1.5)
-                    const sillH = isDoor ? 0 : Math.min(0.9, (fh - winH) * 0.55)
-                    const marginX = (bayW - winW) / 2
-                    const topMargin = fh - sillH - winH
+                    // Opening dimensions
+                    const openW = isDoor ? Math.min(1.1, bayW * 0.45) : Math.min(bayW * 0.5, 1.3)
+                    const openH = isDoor ? Math.min(2.3, fh - 0.3) : Math.min(fh * 0.42, 1.5)
+                    const sillH = isDoor ? 0 : 0.9
+                    const mx = (bayW - openW) / 2 // margin X (wall strip width on each side)
+                    const topH = fh - sillH - openH // wall above opening
 
-                    // 4 wall pieces around the opening:
-                    // Left strip
-                    if (marginX > 0.01) {
-                        const g = new BoxGeometry(marginX, fh, wallThick)
-                        g.translate(bayCenter - bayW / 2 + marginX / 2, floorBase + fh / 2, 0)
-                        wallGeos.push(g)
-                    }
+                    // 4 wall strips around the opening
+                    // Left strip (full floor height)
+                    if (mx > 0.02) { const g = box(mx, fh, wT, bx - bayW / 2 + mx / 2, fy + fh / 2, 0); place(g); allWall.push(g) }
                     // Right strip
-                    if (marginX > 0.01) {
-                        const g = new BoxGeometry(marginX, fh, wallThick)
-                        g.translate(bayCenter + bayW / 2 - marginX / 2, floorBase + fh / 2, 0)
-                        wallGeos.push(g)
-                    }
+                    if (mx > 0.02) { const g = box(mx, fh, wT, bx + bayW / 2 - mx / 2, fy + fh / 2, 0); place(g); allWall.push(g) }
                     // Top strip (above opening)
-                    if (topMargin > 0.01) {
-                        const g = new BoxGeometry(winW, topMargin, wallThick)
-                        g.translate(bayCenter, floorBase + fh - topMargin / 2, 0)
-                        wallGeos.push(g)
-                    }
-                    // Bottom strip (below opening / sill wall)
-                    if (sillH > 0.01) {
-                        const g = new BoxGeometry(winW, sillH, wallThick)
-                        g.translate(bayCenter, floorBase + sillH / 2, 0)
-                        wallGeos.push(g)
+                    if (topH > 0.02) { const g = box(openW, topH, wT, bx, fy + fh - topH / 2, 0); place(g); allWall.push(g) }
+                    // Bottom strip (sill wall, below opening)
+                    if (sillH > 0.02) { const g = box(openW, sillH, wT, bx, fy + sillH / 2, 0); place(g); allWall.push(g) }
+
+                    // Lintel (header above opening — slight protrusion)
+                    if (params.style !== 'modern') {
+                        const g = box(openW + 0.08, 0.1, wT + 0.03, bx, fy + sillH + openH + 0.05, 0.015)
+                        place(g); allWall.push(g)
                     }
 
-                    // Glass pane (recessed behind wall surface)
-                    const gp = new BoxGeometry(winW - 0.06, winH - 0.06, 0.01)
-                    gp.translate(bayCenter, floorBase + sillH + winH / 2, -0.08)
-                    glassGeos.push(gp)
+                    // Glass or door panel — recessed behind wall face
+                    const recess = -0.08
+                    if (isDoor) {
+                        const g = box(openW - 0.06, openH - 0.06, 0.04, bx, fy + openH / 2, recess)
+                        place(g); allDoor.push(g)
+                    } else {
+                        const g = box(openW - 0.06, openH - 0.06, 0.008, bx, fy + sillH + openH / 2, recess)
+                        place(g); allGlass.push(g)
+                    }
 
-                    // Window frame (4 thin boxes)
-                    const ft = 0.04 // frame thickness
-                    const fd = 0.06 // frame depth
+                    // Frame — 4 thin boxes forming the opening perimeter
+                    const ft = 0.04, fd = 0.06
+                    const fcx = bx, fcy = fy + sillH + openH / 2, fcz = -0.02
                     // Top rail
-                    frameGeos.push((() => { const g = new BoxGeometry(winW, ft, fd); g.translate(bayCenter, floorBase + sillH + winH - ft / 2, -0.02); return g })())
+                    { const g = box(openW, ft, fd, fcx, fcy + openH / 2 - ft / 2, fcz); place(g); allFrame.push(g) }
                     // Bottom rail
-                    frameGeos.push((() => { const g = new BoxGeometry(winW, ft, fd); g.translate(bayCenter, floorBase + sillH + ft / 2, -0.02); return g })())
+                    { const g = box(openW, ft, fd, fcx, fcy - openH / 2 + ft / 2, fcz); place(g); allFrame.push(g) }
                     // Left stile
-                    frameGeos.push((() => { const g = new BoxGeometry(ft, winH, fd); g.translate(bayCenter - winW / 2 + ft / 2, floorBase + sillH + winH / 2, -0.02); return g })())
+                    { const g = box(ft, openH, fd, fcx - openW / 2 + ft / 2, fcy, fcz); place(g); allFrame.push(g) }
                     // Right stile
-                    frameGeos.push((() => { const g = new BoxGeometry(ft, winH, fd); g.translate(bayCenter + winW / 2 - ft / 2, floorBase + sillH + winH / 2, -0.02); return g })())
+                    { const g = box(ft, openH, fd, fcx + openW / 2 - ft / 2, fcy, fcz); place(g); allFrame.push(g) }
 
-                    // Sill (protruding ledge below window, skip for doors)
+                    // Sill ledge (protruding, not for doors)
                     if (!isDoor && sillH > 0.3) {
-                        const sg = new BoxGeometry(winW + 0.08, 0.04, wallThick + 0.06)
-                        sg.translate(bayCenter, floorBase + sillH - 0.02, 0.02)
-                        wallGeos.push(sg)
+                        const g = box(openW + 0.08, 0.04, wT + 0.06, bx, fy + sillH - 0.02, 0.02)
+                        place(g); allWall.push(g)
                     }
                 }
             }
 
-            // Ledge between each floor
+            // String course / ledge between each floor
             for (let f = 1; f < floors; f++) {
                 const y = groundH + (f - 1) * floorH
-                const lg = new BoxGeometry(wall.wallW + 0.06, 0.1, wallThick + 0.06)
-                lg.translate(0, y, 0.02)
-                wallGeos.push(lg)
+                const g = box(wd.wallW + 0.04, 0.08, wT + 0.05, 0, y + 0.04, 0.02)
+                place(g); allWall.push(g)
             }
 
-            // Merge all geometries per material into one mesh, then transform to wall position
-            const transformWall = (geo: any) => {
-                if (!geo) return null
-                // Rotate to face the wall normal and translate to wall origin
-                const n = wall.normal
-                const angle = Math.atan2(n.x, n.z)
-                // Apply rotation around Y then translate
-                const positions = geo.getAttribute('position')
-                const v = new Vector3()
-                const cosA = Math.cos(angle), sinA = Math.sin(angle)
-                for (let i = 0; i < positions.count; i++) {
-                    v.set(positions.getX(i), positions.getY(i), positions.getZ(i))
-                    const rx = v.x * cosA + v.z * sinA
-                    const rz = -v.x * sinA + v.z * cosA
-                    positions.setXYZ(i, rx + wall.origin.x, v.y + wall.origin.y, rz + wall.origin.z)
-                }
-                positions.needsUpdate = true
-                geo.computeVertexNormals()
-                return geo
+            // Cornice at top of wall (3-part for classical, simple for others)
+            if (params.style === 'classical') {
+                // Fascia
+                { const g = box(wd.wallW + 0.02, 0.1, wT, 0, totalH + 0.05, 0); place(g); allWall.push(g) }
+                // Cyma (projects forward)
+                { const g = box(wd.wallW + 0.04, 0.06, wT + 0.08, 0, totalH + 0.13, 0.04); place(g); allWall.push(g) }
+                // Corona (projects most)
+                { const g = box(wd.wallW + 0.06, 0.04, wT + 0.16, 0, totalH + 0.18, 0.08); place(g); allWall.push(g) }
+            } else {
+                // Simple cornice band
+                const g = box(wd.wallW + 0.04, 0.08, wT + 0.06, 0, totalH + 0.04, 0.02)
+                place(g); allWall.push(g)
             }
 
-            const wallMerged = wallGeos.length > 0 ? mergeGeometries(wallGeos) : null
-            const glassMerged = glassGeos.length > 0 ? mergeGeometries(glassGeos) : null
-            const frameMerged = frameGeos.length > 0 ? mergeGeometries(frameGeos) : null
-
-            // Dispose individual geos
-            for (const g of [...wallGeos, ...glassGeos, ...frameGeos]) g.dispose()
-
-            if (wallMerged) {
-                transformWall(wallMerged)
-                const m = new Mesh2(wallMerged as any, wallMat as any)
-                m.name = `Wall_${wi}`
-                m.castShadow = true
-                m.receiveShadow = true
-                root.add(m)
-            }
-            if (glassMerged) {
-                transformWall(glassMerged)
-                const m = new Mesh2(glassMerged as any, glassMat as any)
-                m.name = `Glass_${wi}`
-                root.add(m)
-            }
-            if (frameMerged) {
-                transformWall(frameMerged)
-                const m = new Mesh2(frameMerged as any, frameMat as any)
-                m.name = `Frame_${wi}`
-                root.add(m)
-            }
+            // Plinth at base
+            { const g = box(wd.wallW + 0.04, 0.4, wT + 0.04, 0, 0.2, 0.02); place(g); allWall.push(g) }
         }
 
-        // Floor slabs between stories
-        const floorMat = new PhysicalMaterial({
-            color: new Color(wallColor).offsetHSL(0, -0.05, -0.1),
-            roughness: 0.9, metalness: 0,
-        }) as IMaterial
-        floorMat.name = 'Floor'
-        // Ground floor
-        const groundSlab = new Mesh2(new BoxGeometry(W - 0.1, 0.12, D - 0.1) as any, floorMat as any)
-        groundSlab.position.y = 0.06
-        groundSlab.name = 'Floor_ground'
-        groundSlab.receiveShadow = true
-        root.add(groundSlab)
-        // Upper floors
-        for (let f = 1; f < floors; f++) {
-            const y = groundH + (f - 1) * floorH
-            const slab = new Mesh2(new BoxGeometry(W - 0.1, 0.12, D - 0.1) as any, floorMat as any)
-            slab.position.y = y + 0.06
+        // --- Merge and create meshes ---
+        const merge = (geos: BoxGeometry[], mat: IMaterial, name: string, cast = true) => {
+            if (geos.length === 0) return
+            const merged = mergeGeometries(geos)
+            for (const g of geos) g.dispose()
+            if (!merged) return
+            merged.computeVertexNormals()
+            const m = new Mesh2(merged as any, mat as any)
+            m.name = name
+            m.castShadow = cast
+            m.receiveShadow = true
+            root.add(m)
+        }
+
+        merge(allWall, wallMat, 'Walls')
+        merge(allGlass, glassMat, 'Glass', false)
+        merge(allFrame, frameMat, 'Frames')
+        merge(allDoor, doorMat, 'Doors')
+
+        // --- Floor slabs ---
+        for (let f = 0; f <= floors; f++) {
+            const y = f === 0 ? 0.06 : f < floors ? groundH + (f - 1) * floorH + 0.06 : totalH - 0.06
+            const slab = new Mesh2(new BoxGeometry(W - 0.1, 0.12, D - 0.1) as any, plinthMat as any)
+            slab.position.y = y
             slab.name = `Floor_${f}`
             slab.receiveShadow = true
             root.add(slab)
         }
-        // Top floor / ceiling
-        const topSlab = new Mesh2(new BoxGeometry(W - 0.1, 0.12, D - 0.1) as any, floorMat as any)
-        topSlab.position.y = totalH - 0.06
-        topSlab.name = 'Floor_top'
-        topSlab.receiveShadow = true
-        root.add(topSlab)
 
-        // Roof
+        // --- Roof ---
+        this._buildRoof(root, params, W, D, totalH, roofMat, wallMat)
+
+        return root
+    }
+
+    private _buildRoof(root: Group2, params: BuildingParams, W: number, D: number, totalH: number, roofMat: IMaterial, wallMat: IMaterial) {
+        const corniceTop = params.style === 'classical' ? totalH + 0.2 : totalH + 0.08
+
         if (params.roofStyle === 'flat') {
-            // Slab + parapet
+            // Roof slab
             const slab = new Mesh2(new BoxGeometry(W + 0.1, 0.12, D + 0.1) as any, roofMat as any)
-            slab.position.y = totalH + 0.06
-            slab.name = 'Roof'
+            slab.position.y = corniceTop + 0.06
+            slab.name = 'Roof Slab'
             root.add(slab)
-
+            // Parapet walls
             const ph = 0.7, pt = 0.12
-            const parapets = [
-                {w: W + 0.2, d: pt, x: 0, z: D / 2 + 0.05},
-                {w: W + 0.2, d: pt, x: 0, z: -D / 2 - 0.05},
-                {w: pt, d: D + 0.2, x: W / 2 + 0.05, z: 0},
-                {w: pt, d: D + 0.2, x: -W / 2 - 0.05, z: 0},
-            ]
-            for (const pp of parapets) {
-                const pm = new Mesh2(new BoxGeometry(pp.w, ph, pp.d) as any, wallMat as any)
-                pm.position.set(pp.x, totalH + 0.12 + ph / 2, pp.z)
-                pm.name = 'Parapet'
-                root.add(pm)
+            for (const p of [
+                {w: W + 0.2, d: pt, x: 0, z: D / 2 + pt / 2},
+                {w: W + 0.2, d: pt, x: 0, z: -D / 2 - pt / 2},
+                {w: pt, d: D + 0.2 + pt * 2, x: W / 2 + pt / 2, z: 0},
+                {w: pt, d: D + 0.2 + pt * 2, x: -W / 2 - pt / 2, z: 0},
+            ]) {
+                const m = new Mesh2(new BoxGeometry(p.w, ph, p.d) as any, wallMat as any)
+                m.position.set(p.x, corniceTop + 0.12 + ph / 2, p.z)
+                m.name = 'Parapet'
+                m.castShadow = true
+                root.add(m)
             }
         } else if (params.roofStyle === 'gabled') {
-            // Two angled roof planes meeting at a ridge along the X axis.
-            // Each plane spans from the ridge (at top center) down to the eave (at wall edge).
-            // Reference: ridge height = tan(pitch) × (depth / 2)
-            const pitch = Math.max(15, Math.min(55, params.roofPitch)) * (Math.PI / 180)
-            const ridgeH = Math.tan(pitch) * (D / 2)
-            const slopeLen = (D / 2) / Math.cos(pitch)
+            const pitch = Math.max(15, Math.min(55, params.roofPitch)) * Math.PI / 180
+            const halfD = D / 2
+            const ridgeH = Math.tan(pitch) * halfD
+            const slopeLen = halfD / Math.cos(pitch)
             const overhang = 0.3
+            const thickness = 0.08
 
-            for (const side of [-1, 1]) {
-                const rp = new Mesh2(new BoxGeometry(W + overhang * 2, slopeLen + overhang, 0.06) as any, roofMat as any)
-                // Position: center at half the slope height, offset in Z by half the slope projection
-                rp.position.y = totalH + ridgeH / 2
-                rp.position.z = side * (D / 4) * Math.cos(pitch)
-                // Rotate around X axis: one side tilts forward, other tilts backward
-                rp.rotation.x = side * (Math.PI / 2 - pitch)
-                rp.name = 'Roof Slope'
-                rp.castShadow = true
-                root.add(rp)
+            // Two slope planes — each is a thin box, rotated around X axis
+            for (const side of [1, -1]) {
+                const slope = new Mesh2(new BoxGeometry(W + overhang * 2, slopeLen + overhang, thickness) as any, roofMat as any)
+                // Position at mid-height of the slope, offset in Z by half the horizontal run
+                slope.position.set(0, corniceTop + ridgeH / 2, side * halfD / 2)
+                // Rotate so the slope goes from eave to ridge
+                // For side=1 (front): rotate -pitch around X (top edge goes up-back)
+                // For side=-1 (back): rotate +pitch around X (top edge goes up-front)
+                slope.rotation.x = -side * pitch
+                slope.name = 'Roof Slope'
+                slope.castShadow = true
+                root.add(slope)
             }
-        } else {
-            // Hipped — tapered box
-            const pitch = Math.max(15, Math.min(55, params.roofPitch)) * (Math.PI / 180)
-            const ridgeH = Math.tan(pitch) * (Math.min(W, D) / 2)
-            const hipGeo = new BoxGeometry(W + 0.2, ridgeH, D + 0.2)
-            const hp = hipGeo.getAttribute('position') as any
-            for (let i = 0; i < hp.count; i++) {
-                if (hp.getY(i) > 0) {
-                    hp.setX(i, hp.getX(i) * 0.08)
-                    hp.setZ(i, hp.getZ(i) * 0.08)
+
+            // Gable wall infill (triangular shape on each end) — approximate with tapered box
+            for (const side of [1, -1]) {
+                const gableGeo = new BoxGeometry(thickness, ridgeH, D)
+                // Taper top vertices to form triangle
+                const pos = gableGeo.getAttribute('position') as any
+                for (let i = 0; i < pos.count; i++) {
+                    if (pos.getY(i) > 0) {
+                        // Squeeze Z toward center at top
+                        pos.setZ(i, pos.getZ(i) * 0.01)
+                    }
+                }
+                pos.needsUpdate = true
+                gableGeo.computeVertexNormals()
+                const gable = new Mesh2(gableGeo as any, wallMat as any)
+                gable.position.set(side * (W / 2 + thickness / 2), corniceTop + ridgeH / 2, 0)
+                gable.name = 'Gable'
+                gable.castShadow = true
+                root.add(gable)
+            }
+
+            // Ridge board
+            const ridge = new Mesh2(new BoxGeometry(W + overhang * 2, 0.06, 0.06) as any, roofMat as any)
+            ridge.position.set(0, corniceTop + ridgeH, 0)
+            ridge.name = 'Ridge'
+            root.add(ridge)
+
+        } else if (params.roofStyle === 'hipped') {
+            const pitch = Math.max(15, Math.min(55, params.roofPitch)) * Math.PI / 180
+            const minDim = Math.min(W, D)
+            const ridgeH = Math.tan(pitch) * (minDim / 2)
+
+            // Tapered box approximation
+            const hipGeo = new BoxGeometry(W, ridgeH, D)
+            const pos = hipGeo.getAttribute('position') as any
+            for (let i = 0; i < pos.count; i++) {
+                if (pos.getY(i) > 0) {
+                    // Taper to a small rectangle at top (for ridge line)
+                    const tX = W > D ? (W - D) / W * 0.5 + 0.01 : 0.01
+                    const tZ = D > W ? (D - W) / D * 0.5 + 0.01 : 0.01
+                    pos.setX(i, pos.getX(i) * tX)
+                    pos.setZ(i, pos.getZ(i) * tZ)
                 }
             }
-            hp.needsUpdate = true
+            pos.needsUpdate = true
             hipGeo.computeVertexNormals()
+
             const hip = new Mesh2(hipGeo as any, roofMat as any)
-            hip.position.y = totalH + ridgeH / 2
-            hip.name = 'Roof'
+            hip.position.y = corniceTop + ridgeH / 2
+            hip.name = 'Hip Roof'
             hip.castShadow = true
             root.add(hip)
         }
-
-        return root
     }
 }

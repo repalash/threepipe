@@ -37,7 +37,22 @@ export type {
 export {ModuleKit, type ModuleEntry, type ModuleMeta} from './modules/ModuleKit'
 export * as ForEach from './compose/ForEach'
 
+// Blender built-in equivalents
+export {hash1, hash2, hash3, hash_to_float1, hash_to_float2, hash_to_float3} from './blender/noise'
+export {randomInt, randomFloat, randomBool, randomVector} from './blender/random_value'
+export {
+    normalizeAngle, alignEulerToEdgeNormal, pointOnSegment,
+    meshToCurveSplitTrim, resampleCurve,
+    type CurveSegment, type Vec2,
+} from './blender/geometry_nodes'
+
+// Graph system
+export {defineNode, defineGraph, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef} from './graph/graph'
+export {createRuntime, type Runtime} from './graph/runtime'
+export {graphUiConfig, nodeUiConfig} from './graph/ui'
+
 // Generators
 export {TerrainGenerator, type TerrainParams} from './generators/TerrainGenerator'
 export {VegetationScatterGenerator, type VegetationScatterParams} from './generators/VegetationScatterGenerator'
 export {BuildingGenerator, type BuildingParams} from './generators/BuildingGenerator'
+export {buildifyBuilding, buildifyToGroup, type BuildifyParams, type ModuleData, type ModuleMap} from './generators/buildify_demo_1'
