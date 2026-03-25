@@ -207,7 +207,8 @@ export const iMaterialCommons = {
     refreshTextureRefs: function(this: IMaterial) {
         if (!this.__textureUpdate) this.__textureUpdate = textureUpdate.bind(this)
         const newMaps1: Map<string, ITexture> = iMaterialCommons.getMapsForMaterial.call(this)
-        const newMaps = new Set(newMaps1.values().toArray())
+        // todo remove spread after node 22 widespread support
+        const newMaps = new Set([...newMaps1.values()])
         const oldMaps = this._mapRefs || new Set<ITexture>()
         let changed = false
         const added = new Set<ITexture>()

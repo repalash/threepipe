@@ -4,8 +4,9 @@ import {getEmptyMeta, SerializationMetaType, ThreeSerialization} from '../../uti
 import {IMaterial} from '../../core'
 
 export class JSONMaterialLoader extends SimpleJSONLoader {
-    static SupportedJSONTypes = ()=>['Material', ...ThreeSerialization.SerializableMaterials.values().flatMap(t => [t.TYPE, ...t.TypeAlias || []])]
-    static SupportedJSONExtensions = ()=>['mat', ...ThreeSerialization.SerializableMaterials.values().map(t => t.TypeSlug)]
+    // todo remove spread after node 22 widespread support
+    static SupportedJSONTypes = ()=>['Material', ...[...ThreeSerialization.SerializableMaterials.values()].flatMap(t => [t.TYPE, ...t.TypeAlias || []])]
+    static SupportedJSONExtensions = ()=>['mat', ...[...ThreeSerialization.SerializableMaterials.values()].map(t => t.TypeSlug)]
 
     viewer?: ThreeViewer
 
