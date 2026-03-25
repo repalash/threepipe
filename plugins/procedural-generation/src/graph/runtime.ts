@@ -99,12 +99,14 @@ export function createRuntime(graph: GraphDef): Runtime {
 
         markDirty(node: NodeDef): void {
             const s = state.get(node)
-            if (s) s.dirty = true
+            if (!s) throw new Error(`Unknown node '${node.name}'`)
+            s.dirty = true
         },
 
         get(node: NodeDef, output: string): any {
             const s = state.get(node)
             if (!s) throw new Error(`Unknown node '${node.name}'`)
+            if (!(output in s.outputs)) throw new Error(`${node.name} has no output '${output}'`)
             return s.outputs[output]
         },
 
@@ -113,7 +115,9 @@ export function createRuntime(graph: GraphDef): Runtime {
         },
 
         isSettable(node: NodeDef, input: string): boolean {
-            return !connectedInputs.get(node)?.has(input)
+            const connected = connectedInputs.get(node)
+            if (!connected) return false // unknown node
+            return !connected.has(input)
         },
 
         settableInputs(node: NodeDef): string[] {

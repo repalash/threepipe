@@ -8,7 +8,9 @@
         "allowImportingTsExtensions": true,
         "noEmit": true,
         "paths": {
-            "@threepipe/plugin-procedural-generation/graph": ["../../src/graph/index.ts"]
+            "@threepipe/plugin-procedural-generation/graph": ["../../src/graph/index.ts"],
+            "@threepipe/plugin-procedural-generation": ["../../src/index.ts"],
+            "threepipe": ["../../../../dist/index.mjs"]
         },
         "baseUrl": "."
     }

@@ -3,15 +3,28 @@
  *
  * Any .ts file that defines a procedural graph should export a `graphModule`
  * conforming to this interface. Both the comparison script and the generic
- * viewer example consume this shape.
+ * viewer consume this shape.
  *
- * Instance output format (what the graph nodes must produce):
- *   { world_matrix: number[16], object_name: string }[]
+ * Graph outputs can produce:
+ * - `GeneratedInstance[]` — instances placed from loaded GLB assets
+ *     { world_matrix: number[16], object_name: string }[]
+ *     world_matrix is column-major 4x4, matching Blender's depsgraph format.
+ * - Plain data objects with vertex arrays (e.g. `{rings: [{vertices, indices, placements}]}`)
+ *     The viewer builds BufferGeometry from vertex data.
+ *     The comparison script verifies vertex positions.
  *
- * world_matrix is column-major 4x4, matching Blender's depsgraph format.
+ * Both work in Node.js (with polyfill) and in the browser.
  */
 
 import type {GraphDef, NodeDef} from './graph'
+
+/** Mesh data extracted from a loaded GLB asset (geometry + material pairs). */
+export interface ModuleData {
+    meshes: {geometry: any, material: any, worldMatrix?: any}[]
+}
+
+/** Map of asset filename → loaded mesh data. Used by the viewer and scene builders. */
+export type ModuleMap = Map<string, ModuleData>
 
 /** A single instance placed by the generator. */
 export interface GeneratedInstance {
@@ -21,7 +34,7 @@ export interface GeneratedInstance {
     object_name: string
 }
 
-/** Pointer to a node output that produces GeneratedInstance[]. */
+/** Pointer to a node output consumed by the viewer and comparison script. */
 export interface OutputRef {
     /** Node reference (from the graph's nodes array) */
     node: NodeDef
@@ -33,23 +46,18 @@ export interface OutputRef {
 export interface GraphEntry {
     /** The graph definition. */
     graph: GraphDef
-    /** Which node outputs produce GeneratedInstance[] arrays. */
+    /**
+     * Node outputs the viewer should render and the comparison script should verify.
+     * Each ref points to a node output producing either:
+     * - `GeneratedInstance[]` — placed from loaded GLB assets
+     * - Plain data objects with vertex arrays (for procedural mesh generators)
+     */
     outputs: OutputRef[]
 }
 
 /**
  * Standard export shape for a procedural graph file.
  * Each entry in `graphs` is an independent graph with its own runtime.
- *
- * Usage in a graph .ts file:
- * ```ts
- * export const graphModule: GraphModule = {
- *     graphs: [
- *         { graph: buildingGraph, outputs: [{node: join, output: 'instances'}] },
- *     ],
- *     assets: ['window.glb', 'door.glb'],
- * }
- * ```
  */
 export interface GraphModule {
     /** One or more independent graphs, each evaluated with its own runtime. */

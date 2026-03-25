@@ -34,7 +34,7 @@ The graph system gives you: reactive recompute when inputs change, auto-generate
 
 ## Mental Model
 
-**Read the Blender C++ source for every node you port.** Don't guess, don't reverse-engineer from outputs, don't assume behavior matches documentation. The source is at `.repos/blender-gn-source/source/blender/`. Every non-trivial bug in this pipeline was solved by reading the exact C++ implementation:
+**Read the Blender C++ source for every node you port.** Always read and port from source FIRST. Reverse-engineering from ground truth output is acceptable for verification and debugging, but never as a substitute for reading the source. Don't brute-force IDs or values against ground truth to make numbers match — if something doesn't match, read the source to understand why. The source is at `.repos/blender-gn-source/source/blender/`. Every non-trivial bug in this pipeline was solved by reading the exact C++ implementation:
 
 - Vertex ordering → `geometry/intern/mesh_primitive_grid.cc` (X outer, Y inner)
 - World matrix formula → `blenlib/BLI_math_matrix.hh` (EulerXYZ rotation matrix)
@@ -64,7 +64,7 @@ Before writing any code, know what already exists in `@threepipe/plugin-procedur
 - `GeneratedInstance` — `{world_matrix: number[16], object_name: string}`
 - `launchGraphViewer(graphModule, options)` — generic browser viewer (loads assets, builds scene, auto UI)
 
-Import from `@threepipe/plugin-procedural-generation/graph` for Node-safe code (no browser deps), or from `@threepipe/plugin-procedural-generation` for browser code (includes viewer).
+Import from `@threepipe/plugin-procedural-generation/graph` for graph code (works in both Node.js and browser — three.js types like BufferGeometry work in Node.js with polyfill). Import from `@threepipe/plugin-procedural-generation` for the full package including viewer. The `/graph` subpath exports Distribute, Instance, and all Blender utilities alongside the graph system.
 
 ### Blender Built-ins (`src/blender/`)
 - `hash1`, `hash2`, `hash3` — Jenkins Lookup3 hash (from `BLI_noise.hh`)
@@ -75,21 +75,29 @@ Import from `@threepipe/plugin-procedural-generation/graph` for Node-safe code (
 - `randomVector(min, max, id, seed)` — VECTOR Random Value: per-component
 - `meshToCurveSplitTrim(corners, splitPoints)` — Mesh to Curve + Split Edges + Trim
 - `alignEulerToEdgeNormal(x0, z0, x1, z1)` — wall rotation from edge normal
-- `resampleCurve(segment, moduleWidth, offset)` — Resample Curve (LENGTH mode)
+- `resampleCurve(segment, moduleWidth, offset)` — Resample Curve (LENGTH mode). Uses `Math.floor()` matching Blender source (`resample_curves.cc:44`).
 - `pointOnSegment(fp, x0, z0, x1, z1)` — project point onto segment, return t or null
 - `normalizeAngle(a)` — wrap to [-PI, PI]
 - `meshGrid(sizeX, sizeY, verticesX, verticesY)` — create grid of points (Mesh Grid node)
 - `separateGeometry(items, selection)` — split array by boolean selection
 - `storeNamedAttribute(items, name, values)` — store per-element attribute
 - `inputNamedAttribute(items, name)` — read per-element attribute
-- `fromLocRotScale(px, py, pz, rx, ry, rz, sx, sy, sz)` — 4x4 column-major world matrix from position + EulerXYZ + scale (Instance on Points core)
+- `yUpToZUp(x, y, z)` — convert three.js Y-up coordinates to Blender Z-up. **Use this when positions come from GLB geometry** (e.g. `distributePointsOnFaces` on a loaded mesh). Returns `[blender_x, blender_y, blender_z]`.
+- `fromLocRotScale(px, py, pz, rx, ry, rz, sx, sy, sz)` — 4x4 column-major world matrix from position + EulerXYZ + scale (Instance on Points core). **All inputs must be in Blender Z-up.** If positions come from GLB geometry, convert with `yUpToZUp` first.
 - `joinGeometry(...arrays)` — concatenate arrays preserving point index order (Join Geometry node)
 - `transformPoints(points, tx, ty, tz, sx, sy, sz)` — Transform Geometry in Components mode
-- `mapRange(value, fromMin, fromMax, toMin, toMax)` — remap value between ranges
+- `mapRange(value, fromMin, fromMax, toMin, toMax, clamp=true)` — remap value between ranges. **Clamps by default** (matching Blender's Map Range node). Pass `clamp=false` for unclamped.
+- `distributePointsOnFaces(geometry, options)` — exact port of Blender's `GeometryNodeDistributePointsOnFaces` (from `node_geo_distribute_points_on_faces.cc`). Supports RANDOM and POISSON modes with Blender's exact LCG RNG, round_probabilistic, per-triangle seeding, KDTree Poisson elimination, and deterministic point IDs. Options: `{method, density, densityFactor?, minDistance?, seed}`. Returns `{positions: Vector3[], normals: Vector3[], ids: number[], baryCoords: Vector3[], triIndices: number[]}` — positions are in the geometry's coordinate space (Y-up for GLB). `baryCoords` and `triIndices` enable interpolation of per-vertex attributes (UVs, colors) at scatter points via `interpolateScatterUVs()`.
+- `interpolateScatterUVs(geometry, baryCoords, triIndices)` — interpolate UV coordinates from mesh triangle vertices at scatter point positions using barycentric coordinates. Returns `[u, v][]` per scatter point. Use instead of bounding-box UV approximation for texture-based density filtering.
+- **`scatterToInstances(result, options)`** — **USE THIS for all scatter-to-instance pipelines.** Takes the result from `distributePointsOnFaces` and produces `GeneratedInstance[]` with coordinate conversion (yUpToZUp) baked in. Handles: position conversion, random rotation (per point ID), random scale (per point ID), `fromLocRotScale`. Options: `{objectName, scaleRange, scaleSeed?, rotationSeed?, rotationRange?, filter?, pickObject?}`. This eliminates the most common porting bug (forgetting yUpToZUp).
 - `mapRangeStepped(...)` / `mapRangeSmoothstep(...)` — stepped and smoothstep variants
 - `clamp(value, min, max)` — clamp to range
 - `mixFloat(factor, a, b)` / `mixVector(factor, a, b)` — linear interpolation
 - `compare(a, b, operation)` — comparison by operation enum (LESS_THAN, GREATER_THAN, EQUAL, etc.)
+- `rotateEulerAxisAngleLocal(euler, axis, angle)` / `rotateEulerAxisAngleObject(...)` — Rotate Euler node (from `node_fn_rotate_euler.cc`). Local = multiply on right, Object = multiply on left.
+- `eulToMat3(rx, ry, rz)` / `mat3ToEul(m)` / `axisAngleToMat3(ax, ay, az, angle)` / `mulMat3(a, b)` — rotation matrix utilities (from `math_rotation.c`)
+- `sampleImageTexture(tex, u, v)` — sample red channel of image texture at UV coords with bilinear interpolation (from `node_geo_image_texture.cc`). `tex: {data, width, height, channels}`.
+- `colorRampLinear2(fac, pos0, pos1)` — 2-stop linear ColorRamp (from `node_shader_valtorgb.cc`). Returns 0-1.
 - `booleanMath(a, b, operation)` — boolean logic by operation enum (AND, OR, NOT, XOR, etc.)
 - `mathOp(operation, a, b?, c?)` — all ShaderNodeMath operations (ADD, MULTIPLY, POWER, SINE, RADIANS, etc.)
 
@@ -120,6 +128,33 @@ source/blender/nodes/function/ — function nodes
 source/blender/blenkernel/     — evaluation internals
 ```
 
+### When to use three.js vs Blender utilities
+
+**Use three.js directly** for standard vector/matrix math:
+- Vector operations (add, subtract, cross, dot, normalize) → `Vector3`
+- Rotation → `Vector3.applyAxisAngle()`, `Vector3.applyQuaternion()`
+- Matrix transforms → `Matrix4.compose()`, `Vector3.applyMatrix4()`
+- Euler rotation → `Euler`, `Quaternion.setFromEuler()`
+
+These are NOT Blender-specific — they're the same math everywhere. Don't rewrite them.
+
+**Use the Blender utilities** (`src/blender/`) for Blender-specific behavior:
+- `randomInt/Float/Bool` — Blender's exact Jenkins hash + argument order
+- `mapRange` — Blender's clamp-by-default behavior
+- `resampleCurve` — Blender's `floor()` point count formula
+- `fromLocRotScale` — Blender's exact EulerXYZ matrix construction
+- `meshGrid` — Blender's exact vertex ordering (X outer, Y inner)
+
+**Before creating a new utility**, check:
+1. Does three.js already provide it? → Use three.js
+2. Is it a standard algorithm (Catmull-Clark subdivision, KDTree, etc.)? → Find an existing open-source implementation (npm package, GitHub repo, three.js addon) and port/use it. Clone repos into `.repos/` for reference. Don't reinvent standard algorithms from scratch, but don't skip them either.
+3. Is it Blender-specific behavior? → Port from the C++ source with a link to the file
+4. Is it just inline math (5 lines of sin/cos)? → Keep inline, don't create a utility
+
+**Never skip a node because it's "too complex to port."** If the node uses a standard algorithm, find an existing implementation to port from. If it uses Blender-specific logic, port from the Blender source. If you truly cannot port it, flag it as a blocker and ask — do not silently skip or approximate.
+
+**three.js works in Node.js** with a polyfill (see `experiments/tp-cf-test/src/polyfill.ts`). So generators and comparison scripts can import three.js for math — there's no need to maintain parallel "Node-safe" math implementations.
+
 ### Viewer Utilities (`src/viewer/GraphViewer.ts`)
 - `loadAssets(viewer, assets, basePath)` — load GLB assets into a ModuleMap
 - `buildSceneFromInstances(instances, modules)` — create three.js scene from GeneratedInstance[] with Blender→Y-up conversion
@@ -128,20 +163,23 @@ For custom viewers (beyond `launchGraphViewer`), import these directly instead o
 
 ### Worked Examples
 - `examples/buildify-demo-3/graph.ts` — Grid-based buildings: GraphModule, 3 graphs, Group Input pattern
-- `examples/buildify-demo-3/script.ts` — thin viewer using `launchGraphViewer(graphModule)`
 - `examples/buildify-demo-4/graph.ts` — Edge-based building: ported from .blend, 238/238 matrix match
 - `examples/buildify-demo-4/script.ts` — custom viewer with interactive footprint editing (TransformControls + vertex add/remove)
+- `examples/flower-demo/` — Procedural flower using FlowerGenerator (AProceduralGenerator) with auto-UI
+- `examples/flowers-on-building/graph.ts` — Composition: mixed outputs (GeneratedInstance[] + mesh scatter) in one graph
+- `examples/flower-scattering/graph.ts` — Grass + flower scatter on terrain: 4 collections, texture-based density filtering, collection instancing (Separate Children=false for grass), Pick Instance for flowers, Random Orientation sub-group
+- `examples/pebble-scatter/graph.ts` — 3 pebble sizes on ground mesh: POISSON + RANDOM distribution, custom viewer with ground geometry
 - `src/generators/buildify_demo_1.ts` — Buildify building (monolithic, Blender-accurate)
-- `examples/buildify-demo-1/script.ts` — Buildify with custom scene setup
+- `src/generators/FlowerGenerator.ts` — Procedural rose: AProceduralGenerator using three.js for math
 
 ---
 
 ## Pipeline
 
 ```
-Phase 1   Phase 2   Phase 3   Phase 4   Phase 5   Phase 6
-Extract → Export  → Map     → Build   → Verify  → Wire UI
-Graph     Assets    Nodes     Generator  Numbers   Graph
+Phase 1   Phase 2   Phase 3   Phase 4   Phase 5   Phase 6   Phase 7
+Extract → Export  → Map     → Build   → Verify  → Wire UI → Library
+Graph     Assets    Nodes     Generator  Numbers   Graph     Feedback
 ```
 
 Complete each phase before moving to the next.
@@ -188,7 +226,14 @@ blender --background file.blend --python porting/scripts/export_assets.py \
   -- --output ./assets/ --manifest asset_manifest.json
 ```
 
-Only export hand-modeled meshes. Primitive geometry (Grid, Cube) will be created procedurally. The export script automatically **flattens procedural materials** to their dominant flat color before export — the glTF format doesn't support procedural shaders (Noise Texture, Brick Texture, ColorRamp, shader node groups). For materials using Brick Texture, it extracts Color1 as the base color. This loses texture detail but preserves the correct color per material slot.
+Only export hand-modeled meshes. Primitive geometry (Grid, Cube) will be created procedurally. The export script automatically **flattens procedural materials** to flat colors for glTF export. It handles ALL material types:
+1. Principled BSDF with linked Base Color → traces the node chain (ShaderNodeGroup, Mix, Brick, RGB)
+2. Trace fails → uses `material.diffuse_color` (viewport color) as fallback
+3. No Principled BSDF (MixShader, Anisotropic, etc.) → replaces Surface with temp Principled BSDF using `diffuse_color`
+4. CURVEs with materials → also flattened
+5. Collection-instancing EMPTYs → exports all mesh/curve children of the instanced sub-collection as a single GLB
+
+**After exporting, VERIFY material colors before proceeding.** Check each GLB's JSON chunk for `pbrMetallicRoughness.baseColorFactor`. If any material is white/missing, the export is broken — do not continue to Phase 3.
 
 The export script produces a manifest (`asset_manifest.json`) mapping Blender names → GLB filenames:
 - Individual objects (ObjectInfo): `object_Foo_Bar.glb`
@@ -205,6 +250,11 @@ blender --background file.blend --python porting/scripts/export_ground_truth.py 
 ```
 
 Test with: default params, min values, max values, a few mid-range.
+
+### Ground truth limitations
+The export script captures **instances** from the depsgraph. Node trees that produce **geometry** (not instances) will have 0 instances in the ground truth. This does NOT mean the tree is unimportant or can be skipped. Examples: a floor made of instanced cubes that gets `Realize Instances` before output, a subdivided mesh with vertex displacement. If a tree has 0 instances in GT, inspect the node graph to understand what it produces and port it accordingly.
+
+**Never skip a node tree without explicit approval.** If a required node isn't ported yet, report it as a blocker — don't approximate or skip silently. Every tree in the .blend file exists for a reason.
 
 ### Analyze the ground truth before building
 
@@ -260,12 +310,23 @@ Note: `ShaderNode*` prefixed nodes are shared across Blender's shader and geomet
 
 The asset path (not Blender object name) should be used as the key to avoid conflicts when merging graphs from multiple .blend files.
 
-### Instance on Points with Pick Instance
+### Instance on Points with Pick Instance (Separate Children = true)
 When `Pick Instance = true` and `Instance Index` is not connected, Blender implicitly uses the **point index** as the Instance Index (source: `node_geo_instance_on_points.cc` line 31, `implicit_field_on(NODE_DEFAULT_INPUT_ID_INDEX_FIELD)`). The selected member is `members[point_index % members.length]`.
 
 In TypeScript: pass the collection members array and use `members[i % members.length]` per instance.
 
 **Critical: member order.** When `Separate Children = true`, CollectionInfo sorts members **alphabetically** using natural case-insensitive sort (`BLI_strcasecmp_natural` in `node_geo_collection_info.cc` line 136-138). This is NOT the `collection.all_objects` order from Python. Sort the member filenames alphabetically before using them for Pick Instance.
+
+### Instance on Points with Separate Children = false (whole collection)
+When `Separate Children = false`, each scatter point instances the **entire collection**. Every child object is placed at that scatter point, each with its own transform composed from the scatter point transform and the child's local transform within the collection.
+
+In Blender's depsgraph, each child produces a separate instance with world matrix = `scatter_matrix @ child_local_matrix_in_collection`. The ground truth export captures these per-child matrices — so for a collection with 4 members, each scatter point produces 4 instances with:
+- **Same rotation/scale** (from the scatter point) but **different positions** (scatter position + child offset transformed by scatter rotation)
+- The position difference between children at the same scatter point = `R_scatter * s_scatter * child_local_position`
+
+**In TypeScript:** For each scatter point, create one `GeneratedInstance` per collection member. Since our GLB export (`export_apply=True`) bakes each child's local transform into the mesh vertices, applying the scatter matrix to each child's GLB produces the correct visual result automatically. Use the same `fromLocRotScale(scatter_pos, scatter_rot, scatter_scale)` for all members at a point.
+
+**Comparison note:** The comparison against ground truth may show position mismatches because the ground truth matrices include the composed child offset, while our matrices are the same for all children at a scatter point. This is expected — the visual output is equivalent because the GLB geometry already includes the child offset. When comparing, group by scatter point and verify the scatter-level transform matches.
 
 **Critical:** The INT and FLOAT Random Value nodes use DIFFERENT argument order:
 - INT: `hash(id, seed)` — id first
@@ -335,7 +396,14 @@ const stage2 = randomInt(0, 200, stage1, floorSeed)
 const variant = stage2 % collectionSize
 ```
 
-**Coordinate conversion**: The graph outputs Blender Z-up matrices. The viewer (`launchGraphViewer`) converts to three.js Y-up automatically. Do NOT convert in the graph — keep everything in Blender space for ground truth comparison.
+**Coordinate conversion**: The graph outputs Blender Z-up matrices. The viewer (`buildSceneFromInstances`) converts to three.js Y-up automatically. Do NOT convert in the graph — keep everything in Blender space for ground truth comparison.
+
+**CRITICAL: GLB geometry is Y-up, `fromLocRotScale` expects Z-up.** When you scatter points on a loaded GLB mesh (e.g. via `distributePointsOnFaces`), the returned positions are in three.js Y-up space. You MUST convert them to Blender Z-up before passing to `fromLocRotScale`:
+```typescript
+const [bx, by, bz] = yUpToZUp(pos.x, pos.y, pos.z)  // Y-up → Z-up
+const matrix = fromLocRotScale(bx, by, bz, rx, ry, rz, sx, sy, sz)
+```
+Without this conversion, everything renders rotated 90 degrees (appears as a wall instead of ground).
 
 ## Phase 5 — Verify Numerically
 
@@ -382,10 +450,26 @@ If main wall instances match but filtered/scattered extras have wrong positions,
 
 3. **Match the ordering** in your `gridSubGroup` or equivalent function, then re-run compare.sh.
 
+### Mandatory: run comparison and paste output
+You MUST run `compare.sh` (or the compare_graph.ts script) and include its output in your progress report. Do not claim "verification should pass" or "positions look correct" — run the actual comparison and paste the results. If Blender is not available, run the graph in Node.js with `npx tsx` and compare a sample of instance matrices against the ground truth JSON programmatically.
+
+### UV interpolation for Image Texture on scattered points
+When the Blender graph uses Image Texture nodes on scattered points (e.g. density maps, masks), the UV coordinates must be interpolated from the triangle vertices at the scatter point's barycentric position. Do NOT approximate UVs from the mesh bounding box — this gives wrong spatial distribution. If `distributePointsOnFaces` doesn't return UVs, either extend it to do so or compute barycentric UV interpolation from the triangle the point landed on.
+
+### Reactivity check (required)
+After the numerical match passes, verify the graph is actually reactive:
+1. Change a Group Input parameter (e.g. seed, count, density)
+2. Re-evaluate the graph
+3. Verify the output **changed** — different instance count, different positions, or different matrices
+4. If the output is identical regardless of input changes, the port is broken — the evaluate functions are ignoring their inputs (likely using pre-baked data instead of computing)
+
+This catches pre-baked graphs that trivially pass numerical verification but are non-functional.
+
 ### Do NOT proceed until
 - The comparison script reports 100% full matrix matches
 - Instance counts match
 - All 3 (or N) building configs pass, not just the first one
+- Changing at least one Group Input parameter changes the output (reactivity check)
 
 ## Phase 6 — Wire into Browser Example
 
@@ -421,28 +505,74 @@ After the comparison passes, **open the example in the browser** and verify:
 2. The number of visible objects matches the instance count (check browser console)
 3. Extras/props are visible (not silently missing due to asset name mismatch)
 4. Compare side-by-side with Blender's viewport — positions, rotations, proportions should match
+5. **Change every UI slider** and verify the scene updates. If any input doesn't affect the output, the port is incomplete — the evaluate function is ignoring that input or using pre-baked data
 
 For custom scene setup, use `createRuntime` + `graphUiConfig` directly (see `examples/buildify-demo-1/`).
 
+### Pre-delivery verification checklist (MANDATORY)
+
+Before presenting any port as "done", run ALL of these checks. Do not skip any.
+
+**Asset checks (run in Node.js via `npx tsx`):**
+1. Every GLB in the assets list loads with non-zero vertex count. If any has 0 verts or tiny file size (<200 bytes), the export is broken — object may be `hide_render=True` or have unevaluated modifiers.
+2. Every GLB has material colors (check for `baseColorFactor` in the file). White/gray (0.8, 0.8, 0.8) is suspicious — verify it's the intended color in Blender, not a fallback.
+3. Ground/surface meshes used for scatter: verify `getWorldGeometry()` returns non-null geometry with expected vertex count.
+
+**Graph checks (run in Node.js):**
+4. ALL node trees in the .blend are accounted for. "0 instances in GT" does NOT mean skip — check what the tree produces.
+5. Instance counts match GT (within expected triangle-ordering tolerance).
+6. No pre-baked/hardcoded data (JSON dumps of positions, IDs, etc.). Everything must be computed at runtime.
+7. Reactivity: changing at least one parameter changes the output.
+
+**Visual checks (run in browser):**
+8. No "asset not loaded" warnings in console.
+9. All objects have correct colors (not white unless intended).
+10. Scale/proportions visually match Blender.
+11. Animation plays if applicable (not just a dead slider).
+12. No performance issues (rebuild only what changes per frame, not the entire scene).
+
+**Code checks:**
+13. `index.html` uses the standard importmap pattern (not `src="./script.ts"`).
+14. New utilities are added to the library (not left inline in graph.ts).
+15. No unused imports.
+
 ---
 
-## Contributing New Utilities
+## Phase 7 — Library Feedback (MANDATORY)
 
-When you port a new Blender function that could be reused by other generators:
+**Every port must feed back into the library.** This is how the package grows. If you ported new Blender nodes or created new utilities, they must be properly integrated so the NEXT port can use them.
 
-1. **Add to your project's utils** — or to `src/blender/` if working in the threepipe repo
-2. **Link to Blender source** — add a comment above the function with the source file path
-3. **Add a test** if the function has non-trivial logic (e.g. hash functions, coordinate transforms)
+### For every new utility or Blender node port:
 
-If working in the threepipe repo (maintainers):
-- Export new functions from `src/index.ts`
-- Update the built-ins table in `porting/guide.md` and the "Available Infrastructure" section of this skill
+1. **Place in `src/blender/`** — one file per major node (e.g. `distribute_points_on_faces.ts`), or add to existing files for small functions
+2. **Link to Blender source** — comment above every function with the exact source file path and line numbers
+3. **Export from both entry points:**
+   - `src/graph/index.ts` (the `/graph` subpath — available to graph files and Node.js scripts)
+   - `src/index.ts` (the main entry — available to browser code)
+4. **Write tests** — at minimum: determinism (same inputs → same output), edge cases (zero/empty), and correctness against known values
+5. **Update this skill's "Available Infrastructure" section** — add the new function with its signature, source reference, and any gotchas. This is how the next agent knows what's available.
+6. **Update `issues/open/procedural-generation-status.md`** — add to the "Blender Utilities" list and mark any "Not Yet Ported" nodes as done
+7. **Update the tracking file** for this port (`issues/open/<port-name>.md`) — list every new utility added, with file paths
 
-If working in an external project:
-- Consider opening a PR to `@threepipe/plugin-procedural-generation` to contribute the utility upstream
-- Include the Blender source reference and verification test
+### What to report
 
-Example: when porting the Buildify building, we discovered that Blender's FLOAT Random Value uses swapped argument order (`hash(seed, id)` instead of `hash(id, seed)`). This was added to `random_value.ts` with the Blender source reference and verified against Blender's output.
+At the end of every port, include a **Library Additions** section in the tracking file:
+
+```markdown
+## Library Additions
+New utilities added to the package by this port:
+
+| File | Function | Blender Source | Tests |
+|------|----------|----------------|-------|
+| `src/blender/distribute_points_on_faces.ts` | `distributePointsOnFaces()` | `node_geo_distribute_points_on_faces.cc` | `tests/distribute_points_on_faces.test.ts` |
+| `src/blender/math_nodes.ts` | `smoothMin()` | `node_shader_math.cc` | (added to existing) |
+```
+
+This table is how the maintainer (or next agent) knows what was added and can verify it's correct.
+
+### Why this matters
+
+The strategy is: each `.blend` file port expands the library of reusable Blender node implementations. Without this feedback step, utilities get created but not registered — the next port doesn't know they exist and reimplements them. This is the most common source of duplicate code and wasted work.
 
 ---
 
@@ -507,6 +637,37 @@ The rotation value (rotY in three.js = rotZ in Blender) is the same number — b
 ### Export base geometry without modifiers
 When exporting a mesh that has a GeometryNodes modifier (e.g. building_base for the roof plane), `export_apply=True` in the glTF exporter evaluates all modifiers first — you get the full generated building, not the base mesh. Remove modifiers before export: `for m in list(obj.modifiers): obj.modifiers.remove(m)`. Also apply the object transform (`bpy.ops.object.transform_apply(location=True)`) so vertices are in world space, matching the wall placement coordinates.
 
+### Procedural mesh generators use AProceduralGenerator, not GraphModule
+Generators that create mesh geometry (like the flower) should use `AProceduralGenerator` with `ProceduralGeneratorPlugin` — not `GraphModule` with `GeneratedInstance[]`. `AProceduralGenerator` provides auto-UI, dirty-flag regeneration, and the Generate dropdown. The graph system (`GraphModule`) is for instance-placement generators where selective recompute between independent nodes matters.
+
+For **composing** both types (e.g., flowers on a building), use a graph where:
+- Building nodes output `GeneratedInstance[]` (placed from GLB assets)
+- Procedural mesh nodes output plain vertex data (Node-safe arrays)
+- The viewer renders both via runtime type detection
+- The comparison script verifies both (instance matrices + vertex positions)
+
+See `examples/flowers-on-building/graph.ts` for a complete example.
+
+### Graph outputs: instances or mesh vertex data
+The `OutputRef` in `GraphModule.graphs[].outputs` is type-agnostic — it points to any node output. The viewer and comparison script detect the type at runtime:
+- `GeneratedInstance[]` (array with `world_matrix`) → placed from loaded GLB assets. Comparison checks 16-value matrices.
+- Plain data object with `rings` (vertex arrays + placement positions) → built into BufferGeometry. Comparison checks vertex positions.
+- `null` → skipped.
+
+All outputs must be **plain data** (no three.js types). This ensures they work in both Node.js (comparison) and browser (rendering). See `examples/flowers-on-building/graph.ts` for a graph with both output types.
+
+### GLB geometry does NOT include node transforms
+When loading a GLB via three.js GLTFLoader, `mesh.geometry` contains raw vertex data in the mesh node's LOCAL space. Transforms like the Z→Y coordinate conversion, object positions, and rotations are stored in the node hierarchy (`mesh.matrixWorld`), NOT in the vertex buffer. If you extract geometry for computation (scatter, distance calculations, etc.), you MUST apply the world matrix first:
+```typescript
+obj.updateMatrixWorld(true)
+const geom = child.geometry.clone()  // clone to avoid mutating shared/cached buffer
+geom.applyMatrix4(child.matrixWorld)
+```
+Without this, scatter positions will be in the wrong coordinate frame — rotated, offset, or both. The `loadAssets` function in GraphViewer.ts handles this automatically.
+
+### GLB triangle ordering differs from Blender's internal order
+The glTF exporter reorders vertices and faces for GPU cache optimization. Scatter algorithms seeded per-triangle (`hash2(tri_i, seed)`) will produce different individual positions than Blender, even with identical RNG. For scatter-based systems (grass, flowers), this is acceptable — the density distribution matches but specific positions differ. For exact position matching, you would need to export mesh data in Blender's internal order (custom Python export, not glTF).
+
 ### Blender 5.0 glTF exporter changes
 The `export_colors` parameter was removed from `bpy.ops.export_scene.gltf()` in Blender 5.0. Distro-packaged Blender (e.g. Alpine) may not bundle `numpy` which the glTF exporter requires — install it separately if you get `ModuleNotFoundError: No module named 'numpy'`. Official Blender downloads bundle numpy.
 
@@ -520,6 +681,10 @@ The `export_colors` parameter was removed from `bpy.ops.export_scene.gltf()` in 
 - **Graph outputs Blender coordinates.** Keep everything in Z-up for ground truth comparison. The viewer handles Y-up conversion automatically.
 - **Use `defineNodeType` for repeated node groups.** One definition, multiple instances with different defaults.
 - **PropDef for UI metadata.** `{default: 42, ui: {label: 'Seed', bounds: [0, 999]}}` auto-generates sliders.
+- **Use three.js for standard math.** Vector rotation, matrix transforms, Euler angles — import from three.js, don't rewrite. Only port from Blender C++ source for Blender-specific behavior (hash functions, random value argument order, resample floor vs round, etc.).
+- **three.js works in Node.js.** With the polyfill at `experiments/tp-cf-test/src/polyfill.ts`, three.js math classes work in Node.js. Prefer three.js over hand-rolled math. For graph nodes that must be evaluated by `compare_graph.ts`, keep outputs as plain data (arrays, not three.js objects).
+- **Never pre-bake computable outputs.** If a Blender node's algorithm can be implemented in TypeScript, implement it — even if exact bit-for-bit match with Blender isn't possible. Pre-baking (embedding Blender's output as static data) is only acceptable for artist-authored assets (meshes, textures), NOT for procedural algorithms like DistributePointsOnFaces, Random Value, Noise Texture, etc. A pre-baked graph passes numerical verification trivially but is non-functional — changing inputs does nothing. The package already has `Distribute.distributeOnFaces()` and `SeededRandom`. Use them. If the algorithm is complex, implement it; don't dump 40K lines of Float32Array data.
+- **Graphs must be reactive.** Every Group Input parameter that affects the output in Blender must affect the output in the TypeScript port. If changing a slider doesn't change the scene, the port is incomplete. Verify reactivity manually in the browser as part of Phase 6.
 
 ---
 
@@ -531,7 +696,7 @@ NOT tested on:
 - Blender 5.1+
 - Blender 3.x (fallback code path exists in extract_geo_nodes.py but is untested)
 - Files with deeply nested instance hierarchies (ObjectInfo + CollectionInfo tested, but source identity lost for nested instances)
-- Curve-heavy node setups (only edge-based Buildify tested)
+- Curve-heavy node setups (edge-based Buildify and Repeat Zone flower tested)
 - Node graphs with 1000+ nodes
 - Boolean modifier params must be int (0/1), not Python bool — the export script handles this
 

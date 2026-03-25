@@ -15,7 +15,7 @@ import {
 } from 'threepipe'
 import {Shape, ShapeGeometry} from 'three'
 import {
-    createRuntime, graphUiConfig, loadAssets, buildSceneFromInstances,
+    createRuntime, graphUiConfig, graphVisualizerButton, loadAssets, buildSceneFromInstances,
     type GeneratedInstance,
 } from '@threepipe/plugin-procedural-generation'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -270,6 +270,7 @@ async function init() {
     // UI
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.appendChild(graphUiConfig(rt, requestRebuild, 'Building'))
+    ui.appendChild(graphVisualizerButton(graphModule))
 }
 
 _testStart()

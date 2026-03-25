@@ -44,7 +44,12 @@ export {
     normalizeAngle, alignEulerToEdgeNormal, pointOnSegment,
     meshToCurveSplitTrim, resampleCurve,
     meshGrid, separateGeometry, storeNamedAttribute, inputNamedAttribute,
-    fromLocRotScale, joinGeometry, transformPoints,
+    yUpToZUp, fromLocRotScale, joinGeometry, transformPoints,
+    scatterToInstances, type ScatterToInstancesOptions,
+    eulToMat3, axisAngleToMat3, mulMat3, mat3ToEul,
+    rotateEulerAxisAngleLocal, rotateEulerAxisAngleObject,
+    sampleImageTexture, colorRampLinear2, type ImageTextureData,
+    interpolateScatterUVs,
     type CurveSegment, type Vec2, type GridPoint,
 } from './blender/geometry_nodes'
 export {
@@ -52,16 +57,23 @@ export {
     clamp, mixFloat, mixVector,
     compare, compareFloat, booleanMath, mathOp,
 } from './blender/math_nodes'
+export {
+    distributePointsOnFaces,
+    type DistributePointsOnFacesOptions,
+    type DistributePointsOnFacesResult,
+} from './blender/distribute_points_on_faces'
 
 // Graph system
 export {defineNode, defineNodeType, defineGraph, connect, applyDefaults, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef, type ResolvedInputs} from './graph/graph'
 export {createRuntime, type Runtime} from './graph/runtime'
 export {graphUiConfig, nodeUiConfig} from './graph/ui'
-export type {GraphModule, GraphEntry, GeneratedInstance, OutputRef} from './graph/module'
-export {launchGraphViewer, loadAssets, buildSceneFromInstances, type GraphViewerOptions} from './viewer/GraphViewer'
+export type {GraphModule, GraphEntry, GeneratedInstance, OutputRef, ModuleData, ModuleMap} from './graph/module'
+export {launchGraphViewer, loadAssets, getWorldGeometry, buildSceneFromInstances, graphVisualizerButton, type GraphViewerOptions} from './viewer/GraphViewer'
 
 // Generators
 export {TerrainGenerator, type TerrainParams} from './generators/TerrainGenerator'
 export {VegetationScatterGenerator, type VegetationScatterParams} from './generators/VegetationScatterGenerator'
 export {BuildingGenerator, type BuildingParams} from './generators/BuildingGenerator'
-export {buildifyBuilding, buildifyToGroup, type BuildifyParams, type ModuleData, type ModuleMap} from './generators/buildify_demo_1'
+export {buildifyBuilding, buildifyToGroup, type BuildifyParams} from './generators/buildify_demo_1'
+export {FlowerGenerator, type FlowerParams} from './generators/FlowerGenerator'
+export {getParamsForRing, createPetalVertices, type PetalParams} from './generators/flower-math'

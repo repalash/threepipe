@@ -3,6 +3,7 @@
     "compilerOptions": {
         "paths": {
             "threepipe": ["../dist/"],
+            "@threepipe/plugin-procedural-generation/graph": ["../plugins/procedural-generation/src/graph/index.ts"],
             "@threepipe/plugin-*": ["../plugins/*/dist"],
             "@threepipe/plugins-*": ["../plugins/*/dist"]
         },

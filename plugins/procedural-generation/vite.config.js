@@ -1,5 +1,7 @@
 import {defineConfig} from 'vite'
 import dts from 'vite-plugin-dts'
+import fs from 'node:fs'
+import path from 'node:path'
 import packageJson from './package.json';
 import {commonPlugins, globalsReplacePlugin} from '../../scripts/vite-utils.mjs';
 
@@ -10,6 +12,7 @@ const {main, module, browser} = packageJson
 const globals = {
     'three': 'threepipe', // just incase someone uses three
     'threepipe': 'threepipe',
+    '@threepipe/plugin-tweakpane': '@threepipe/plugin-tweakpane',
 }
 
 export default defineConfig({
@@ -47,5 +50,14 @@ export default defineConfig({
         isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
         ...globalsReplacePlugin(globals, isProd),
         ...commonPlugins(packageJson, __dirname, isProd),
+        // Create graph subpath re-export after build
+        {
+            name: 'graph-subpath',
+            closeBundle() {
+                const dir = path.resolve(__dirname, 'dist/graph')
+                fs.mkdirSync(dir, {recursive: true})
+                fs.writeFileSync(path.join(dir, 'index.mjs'), 'export * from "../index.mjs"\n')
+            },
+        },
     ],
 })

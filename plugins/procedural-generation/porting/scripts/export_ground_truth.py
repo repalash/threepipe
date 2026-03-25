@@ -298,7 +298,9 @@ def main():
 
         # Also export as glb for visual comparison
         glb_path = os.path.join(output_dir, f"ground_truth_{config_name}.glb")
-        bpy.ops.object.select_all(action='DESELECT')
+        for o in bpy.context.view_layer.objects:
+            try: o.select_set(False)
+            except: pass
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
         try:

@@ -49,12 +49,8 @@ interface PropPlacement {
     source: string
 }
 
-/** Module mesh data extracted from loaded GLB files */
-export interface ModuleData {
-    meshes: {geometry: any, material: any}[]
-}
-
-export type ModuleMap = Map<string, ModuleData>
+import type {ModuleMap} from '../graph/module'
+export type {ModuleData, ModuleMap} from '../graph/module'
 
 /** Parameters matching the Buildify "building" node group interface */
 export interface BuildifyParams {

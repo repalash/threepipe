@@ -12,10 +12,16 @@
 // ─── ShaderNodeMapRange ─────────────────────────────────────────────
 // source: nodes/shader/nodes/node_shader_map_range.cc
 
-/** Remap a value from one range to another. Equivalent to Blender's Map Range node (LINEAR). */
-export function mapRange(value: number, fromMin: number, fromMax: number, toMin: number, toMax: number): number {
+/**
+ * Remap a value from one range to another. Equivalent to Blender's Map Range node (LINEAR).
+ * Blender's Map Range clamps by default (Clamp checkbox enabled).
+ * Source: nodes/shader/nodes/node_shader_map_range.cc
+ * @param clamp If true (default), clamp t to [0,1] before interpolating.
+ */
+export function mapRange(value: number, fromMin: number, fromMax: number, toMin: number, toMax: number, clamp = true): number {
     if (fromMax === fromMin) return toMin
-    const t = (value - fromMin) / (fromMax - fromMin)
+    let t = (value - fromMin) / (fromMax - fromMin)
+    if (clamp) t = Math.max(0, Math.min(1, t))
     return toMin + t * (toMax - toMin)
 }
 
@@ -148,7 +154,8 @@ export function mathOp(operation: string, a: number, b = 0, c = 0): number {
     case 'FRACT': return a - Math.floor(a)
     case 'MODULO': return b !== 0 ? ((a % b) + b) % b : 0 // Blender modulo is always positive
     case 'FLOORED_MODULO': return b !== 0 ? a - Math.floor(a / b) * b : 0
-    case 'WRAP': return b !== c ? a - (c - b) * Math.floor((a - b) / (c - b)) + b - b : b
+    // Source: blenlib/intern/math_base_inline.cc:271 — wrapf(value, max, min)
+    case 'WRAP': { const range = b - c; return range !== 0 ? a - range * Math.floor((a - c) / range) : c }
     case 'SNAP': return b !== 0 ? Math.floor(a / b) * b : a
     case 'PINGPONG': return b !== 0 ? Math.abs(((a % (2 * b)) + 2 * b) % (2 * b) - b) : 0
     case 'SINE': return Math.sin(a)

@@ -127,7 +127,7 @@ function renderGraph(graph: GraphDef, label?: string): HTMLElement {
         text.setAttribute('y', String(p.y + NODE_H / 2 + 4))
         text.setAttribute('fill', '#ddd')
         text.setAttribute('font-size', '12')
-        text.textContent = node.name.replace(/^Building \d+ /, '')
+        text.textContent = node.name
         g.appendChild(text)
 
         svg.appendChild(g)

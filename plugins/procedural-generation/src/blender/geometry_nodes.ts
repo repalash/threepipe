@@ -6,6 +6,8 @@
  *   .repos/blender-gn-source/source/blender/
  */
 
+import type {BufferGeometry} from 'threepipe'
+
 export type Vec2 = [number, number]
 
 export interface CurveSegment {
@@ -101,11 +103,13 @@ export function meshToCurveSplitTrim(corners: Vec2[], splitPoints: Vec2[]): Curv
 export function resampleCurve(
     seg: CurveSegment, moduleWidth: number, offset = 0,
 ): {x: number, z: number}[] {
+    if (moduleWidth <= 0) return []
     const dx = seg.to[0] - seg.from[0], dz = seg.to[1] - seg.from[1]
     const len = Math.sqrt(dx * dx + dz * dz)
+    if (len === 0) return []
     const dirX = dx / len, dirZ = dz / len
     const usable = len - 2 * offset
-    const n = Math.max(1, Math.round(usable / moduleWidth))
+    const n = Math.max(1, Math.floor(usable / moduleWidth))
     const spacing = usable / n
     const points: {x: number, z: number}[] = []
     for (let i = 0; i < n; i++) {
@@ -224,7 +228,29 @@ export function inputNamedAttribute(
 //
 // Then: result = R * S (scale applied per-column), location set directly.
 
-/** Build a 4x4 column-major world matrix from position, EulerXYZ rotation (radians), and scale. */
+/**
+ * Convert three.js Y-up coordinates to Blender Z-up coordinates.
+ * Use this when positions come from three.js/GLB geometry (e.g. distributePointsOnFaces
+ * on a loaded GLB mesh) and need to be passed to fromLocRotScale.
+ *
+ * three.js Y-up: (x, y, z) where Y is up
+ * Blender Z-up:  (x, y, z) where Z is up
+ * Mapping: blender_x = three_x, blender_y = -three_z, blender_z = three_y
+ */
+export function yUpToZUp(x: number, y: number, z: number): [number, number, number] {
+    return [x, -z, y]
+}
+
+/**
+ * Build a 4x4 column-major world matrix from Blender Z-up position + EulerXYZ rotation + scale.
+ *
+ * IMPORTANT: All inputs must be in Blender Z-up coordinate space.
+ * If your positions come from three.js/GLB geometry (Y-up), convert them first:
+ *   const [bx, by, bz] = yUpToZUp(pos.x, pos.y, pos.z)
+ *   fromLocRotScale(bx, by, bz, rx, ry, rz, sx, sy, sz)
+ *
+ * The viewer's buildSceneFromInstances() converts the output matrices back to Y-up for rendering.
+ */
 export function fromLocRotScale(
     px: number, py: number, pz: number,
     rx: number, ry: number, rz: number,
@@ -288,4 +314,305 @@ export function transformPoints<T extends {x: number, y: number, z: number}>(
     sx = 1, sy = 1, sz = 1,
 ): T[] {
     return points.map(p => ({...p, x: p.x * sx + tx, y: p.y * sy + ty, z: p.z * sz + tz}))
+}
+
+// ─── Rotate Euler (FunctionNodeRotateEuler) ────────────────────────
+// source: nodes/function/nodes/node_fn_rotate_euler.cc
+//
+// Applies a rotation to an existing Euler rotation.
+// Supports both EULER and AXIS_ANGLE rotation types,
+// in both OBJECT (global) and LOCAL space.
+
+/**
+ * Convert Euler XYZ angles to a 3x3 rotation matrix (row-major).
+ * source: blenlib/intern/math_rotation.c — eul_to_mat3
+ */
+export function eulToMat3(rx: number, ry: number, rz: number): number[] {
+    const ci = Math.cos(rx), si = Math.sin(rx)
+    const cj = Math.cos(ry), sj = Math.sin(ry)
+    const ck = Math.cos(rz), sk = Math.sin(rz)
+    const cc = ci * ck, cs = ci * sk
+    const sc = si * ck, ss = si * sk
+    return [
+        cj * ck, sj * sc - cs, sj * cc + ss,
+        cj * sk, sj * ss + cc, sj * cs - sc,
+        -sj, cj * si, cj * ci,
+    ]
+}
+
+/**
+ * Convert axis-angle to a 3x3 rotation matrix (row-major).
+ * source: blenlib/intern/math_rotation.c — axis_angle_to_mat3
+ */
+export function axisAngleToMat3(ax: number, ay: number, az: number, angle: number): number[] {
+    const len = Math.sqrt(ax * ax + ay * ay + az * az)
+    if (len < 1e-10) return [1, 0, 0, 0, 1, 0, 0, 0, 1]
+    const nx = ax / len, ny = ay / len, nz = az / len
+    const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c
+    return [
+        t * nx * nx + c, t * nx * ny - s * nz, t * nx * nz + s * ny,
+        t * nx * ny + s * nz, t * ny * ny + c, t * ny * nz - s * nx,
+        t * nx * nz - s * ny, t * ny * nz + s * nx, t * nz * nz + c,
+    ]
+}
+
+/**
+ * Multiply two 3x3 row-major matrices.
+ * source: blenlib/BLI_math_matrix.h — mul_m3_m3m3
+ */
+export function mulMat3(a: number[], b: number[]): number[] {
+    const r = new Array(9)
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+            r[row * 3 + col] =
+                a[row * 3 + 0] * b[0 * 3 + col] +
+                a[row * 3 + 1] * b[1 * 3 + col] +
+                a[row * 3 + 2] * b[2 * 3 + col]
+        }
+    }
+    return r
+}
+
+/**
+ * Convert a 3x3 rotation matrix (row-major) to Euler XYZ angles.
+ * source: blenlib/intern/math_rotation.c — mat3_to_eul
+ */
+export function mat3ToEul(m: number[]): [number, number, number] {
+    const cy = Math.sqrt(m[0] * m[0] + m[3] * m[3])
+    if (cy > 1e-6) {
+        return [
+            Math.atan2(m[7], m[8]),
+            Math.atan2(-m[6], cy),
+            Math.atan2(m[3], m[0]),
+        ]
+    } else {
+        return [
+            Math.atan2(-m[5], m[4]),
+            Math.atan2(-m[6], cy),
+            0,
+        ]
+    }
+}
+
+/**
+ * Rotate Euler by axis-angle in local space.
+ * source: nodes/function/nodes/node_fn_rotate_euler.cc — "Rotate Euler by AxisAngle/Local"
+ *
+ * Computes: result = mat3_to_eul(eul_to_mat3(input) * axis_angle_to_mat3(axis, angle))
+ */
+export function rotateEulerAxisAngleLocal(
+    inputEuler: [number, number, number],
+    axis: [number, number, number],
+    angle: number,
+): [number, number, number] {
+    const inputMat = eulToMat3(inputEuler[0], inputEuler[1], inputEuler[2])
+    const rotMat = axisAngleToMat3(axis[0], axis[1], axis[2], angle)
+    const resultMat = mulMat3(inputMat, rotMat)
+    return mat3ToEul(resultMat)
+}
+
+/**
+ * Rotate Euler by axis-angle in object (global) space.
+ * source: nodes/function/nodes/node_fn_rotate_euler.cc — "Rotate Euler by AxisAngle/Object"
+ *
+ * Computes: result = mat3_to_eul(axis_angle_to_mat3(axis, angle) * eul_to_mat3(input))
+ */
+export function rotateEulerAxisAngleObject(
+    inputEuler: [number, number, number],
+    axis: [number, number, number],
+    angle: number,
+): [number, number, number] {
+    const inputMat = eulToMat3(inputEuler[0], inputEuler[1], inputEuler[2])
+    const rotMat = axisAngleToMat3(axis[0], axis[1], axis[2], angle)
+    const resultMat = mulMat3(rotMat, inputMat)
+    return mat3ToEul(resultMat)
+}
+
+// ─── Image Texture Sampling ────────────────────────────────────────
+// source: nodes/geometry/nodes/node_geo_image_texture.cc
+//
+// Samples an image texture at UV coordinates using bilinear interpolation.
+
+/** Raw pixel data for image texture sampling. */
+export interface ImageTextureData {
+    /** Flat pixel data (RGBA or RGB). */
+    data: Uint8Array | Uint8ClampedArray | Float32Array
+    width: number
+    height: number
+    /** Number of channels per pixel (typically 4 for RGBA). */
+    channels: number
+}
+
+/**
+ * Sample the red channel of an image texture at UV coordinates.
+ * Uses bilinear interpolation, matching Blender's GeometryNodeImageTexture.
+ * Returns a value in [0, 1].
+ * source: nodes/geometry/nodes/node_geo_image_texture.cc
+ */
+export function sampleImageTexture(tex: ImageTextureData | null, u: number, v: number): number {
+    if (!tex) return 0.5
+    const pu = Math.min(Math.max(u, 0), 1) * (tex.width - 1)
+    const pv = Math.min(Math.max(1 - v, 0), 1) * (tex.height - 1) // V flipped
+    const x0 = Math.floor(pu), y0 = Math.floor(pv)
+    const x1 = Math.min(x0 + 1, tex.width - 1), y1 = Math.min(y0 + 1, tex.height - 1)
+    const fx = pu - x0, fy = pv - y0
+    const idx = (y: number, x: number) => (y * tex.width + x) * tex.channels
+    const scale = tex.data instanceof Float32Array ? 1 : 255
+    const c00 = tex.data[idx(y0, x0)] / scale
+    const c10 = tex.data[idx(y0, x1)] / scale
+    const c01 = tex.data[idx(y1, x0)] / scale
+    const c11 = tex.data[idx(y1, x1)] / scale
+    return c00 * (1 - fx) * (1 - fy) + c10 * fx * (1 - fy) + c01 * (1 - fx) * fy + c11 * fx * fy
+}
+
+// ─── ColorRamp (ShaderNodeValToRGB) ────────────────────────────────
+// source: nodes/shader/nodes/node_shader_valtorgb.cc
+//
+// Linear interpolation between color stops.
+
+/** Evaluate a linear ColorRamp with 2 stops (returns factor in [0, 1]). */
+export function colorRampLinear2(fac: number, pos0: number, pos1: number): number {
+    if (fac <= pos0) return 0
+    if (fac >= pos1) return 1
+    return (fac - pos0) / (pos1 - pos0)
+}
+
+// ─── UV interpolation ───────────────────────────────────────────────
+// Interpolate UV coordinates at scatter points using barycentric coordinates.
+// This is what Blender's Image Texture node does when connected to a UV field
+// in a geometry nodes context — it evaluates the UV at each distributed point
+// by interpolating the triangle's vertex UVs with the point's bary coords.
+
+/**
+ * Interpolate UV coordinates for scattered points.
+ * Uses barycentric coordinates and triangle indices from distributePointsOnFaces
+ * to interpolate vertex UVs at each scatter point position.
+ *
+ * @param geometry - The source mesh with UV attribute
+ * @param baryCoords - Barycentric coordinates from distributePointsOnFaces
+ * @param triIndices - Triangle indices from distributePointsOnFaces
+ * @param uvAttrName - Name of the UV attribute (default: 'uv')
+ * @returns Array of [u, v] pairs for each scatter point, or null if no UV attribute
+ */
+export function interpolateScatterUVs(
+    geometry: BufferGeometry,
+    baryCoords: [number, number, number][],
+    triIndices: number[],
+    uvAttrName = 'uv',
+): [number, number][] | null {
+    const uvAttr = geometry.getAttribute(uvAttrName)
+    if (!uvAttr) return null
+
+    const index = geometry.getIndex()
+    const uvs: [number, number][] = []
+
+    for (let i = 0; i < baryCoords.length; i++) {
+        const triIdx = triIndices[i]
+        const [b0, b1, b2] = baryCoords[i]
+
+        // Get vertex indices for this triangle
+        let v0: number, v1: number, v2: number
+        if (index) {
+            v0 = index.getX(triIdx * 3)
+            v1 = index.getX(triIdx * 3 + 1)
+            v2 = index.getX(triIdx * 3 + 2)
+        } else {
+            v0 = triIdx * 3
+            v1 = triIdx * 3 + 1
+            v2 = triIdx * 3 + 2
+        }
+
+        // Interpolate UV using barycentric coordinates
+        // In Blender, bary coords are (w, u, v) where w = 1 - u - v
+        // b0 = weight for vertex 0, b1 = weight for vertex 1, b2 = weight for vertex 2
+        const u = (uvAttr as any).getX(v0) * b0 + (uvAttr as any).getX(v1) * b1 + (uvAttr as any).getX(v2) * b2
+        const v = (uvAttr as any).getY(v0) * b0 + (uvAttr as any).getY(v1) * b1 + (uvAttr as any).getY(v2) * b2
+
+        uvs.push([u, v])
+    }
+
+    return uvs
+}
+
+// ─── Scatter to Instances ───────────────────────────────────────────
+// High-level utility combining distributePointsOnFaces → yUpToZUp → randomRotation → randomScale → fromLocRotScale.
+// Eliminates the most common agent bug: forgetting yUpToZUp when building GeneratedInstance[] from scatter results.
+
+import type {DistributePointsOnFacesResult} from './distribute_points_on_faces'
+import {randomFloat, randomVector} from './random_value'
+
+/** Options for scatterToInstances. */
+export interface ScatterToInstancesOptions {
+    /** Asset filename for the GeneratedInstance object_name. */
+    objectName: string
+    /** Scale range [min, max]. Each instance gets a uniform random scale in this range. */
+    scaleRange: [number, number]
+    /** Seed for the Random Value scale node. */
+    scaleSeed?: number
+    /** Seed for the Random Value rotation node. */
+    rotationSeed?: number
+    /**
+     * Rotation range per axis (Euler XYZ) in radians.
+     * Default: full random rotation [-PI, PI] on all axes.
+     * Pass [0,0] for no rotation on that axis.
+     */
+    rotationRange?: {min: [number, number, number], max: [number, number, number]}
+    /**
+     * Optional filter: return false to skip this point.
+     * Called with (pointIndex, pointId) from the distribute result.
+     */
+    filter?: (index: number, id: number) => boolean
+    /**
+     * Optional per-point object name picker. Overrides objectName.
+     * Called with (pointIndex, pointId). Return the GLB filename.
+     */
+    pickObject?: (index: number, id: number) => string
+}
+
+/**
+ * Convert scatter results from distributePointsOnFaces into GeneratedInstance[].
+ *
+ * Handles the full pipeline that every scatter graph needs:
+ * 1. Converts Y-up positions (from GLB geometry) to Blender Z-up via yUpToZUp
+ * 2. Generates random rotation per point using Blender's randomVector
+ * 3. Generates random scale per point using Blender's randomFloat
+ * 4. Builds world matrix via fromLocRotScale
+ *
+ * This eliminates the coordinate conversion bug where agents forget yUpToZUp.
+ */
+export function scatterToInstances(
+    result: DistributePointsOnFacesResult,
+    options: ScatterToInstancesOptions,
+): {world_matrix: number[], object_name: string}[] {
+    const {
+        objectName,
+        scaleRange,
+        scaleSeed = 0,
+        rotationSeed = 0,
+        rotationRange = {min: [-Math.PI, -Math.PI, -Math.PI], max: [Math.PI, Math.PI, Math.PI]},
+        filter,
+        pickObject,
+    } = options
+
+    const instances: {world_matrix: number[], object_name: string}[] = []
+
+    for (let i = 0; i < result.positions.length; i++) {
+        const id = result.ids[i]
+
+        if (filter && !filter(i, id)) continue
+
+        const pos = result.positions[i]
+        // GLB geometry is Y-up → convert to Blender Z-up for fromLocRotScale
+        const [bx, by, bz] = yUpToZUp(pos.x, pos.y, pos.z)
+
+        const rot = randomVector(rotationRange.min, rotationRange.max, id, rotationSeed)
+        const s = randomFloat(scaleRange[0], scaleRange[1], id, scaleSeed)
+
+        instances.push({
+            world_matrix: fromLocRotScale(bx, by, bz, rot[0], rot[1], rot[2], s, s, s),
+            object_name: pickObject ? pickObject(i, id) : objectName,
+        })
+    }
+
+    return instances
 }

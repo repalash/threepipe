@@ -113,10 +113,21 @@ def sanitize_filename(name):
 
 
 def flatten_procedural_materials(obj):
-    """Replace procedural Base Color connections with flat colors for glTF export.
-    Traces through Dirt/Grunge shader groups and Brick Textures to find the dominant color.
+    """Replace procedural materials with flat-color Principled BSDF for glTF export.
+
+    The glTF exporter only understands Principled BSDF with a flat Base Color.
+    Complex shader setups (MixShader, Anisotropic, custom groups) export as white.
+
+    Strategy:
+    1. If material has Principled BSDF with linked Base Color → trace the chain for a flat color
+    2. If material has Principled BSDF with unlinked Base Color → already flat, skip
+    3. If trace fails or no Principled BSDF → use material.diffuse_color (viewport color) as fallback
+    4. For fallback: replace the entire Surface connection with a new Principled BSDF using the fallback color
+
     Returns restore info for undoing after export."""
-    if obj.type != 'MESH':
+    if obj.type not in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
+        return []
+    if not hasattr(obj.data, 'materials') or not obj.data.materials:
         return []
 
     restore_info = []
@@ -126,35 +137,84 @@ def flatten_procedural_materials(obj):
             continue
 
         tree = mat.node_tree
+
+        # Find Principled BSDF (if any)
         principled = None
         for node in tree.nodes:
             if node.bl_idname == 'ShaderNodeBsdfPrincipled':
                 principled = node
                 break
-        if not principled:
+
+        if principled:
+            bc_input = principled.inputs.get('Base Color')
+            if not bc_input or not bc_input.is_linked:
+                continue  # Already flat color on Principled BSDF — glTF handles this
+
+            # Try to trace the color chain
+            color = _trace_base_color(bc_input.links[0].from_node, bc_input.links[0].from_socket)
+            if color is None:
+                # Trace failed — use Principled BSDF's Base Color default (the unlinked value).
+                # This is more accurate than material.diffuse_color (viewport color), which is
+                # often just Blender's default (0.8, 0.8, 0.8) regardless of the actual material.
+                bc_default = bc_input.default_value
+                color = (bc_default[0], bc_default[1], bc_default[2])
+                print(f"    Trace failed for {mat.name}, using Principled Base Color default")
+
+            # Replace linked input with flat color
+            original_from = bc_input.links[0].from_socket
+            tree.links.remove(bc_input.links[0])
+            bc_input.default_value = (color[0], color[1], color[2], 1.0)
+            restore_info.append({
+                'type': 'unlink',
+                'material': mat,
+                'original_from_socket': original_from,
+                'bc_input': bc_input,
+            })
+            print(f"    Flattened {mat.name}: ({color[0]:.3f}, {color[1]:.3f}, {color[2]:.3f})")
             continue
 
-        bc_input = principled.inputs.get('Base Color')
-        if not bc_input or not bc_input.is_linked:
+        # Fallback: no Principled BSDF, or trace failed.
+        # Use material.diffuse_color (viewport display color) as the base color.
+        # Replace the Surface connection on Material Output with a new Principled BSDF.
+        dc = mat.diffuse_color
+        color = (dc[0], dc[1], dc[2])
+
+        # Find Material Output
+        mat_output = None
+        for node in tree.nodes:
+            if node.bl_idname == 'ShaderNodeOutputMaterial' and node.is_active_output:
+                mat_output = node
+                break
+        if not mat_output:
             continue
 
-        # Trace the color chain to find a flat color
-        color = _trace_base_color(bc_input.links[0].from_node, bc_input.links[0].from_socket)
-        if color is None:
-            print(f"    WARNING: Could not trace base color for {mat.name}")
+        surface_input = mat_output.inputs.get('Surface')
+        if not surface_input:
             continue
 
-        # Save original connection and replace with flat color
-        original_from = bc_input.links[0].from_socket
-        tree.links.remove(bc_input.links[0])
-        bc_input.default_value = (color[0], color[1], color[2], 1.0)
+        # Save original Surface connection
+        original_surface_from = surface_input.links[0].from_socket if surface_input.is_linked else None
+
+        # Remove existing Surface link
+        if surface_input.is_linked:
+            tree.links.remove(surface_input.links[0])
+
+        # Create a temporary Principled BSDF with the diffuse_color
+        temp_principled = tree.nodes.new('ShaderNodeBsdfPrincipled')
+        temp_principled.inputs['Base Color'].default_value = (color[0], color[1], color[2], 1.0)
+        temp_principled.inputs['Roughness'].default_value = 0.5
+        tree.links.new(temp_principled.outputs['BSDF'], surface_input)
 
         restore_info.append({
+            'type': 'replace_surface',
             'material': mat,
-            'original_from_socket': original_from,
-            'bc_input': bc_input,
+            'tree': tree,
+            'mat_output': mat_output,
+            'surface_input': surface_input,
+            'original_surface_from': original_surface_from,
+            'temp_node': temp_principled,
         })
-        print(f"    Flattened {mat.name}: ({color[0]:.3f}, {color[1]:.3f}, {color[2]:.3f})")
+        print(f"    Fallback {mat.name}: diffuse_color ({color[0]:.3f}, {color[1]:.3f}, {color[2]:.3f})")
 
     return restore_info
 
@@ -217,14 +277,29 @@ def restore_materials(restore_info):
     for info in restore_info:
         mat = info['material']
         tree = mat.node_tree
-        bc_input = info['bc_input']
-        # Reconnect original
-        tree.links.new(info['original_from_socket'], bc_input)
+
+        if info.get('type') == 'replace_surface':
+            # Remove temporary Principled BSDF and reconnect original Surface
+            temp_node = info['temp_node']
+            surface_input = info['surface_input']
+            # Remove link to temp node
+            if surface_input.is_linked:
+                tree.links.remove(surface_input.links[0])
+            # Remove temp node
+            tree.nodes.remove(temp_node)
+            # Reconnect original
+            if info['original_surface_from']:
+                tree.links.new(info['original_surface_from'], surface_input)
+        else:
+            # Original unlink type — reconnect Base Color
+            bc_input = info['bc_input']
+            tree.links.new(info['original_from_socket'], bc_input)
 
 
 
 def export_object_as_glb(obj, filepath):
-    """Select and export a single object as .glb. Bakes procedural materials if needed."""
+    """Select and export a single object as .glb. Bakes procedural materials if needed.
+    Handles: hide_render objects, unevaluated modifiers (Screw, Solidify, Bevel, etc.)."""
     # Ensure object is in the view layer
     scene_coll = bpy.context.scene.collection
     linked = False
@@ -233,10 +308,34 @@ def export_object_as_glb(obj, filepath):
         bpy.context.view_layer.update()
         linked = True
 
+    # Temporarily unhide for export (geometry node refs are often hide_render=True)
+    was_hidden_render = obj.hide_render
+    was_hidden_viewport = obj.hide_get()
+    obj.hide_render = False
+    obj.hide_set(False)
+
+    # If object has modifiers, evaluate them into the mesh so the GLB has the final shape.
+    # Without this, objects like well_brick (2 verts + Screw+Solidify+Bevel) export empty.
+    old_mesh = None
+    new_mesh = None
+    old_mods = []
+    if obj.modifiers:
+        dg = bpy.context.evaluated_depsgraph_get()
+        eval_obj = obj.evaluated_get(dg)
+        new_mesh = bpy.data.meshes.new_from_object(eval_obj)
+        if new_mesh and len(new_mesh.vertices) > 0:
+            old_mesh = obj.data
+            old_mods = [(m.name, m.type) for m in obj.modifiers]
+            obj.data = new_mesh
+            for mod in list(obj.modifiers):
+                obj.modifiers.remove(mod)
+
     # Flatten procedural materials to flat colors for glTF export
     restore_info = flatten_procedural_materials(obj)
 
-    bpy.ops.object.select_all(action='DESELECT')
+    # Deselect all objects without using bpy.ops (which requires viewport context)
+    for o in bpy.context.view_layer.objects:
+        o.select_set(False)
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
 
@@ -256,6 +355,16 @@ def export_object_as_glb(obj, filepath):
     if restore_info:
         restore_materials(restore_info)
 
+    # Restore modifiers and mesh
+    if old_mesh:
+        obj.data = old_mesh
+        if new_mesh:
+            bpy.data.meshes.remove(new_mesh)
+
+    # Restore visibility
+    obj.hide_render = was_hidden_render
+    obj.hide_set(was_hidden_viewport)
+
     if linked:
         scene_coll.objects.unlink(obj)
 
@@ -263,8 +372,14 @@ def export_object_as_glb(obj, filepath):
 def export_collection_members(collection, output_dir):
     """Export each member of a collection as an individual .glb.
     Returns list of {name, filename} for the manifest.
-    In Blender, Instance on Points with Pick Instance selects one member per point
-    using point_index % collection_size. So each member needs its own GLB."""
+
+    Handles two types of collection members:
+    1. MESH/CURVE objects: exported directly as individual GLBs
+    2. EMPTY objects with instance_collection: exports all mesh children of
+       the instanced sub-collection as a single GLB (joins them).
+       This handles the common Blender pattern where a collection member
+       is an EMPTY that instances a sub-collection of parts (e.g. flower petals + stem + leaves).
+    """
     scene_coll = bpy.context.scene.collection
     linked = False
     if collection.name not in [c.name for c in scene_coll.children]:
@@ -273,30 +388,102 @@ def export_collection_members(collection, output_dir):
         linked = True
 
     members = []
-    for obj in collection.all_objects:
-        if obj.type not in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
-            continue
+    # Only iterate direct objects of the collection (not nested sub-collections)
+    for obj in collection.objects:
         safe_name = sanitize_filename(obj.name)
         filename = f"object_{safe_name}.glb"
         filepath = os.path.join(output_dir, filename)
-        # Skip if already exported (same object might be referenced directly too)
+
         if os.path.exists(filepath):
             members.append({"name": obj.name, "filename": filename})
             print(f"    Already exported: {obj.name} → {filename}")
             continue
-        try:
-            export_object_as_glb(obj, filepath)
-            members.append({"name": obj.name, "filename": filename})
-            print(f"    Exported: {obj.name} → {filename}")
-        except Exception as e:
-            import traceback
-            print(f"    [WARN] Failed to export '{obj.name}': {e}")
-            traceback.print_exc()
+
+        if obj.type in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
+            # Direct mesh/curve — export as-is
+            try:
+                export_object_as_glb(obj, filepath)
+                members.append({"name": obj.name, "filename": filename})
+                print(f"    Exported: {obj.name} → {filename}")
+            except Exception as e:
+                print(f"    [WARN] Failed to export '{obj.name}': {e}")
+
+        elif obj.type == 'EMPTY' and obj.instance_collection:
+            # Collection-instancing EMPTY — export all mesh children of the
+            # instanced sub-collection as a single GLB.
+            sub_coll = obj.instance_collection
+            try:
+                _export_sub_collection_as_glb(sub_coll, filepath, obj.name)
+                members.append({"name": obj.name, "filename": filename})
+                print(f"    Exported: {obj.name} (sub-collection '{sub_coll.name}') → {filename}")
+            except Exception as e:
+                print(f"    [WARN] Failed to export sub-collection for '{obj.name}': {e}")
 
     if linked:
         scene_coll.children.unlink(collection)
 
     return members
+
+
+def _export_sub_collection_as_glb(sub_coll, filepath, display_name=""):
+    """Export all mesh/curve objects in a sub-collection as a single GLB.
+    Handles: curves (convert to mesh), flatten materials, multi-object selection export."""
+    scene_coll = bpy.context.scene.collection
+
+    # Link sub-collection to scene if needed
+    sub_linked = False
+    if sub_coll.name not in [c.name for c in scene_coll.children]:
+        scene_coll.children.link(sub_coll)
+        bpy.context.view_layer.update()
+        sub_linked = True
+
+    # Deselect all
+    for o in bpy.context.view_layer.objects:
+        o.select_set(False)
+
+    # Flatten materials on all mesh objects + select exportable objects
+    all_restore_info = []
+    selected_count = 0
+    active_obj = None
+    for child in sub_coll.all_objects:
+        if child.type in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
+            restore_info = flatten_procedural_materials(child)
+            all_restore_info.extend(restore_info)
+            child.select_set(True)
+            active_obj = child
+            selected_count += 1
+
+    if selected_count == 0:
+        if sub_linked:
+            scene_coll.children.unlink(sub_coll)
+        raise ValueError(f"No exportable objects in sub-collection '{sub_coll.name}'")
+
+    bpy.context.view_layer.objects.active = active_obj
+
+    bpy.ops.export_scene.gltf(
+        filepath=filepath,
+        use_selection=True,
+        export_format='GLB',
+        export_apply=True,
+        export_materials='EXPORT',
+        export_normals=True,
+        export_texcoords=True,
+        export_draco_mesh_compression_enable=False,
+    )
+
+    # Deselect
+    for child in sub_coll.all_objects:
+        try:
+            child.select_set(False)
+        except:
+            pass
+
+    # Restore materials
+    if all_restore_info:
+        restore_materials(all_restore_info)
+
+    if sub_linked:
+        scene_coll.children.unlink(sub_coll)
 
 
 def export_collection_as_glb(collection, filepath):
