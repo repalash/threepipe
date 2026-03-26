@@ -3,6 +3,11 @@ import {generateUiFolder, IUiConfigContainer, uiToggle} from 'uiconfig.js'
 import {Group2, iObjectCommons, IWidget} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
 
+/**
+ * Abstract base class for helper widgets that visualize scene objects.
+ * Provides event-driven lifecycle (attach/detach/update) and UI integration.
+ * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
+ */
 export abstract class AHelperWidget extends Group2 implements IWidget {
     isWidget = true as const
     assetType = 'widget' as const

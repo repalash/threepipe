@@ -1,4 +1,4 @@
-# @threepipe/tweakpane-editor
+# @threepipe/plugin-tweakpane-editor
 
 Integration and plugin for [threepipe](https://threepipe.org/) to use create editors using [Tweakpane](https://tweakpane.github.io/docs/).
 

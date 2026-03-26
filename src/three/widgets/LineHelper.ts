@@ -34,6 +34,12 @@ export type LineType1 = (Line | LineLoop | LineSegments)
 export type LineType2 = Line2 | LineSegments2 | MeshLine | MeshLineSegments
 export type LineType = LineType1 | LineType2
 
+/**
+ * Visualizes line/curve geometry with small cube handles at vertices or control points.
+ * When the line has `geometry.userData.generationParams.curve`, creates interactive
+ * draggable handles for editing curve control points.
+ * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
+ */
 export class LineHelper extends AHelperWidget {
     line: LineType
     private _vertexHandles: Mesh[] = []

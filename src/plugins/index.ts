@@ -84,6 +84,23 @@ export {CascadedShadowsPlugin, type CSMLightData, type FrustumVertices, type Fru
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
 export {SwitchNodeBasePlugin, type ObjectSwitchNode} from './configurator/SwitchNodeBasePlugin'
 
+// geometry
+export {GeometryGeneratorPlugin, type IGeometryGeneratorMap} from './geometry/GeometryGeneratorPlugin'
+export {AGeometryGenerator, updateUi, type GeometryGenerator} from './geometry/AGeometryGenerator'
+export {BoxGeometryGenerator, type BoxGeometryGeneratorParams} from './geometry/primitives/BoxGeometryGenerator'
+export {CircleGeometryGenerator, type CircleGeometryGeneratorParams} from './geometry/primitives/CircleGeometryGenerator'
+export {CylinderGeometryGenerator, type CylinderGeometryGeneratorParams} from './geometry/primitives/CylinderGeometryGenerator'
+export {PlaneGeometryGenerator, type PlaneGeometryGeneratorParams} from './geometry/primitives/PlaneGeometryGenerator'
+export {SphereGeometryGenerator, type SphereGeometryGeneratorParams} from './geometry/primitives/SphereGeometryGenerator'
+export {TorusGeometryGenerator, type TorusGeometryGeneratorParams} from './geometry/primitives/TorusGeometryGenerator'
+export {TubeGeometryGenerator, type TubeGeometryGeneratorParams} from './geometry/primitives/TubeGeometryGenerator'
+export {ShapeGeometryGenerator, type ShapeGeometryGeneratorParams} from './geometry/primitives/ShapeGeometryGenerator'
+export {TubeShapeGeometryGenerator, type TubeShapeGeometryGeneratorParams} from './geometry/primitives/TubeShapeGeometryGenerator'
+export {LineGeometryGenerator, type LineGeometryGeneratorParams} from './geometry/primitives/LineGeometryGenerator'
+export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/ShapePresets'
+export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
+export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
+
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
 export {Object3DWidgetsPlugin, type IObject3DHelper} from './extras/Object3DWidgetsPlugin'

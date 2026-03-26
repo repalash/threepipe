@@ -18,8 +18,9 @@ export interface IObject3DHelper<T extends IWidget = IWidget>{
 }
 
 /**
- * Adds light and camera helpers/gizmos in the viewer.
- * A helper is automatically created when any supported light or camera is added to the scene.
+ * Automatically creates and manages helper widgets for lights, cameras, lines, and skeletons.
+ * Custom widget types can be registered via the `helpers` array.
+ * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
  * @category Plugins
  */
 export class Object3DWidgetsPlugin extends AViewerPluginSync {
