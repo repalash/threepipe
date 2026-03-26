@@ -15,9 +15,10 @@ import {
     Object3DWidgetsPlugin,
     PickingPlugin,
     TransformControlsPlugin,
+    GeometryGeneratorPlugin,
+    LineGeometryGenerator,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
 
 // Read more about the example - https://threepipe.org/notes/follow-path-constraint
 

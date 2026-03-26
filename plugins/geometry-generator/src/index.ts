@@ -1,13 +1,25 @@
-export {GeometryGeneratorPlugin, type IGeometryGeneratorMap} from './GeometryGeneratorPlugin'
-export {AGeometryGenerator, updateUi, type GeometryGenerator} from './AGeometryGenerator'
+// Re-export core geometry symbols for backward compatibility
+export {
+    /* GeometryGeneratorPlugin, */type IGeometryGeneratorMap,
+    AGeometryGenerator, updateUi, type GeometryGenerator,
+    BoxGeometryGenerator, type BoxGeometryGeneratorParams,
+    CircleGeometryGenerator, type CircleGeometryGeneratorParams,
+    CylinderGeometryGenerator, type CylinderGeometryGeneratorParams,
+    PlaneGeometryGenerator, type PlaneGeometryGeneratorParams,
+    SphereGeometryGenerator, type SphereGeometryGeneratorParams,
+    TorusGeometryGenerator, type TorusGeometryGeneratorParams,
+    LineGeometryGenerator, type LineGeometryGeneratorParams,
+    type SupportedCurveTypes,
+} from 'threepipe'
 
-export {BoxGeometryGenerator, type BoxGeometryGeneratorParams} from './primitives/BoxGeometryGenerator'
-export {CircleGeometryGenerator, type CircleGeometryGeneratorParams} from './primitives/CircleGeometryGenerator'
-export {CylinderGeometryGenerator, type CylinderGeometryGeneratorParams} from './primitives/CylinderGeometryGenerator'
-export {LineGeometryGenerator, type LineGeometryGeneratorParams, type SupportedCurveTypes} from './primitives/LineGeometryGenerator'
-export {PlaneGeometryGenerator, type PlaneGeometryGeneratorParams} from './primitives/PlaneGeometryGenerator'
-export {SphereGeometryGenerator, type SphereGeometryGeneratorParams} from './primitives/SphereGeometryGenerator'
+// Extra generators (not in core — depends on three/examples/jsm)
 export {TextGeometryGenerator, type TextGeometryGeneratorParams} from './primitives/TextGeometryGenerator'
-export {TorusGeometryGenerator, type TorusGeometryGeneratorParams} from './primitives/TorusGeometryGenerator'
-
 export {FontLibrary} from './FontLibrary'
+export {GeometryGeneratorExtrasPlugin, GeometryGeneratorPlugin} from './GeometryGeneratorExtrasPlugin'
+
+// Module augmentation for type safety when using extra generators
+declare module 'threepipe' {
+    interface IGeometryGeneratorMap {
+        text: import('./primitives/TextGeometryGenerator').TextGeometryGenerator
+    }
+}

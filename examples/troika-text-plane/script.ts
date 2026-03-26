@@ -3,6 +3,7 @@ import {
     _testStart,
     DepthBufferPlugin,
     GBufferPlugin,
+    GeometryGeneratorPlugin,
     IObject3D,
     LoadingScreenPlugin,
     PhysicalMaterial,
@@ -11,7 +12,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {BloomPlugin} from '@threepipe/webgi-plugins'
 import {createTextDerivedMaterial, Text} from 'troika-three-text'
 

@@ -1,5 +1,5 @@
+import {Vector2, Vector3} from 'three'
 import {AGeometryGenerator} from '../AGeometryGenerator'
-import {Vector2, Vector3} from 'threepipe'
 
 
 export interface CircleGeometryGeneratorParams {

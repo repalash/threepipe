@@ -3,6 +3,7 @@ import {
     _testStart,
     CatmullRomCurve3,
     Color,
+    GeometryGeneratorPlugin,
     LineMaterial2,
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
@@ -12,7 +13,6 @@ import {
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 
 async function init() {
     const viewer = new ThreeViewer({

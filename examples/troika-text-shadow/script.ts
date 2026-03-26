@@ -4,6 +4,7 @@ import {
     BaseGroundPlugin,
     Color,
     DirectionalLight2,
+    GeometryGeneratorPlugin,
     LoadingScreenPlugin,
     PhysicalMaterial,
     PickingPlugin,
@@ -11,7 +12,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {GeometryGeneratorPlugin} from '@threepipe/plugin-geometry-generator'
 import {Text} from 'troika-three-text'
 
 // Note - This examples show how to use Troika Text directly,

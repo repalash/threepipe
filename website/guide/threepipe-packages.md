@@ -24,7 +24,7 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-blueprintjs](../package/plugin-blueprintjs) BlueprintJs UI Plugin. Renders a [blueprintjs](https://blueprintjs.com/) ([React](https://react.dev/)) UI attached to the viewer for any ui config object.
 - [@threepipe/plugin-tweakpane-editor](../package/plugin-tweakpane-editor) - Tweakpane Editor Plugin. Uses the tweakpane ui plugin to create a [full editor](https://threepipe.org/examples/tweakpane-editor). 
 - [@threepipe/plugin-configurator](../package/plugin-configurator) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
-- [@threepipe/plugin-geometry-generator](../package/plugin-geometry-generator) - Generate parametric geometry types that can be re-generated from UI/API.
+- [@threepipe/plugin-geometry-generator](../package/plugin-geometry-generator) - Text geometry generator and FontLibrary. All other generators are now in core `threepipe`.
 - [@threepipe/plugin-gltf-transform](../package/plugin-gltf-transform) - Plugin to transform gltf models like adding draco compression while exporting gltf files.
 - [@threepipe/plugins-extra-importers](../package/plugins-extra-importers) - Plugin for loading more file types supported by various types of loaders in three.js.
 - [@threepipe/plugin-network](../package/plugin-network) - Network/Cloud related plugin implementations for Threepipe - `AWSClientPlugin` and `TransfrSharePlugin`.

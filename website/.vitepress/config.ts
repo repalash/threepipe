@@ -167,6 +167,8 @@ export default defineConfig({
               {text: 'VirtualCamerasPlugin', link: 'plugin/VirtualCamerasPlugin'},
               {text: 'Object3DWidgetsPlugin', link: 'plugin/Object3DWidgetsPlugin'},
               {text: 'Object3DGeneratorPlugin', link: 'plugin/Object3DGeneratorPlugin'},
+              {text: 'GeometryGeneratorPlugin', link: 'plugin/GeometryGeneratorPlugin'},
+              {text: 'ShapeTubeExtrudePlugin', link: 'plugin/ShapeTubeExtrudePlugin'},
               {text: 'GLTFKHRMaterialVariantsPlugin', link: 'plugin/GLTFKHRMaterialVariantsPlugin'},
               {text: 'SimplifyModifierPlugin', link: 'plugin/SimplifyModifierPlugin'},
               {text: 'MeshOptSimplifyModifierPlugin', link: 'plugin/MeshOptSimplifyModifierPlugin'},

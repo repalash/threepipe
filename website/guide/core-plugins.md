@@ -128,7 +128,7 @@ Plugins to configure export options and methods for different file formats.
 - [VirtualCamerasPlugin](../plugin/VirtualCamerasPlugin) - Add support for rendering virtual cameras before the main one every frame.
 - [Object3DWidgetsPlugin](../plugin/Object3DWidgetsPlugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
 - [Object3DGeneratorPlugin](../plugin/Object3DGeneratorPlugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
-- [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape) that can be re-generated from UI/API.
+- [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape, line) that can be re-generated from UI/API.
 - [ShapeTubeExtrudePlugin](../plugin/ShapeTubeExtrudePlugin) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
 - [GLTFKHRMaterialVariantsPlugin](../plugin/GLTFKHRMaterialVariantsPlugin) - Support using for variants from KHR_materials_variants extension in gltf models.
 - [SimplifyModifierPlugin](../plugin/SimplifyModifierPlugin) - Boilerplate for plugin to simplify geometries

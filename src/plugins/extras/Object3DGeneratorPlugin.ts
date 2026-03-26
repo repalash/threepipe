@@ -18,7 +18,7 @@ import type {UndoManagerPlugin} from '../interaction/UndoManagerPlugin'
 /**
  * Adds support for generating different types of lights and camera objects in the viewer, along with UI to do so.
  *
- * Custom generators can be added for more object types, check [GeometryGeneratorPlugin](https://threepipe.org/package/plugin-geometry-generator.html) for reference.
+ * Custom generators can be added for more object types, check {@link GeometryGeneratorPlugin} for reference.
  * @category Plugins
  */
 @uiPanelContainer('Generate Scene Objects')

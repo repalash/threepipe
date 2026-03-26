@@ -1,26 +1,22 @@
-import {
-    AViewerPluginSync,
-    BufferGeometry2,
-    Class,
-    IGeometry,
-    IMaterial,
-    IMesh,
-    IObject3D,
-    IObject3DEventMap,
-    ISceneEventMap,
-    Mesh2,
-    type Object3DGeneratorPlugin,
-    PhysicalMaterial,
-    ThreeViewer,
-    toTitleCase,
-} from 'threepipe'
+import {Class, toTitleCase} from 'ts-browser-helpers'
+import {AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {BufferGeometry2} from '../../core/geometry/BufferGeometry2'
+import {IGeometry} from '../../core/IGeometry'
+import {IMaterial} from '../../core/IMaterial'
+import {IMesh, IObject3D, IObject3DEventMap} from '../../core/IObject'
+import {ISceneEventMap} from '../../core/IScene'
+import {Mesh2} from '../../core/object/Mesh2'
+import {PhysicalMaterial} from '../../core/material/PhysicalMaterial'
+import type {Object3DGeneratorPlugin} from '../extras/Object3DGeneratorPlugin'
 import {TorusGeometryGenerator} from './primitives/TorusGeometryGenerator'
 import {CircleGeometryGenerator} from './primitives/CircleGeometryGenerator'
 import {BoxGeometryGenerator} from './primitives/BoxGeometryGenerator'
 import {SphereGeometryGenerator} from './primitives/SphereGeometryGenerator'
 import {PlaneGeometryGenerator} from './primitives/PlaneGeometryGenerator'
 import {CylinderGeometryGenerator} from './primitives/CylinderGeometryGenerator'
-import {TextGeometryGenerator} from './primitives/TextGeometryGenerator'
+import {TubeGeometryGenerator} from './primitives/TubeGeometryGenerator'
+import {ShapeGeometryGenerator} from './primitives/ShapeGeometryGenerator'
+import {TubeShapeGeometryGenerator} from './primitives/TubeShapeGeometryGenerator'
 import {LineGeometryGenerator} from './primitives/LineGeometryGenerator'
 import {AGeometryGenerator, removeUi, updateUi} from './AGeometryGenerator'
 
@@ -32,7 +28,9 @@ export interface IGeometryGeneratorMap extends Record<string, AGeometryGenerator
     circle: CircleGeometryGenerator
     torus: TorusGeometryGenerator
     cylinder: CylinderGeometryGenerator
-    text: TextGeometryGenerator
+    tube: TubeGeometryGenerator
+    shape: ShapeGeometryGenerator
+    tubeShape: TubeShapeGeometryGenerator
     line: LineGeometryGenerator
 }
 
@@ -40,7 +38,12 @@ export interface IGeometryGeneratorMap extends Record<string, AGeometryGenerator
  * GeometryGeneratorPlugin
  *
  * Geometry generator plugin to create updatable parametric objects/geometries.
- * Includes support for several primitive types from three.js
+ * Built-in generators: plane, sphere, box, circle, torus, cylinder, tube, shape, tubeShape, line.
+ *
+ * Additional generators (text) can be registered at runtime via the `generators` property
+ * or by using `GeometryGeneratorExtrasPlugin` from `@threepipe/plugin-geometry-generator`.
+ *
+ * @category Plugins
  */
 export class GeometryGeneratorPlugin extends AViewerPluginSync {
     public static readonly PluginType = 'GeometryGeneratorPlugin'
@@ -54,7 +57,9 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         circle: new CircleGeometryGenerator('circle'),
         torus: new TorusGeometryGenerator('torus'),
         cylinder: new CylinderGeometryGenerator('cylinder'),
-        text: new TextGeometryGenerator('text'),
+        tube: new TubeGeometryGenerator('tube'),
+        shape: new ShapeGeometryGenerator('shape'),
+        tubeShape: new TubeShapeGeometryGenerator('tubeShape'),
         line: new LineGeometryGenerator('line'),
     }
 
@@ -125,6 +130,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
+        viewer.scene.removeEventListener('geometryUpdate', this._geometryUpdate)
         viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
         viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
@@ -174,14 +180,3 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     }
 
 }
-
-// declare module 'threepipe'{
-//     // @ats-expect-error not sure why
-//     interface IGeometrySetDirtyOptions{
-//         /**
-//          * Regenerate a geometry. The geometry must have generationParams set in userData.
-//          */
-//         regenerate?: boolean
-//     }
-//
-// }
