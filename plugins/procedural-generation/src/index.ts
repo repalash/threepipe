@@ -50,6 +50,9 @@ export {
     rotateEulerAxisAngleLocal, rotateEulerAxisAngleObject,
     sampleImageTexture, colorRampLinear2, type ImageTextureData,
     interpolateScatterUVs,
+    alignEulerToVectorAutoPivot,
+    evaluateFloatCurve, type FloatCurvePoint,
+    evaluateColorRamp, type ColorRampStop,
     type CurveSegment, type Vec2, type GridPoint,
 } from './blender/geometry_nodes'
 export {
@@ -62,6 +65,7 @@ export {
     type DistributePointsOnFacesOptions,
     type DistributePointsOnFacesResult,
 } from './blender/distribute_points_on_faces'
+export {catmullClark, subdivisionSurface} from './blender/subdivision_surface'
 
 // Graph system
 export {defineNode, defineNodeType, defineGraph, connect, applyDefaults, resolveDefault, resolveUi, isPropDef, type NodeDef, type GraphDef, type Connection, type PropDef, type InputDef, type ResolvedInputs} from './graph/graph'

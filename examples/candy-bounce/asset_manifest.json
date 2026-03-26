@@ -1,0 +1,78 @@
+{
+  "blend_file": "/Users/palash/Projects/threepipe/tmp/candy_bounce.blend",
+  "collections": [],
+  "objects": [
+    {
+      "name": "bouncing_cube",
+      "filename": "object_bouncing_cube.glb",
+      "type": "MESH",
+      "vertex_count": 8
+    },
+    {
+      "name": "bouncing_monkey",
+      "filename": "object_bouncing_monkey.glb",
+      "type": "MESH",
+      "vertex_count": 1980
+    },
+    {
+      "name": "bouncing_sphere",
+      "filename": "object_bouncing_sphere.glb",
+      "type": "MESH",
+      "vertex_count": 107
+    },
+    {
+      "name": "bouncing_spheroid",
+      "filename": "object_bouncing_spheroid.glb",
+      "type": "MESH",
+      "vertex_count": 482
+    },
+    {
+      "name": "floor",
+      "filename": "object_floor.glb",
+      "type": "MESH",
+      "vertex_count": 23
+    },
+    {
+      "name": "floor_cube",
+      "filename": "object_floor_cube.glb",
+      "type": "MESH",
+      "vertex_count": 8
+    },
+    {
+      "name": "geonodes_jumpers",
+      "filename": "object_geonodes_jumpers.glb",
+      "type": "MESH",
+      "vertex_count": 0
+    },
+    {
+      "name": "jumpers_spawn_surface",
+      "filename": "object_jumpers_spawn_surface.glb",
+      "type": "MESH",
+      "vertex_count": 23
+    },
+    {
+      "name": "well_brick",
+      "filename": "object_well_brick.glb",
+      "type": "MESH",
+      "vertex_count": 2
+    }
+  ],
+  "textures": [
+    {
+      "name": "blender_logo.png",
+      "filename": "texture_blender_logo_png.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "forest.exr",
+      "filename": "texture_forest_exr.exr",
+      "size": [
+        1024,
+        512
+      ]
+    }
+  ]
+}

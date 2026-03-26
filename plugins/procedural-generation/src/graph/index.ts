@@ -17,6 +17,9 @@ export {
     rotateEulerAxisAngleLocal, rotateEulerAxisAngleObject,
     sampleImageTexture, colorRampLinear2, type ImageTextureData,
     interpolateScatterUVs,
+    alignEulerToVectorAutoPivot,
+    evaluateFloatCurve, type FloatCurvePoint,
+    evaluateColorRamp, type ColorRampStop,
     type CurveSegment, type Vec2, type GridPoint,
 } from '../blender/geometry_nodes'
 export {

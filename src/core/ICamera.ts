@@ -1,4 +1,4 @@
-import {Camera, Vector3} from 'three'
+import {Camera, Object3D, Vector3} from 'three'
 import {IObject3D, IObject3DEventMap, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
 import {IShaderPropertiesUpdater} from '../materials'
 import {ICameraControls, TControlsCtor} from './camera/ICameraControls'
@@ -155,6 +155,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
 
     getView<T extends ICameraView = CameraView>(worldSpace?: boolean, cameraView?: T): T
     setView(view: ICameraView): void
+    fitObject(objects: Object3D|Object3D[], distanceMultiplier?: number, distanceBounds?: {min?: number, max?: number}): void
 
     /**
      * Set camera view from another camera.

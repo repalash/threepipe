@@ -441,12 +441,33 @@ def _export_sub_collection_as_glb(sub_coll, filepath, display_name=""):
     for o in bpy.context.view_layer.objects:
         o.select_set(False)
 
-    # Flatten materials on all mesh objects + select exportable objects
+    # Unhide, evaluate modifiers, flatten materials, and select exportable objects
     all_restore_info = []
+    visibility_restore = []  # (child, was_hidden_render, was_hidden_viewport)
+    mesh_restore = []  # (child, old_mesh, new_mesh)
     selected_count = 0
     active_obj = None
     for child in sub_coll.all_objects:
         if child.type in {'MESH', 'CURVE', 'SURFACE', 'FONT'}:
+            # Unhide (same as export_object_as_glb)
+            was_hidden_render = child.hide_render
+            was_hidden_viewport = child.hide_get()
+            child.hide_render = False
+            child.hide_set(False)
+            visibility_restore.append((child, was_hidden_render, was_hidden_viewport))
+
+            # Evaluate modifiers (same as export_object_as_glb)
+            if child.modifiers:
+                dg = bpy.context.evaluated_depsgraph_get()
+                eval_child = child.evaluated_get(dg)
+                new_mesh = bpy.data.meshes.new_from_object(eval_child)
+                if new_mesh and len(new_mesh.vertices) > 0:
+                    old_mesh = child.data
+                    child.data = new_mesh
+                    for mod in list(child.modifiers):
+                        child.modifiers.remove(mod)
+                    mesh_restore.append((child, old_mesh, new_mesh))
+
             restore_info = flatten_procedural_materials(child)
             all_restore_info.extend(restore_info)
             child.select_set(True)
@@ -475,12 +496,23 @@ def _export_sub_collection_as_glb(sub_coll, filepath, display_name=""):
     for child in sub_coll.all_objects:
         try:
             child.select_set(False)
-        except:
+        except RuntimeError:
             pass
 
     # Restore materials
     if all_restore_info:
         restore_materials(all_restore_info)
+
+    # Restore modifiers and mesh
+    for child, old_mesh, new_mesh in mesh_restore:
+        child.data = old_mesh
+        if new_mesh:
+            bpy.data.meshes.remove(new_mesh)
+
+    # Restore visibility
+    for child, was_hidden_render, was_hidden_viewport in visibility_restore:
+        child.hide_render = was_hidden_render
+        child.hide_set(was_hidden_viewport)
 
     if sub_linked:
         scene_coll.children.unlink(sub_coll)

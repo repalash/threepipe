@@ -397,9 +397,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, radius * distanceMultiplier)), center, duration, ease)
     }
 
-    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
-        if (!this._viewer) return
-        const selectedArray = (Array.isArray(selected) ? selected : selected ? [selected] : [])
+    private _resolveSelectedObjects(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[]): IObject3D[] {
+        return (Array.isArray(selected) ? selected : selected ? [selected] : [])
             .flatMap(o =>
                 (o as ITexture)?.isTexture ? [...(o as ITexture).appliedObjects?.values() || []] : o)
             .flatMap(o =>
@@ -407,18 +406,28 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
                     (o as IGeometry)?.isBufferGeometry ? [...(o as IGeometry).appliedMeshes?.values() || []] :
                     o as IObject3D)
             .filter(Boolean)
+    }
 
-        const obj = !selectedArray.length ? this._viewer.scene.modelRoot : selectedArray[0]
-        const bbox = new Box3B().expandByObject(obj, false, true)
-        for (let i = 1; i < selectedArray.length; i++) {
-            bbox.expandByObject(selectedArray[i], false, true)
+    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
+        if (!this._viewer) return
+        const selectedArray = this._resolveSelectedObjects(selected)
+        const objects = !selectedArray.length ? [this._viewer.scene.modelRoot] : selectedArray
+
+        if (duration === 0) {
+            this._viewer.scene.mainCamera.fitObject(objects, distanceMultiplier, distanceBounds)
+            return
+        }
+
+        const bbox = new Box3B().expandByObject(objects[0], false, true)
+        for (let i = 1; i < objects.length; i++) {
+            bbox.expandByObject(objects[i], false, true)
         }
         const cameraZ = getFittingDistance(this._viewer.scene.mainCamera, bbox)
         const center = bbox.getCenter(new Vector3()) // world position
 
         const scale = bbox.getSize(new Vector3())
         if (scale.lengthSq() <= 0) { // It could be a light or camera with no geometry
-            obj.getWorldPosition(center)
+            objects[0].getWorldPosition(center)
         }
         await this.animateToTarget(Math.min(distanceBounds.max, Math.max(distanceBounds.min, cameraZ * distanceMultiplier)), center, duration, ease)
     }
@@ -435,6 +444,11 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         view.target.copy(center)
         const direction = new Vector3().subVectors(view.target, view.position).normalize()
         view.position.copy(direction.multiplyScalar(-distanceFromTarget).add(view.target))
+        if (duration === 0) {
+            this.setView(view)
+            this._viewer?.setDirty()
+            return
+        }
         await this.animateToView(view, duration, ease)
     }
 

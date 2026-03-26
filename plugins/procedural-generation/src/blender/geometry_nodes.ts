@@ -616,3 +616,368 @@ export function scatterToInstances(
 
     return instances
 }
+
+// ─── Align Euler to Vector (AUTO pivot) ─────────────────────────────
+// source: nodes/function/nodes/node_fn_align_euler_to_vector.cc
+//   — align_rotations_auto_pivot()
+//
+// Given an input rotation (Euler XYZ), a target vector, a factor [0,1],
+// and a local axis to align (0=X, 1=Y, 2=Z), computes the output
+// rotation that points local_main_axis toward the target vector.
+// AUTO pivot mode: the pivot axis is computed as the cross product
+// of the old axis direction and the new (target) direction.
+
+/**
+ * Align Euler to Vector with AUTO pivot mode.
+ * Port of Blender's align_rotations_auto_pivot from node_fn_align_euler_to_vector.cc
+ *
+ * @param inputRotation Input Euler XYZ (radians)
+ * @param vector Target direction vector [x,y,z]
+ * @param factor Blend factor 0..1 (default 1.0)
+ * @param axis Which local axis to align: 0=X, 1=Y, 2=Z (default 0=X)
+ * @returns Output Euler XYZ rotation
+ */
+export function alignEulerToVectorAutoPivot(
+    inputRotation: [number, number, number],
+    vector: [number, number, number],
+    factor = 1.0,
+    axis = 0,
+): [number, number, number] {
+    const vx = vector[0], vy = vector[1], vz = vector[2]
+    const vlen = Math.sqrt(vx * vx + vy * vy + vz * vz)
+    if (vlen < 1e-10) return inputRotation
+
+    // Build old rotation matrix
+    const oldMat = eulToMat3(inputRotation[0], inputRotation[1], inputRotation[2])
+
+    // local_main_axis: unit vector along the chosen axis
+    const localAxis: [number, number, number] = [0, 0, 0]
+    localAxis[axis] = 1
+
+    // old_axis = old_rotation * local_main_axis (mul_v3_m3v3)
+    const oldAxis: [number, number, number] = [
+        oldMat[0] * localAxis[0] + oldMat[1] * localAxis[1] + oldMat[2] * localAxis[2],
+        oldMat[3] * localAxis[0] + oldMat[4] * localAxis[1] + oldMat[5] * localAxis[2],
+        oldMat[6] * localAxis[0] + oldMat[7] * localAxis[1] + oldMat[8] * localAxis[2],
+    ]
+
+    // new_axis = normalize(vector)
+    const newAxis: [number, number, number] = [vx / vlen, vy / vlen, vz / vlen]
+
+    // rotation_axis = cross(old_axis, new_axis)
+    let rax = oldAxis[1] * newAxis[2] - oldAxis[2] * newAxis[1]
+    let ray = oldAxis[2] * newAxis[0] - oldAxis[0] * newAxis[2]
+    let raz = oldAxis[0] * newAxis[1] - oldAxis[1] * newAxis[0]
+
+    if (rax * rax + ray * ray + raz * raz < 1e-20) {
+        // Fallback: cross with (1,0,0)
+        rax = oldAxis[1] * 0 - oldAxis[2] * 0
+        ray = oldAxis[2] * 1 - oldAxis[0] * 0
+        raz = oldAxis[0] * 0 - oldAxis[1] * 1
+        if (rax * rax + ray * ray + raz * raz < 1e-20) {
+            // Cross with (0,1,0)
+            rax = oldAxis[1] * 0 - oldAxis[2] * 1
+            ray = oldAxis[2] * 0 - oldAxis[0] * 0
+            raz = oldAxis[0] * 1 - oldAxis[1] * 0
+        }
+    }
+
+    // full_angle = angle_normalized_v3v3(old_axis, new_axis)
+    // = acos(clamp(dot(old_axis, new_axis), -1, 1))
+    const dot = oldAxis[0] * newAxis[0] + oldAxis[1] * newAxis[1] + oldAxis[2] * newAxis[2]
+    const fullAngle = Math.acos(Math.max(-1, Math.min(1, dot)))
+    const angle = factor * fullAngle
+
+    // rotation = axis_angle_to_mat3(rotation_axis, angle)
+    const rotMat = axisAngleToMat3(rax, ray, raz, angle)
+
+    // new_rotation_matrix = rotation * old_rotation
+    const newMat = mulMat3(rotMat, oldMat)
+
+    return mat3ToEul(newMat)
+}
+
+// ─── Evaluate Float Curve (CurveMapping) ────────────────────────────
+// source: blenkernel/intern/colorband.cc (CurveMapping evaluation)
+// source: nodes/shader/nodes/node_shader_curves.cc (ShaderNodeFloatCurve)
+//
+// The Float Curve node applies a CurveMapping to remap an input value.
+// Since curve control point data isn't always available in the exported
+// JSON, we implement a general bezier curve evaluator that accepts
+// control points as parameters.
+//
+// For the default curve (identity line from (0,0) to (1,1)):
+//   evaluateFloatCurve(value, [{x:0,y:0}, {x:1,y:1}], 1.0) = value
+//
+// The curve is piecewise monotonic. For each pair of adjacent control
+// points, we interpolate using the handle positions (bezier) or linearly.
+
+/** A control point on a Float Curve. */
+export interface FloatCurvePoint {
+    /** X position (input range) */
+    x: number
+    /** Y position (output value) */
+    y: number
+    /** Handle type: 'AUTO' | 'VECTOR' | 'ALIGN' (determines interpolation) */
+    handleType?: string
+}
+
+/**
+ * Compute AUTO bezier handles for a set of curve points.
+ *
+ * Port of BKE_nurb_handle_calc_simple_auto (from nurbs_utils.cc)
+ * and the auto-handle calculation in curvemap_make_table (colortools.cc).
+ *
+ * For AUTO handles, Blender computes handle positions that create smooth
+ * curves through the control points. The handle length is proportional
+ * to the distance between adjacent points.
+ *
+ * Returns array of {h1x, h1y, h2x, h2y} per point (left and right handles).
+ */
+function computeAutoHandles(points: FloatCurvePoint[]): {h1x: number, h1y: number, h2x: number, h2y: number}[] {
+    const n = points.length
+    const handles: {h1x: number, h1y: number, h2x: number, h2y: number}[] = []
+
+    for (let i = 0; i < n; i++) {
+        const p = points[i]
+        const prev = i > 0 ? points[i - 1] : null
+        const next = i < n - 1 ? points[i + 1] : null
+
+        if (p.handle_type === 'VECTOR' || (!prev && !next)) {
+            // VECTOR handles: point directly at neighbors
+            handles.push({
+                h1x: prev ? (prev.x + p.x) / 2 : p.x,
+                h1y: prev ? (prev.y + p.y) / 2 : p.y,
+                h2x: next ? (p.x + next.x) / 2 : p.x,
+                h2y: next ? (p.y + next.y) / 2 : p.y,
+            })
+            continue
+        }
+
+        // AUTO handles: smooth interpolation
+        // Port of BKE_nurb_handle_calc_simple_auto
+        if (!prev) {
+            // First point: mirror from next handle
+            const dx = next!.x - p.x
+            const dy = next!.y - p.y
+            handles.push({
+                h1x: p.x - dx / 3,
+                h1y: p.y - dy / 3,
+                h2x: p.x + dx / 3,
+                h2y: p.y + dy / 3,
+            })
+        } else if (!next) {
+            // Last point: mirror from prev handle
+            const dx = p.x - prev.x
+            const dy = p.y - prev.y
+            handles.push({
+                h1x: p.x - dx / 3,
+                h1y: p.y - dy / 3,
+                h2x: p.x + dx / 3,
+                h2y: p.y + dy / 3,
+            })
+        } else {
+            // Middle point: handles aim toward midpoint of neighbors
+            // This is a simplified version of Blender's auto-handle calculation
+            // source: editors/transform/transform_convert.c, BKE_nurb_handle_calc_simple_auto
+            const dx1 = p.x - prev.x
+            const dy1 = p.y - prev.y
+            const dx2 = next.x - p.x
+            const dy2 = next.y - p.y
+            const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1)
+            const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2)
+
+            if (len1 + len2 > 0) {
+                // Direction from prev to next
+                const tvx = next.x - prev.x
+                const tvy = next.y - prev.y
+                const tvLen = Math.sqrt(tvx * tvx + tvy * tvy)
+
+                if (tvLen > 0) {
+                    const nvx = tvx / tvLen
+                    const nvy = tvy / tvLen
+
+                    // Handle lengths proportional to segment lengths
+                    const h1Len = len1 / 3
+                    const h2Len = len2 / 3
+
+                    handles.push({
+                        h1x: p.x - nvx * h1Len,
+                        h1y: p.y - nvy * h1Len,
+                        h2x: p.x + nvx * h2Len,
+                        h2y: p.y + nvy * h2Len,
+                    })
+                } else {
+                    handles.push({h1x: p.x, h1y: p.y, h2x: p.x, h2y: p.y})
+                }
+            } else {
+                handles.push({h1x: p.x, h1y: p.y, h2x: p.x, h2y: p.y})
+            }
+        }
+    }
+
+    return handles
+}
+
+/**
+ * Evaluate a cubic bezier curve at parameter t.
+ * B(t) = (1-t)^3 * P0 + 3*(1-t)^2*t * P1 + 3*(1-t)*t^2 * P2 + t^3 * P3
+ */
+function cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
+    const mt = 1 - t
+    return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3
+}
+
+/**
+ * Find parameter t on a cubic bezier x(t) that corresponds to a given x value.
+ * Uses Newton-Raphson iteration for fast convergence.
+ */
+function findBezierT(x: number, x0: number, x1: number, x2: number, x3: number): number {
+    // Initial guess using linear interpolation
+    let t = (x - x0) / (x3 - x0 || 1)
+    t = Math.max(0, Math.min(1, t))
+
+    // Newton-Raphson iterations
+    for (let iter = 0; iter < 10; iter++) {
+        const xAtT = cubicBezier(t, x0, x1, x2, x3)
+        const error = xAtT - x
+        if (Math.abs(error) < 1e-8) break
+
+        // Derivative: d/dt B(t) = 3*(1-t)^2*(P1-P0) + 6*(1-t)*t*(P2-P1) + 3*t^2*(P3-P2)
+        const mt = 1 - t
+        const dx = 3 * mt * mt * (x1 - x0) + 6 * mt * t * (x2 - x1) + 3 * t * t * (x3 - x2)
+        if (Math.abs(dx) < 1e-12) break
+
+        t -= error / dx
+        t = Math.max(0, Math.min(1, t))
+    }
+
+    return t
+}
+
+/**
+ * Evaluate a Float Curve (CurveMapping) at a given input value.
+ * Uses cubic bezier interpolation for AUTO handles (matching Blender's behavior).
+ * Falls back to linear interpolation for VECTOR handles.
+ *
+ * source: blenkernel/intern/colortools.cc — curvemap_make_table, BKE_curvemap_evaluateF
+ *
+ * @param value Input value (typically 0..1 but can be outside)
+ * @param points Sorted control points [{x, y, handle_type}, ...]
+ * @param factor Blend factor (1.0 = full curve effect, 0.0 = no effect)
+ * @returns Mapped output value
+ */
+export function evaluateFloatCurve(
+    value: number,
+    points: FloatCurvePoint[],
+    factor = 1.0,
+): number {
+    if (points.length === 0) return value
+    if (points.length === 1) return points[0].y
+
+    // Clamp to curve range (extend)
+    if (value <= points[0].x) {
+        const result = points[0].y
+        return factor * result + (1 - factor) * value
+    }
+    if (value >= points[points.length - 1].x) {
+        const result = points[points.length - 1].y
+        return factor * result + (1 - factor) * value
+    }
+
+    // Check if any point uses AUTO handles
+    const hasAutoHandles = points.some(p => p.handle_type === 'AUTO' || p.handle_type === 'AUTO_CLAMPED')
+
+    if (!hasAutoHandles) {
+        // Linear interpolation for VECTOR handles
+        for (let i = 0; i < points.length - 1; i++) {
+            const p0 = points[i], p1 = points[i + 1]
+            if (value >= p0.x && value <= p1.x) {
+                const t = (p1.x === p0.x) ? 0 : (value - p0.x) / (p1.x - p0.x)
+                const result = p0.y + t * (p1.y - p0.y)
+                return factor * result + (1 - factor) * value
+            }
+        }
+        return value
+    }
+
+    // Compute auto handles
+    const handles = computeAutoHandles(points)
+
+    // Find the segment and evaluate with bezier
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i], p1 = points[i + 1]
+        if (value >= p0.x && value <= p1.x) {
+            const h0 = handles[i]
+            const h1 = handles[i + 1]
+
+            // Bezier control points for this segment:
+            // P0 = (p0.x, p0.y)
+            // P1 = (h0.h2x, h0.h2y) — right handle of left point
+            // P2 = (h1.h1x, h1.h1y) — left handle of right point
+            // P3 = (p1.x, p1.y)
+            const t = findBezierT(value, p0.x, h0.h2x, h1.h1x, p1.x)
+            const result = cubicBezier(t, p0.y, h0.h2y, h1.h1y, p1.y)
+            return factor * result + (1 - factor) * value
+        }
+    }
+
+    return value
+}
+
+// ─── Evaluate ColorRamp (ColorBand) ─────────────────────────────────
+// source: blenkernel/intern/colorband.cc — BKE_colorband_evaluate
+//
+// Evaluates a Blender ColorRamp (ColorBand) with linear interpolation.
+// Returns [r, g, b, a]. For geometry nodes, typically only the first
+// channel (or luminance) is used.
+
+/** A color stop on a ColorRamp. */
+export interface ColorRampStop {
+    /** Position along the ramp (0..1) */
+    pos: number
+    /** RGBA color [r, g, b, a] */
+    color: [number, number, number, number]
+}
+
+/**
+ * Evaluate a ColorRamp at a given factor (0..1).
+ * Port of BKE_colorband_evaluate from colorband.cc (LINEAR interpolation, RGB mode).
+ *
+ * @param fac Input factor (0..1)
+ * @param stops Color stops sorted by position
+ * @returns [r, g, b, a] output color
+ */
+export function evaluateColorRamp(
+    fac: number,
+    stops: ColorRampStop[],
+): [number, number, number, number] {
+    if (stops.length === 0) return [0, 0, 0, 0]
+    if (stops.length === 1) return [...stops[0].color] as [number, number, number, number]
+
+    // Before first stop
+    if (fac <= stops[0].pos) {
+        return [...stops[0].color] as [number, number, number, number]
+    }
+    // After last stop
+    if (fac >= stops[stops.length - 1].pos) {
+        return [...stops[stops.length - 1].color] as [number, number, number, number]
+    }
+
+    // Find segment
+    for (let i = 0; i < stops.length - 1; i++) {
+        const s0 = stops[i], s1 = stops[i + 1]
+        if (fac >= s0.pos && fac <= s1.pos) {
+            const t = (s1.pos === s0.pos) ? 0 : (fac - s0.pos) / (s1.pos - s0.pos)
+            const mt = 1 - t
+            return [
+                mt * s0.color[0] + t * s1.color[0],
+                mt * s0.color[1] + t * s1.color[1],
+                mt * s0.color[2] + t * s1.color[2],
+                mt * s0.color[3] + t * s1.color[3],
+            ]
+        }
+    }
+
+    return [...stops[stops.length - 1].color] as [number, number, number, number]
+}

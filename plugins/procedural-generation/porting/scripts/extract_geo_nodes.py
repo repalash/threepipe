@@ -234,6 +234,46 @@ def extract_node(node):
     if node.parent:
         node_info["parent"] = node.parent.name
 
+    # ─── Special node data that bl_rna can't auto-extract ────────────
+
+    # ColorRamp (ShaderNodeValToRGB) — extract element stops
+    if hasattr(node, 'color_ramp'):
+        ramp = node.color_ramp
+        node_info["color_ramp"] = {
+            "interpolation": ramp.interpolation,  # LINEAR, EASE, CARDINAL, etc.
+            "color_mode": ramp.color_mode,  # RGB, HSV, HSL
+            "elements": [
+                {
+                    "position": elem.position,
+                    "color": list(elem.color),  # [r, g, b, a]
+                }
+                for elem in ramp.elements
+            ],
+        }
+
+    # FloatCurve / CurveMapping (ShaderNodeFloatCurve, ShaderNodeVectorCurve, etc.)
+    if hasattr(node, 'mapping'):
+        mapping = node.mapping
+        curves_data = []
+        for curve in mapping.curves:
+            points = [
+                {
+                    "x": pt.location[0],
+                    "y": pt.location[1],
+                    "handle_type": pt.handle_type,  # AUTO, VECTOR, AUTO_CLAMPED, etc.
+                }
+                for pt in curve.points
+            ]
+            curves_data.append({"points": points})
+        node_info["curve_mapping"] = {
+            "clip_min_x": mapping.clip_min_x,
+            "clip_min_y": mapping.clip_min_y,
+            "clip_max_x": mapping.clip_max_x,
+            "clip_max_y": mapping.clip_max_y,
+            "use_clip": mapping.use_clip,
+            "curves": curves_data,
+        }
+
     return node_info
 
 

@@ -370,6 +370,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
 
     getView = iCameraCommons.getView
     setView = iCameraCommons.setView
+    fitObject = iCameraCommons.fitObject
     setViewFromCamera = iCameraCommons.setViewFromCamera
     setViewToMain = iCameraCommons.setViewToMain;
 
