@@ -1,4 +1,4 @@
-import {SwitchNodeBasePlugin} from 'threepipe'
+import {CustomContextMenu, SwitchNodeBasePlugin, type ObjectSwitchNode} from 'threepipe'
 import {GridItemListPlugin} from './GridItemListPlugin'
 
 /**
@@ -51,15 +51,13 @@ export class SwitchNodePlugin extends SwitchNodeBasePlugin {
                         },
                         tooltip: child.name || child.uuid,
                     }
-                }), (d, _item)=> {
-                    // todo test in shadow dom.
+                }), (d, item)=> {
                     d.oncontextmenu = (e) => {
                         if (!this.enableEditContextMenus) return
                         e.preventDefault()
                         e.stopPropagation()
-                        // todo
-                        // const menu = CustomContextMenu.Create(this.materialContextMenuItems(variation, item.id), e.clientX, e.clientY)
-                        // document.body.appendChild(menu)
+                        const menu = CustomContextMenu.Create(this.nodeItemContextMenuItems(variation, item.id), e.clientX, e.clientY)
+                        document.body.appendChild(menu)
                     }
                 }
             )
@@ -67,13 +65,46 @@ export class SwitchNodePlugin extends SwitchNodeBasePlugin {
                 if (!this.enableEditContextMenus) return
                 e.preventDefault()
                 e.stopPropagation()
-                // todo
-                // const menu = CustomContextMenu.Create(this.variationsContextMenuItems(variation), e.clientX, e.clientY)
-                // document.body.appendChild(menu)
+                const menu = CustomContextMenu.Create(this.nodeContextMenuItems(variation), e.clientX, e.clientY)
+                document.body.appendChild(menu)
             }
         }
         grid.rebuildUi()
 
         return true
     }
+
+    nodeItemContextMenuItems = (variation: ObjectSwitchNode, uuid: string) => ({
+        ['Select']: () => {
+            this.selectNode(variation, uuid)
+            this.refreshUi()
+            CustomContextMenu.Remove()
+        },
+    })
+
+    nodeContextMenuItems = (variation: ObjectSwitchNode) => ({
+        ['Rename Title']: async() => {
+            CustomContextMenu.Remove()
+            const name = await this._viewer?.dialog.prompt('Change title: New display title for this switch node', variation.title, true)
+            if (name) {
+                variation.title = name
+                this.refreshUi()
+            }
+        },
+        ['Rename Node']: async() => {
+            CustomContextMenu.Remove()
+            const name = await this._viewer?.dialog.prompt('Change node name: New object name to map to', variation.name, true)
+            if (name) {
+                variation.name = name
+                this.refreshUi()
+            }
+        },
+        ['Remove Section']: async() => {
+            CustomContextMenu.Remove()
+            const conf = await this._viewer?.dialog.confirm('Remove switch node: Remove this switch node configuration?')
+            if (!conf) return
+            this.variations = this.variations.filter(v => v !== variation)
+            this.refreshUi()
+        },
+    })
 }

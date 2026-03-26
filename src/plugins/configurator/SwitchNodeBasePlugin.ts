@@ -40,14 +40,18 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        // todo subscribe to plugin add event if picking is not added yet.
-        this._picking = viewer.getPlugin<PickingPlugin>('Picking')
-        this._picking?.addEventListener('selectedObjectChanged', this.refreshUiConfig) // don't call this.refreshUi here
+        viewer.forPlugin(PickingPlugin, (p) => {
+            this._picking = p
+            this._picking?.addEventListener('selectedObjectChanged', this.refreshUiConfig)
+        }, () => {
+            this._picking?.removeEventListener('selectedObjectChanged', this.refreshUiConfig)
+            this._picking = undefined
+        }, this)
         viewer.addEventListener('postFrame', this._postFrame)
     }
     onRemove(viewer: ThreeViewer) {
-        this._picking = viewer.getPlugin<PickingPlugin>('Picking')
         this._picking?.removeEventListener('selectedObjectChanged', this.refreshUiConfig)
+        this._picking = undefined
         viewer.removeEventListener('postFrame', this._postFrame)
         super.onRemove(viewer)
     }
@@ -197,7 +201,7 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
             }
 
             for (const child of obj.children) {
-                if (child.userData.__icon) return
+                if (child.userData.__icon) continue
                 const image = this.getPreview(variation, child, false)
                 if (image) child.userData.__icon = image
             }

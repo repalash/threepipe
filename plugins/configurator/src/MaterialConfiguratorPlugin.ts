@@ -84,14 +84,16 @@ export class MaterialConfiguratorPlugin extends MaterialConfiguratorBasePlugin {
         // todo set icon url
     })
     variationsContextMenuItems = (variation: MaterialVariations)=>({
-        ['Rename mapping']: async() => {
+        ['Rename Mapping']: async() => {
+            CustomContextMenu.Remove()
             const name = await this._viewer?.dialog.prompt('Change name: New material name to map to', variation.uuid, true)
             if (name) {
                 variation.uuid = name
                 this.refreshUi()
             }
         },
-        ['Rename title']: async() => {
+        ['Rename Title']: async() => {
+            CustomContextMenu.Remove()
             const name = await this._viewer?.dialog.prompt('Change name: New material name to map to', variation.title, true)
             if (name) {
                 variation.title = name
@@ -99,17 +101,17 @@ export class MaterialConfiguratorPlugin extends MaterialConfiguratorBasePlugin {
             }
         },
         ['Clear Materials']: async()=>{
+            CustomContextMenu.Remove()
             const conf = await this._viewer?.dialog.confirm('Remove all: Remove all materials from this variation list?')
             if (!conf) return
             variation.materials = []
             this.refreshUi()
-            CustomContextMenu.Remove()
         },
         ['Remove Section']: async()=>{
+            CustomContextMenu.Remove()
             const conf = await this._viewer?.dialog.confirm('Remove variations: Remove this category of variations?')
             if (!conf) return
             this.removeVariation(variation)
-            CustomContextMenu.Remove()
         },
     })
 
