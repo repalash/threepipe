@@ -1638,7 +1638,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * When `duration` is 0, the view is set instantly without animation.
      * @param selected - objects to fit (Object3D, materials, textures, or geometries). Falls back to entire scene.
      * @param distanceMultiplier - padding multiplier (default 1.5)
-     * @param duration - animation duration in ms. Pass 0 for instant. Defaults to 1000ms.
+     * @param duration - animation duration in ms. Pass 0 for instant. Defaults to CameraViewPlugin.animDuration (1000ms).
      * @param ease - easing function or name
      */
     public async fitToView(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration?: number, ease?: ((v: number) => number)|EasingFunctionType) {

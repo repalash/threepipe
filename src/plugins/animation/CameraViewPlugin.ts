@@ -225,7 +225,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
     private _popAnimations: AnimationResult[] = []
 
-    async animateToView(_view: CameraView|number|string, duration?: number, easing?: Easing|EasingFunctionType, camera?: ICamera, throwOnStop = false) {
+    async animateToView(_view: CameraView|number|string, duration?: number, easing?: Easing|EasingFunctionType, camera?: ICamera, throwOnStop = false, normalizeDuration?: boolean) {
         camera = camera || this._viewer?.scene.mainCamera
         if (!camera) return
         // if (this._currentView === view) return // todo: also check if the camera is at the correct position and orientation, till then use resetToFirstView to reset current view
@@ -252,6 +252,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             return
         }
 
+        normalizeDuration = normalizeDuration ?? duration === undefined
+
         const interactionPrompt = this._viewer?.getPlugin(InteractionPromptPlugin)
         if (interactionPrompt && interactionPrompt.animationRunning) {
             await interactionPrompt.stopAnimation({reset: true})
@@ -271,7 +273,6 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         const popmotion = this._viewer?.getPlugin(PopmotionPlugin)
         if (!popmotion) throw new Error('PopmotionPlugin not found')
 
-        if (duration === undefined) duration = this.animDuration
         const ease: any = (typeof easing === 'function' ? easing : EasingFunctions[easing || this.animEase]) as (x: number) => number
         // const ease = (x:number)=>x
         // const driver = this._driver
@@ -335,7 +336,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         //     }, popAnimations))
         // }
 
-        await popmotion.animateCameraAsync(camera, view, this.interpolateMode === 'spherical', {ease, duration}, this._popAnimations)
+        await popmotion.animateCameraAsync(camera, view, this.interpolateMode === 'spherical', {ease, duration, normalizeDuration}, this._popAnimations)
             .catch((e)=>{
                 // console.error(e)
                 if (throwOnStop) throw e
@@ -414,11 +415,11 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
      * Accepts Object3D, materials, textures, or geometries (resolved to their applied meshes).
      * @param selected - objects to fit. Falls back to the scene model root.
      * @param distanceMultiplier - padding multiplier on the fitting distance (default 1.5)
-     * @param duration - animation duration in ms. Pass 0 for instant.
+     * @param duration - animation duration in ms. Pass 0 for instant. Defaults to animDuration.
      * @param ease - easing function or name
      * @param distanceBounds - min/max clamp on the final distance
      */
-    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration = 1000, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
+    public async animateToFitObject(selected?: Object3D|Object3D[]|IMaterial|IMaterial[]|ITexture|ITexture[]|IGeometry|IGeometry[], distanceMultiplier = 1.5, duration?: number, ease?: Easing|EasingFunctionType, distanceBounds = {min: 0.5, max: 50.0}) {
         if (!this._viewer) return
         const selectedArray = this._resolveSelectedObjects(selected)
         const objects = !selectedArray.length ? [this._viewer.scene.modelRoot] : selectedArray
@@ -459,7 +460,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             this._viewer?.setDirty()
             return
         }
-        await this.animateToView(view, duration, ease)
+        await this.animateToView(view, duration, ease, undefined, false, true)
     }
 
     uiConfig: UiObjectConfig = {

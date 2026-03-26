@@ -14,6 +14,7 @@ import {
     makeSetterFor,
 } from '../../utils'
 import {ICamera, ICameraView} from '../../core'
+import {Vector3} from 'three'
 import {animateKeyframes} from '../../utils/animation'
 
 export interface AnimationResult{
@@ -372,18 +373,47 @@ export class PopmotionPlugin extends AViewerPluginSync {
         return this.animate({...options, target, key: key as string})
     }
 
-    animateCamera(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>) {
+    /**
+     * Animate camera to a target view.
+     * @param camera
+     * @param view
+     * @param spherical - use spherical interpolation (default true)
+     * @param options - animation options. `normalizeDuration` scales duration based on travel distance
+     *   and skips animation if camera is already at target. Default false when duration is provided, true otherwise.
+     */
+    animateCamera(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>> & {normalizeDuration?: boolean}) {
         const anim = spherical ?
             animateCameraToViewSpherical(camera, view) :
             animateCameraToViewLinear(camera, view)
+
+        let duration = ((options as KeyframeOptions)?.duration ?? 1000) * (view.duration ?? 1)
+
+        if (options?.normalizeDuration && duration > 0) {
+            const currentPos = camera.getWorldPosition(new Vector3())
+            const totalTravel = currentPos.distanceTo(view.position) + camera.target.distanceTo(view.target)
+            if (totalTravel < 0.001) {
+                // Already at target — complete instantly
+                anim.onComplete?.()
+                const result = this.createAnimationResult()
+                result.promise = Promise.resolve(result.id).then(() => {
+                    delete this.animations[result.id]
+                    return result.id
+                })
+                return result
+            }
+            // Scale duration relative to camera-to-target distance (scene scale)
+            const viewSize = Math.max(currentPos.distanceTo(camera.target), 0.1)
+            duration = Math.max(100, duration * Math.min(1, totalTravel / viewSize))
+        }
+
         return this.animate({
             ease: EasingFunctions.linear,
             ...anim, ...options,
-            duration: ((options as KeyframeOptions).duration ?? 1000) * (view.duration ?? 1),
+            duration,
         })
     }
 
-    async animateCameraAsync(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>>, animations?: AnimationResult[]) {
+    async animateCameraAsync(camera: ICamera, view: ICameraView, spherical = true, options?: Partial<AnimationOptions<any>> & {normalizeDuration?: boolean}, animations?: AnimationResult[]) {
         const anim = this.animateCamera(camera, view, spherical, options)
         if (animations) animations.push(anim)
         return anim.promise
