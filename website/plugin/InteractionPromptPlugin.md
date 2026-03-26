@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'LoadingScreenPlugin'
-    link: './LoadingScreenPlugin'
+prev:
+    text: 'FullScreenPlugin'
+    link: './FullScreenPlugin'
 
 next: 
     text: 'TransformControlsPlugin'

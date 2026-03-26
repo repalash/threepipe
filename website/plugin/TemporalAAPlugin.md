@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'SSAAPlugin (Super-Sample Anti-Aliasing)'
-  link: './SSAAPlugin'
+  text: 'FrameFadePlugin'
+  link: './FrameFadePlugin'
 
 next:
   text: 'VelocityBufferPlugin'

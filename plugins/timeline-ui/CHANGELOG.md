@@ -1,4 +1,4 @@
-# Changelog for @threepipe/timeline-ui
+# Changelog for @threepipe/plugin-timeline-ui
 
 All notable changes to this plugin will be documented in this file.
 

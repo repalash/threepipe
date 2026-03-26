@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'SSAOPlugin'
-    link: './SSAOPlugin'
+prev:
+    text: 'ParallaxMappingPlugin'
+    link: './ParallaxMappingPlugin'
 
-next: 
-    text: 'PickingPlugin'
-    link: './PickingPlugin'
+next:
+    text: 'AssetExporterPlugin'
+    link: './AssetExporterPlugin'
 
 ---
 

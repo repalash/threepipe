@@ -1,4 +1,4 @@
-# Changelog for @threepipe/plugin-template-vite
+# Changelog for threepipe-plugin-template-vite
 
 All notable changes to this plugin will be documented in this file.
 

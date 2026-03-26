@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'CanvasSnapshotPlugin'
-    link: './CanvasSnapshotPlugin'
+prev:
+    text: 'DropzonePlugin'
+    link: './DropzonePlugin'
 
-next: 
-    text: 'FullScreenPlugin'
-    link: './FullScreenPlugin'
+next:
+    text: 'LoadingScreenPlugin'
+    link: './LoadingScreenPlugin'
 
 ---
 

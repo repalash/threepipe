@@ -3,9 +3,9 @@ prev:
     text: 'AssetExporterPlugin'
     link: './AssetExporterPlugin'
 
-next: 
-    text: 'LoadingScreenPlugin'
-    link: './LoadingScreenPlugin'
+next:
+    text: 'ContactShadowGroundPlugin'
+    link: './ContactShadowGroundPlugin'
 
 ---
 

@@ -3,9 +3,9 @@ prev:
     text: 'CameraViewPlugin'
     link: './CameraViewPlugin'
 
-next: 
-    text: 'RenderTargetPreviewPlugin'
-    link: './RenderTargetPreviewPlugin'
+next:
+    text: 'NoiseBumpMaterialPlugin'
+    link: './NoiseBumpMaterialPlugin'
 
 ---
 

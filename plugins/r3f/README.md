@@ -1,4 +1,4 @@
-# @threepipe/r3f
+# @threepipe/plugin-r3f
 
 Integration and plugin for [threepipe](https://threepipe.org/) to use [React Three Fiber (R3F)](https://r3f.docs.pmnd.rs/getting-started/introduction)
 

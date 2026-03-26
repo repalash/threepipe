@@ -40,7 +40,7 @@ Some examples are -
 - `Mesh2` -> `Mesh`
 - `BufferGeometry2` -> `BufferGeometry`
 
-See also - [`GeometryGeneratorPlugin`](./../package/plugin-geometry-generator), [`Object3DGeneratorPlugin`](./../plugin/Object3DGeneratorPlugin) to generate 3d objects, lights, cameras, geometries along with schema and UI configuration.
+See also - [`GeometryGeneratorPlugin`](./../plugin/GeometryGeneratorPlugin), [`Object3DGeneratorPlugin`](./../plugin/Object3DGeneratorPlugin) to generate 3d objects, lights, cameras, geometries along with schema and UI configuration.
 
 Check more [here](./../guide/viewer-api#other-classes-and-interfaces)
 ::: 

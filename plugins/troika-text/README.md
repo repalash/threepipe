@@ -1,4 +1,4 @@
-# @threepipe/troika-text
+# @threepipe/plugin-troika-text
 
 Integration and plugin for [threepipe](https://threepipe.org/) to render 3D text using [troika-three-text](https://github.com/protectwise/troika/tree/main/packages/troika-three-text)
 

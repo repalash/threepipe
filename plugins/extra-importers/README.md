@@ -1,4 +1,4 @@
-# @threepipe/extra-importers
+# @threepipe/plugins-extra-importers
 
 Additional importers for [threepipe](https://threepipe.org/) to handle various 3D file formats.
 

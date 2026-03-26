@@ -1,4 +1,4 @@
-# @threepipe/3d-tiles-renderer
+# @threepipe/plugin-3d-tiles-renderer
 
 [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS) integration and plugin for [threepipe](https://threepipe.org/) to import and render [OGC Tiles](https://www.ogc.org/standards/3dtiles/).
 

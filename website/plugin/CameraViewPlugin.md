@@ -101,3 +101,9 @@ await viewer.fitToView(myObject, 1.5, 0)    // instant
 `animateToFitObject` accepts `Object3D`, materials, textures, or geometries — materials/textures/geometries are resolved to their applied meshes automatically.
 
 For instant (non-animated) fitting directly on the camera, see [`camera.fitObject()`](../guide/viewer-api#camera).
+
+### Animation Duration Scaling
+
+The fit functions (`animateToFitObject`, `animateToTarget`, `animateToObject`) always enable `normalizeDuration` on `PopmotionPlugin.animateCamera`, which scales the animation duration based on how far the camera needs to travel. If the camera is already at the target position, the animation is skipped entirely. For small movements, the duration is proportionally shorter — preventing the canvas from feeling "locked" when the camera barely needs to move.
+
+When calling `animateToView` directly, `normalizeDuration` is enabled by default only when no explicit duration is provided. It can also be controlled via the `normalizeDuration` parameter.

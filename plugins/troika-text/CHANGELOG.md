@@ -1,4 +1,4 @@
-# Changelog for @threepipe/troika-text
+# Changelog for @threepipe/plugin-troika-text
 
 All notable changes to this plugin will be documented in this file.
 

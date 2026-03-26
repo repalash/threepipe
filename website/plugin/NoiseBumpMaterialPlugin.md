@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'FilmicGrainPlugin'
-    link: './FilmicGrainPlugin'
+prev:
+    text: 'TransformAnimationPlugin'
+    link: './TransformAnimationPlugin'
 
 next: 
     text: 'CustomBumpMapPlugin'

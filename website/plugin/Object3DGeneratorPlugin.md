@@ -3,9 +3,9 @@ prev:
     text: 'Object3DWidgetsPlugin'
     link: './Object3DWidgetsPlugin'
 
-next: 
-    text: 'DeviceOrientationControlsPlugin'
-    link: './DeviceOrientationControlsPlugin'
+next:
+    text: 'GeometryGeneratorPlugin'
+    link: './GeometryGeneratorPlugin'
 
 ---
 
@@ -29,7 +29,7 @@ Support for the following types of generators is included in the plugin:
 * light-hemisphere - Creates instance of `HemisphereLight2`
 * light-rect-area - Creates instance of `RectAreaLight2`
 
-Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](../package/plugin-geometry-generator) to add various type of primitive objects like plane, sphere, etc.
+Additional types of generators can be added dynamically or by other plugins by adding a custom generator function to the `Object3DGeneratorPlugin.generators` object. This is done by [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) (now a core plugin) to add various type of primitive objects like plane, sphere, etc.
 A custom generator can take in any kind object as parameters and should return an `IObject3D`.
 
 Sample Usage

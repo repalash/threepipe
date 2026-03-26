@@ -1,9 +1,7 @@
 ---
-prev: 
-    text: 'GLTFKHRMaterialVariantsPlugin'
-    link: './GLTFKHRMaterialVariantsPlugin'
+prev: false
 
-next: 
+next:
     text: 'PLYLoadPlugin'
     link: './PLYLoadPlugin'
 

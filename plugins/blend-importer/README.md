@@ -1,4 +1,4 @@
-# @threepipe/blend-importer
+# @threepipe/plugin-blend-importer
 
 Integration and plugin for [threepipe](https://threepipe.org/) to import and render Blender(BLEND) files (fork of [js.blend](https://github.com/acweathersby/js.blend))
 

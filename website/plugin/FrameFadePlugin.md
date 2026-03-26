@@ -3,9 +3,9 @@ prev:
     text: 'CascadedShadowsPlugin'
     link: './CascadedShadowsPlugin'
 
-next: 
-    text: 'DropzonePlugin'
-    link: './DropzonePlugin'
+next:
+    text: 'TemporalAAPlugin'
+    link: './TemporalAAPlugin'
 
 aside: false
 ---

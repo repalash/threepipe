@@ -1,4 +1,4 @@
-# @threepipe/gaussian-splatting
+# @threepipe/plugin-gaussian-splatting
 
 Plugins for [threepipe](https://threepipe.org/) to render Gaussian splatting effects.
 

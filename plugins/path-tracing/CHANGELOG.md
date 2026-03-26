@@ -1,4 +1,4 @@
-# Changelog for @threepipe/path-tracing
+# Changelog for @threepipe/plugin-path-tracing
 
 All notable changes to this plugin will be documented in this file.
 

@@ -3,9 +3,9 @@ prev:
     text: 'FragmentClippingExtensionPlugin'
     link: './FragmentClippingExtensionPlugin'
 
-next: 
-    text: 'HDRiGroundPlugin'
-    link: './HDRiGroundPlugin'
+next:
+    text: 'CanvasSnapshotPlugin'
+    link: './CanvasSnapshotPlugin'
 
 ---
 

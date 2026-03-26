@@ -3,9 +3,9 @@ prev:
     text: 'KTX2LoadPlugin'
     link: './KTX2LoadPlugin'
 
-next: 
-    text: 'GLTFMeshOptDecodePlugin'
-    link: './GLTFMeshOptDecodePlugin'
+next:
+    text: 'USDZLoadPlugin'
+    link: './USDZLoadPlugin'
 
 ---
 

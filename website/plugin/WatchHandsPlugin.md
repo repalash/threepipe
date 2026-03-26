@@ -4,8 +4,8 @@ prev:
   link: './OutlinePlugin'
 
 next:
-  text: 'SSGI Plugin (Screen Space Global Illumination)'
-  link: './SSGIPlugin'
+  text: 'DropzonePlugin'
+  link: './DropzonePlugin'
 
 aside: false
 ---

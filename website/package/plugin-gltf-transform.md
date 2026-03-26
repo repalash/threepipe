@@ -11,7 +11,7 @@ next:
 
 # @threepipe/plugin-gltf-transform
 
-[Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/gltf-transform/src/index.ts) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/gltf-transform/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/gltf-transform/docs)
 
 [![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-gltf-transform.svg)](https://www.npmjs.com/package/@threepipe/plugin-gltf-transform)

@@ -3,9 +3,9 @@ prev:
     text: 'RenderTargetPreviewPlugin'
     link: './RenderTargetPreviewPlugin'
 
-next: 
-    text: 'FrameFadePlugin'
-    link: './FrameFadePlugin'
+next:
+    text: 'TailwindCSSCDNPlugin'
+    link: './TailwindCSSCDNPlugin'
 
 ---
 

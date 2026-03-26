@@ -57,6 +57,7 @@ export default defineConfig({
           {text: 'Material Extension Plugin', link: 'notes/material-extension-plugin'},
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
           {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
+          {text: 'Widgets, Helpers & Gizmos', link: 'notes/widgets-and-helpers'},
         ]
       },
       {
@@ -186,6 +187,7 @@ export default defineConfig({
             items: [
               {text: 'RenderTargetPreviewPlugin', link: 'plugin/RenderTargetPreviewPlugin'},
               {text: 'GeometryUVPreviewPlugin', link: 'plugin/GeometryUVPreviewPlugin'},
+              {text: 'TailwindCSSCDNPlugin', link: 'plugin/TailwindCSSCDNPlugin'},
               // {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
               // {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},
             ],

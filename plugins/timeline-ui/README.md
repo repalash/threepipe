@@ -1,4 +1,4 @@
-# @threepipe/timeline-ui
+# @threepipe/plugin-timeline-ui
 
 Plugins and UI for [threepipe](https://threepipe.org/) to create, edit and play timeline-based animations.
 

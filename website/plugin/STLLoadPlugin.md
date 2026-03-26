@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'USDZLoadPlugin'
-    link: './USDZLoadPlugin'
+prev:
+    text: 'PLYLoadPlugin'
+    link: './PLYLoadPlugin'
 
 next: 
     text: 'KTX2LoadPlugin'

@@ -17,8 +17,8 @@ This plugin adds support for [troika text](https://protectwise.github.io/troika/
 It also adds a generator to the `Object3DGeneratorPlugin` to create text objects from the UI, which can then be saved in glTF and loaded back with the plugin.
 
 [Example](https://threepipe.org/examples/#troika-text-plugin/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/troika-text/src/TimelineUiPlugin.ts) &mdash;
-[API Reference](https://threepipe.org/plugins/troika-text/docs/classes/TimelineUiPlugin.html)
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/troika-text/src/TroikaTextPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/troika-text/docs/classes/TroikaTextPlugin.html)
 
 [![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-troika-text.svg)](https://www.npmjs.com/package/@threepipe/plugin-troika-text)
 

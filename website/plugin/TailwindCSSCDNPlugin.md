@@ -3,9 +3,9 @@ prev:
     text: 'GeometryUVPreviewPlugin'
     link: './GeometryUVPreviewPlugin'
 
-next: 
-    text: 'SceneUiConfigPlugin'
-    link: './SceneUiConfigPlugin'
+next:
+    text: 'AAssetManagerProcessStatePlugin'
+    link: './AAssetManagerProcessStatePlugin'
 
 ---
 

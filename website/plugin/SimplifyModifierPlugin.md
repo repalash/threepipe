@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'GLTFMeshOptDecodePlugin'
-    link: './GLTFMeshOptDecodePlugin'
+prev:
+    text: 'GLTFKHRMaterialVariantsPlugin'
+    link: './GLTFKHRMaterialVariantsPlugin'
 
 next: 
     text: 'MeshOptSimplifyModifierPlugin'

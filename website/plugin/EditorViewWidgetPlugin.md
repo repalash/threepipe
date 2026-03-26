@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'VirtualCamerasPlugin'
-    link: './VirtualCamerasPlugin'
+prev:
+    text: 'UndoManagerPlugin'
+    link: './UndoManagerPlugin'
 
-next: 
-    text: 'Object3DWidgetsPlugin'
-    link: './Object3DWidgetsPlugin'
+next:
+    text: 'DeviceOrientationControlsPlugin'
+    link: './DeviceOrientationControlsPlugin'
 
 ---
 

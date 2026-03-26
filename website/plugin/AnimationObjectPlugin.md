@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'ContactShadowGroundPlugin'
-  link: './ContactShadowGroundPlugin'
+  text: 'ThreeFirstPersonControlsPlugin'
+  link: './ThreeFirstPersonControlsPlugin'
 
 next:
   text: 'GLTFAnimationPlugin'
@@ -35,11 +35,11 @@ The AnimationObjectPlugin provides a comprehensive system for creating custom pr
 ## Basic Setup
 
 ```typescript
-import {ThreeViewer, AnimationObjectPlugin, PickingPLugin} from 'threepipe'
+import {ThreeViewer, AnimationObjectPlugin, PickingPlugin} from 'threepipe'
 import {TweakpaneUiPlugin} from "@threepipe/plugin-tweakpane";
 import {TimelineUiPlugin} from "@threepipe/plugin-timeline-ui";
 
-const viewer = new ThreeViewer({canvas: document.getElementById('canvas'), plugins: [PickingPLugin]})
+const viewer = new ThreeViewer({canvas: document.getElementById('canvas'), plugins: [PickingPlugin]})
 
 // Add the plugin
 const animPlugin = viewer.addPluginSync(AnimationObjectPlugin)
@@ -49,7 +49,7 @@ viewer.timeline.endTime = 5 // 5 seconds
 viewer.timeline.resetOnEnd = true  // Loop timeline
 
 const uiPlugin = viewer.addPluginSync(TweakpaneUiPlugin)
-uiPlugin.setupPluginUi(PickingPLugin)
+uiPlugin.setupPluginUi(PickingPlugin)
 uiPlugin.setupPluginUi(AnimationObjectPlugin)
         
 // add the timeline ui to control animations

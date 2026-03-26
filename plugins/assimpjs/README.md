@@ -1,4 +1,4 @@
-# @threepipe/assimpjs
+# @threepipe/plugin-assimpjs
 
 Integration and plugin for [threepipe](https://threepipe.org/) using [assimp.js](https://github.com/assimp/assimp).
 

@@ -1,4 +1,4 @@
-# Changelog for @threepipe/blueprintjs
+# Changelog for @threepipe/plugin-blueprintjs
 
 All notable changes to this plugin will be documented in this file.
 

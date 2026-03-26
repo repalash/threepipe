@@ -1,4 +1,4 @@
-# Changelog for @threepipe/assimpjs
+# Changelog for @threepipe/plugin-assimpjs
 
 All notable changes to this plugin will be documented in this file.
 

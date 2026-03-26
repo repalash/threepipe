@@ -1,4 +1,4 @@
-# Changelog for @threepipe/extra-importers
+# Changelog for @threepipe/plugins-extra-importers
 
 All notable changes to this plugin will be documented in this file.
 

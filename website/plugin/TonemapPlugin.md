@@ -1,8 +1,11 @@
 ---
-prev: false
-next: 
-    text: 'DropzonePlugin'
-    link: './DropzonePlugin'
+prev:
+    text: 'GLTFMeshOptDecodePlugin'
+    link: './GLTFMeshOptDecodePlugin'
+
+next:
+    text: 'VignettePlugin'
+    link: './VignettePlugin'
 
 ---
 

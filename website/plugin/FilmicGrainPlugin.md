@@ -3,9 +3,9 @@ prev:
     text: 'ChromaticAberrationPlugin'
     link: './ChromaticAberrationPlugin'
 
-next: 
-    text: 'NoiseBumpMaterialPlugin'
-    link: './NoiseBumpMaterialPlugin'
+next:
+    text: 'ProgressivePlugin'
+    link: './ProgressivePlugin'
 
 ---
 

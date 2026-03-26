@@ -1,4 +1,12 @@
 ---
+prev:
+    text: 'ACameraControlsPlugin'
+    link: './ACameraControlsPlugin'
+
+next:
+    text: 'BaseImporterPlugin'
+    link: './BaseImporterPlugin'
+
 aside: false
 ---
 

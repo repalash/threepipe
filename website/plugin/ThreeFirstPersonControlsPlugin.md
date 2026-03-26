@@ -3,9 +3,9 @@ prev:
     text: 'PointerLockControlsPlugin'
     link: './PointerLockControlsPlugin'
 
-next: 
-    text: 'GLTFKHRMaterialVariantsPlugin'
-    link: './GLTFKHRMaterialVariantsPlugin'
+next:
+    text: 'AnimationObjectPlugin'
+    link: './AnimationObjectPlugin'
 
 ---
 

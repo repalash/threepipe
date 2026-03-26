@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'KTXLoadPlugin'
-    link: './KTXLoadPlugin'
+prev:
+    text: 'USDZLoadPlugin'
+    link: './USDZLoadPlugin'
 
-next: 
-    text: 'SimplifyModifierPlugin'
-    link: './SimplifyModifierPlugin'
+next:
+    text: 'TonemapPlugin'
+    link: './TonemapPlugin'
 
 ---
 

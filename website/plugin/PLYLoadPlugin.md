@@ -3,9 +3,9 @@ prev:
     text: 'Rhino3dmLoadPlugin'
     link: './Rhino3dmLoadPlugin'
 
-next: 
-    text: 'USDZLoadPlugin'
-    link: './USDZLoadPlugin'
+next:
+    text: 'STLLoadPlugin'
+    link: './STLLoadPlugin'
 
 ---
 

@@ -1,4 +1,4 @@
-# @threepipe/network
+# @threepipe/plugin-network
 
 Network related plugins for [threepipe](https://threepipe.org/).
 

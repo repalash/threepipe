@@ -1,10 +1,10 @@
 ---
 prev:
-    text: 'Animation Timeline UI'
+    text: '@threepipe/plugin-timeline-ui'
     link: './plugin-timeline-ui'
 
 next:
-  text: 'Troika Text Plugin'
+  text: '@threepipe/plugin-troika-text'
   link: './plugin-troika-text'
 
 aside: false

@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'PLYLoadPlugin'
-    link: './PLYLoadPlugin'
+prev:
+    text: 'KTXLoadPlugin'
+    link: './KTXLoadPlugin'
 
-next: 
-    text: 'STLLoadPlugin'
-    link: './STLLoadPlugin'
+next:
+    text: 'GLTFMeshOptDecodePlugin'
+    link: './GLTFMeshOptDecodePlugin'
 
 ---
 

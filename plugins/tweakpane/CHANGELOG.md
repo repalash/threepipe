@@ -1,4 +1,4 @@
-# Changelog for @threepipe/tweakpane
+# Changelog for @threepipe/plugin-tweakpane
 
 All notable changes to this plugin will be documented in this file.
 

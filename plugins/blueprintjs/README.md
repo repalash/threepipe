@@ -1,4 +1,4 @@
-# @threepipe/blueprintjs
+# @threepipe/plugin-blueprintjs
 
 Integration and plugin for [threepipe](https://threepipe.org/) to use [Blueprint.js](https://blueprintjs.com/) components with [uiconfig](https://github.com/repalash/uiconfig.js).
 

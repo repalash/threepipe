@@ -1,4 +1,4 @@
-# Changelog for @threepipe/gaussian-splatting
+# Changelog for @threepipe/plugin-gaussian-splatting
 
 All notable changes to this plugin will be documented in this file.
 

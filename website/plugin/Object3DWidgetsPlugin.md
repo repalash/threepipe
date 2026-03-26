@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'EditorViewWidgetPlugin'
-    link: './EditorViewWidgetPlugin'
+prev:
+    text: 'VirtualCamerasPlugin'
+    link: './VirtualCamerasPlugin'
 
 next: 
     text: 'Object3DGeneratorPlugin'

@@ -1,4 +1,4 @@
-# Changelog for @threepipe/configurator
+# Changelog for @threepipe/plugin-configurator
 
 All notable changes to this plugin will be documented in this file.
 

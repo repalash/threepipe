@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'FileTransferPlugin'
-    link: './FileTransferPlugin'
+prev:
+    text: 'PickingPlugin'
+    link: './PickingPlugin'
 
-next: 
-    text: 'InteractionPromptPlugin'
-    link: './InteractionPromptPlugin'
+next:
+    text: 'FullScreenPlugin'
+    link: './FullScreenPlugin'
 
 ---
 

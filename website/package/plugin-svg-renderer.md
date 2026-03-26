@@ -19,7 +19,7 @@ Exports [ThreeSVGRendererPlugin](https://threepipe.org/plugins/svg-renderer/docs
 [API Reference](https://threepipe.org/plugins/svg-renderer/docs) &mdash;
 [GPLv3 License](https://github.com/repalash/threepipe/blob/master/plugins/svg-renderer/LICENSE)
 
-[![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-network.svg)](https://www.npmjs.com/package/@threepipe/plugin-svg-renderer)
+[![NPM Package](https://img.shields.io/npm/v/@threepipe/plugin-svg-renderer.svg)](https://www.npmjs.com/package/@threepipe/plugin-svg-renderer)
 
 ```bash
 npm install @threepipe/plugin-svg-renderer

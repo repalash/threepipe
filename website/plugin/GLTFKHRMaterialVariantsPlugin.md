@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'ThreeFirstPersonControlsPlugin'
-    link: './ThreeFirstPersonControlsPlugin'
+prev:
+    text: 'ShapeTubeExtrudePlugin'
+    link: './ShapeTubeExtrudePlugin'
 
-next: 
-    text: 'Rhino3dmLoadPlugin'
-    link: './Rhino3dmLoadPlugin'
+next:
+    text: 'SimplifyModifierPlugin'
+    link: './SimplifyModifierPlugin'
 
 ---
 

@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'PickingPlugin'
-    link: './PickingPlugin'
+prev:
+    text: 'LoadingScreenPlugin'
+    link: './LoadingScreenPlugin'
 
-next: 
-    text: 'AssetExporterPlugin'
-    link: './AssetExporterPlugin'
+next:
+    text: 'InteractionPromptPlugin'
+    link: './InteractionPromptPlugin'
 
 ---
 

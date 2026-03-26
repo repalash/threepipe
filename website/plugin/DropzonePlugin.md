@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'TonemapPlugin'
-    link: './TonemapPlugin'
+prev:
+    text: 'WatchHandsPlugin'
+    link: './WatchHandsPlugin'
 
-next: 
-    text: 'ProgressivePlugin'
-    link: './ProgressivePlugin'
+next:
+    text: 'PickingPlugin'
+    link: './PickingPlugin'
 
 ---
 

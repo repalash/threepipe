@@ -1,4 +1,4 @@
-# @threepipe/path-tracing
+# @threepipe/plugin-path-tracing
 
 Integration and plugin for [threepipe](https://threepipe.org/) to enable path tracing rendering using [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
 

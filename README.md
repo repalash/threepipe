@@ -534,6 +534,8 @@ Many features will be added but the core API will not change significantly in fu
   - [EditorViewWidgetPlugin](https://threepipe.org/plugin/EditorViewWidgetPlugin.html) - Adds an interactive `ViewHelper`/`AxisHelper` that syncs with the main camera.
   - [Object3DWidgetsPlugin](https://threepipe.org/plugin/Object3DWidgetsPlugin.html) - Automatically create light and camera helpers/gizmos when they are added to the scene.
   - [Object3DGeneratorPlugin](https://threepipe.org/plugin/Object3DGeneratorPlugin.html) - Provides an API and UI to create scene objects like lights, cameras, meshes, etc.
+  - [GeometryGeneratorPlugin](https://threepipe.org/plugin/GeometryGeneratorPlugin.html) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape, line) that can be re-generated from UI/API.
+  - [ShapeTubeExtrudePlugin](https://threepipe.org/plugin/ShapeTubeExtrudePlugin.html) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
   - [DeviceOrientationControlsPlugin](https://threepipe.org/plugin/DeviceOrientationControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for device orientation controls(gyroscope rotation control).
   - [PointerLockControlsPlugin](https://threepipe.org/plugin/PointerLockControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for pointer lock controls.
   - [ThreeFirstPersonControlsPlugin](https://threepipe.org/plugin/ThreeFirstPersonControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for first person controls from threejs.
@@ -555,11 +557,11 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-tweakpane](https://threepipe.org/package/plugin-tweakpane.html) [Tweakpane](https://tweakpane.github.io/docs/) UI Plugin
   - [@threepipe/plugin-blueprintjs](https://threepipe.org/package/plugin-blueprintjs.html) [BlueprintJs](https://blueprintjs.com/) UI Plugin
   - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Editor Plugin using Tweakpane for plugin UI
-  - [@threepipe/plugin-configurator](../package/plugin-configurator) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
+  - [@threepipe/plugin-configurator](https://threepipe.org/package/plugin-configurator.html) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
   - [@threepipe/plugin-gltf-transform](https://threepipe.org/package/plugin-gltf-transform.html) - Plugin to transform glTF models (draco compression)
   - [@threepipe/plugins-extra-importers](https://threepipe.org/package/plugins-extra-importers.html) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](https://threepipe.org/package/plugin-blend-importer.html) - Add support for loading .blend file. (Partial/WIP) ([Blender](https://www.blender.org/))
-  - [@threepipe/plugin-geometry-generator](https://threepipe.org/package/plugin-geometry-generator.html) - Generate parametric geometry types that can be re-generated from UI/API
+  - [@threepipe/plugin-geometry-generator](https://threepipe.org/package/plugin-geometry-generator.html) - Text geometry generator and FontLibrary. All other generators are in core threepipe.
   - [@threepipe/plugin-gaussian-splatting](https://threepipe.org/package/plugin-gaussian-splatting.html) - [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) plugin for loading and rendering splat files
   - [@threepipe/plugin-network](https://threepipe.org/package/plugin-network.html) - Network/Cloud related plugin implementations for Threepipe
   - [@threepipe/plugin-svg-renderer](https://threepipe.org/package/plugin-svg-renderer.html) - Add support for exporting a 3d scene as SVG using [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer)

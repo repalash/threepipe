@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'DropzonePlugin'
-    link: './DropzonePlugin'
+prev:
+    text: 'FilmicGrainPlugin'
+    link: './FilmicGrainPlugin'
 
 next: 
     text: 'SSAAPlugin'

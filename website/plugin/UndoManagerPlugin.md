@@ -1,9 +1,11 @@
 ---
-prev: 
-    text: 'MeshOptSimplifyModifierPlugin'
-    link: './MeshOptSimplifyModifierPlugin'
+prev:
+    text: 'ObjectConstraintsPlugin'
+    link: './ObjectConstraintsPlugin'
 
-next: false
+next:
+    text: 'EditorViewWidgetPlugin'
+    link: './EditorViewWidgetPlugin'
 ---
 
 # UndoManagerPlugin

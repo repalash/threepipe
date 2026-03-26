@@ -3,9 +3,9 @@ prev:
     text: 'HDRiGroundPlugin'
     link: './HDRiGroundPlugin'
 
-next: 
-    text: 'EditorViewWidgetPlugin'
-    link: './EditorViewWidgetPlugin'
+next:
+    text: 'Object3DWidgetsPlugin'
+    link: './Object3DWidgetsPlugin'
 
 ---
 

@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'FullScreenPlugin'
-    link: './FullScreenPlugin'
+prev:
+    text: 'CanvasSnapshotPlugin'
+    link: './CanvasSnapshotPlugin'
 
 next: 
     text: 'FileTransferPlugin'

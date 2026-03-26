@@ -67,7 +67,7 @@ Fat lines (MeshLine) do not render to the gbuffer, some post-processing plugins 
 - **Per-vertex color:** Supports gradients and color effects along the line.
 - **UI integration:** Easily expose line and spiral parameters for live editing.
 - **Performance:** Efficiently renders thousands of segments as a single mesh.
-- **glTF compatibility:** Automatically load and saves the line as gltf lines for seamless compatibility with other tools.
+- **glTF compatibility:** Automatically loads and saves the line as glTF lines for seamless compatibility with other tools.
 
 ## How Fat Lines Work Under the Hood
 
@@ -91,12 +91,12 @@ Checkout the article on [GLTF Mesh Lines](./gltf-mesh-lines) for more details on
 
 ## Line Geometry Generator
 
-In addition to creating lines from scratch using points like above, `GeometryGeneratorPlugin` can be used to generate line objects/geometries from on `Curve`.
+In addition to creating lines from scratch using points like above, `GeometryGeneratorPlugin` can be used to generate line objects/geometries from a `Curve`.
 
 Here is a simple example to create a Square from a Path.
 ```typescript
 import {ThreeViewer, Path} from 'threepipe'
-import {GeometryGeneratorPlugin, LineGeometryGenerator} from '@threepipe/plugin-geometry-generator'
+import {GeometryGeneratorPlugin, LineGeometryGenerator} from 'threepipe'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,

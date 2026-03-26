@@ -1,4 +1,4 @@
-# Changelog for @threepipe/3d-tiles-renderer
+# Changelog for @threepipe/plugin-3d-tiles-renderer
 
 All notable changes to this plugin will be documented in this file.
 

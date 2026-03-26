@@ -1,4 +1,4 @@
-# @threepipe/gltf-transform
+# @threepipe/plugin-gltf-transform
 
 Integration and plugin for [threepipe](https://threepipe.org/) to transform and optimize glTF assets using [gltf-transform](https://gltf-transform.dev/).
 

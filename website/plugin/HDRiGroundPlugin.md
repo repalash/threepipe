@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'ParallaxMappingPlugin'
-    link: './ParallaxMappingPlugin'
+prev:
+    text: 'ContactShadowGroundPlugin'
+    link: './ContactShadowGroundPlugin'
 
 next: 
     text: 'VirtualCamerasPlugin'
@@ -28,11 +28,11 @@ The plugin is disabled by default when added. Set `.enabled` to enable it or pas
 If the background is not the same as the environment when enabled, the user will be prompted for this, unless `promptOnBackgroundMismatch` is set to `false` in the plugin.
 
 ```typescript
-import {ThreeViewer, HDRiGrounPlugin} from 'threepipe'
+import {ThreeViewer, HDRiGroundPlugin} from 'threepipe'
 
 const viewer = new ThreeViewer({...})
 
-const hdriGround = viewer.addPluginSync(new HDRiGrounPlugin())
+const hdriGround = viewer.addPluginSync(new HDRiGroundPlugin())
 
 // Load an hdr environment map
 await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')

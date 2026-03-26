@@ -3,6 +3,10 @@ prev:
   text: 'Dynamically Loaded Files'
   link: './dynamically-loaded-files'
 
+next:
+  text: 'Widgets, Helpers & Gizmos'
+  link: './widgets-and-helpers'
+
 aside: false
 ---
 

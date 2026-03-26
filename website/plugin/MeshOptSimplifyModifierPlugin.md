@@ -4,8 +4,8 @@ prev:
   link: './SimplifyModifierPlugin'
 
 next:
-  text: 'UndoManagerPlugin'
-  link: './UndoManagerPlugin'
+  text: 'MaterialConfiguratorBasePlugin'
+  link: './MaterialConfiguratorBasePlugin'
 ---
 
 # MeshOptSimplifyModifierPlugin

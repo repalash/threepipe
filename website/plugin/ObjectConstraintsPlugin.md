@@ -4,8 +4,8 @@ prev:
   link: './PivotEditPlugin'
 
 next:
-  text: 'EditorViewWidgetPlugin'
-  link: './EditorViewWidgetPlugin'
+  text: 'UndoManagerPlugin'
+  link: './UndoManagerPlugin'
 
 aside: false
 ---

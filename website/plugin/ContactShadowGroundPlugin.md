@@ -1,11 +1,11 @@
 ---
-prev: 
-    text: 'TransformControlsPlugin'
-    link: './TransformControlsPlugin'
+prev:
+    text: 'FileTransferPlugin'
+    link: './FileTransferPlugin'
 
-next: 
-    text: 'GLTFAnimationPlugin'
-    link: './GLTFAnimationPlugin'
+next:
+    text: 'HDRiGroundPlugin'
+    link: './HDRiGroundPlugin'
 
 aside: false
 ---

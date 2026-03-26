@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'Object3DGeneratorPlugin'
-    link: './Object3DGeneratorPlugin'
+prev:
+    text: 'EditorViewWidgetPlugin'
+    link: './EditorViewWidgetPlugin'
 
 next: 
     text: 'PointerLockControlsPlugin'

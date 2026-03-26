@@ -1,4 +1,4 @@
-# @threepipe/configurator
+# @threepipe/plugin-configurator
 
 Plugins for [threepipe](https://threepipe.org/) to create interactive 3D configurators UI.
 

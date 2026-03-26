@@ -1,4 +1,4 @@
-# Changelog for @threepipe/gltf-transform
+# Changelog for @threepipe/plugin-gltf-transform
 
 All notable changes to this plugin will be documented in this file.
 

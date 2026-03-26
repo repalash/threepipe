@@ -73,3 +73,29 @@ await popmotion.animateAsync({ // Also await for the animation.
 ```
 
 Note: The animation is started when the animate or animateAsync function is called.
+
+### Camera Animation
+
+`animateCamera` and `animateCameraAsync` animate the camera to a target [CameraView](../guide/viewer-api#camera), interpolating position, target, and zoom using either spherical or linear interpolation.
+
+```typescript
+const popmotion = viewer.getPlugin(PopmotionPlugin)
+const cameraViews = viewer.getPlugin(CameraViewPlugin)
+const camera = viewer.scene.mainCamera
+const view = cameraViews.getView() // capture current view
+
+// Animate camera to a view
+await popmotion.animateCameraAsync(camera, view, true, {
+    duration: 1000,
+    ease: EasingFunctions.easeInOutSine,
+})
+```
+
+The `normalizeDuration` option scales the animation duration based on how far the camera needs to travel, and skips the animation entirely if the camera is already at the target. This is enabled by default when using [CameraViewPlugin](./CameraViewPlugin) without an explicit duration.
+
+```typescript
+await popmotion.animateCameraAsync(camera, view, true, {
+    duration: 1000,
+    normalizeDuration: true, // scale duration based on travel distance
+})
+```

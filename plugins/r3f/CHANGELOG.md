@@ -1,4 +1,4 @@
-# Changelog for @threepipe/r3f
+# Changelog for @threepipe/plugin-r3f
 
 All notable changes to this plugin will be documented in this file.
 

@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'TransformAnimationPlugin'
-    link: './TransformAnimationPlugin'
+prev:
+    text: 'SwitchNodeBasePlugin'
+    link: './SwitchNodeBasePlugin'
 
 next: 
     text: 'GeometryUVPreviewPlugin'

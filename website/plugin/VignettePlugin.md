@@ -1,7 +1,7 @@
 ---
-prev: 
-    text: 'FrameFadePlugin'
-    link: './FrameFadePlugin'
+prev:
+    text: 'TonemapPlugin'
+    link: './TonemapPlugin'
 
 next: 
     text: 'ChromaticAberrationPlugin'
