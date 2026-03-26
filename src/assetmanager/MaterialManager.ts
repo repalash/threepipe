@@ -280,7 +280,8 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      */
     registerMaterialTemplate(template: IMaterial['constructor']): void {
         if (!template || ThreeSerialization.SerializableMaterials.has(template)) return
-        const mat = ThreeSerialization.SerializableMaterials.values().find(v=>v.TYPE === template.TYPE)
+        // todo remove spread after node 22 widespread support
+        const mat = [...ThreeSerialization.SerializableMaterials.values()].find(v=>v.TYPE === template.TYPE)
         if (mat) {
             console.warn('Material template with the same type already exists', template, mat)
         }
@@ -302,8 +303,9 @@ export class MaterialManager<TEventMap extends object = object> extends EventDis
      */
     findTemplate(type: string) {
         if (!type) return undefined
-        return ThreeSerialization.SerializableMaterials.values().find(v => v.TYPE === type)
-            || ThreeSerialization.SerializableMaterials.values().find(v => v.TypeAlias?.includes(type))
+        // todo remove spread after node 22 widespread support
+        return [...ThreeSerialization.SerializableMaterials.values()].find(v => v.TYPE === type)
+            || [...ThreeSerialization.SerializableMaterials.values()].find(v => v.TypeAlias?.includes(type))
     }
 
 }
