@@ -1,4 +1,4 @@
-import {Camera, Vector3} from 'three'
+import {Camera, Object3D, Vector3} from 'three'
 import {IObject3D, IObject3DEventMap, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
 import {IShaderPropertiesUpdater} from '../materials'
 import {ICameraControls, TControlsCtor} from './camera/ICameraControls'
@@ -155,6 +155,16 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
 
     getView<T extends ICameraView = CameraView>(worldSpace?: boolean, cameraView?: T): T
     setView(view: ICameraView): void
+
+    /**
+     * Instantly frames the camera to fit the given objects in the viewport.
+     * Computes the bounding box, fitting distance, and sets the camera position and target.
+     * The camera direction is preserved — only distance from target changes.
+     * @param objects - Object3D or array of Object3D to fit
+     * @param distanceMultiplier - padding multiplier on the fitting distance (default 1.5)
+     * @param distanceBounds - min/max clamp on the final distance
+     */
+    fitObject(objects: Object3D|Object3D[], distanceMultiplier?: number, distanceBounds?: {min?: number, max?: number}): void
 
     /**
      * Set camera view from another camera.

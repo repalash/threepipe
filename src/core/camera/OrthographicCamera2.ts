@@ -363,6 +363,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
 
     getView = iCameraCommons.getView
     setView = iCameraCommons.setView
+    fitObject = iCameraCommons.fitObject
     setViewFromCamera = iCameraCommons.setViewFromCamera
     setViewToMain = iCameraCommons.setViewToMain;
 

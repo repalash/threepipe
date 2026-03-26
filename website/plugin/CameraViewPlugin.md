@@ -73,3 +73,31 @@ await timeout(10000) // wait for some time
 cameraViewPlugin.viewLooping = false
 
 ```
+
+### Fit to Object
+
+The plugin also provides methods to animate or instantly set the camera to frame specific objects:
+
+```typescript
+const cameraViewPlugin = viewer.getPlugin(CameraViewPlugin)
+
+// Animate camera to fit a specific object
+await cameraViewPlugin.animateToFitObject(myObject, 1.5, 1000, 'easeInOutSine')
+
+// Instant fit (no animation) — pass duration=0
+await cameraViewPlugin.animateToFitObject(myObject, 1.5, 0)
+
+// Animate to a specific target position and distance
+await cameraViewPlugin.animateToTarget(5, new Vector3(0, 0, 0), 1000)
+
+// Instant target set (no animation)
+await cameraViewPlugin.animateToTarget(5, new Vector3(0, 0, 0), 0)
+
+// These also work via the viewer shortcut:
+await viewer.fitToView(myObject, 1.5, 1000) // animated
+await viewer.fitToView(myObject, 1.5, 0)    // instant
+```
+
+`animateToFitObject` accepts `Object3D`, materials, textures, or geometries — materials/textures/geometries are resolved to their applied meshes automatically.
+
+For instant (non-animated) fitting directly on the camera, see [`camera.fitObject()`](../guide/viewer-api#camera).

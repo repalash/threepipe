@@ -100,7 +100,7 @@ Plugins to add support for animations and animation controls.
 - [GLTFAnimationPlugin](../plugin/GLTFAnimationPlugin) - Add support for playing and seeking gltf animations
 - [AnimationObjectPlugin](../plugin/AnimationObjectPlugin) - Create and manage keyframe-based animations for any object, material, or viewer property with timeline controls
 - [PopmotionPlugin](../plugin/PopmotionPlugin) - Integrates with popmotion.io library for animation/tweening
-- [CameraViewPlugin](../plugin/CameraViewPlugin) - Add support for saving, loading, animating, looping between camera views
+- [CameraViewPlugin](../plugin/CameraViewPlugin) - Add support for saving, loading, animating, looping between camera views. Also provides fit-to-object camera framing with optional animation.
 - [TransformAnimationPlugin](../plugin/TransformAnimationPlugin) - Add support for saving, loading, animating, between object transforms
 
 ## Material
@@ -128,6 +128,8 @@ Plugins to configure export options and methods for different file formats.
 - [VirtualCamerasPlugin](../plugin/VirtualCamerasPlugin) - Add support for rendering virtual cameras before the main one every frame.
 - [Object3DWidgetsPlugin](../plugin/Object3DWidgetsPlugin) - Automatically create light and camera helpers/gizmos when they are added to the scene.
 - [Object3DGeneratorPlugin](../plugin/Object3DGeneratorPlugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
+- [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape) that can be re-generated from UI/API.
+- [ShapeTubeExtrudePlugin](../plugin/ShapeTubeExtrudePlugin) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
 - [GLTFKHRMaterialVariantsPlugin](../plugin/GLTFKHRMaterialVariantsPlugin) - Support using for variants from KHR_materials_variants extension in gltf models.
 - [SimplifyModifierPlugin](../plugin/SimplifyModifierPlugin) - Boilerplate for plugin to simplify geometries
 - [MeshOptSimplifyModifierPlugin](../plugin/MeshOptSimplifyModifierPlugin) - Simplify geometries using meshoptimizer library

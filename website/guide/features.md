@@ -222,7 +222,7 @@ Multiple plugins interface with the global timeline to provide synchronized anim
 #### Animation Plugins
 - **[GLTFAnimationPlugin](../plugin/GLTFAnimationPlugin)**: Plays GLTF animations synchronized with the global timeline
 - **[AnimationObjectPlugin](../plugin/AnimationObjectPlugin)**: Low-level Keyframe-based property animations that follow timeline control
-- **[CameraViewPlugin](../plugin/CameraViewPlugin)**: Camera transitions and view animations
+- **[CameraViewPlugin](../plugin/CameraViewPlugin)**: Camera transitions, view animations, and fit-to-object framing
 - **[TransformAnimationPlugin](../plugin/TransformAnimationPlugin)**: Object transform animations over time [WIP]
 - **[TimelineUiPlugin](../package/plugin-timeline-ui)**: UI controls for managing timeline animations.
 

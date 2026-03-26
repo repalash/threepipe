@@ -334,6 +334,22 @@ viewer.dispose()
 
 [`viewer.dispose`](https://threepipe.org/docs/classes/ThreeViewer.html#dispose) - Disposes the viewer and all its resources. Use this to dispose the viewer when it is no longer needed. Note: the canvas element is not removed from the DOM and needs to be removed separately.
 
+[`viewer.fitToView`](https://threepipe.org/docs/classes/ThreeViewer.html#fitToView) - Fits the camera to frame the selected objects (or the entire scene if none provided). Pass `duration=0` for an instant (non-animated) view change. Accepts `Object3D`, materials, textures, or geometries. Uses [CameraViewPlugin](../plugin/CameraViewPlugin) internally.
+
+```typescript
+// Animate camera to fit the whole scene (default duration from CameraViewPlugin)
+await viewer.fitToView()
+
+// Fit a specific object with custom padding
+await viewer.fitToView(myObject, 2.0)
+
+// Instant fit (no animation)
+await viewer.fitToView(myObject, 1.5, 0)
+
+// Fit multiple objects with animation
+await viewer.fitToView([obj1, obj2], 1.5, 1000, 'easeInOutSine')
+```
+
 ## RenderManager
 
 Source Code: [src/viewer/ViewerRenderManager.ts](https://github.com/repalash/threepipe/blob/master/src/viewer/ViewerRenderManager.ts), [src/rendering/RenderManager.ts](https://github.com/repalash/threepipe/blob/master/src/rendering/RenderManager.ts), [src/rendering/RenderTargetManager.ts](.https://github.com/repalash/threepipe/blob/master/src/rendering/RenderTargetManager.ts)
@@ -742,6 +758,15 @@ camera.setInteractions(false, 'animation')
 // Enable interactions back 
 camera.setInteractions(true, 'animation') // this will enable interactions when all the keys have been set to true(which were set to false earlier)
 
+// Fit camera to a single object
+camera.fitObject(myObject)
+
+// Fit to multiple objects with custom padding
+camera.fitObject([obj1, obj2], 2.0)
+
+// Fit with distance bounds
+camera.fitObject(myObject, 1.5, {min: 1, max: 100})
+
 // Force refresh aspect ratio (this is done automatically with a ResizeObserver on the canvas in the viewer)
 camera.refreshAspect()
 
@@ -782,6 +807,8 @@ camera.deactivateMain()
 [`camera.deactivateMain`](https://threepipe.org/docs/classes/PerspectiveCamera2.html#deactivateMain) - Deactivate the camera as the main camera.
 
 [`OrbitControls3`](https://threepipe.org/docs/classes/OrbitControls3.html) - An extension of three.js orbit controls with several new features like scroll damping, room bounds, dolly zoom and more.
+
+[`camera.fitObject`](https://threepipe.org/docs/interfaces/ICamera.html#fitObject) - Instantly frames the camera to fit the given objects in the viewport. Computes the bounding box and fitting distance, then sets position and target while preserving the camera direction. See also [`viewer.fitToView`](#utility-functions) for the animated version.
 
 See also [CameraViewPlugin](../plugin/CameraViewPlugin) for camera focus animation.
 

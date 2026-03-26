@@ -1,7 +1,9 @@
 import {iObjectCommons} from './iObjectCommons'
-import {Camera, IUniform, Vector3} from 'three'
+import {Camera, IUniform, Object3D, Vector3} from 'three'
 import type {ICamera, ICameraEventMap, ICameraSetDirtyOptions} from '../ICamera'
 import {CameraView, ICameraView} from '../camera/CameraView'
+import {Box3B} from '../../three/math/Box3B'
+import {getFittingDistance} from '../../three/utils/camera'
 
 export const iCameraCommons = {
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {
@@ -199,6 +201,35 @@ export const iCameraCommons = {
         this.setDirty()
     },
 
+    /**
+     * Instantly frames the camera to fit the given objects in the viewport.
+     * Computes the bounding box, fitting distance, and sets the camera position and target.
+     * The camera direction is preserved — only distance from target changes.
+     */
+    fitObject: function(this: ICamera, objects: Object3D|Object3D[], distanceMultiplier = 1.5, distanceBounds?: {min?: number, max?: number}): void {
+        const arr = Array.isArray(objects) ? objects : [objects]
+        if (!arr.length) return
+        const bbox = new Box3B().expandByObject(arr[0], false, true)
+        for (let i = 1; i < arr.length; i++) {
+            bbox.expandByObject(arr[i], false, true)
+        }
+        const cameraZ = getFittingDistance(this, bbox)
+        const center = bbox.getCenter(new Vector3())
+        const scale = bbox.getSize(new Vector3())
+        if (scale.lengthSq() <= 0) {
+            arr[0].getWorldPosition(center)
+        }
+        const dMin = distanceBounds?.min ?? 0.5
+        const dMax = distanceBounds?.max ?? 50.0
+        const distance = Math.min(dMax, Math.max(dMin, cameraZ * distanceMultiplier))
+
+        const view = this.getView(true) // world space
+        view.target.copy(center)
+        const direction = new Vector3().subVectors(view.target, view.position).normalize()
+        view.position.copy(direction.multiplyScalar(-distance).add(view.target))
+        this.setView(view)
+    },
+
     // todo rename to setFromCamera?
     setViewFromCamera: function(this: ICamera, camera: Camera|ICamera, distanceFromTarget?: number, worldSpace = true): void {
         // todo: getView, setView can also be used, do we need copy? as that will copy all the properties
@@ -249,6 +280,7 @@ function upgradeCamera(this: ICamera) {
 
     if (!this.getView) this.getView = iCameraCommons.getView
     if (!this.setView) this.setView = iCameraCommons.setView
+    if (!this.fitObject) this.fitObject = iCameraCommons.fitObject
     if (!this.setViewFromCamera) this.setViewFromCamera = iCameraCommons.setViewFromCamera
     if (!this.setViewToMain) this.setViewToMain = iCameraCommons.setViewToMain
 
