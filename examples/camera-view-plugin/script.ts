@@ -3,6 +3,7 @@ import {
     CameraView,
     CameraViewPlugin,
     EasingFunctions,
+    IObject3D,
     LoadingScreenPlugin,
     ThreeViewer,
     Vector3,
@@ -22,7 +23,7 @@ async function init() {
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
-    await viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoCenter: true,
         autoScale: true,
     })
@@ -75,6 +76,11 @@ async function init() {
         },
 
         ['Reset']: async() => cameraViewPlugin.animateToView(initialView, 1000, EasingFunctions.easeInOutSine),
+
+        // Fit to object examples
+        ['Fit (animated)']: async() => cameraViewPlugin.animateToFitObject(model, 1.5, 1000, EasingFunctions.easeInOutSine),
+        ['Fit (instant)']: () => viewer.fitToView(model, 1.5, 0),
+        ['camera.fitObject']: () => viewer.scene.mainCamera.fitObject(model!),
     })
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)

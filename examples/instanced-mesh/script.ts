@@ -65,7 +65,8 @@ async function init() {
     ui.setupPluginUi(PickingPlugin)
 
     // todo bounding box is not correct for instanced mesh
-    viewer.fitToView(undefined, 4)
+    // duration=0 for instant fit on load (no animation)
+    viewer.fitToView(undefined, 4, 0)
 
     const gbufferPlugin = viewer.getOrAddPluginSync(GBufferPlugin)!
     const getNormalDepth = ()=>({texture: gbufferPlugin.normalDepthTexture})
