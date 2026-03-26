@@ -16,6 +16,14 @@ All notable changes to this project will be documented in this file.
 - Add `PivotControls` (three.js level) — standalone pivot control gizmo implementation with arrow, slider, rotator, and scaler handles
 - Add widget handle picking support in `ObjectPicker` — resolve widget handles from raycast hits for interactive gizmo interaction
 - Add `compensateSharedGeometry` parameter to `pivotToPoint` — adjusts positions of other meshes sharing the same geometry so they stay in place
+- Add `ShapeTubeExtrudePlugin` — interactive extrusion of flat geometry along a curve path with configurable cross-sections, shape scaling, and multi-material splits
+- Add `tube`, `shape`, `tubeShape`, and `line` geometry generators to `GeometryGeneratorPlugin` for creating tubes along curves, flat 2D shapes, tubes with arbitrary cross-sections, and curve/path visualization
+- Move `LineGeometryGenerator` from `@threepipe/plugin-geometry-generator` to core — line/curve types are core three.js and needed by other core generators
+- Add `TubeShapeGeometry` — extrudes a closed 2D Shape along a 3D Curve path with support for arbitrary cross-section shapes
+- Add `EllipseCurve3D` — 3D version of three.js EllipseCurve for creating circular/elliptical 3D paths
+- Add `camera.fitObject()` on `ICamera` — instantly frames the camera to fit given objects, computing fitting distance and setting position/target
+- Add `duration=0` support in `viewer.fitToView`, `CameraViewPlugin.animateToFitObject`, and `CameraViewPlugin.animateToTarget` — sets view instantly without animation
+- `PopmotionPlugin.animateCamera` — `normalizeDuration` option scales animation duration based on travel distance and skips animation when camera is already at target. Enabled by default when duration is not explicitly provided.
 
 ### Changed
 
@@ -26,6 +34,8 @@ All notable changes to this project will be documented in this file.
 - `BaseGroundPlugin` — ignore widget and widget root objects when refreshing ground transform
 - Added pivot controls and pivot edit toolbar buttons to tweakpane editor
 - Add CI publish workflow with automated build verification, npm publishing, and Discord notifications
+- Move geometry generators (plane, box, sphere, circle, torus, cylinder, line) into core threepipe. `@threepipe/plugin-geometry-generator` now only provides the text generator and FontLibrary.
+- Map/Set spread fixes for old node.js use.
 
 ## [0.4.4]
 
