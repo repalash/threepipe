@@ -47,7 +47,8 @@ async function init() {
 
     ])
 
-    viewer.getPlugin(GLTFAnimationPlugin)!.autoplayOnLoad = true
+    if (!(window as any).TESTING) // todo: seek animation to a few seconds for testing.
+        viewer.getPlugin(GLTFAnimationPlugin)!.autoplayOnLoad = true
 
     viewer.scene.mainCamera.autoNearFar = false
 

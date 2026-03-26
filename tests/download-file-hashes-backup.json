@@ -1,0 +1,67 @@
+{
+  "example.spec.ts": {
+    "3dm-to-glb": {
+      "firefox-win32-file.glb": "5a89013cbc785ce20095e9a0b3476f242b0e68461fb7f775ae157f073c0ce2bd",
+      "chromium-win32-file.glb": "0aff36f61a62021eb1615cc2bcf3106901d70f4687ae1f9f4ed1113b2645f101"
+    },
+    "image-snapshot-export": {
+      "firefox-win32-snapshot.png": "c0beadd940bda4cbd13a7557bb61d94e3d47f0b9b1d4d20f15190d44cac1e98c",
+      "firefox-win32-snapshot.jpeg": "5058c32c46105286af6bc48e665aea18fd9a06a02704f96be81acddeef362283",
+      "firefox-win32-snapshot.webp": "1a105d045a3805bb70604bc2c60f20c31b6168d9004042474dcf2fec3c4f5b81",
+      "webkit-win32-snapshot.png": "d03b34dcab9f08c18954b3fb1f93cd25af376bf09ad47b9e910a413487c08568",
+      "webkit-win32-snapshot.jpeg": "d03b34dcab9f08c18954b3fb1f93cd25af376bf09ad47b9e910a413487c08568",
+      "chromium-win32-snapshot.png": "84ffc6ac699fc2505caf5fae16a25a45147c2ac612cd6edaf676813899593a32",
+      "chromium-win32-snapshot.jpeg": "cbbf827f12c46bf60180b6db63661ec4886434db919770787d44cc368eb07ab5",
+      "chromium-win32-snapshot.webp": "f18ce7d588d982433e64beabb7115cd205a3013b332797a04d8ef54c97827c5a"
+    },
+    "custom-pipeline": {
+      "chromium-win32-file.png": "b84a50c672380b89163e246278ae67de11bfaa3dbf8b41295fca9cb7dba00251",
+      "firefox-win32-file.png": "8991ffd1d490b9acf977e3921f104ecf8860d631786877976a5d91528c54a159",
+      "webkit-win32-file.png": "f277bca2e2098a3ac87636c85054974b802e88f7ad1a7cd94ca6820b9c3ae740"
+    },
+    "render-target-export": {
+      "chromium-win32-EffectComposer.rt1.exr": "a1287d3da673686b28ba9b4be833d7c60ea97f51f906403c4e0611afed85b4e1",
+      "chromium-win32-depthBuffer.png": "92400ea16191866a9ce96050de3701c8b9c351779fd28f5cce06e878c8010b97",
+      "chromium-win32-depthBuffer.jpeg": "51431c6b8c1da953a7783dfd11c0a0a23f84f377945715000792d8f8f9f1dfdd",
+      "chromium-win32-EffectComposer.rt1.webp": "33e20741eedbefd8d3294d6f29c13b59f4fc69ecfa6047854a848c92903e7f63",
+      "webkit-win32-EffectComposer.rt1.exr": "a1287d3da673686b28ba9b4be833d7c60ea97f51f906403c4e0611afed85b4e1",
+      "webkit-win32-depthBuffer.png": "f277bca2e2098a3ac87636c85054974b802e88f7ad1a7cd94ca6820b9c3ae740",
+      "firefox-win32-EffectComposer.rt1.exr": "a1287d3da673686b28ba9b4be833d7c60ea97f51f906403c4e0611afed85b4e1",
+      "firefox-win32-depthBuffer.png": "8991ffd1d490b9acf977e3921f104ecf8860d631786877976a5d91528c54a159",
+      "firefox-win32-depthBuffer.jpeg": "219bcab1e8b044be4ae1e9cc936bb8685dc23014eb65e405a5a62bc74d546d02",
+      "firefox-win32-EffectComposer.rt1.webp": "e5711062d08c77a974f0806b3295713a4f425f2267b691e4ac983a052788adbf"
+    },
+    "glb-export": {
+      "webkit-win32-helmet.glb": "996f5ff7911c561bd7a9e58a2be1b5fd78ea6a21fb02ab10eceed994b09737eb",
+      "webkit-win32-helmet.pmat": "54f19be8000e3e199c5c33e73c2de105c65279023b9dc3d700a062583b3d5183",
+      "webkit-win32-scene.glb": "a733b2075e8335ef093dbb3b254ecbc891ee91a99645cb8cd2aa716c4e7e2f6a",
+      "webkit-win32-scene_with_config.glb": "e8df9e590135b0a24b38ee6de53ac716eebb0aa012c8fc93f2fdd736e6576c57",
+      "chromium-win32-helmet.glb": "6e292b188f7bf220d3e22614edb7c3bb368fe666509158f9be0fc8255e3d6a95",
+      "chromium-win32-helmet.pmat": "301899cf3de77e09e50e438cf167a88045f5b7c41eca92132f1debff3e8cc038",
+      "chromium-win32-scene.glb": "a733b2075e8335ef093dbb3b254ecbc891ee91a99645cb8cd2aa716c4e7e2f6a",
+      "chromium-win32-scene_with_config.glb": "e8df9e590135b0a24b38ee6de53ac716eebb0aa012c8fc93f2fdd736e6576c57",
+      "firefox-win32-helmet.glb": "85a53c7f5ceb726c422cdaa9e38ca358d959db13164b5de90b2399f8e0e19623",
+      "firefox-win32-helmet.pmat": "39b59bed658115b963ef69fc47f7173fd800b8c25a76d224802e78483173070c",
+      "firefox-win32-scene.glb": "a733b2075e8335ef093dbb3b254ecbc891ee91a99645cb8cd2aa716c4e7e2f6a",
+      "firefox-win32-scene_with_config.glb": "e8df9e590135b0a24b38ee6de53ac716eebb0aa012c8fc93f2fdd736e6576c57"
+    },
+    "pmat-material-export": {
+      "webkit-win32-material.pmat": "54f19be8000e3e199c5c33e73c2de105c65279023b9dc3d700a062583b3d5183",
+      "chromium-win32-material.pmat": "39b59bed658115b963ef69fc47f7173fd800b8c25a76d224802e78483173070c",
+      "firefox-win32-material.pmat": "301899cf3de77e09e50e438cf167a88045f5b7c41eca92132f1debff3e8cc038"
+    },
+    "render-target-preview": {
+      "chromium-win32-renderTarget.exr": "63e6816d5a0a5a6eae303df71645e1c238d5ac2a8b3fb6913461942937d43364",
+      "webkit-win32-renderTarget.exr": "3a713be241e8223c413dc6f7aea3881da61a9a1059be87a5bce71b1fed0bf4e9",
+      "chromium-win32-renderTarget.png": "5482d1619bc78fd91f786fd0381823bd207bb66d6e02e9c2746af5c9d3d3287d",
+      "webkit-win32-renderTarget.png": "202031566693d56c6f43af998bdebedc8853e0ca55ad2c99880a745b3d4b6d61",
+      "firefox-win32-renderTarget.exr": "3a713be241e8223c413dc6f7aea3881da61a9a1059be87a5bce71b1fed0bf4e9",
+      "firefox-win32-renderTarget.png": "b4ea2ff8502b8883eb1e0d2ae908a000f384ad593ee87d2a726644f55d9f8e9e"
+    },
+    "geometry-uv-preview": {
+      "chromium-win32-renderTarget.png": "e226b07e5dd7a7db8ccb34d2c8ec0b34cb32b65e85dbe771e1a404536774bf55",
+      "webkit-win32-renderTarget.png": "d476b0aa1dbf5b5a872882a468470e26c52729e12a566763ae848ade6fae49f1",
+      "firefox-win32-renderTarget.png": "a8ff084041098e5f9bc0f18fd84334ec36c9315d8c2d6ce34eb8a1e947531d1f"
+    }
+  }
+}

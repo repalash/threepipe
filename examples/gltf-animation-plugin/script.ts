@@ -15,7 +15,9 @@ async function init() {
     })
 
     const gltfAnimation = viewer.addPluginSync(GLTFAnimationPlugin)
-    gltfAnimation.autoplayOnLoad = true
+
+    if (!(window as any).TESTING) // todo: seek animation to a few seconds for testing.
+        gltfAnimation.autoplayOnLoad = true
 
     await viewer.setEnvironmentMap('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr')
     const result = await viewer.load('https://threejs.org/examples/models/gltf/Horse.glb', {
