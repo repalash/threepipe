@@ -75,4 +75,4 @@ async function init() {
 }
 
 _testStart()
-init().then(_testFinish)
+init().finally(_testFinish)

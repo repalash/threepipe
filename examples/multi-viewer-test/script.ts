@@ -41,4 +41,4 @@ async function init(i: number) {
 }
 
 _testStart()
-Promise.all(new Array(4).fill(0).map(async(_, i) => init(i))).then(_testFinish)
+Promise.all(new Array(4).fill(0).map(async(_, i) => init(i))).finally(_testFinish)
