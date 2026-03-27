@@ -376,7 +376,7 @@
                     const links = Array.from(category.nextElementSibling.querySelectorAll('li'));
                     links.forEach(li => {
                         const link = li.querySelector('a');
-                        const key = link.textContent.toLowerCase() + category.textContent.toLowerCase();
+                        const key = link.textContent.toLowerCase() + ' ' + (link.getAttribute('href') || '').toLowerCase() + ' ' + category.textContent.toLowerCase();
                         li.style.display = key.includes(searchTerm) ? '' : 'none';
                     });
                     return [category, links];
