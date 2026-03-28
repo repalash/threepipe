@@ -9,13 +9,14 @@ import {ITexture} from '../../core'
 import {ExtendedCopyPass} from '../../postprocessing'
 
 export interface RenderTargetBlock {
-    target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>}|undefined|null>
+    target: ValOrFunc<IRenderTarget|{texture?: ValOrArr<ITexture>, textures?: ITexture[]}|undefined|null>
     name: string
     visible: boolean
     transparent: boolean
     originalColorSpace: boolean
     div: HTMLDivElement
     material?: ShaderMaterial // see ExtendedCopyPass
+    textureIndex?: number // for MRT targets — which texture to preview/export
 }
 
 /**
@@ -68,13 +69,13 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
                 continue
             }
             const rect = targetBlock.div.getBoundingClientRect()
-            let tex = rt.texture
+            let tex = targetBlock.textureIndex !== undefined && (rt as any).textures?.[targetBlock.textureIndex]
+                ? (rt as any).textures[targetBlock.textureIndex]
+                : rt.texture
             const canvasRect = this._viewer.canvas.getBoundingClientRect()
             rect.x = rect.x - canvasRect.x
             rect.y = canvasRect.height + canvasRect.y - rect.y - rect.height
             if (Array.isArray(tex)) {
-                // todo support multi target
-                this._viewer.console.warn('Multi target preview not supported yet, rendering just the first one')
                 tex = tex[0]
             }
             const outputColorSpace = this._viewer.renderManager.webglRenderer.outputColorSpace
@@ -100,10 +101,10 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
      * @param visible - initial visibility
      * @param material - snippet for {@link ExtendedCopyPass} or a custom {@link ExtendedShaderMaterial} or three.js ShaderMaterial. Example to read just the red channel `(s)=>s + ' = vec4(' + s + '.r);'`
      */
-    addTarget(target: RenderTargetBlock['target'], name: string, transparent = false, originalColorSpace = false, visible = true, material?: ValOrFunc<string, [string]> | ShaderMaterial): this {
+    addTarget(target: RenderTargetBlock['target'], name: string, transparent = false, originalColorSpace = false, visible = true, material?: ValOrFunc<string, [string]> | ShaderMaterial, textureIndex?: number): this {
         if (!target) return this
         const div = document.createElement('div')
-        const targetDef: RenderTargetBlock = {target, name, transparent, div, originalColorSpace, visible}
+        const targetDef: RenderTargetBlock = {target, name, transparent, div, originalColorSpace, visible, textureIndex}
         if (material) targetDef.material = (material as ShaderMaterial)?.isMaterial ? material as ShaderMaterial : new ExtendedCopyPass(material as any).material
 
         div.classList.add('RenderTargetPreviewPluginTarget')
@@ -121,7 +122,7 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
             e.preventDefault()
             e.stopPropagation()
             CustomContextMenu.Create({
-                'Download': () => this.downloadTarget(target),
+                'Download': () => this.downloadTarget(target, textureIndex),
                 'Remove': () => this.removeTarget(target),
             }, e.clientX, e.clientY)
         }
@@ -143,30 +144,12 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
         this.refreshUi()
         return this
     }
-    downloadTarget(target1: RenderTargetBlock['target']): this {
+    downloadTarget(target1: RenderTargetBlock['target'], textureIndex?: number): this {
         if (!this._viewer) return this
         const target = getOrCall(target1)
         if (!target) return this
-        const tex = target.texture
-        if (Array.isArray(tex)) {
-            // todo support multi target
-            this._viewer.dialog.alert('Multi target not supported yet')
-            this._viewer.console.warn('todo: support multi target export')
-            return this
-        }
-        const canvas = this._viewer?.canvas
-        if (!canvas) return this
-        const blob = this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget)
-        const url = URL.createObjectURL(blob)
-        // todo use file transfer or viewer downloadBlob
-        const link = document.createElement('a')
-        document.body.appendChild(link)
-        link.style.display = 'none'
-        link.href = url
-        link.download = 'renderTarget.' + (blob.ext || 'png')
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
+        const blob = this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget, 'auto', textureIndex ?? 0)
+        this._viewer.exportBlob(blob, 'renderTarget.' + (blob.ext || 'png'))
         return this
     }
 

@@ -596,26 +596,48 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
 
     /**
+     * If target is a `{texture}` / `{textures}` wrapper without framebuffer dimensions,
+     * blits the texture to a temporary render target and calls the callback with it.
+     * Otherwise returns undefined (caller should proceed with the original target).
+     */
+    private _withResolvedTarget<T>(target: WebGLRenderTarget|IRenderTarget|{texture?: ITexture, textures?: ITexture[]}, textureIndex: number, fn: (rt: WebGLRenderTarget) => T): T | undefined {
+        if ((target as WebGLRenderTarget).width && (target as WebGLRenderTarget).height) return undefined
+        const tex = ((target as any).textures?.[textureIndex] ?? (target as any).texture) as ITexture
+        if (!tex) throw new Error('RenderManager: target has no texture')
+        const w = tex.image?.width || tex.source?.data?.width
+        const h = tex.image?.height || tex.source?.data?.height
+        const tempTarget = this.getTempTarget(w && h ? {size: {width: w, height: h}, type: tex.type} : {sizeMultiplier: 1, type: tex.type})
+        this.blit(tempTarget, {source: tex, clear: true})
+        const result = fn(tempTarget as WebGLRenderTarget)
+        this.releaseTempTarget(tempTarget)
+        return result
+    }
+
+    /**
      * Copies a render target to a new/existing canvas element.
+     * Also supports `{texture}` or `{textures}` wrappers — these are blitted to a temporary render target first.
      * Note: this will clamp the values to [0, 1] and converts to srgb for float and half-float render targets.
      * @param target
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      * @param canvas - optional canvas to render to, if not provided a new canvas will be created.
      */
-    renderTargetToCanvas(target: WebGLRenderTarget|IRenderTarget, textureIndex = 0, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+    renderTargetToCanvas(target: WebGLRenderTarget|IRenderTarget|{texture?: ITexture, textures?: ITexture[]}, textureIndex = 0, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+        const resolved = this._withResolvedTarget(target, textureIndex, (rt) => this.renderTargetToCanvas(rt, 0, canvas))
+        if (resolved) return resolved
+
         canvas = canvas ?? document.createElement('canvas')
-        canvas.width = target.width
-        canvas.height = target.height
+        const texture = ((target as WebGLRenderTarget).textures?.[textureIndex] ?? (target as WebGLRenderTarget).texture) as ITexture
+        canvas.width = (target as WebGLRenderTarget).width
+        canvas.height = (target as WebGLRenderTarget).height
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('Unable to get 2d context')
-        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
-        const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
+        const imageData = ctx.createImageData(canvas.width, canvas.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
         if (texture.type === HalfFloatType || texture.type === FloatType) {
             const buffer = this.renderTargetToBuffer(target as any, textureIndex)
-            textureDataToImageData({data: buffer, width: target.width, height: target.height}, texture.colorSpace, imageData) // this handles converting to srgb
+            textureDataToImageData({data: buffer, width: canvas.width, height: canvas.height}, texture.colorSpace, imageData) // this handles converting to srgb
         } else {
             // todo: handle rgbm to srgb conversion?
-            this._renderer.readRenderTargetPixels(target as any, 0, 0, target.width, target.height, imageData.data, undefined, textureIndex)
+            this._renderer.readRenderTargetPixels(target as any, 0, 0, canvas.width, canvas.height, imageData.data, undefined, textureIndex)
         }
 
         ctx.putImageData(imageData, 0, 0)
@@ -631,8 +653,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param quality
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    renderTargetToDataUrl(target: WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
-        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
+    renderTargetToDataUrl(target: WebGLRenderTarget|IRenderTarget|{texture?: ITexture, textures?: ITexture[]}, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
+        const texture = ((target as any).textures?.[textureIndex] ?? (target as any).texture) as ITexture
         const canvas = this.renderTargetToCanvas(target, textureIndex)
 
         const string = (texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
@@ -659,14 +681,18 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
     /**
      * Exports a render target to a blob. The type is automatically picked from exr to png based on the render target.
-     * @param target - render target to export
+     * Also supports `{texture}` or `{textures}` wrappers — these are blitted to a temporary color render target for export.
+     * @param target - render target to export, or a `{texture}` / `{textures}` wrapper
      * @param mimeType - mime type to use.
      * If auto (default), then it will be picked based on the render target type.
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto', textureIndex = 0): BlobExt {
+    exportRenderTarget(target: WebGLRenderTarget | IRenderTarget | {texture?: ITexture, textures?: ITexture[]}, mimeType = 'auto', textureIndex = 0): BlobExt {
+        const resolved = this._withResolvedTarget(target, textureIndex, (rt) => this.exportRenderTarget(rt, mimeType, 0))
+        if (resolved) return resolved
+        const rt = target as WebGLRenderTarget
         const hdrFormats = ['image/x-exr']
-        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
+        const texture = (rt.textures?.[textureIndex] ?? rt.texture) as ITexture
         let hdr = texture.type === HalfFloatType || texture.type === FloatType
         if (mimeType === 'auto') {
             mimeType = hdr ? 'image/x-exr' : 'image/png'
@@ -674,7 +700,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         if (!hdrFormats.includes(mimeType)) hdr = false
         let buffer: ArrayBuffer
         if (!hdr) {
-            const url = this.renderTargetToDataUrl(target, mimeType === 'auto' ? undefined : mimeType, 90, textureIndex)
+            const url = this.renderTargetToDataUrl(rt, mimeType === 'auto' ? undefined : mimeType, 90, textureIndex)
             buffer = base64ToArrayBuffer(url.split(',')[1]) as ArrayBuffer
             mimeType = url.split(';')[0].split(':')[1]
         } else {
@@ -683,7 +709,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
                 mimeType = 'image/x-exr'
             }
             const exporter = new EXRExporter2()
-            buffer = exporter.parse(this._renderer, target, {textureIndex}).buffer as ArrayBuffer
+            buffer = exporter.parse(this._renderer, rt, {textureIndex}).buffer as ArrayBuffer
         }
         const b = new Blob([buffer], {type: mimeType}) as BlobExt
         b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]

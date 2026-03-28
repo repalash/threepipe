@@ -370,3 +370,7 @@ viewer.assetManager.importer.addImporter(new Importer(CustomLoader, ['ext'], ['m
 // load the file
 const mat = await viewer.load<PhysicalMaterial>('https://example.com/file.ext')
 ```
+
+::: tip
+For a plugin-based approach with automatic lifecycle management (register on add, unregister on remove), see [BaseImporterPlugin](../plugin/BaseImporterPlugin) which provides a base class for creating importer plugins.
+:::

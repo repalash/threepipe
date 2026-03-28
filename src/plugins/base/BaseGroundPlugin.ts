@@ -248,7 +248,8 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         if (!g) g = this._geometry
         else if (this._geometry) this._geometry.dispose()
         if (!g) return
-        iGeometryCommons.upgradeGeometry.call(g)
+        this._geometry = g as IGeometry & PlaneGeometry
+        iGeometryCommons.upgradeGeometry.call(this._geometry)
         if (!this._geometry.attributes.uv2) {
             this._geometry.attributes.uv2 = (this._geometry.attributes.uv as any as BufferAttribute | InterleavedBufferAttribute).clone()
             this._geometry.attributes.uv2.needsUpdate = true

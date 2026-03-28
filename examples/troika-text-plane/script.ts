@@ -133,14 +133,10 @@ async function init() {
     ui.setupPluginUi(PickingPlugin)
     ui.setupPluginUi(BloomPlugin)
 
-    const getNormalDepth = ()=>({texture: gbufferPlugin?.normalDepthTexture})
-    const getFlags = ()=>({texture: gbufferPlugin?.flagsTexture})
-    const getDepthTexture = ()=>({texture: viewer.getPlugin(DepthBufferPlugin)?.texture})
-
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(getNormalDepth, 'normalDepth')
-    targetPreview.addTarget(getFlags, 'gBufferFlags')
-    targetPreview.addTarget(getDepthTexture, 'depthTexture')
+    targetPreview.addTarget(()=> gbufferPlugin?.target, 'normalDepth')
+    targetPreview.addTarget(()=> gbufferPlugin?.target, 'gBufferFlags', false, false, true, undefined, 1)
+    targetPreview.addTarget(()=>({texture: viewer.getPlugin(DepthBufferPlugin)?.texture}), 'depthTexture')
 }
 
 _testStart()

@@ -12,8 +12,11 @@ aside: false
 
 # BaseGroundPlugin
 
+[Example](https://threepipe.org/examples/#base-ground-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/base/BaseGroundPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/BaseGroundPlugin.html)
+
+<iframe src="https://threepipe.org/examples/base-ground-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Base Ground Plugin Example"></iframe>
 
 Base Ground Plugin adds a simple horizontal ground plane to the scene that automatically positions itself below the model. It provides a foundation for displaying 3D objects with proper grounding and can be extended by plugins like AdvancedGroundPlugin for more advanced features.
 
@@ -105,7 +108,7 @@ ground.autoAdjustTransform = false // Manual control
 
 // When true, ground automatically:
 // - Centers below the scene's bounding box
-// - Updates when objects are added/removed
+// - Updates when objects are added or scene changes
 // - Respects the yOffset setting
 ```
 
@@ -154,15 +157,13 @@ This is useful for architectural visualizations or when you want to prevent the 
 Control how the ground appears in rendering buffers:
 
 ```typescript
-// Render to depth buffer
-ground.renderToDepth = true  // Default, included in depth
-ground.renderToDepth = false // Excluded from depth buffer
+// Render to depth passes (used by GBuffer, SSR, SSAO)
+ground.renderToDepth = true  // Default, included in depth passes
+ground.renderToDepth = false // Excluded from depth passes
 
-// Apply tonemapping
+// Apply tonemapping (requires GBufferPlugin and renderToDepth = true)
 ground.tonemapGround = true  // Default, tonemap with scene
 ground.tonemapGround = false // No tonemapping (keeps HDR values)
-
-// Note: Both options require GBufferPlugin to be active
 ```
 
 These options are useful when combining with post-processing effects that rely on depth or require special handling of ground colors.
@@ -395,14 +396,12 @@ See [ContactShadowGroundPlugin](./ContactShadowGroundPlugin) for full documentat
 
 ### HDRiGroundPlugin
 
-Extends BaseGroundPlugin with ground-projected environment:
+A separate plugin (does not extend BaseGroundPlugin) that projects the environment map onto a virtual ground plane by patching the background shader. It does not create a mesh — it works entirely in shader space.
 
 ```typescript
 import {HDRiGroundPlugin} from 'threepipe'
 
-const ground = viewer.addPluginSync(new HDRiGroundPlugin())
-
-// Has all BaseGroundPlugin features plus HDRI projection
+const hdriGround = viewer.addPluginSync(new HDRiGroundPlugin())
 ```
 
 See [HDRiGroundPlugin](./HDRiGroundPlugin) for full documentation.
@@ -469,7 +468,7 @@ BaseGroundPlugin is ideal for:
 - Enable `autoAdjustTransform` for automatic positioning
 - Check `yOffset` value
 - Verify scene bounds are correct
-- Try calling `ground.refreshTransform()` manually
+- Try calling `ground.refreshTransform()` to schedule a transform update (deferred to next frame)
 
 **Ground not updating:**
 - Ensure `autoAdjustTransform` is enabled
@@ -500,6 +499,6 @@ See the [BaseGroundPlugin API documentation](https://threepipe.org/docs/classes/
 
 - [AdvancedGroundPlugin](./AdvancedGroundPlugin) - Extended ground with reflections and baked shadows
 - [ContactShadowGroundPlugin](./ContactShadowGroundPlugin) - Ground with contact shadow effects
-- [HDRiGroundPlugin](./HDRiGroundPlugin) - Ground with environment projection
+- [HDRiGroundPlugin](./HDRiGroundPlugin) - Ground-projected environment (shader-based, does not extend BaseGroundPlugin)
 - [GBufferPlugin](./GBufferPlugin) - Required for depth and tonemap features
 

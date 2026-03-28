@@ -103,7 +103,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
     setupPluginUi<T extends IViewerPlugin>(plugin: T|Class<T>, params?: Partial<UiObjectConfig>): UiObjectConfig | undefined {
         const p = (<Class<IViewerPlugin>>plugin).prototype ? this._viewer?.getPlugin<T>(<Class<T>>plugin) : <T>plugin
         if (!p) {
-            console.warn('plugin not found:', plugin)
+            console.warn('plugin not found:', (plugin as any).PluginType || (plugin as any).name || plugin)
             return undefined
         }
         this._plugins.push(p)

@@ -56,31 +56,27 @@ async function init() {
     // to render depth buffer to screen, uncomment this line:
     // viewer.renderManager.screenPass.overrideReadBuffer = gbufferTarget
 
-    const getNormalDepth = ()=>({texture: gbufferPlugin.normalDepthTexture})
-    const getFlags = ()=>({texture: gbufferPlugin.flagsTexture})
-    const getDepthTexture = ()=>({texture: gbufferPlugin.depthTexture})
-
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(getNormalDepth, 'normalDepth')
-    targetPreview.addTarget(getFlags, 'gBufferFlags')
-    targetPreview.addTarget(getDepthTexture, 'depthTexture')
+    targetPreview.addTarget(()=> gbufferPlugin.target, 'normalDepth')
+    targetPreview.addTarget(()=> gbufferPlugin.target, 'gBufferFlags', false, false, true, undefined, 1)
+    targetPreview.addTarget(()=>({texture: gbufferPlugin.depthTexture}), 'depthTexture')
 
     const screenPass = viewer.renderManager.screenPass
 
     createSimpleButtons({
         ['Toggle Normal+Depth']: () => {
-            const rt = getNormalDepth()
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt.texture ? null : rt
+            const rt = gbufferPlugin.normalDepthTexture
+            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
             viewer.setDirty()
         },
         ['Toggle Gbuffer Flags']: () => {
-            const rt = getFlags()
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt.texture ? null : rt
+            const rt = gbufferPlugin.flagsTexture
+            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
             viewer.setDirty()
         },
         ['Toggle Depth Texture']: () => {
-            const rt = getDepthTexture()
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt.texture ? null : rt
+            const rt = gbufferPlugin.depthTexture
+            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
             viewer.setDirty()
         },
         ['Download snapshot']: async(btn: HTMLButtonElement) => {

@@ -128,3 +128,15 @@ Notes:
 * `@ui...` decorators can be used to mark properties and functions that will be shown in the Ui. The Ui shows up automatically when `TweakpaneUiPlugin`/`BlueprintJsUiPlugin` is added to the viewer. Plugins have special features in the UI for download preset and saving state.
 
 Check various plugins in the source code for more examples.
+
+### Specialized Base Classes
+
+For common plugin patterns, threepipe provides specialized base classes instead of starting from `AViewerPluginSync` directly:
+
+- [BaseImporterPlugin](../plugin/BaseImporterPlugin) — for plugins that register file format importers
+- [PipelinePassPlugin](../plugin/PipelinePassPlugin) — for plugins that add render pipeline passes
+- [AScreenPassExtensionPlugin](../plugin/AScreenPassExtensionPlugin) — for plugins that extend the screen pass shader
+- [ACameraControlsPlugin](../plugin/ACameraControlsPlugin) — for plugins that add camera control modes
+- [AAssetManagerProcessStatePlugin](../plugin/AAssetManagerProcessStatePlugin) — for plugins that display loading/processing state
+- [MaterialConfiguratorBasePlugin](../plugin/MaterialConfiguratorBasePlugin) — for material variation configurators
+- [SwitchNodeBasePlugin](../plugin/SwitchNodeBasePlugin) — for object visibility switching configurators

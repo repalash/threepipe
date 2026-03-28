@@ -213,8 +213,8 @@ export class ThreeEditor extends ThreeViewer {
         if (rt && this.debug) {
             const gbuffer = this.getPlugin(GBufferPlugin)
             if (gbuffer) {
-                rt.addTarget({texture: this.getPlugin(GBufferPlugin)?.normalDepthTexture}, 'normalDepth')
-                rt.addTarget({texture: this.getPlugin(GBufferPlugin)?.flagsTexture}, 'gBufferFlags')
+                rt.addTarget(gbuffer.target, 'normalDepth')
+                rt.addTarget(gbuffer.target, 'gBufferFlags', false, false, true, undefined, 1)
             }
             const depth = this.getPlugin(DepthBufferPlugin)
             const normal = this.getPlugin(NormalBufferPlugin)

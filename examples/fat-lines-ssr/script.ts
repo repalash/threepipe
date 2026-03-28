@@ -91,10 +91,9 @@ async function init() {
     ui.appendChild(light.uiConfig)
 
     const gbufferPlugin = viewer.getPlugin(GBufferPlugin)!
-    const getNormalDepth = ()=>({texture: gbufferPlugin.normalDepthTexture})
 
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(getNormalDepth, 'normalDepth', false, false, false)
+    targetPreview.addTarget(()=> gbufferPlugin.target, 'normalDepth', false, false, false)
     targetPreview.addTarget(()=>({texture: light.shadow.map?.texture}),
         'shadowMap', true, true,
         false, (s)=>s + ' = vec4(' + s + '.rgb, 1.);')
