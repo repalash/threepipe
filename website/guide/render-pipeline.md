@@ -75,7 +75,7 @@ By default, the render pipeline([`ViewerRenderManager`](https://threepipe.org/do
 More passes can be added and removed from the pipeline
 using the [registerPass](https://threepipe.org/docs/classes/RenderManager.html#registerPass) and [unregisterPass](https://threepipe.org/docs/classes/RenderManager.html#unregisterPass) methods.
 
-The pipeline passes need to follow the interface of [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) and [PipelinePassPlugin](https://threepipe.org/docs/classes/PipelinePassPlugin.html).
+The pipeline passes need to follow the interface of [IPipelinePass](https://threepipe.org/docs/interfaces/IPipelinePass.html) and [PipelinePassPlugin](../plugin/PipelinePassPlugin).
 Which adds some important parameters over the three.js Pass,
 like pass id and support for defining where the pass should be added in the pipeline and it's dependants.
 
@@ -88,7 +88,7 @@ viewer.renderManager.registerPass(pass)
 ```
 
 ::: info
-See [PipelinePassPlugin](https://threepipe.org/docs/classes/PipelinePassPlugin.html) for an abstract plugin
+See [PipelinePassPlugin](../plugin/PipelinePassPlugin) for an abstract plugin
 that provides the boilerplate to create a plugin that registers a custom pass in the pipeline.
 Check [NormalBufferPlugin](https://threepipe.org/docs/classes/NormalBufferPlugin.html) for an example of that.
 :::

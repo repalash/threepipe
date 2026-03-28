@@ -13,7 +13,7 @@ next:
 [//]: # (todo: image)
 
 [Example](https://threepipe.org/examples/#transform-controls-plugin/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/rendering/UndoManagerPlugin.ts) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/interaction/UndoManagerPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/UndoManagerPlugin.html)
 
 UndoManagerPlugin adds support for undo/redo operations in the viewer. 

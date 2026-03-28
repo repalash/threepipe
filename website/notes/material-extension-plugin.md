@@ -407,7 +407,7 @@ Study these plugin implementations for different patterns:
 - [**FragmentClippingExtensionPlugin**](https://github.com/repalash/threepipe/blob/master/src/plugins/material/FragmentClippingExtensionPlugin.ts) - Advanced clipping planes
 
 **Render Pipeline Plugins:**
-- [**SSAOPlugin**](https://github.com/repalash/threepipe/blob/master/src/plugins/postprocessing/SSAOPlugin.ts) - Screen-space ambient occlusion
+- [**SSAOPlugin**](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/SSAOPlugin.ts) - Screen-space ambient occlusion
 - [**DepthBufferPlugin**](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/DepthBufferPlugin.ts) - Depth buffer access
 - [**GBufferPlugin**](https://github.com/repalash/threepipe/blob/master/src/plugins/pipeline/GBufferPlugin.ts) - G-buffer implementation
 

@@ -36,4 +36,4 @@ loadingScreen.backgroundOpacity = 0.4 // 0-1
 loadingScreen.backgroundBlur = 28 // px
 ```
 
-See also the base class [AAssetManagerProcessStatePlugin](https://threepipe.org/docs/classes/AAssetManagerProcessStatePlugin.html) to write a custom loading plugin.
+See also the base class [AAssetManagerProcessStatePlugin](./AAssetManagerProcessStatePlugin) to write a custom loading plugin.

@@ -34,7 +34,7 @@ MaterialConfiguratorPlugin adds a UI to configure and switch between different m
 The variations of materials are mapped to material names or uuids in the scene.
 These variations can be applied to the materials in the scene. (This copies the properties to the same material instances instead of assigning new materials)
 The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.
-This functionality is inherited from [MaterialConfiguratorBasePlugin](https://threepipe.org/docs/classes/MaterialConfiguratorBasePlugin.html).
+This functionality is inherited from [MaterialConfiguratorBasePlugin](../plugin/MaterialConfiguratorBasePlugin).
 
 Additionally, this plugin adds a simple Grid UI in the DOM over the viewer canvas to show various material variations and allow the user to apply them.
 The UI can also be used in the editor to edit the variations and apply them.
@@ -61,7 +61,7 @@ This works by toggling the `visible` property of the children of a parent object
 The plugin interfaces with the picking plugin and also provides uiConfig to show and edit the variations.
 It also provides a function to create snapshot previews of individual variations. This creates a limited render of the object with the selected child visible.
 To get a proper render, it's better to render it offline and set the image as a preview.
-This functionality is inherited from [SwitchNodeBasePlugin](https://threepipe.org/docs/classes/SwitchNodeBasePlugin.html).
+This functionality is inherited from [SwitchNodeBasePlugin](../plugin/SwitchNodeBasePlugin).
 
 Additionally, this plugin adds a simple Grid UI in the DOM over the viewer canvas to show various material variations and allow the user to apply them.
 The UI can also be used in the editor to edit the variations and apply them.

@@ -227,7 +227,7 @@ Multiple plugins interface with the global timeline to provide synchronized anim
 - **[TimelineUiPlugin](../package/plugin-timeline-ui)**: UI controls for managing timeline animations.
 
 #### Other Plugins
-- **[MaterialConfiguratorBasePlugin](https://threepipe.org/docs/classes/MaterialConfiguratorBasePlugin.html)**: Material switching animations that can be timed with the timeline
+- **[MaterialConfiguratorBasePlugin](../plugin/MaterialConfiguratorBasePlugin)**: Material switching animations that can be timed with the timeline
 - **CanvasRecorderPlugin**: Recording plugins use timeline for frame-perfect animation capture
 
 ### Progressive Rendering Integration

@@ -33,11 +33,11 @@ This is still a WIP. API might change a bit
 
 `ThreeSVGRendererPlugin` uses [`three-svg-renderer`](https://github.com/repalash/threepipe/blob/master/plugins/svg-renderer/src/three-svg-renderer), which is a modified version of [three-svg-renderer](https://www.npmjs.com/package/three-svg-renderer) (GPLV3 Licenced).
 The plugin renderers meshes in the viewer scene to svg objects by computing polygons and contours of the geometry in view space. Check [LokiResearch/three-svg-renderer](https://github.com/LokiResearch/three-svg-renderer?tab=readme-ov-file#references) for more details.
-In the modified version that is used here, support for some types of geometries is added and a rendered image in screen-space is used to create raster fill images for paths along with some other small changes. Check out the [Example](https://threepipe.org/examples/#three-svg-renderer/) for demo. See also [svg-geometry-playground example](https://threepipe.org/examples/#svg-geometry-playground/) for usage with other plugins `PickingPlugin`, `TransformControlsPlugin` and `GeometryGeneratorPlugin`.
+In the modified version that is used here, support for some types of geometries is added and a rendered image in screen-space is used to create raster fill images for paths along with some other small changes. Check out the [Example](https://threepipe.org/examples/#three-svg-renderer-plugin/) for demo. See also [svg-geometry-playground example](https://threepipe.org/examples/#svg-geometry-playground/) for usage with other plugins `PickingPlugin`, `TransformControlsPlugin` and `GeometryGeneratorPlugin`.
 
 Note that this does not support all the features of three.js and may not work with all types of materials and geometries. Check the examples for a list of sample models that do and don't work.
 
-`BasicSVGRendererPlugin` is a sample plugin using [SVGRenderer](https://threejs.org/docs/index.html?q=svg#examples/en/renderers/SVGRenderer) from three.js addons. This renders all triangles in the scene to separate svg paths. Check the three.js docs for more details. Check out the [Example](https://threepipe.org/examples/#basic-svg-renderer/) for demo.
+`BasicSVGRendererPlugin` is a sample plugin using [SVGRenderer](https://threejs.org/docs/index.html?q=svg#examples/en/renderers/SVGRenderer) from three.js addons. This renders all triangles in the scene to separate svg paths. Check the three.js docs for more details. Check out the [Example](https://threepipe.org/examples/#basic-svg-renderer-plugin/) for demo.
 
 ```typescript
 import {ThreeViewer} from 'threepipe'

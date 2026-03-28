@@ -148,16 +148,16 @@ Plugins related UI, plugins creating UI element. Check the [packages](./threepip
 
 Base plugins that can be inherited to create new plugins for specific use cases.
 
-- [AAssetManagerProcessStatePlugin](https://threepipe.org/docs/classes/AAssetManagerProcessStatePlugin.html) - Base class to create loading bars, process state related plugins.
-- [ACameraControlsPlugin](https://threepipe.org/docs/classes/ACameraControlsPlugin.html) - Base class that adds camera controls to the viewer.
-- [BaseGroundPlugin](https://threepipe.org/docs/classes/BaseGroundPlugin.html) - Base class that adds a ground plane to the viewer.
-- [BaseImporterPlugin](https://threepipe.org/docs/classes/BaseImporterPlugin.html) - Base class that registers an importer to the viewer.
-- [PipelinePassPlugin](https://threepipe.org/docs/classes/PipelinePassPlugin.html) - Base class that registers a pass to the main render pipeline.
-- [AScreenPassExtensionPlugin](https://threepipe.org/docs/classes/AScreenPassExtensionPlugin.html) - Create plugins that adds an extension to screen pass in the render manager.
+- [AAssetManagerProcessStatePlugin](../plugin/AAssetManagerProcessStatePlugin) - Base class to create loading bars, process state related plugins.
+- [ACameraControlsPlugin](../plugin/ACameraControlsPlugin) - Base class that adds camera controls to the viewer.
+- [BaseGroundPlugin](../plugin/BaseGroundPlugin) - Base class that adds a ground plane to the viewer.
+- [BaseImporterPlugin](../plugin/BaseImporterPlugin) - Base class that registers an importer to the viewer.
+- [PipelinePassPlugin](../plugin/PipelinePassPlugin) - Base class that registers a pass to the main render pipeline.
+- [AScreenPassExtensionPlugin](../plugin/AScreenPassExtensionPlugin) - Create plugins that adds an extension to screen pass in the render manager.
 
 ## Configurator
 
 Base plugins for creating configurators. These include the functionality, serialization and state management and UI can be added but any subclass or in the application.
 
-- [MaterialConfiguratorBasePlugin](https://threepipe.org/docs/classes/MaterialConfiguratorBasePlugin.html) - Base class to create material configurator plugins.
-- [SwitchNodeBasePlugin](https://threepipe.org/docs/classes/SwitchNodeBasePlugin.html) - Base class to create switch node plugins.
+- [MaterialConfiguratorBasePlugin](../plugin/MaterialConfiguratorBasePlugin) - Base class to create material configurator plugins.
+- [SwitchNodeBasePlugin](../plugin/SwitchNodeBasePlugin) - Base class to create switch node plugins.

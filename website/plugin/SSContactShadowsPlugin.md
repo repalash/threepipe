@@ -439,7 +439,7 @@ light.shadowMapSize.setScalar(512)
 Check out these examples to see the plugin in action:
 
 - [SS Contact Shadows Plugin](https://threepipe.org/examples/#sscontactshadows-plugin/) - Basic contact shadows setup with directional light
-- [Base Ground Plugin](https://threepipe.org/examples/#base-ground-plugin/) - Ground plane with enhanced shadows
+- [Contact Shadow Ground Plugin](https://threepipe.org/examples/#contact-shadow-ground-plugin/) - Ground plane with contact shadows
 
 ## See Also
 

@@ -61,7 +61,7 @@ const blob = await viewer.export(mesh, {
 })
 ```
 
-Check the example [glb-export-draco](https://threepipe.org/examples/#glb-export-draco/) to see a demo.
+Check the example [glb-draco-export](https://threepipe.org/examples/#glb-draco-export/) to see a demo.
 :::
 
 ::: info Other formats

@@ -175,7 +175,7 @@ viewer.renderManager.screenPass.material.registerMaterialExtensions([extension])
 
 ## Screen Pass Extension Plugins
 
-For more complex effects that need UI configuration and serialization, you can create a custom screen pass extension plugin using `AScreenPassExtensionPlugin`. This base class provides automatic UI generation, serialization, and integration with the plugin system.
+For more complex effects that need UI configuration and serialization, you can create a custom screen pass extension plugin using [`AScreenPassExtensionPlugin`](../plugin/AScreenPassExtensionPlugin). This base class provides automatic UI generation, serialization, and integration with the plugin system.
 
 ```typescript
 import {
