@@ -608,7 +608,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         canvas.height = target.height
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('Unable to get 2d context')
-        const texture = target.textures[textureIndex] as ITexture
+        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
         const imageData = ctx.createImageData(target.width, target.height, {colorSpace: ['display-p3', 'srgb'].includes(texture.colorSpace) ? <PredefinedColorSpace>texture.colorSpace : undefined})
         if (texture.type === HalfFloatType || texture.type === FloatType) {
             const buffer = this.renderTargetToBuffer(target as any, textureIndex)
@@ -632,7 +632,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
     renderTargetToDataUrl(target: WebGLRenderTarget|IRenderTarget, mimeType = 'image/png', quality = 90, textureIndex = 0): string {
-        const texture = target.textures[textureIndex] as ITexture
+        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
         const canvas = this.renderTargetToCanvas(target, textureIndex)
 
         const string = (texture.flipY ? canvas : canvasFlipY(canvas)).toDataURL(mimeType, quality) // intentionally inverted ternary
@@ -646,7 +646,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
     renderTargetToBuffer(target: WebGLRenderTarget, textureIndex = 0): Uint8Array|Uint16Array|Float32Array {
-        const texture = target.textures[textureIndex] as ITexture
+        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
         const buffer =
             texture.type === HalfFloatType ?
                 new Uint16Array(target.width * target.height * 4) :
@@ -666,7 +666,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      */
     exportRenderTarget(target: WebGLRenderTarget, mimeType = 'auto', textureIndex = 0): BlobExt {
         const hdrFormats = ['image/x-exr']
-        const texture = target.textures[textureIndex] as ITexture
+        const texture = (target.textures?.[textureIndex] ?? target.texture) as ITexture
         let hdr = texture.type === HalfFloatType || texture.type === FloatType
         if (mimeType === 'auto') {
             mimeType = hdr ? 'image/x-exr' : 'image/png'

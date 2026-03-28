@@ -14,7 +14,9 @@ import {
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
-import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerialization} from '../../utils'
+import {shaderReplaceString} from '../../utils/shader-helpers'
+import {ThreeSerialization, type SerializationMetaType} from '../../utils/serialization'
+import type {AnimateTime} from '../../utils/lerp'
 import {
     IMaterial,
     IMaterialEventMap,

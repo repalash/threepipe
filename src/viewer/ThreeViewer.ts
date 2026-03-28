@@ -59,13 +59,13 @@ import {
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {uiConfig, UiObjectConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
 import {IRenderTarget} from '../rendering'
-import {
+import type {
     AssetExporterPlugin,
-    CameraViewPlugin,
     CanvasSnapshotPlugin,
     FileTransferPlugin,
     ProgressivePlugin,
 } from '../plugins'
+import {CameraViewPlugin} from '../plugins/animation/CameraViewPlugin'
 // noinspection ES6PreferShortImport
 import {DropzonePlugin, DropzonePluginOptions} from '../plugins/interaction/DropzonePlugin'
 // noinspection ES6PreferShortImport
