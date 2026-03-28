@@ -1,6 +1,6 @@
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {IScene, ISceneEventMap, TControlsCtor} from '../../core'
-import {Event2, EventListener2} from 'three'
+import {ICamera, IScene, ISceneEventMap, TControlsCtor} from '../../core'
+import {EventListener2} from 'three'
 
 export abstract class ACameraControlsPlugin extends AViewerPluginSync {
     readonly enabled = true
@@ -10,20 +10,26 @@ export abstract class ACameraControlsPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        // @ts-expect-error hack
-        this._cameraChanged({camera: viewer.scene.mainCamera, lastCamera: undefined})
+        this._registerControls(viewer.scene.mainCamera)
         viewer.scene.addEventListener('mainCameraChange', this._cameraChanged)
     }
 
     onRemove(viewer: ThreeViewer): void {
-        // @ts-expect-error hack
-        this._cameraChanged({lastCamera: viewer.scene.mainCamera, camera: undefined})
+        this._unregisterControls(viewer.scene.mainCamera)
         viewer.scene.removeEventListener('mainCameraChange', this._cameraChanged)
         super.onRemove(viewer)
     }
 
-    private _cameraChanged: EventListener2<'mainCameraChange', ISceneEventMap, IScene> = (e: Partial<Event2<'mainCameraChange', ISceneEventMap, IScene>>) => {
-        e.lastCamera?.removeControlsCtor?.(this.controlsKey)
-        e.camera?.setControlsCtor?.(this.controlsKey, this._controlsCtor)
+    private _registerControls(camera?: ICamera) {
+        camera?.setControlsCtor?.(this.controlsKey, this._controlsCtor)
+    }
+
+    private _unregisterControls(camera?: ICamera) {
+        camera?.removeControlsCtor?.(this.controlsKey)
+    }
+
+    private _cameraChanged: EventListener2<'mainCameraChange', ISceneEventMap, IScene> = (e) => {
+        this._unregisterControls(e.lastCamera)
+        this._registerControls(e.camera)
     }
 }
