@@ -50,9 +50,11 @@ async function init() {
     ui.setupPluginUi(BloomPlugin)
     ui.setupPluginUi(TemporalAAPlugin)
 
-    const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(() => viewer.getPlugin(SSGIPlugin)!.target, 'ssgi')
-    !ssrInline && targetPreview.addTarget(() => viewer.getPlugin(SSReflectionPlugin)!.target, 'ssr')
+    if (!window.TESTING) {
+        const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
+        targetPreview.addTarget(() => viewer.getPlugin(SSGIPlugin)!.target, 'ssgi')
+        !ssrInline && targetPreview.addTarget(() => viewer.getPlugin(SSReflectionPlugin)!.target, 'ssr')
+    }
 
 }
 

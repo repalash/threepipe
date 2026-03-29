@@ -29,6 +29,7 @@ async function init() {
 
     const ground = viewer.addPluginSync(AdvancedGroundPlugin)
     ground.groundReflection = true
+    ground.shadowBaker.maxFrameNumber = window.TESTING ? 20 : ground.shadowBaker.maxFrameNumber
     ground.material!.roughness = 0.2
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

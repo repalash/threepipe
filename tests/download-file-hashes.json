@@ -1,0 +1,72 @@
+{
+  "example.spec.ts": {
+    "3dm-to-glb": {
+      "chromium-darwin-file.glb": "58ed3db4e4dc3b5c61a891c507bd77d05e0cd77b85be88fabd98113958ff89ba"
+    },
+    "image-snapshot-export": {
+      "chromium-darwin-snapshot.png": "bb77f5ef53956223cb6f4b5f20674c094e347f57bb0076936942477f0d827b52",
+      "chromium-darwin-snapshot.jpeg": "7db4a1fe42245fcd1fa27c98eeaa8d322d1a16ea64ff6527a8a4bc7f6a33fc64",
+      "chromium-darwin-snapshot.webp": "a500331a64a1e461af2aba4b054bc7ca78cfbe9bb9a46b90cb994c55a4c39efc"
+    },
+    "custom-pipeline": {
+      "chromium-darwin-file.png": "fbab4d3a89a3bd7437afd06ca571c357e554c8dc6c39b349e776ca0e38d9f9e4"
+    },
+    "glb-export": {
+      "chromium-darwin-helmet.glb": "4b0e743ad9a197e75aa7e08ddf3f0aa2aa1f4368d09f355960f178df91b7e5ce",
+      "chromium-darwin-helmet.pmat": "f47d766bba6ab1e14962526b28e6e87a5bb31a4ff866c690e0ccaedbe8122050",
+      "chromium-darwin-scene.glb": "a6963dcc9407b9b54ebdce67421a5e9ca64daee719dfa6f24adb4ef0e56b248b",
+      "chromium-darwin-scene_with_config.glb": "b556dc45a42daad611165efe09275b84f111678d2da0c7d0aa65cfea233b4454"
+    },
+    "geometry-uv-preview": {
+      "chromium-darwin-renderTarget.png": "b0cd09c21b4e513dd380336eb9461a2a4236014dbc1a225a679ab65f195202fa"
+    },
+    "pmat-material-export": {
+      "chromium-darwin-material.pmat": "f47d766bba6ab1e14962526b28e6e87a5bb31a4ff866c690e0ccaedbe8122050"
+    },
+    "render-target-export": {
+      "chromium-darwin-EffectComposer.rt1.exr": "702203c9adcbed574424d7110964a70f4b8720c49f2aa14248ca20039419c21b",
+      "chromium-darwin-depthBuffer.png": "d366ab411b096a53ad2653f431d0f83aa529abea81d7658d8fdfb63dbc6932e6",
+      "chromium-darwin-depthBuffer.jpeg": "e6650e7b37dfafc47333c091056aa8f0b598727fd5ddd008558a786fff0e54cc",
+      "chromium-darwin-EffectComposer.rt1.webp": "df11097381462e2e66fca5bdbb8ce24e9b14ce81923d31372228ce2120f56ca7"
+    },
+    "render-target-preview": {
+      "chromium-darwin-renderTarget.exr": "fecc0d32692eb89d44e9f8b6b175a35c14a02403ff19271d27db0e786002b2f1",
+      "chromium-darwin-renderTarget.png": "9a762cb8a6d698de90fe64125d5dbcced4e07a4eab2849df27c05b1bade30221"
+    }
+  },
+  "interactive.spec.ts": {
+    "3dm-to-glb": {
+      "chromium-darwin-file.glb": "58ed3db4e4dc3b5c61a891c507bd77d05e0cd77b85be88fabd98113958ff89ba"
+    },
+    "image-snapshot-export": {
+      "chromium-darwin-snapshot.png": "bb77f5ef53956223cb6f4b5f20674c094e347f57bb0076936942477f0d827b52",
+      "chromium-darwin-snapshot.jpeg": "7db4a1fe42245fcd1fa27c98eeaa8d322d1a16ea64ff6527a8a4bc7f6a33fc64",
+      "chromium-darwin-snapshot.webp": "a500331a64a1e461af2aba4b054bc7ca78cfbe9bb9a46b90cb994c55a4c39efc"
+    },
+    "glb-export": {
+      "chromium-darwin-helmet.glb": "4b0e743ad9a197e75aa7e08ddf3f0aa2aa1f4368d09f355960f178df91b7e5ce",
+      "chromium-darwin-helmet.pmat": "f47d766bba6ab1e14962526b28e6e87a5bb31a4ff866c690e0ccaedbe8122050",
+      "chromium-darwin-scene.glb": "a6963dcc9407b9b54ebdce67421a5e9ca64daee719dfa6f24adb4ef0e56b248b",
+      "chromium-darwin-scene_with_config.glb": "b556dc45a42daad611165efe09275b84f111678d2da0c7d0aa65cfea233b4454"
+    },
+    "pmat-material-export": {
+      "chromium-darwin-material.pmat": "f47d766bba6ab1e14962526b28e6e87a5bb31a4ff866c690e0ccaedbe8122050"
+    },
+    "custom-pipeline": {
+      "chromium-darwin-file.png": "8250c4565a9206832d9b8643203a84618f9a65399ff3841cc41bb0626be73c62"
+    },
+    "render-target-export": {
+      "chromium-darwin-EffectComposer.rt1.exr": "702203c9adcbed574424d7110964a70f4b8720c49f2aa14248ca20039419c21b",
+      "chromium-darwin-depthBuffer.png": "d366ab411b096a53ad2653f431d0f83aa529abea81d7658d8fdfb63dbc6932e6",
+      "chromium-darwin-depthBuffer.jpeg": "e6650e7b37dfafc47333c091056aa8f0b598727fd5ddd008558a786fff0e54cc",
+      "chromium-darwin-EffectComposer.rt1.webp": "df11097381462e2e66fca5bdbb8ce24e9b14ce81923d31372228ce2120f56ca7"
+    },
+    "render-target-preview": {
+      "chromium-darwin-renderTarget.exr": "fecc0d32692eb89d44e9f8b6b175a35c14a02403ff19271d27db0e786002b2f1",
+      "chromium-darwin-renderTarget.png": "9a762cb8a6d698de90fe64125d5dbcced4e07a4eab2849df27c05b1bade30221"
+    },
+    "geometry-uv-preview": {
+      "chromium-darwin-renderTarget.png": "b0cd09c21b4e513dd380336eb9461a2a4236014dbc1a225a679ab65f195202fa"
+    }
+  }
+}

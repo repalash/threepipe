@@ -42,7 +42,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         rgbm: false,
-        plugins: [new ProgressivePlugin((window as any).TESTING ? 20 : 200), SSAAPlugin, LoadingScreenPlugin],
+        plugins: [new ProgressivePlugin(window.TESTING ? 20 : 200), SSAAPlugin, LoadingScreenPlugin],
         dropzone: {
             addOptions: {
                 disposeSceneObjects: true,

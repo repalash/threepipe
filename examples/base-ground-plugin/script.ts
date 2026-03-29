@@ -27,7 +27,7 @@ async function init() {
     // Configure ground properties
     ground.size = 10
     ground.yOffset = 0
-    ground.material!.color.set('#aaaaaa')
+    ground.material!.color?.set('#aaaaaa')
     ground.material!.roughness = 0.9
     ground.material!.metalness = 0.1
     ground.material!.setDirty()

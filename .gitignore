@@ -78,3 +78,16 @@ tmp
 
 .wrangler
 /.*.md
+
+compose.dev.yaml
+.aibox
+.repos
+.archived
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+tests/snapshots/
+tests/download-file-hashes.json.lock
+

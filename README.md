@@ -584,3 +584,14 @@ Contributions to ThreePipe are welcome and encouraged! Feel free to open issues 
 
 Read the [contributing guidelines](CONTRIBUTING.md) for more details on how to setup and work on the project.
 
+cli
+aibox claude --yolo --resume=6a6e53d5-da1c-4fac-9566-11f28e4e2405
+
+camera
+aibox claude --yolo  --resume 6a6e53d5-da1c-4fac-9566-11f28e4e2405
+
+proc
+claude --resume "procedural-generation-framework"
+
+webgpu
+claude --resume 4917d1ec-5b4c-4bed-bcbc-1825982762cf                                                 

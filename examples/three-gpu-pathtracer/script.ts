@@ -19,7 +19,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         debug: true,
-        renderScale: 'auto',
+        renderScale: window.TESTING ? 0.25 : 'auto',
         dropzone: {
             allowedExtensions: ['gltf', 'glb', 'hdr', 'bin', 'png', 'jpeg', 'webp', 'jpg', 'exr', 'json'],
             addOptions: {
@@ -31,7 +31,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, PickingPlugin, ProgressivePlugin, BaseGroundPlugin, CanvasSnapshotPlugin, ThreeGpuPathTracerPlugin],
     })
 
-    viewer.getPlugin(ProgressivePlugin)!.maxFrameCount = 500
+    viewer.getPlugin(ProgressivePlugin)!.maxFrameCount = window.TESTING ? 80 : 500
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {setBackground: true})
     const modelUrl = 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'

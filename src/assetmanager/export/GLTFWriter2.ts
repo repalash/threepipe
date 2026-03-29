@@ -15,6 +15,10 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         this.json.asset.subversion = this.TPAssetVersion
     }
 
+    // Hook for deterministic-injection.js to patch processBufferViewImage/write for testing.
+    // Guarded by import.meta.env.DEV — stripped from production builds by Vite.
+    static { if (import.meta.env.DEV) (globalThis as any).testing_patchGLTFWriter2?.(GLTFWriter2) }
+
     declare options: GLTFExporterOptions & {
         externalImagesInExtras: boolean,
         exporterOptions: GLTFExporter2Options

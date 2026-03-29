@@ -29,7 +29,7 @@ async function init() {
         },
         plugins: [LoadingScreenPlugin],
     })
-    viewer.addPluginSync(new ProgressivePlugin((window as any).TESTING ? 20 : 200))
+    viewer.addPluginSync(new ProgressivePlugin(window.TESTING ? 20 : 200))
     viewer.addPluginSync(new SSAAPlugin())
 
     // viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))

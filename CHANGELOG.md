@@ -25,8 +25,31 @@ All notable changes to this project will be documented in this file.
 - Add `duration=0` support in `viewer.fitToView`, `CameraViewPlugin.animateToFitObject`, and `CameraViewPlugin.animateToTarget` — sets view instantly without animation
 - `PopmotionPlugin.animateCamera` — `normalizeDuration` option scales animation duration based on travel distance and skips animation when camera is already at target. Enabled by default when duration is not explicitly provided.
 
+### Fixed
+
+- Fix `SwitchNodeBasePlugin` PickingPlugin ordering bug — now uses `viewer.forPlugin()` so PickingPlugin can be added in any order
+- Fix `SwitchNodeBasePlugin.snapIcons()` — `return` changed to `continue` so all children get icons instead of exiting early
+- Fix `BaseGroundPlugin.setGeometry()` — new geometry was never assigned to `_geometry`, making the method a no-op
+- Fix `MaterialConfiguratorPlugin`/`SwitchNodePlugin` context menus not dismissing before dialog prompts
+- Fix `ACameraControlsPlugin` — remove `@ts-expect-error` hacks, extract register/unregister methods
+- Fix plugin package naming inconsistencies — 15 plugins had wrong names in README/CHANGELOG headings (missing `plugin-` prefix)
+- Fix website plugin doc prev/next navigation — 41 pages had wrong links, now match sidebar order
+- Fix broken doc links — wrong source paths (UndoManagerPlugin, SSAOPlugin), wrong example URLs (svg-renderer, glb-export), wrong NPM badge (svg-renderer), typos (PickingPLugin, HDRiGrounPlugin)
+- Fix `RenderManager` — `renderTargetToCanvas`, `renderTargetToDataUrl`, and `exportRenderTarget` now accept `{texture}` / `{textures}` wrappers (e.g. standalone depth textures), blitting to a temp render target via `_withResolvedTarget` for pixel readback
+- Fix `EXRExporter2` — handle data textures correctly
+- Fix `RenderTargetPreviewPlugin` — use MRT render target with `textureIndex` for GBuffer previews instead of `{texture}` wrappers
+- Fix `CurveUiHelper` ArcCurve — use `xRadius` instance property (not `aRadius` constructor param), sync `yRadius` to keep arcs circular
+
 ### Changed
 
+- `SwitchNodePlugin` — implement context menus (Rename title, Rename node, Remove Section, Select) — previously stubbed
+- Add documentation pages for base/abstract plugins: MaterialConfiguratorBasePlugin, SwitchNodeBasePlugin, AAssetManagerProcessStatePlugin, ACameraControlsPlugin, BaseImporterPlugin, PipelinePassPlugin, AScreenPassExtensionPlugin
+- Add `base-ground-plugin` example
+- Add TailwindCSSCDNPlugin to website sidebar
+- Add 7 missing plugin doc pages to website with correct prev/next chain
+- Add "Specialized Base Classes" section to plugin system guide
+- Update cross-references across website docs to use relative links instead of API doc URLs
+- `TweakpaneUiPlugin` — `setupPluginUi` "plugin not found" warning now shows PluginType/name for easier debugging
 - `PickingPlugin` — `selectedObjectChanged` event now includes `objects` and `lastValues` arrays for multi-select
 - `ObjectPicker` — `setSelected` now accepts arrays for multi-select, removed old multiselection TODOs
 - `TransformControlsPlugin` — refactored to use `MultiSelectHelper`, supports multi-object transforms with undo/redo
@@ -37,7 +60,7 @@ All notable changes to this project will be documented in this file.
 - Move geometry generators (plane, box, sphere, circle, torus, cylinder, line) into core threepipe. `@threepipe/plugin-geometry-generator` now only provides the text generator and FontLibrary.
 - Map/Set spread fixes for old node.js use.
 
-## [0.4.4]
+## [0.4.4] - 2026-03-02
 
 ### Changed
 
