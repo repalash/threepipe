@@ -735,6 +735,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         return this
     }
 
+    // @ts-expect-error - intentionally narrowed from parent's wider TE constraint for deprecation checks
     addEventListener<T extends keyof ISceneEventMap>(type: T, listener: EventListener<ISceneEventMap[T], T, this>): void {
         if (type === 'activeCameraChange') console.error('activeCameraChange is deprecated. Use mainCameraChange instead.')
         if (type === 'activeCameraUpdate') console.error('activeCameraUpdate is deprecated. Use mainCameraUpdate instead.')

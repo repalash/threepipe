@@ -1262,11 +1262,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         return filter?.map(type=>{
             const plugin = this.getPlugin(type)
             return plugin ? this.serializePlugin(plugin, meta) : undefined
-        }).filter(p=> !!p) ?? Object.entries(this.plugins).map(p=> {
+        }).filter((p): p is ISerializedConfig => !!p) ?? Object.entries(this.plugins).map(p=> {
             if (filter && !filter.includes(p[1].constructor.PluginType)) return
             if (p[0] === p[1].constructor.OldPluginType) return // duplicate key
             return this.serializePlugin(p[1], meta)
-        }).filter(p=> !!p)
+        }).filter((p): p is ISerializedConfig=> !!p)
     }
 
     serializePlugin(plugin: IViewerPlugin, meta: SerializationMetaType): ISerializedConfig|undefined {
