@@ -130,7 +130,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
 
             const gbuffer = this.renderManager.gbufferTarget
             if (gbuffer) {
-                const renderBufferProps = renderer.properties.get(gbuffer)
+                const renderBufferProps = renderer.properties.get(gbuffer) as {__webglDepthRenderbuffer?: WebGLRenderbuffer, __webglDepthbuffer?: WebGLRenderbuffer}
                 depthRenderBuffer = renderBufferProps.__webglDepthRenderbuffer || renderBufferProps.__webglDepthbuffer
             }
             if (!depthRenderBuffer) {
@@ -244,7 +244,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             }
 
             if (!useGBufferDepth && readBuffer) {
-                const renderBufferProps2 = renderer.properties.get(readBuffer)
+                const renderBufferProps2 = renderer.properties.get(readBuffer) as {__webglDepthRenderbuffer?: WebGLRenderbuffer, __webglDepthbuffer?: WebGLRenderbuffer}
                 depthRenderBuffer = renderBufferProps2.__webglDepthRenderbuffer || renderBufferProps2.__webglDepthbuffer
             }
 

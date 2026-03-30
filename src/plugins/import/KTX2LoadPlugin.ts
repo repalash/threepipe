@@ -45,7 +45,8 @@ export class KTX2Loader2 extends KTX2Loader implements ILoader {
     private _initTexture(t: CompressedTexture & ITexture) {
         upgradeTexture.call(t)
         t.userData.mimeType = 'image/ktx2'
-        t.toJSON = (meta?: any)=>{
+        // @ts-expect-error todo fix later
+        ;(t as ITexture).toJSON = (meta?: any)=>{
             return serializeTextureInExtras(t, meta, t.name, 'image/ktx2')
         }
         const cloneFn = t.clone
