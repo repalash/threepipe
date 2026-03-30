@@ -523,7 +523,7 @@ class OBJLoader2 extends Loader implements ILoader{
 
             const lineFirstChar = line.charAt( 0 );
 
-            // @todo invoke passed in handler if any
+            // todo invoke passed in handler if any
             if ( lineFirstChar === '#' ) continue; // skip comments
 
             if ( lineFirstChar === 'v' ) {
@@ -704,7 +704,7 @@ class OBJLoader2 extends Loader implements ILoader{
 
                 // smooth shading
 
-                // @todo Handle files that have varying smooth values for a set of faces inside one geometry,
+                // todo Handle files that have varying smooth values for a set of faces inside one geometry,
                 // but does not define a usemtl for each face set.
                 // This should be detected and a dummy material created (later MultiMaterial and geometry groups).
                 // This requires some care to not create extra material on each smooth value for "normal" obj files.

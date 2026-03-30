@@ -31,7 +31,7 @@ export interface AWSClientPluginEventMap extends AViewerPluginEventMap {
  * Note: Make sure to use keys with limited privileges and correct CORS settings.
  * All the keys will be stored in plain text if `serializeSettings` is set to `true` (default = `false`).
  *
- * {@todo Make an example for AWSClient Plugin}
+ * todo Make an example for AWSClient Plugin
  */
 @uiFolderContainer('AWS/S3 Client')
 export class AWSClientPlugin extends AViewerPluginSync<AWSClientPluginEventMap> {

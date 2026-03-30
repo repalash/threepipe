@@ -344,7 +344,7 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
 
         const setDirty = (_e: any)=>{
             // console.log(e)
-            group.setDirty({frameFade: false})
+            group.setDirty && group.setDirty({frameFade: false})
         }
         tiles.addEventListener('load-content', setDirty)
         tiles.addEventListener('load-tile-set', setDirty)
