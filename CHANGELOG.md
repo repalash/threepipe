@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.6.0]
+
+### three.js r168 Upgrade
+
+- Upgrade `three` from r163 to r168 and `@types/three` to v0.168
+- Upgrade `ts-browser-helpers` to >=0.20.0
+- Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
+- Remove `useLegacyLights` — deprecated since r155, removed from r168 types. Removed from `IRenderManager` interface, `RenderManager` getter/setter, and viewer config migration
+- Update `IRenderTarget.depthTexture` type to `DepthTexture | null` (r168 nullability change)
+- Add `nodes: Record<string, any>` to `SerializationResourcesType` to satisfy r168's `JSONMeta` interface
+- Add `__register`/`__unregister` events to `IObject3DEventMap`, `MaterialEventMap`, `BufferGeometryEventMap`, and `TextureEventMap` for r168 strict event map typing
+- Widen `IScene.addObject` constraint to accept raw `Object3D | IObject3D` — returns `T & IObject3D` so users get the upgraded type without casts
+- Add `toJSON(meta?: any): any` override to `ILight` to resolve dual-extend conflict between `Light` and `IObject3D`
+- Update `MaterialExtender` callbacks to accept `WebGLRenderer` (matching r168 event map types), cast to `IWebGLRenderer` inside
+- Update `ICameraControls.domElement` type to `HTMLElement | Document | null` for r168 OrbitControls compat
+- Fix `ExtendedRenderPass` — explicitly type `renderer.properties.get()` result for r168 stricter types
+- Cast to `IObject3D` in `AHelperWidget` for `addEventListener` calls (r168 strict `Object3DEventMap`)
+- Add `RootScene` `@ts-expect-error` on narrowed `addEventListener` override (intentionally narrower than parent)
+- Fix `Uint8Array<ArrayBuffer>` generic syntax removed (TS 5.8 compat with r168 types)
+- Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+
 ## [0.5.0]
 
 ### Added

@@ -123,7 +123,7 @@ const extension: MaterialExtension = {
 #else 
 const int ii = 0;
 DirectionalLightShadow edls = directionalLightShadows[ ii ];
-float ambientOcclusion = getShadow( directionalShadowMap[ ii ], edls.shadowMapSize, edls.shadowBias, edls.shadowRadius, vDirectionalShadowCoord[ ii ] );
+float ambientOcclusion = getShadow( directionalShadowMap[ ii ], edls.shadowMapSize, edls.shadowIntensity, edls.shadowBias, edls.shadowRadius, vDirectionalShadowCoord[ ii ] );
 #endif
 
 	reflectedLight.indirectDiffuse *= ambientOcclusion;
