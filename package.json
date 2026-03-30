@@ -138,7 +138,7 @@
     "rimraf": "^5.0.1",
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
-    "three": "https://pkg.threepipe.org/dep/three/-/v0.163.10003/package.tgz",
+    "three": "https://pkg.threepipe.org/dep/three/-/v0.168.10003/package.tgz",
     "tslib": "^2.5.0",
     "typedoc": "^0.28.10",
     "typescript": "5.8.3",
@@ -152,15 +152,15 @@
   },
   "dependencies": {
     "@repalash/popmotion": "^11.0.5002",
-    "@types/three": "https://pkg.threepipe.org/dep/@types/three/-/v0.163.10003/package.tgz",
+    "@types/three": "https://pkg.threepipe.org/dep/@types/three/-/v0.168.10001/package.tgz",
     "@types/webxr": "^0.5.1",
     "@types/wicg-file-system-access": "^2020.9.5",
     "stats.js": "^0.17.0",
-    "ts-browser-helpers": ">=0.19.4",
+    "ts-browser-helpers": ">=0.20.0",
     "uiconfig.js": ">=0.3.1"
   },
   "peerDependencies": {
-    "three": "https://pkg.threepipe.org/dep/three/-/v0.163.10003/package.tgz"
+    "three": "https://pkg.threepipe.org/dep/three/-/v0.168.10003/package.tgz"
   },
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",
