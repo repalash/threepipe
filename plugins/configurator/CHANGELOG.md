@@ -6,6 +6,10 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
+- NA
+
+## [0.2.4]
+
 ### Added
 
 - SwitchNodePlugin: context menu support (Rename title, Rename node, Remove Section, Select)
@@ -15,8 +19,7 @@ All notable changes to this plugin will be documented in this file.
 - SwitchNodePlugin/MaterialConfiguratorPlugin: context menu now closes before showing dialog prompts
 - SwitchNodeBasePlugin: PickingPlugin ordering bug — now uses `viewer.forPlugin()` so PickingPlugin can be added in any order
 - SwitchNodeBasePlugin: `snapIcons()` bug — `return` changed to `continue` so all children get icons
-- MaterialConfiguratorPlugin:  Context menu remove before dialog prompts
-- 
+
 ## [0.2.3] - 2025-09-03
 
 ### Changed
