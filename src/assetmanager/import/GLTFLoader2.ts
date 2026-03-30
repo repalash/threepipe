@@ -195,7 +195,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         }
         if (!scene.userData) scene.userData = {}
         if (res.userData) scene.userData.gltfExtras = res.userData
-        if (res.cameras) res.cameras.forEach(c => !c.parent && scene.add(c))
+        if (res.cameras) res.cameras.forEach(c => !c.parent && scene?.add(c))
         if (res.asset) scene.userData.gltfAsset = res.asset
 
         if (options.importAsModelRoot) {

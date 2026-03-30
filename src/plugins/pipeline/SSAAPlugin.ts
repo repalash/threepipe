@@ -126,7 +126,8 @@ export class SSAAPlugin extends AViewerPluginSync {
             height: v.renderManager.renderSize.y * v.renderManager.renderScale,
         }, v.renderManager.frameCount, true)
         if (this.jitterLightCameras)
-            this.trackedJitterCameras.entries().forEach((a) => this._jitter(...a, v.renderManager.frameCount))
+            // todo remove after node22 widespread
+            Array.from(this.trackedJitterCameras.entries()).forEach((a) => this._jitter(...a, v.renderManager.frameCount))
 
         this._hasSetOffsetRC = this.jitterRenderCamera
         this._hasSetOffsetLC = this.jitterLightCameras
@@ -141,7 +142,8 @@ export class SSAAPlugin extends AViewerPluginSync {
             this._hasSetOffsetRC = false
         }
         if (this._hasSetOffsetLC) {
-            this.trackedJitterCameras.keys().forEach((camera) => this._clearJitter(camera))
+            // todo remove after node22 widespread
+            Array.from(this.trackedJitterCameras.keys()).forEach((camera) => this._clearJitter(camera))
             this._hasSetOffsetLC = false
         }
     }

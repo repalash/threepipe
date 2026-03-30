@@ -645,9 +645,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const clips: AnimationClip[] = obj.animations
         if (clips.length < 1) return false
 
-        let animation = this._animations.find(a => a.object === obj)
-
-        animation = animation || {
+        const animation = this._animations.find(a => a.object === obj) || {
             object: obj,
             mixer: new AnimationMixer(root),
             clips: [],

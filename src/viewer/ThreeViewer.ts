@@ -1672,10 +1672,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _onListeners: {[T in keyof ViewerEventMap]?: ViewerEventListener<T>[]} = {}
     on<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>) {
         if (!this._onListeners[type]) this._onListeners[type] = []
-        if (this._onListeners[type].includes(listener)) {
+        if (this._onListeners[type]!.includes(listener)) {
             return
         }
-        this._onListeners[type].push(listener)
+        this._onListeners[type]!.push(listener)
         return ()=> this.off(type, listener)
     }
     off<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>): void {

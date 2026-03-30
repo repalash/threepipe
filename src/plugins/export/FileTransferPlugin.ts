@@ -24,8 +24,7 @@ export class FileTransferPlugin extends AViewerPluginSync<FileTransferPluginEven
 
     toJSON: any = undefined
 
-    async exportFile(file: File|Blob, name?: string) {
-        name = name || (file as File).name || 'file_export'
+    async exportFile(file: File|Blob, name = (file as File).name || 'file_export') {
         this.dispatchEvent({type: 'transferFile', path: name, state: 'exporting', progress: 0})
         await this.actions.exportFile(file, name, ({state, progress})=>{
             this.dispatchEvent({type: 'transferFile', path: name, state: state ?? 'exporting', progress})

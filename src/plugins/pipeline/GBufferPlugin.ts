@@ -57,7 +57,7 @@ export class GBufferPlugin
 
     @uiImage(undefined, {readOnly: true})
     get depthTexture(): (ITexture&DepthTexture)|undefined {
-        return this.target?.depthTexture
+        return this.target?.depthTexture ?? undefined
     }
 
     // @uiConfig() // not supported in this material yet

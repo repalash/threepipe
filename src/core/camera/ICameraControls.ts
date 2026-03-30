@@ -8,7 +8,7 @@ export interface ICameraControlsEventMap {
 export interface ICameraControls<TE extends ICameraControlsEventMap = ICameraControlsEventMap> extends IUiConfigContainer<void, 'panel'|'folder'>, EventDispatcher<TE> {
     object: Object3D
     enabled: boolean
-    domElement?: HTMLElement | Document;
+    domElement?: HTMLElement | Document | null;
 
     dispose(): void
 

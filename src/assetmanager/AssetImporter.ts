@@ -272,7 +272,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             if (options.processRaw !== false && this.cacheImportedAssets) asset.preImported = result
 
             const arrs: any[] = []
-            const push = (r: typeof result[number])=>{
+            const push = (r: ImportResult)=>{
                 if (r.userData?.rootSceneModelRoot) arrs.push(...r.children)
                 else arrs.push(r)
             }

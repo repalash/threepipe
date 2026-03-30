@@ -55,7 +55,7 @@ export interface IRenderTarget extends RenderTarget<Texture> {
     /**
      * @default null
      */
-    depthTexture: DepthTexture;
+    depthTexture: DepthTexture | null;
     /**
      * Defines the count of MSAA samples. Can only be used with WebGL 2. Default is **0**.
      * @default 0

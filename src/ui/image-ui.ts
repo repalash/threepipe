@@ -18,8 +18,7 @@ import {
 } from 'three'
 import {UiObjectConfig} from 'uiconfig.js'
 
-export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T, label?: string, hidden?: ()=>boolean, setDirty?: ()=>any) {
-    setDirty = setDirty ?? (()=>mat.setDirty && mat.setDirty())
+export function makeSamplerUi<T extends IMaterial>(mat: T, map: keyof T, label?: string, hidden?: ()=>boolean, setDirty: ()=>any = ()=>mat.setDirty && mat.setDirty()) {
     // const im = map === 'map'
     return {
         type: 'folder',
