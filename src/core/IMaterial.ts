@@ -114,7 +114,6 @@ declare module 'three'{
 
             source?: string // who is triggering the event. so that recursive events can be prevented
         } /* & IObjectSetDirtyOptions*/
-
         // eslint-disable-next-line @typescript-eslint/ban-types
         __unregister: {}
         // eslint-disable-next-line @typescript-eslint/ban-types
