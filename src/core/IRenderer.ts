@@ -16,7 +16,7 @@ export interface IAnimationLoopEvent {
     xrFrame?: XRFrame
 }
 export interface IRenderManagerUpdateEvent {
-    change?: 'registerPass' | 'unregisterPass' | 'useLegacyLights' | 'passRefresh' | 'size' | 'rebuild' | string
+    change?: 'registerPass' | 'unregisterPass' | 'passRefresh' | 'size' | 'rebuild' | string
     data?: any
     pass?: IPipelinePass
 }
@@ -74,7 +74,6 @@ export interface IRenderManager<TE extends IRenderManagerEventMap = IRenderManag
     readonly renderSize: Vector2
     renderScale: number
     readonly context: WebGLRenderingContext
-    useLegacyLights: boolean
     webglRenderer: WebGLRenderer
     clock: Clock
 

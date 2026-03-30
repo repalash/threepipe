@@ -118,6 +118,8 @@ export interface IObject3DEventMap extends Object3DEventMap{
         source?: string // who is triggering the event. so that recursive events can be prevented
     } /* & IObjectSetDirtyOptions*/
 
+    __unregister: Record<string, never>
+    __register: Record<string, never>
 }
 // Record<keyof IObject3DEventMap0, IObject3DEventMap0[keyof IObject3DEventMap0] & {
 //     // bubbleToParent?: boolean

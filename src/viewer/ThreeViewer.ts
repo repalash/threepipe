@@ -1445,10 +1445,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._scene.backgroundIntensity = data2.backgroundIntensity
             delete data2.backgroundIntensity
         }
-        if (data2.useLegacyLights !== undefined && data2.renderManager?.useLegacyLights === undefined) {
-            this.console.warn('old file format, useLegacyLights moved to RenderManager')
-            this.renderManager.useLegacyLights = data2.useLegacyLights
-            delete data2.useLegacyLights
+        if (data2.useLegacyLights !== undefined) {
+            if (data2.useLegacyLights) {
+                this.console.warn('useLegacyLights support removed since threepipe v0.5.0')
+            }
+            delete data2.useLegacyLights // useLegacyLights removed in r168
         }
         if (data2.background !== undefined && data2.scene?.background === undefined) {
             this.console.warn('old file format, background moved to RootScene')

@@ -163,7 +163,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             this._lights.set(obj.uuid, obj as ILight)
             this.dispatchEvent({type: 'lightAdd', light: obj as ILight})
         }
-        obj.dispatchEvent({type: '__register' as any}) // todo do same for geom and textures
+        obj.dispatchEvent({type: '__register'}) // todo do same for geom and textures
     }
 
     unregisterObject(obj: IObject3D) {
@@ -198,7 +198,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             this._lights.delete(obj.uuid)
             this.dispatchEvent({type: 'lightRemove', light: obj as ILight})
         }
-        obj.dispatchEvent({type: '__unregister' as any})
+        obj.dispatchEvent({type: '__unregister'})
         return true
 
         // todo - extensions are not removed from the object, so they can be reused later
@@ -339,7 +339,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
         if (isNewMaterial) {
             this.dispatchEvent({type: 'materialAdd', material: mat})
-            mat.dispatchEvent({type: '__register' as any})
+            mat.dispatchEvent({type: '__register'})
         }
     }
 
@@ -370,7 +370,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             if (this.autoDisposeMaterials) {
                 mat.dispose(false)
             }
-            mat.dispatchEvent({type: '__unregister' as any})
+            mat.dispatchEvent({type: '__unregister'})
         }
     }
 
@@ -426,7 +426,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
         if (isNewGeometry) {
             this.dispatchEvent({type: 'geometryAdd', geometry: geom})
-            geom.dispatchEvent({type: '__register' as any})
+            geom.dispatchEvent({type: '__register'})
         }
     }
 
@@ -447,7 +447,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
             if (this.autoDisposeGeometries)
                 geom.dispose(false)
-            geom.dispatchEvent({type: '__unregister' as any})
+            geom.dispatchEvent({type: '__unregister'})
         }
     }
 
@@ -477,7 +477,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
 
         if (isNewTexture) {
             this.dispatchEvent({type: 'textureAdd', texture: tex})
-            tex.dispatchEvent({type: '__register' as any})
+            tex.dispatchEvent({type: '__register'})
         }
     }
 
@@ -502,7 +502,7 @@ export class Object3DManager extends EventDispatcher<Object3DManagerEventMap> {
             if (tex.userData?.disposeOnIdle !== false && this.autoDisposeTextures && !tex.isRenderTargetTexture && tex.dispose)
                 tex.dispose()
 
-            tex.dispatchEvent({type: '__unregister' as any})
+            tex.dispatchEvent({type: '__unregister'})
 
             if (tex.isVideoTexture) {
                 const elem = tex.image as HTMLVideoElement
