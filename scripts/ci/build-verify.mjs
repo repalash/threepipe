@@ -49,6 +49,7 @@ for (const pkg of changes) {
     }
 }
 
+
 console.log(`\n${passed.length} passed, ${failed.length} failed.`);
 
 const outputFile = process.env.GITHUB_OUTPUT;
