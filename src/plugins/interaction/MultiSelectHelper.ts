@@ -2,6 +2,7 @@ import {IObject3D} from '../../core'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {Matrix4, Object3D, Quaternion, Vector3} from 'three'
 import type {ThreeViewer} from '../../viewer'
+import type {PickingPlugin} from './PickingPlugin'
 
 /**
  * Shared helper for multi-object transform gizmo support.
@@ -94,6 +95,15 @@ export class MultiSelectHelper {
         this._dummy.quaternion.identity()
         this._dummy.scale.setScalar(1)
         this._dummy.updateMatrixWorld(true)
+    }
+
+    /** Record smart duplicate move for multi-select using first object's position delta */
+    recordDuplicateMove(viewer: ThreeViewer): void {
+        if (!this.multiObjects.length || !this._startStates.length) return
+        const delta = this.multiObjects[0].position.clone().sub(this._startStates[0].position)
+        if (delta.lengthSq() === 0) return
+        const picking = viewer.getPlugin<PickingPlugin>('Picking')
+        picking?.recordDuplicateMove(this.multiObjects[0], delta)
     }
 
     recordUndo(undoManager: JSUndoManager) {

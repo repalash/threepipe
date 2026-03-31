@@ -155,6 +155,7 @@ export class TransformControlsPlugin extends AViewerPluginSync {
             if (!this.transformControls) return
             if (this._multi.hasMultiSelect && this._multi.hasStartStates) {
                 if (this.undoManager) this._multi.recordUndo(this.undoManager)
+                if (this._viewer) this._multi.recordDuplicateMove(this._viewer)
                 return
             }
             const object = this.transformControls.object
@@ -169,6 +170,13 @@ export class TransformControlsPlugin extends AViewerPluginSync {
             } as const)[this.transformControls.getMode()]
             if (!key) return
             if (this._transformState[key].equals(object[key] as any)) return
+
+            // Record smart duplicate move delta for translate operations
+            if (key === 'position') {
+                const delta = object.position.clone().sub(this._transformState.position)
+                this._viewer?.getPlugin(PickingPlugin)
+                    ?.recordDuplicateMove(object as IObject3D, delta)
+            }
 
             const command = {
                 last: this._transformState[key].clone(), current: object[key].clone(),
