@@ -163,7 +163,6 @@ export class PivotControlsPlugin extends AViewerPluginSync {
             if (!this.pivotControls) return
             if (this._multi.hasMultiSelect && this._multi.hasStartStates) {
                 if (this.undoManager) this._multi.recordUndo(this.undoManager)
-                if (this._viewer) this._multi.recordDuplicateMove(this._viewer)
                 return
             }
             const object = this.pivotControls.object
@@ -178,13 +177,6 @@ export class PivotControlsPlugin extends AViewerPluginSync {
             } as const)[mode as 'translate' | 'rotate' | 'scale']
             if (!key) return
             if (this._transformState[key].equals(object[key] as any)) return
-
-            // Record smart duplicate move delta for translate operations
-            if (key === 'position') {
-                const delta = object.position.clone().sub(this._transformState.position)
-                this._viewer?.getPlugin(PickingPlugin)
-                    ?.recordDuplicateMove(object as IObject3D, delta)
-            }
 
             const command = {
                 last: this._transformState[key].clone(),

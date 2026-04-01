@@ -1,4 +1,4 @@
-import {EventListener2, Object3D, Vector3} from 'three'
+import {EventListener2, Matrix4, Object3D} from 'three'
 import {Class, JSUndoManager, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {bindToValue, ObjectPicker} from '../../three'
@@ -25,7 +25,7 @@ import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
-import {DuplicateTracker} from './DuplicateTracker'
+import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
 import {ObjectClipboard} from './ObjectClipboard'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
@@ -58,6 +58,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _clipboard = new ObjectClipboard()
     private _undoManager?: JSUndoManager
     private _duplicateTracker = new DuplicateTracker()
+
+    /**
+     * Duplicate offset mode:
+     * - `simple`: position/rotation/scale applied independently (Figma-style, straight lines)
+     * - `compound`: full matrix delta (circular arrays, spirals)
+     */
+    duplicateMode: DuplicateMode = 'simple'
 
     dependencies = [CameraViewPlugin]
 
@@ -198,7 +205,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             this.selectAll()
         } else if (ctrl && event.code === 'KeyD') {
             event.preventDefault()
-            this.duplicateSelected()
+            this.duplicateSelected(event.shiftKey ? (this.duplicateMode === 'simple' ? 'compound' : 'simple') : undefined)
         } else if (ctrl && event.code === 'KeyC') {
             event.preventDefault()
             this.copySelected()
@@ -257,26 +264,23 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     /**
      * Duplicate selected objects with smart offset support.
+     * @param mode - override the duplicateMode setting for this operation
      */
-    duplicateSelected(): void {
+    duplicateSelected(mode?: DuplicateMode): void {
+        const effectiveMode = mode ?? this.duplicateMode
         const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
         if (!selected.length) return
 
         const {clones, undo, redo} = duplicateObjects(selected)
         if (!clones.length) return
 
-        // Apply smart offset if available
-        const offset = this._duplicateTracker.getOffset()
-        if (offset) {
-            for (const clone of clones) {
-                clone.position.add(offset)
-                clone.updateMatrixWorld(true)
-                clone.setDirty?.({change: 'transform'})
-            }
-        }
-
+        // Save pre-offset matrix before applyOffset moves the clones.
+        // This becomes the baseline for the next delta computation, so repeated
+        // Ctrl+D without moving still applies the same offset.
+        const preOffsetMatrix = new Matrix4().compose(clones[0].position, clones[0].quaternion, clones[0].scale)
+        this._duplicateTracker.applyOffset(clones, effectiveMode) // uses OLD tracked clone for delta
         this._setSelectedFromArray(clones)
-        this._duplicateTracker.onDuplicated(clones)
+        this._duplicateTracker.onDuplicated(clones, preOffsetMatrix) // records NEW clone with pre-offset baseline
 
         const prevSelection = [...selected]
         this._undoManager?.record({
@@ -287,18 +291,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             },
             redo: () => {
                 redo()
+                // Clones still have offset baked in from first execution.
+                // Just re-register the tracker so the chain can continue.
                 this._setSelectedFromArray(clones)
                 this._duplicateTracker.onDuplicated(clones)
             },
         })
-    }
-
-    /**
-     * Record a move delta for smart duplicate tracking.
-     * Call this from TransformControls after a duplicated object is moved.
-     */
-    recordDuplicateMove(object: IObject3D, delta: Vector3): void {
-        this._duplicateTracker.onCloneMoved(object, delta)
     }
 
     /**
@@ -746,6 +744,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             label: 'Multi-Select',
             type: 'checkbox',
             property: [this, 'multiSelectEnabled'],
+        },
+        {
+            label: 'Duplicate Mode',
+            type: 'dropdown',
+            property: [this, 'duplicateMode'],
+            children: ['simple', 'compound'].map(v => ({label: v, value: v})),
         },
     ]
 
