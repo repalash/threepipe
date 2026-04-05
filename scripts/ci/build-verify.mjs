@@ -47,7 +47,7 @@ for (const pkg of changes) {
         if (!fs.existsSync(distDir)) {
             const buildError = getBuildError();
             const msg = buildError
-                ? `dist/ directory does not exist. Build error:\n${buildError}`
+                ? `dist/ directory does not exist. Build error:\n\`\`\`\n${buildError}\n\`\`\``
                 : 'dist/ directory does not exist (no build log found)';
             throw new Error(msg);
         }
