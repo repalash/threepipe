@@ -16,25 +16,15 @@ if (changes.length === 0) {
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
 
-/** Extract the last error from build.log (if it exists) */
+/** Extract the tail of build.log (if it exists) */
 function getBuildError() {
     const logPath = path.join(repoRoot, 'build.log');
     if (!fs.existsSync(logPath)) return '';
     try {
         const log = fs.readFileSync(logPath, 'utf-8');
-        const lines = log.split('\n');
-        // Find the last "error" line and include surrounding context
-        let errorStart = -1;
-        for (let i = lines.length - 1; i >= 0; i--) {
-            if (/\berror\b/i.test(lines[i])) {
-                errorStart = i;
-                break;
-            }
-        }
-        if (errorStart === -1) return '';
-        // Take up to 5 lines starting from the error
-        const snippet = lines.slice(errorStart, errorStart + 5).join('\n').trim();
-        return snippet;
+        // Return last 1500 characters of the log
+        const tail = log.slice(-1500).trim();
+        return tail;
     } catch {
         return '';
     }
