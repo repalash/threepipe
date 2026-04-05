@@ -15,6 +15,31 @@ if (changes.length === 0) {
 }
 
 const repoRoot = path.resolve(import.meta.dirname, '../..');
+
+/** Extract the last error from build.log (if it exists) */
+function getBuildError() {
+    const logPath = path.join(repoRoot, 'build.log');
+    if (!fs.existsSync(logPath)) return '';
+    try {
+        const log = fs.readFileSync(logPath, 'utf-8');
+        const lines = log.split('\n');
+        // Find the last "error" line and include surrounding context
+        let errorStart = -1;
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (/\berror\b/i.test(lines[i])) {
+                errorStart = i;
+                break;
+            }
+        }
+        if (errorStart === -1) return '';
+        // Take up to 5 lines starting from the error
+        const snippet = lines.slice(errorStart, errorStart + 5).join('\n').trim();
+        return snippet;
+    } catch {
+        return '';
+    }
+}
+
 const passed = [];
 const failed = [];
 
@@ -30,7 +55,11 @@ for (const pkg of changes) {
         // Check build output exists
         const distDir = path.join(cwd, 'dist');
         if (!fs.existsSync(distDir)) {
-            throw new Error('dist/ directory does not exist');
+            const buildError = getBuildError();
+            const msg = buildError
+                ? `dist/ directory does not exist. Build error:\n${buildError}`
+                : 'dist/ directory does not exist (no build log found)';
+            throw new Error(msg);
         }
         const files = fs.readdirSync(distDir);
         if (files.length === 0) {
