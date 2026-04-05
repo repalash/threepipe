@@ -1,181 +1,114 @@
-import {JSUndoManager} from 'ts-browser-helpers'
-import {duplicateObjects, filterTopmostAncestors, IObject3D} from '../../core'
+import {filterTopmostAncestors, IObject3D, incrementObjectCloneName} from '../../core'
+
+export type ClipboardMode = 'copy' | 'cut'
 
 export interface ClipboardState {
-    /** References to the source objects (not clones) */
     objects: IObject3D[]
-    mode: 'copy' | 'cut'
-    /** Original parent per object, for paste-from-cut */
+    mode: ClipboardMode
     sourceParents: Map<IObject3D, IObject3D | null>
 }
 
 /**
- * Manages an internal object clipboard for copy/cut/paste operations.
- * Scene-independent — does not need a viewer or picker reference.
- * Paste returns the resulting objects so the caller can handle selection.
+ * Internal object clipboard for copy/cut/paste.
+ * - copy/cut: store references (no scene mutation)
+ * - paste: clone or move objects directly to the destination parent (one step, no reparenting)
+ * - Returns {objects, undo, redo} from paste — caller records undo and handles selection.
  */
 export class ObjectClipboard {
     private _state: ClipboardState | null = null
 
-    /** Material opacity applied to cut objects to indicate pending cut */
-    cutTintOpacity = 0.4
-
     get state(): ClipboardState | null { return this._state }
     get isEmpty(): boolean { return !this._state }
-    get isCut(): boolean { return this._state?.mode === 'cut' }
-    get isCopy(): boolean { return this._state?.mode === 'copy' }
 
-    /**
-     * Copy objects to clipboard. No scene mutation.
-     * Returns {undo, redo} for the clipboard state change.
-     */
-    copy(objects: IObject3D[], undoManager?: JSUndoManager): void {
+    copy(objects: IObject3D[]): void {
         const filtered = filterTopmostAncestors(objects)
         if (!filtered.length) return
+        this._state = {objects: filtered, mode: 'copy', sourceParents: this._parentMap(filtered)}
+    }
 
-        const sourceParents = this._buildParentMap(filtered)
-        const prev = this._state
-
-        if (prev?.mode === 'cut') this._removeCutTint(prev.objects)
-        this._state = {objects: filtered, mode: 'copy', sourceParents}
-
-        undoManager?.record({
-            undo: () => {
-                this._state = prev
-                if (prev?.mode === 'cut') this._applyCutTint(prev.objects)
-            },
-            redo: () => {
-                if (prev?.mode === 'cut') this._removeCutTint(prev.objects)
-                this._state = {objects: filtered, mode: 'copy', sourceParents}
-            },
-        })
+    cut(objects: IObject3D[]): void {
+        const filtered = filterTopmostAncestors(objects)
+        if (!filtered.length) return
+        this._state = {objects: filtered, mode: 'cut', sourceParents: this._parentMap(filtered)}
     }
 
     /**
-     * Cut objects to clipboard. No scene mutation — applies visual tint.
-     * Returns {undo, redo} for the clipboard state change.
+     * Paste from clipboard. Clones (copy) or moves (cut) objects directly to destination.
+     * @param destination - target parent, or null to use source parents
+     * @returns pasted objects + undo/redo, or null if clipboard is empty
      */
-    cut(objects: IObject3D[], undoManager?: JSUndoManager): void {
-        const filtered = filterTopmostAncestors(objects)
-        if (!filtered.length) return
-
-        const sourceParents = this._buildParentMap(filtered)
-        const prev = this._state
-
-        if (prev?.mode === 'cut') this._removeCutTint(prev.objects)
-        this._state = {objects: filtered, mode: 'cut', sourceParents}
-        this._applyCutTint(filtered)
-
-        undoManager?.record({
-            undo: () => {
-                this._removeCutTint(filtered)
-                this._state = prev
-                if (prev?.mode === 'cut') this._applyCutTint(prev.objects)
-            },
-            redo: () => {
-                if (prev?.mode === 'cut') this._removeCutTint(prev.objects)
-                this._state = {objects: filtered, mode: 'cut', sourceParents}
-                this._applyCutTint(filtered)
-            },
-        })
-    }
-
-    /**
-     * Paste from clipboard.
-     * - Copy: clones objects (new UUIDs), adds to scene
-     * - Cut: re-adds originals (preserves UUIDs), consumes clipboard (single paste)
-     * Returns the pasted objects (for selection by caller), or null if nothing to paste.
-     */
-    paste(undoManager?: JSUndoManager): {objects: IObject3D[], undoRedo: {undo: () => void, redo: () => void}} | null {
+    paste(destination?: IObject3D | null): {objects: IObject3D[], undo: () => void, redo: () => void} | null {
         if (!this._state) return null
-        return this._state.mode === 'copy' ? this._pasteFromCopy(undoManager) : this._pasteFromCut(undoManager)
+        return this._state.mode === 'copy' ? this._pasteFromCopy(destination) : this._pasteFromCut(destination)
     }
 
-    private _pasteFromCopy(undoManager?: JSUndoManager): {objects: IObject3D[], undoRedo: {undo: () => void, redo: () => void}} | null {
+    clear(): void { this._state = null }
+
+    private _pasteFromCopy(destination?: IObject3D | null): {objects: IObject3D[], undo: () => void, redo: () => void} | null {
         const clipboard = this._state
-        if (!clipboard || clipboard.mode !== 'copy') return null
+        if (!clipboard) return null
 
-        const {clones, undo, redo} = duplicateObjects(clipboard.objects)
-        if (!clones.length) return null
+        const clones: IObject3D[] = []
+        const cloneParents = new Map<IObject3D, IObject3D>()
 
-        undoManager?.record({undo, redo})
-        return {objects: clones, undoRedo: {undo, redo}}
+        for (const obj of clipboard.objects) {
+            const clone = obj.clone(true) as IObject3D
+            incrementObjectCloneName(obj, clone)
+            const parent = destination ?? obj.parent
+            if (parent) {
+                parent.add(clone)
+                cloneParents.set(clone, parent)
+            }
+            clones.push(clone)
+        }
+
+        return {
+            objects: clones,
+            undo: () => { for (const c of clones) c.removeFromParent() },
+            redo: () => { for (const c of clones) { const p = cloneParents.get(c); if (p && !c.parent) p.add(c) } },
+        }
     }
 
-    private _pasteFromCut(undoManager?: JSUndoManager): {objects: IObject3D[], undoRedo: {undo: () => void, redo: () => void}} | null {
+    private _pasteFromCut(destination?: IObject3D | null): {objects: IObject3D[], undo: () => void, redo: () => void} | null {
         const clipboard = this._state
-        if (!clipboard || clipboard.mode !== 'cut') return null
+        if (!clipboard) return null
 
         const objects = clipboard.objects
         const sourceParents = clipboard.sourceParents
 
-        this._removeCutTint(objects)
-
-        // Re-add to source parents (currently a no-op for position,
-        // but sets up plumbing for future paste-to-selection/position)
+        // Move directly to destination (or back to source parents)
         for (const obj of objects) {
-            obj.removeFromParent()
-            const parent = sourceParents.get(obj)
-            if (parent) parent.add(obj)
+            const target = (destination ?? sourceParents.get(obj)) as IObject3D | null
+            if (target && obj.parent !== target) {
+                obj.removeFromParent()
+                target.add(obj)
+            }
         }
 
-        const saved = this._state
+        // Consume clipboard
         this._state = null
 
-        const undoRedo = {
+        return {
+            objects,
             undo: () => {
-                this._state = saved
-                this._applyCutTint(objects)
+                // Move back to source parents
+                for (const obj of objects) {
+                    const parent = sourceParents.get(obj)
+                    if (parent && obj.parent !== parent) { obj.removeFromParent(); parent.add(obj) }
+                }
+                this._state = clipboard
             },
             redo: () => {
-                this._removeCutTint(objects)
                 for (const obj of objects) {
-                    obj.removeFromParent()
-                    const parent = sourceParents.get(obj)
-                    if (parent) parent.add(obj)
+                    const target = (destination ?? sourceParents.get(obj)) as IObject3D | null
+                    if (target && obj.parent !== target) { obj.removeFromParent(); target.add(obj) }
                 }
                 this._state = null
             },
         }
-        undoManager?.record(undoRedo)
-        return {objects, undoRedo}
     }
 
-    /** Clear clipboard state and remove any cut tint */
-    clear(): void {
-        if (this._state?.mode === 'cut') this._removeCutTint(this._state.objects)
-        this._state = null
-    }
-
-    // region Tint
-
-    private _applyCutTint(objects: IObject3D[]): void {
-        for (const obj of objects) {
-            if (obj.userData.__preCutOpacity === undefined && obj.material && !Array.isArray(obj.material)) {
-                obj.userData.__preCutOpacity = obj.material.opacity
-                obj.material.opacity = Math.min(obj.material.opacity, this.cutTintOpacity)
-                obj.material.setDirty?.()
-            }
-            obj.userData.__isCut = true
-            obj.setDirty?.()
-        }
-    }
-
-    private _removeCutTint(objects: IObject3D[]): void {
-        for (const obj of objects) {
-            if (obj.userData.__preCutOpacity !== undefined && obj.material && !Array.isArray(obj.material)) {
-                obj.material.opacity = obj.userData.__preCutOpacity
-                delete obj.userData.__preCutOpacity
-                obj.material.setDirty?.()
-            }
-            delete obj.userData.__isCut
-            obj.setDirty?.()
-        }
-    }
-
-    // endregion
-
-    private _buildParentMap(objects: IObject3D[]): Map<IObject3D, IObject3D | null> {
+    private _parentMap(objects: IObject3D[]): Map<IObject3D, IObject3D | null> {
         const map = new Map<IObject3D, IObject3D | null>()
         for (const obj of objects) map.set(obj, obj.parent as IObject3D | null)
         return map

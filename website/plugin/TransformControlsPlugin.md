@@ -49,7 +49,7 @@ console.log(transfromControlsPlugin.transformControls)
 | **+/-** | Increase/decrease gizmo size |
 | **Space** | Toggle controls enabled/disabled |
 
-Moving an object after a Ctrl+D duplicate (from [PickingPlugin](./PickingPlugin)) records the offset for smart duplicate chaining.
+Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
 
 ## Multi-Object Transform
 

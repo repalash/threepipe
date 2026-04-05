@@ -12,11 +12,13 @@ export type DuplicateMode = 'simple' | 'compound'
  * - **simple**: translation in constant parent-space direction (Figma-style, grids)
  * - **compound**: translation rotates with the object (circular arrays, spirals)
  *
+ * Stores no object references — only the initial matrix and chain state.
+ * The source object's current transform is passed in at apply time.
+ *
  * The offset only applies when the selection has not changed since the last
  * duplicate. Any selection change (even reselecting the same objects) breaks the chain.
  */
 export class DuplicateTracker {
-    private _trackedClone: IObject3D | null = null
     private _initialMatrix = new Matrix4()
     private _chainActive = false
 
@@ -31,40 +33,31 @@ export class DuplicateTracker {
     }
 
     /**
-     * Called after duplicating. Must be called AFTER setSelected(clones).
-     * @param initialMatrix - pre-offset matrix for the first clone (pass when applyOffset was called first)
+     * Record the baseline matrix for the next delta computation.
+     * Call AFTER setSelected(clones) so it runs after the selection change event.
      */
-    onDuplicated(clones: IObject3D[], initialMatrix?: Matrix4): void {
-        if (clones.length > 0) {
-            this._trackedClone = clones[0]
-            if (initialMatrix) this._initialMatrix.copy(initialMatrix)
-            else this._initialMatrix.compose(clones[0].position, clones[0].quaternion, clones[0].scale)
-        } else {
-            this._trackedClone = null
-        }
+    onDuplicated(initialMatrix: Matrix4): void {
+        this._initialMatrix.copy(initialMatrix)
         this._chainActive = true
     }
 
     /**
      * Compute and apply the transform delta to new clones.
-     *
-     * Both modes use the same component deltas (dP, dQ, dS). Only position differs:
-     * - simple:   `clone.pos += dP`
-     * - compound: `clone.pos = currentPos + dQ.rotate(dS * (clone.pos - initialPos))`
-     *
+     * @param source - the first source object (previous clone) to read current transform from
+     * @param mode - 'simple' for independent component offsets, 'compound' for coupled transforms
      * @returns true if an offset was applied
      */
-    applyOffset(clones: IObject3D[], mode: DuplicateMode = 'simple'): boolean {
-        if (!this._chainActive || !this._trackedClone) return false
+    applyOffset(clones: IObject3D[], source: IObject3D, mode: DuplicateMode = 'simple'): boolean {
+        if (!this._chainActive) return false
 
         const iP = DuplicateTracker._iP
         const iQ = DuplicateTracker._iQ
         const iS = DuplicateTracker._iS
         this._initialMatrix.decompose(iP, iQ, iS)
 
-        const dP = this._trackedClone.position.clone().sub(iP)
-        const dQ = iQ.invert().premultiply(this._trackedClone.quaternion.clone())
-        const dS = this._trackedClone.scale.clone().divide(iS)
+        const dP = source.position.clone().sub(iP)
+        const dQ = iQ.invert().premultiply(source.quaternion.clone()).normalize()
+        const dS = source.scale.clone().divide(iS)
 
         const posChanged = dP.lengthSq() > 1e-10
         const quatChanged = Math.abs(dQ.x) > 1e-6 || Math.abs(dQ.y) > 1e-6 || Math.abs(dQ.z) > 1e-6
@@ -76,15 +69,14 @@ export class DuplicateTracker {
 
         for (const clone of clones) {
             if (compound) {
-                // Rotate+scale the clone's offset from initial position, place at current position
                 rel.copy(clone.position).sub(iP)
                 if (scaleChanged) rel.multiply(dS)
                 if (quatChanged) rel.applyQuaternion(dQ)
-                clone.position.copy(this._trackedClone.position).add(rel)
+                clone.position.copy(source.position).add(rel)
             } else {
                 if (posChanged) clone.position.add(dP)
             }
-            if (quatChanged) clone.quaternion.premultiply(dQ)
+            if (quatChanged) clone.quaternion.premultiply(dQ).normalize()
             if (scaleChanged) clone.scale.multiply(dS)
             clone.updateMatrixWorld(true)
             clone.setDirty?.({change: 'transform'})
@@ -93,13 +85,16 @@ export class DuplicateTracker {
         return true
     }
 
-    onDuplicateUndone(): void {
-        this._trackedClone = null
-        this._chainActive = false
+    saveState(): {matrix: Matrix4, active: boolean} {
+        return {matrix: this._initialMatrix.clone(), active: this._chainActive}
+    }
+
+    restoreState(state: {matrix: Matrix4, active: boolean}): void {
+        this._initialMatrix.copy(state.matrix)
+        this._chainActive = state.active
     }
 
     reset(): void {
-        this._trackedClone = null
         this._initialMatrix.identity()
         this._chainActive = false
     }

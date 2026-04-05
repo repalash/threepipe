@@ -90,28 +90,39 @@ pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
 
 | Key | Action |
 |-----|--------|
-| **Shift+Click** | Toggle object in/out of selection |
-| **Ctrl/Cmd+Click** | Toggle object in/out of selection |
+| **Shift/Ctrl/Cmd+Click** | Toggle object in/out of selection |
 | **Click** (no modifier) | Replace selection with single object |
 | **Ctrl/Cmd+A** | Select all visible model objects |
 | **Escape** | Clear entire selection |
 | **Delete / Backspace** | Delete selected objects (with confirmation dialog) |
 | **Ctrl/Cmd+D** | Duplicate selected objects (with smart offset) |
+| **Ctrl/Cmd+Shift+D** | Duplicate with alternate mode (simple↔compound) |
 | **Ctrl/Cmd+C** | Copy selected objects to clipboard |
 | **Ctrl/Cmd+X** | Cut selected objects (visual tint, no scene change until paste) |
 | **Ctrl/Cmd+V** | Paste from clipboard |
 | **H** | Toggle visibility of selected objects (based on primary object's state) |
 | **Shift+H** | Unhide all hidden objects in the scene |
+| **F** | Focus/zoom camera to selected object |
+| **Alt+G** | Reset position to (0, 0, 0) |
+| **Alt+R** | Reset rotation to identity |
+| **Alt+S** | Reset scale to (1, 1, 1) |
 
 ### Smart Duplicate
 
-Duplicating with **Ctrl/Cmd+D** supports Figma-style offset chaining:
-1. Select an object, press Ctrl+D — duplicate appears on top (no offset).
-2. Move the duplicate using transform controls.
-3. Press Ctrl+D again — next duplicate is placed at the same offset from the previous.
-4. Repeat to create evenly-spaced chains.
+Duplicating with **Ctrl/Cmd+D** supports offset chaining with two modes (configurable via `duplicateMode` property or the UI dropdown):
 
-The offset is tied to the current selection chain. Any selection change (even reselecting the same object) resets the offset behavior.
+- **simple** (default): position, rotation, and scale deltas applied independently. Translation direction stays constant in parent space. Good for straight-line grids and evenly-spaced rows.
+- **compound**: full matrix delta applied. Translation direction rotates with the object. Good for circular arrays, spirals, and radial patterns.
+
+**Ctrl/Cmd+Shift+D** uses the opposite mode from the current setting.
+
+Usage:
+1. Select an object, press Ctrl+D — duplicate appears on top (no offset).
+2. Move/rotate/scale the duplicate using transform controls.
+3. Press Ctrl+D again — next duplicate is placed at the same offset from the previous.
+4. Repeat to create evenly-spaced chains or geometric patterns.
+
+The offset is tied to the current selection chain. Any selection change (even reselecting the same object) resets the offset behavior. All operations are fully undoable — undo restores the tracker state so the chain can continue.
 
 ### Clipboard
 
@@ -135,11 +146,19 @@ pickingPlugin.clearSelection()
 // Object operations
 await pickingPlugin.deleteSelected()      // delete with confirmation
 pickingPlugin.duplicateSelected()          // duplicate with smart offset
+pickingPlugin.duplicateSelected('compound') // duplicate with compound mode
 pickingPlugin.copySelected()               // copy to clipboard
 pickingPlugin.cutSelected()                // cut to clipboard
 pickingPlugin.pasteFromClipboard()         // paste from clipboard
 pickingPlugin.toggleVisibilitySelected()   // toggle hide/show
 pickingPlugin.unhideAll()                  // unhide all hidden objects
+pickingPlugin.focusSelected()              // zoom camera to selection
+pickingPlugin.resetTransform('position')   // reset position (Alt+G)
+pickingPlugin.resetTransform('rotation')   // reset rotation (Alt+R)
+pickingPlugin.resetTransform('scale')      // reset scale (Alt+S)
+
+// Duplicate mode
+pickingPlugin.duplicateMode = 'simple'     // or 'compound'
 
 // The selectedObjectChanged event includes the full selection array
 pickingPlugin.addEventListener('selectedObjectChanged', (e) => {

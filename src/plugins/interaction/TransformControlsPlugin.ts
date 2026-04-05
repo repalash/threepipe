@@ -15,6 +15,7 @@ import {
 import {Euler, MathUtils, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import {MultiSelectHelper} from './MultiSelectHelper'
+import {handleGizmoKeyDown} from '../../three/controls/gizmoKeyboardHandler'
 
 @uiFolderContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync {
@@ -220,69 +221,39 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     declare object: IObject3D | undefined
     private _keyDownListener(event: KeyboardEvent) {
-        if (!this.enabled) return
-        if (!this.object) return
-        if (event.metaKey || event.ctrlKey) return
-        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
+        if (!this.enabled || !this.object) return
 
-        switch (event.code) {
+        // Shared gizmo shortcuts (Q, +/-, X/Y/Z, Space)
+        const handled = handleGizmoKeyDown(event, {
+            toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
+            adjustSize: (d) => { this.size = Math.max(this.size + d, 0.1) },
+            toggleAxis: (a) => {
+                if (a === 0) this.showX = !this.showX
+                else if (a === 1) this.showY = !this.showY
+                else this.showZ = !this.showZ
+            },
+            toggleEnabled: () => { this.enabled = !this.enabled },
+        })
 
-        case 'KeyQ':
-            this.space = this.space === 'local' ? 'world' : 'local'
-            break
-
-        case 'ShiftLeft':
-            this.translationSnap = 0.5
-            this.rotationSnap = MathUtils.degToRad(15)
-            this.scaleSnap = 0.25
-            break
-
-        case 'KeyW':
-            this.mode = 'translate'
-            break
-
-        case 'KeyE':
-            this.mode = 'rotate'
-            break
-
-        case 'KeyR':
-            this.mode = 'scale'
-            break
-
-        case 'Equal':
-        case 'NumpadAdd':
-        case 'Plus':
-            this.size = this.size + 0.1
-            break
-
-        case 'Minus':
-        case 'NumpadSubtract':
-        case 'Underscore':
-            this.size = Math.max(this.size - 0.1, 0.1)
-            break
-
-        case 'KeyX':
-            this.showX = !this.showX
-            break
-
-        case 'KeyY':
-            this.showY = !this.showY
-            break
-
-        case 'KeyZ':
-            this.showZ = !this.showZ
-            break
-
-        case 'Space':
-            this.enabled = !this.enabled
-            break
-
-        default:
-            return
+        if (!handled) {
+            if (event.metaKey || event.ctrlKey) return
+            if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
+            // TransformControls-specific shortcuts
+            switch (event.code) {
+            case 'ShiftLeft':
+            case 'ShiftRight':
+                this.translationSnap = 0.5
+                this.rotationSnap = MathUtils.degToRad(15)
+                this.scaleSnap = 0.25
+                break
+            case 'KeyW': this.mode = 'translate'; break
+            case 'KeyE': this.mode = 'rotate'; break
+            case 'KeyR': this.mode = 'scale'; break
+            default: return
+            }
         }
 
         this.setDirty({refreshScene: true, frameFade: true})
-
     }
 
     private _keyUpListener(event: KeyboardEvent) {
@@ -291,6 +262,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         // reset events
         switch (event.code) {
         case 'ShiftLeft':
+        case 'ShiftRight':
             this.translationSnap = null
             this.rotationSnap = null
             this.scaleSnap = null
