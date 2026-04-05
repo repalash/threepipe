@@ -1,8 +1,10 @@
-import {EventListener2, Object3D} from 'three'
-import {Class, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
+import {EventListener2, Matrix4, Object3D} from 'three'
+import {Class, JSUndoManager, onChange, safeSetProperty, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {bindToValue, ObjectPicker} from '../../three'
 import {
+    deleteObjects,
+    duplicateObjects,
     IGeometry,
     IMaterial,
     IObject3D,
@@ -23,6 +25,8 @@ import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
+import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
+import {ObjectClipboard} from './ObjectClipboard'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -51,6 +55,16 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _selectionWidgetClass?: Class<SelectionWidget>
     private _hoverWidget?: SelectionWidget
     private _pickUi: boolean
+    private _clipboard = new ObjectClipboard()
+    private _undoManager?: JSUndoManager
+    private _duplicateTracker = new DuplicateTracker()
+
+    /**
+     * Duplicate offset mode:
+     * - `simple`: position/rotation/scale applied independently (Figma-style, straight lines)
+     * - `compound`: full matrix delta (circular arrays, spirals)
+     */
+    duplicateMode: DuplicateMode = 'simple'
 
     dependencies = [CameraViewPlugin]
 
@@ -184,13 +198,304 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     private _onKeyDown = (event: KeyboardEvent) => {
         if (this.isDisabled()) return
         if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
-        if ((event.ctrlKey || event.metaKey) && event.code === 'KeyA') {
+        const ctrl = event.ctrlKey || event.metaKey
+
+        if (ctrl && event.code === 'KeyA') {
             event.preventDefault()
             this.selectAll()
+        } else if (ctrl && event.code === 'KeyD') {
+            event.preventDefault()
+            this.duplicateSelected(event.shiftKey ? this.duplicateMode === 'simple' ? 'compound' : 'simple' : undefined)
+        } else if (ctrl && event.code === 'KeyC') {
+            event.preventDefault()
+            this.copySelected()
+        } else if (ctrl && event.code === 'KeyX') {
+            event.preventDefault()
+            this.cutSelected()
+        } else if (ctrl && event.code === 'KeyV') {
+            event.preventDefault()
+            this.pasteFromClipboard()
         } else if (event.code === 'Escape') {
             this.clearSelection()
+        } else if (event.code === 'Delete' || event.code === 'Backspace') {
+            event.preventDefault()
+            this.deleteSelected()
+        } else if (event.code === 'KeyH' && !ctrl) {
+            event.preventDefault()
+            if (event.shiftKey) this.unhideAll()
+            else this.toggleVisibilitySelected()
+        } else if (event.code === 'KeyF' && !ctrl) {
+            event.preventDefault()
+            this.focusSelected()
+        } else if (event.altKey && !ctrl && (event.code === 'KeyG' || event.code === 'KeyR' || event.code === 'KeyS')) {
+            event.preventDefault()
+            this.resetTransform(event.code === 'KeyG' ? 'position' : event.code === 'KeyR' ? 'rotation' : 'scale')
         }
     }
+
+    /** Helper to setSelected from an array without recording undo */
+    private _setSelectedFromArray(objects: IObject3D[] | null): void {
+        if (!objects || !objects.length) this._picker?.setSelected(null, false)
+        else if (objects.length === 1) this._picker?.setSelected(objects[0], false)
+        else this._picker?.setSelected(objects as any, false)
+    }
+
+    // region Clipboard & Object Operations
+
+    /**
+     * Delete selected objects. Always shows a confirmation dialog.
+     */
+    async deleteSelected(): Promise<void> {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+
+        const result = await deleteObjects(selected)
+        if (!result) return
+
+        // Clear selection before recording undo (so undo restores selection properly)
+        const prevSelection = [...selected]
+        this._setSelectedFromArray(null)
+
+        this._undoManager?.record({
+            undo: () => {
+                result.undo()
+                this._setSelectedFromArray(prevSelection)
+            },
+            redo: () => {
+                this._setSelectedFromArray(null)
+                result.redo()
+            },
+        })
+    }
+
+    /**
+     * Duplicate selected objects with smart offset support.
+     * @param mode - override the duplicateMode setting for this operation
+     */
+    duplicateSelected(mode?: DuplicateMode): void {
+        const effectiveMode = mode ?? this.duplicateMode
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+
+        const {clones, undo, redo} = duplicateObjects(selected)
+        if (!clones.length) return
+
+        const savedState = this._duplicateTracker.saveState()
+        const preOffsetMatrix = new Matrix4().compose(clones[0].position, clones[0].quaternion, clones[0].scale)
+        this._duplicateTracker.applyOffset(clones, selected[0], effectiveMode)
+        this._setSelectedFromArray(clones)
+        this._duplicateTracker.onDuplicated(preOffsetMatrix)
+
+        const prevSelection = [...selected]
+        this._undoManager?.record({
+            undo: () => {
+                undo()
+                this._setSelectedFromArray(prevSelection)
+                this._duplicateTracker.restoreState(savedState)
+            },
+            redo: () => {
+                redo()
+                this._setSelectedFromArray(clones)
+                this._duplicateTracker.onDuplicated(preOffsetMatrix)
+            },
+        })
+    }
+
+    /**
+     * Copy selected objects to internal clipboard. No scene mutation.
+     */
+    copySelected(): void {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+        this._clipboard.copy(selected)
+    }
+
+    /**
+     * Cut selected objects to internal clipboard. No scene mutation.
+     */
+    cutSelected(): void {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+        this._clipboard.cut(selected)
+    }
+
+    /**
+     * Paste from internal clipboard.
+     */
+    pasteFromClipboard(): void {
+        if (this._clipboard.isEmpty) return
+
+        const destination = this._getPasteDestination()
+        const result = this._clipboard.paste(destination)
+        if (!result) return
+
+        const prevSelection = this.getSelectedObjects<IObject3D>()
+        this._setSelectedFromArray(result.objects)
+        this._viewer?.setDirty()
+
+        const {objects, undo, redo} = result
+        this._undoManager?.record({
+            undo: () => { undo(); this._setSelectedFromArray(prevSelection); this._viewer?.setDirty() },
+            redo: () => { redo(); this._setSelectedFromArray(objects); this._viewer?.setDirty() },
+        })
+    }
+
+    /**
+     * Determine where pasted objects should go based on the current selection.
+     * - Container selected (no material, no geometry, not light/camera) → paste into it
+     * - Leaf object selected (mesh, light, camera) → paste as sibling (selected's parent)
+     * - Nothing selected → null (use source parents)
+     */
+    private _getPasteDestination(): IObject3D | null {
+        const selected = this.getSelectedObject() as IObject3D | undefined
+        if (!selected?.isObject3D) return null
+        if (this._isContainer(selected)) return selected
+        return selected.parent as IObject3D | null
+    }
+
+    private _isContainer(obj: IObject3D): boolean {
+        return !obj.material && !obj.geometry
+            && !obj.isLight && !obj.isCamera
+            && obj.assetType !== 'light' && obj.assetType !== 'camera' && obj.assetType !== 'widget'
+    }
+
+    // endregion
+
+    // region Visibility
+
+    /**
+     * Toggle visibility of selected objects based on primary selected object's state.
+     * If primary is visible → hide all selected. If primary is hidden → show all selected.
+     */
+    toggleVisibilitySelected(): void {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+
+        const primary = selected[0]
+        const targetVisible = !primary.visible
+
+        const prevStates = new Map<IObject3D, boolean>()
+        for (const obj of selected) prevStates.set(obj, obj.visible)
+
+        for (const obj of selected) {
+            obj.visible = targetVisible
+            obj.setDirty?.()
+        }
+        this._viewer?.setDirty()
+
+        this._undoManager?.record({
+            undo: () => {
+                for (const [obj, was] of prevStates) {
+                    obj.visible = was
+                    obj.setDirty?.()
+                }
+                this._viewer?.setDirty()
+            },
+            redo: () => {
+                for (const obj of selected) {
+                    obj.visible = targetVisible
+                    obj.setDirty?.()
+                }
+                this._viewer?.setDirty()
+            },
+        })
+    }
+
+    /**
+     * Unhide all hidden objects in the model root.
+     */
+    unhideAll(): void {
+        if (!this._viewer) return
+        const hidden: IObject3D[] = []
+        this._viewer.scene.modelRoot.traverse((o: any) => {
+            if (o.isObject3D && !o.visible) hidden.push(o)
+        })
+        if (!hidden.length) return
+
+        for (const obj of hidden) {
+            obj.visible = true
+            obj.setDirty?.()
+        }
+        this._viewer.setDirty()
+
+        this._undoManager?.record({
+            undo: () => {
+                for (const obj of hidden) {
+                    obj.visible = false
+                    obj.setDirty?.()
+                }
+                this._viewer?.setDirty()
+            },
+            redo: () => {
+                for (const obj of hidden) {
+                    obj.visible = true
+                    obj.setDirty?.()
+                }
+                this._viewer?.setDirty()
+            },
+        })
+    }
+
+    // endregion
+
+    // region Focus & Transform Reset
+
+    /**
+     * Focus/zoom camera to fit the selected object(s).
+     * When multiple objects are selected, fits the camera to encompass all of them.
+     */
+    focusSelected(): void {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+        this.focusObject(selected.length === 1 ? selected[0] : selected)
+    }
+
+    /**
+     * Reset position, rotation, or scale of selected objects to identity.
+     * All resets are in local space and undoable.
+     */
+    resetTransform(component: 'position' | 'rotation' | 'scale'): void {
+        const selected = this.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D)
+        if (!selected.length) return
+
+        const prevStates = selected.map(obj => ({
+            obj,
+            position: obj.position.clone(),
+            quaternion: obj.quaternion.clone(),
+            scale: obj.scale.clone(),
+        }))
+
+        const action = ()=>{
+            for (const obj of selected) {
+                if (component === 'position') obj.position.set(0, 0, 0)
+                else if (component === 'rotation') obj.quaternion.identity()
+                else obj.scale.set(1, 1, 1)
+                obj.updateMatrixWorld(true)
+                obj.setDirty?.({change: 'transform'})
+            }
+            this._viewer?.setDirty()
+        }
+
+        action()
+
+        this._undoManager?.record({
+            undo: () => {
+                for (const s of prevStates) {
+                    s.obj.position.copy(s.position)
+                    s.obj.quaternion.copy(s.quaternion)
+                    s.obj.scale.copy(s.scale)
+                    s.obj.updateMatrixWorld(true)
+                    s.obj.setDirty?.({change: 'transform'})
+                }
+                this._viewer?.setDirty()
+            },
+            redo: () => {
+                action()
+            },
+        })
+    }
+
+    // endregion
 
     setSelectedObject(object: SelectionObject|undefined, focusCamera = false, trackUndo = true) { // todo: also listen to 'dispose' event on selected object (ObjectPicker only listens to '__unregister' for scene removal)
         const disabled = this.isDisabled()
@@ -254,9 +559,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um)=>{
             if (!this._picker) return
             this._picker.undoManager = um.undoManager
+            this._undoManager = um.undoManager
         }, ()=>{
             if (!this._picker) return
             this._picker.undoManager = undefined
+            this._undoManager = undefined
         }, this)
 
     }
@@ -286,6 +593,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             this._picker.undoManager = undefined // because setting above
             this._picker = undefined
         }
+        this._undoManager = undefined
+        this._clipboard.clear()
+        this._duplicateTracker.reset()
         super.onRemove(viewer)
     }
 
@@ -331,6 +641,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     private _selectedObjectChanged: EventListener2<'selectedObjectChanged', ObjectPickerEventMap, ObjectPicker> = (e: any) => {
         if (!this._viewer) return
+        this._duplicateTracker.onSelectionChanged()
         this.dispatchEvent(e)
 
         const selected = this._picker?.selectedObject || undefined // or use e.object. doing this so that listeners can change the selected object in dispatch above
@@ -423,7 +734,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         }
     }
 
-    public async focusObject(selected?: Object3D|null): Promise<void> {
+    public async focusObject(selected?: Object3D|Object3D[]|null): Promise<void> {
         this._viewer?.fitToView(selected ?? undefined, 1.25, 1000, 'easeOut')
     }
 
@@ -500,6 +811,12 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             label: 'Multi-Select',
             type: 'checkbox',
             property: [this, 'multiSelectEnabled'],
+        },
+        {
+            label: 'Duplicate Mode',
+            type: 'dropdown',
+            property: [this, 'duplicateMode'],
+            children: ['simple', 'compound'].map(v => ({label: v, value: v})),
         },
     ]
 

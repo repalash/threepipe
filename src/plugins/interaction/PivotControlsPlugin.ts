@@ -89,6 +89,8 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     }
     undoManager?: JSUndoManager
 
+    selectionFilterTest: ((obj: IObject3D) => IObject3D | null) | undefined = undefined
+
     private _multi = new MultiSelectHelper()
 
     onAdded(viewer: ThreeViewer) {
@@ -125,7 +127,8 @@ export class PivotControlsPlugin extends AViewerPluginSync {
                 this.pivotControls.attach(this._multi.setup(objects, this._viewer!))
             } else if (event.object) {
                 this._multi.clear(this._viewer!)
-                const obj: IObject3D | null = event.intersects?.selectedHandle ?? event.intersects?.selectedObject ?? event.object
+                let obj: IObject3D | null = event.intersects?.selectedHandle ?? event.intersects?.selectedObject ?? event.object
+                if (this.selectionFilterTest) obj = this.selectionFilterTest(obj)
                 if (!obj || !obj.isObject3D) {
                     this.pivotControls.detach()
                     return

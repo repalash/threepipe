@@ -6,6 +6,10 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
+- NA
+
+## [0.6.0]
+
 ### Added
 
 - Add pivot controls and pivot edit toolbar buttons with toggle support

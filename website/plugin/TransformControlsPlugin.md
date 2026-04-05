@@ -36,6 +36,21 @@ const transfromControlsPlugin = viewer.addPluginSync(new TransformControlsPlugin
 console.log(transfromControlsPlugin.transformControls)
 ```
 
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **W** | Translate mode |
+| **E** | Rotate mode |
+| **R** | Scale mode |
+| **Q** | Toggle coordinate space (world/local) |
+| **Shift** (hold) | Enable snapping (translation 0.5, rotation 15°, scale 0.25) |
+| **X / Y / Z** | Toggle axis visibility |
+| **+/-** | Increase/decrease gizmo size |
+| **Space** | Toggle controls enabled/disabled |
+
+Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
+
 ## Multi-Object Transform
 
 When multiple objects are selected (Shift+Click), the gizmo appears at the median position of all selected objects. Translating, rotating, and scaling applies to all selected objects simultaneously, maintaining their relative positions. The coordinate space is forced to world mode during multi-select. Undo/redo records a single step for the entire group operation. See [PickingPlugin](./PickingPlugin) for multi-selection controls.

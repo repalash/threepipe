@@ -68,6 +68,8 @@ picking.setSelectedObject(someObject)
 | **Shift** (hold) | Snap to grid while dragging |
 | **Alt/Option** (hold) | Uniform scale while dragging a scale sphere |
 
+Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
+
 ## Configuration
 
 ```typescript

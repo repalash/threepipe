@@ -22,6 +22,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
+import {handleGizmoKeyDown} from './gizmoKeyboardHandler'
 
 // ============================================================================
 // Math helpers (ported from drei)
@@ -205,51 +206,15 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
 
     private _handleKeyDown(event: KeyboardEvent): void {
         if (!this.enabled || !this.object) return
-        if (event.metaKey || event.ctrlKey) return
-        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
 
-        switch (event.code) {
+        const handled = handleGizmoKeyDown(event, {
+            toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
+            adjustSize: (d) => { this.gizmoScale = Math.max(this.gizmoScale + d, 0.1) },
+            toggleAxis: (a) => { this.activeAxes[a] = !this.activeAxes[a]; this.updateHandleVisibility() },
+            toggleEnabled: () => { this.enabled = !this.enabled },
+        })
 
-        case 'KeyQ':
-            this.space = this.space === 'local' ? 'world' : 'local'
-            break
-
-        case 'Equal':
-        case 'NumpadAdd':
-        case 'Plus':
-            this.gizmoScale = this.gizmoScale + 0.1
-            break
-
-        case 'Minus':
-        case 'NumpadSubtract':
-        case 'Underscore':
-            this.gizmoScale = Math.max(this.gizmoScale - 0.1, 0.1)
-            break
-
-        case 'KeyX':
-            this.activeAxes[0] = !this.activeAxes[0]
-            this.updateHandleVisibility()
-            break
-
-        case 'KeyY':
-            this.activeAxes[1] = !this.activeAxes[1]
-            this.updateHandleVisibility()
-            break
-
-        case 'KeyZ':
-            this.activeAxes[2] = !this.activeAxes[2]
-            this.updateHandleVisibility()
-            break
-
-        case 'Space':
-            this.enabled = !this.enabled
-            break
-
-        default:
-            return
-        }
-
-        this.dispatchEvent({type: 'change'})
+        if (handled) this.dispatchEvent({type: 'change'})
     }
 
     // ========================================================================

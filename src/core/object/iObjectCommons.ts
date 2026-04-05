@@ -598,6 +598,90 @@ export const iObjectCommons = {
     },
 }
 
+/**
+ * Filters a selection array to only the topmost ancestors.
+ * If both a parent and its child are selected, only the parent is kept.
+ * This prevents double-processing in batch operations (duplicate, delete, copy, cut, hide).
+ */
+export function filterTopmostAncestors(objects: IObject3D[]): IObject3D[] {
+    const set = new Set(objects)
+    return objects.filter(obj => {
+        let parent = obj.parent as IObject3D | null
+        while (parent) {
+            if (set.has(parent)) return false
+            parent = parent.parent as IObject3D | null
+        }
+        return true
+    })
+}
+
+/**
+ * Batch delete multiple objects. Always shows a confirmation dialog.
+ * Returns {undo, redo} for undo manager integration, or undefined if cancelled.
+ */
+export async function deleteObjects(objects: IObject3D[]): Promise<{undo: () => void, redo: () => void} | undefined> {
+    const filtered = filterTopmostAncestors(objects)
+    if (!filtered.length) return undefined
+
+    const names = filtered.map(o => o.name || o.uuid.slice(0, 8)).join(', ')
+    const res = await ThreeViewer.Dialog.confirm(`Delete ${filtered.length} object${filtered.length > 1 ? 's' : ''}: ${names}?`)
+    if (!res) return undefined
+
+    const parentMap = new Map<IObject3D, IObject3D | null>()
+    for (const obj of filtered) parentMap.set(obj, obj.parent as IObject3D | null)
+
+    // execute
+    for (const obj of filtered) obj.dispose && obj.dispose(true)
+
+    return {
+        undo: () => {
+            for (const obj of filtered) {
+                const parent = parentMap.get(obj)
+                if (parent) parent.add(obj)
+            }
+        },
+        redo: () => {
+            for (const obj of filtered) obj.dispose && obj.dispose(true)
+        },
+    }
+}
+
+/**
+ * Batch duplicate multiple objects. Clones each, adds to same parent.
+ * Returns the clones array and {undo, redo} for undo manager integration.
+ */
+export function duplicateObjects(objects: IObject3D[]): {clones: IObject3D[], undo: () => void, redo: () => void} {
+    const filtered = filterTopmostAncestors(objects)
+    const clones: IObject3D[] = []
+    const parentMap = new Map<IObject3D, IObject3D | null>()
+
+    for (const obj of filtered) {
+        const clone = obj.clone(true) as IObject3D
+        incrementObjectCloneName(obj, clone)
+        parentMap.set(clone, obj.parent as IObject3D | null)
+        clones.push(clone)
+    }
+
+    // execute — add clones to scene
+    for (const clone of clones) {
+        const parent = parentMap.get(clone)
+        if (parent && !clone.parent) parent.add(clone)
+    }
+
+    return {
+        clones,
+        undo: () => {
+            for (const clone of clones) clone.removeFromParent()
+        },
+        redo: () => {
+            for (const clone of clones) {
+                const parent = parentMap.get(clone)
+                if (parent && !clone.parent) parent.add(clone)
+            }
+        },
+    }
+}
+
 export const sceneTextureProperties: Set<string> = new Set<string>([
     'environmentMap',
     'background',

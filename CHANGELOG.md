@@ -25,6 +25,27 @@ All notable changes to this project will be documented in this file.
 - Fix `Uint8Array<ArrayBuffer>` generic syntax removed (TS 5.8 compat with r168 types)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 
+## [0.5.1]
+
+### Added
+
+- Add keyboard shortcuts in `PickingPlugin`:
+  - Delete/Backspace — delete selected (with confirmation dialog)
+  - Ctrl+D — duplicate with smart offset; Ctrl+Shift+D — duplicate with alternate mode
+  - Ctrl+C/X/V — copy/cut/paste (paste into containers, as siblings next to leaf objects)
+  - H — toggle visibility; Shift+H — unhide all
+  - F — focus/zoom camera to fit all selected objects
+  - Alt+G — reset position; Alt+R — reset rotation; Alt+S — reset scale
+- Add `DuplicateTracker` with two modes (`simple`/`compound`), configurable via `duplicateMode` property and UI dropdown. Offset applies only when selection is unchanged since last duplicate. Fully undoable with save/restore state.
+- Add `ObjectClipboard` — internal clipboard for copy/cut/paste. Clones (copy) or moves (cut) directly to destination parent. UUID-preserving cut+paste (single paste).
+- Add `duplicateObjects()` and `deleteObjects()` batch functions in `iObjectCommons` with single undo entry
+- Add `handleGizmoKeyDown()` — shared keyboard handler for `TransformControls2` and `PivotControls`
+
+### Fixed
+
+- Fix ShiftRight not activating snapping in `TransformControls2`
+- Add missing `selectionFilterTest` on `PivotControlsPlugin` — consistent with `TransformControlsPlugin`
+
 ## [0.5.0]
 
 ### Added
