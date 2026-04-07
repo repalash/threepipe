@@ -181,7 +181,13 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             this.refreshLights()
     }
 
+    private _refreshingLights = false
     refreshLights = (e?: any) => {
+        if (this._refreshingLights) return
+        this._refreshingLights = true
+        try { this._refreshLightsInner(e) } finally { this._refreshingLights = false }
+    }
+    private _refreshLightsInner = (e?: any) => {
         if (this._lightRef && this._lightRef !== this.light) {
             this._lightRef.removeEventListener('objectUpdate', this._lightUpdate)
             if (this._lightAutoAttached) this._lightAutoAttached = false
@@ -252,6 +258,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         if (!changeKey && ![
             'intensity', 'castShadow', 'mapSize', 'bias', 'radius', 'shadow', 'deserialize',
         ].includes(changeKey)) this.cameraNeedsUpdate()
+        // this._initialFrames = 4 // re-render shadows for a few frames after light setup
     }
 
     private _mainCameraChange = (event: ISceneEventMap['mainCameraChange']) => {
@@ -584,8 +591,11 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         for (const obj of objects) {
             if (obj.isDirectionalLight && obj.castShadow) {
                 if (obj as any === this.light) return
-                this.light = obj as DirectionalLight2
+                // Set _lightAutoAttached BEFORE assigning light, because the
+                // @onChange('refreshLights') on this.light fires synchronously
+                // and refreshLights may trigger lightAdd events that re-enter here.
                 this._lightAutoAttached = true
+                this.light = obj as DirectionalLight2
                 return
             }
         }
@@ -648,11 +658,12 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         //     // this.getExtendedBreaks(shader.uniforms.CSM_cascades.value)
         // },
         onObjectRender: (_, material) => {
-            if (material.extraUniformsToUpload.CSM_cascades) material.extraUniformsToUpload.CSM_cascades.needsUpdate = false
-            if (material.extraUniformsToUpload.cameraNear) material.extraUniformsToUpload.cameraNear.needsUpdate = false
-            if (material.extraUniformsToUpload.shadowFar) material.extraUniformsToUpload.shadowFar.needsUpdate = false
-
-            if (this.isDisabled() || !this.light) return
+            if (this.isDisabled() || !this.light) {
+                if (material.extraUniformsToUpload.CSM_cascades) material.extraUniformsToUpload.CSM_cascades.needsUpdate = false
+                if (material.extraUniformsToUpload.cameraNear) material.extraUniformsToUpload.cameraNear.needsUpdate = false
+                if (material.extraUniformsToUpload.shadowFar) material.extraUniformsToUpload.shadowFar.needsUpdate = false
+                return
+            }
 
             if (!material.extraUniformsToUpload) material.extraUniformsToUpload = {}
 
@@ -661,15 +672,18 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             if (!material.extraUniformsToUpload.shadowFar) material.extraUniformsToUpload.shadowFar = {value: 0}
 
             if (!(material as any).__csmVersion) (material as any).__csmVersion = 0
+
+            material.extraUniformsToUpload.cameraNear.needsUpdate = true
+            material.extraUniformsToUpload.shadowFar.needsUpdate = true
+            material.extraUniformsToUpload.CSM_cascades.needsUpdate = true
+
             if ((material as any).__csmVersion === this._sversion) return
+
             ;(material as any).__csmVersion = this._sversion
             material.extraUniformsToUpload.cameraNear.value = this.camera?.near ?? 0.01
             material.extraUniformsToUpload.shadowFar.value = Math.min(this.camera?.far ?? 1000, this.maxFar)
             material.extraUniformsToUpload.CSM_cascades.value = this.extendedBreaks// .map(v=>v.clone())
 
-            material.extraUniformsToUpload.cameraNear.needsUpdate = true
-            material.extraUniformsToUpload.shadowFar.needsUpdate = true
-            material.extraUniformsToUpload.CSM_cascades.needsUpdate = true
         },
 
         isCompatible: (material: any) => {
