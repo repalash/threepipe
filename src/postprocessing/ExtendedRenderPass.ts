@@ -121,7 +121,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
         }
 
         const ud = renderer.userData
-        if (!ud) console.error('threejs is not patched. Use the @repalash/three.js-modded to this functionality.')
+        if (!ud) console.error('threejs is not patched. Use three-modded (npm install three@npm:three-modded) for this functionality.')
 
         const useGBufferDepth = (this.renderManager.zPrepass || !this.renderManager.depthBuffer) && this.renderManager.gbufferTarget
         let depthRenderBuffer: WebGLRenderbuffer | undefined = undefined

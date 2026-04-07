@@ -4,11 +4,24 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.6.0]
+## [0.6.0] - dev
+
+### Changed
+
+- Switch `three` and `@types/three` dependencies from GitHub Releases tgz URLs to npm packages using `npm:` aliases
+  - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
+  - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
+- Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
+- Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
+- Bump `three-modded` to 0.168.10006 and `three-types-modded` to 0.168.10003
+
+### Fixed
+
+- Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
 
 ### three.js r168 Upgrade
 
-- Upgrade `three` from r163 to r168 and `@types/three` to v0.168
+- Upgrade `three` from v0.163.10003 to v0.168.10004 and `@types/three` to v0.168
 - Upgrade `ts-browser-helpers` to >=0.20.0
 - Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
 - Remove `useLegacyLights` — deprecated since r155, removed from r168 types. Removed from `IRenderManager` interface, `RenderManager` getter/setter, and viewer config migration
@@ -25,7 +38,7 @@ All notable changes to this project will be documented in this file.
 - Fix `Uint8Array<ArrayBuffer>` generic syntax removed (TS 5.8 compat with r168 types)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 
-## [0.5.1]
+## [0.5.1] - 2026-04-05
 
 ### Added
 
@@ -46,7 +59,7 @@ All notable changes to this project will be documented in this file.
 - Fix ShiftRight not activating snapping in `TransformControls2`
 - Add missing `selectionFilterTest` on `PivotControlsPlugin` — consistent with `TransformControlsPlugin`
 
-## [0.5.0]
+## [0.5.0] - 2026-03-30
 
 ### Added
 

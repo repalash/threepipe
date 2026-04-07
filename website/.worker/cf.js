@@ -1,8 +1,12 @@
 /**
+ * DEPRECATED: This proxy is kept for backward compatibility with older versions.
+ * New projects should use the npm packages directly:
+ *   - three: npm install three@npm:three-modded
+ *   - @types/three: npm install @types/three@npm:three-types-modded
+ *
  * This is a simple Cloudflare Worker proxy that serves specific packages from GitHub releases with CORS support.
  *
  * Deployed to https://pkg.threepipe.org/
- * Used in package.json
  */
 
 

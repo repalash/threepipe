@@ -20,7 +20,7 @@ aside: false
 
 Pivot Controls Plugin adds interactive transform gizmos that display all handles simultaneously: translation arrows, plane sliders, rotation arcs, and scaling spheres, without requiring mode switching.
 
-The implementation is based on the [PivotControls](https://github.com/pmndrs/drei/blob/master/src/web/pivotControls/index.tsx) component from [drei](https://github.com/pmndrs/drei) and adapted for the ThreePipe architecture.
+The implementation is based on the [PivotControls](https://github.com/pmndrs/drei/blob/master/src/web/pivotControls/index.tsx) component from [drei](https://github.com/pmndrs/drei) and adapted for the vanilla three.js, and threepipe architecture.
 
 When the plugin is added to the viewer, it interfaces with the [PickingPlugin](./PickingPlugin) and shows the control gizmos when an object is selected and hides them when the object is unselected.
 
