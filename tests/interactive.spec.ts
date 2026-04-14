@@ -159,15 +159,46 @@ test('depth-buffer-plugin', async({page}, testInfo) => {
     await btnClick(page, 'Toggle Depth rendering')
     await screenshotMatch(page, testInfo, 'depth-off')
 
-    // Switch depth packing to BasicDepthPacking (0) — no Tweakpane UI in this example
+    // Switch depth packing to BasicDepthPacking (3200)
     await page.evaluate(() => {
         const v = (window as any).threeViewers?.[0]
         const p = v?.getPlugin('DepthBufferPlugin')
-        if (p) { p.depthPacking = 0; p.setDirty() }
+        if (p) { p.depthPacking = 3200; p.setDirty() }
     })
     await page.waitForTimeout(300)
     await btnClick(page, 'Toggle Depth rendering')
     await screenshotMatch(page, testInfo, 'depth-basic')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch depth packing to RGBDepthPacking (3202)
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3202; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
+    await btnClick(page, 'Toggle Depth rendering')
+    await screenshotMatch(page, testInfo, 'depth-rgb')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch depth packing to RGDepthPacking (3203)
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3203; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
+    await btnClick(page, 'Toggle Depth rendering')
+    await screenshotMatch(page, testInfo, 'depth-rg')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch back to RGBADepthPacking (3201) for remaining tests
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3201; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
 
     // --- Download snapshot button ---
     await downloadFileMatch(page, 'file.png', async() => btnClick(page, 'Download snapshot'))
