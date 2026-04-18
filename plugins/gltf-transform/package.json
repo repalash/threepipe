@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-gltf-transform",
     "description": "Utility plugins for threepipe using gltf-transform to optimize/compress glTF files.",
-    "version": "0.2.2",
+    "version": "0.3.0",
     "devDependencies": {
         "@gltf-transform/core": "4.2.0",
         "@gltf-transform/extensions": "4.2.0",
@@ -22,6 +22,13 @@
         "./dist/": {
             "import": "./dist/",
             "require": "./dist/"
+        },
+        "./lib": {
+            "types": "./lib/index.d.ts",
+            "import": "./lib/index.js"
+        },
+        "./lib/": {
+            "import": "./lib/"
         }
     },
     "clean-package": {
@@ -40,12 +47,15 @@
     "types": "dist/index.d.ts",
     "files": [
         "dist",
+        "lib",
         "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "prepare": "npm run build",
-        "build": "rimraf dist && vite build",
+        "compile:esm": "vite build --config vite.lib.config.js",
+        "compile": "rimraf lib && npm run compile:esm",
+        "build": "npm run compile && rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },

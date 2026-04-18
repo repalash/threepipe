@@ -93,3 +93,24 @@ await viewer.load('file.glb', {
 ::: tip
 The plugin uses `viewer.dialog` API to show the confirmation dialog. If you want to customize the dialog, you can use the `viewer.dialog` API to set a custom dialog component.
 :::
+
+## Node.js Usage
+
+The plugin provides base classes that accept a `PlatformIO` instance, allowing use with `NodeIO` in Node.js environments. Import from the `lib` subpath to get the unbundled ESM build with externalized dependencies.
+
+```typescript
+import { GLTFDracoExporterBase, GLTFSpecGlossinessConverterPluginBase } from '@threepipe/plugin-gltf-transform/lib'
+import { NodeIO, PlatformIO } from '@gltf-transform/core'
+
+class GLTFDracoExporterNode extends GLTFDracoExporterBase {
+    constructor(encoderOptions?, loader?) {
+        super(new NodeIO(), encoderOptions, loader)
+    }
+}
+
+class GLTFSpecGlossinessConverterPluginNode extends GLTFSpecGlossinessConverterPluginBase {
+    protected _createIO(): PlatformIO { return new NodeIO() }
+}
+```
+
+The default `"."` import provides the browser build with `WebIO` baked in. Use `"./lib"` for Node.js to avoid bundling browser-specific `WebIO`.
