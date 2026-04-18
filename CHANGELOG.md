@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.6.0] - dev
+## [0.6.0-dev]
 
 ### Changed
 
@@ -13,15 +13,24 @@ All notable changes to this project will be documented in this file.
   - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
-- Bump `three-modded` to 0.168.10006 and `three-types-modded` to 0.168.10003
+- Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 
 ### Fixed
 
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
+- `DRACOLoader2`: enable WASM decoder by default
+  - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
+  - Fixed `initDecoder()` / `initEncoder()` to pass loader config (including `wasmBinary`) and await the `onModuleLoaded` emscripten callback before resolving — required for async WASM init; previously the WASM branch was dead code because the config was never forwarded to the module factory
+  - Added `decoderModulePending` cache in `initDecoder()` symmetric with `encoderPending`
+  - Encoder default stays `{type: 'js'}` (documented on the field) because the default CDN path (`cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/`) does not ship `draco_encoder.wasm`; override to `{}` or `{type: 'wasm'}` only if your decoder path hosts it (e.g. `draco3dgltf` npm package)
+  - Added `DRACOLoader2.SetDecoderWasmBinary(wrapperJs, wasmBinary)` helper for bundling the WASM decoder with app source, symmetric with `SetDecoderJsString`
+  - Updated `SetDecoderJsString` docblock: users bundling only the JS build should also call `setDecoderConfig({type: 'js'})` on the instance to skip the wasm fetch
+  - Removed duplicate `setDecoderConfig({type: 'js'})` hack from `GLTFDracoExporterBase` (plugin-gltf-transform)
+- `drc-load` example: add `LoadingScreenPlugin`
 
 ### three.js r168 Upgrade
 
-- Upgrade `three` from v0.163.10003 to v0.168.10004 and `@types/three` to v0.168
+- Upgrade `three` from v0.163.10003 to v0.168.10006 and `@types/three` to v0.168.10003
 - Upgrade `ts-browser-helpers` to >=0.20.0
 - Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
 - Remove `useLegacyLights` — deprecated since r155, removed from r168 types. Removed from `IRenderManager` interface, `RenderManager` getter/setter, and viewer config migration
@@ -36,7 +45,7 @@ All notable changes to this project will be documented in this file.
 - Cast to `IObject3D` in `AHelperWidget` for `addEventListener` calls (r168 strict `Object3DEventMap`)
 - Add `RootScene` `@ts-expect-error` on narrowed `addEventListener` override (intentionally narrower than parent)
 - Fix `Uint8Array<ArrayBuffer>` generic syntax removed (TS 5.8 compat with r168 types)
-- Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Add support for `RGBDepthPacking` and `RGDepthPacking` in `depthPackingStrategies` and `DepthBufferPlugin`.
 
 ## [0.5.1] - 2026-04-05
 
