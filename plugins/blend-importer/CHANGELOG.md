@@ -8,7 +8,17 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- **Blender 5.0 (file format version 1) support.** Reads the new 17-byte header (`BLENDER17-01v0500`) and the reordered 32-byte `LargeBHead8` block layout (64-bit lengths, `SDNAnr`/`len` swapped). Added `int8_t`/`int16_t`/`int32_t`/`int64_t`/`uint*` explicit-width SDNA field types (Blender 5.0 DNA uses them widely). Verified against the bundled Blender 5.0 startup file and 3 geometry-nodes scenes; all 41 legacy fixtures (Blender 1.69 → 4.5) remain byte-identical.
+- **Blender 5.0 mesh geometry via `attribute_storage`.** Blender 5.0 moved mesh data out of CustomData (`vdata`/`ldata`) into a new `AttributeStorage` of named attributes. The loader now reads `position` (Float3) and `.corner_vert` (Int32) from it, using each attribute's stored `AttributeArray.size` (the Mesh `tot*` fields are runtime/post-geometry-nodes counts that don't match the stored arrays). NaN/Inf verts are sanitized; out-of-range face indices are skipped.
+- **UV extraction** from the first user `UVMap` (Float2 corner-domain attribute) on the Blender 5.0 path. Per-vertex assignment (exact away from UV seams).
+- **PBR materials, ported from Blender's glTF exporter mapping.** `createMaterial` resolves the shader feeding the active Material Output (not just any Principled BSDF) and maps its sockets to `MeshPhysicalMaterial` following [glTF-Blender-IO](https://github.com/KhronosGroup/glTF-Blender-IO)'s Principled-BSDF → glTF-PBR logic (threepipe is glTF-first): Base Color (clamped), Roughness, Metallic, Normal (+ strength from the Normal Map node), Alpha, IOR, Emission (with the `>1` strength/colour split), plus Transmission / Clearcoat / Sheen / Specular. Socket names handle both Blender 4.x and 3.x (e.g. `Emission Color`/`Emission`, `Transmission Weight`/`Transmission`, `Coat Weight`/`Clearcoat`). Previously only the legacy `mat.r/g/b` viewport colour (0.8 grey for most files) was used, so every loaded `.blend` rendered flat grey. Falls back to the legacy colour for procedural materials with no Principled BSDF.
+- **Packed textures** for base colour, roughness, metallic, normal, emissive and alpha inputs. When a socket is linked to an Image Texture node whose image is packed into the `.blend`, the embedded image (PNG/JPEG/BMP/WebP) is decoded into the matching `material.*Map` with the correct colour space (sRGB for base/emissive, linear for data maps). External (file-path) images are skipped — we don't have the original file.
+
+### Fixed
+
+- `ERROR` is module-global in the parser and wasn't reset between parses — a failed parse (e.g. an unsupported big-endian file) leaked its error onto the next successful parse. Now reset per parse.
+- Big-endian `.blend` files (ancient Blender < 2.0) are rejected with a clear message instead of producing garbage geometry.
+- Alignment-safe TypedArray reads (`alignedTypedArray` + `BLENDER_FILE.readTypedArray`) — Blender packs blocks with no padding, so on Blender 5.0 (and some older files) attribute payloads land at unaligned offsets where a direct `new Float32Array(buf, oddOffset, n)` threw `RangeError`.
 
 ## [0.2.0] - 2026-06-05
 
