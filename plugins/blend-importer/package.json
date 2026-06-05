@@ -5,6 +5,7 @@
     "devDependencies": {
     },
     "dependencies": {
+        "fzstd": "^0.1.1",
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {

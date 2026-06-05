@@ -8,7 +8,12 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- Support for compressed `.blend` files: gzip (Blender ≤ 2.93) via fflate, and zstd (Blender 3.0+ default save format) via [fzstd](https://github.com/101arrowz/fzstd). Magic-byte detection mirrors Blender's own `BLO_file_reader_uncompressed`. Verified end-to-end against 13 official Blender demo files spanning v1.69 → v4.5.
+- Blender's embedded preview thumbnail (RGBA8 typed array, 128×128 typical) is now reachable from the existing `onBlendLoad` callback as `blend.thumbnail` — the parser was already extracting it; this is a docs change so consumers know it's there. Shape: `{width, height, data: Uint32Array}`. Real-world hit rate: 9 of 13 tested official Blender demo files carry one. Not put on `userData` so it doesn't round-trip into export pipelines.
+
+### Changed
+
+- Loader now rejects files whose first bytes don't match `BLENDER`, gzip, or zstd magic, with a diagnostic error including the offending bytes in hex. Previously such inputs reached the parser and produced a logged warning + empty scene; the new behavior surfaces the failure clearly to callers.
 
 ## [0.1.0] - 2025-09-03
 

@@ -13,7 +13,10 @@ import parser from './parser/parser.js';
 export async function parseBlend (buffer, name = '') {
     return new Promise((res, rej) => {
         parser.onParseReady = (file, error) => {
-            // todo throw error if no objects?
+            // Soft-error: log but still resolve with the partial result. Several
+            // .blend files (notably geometry-nodes scenes in Blender 4.x) trigger
+            // mid-parse errors but produce a usable partial scene; rejecting would
+            // strip all rendered geometry. todo Re-evaluate if we should throw once the parser is hardened.
             if (error) console.error(error)
             res(file)
         }
