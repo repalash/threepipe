@@ -64,6 +64,9 @@ function worker_code () {
             working_blend_file = null;
             finished_objects = [];
             current_SDNA_template = null;
+            // ERROR is module-global; without this reset a failed parse (e.g. an unsupported
+            // big-endian file) would be reported for the next, successful parse.
+            ERROR = null;
 
 
             // set data
@@ -122,6 +125,16 @@ function worker_code () {
                 return pointerLow;
             }
         },
+
+        // Alignment-safe TypedArray read over the file buffer. Consumers (e.g. loader/geometry.ts)
+        // that reach into `__blender_file__.AB` at a datablock's `__data_address__` MUST use this
+        // instead of `new Ctor(AB, byteOffset, n)` — Blender packs blocks with no padding, so on
+        // v1 (17-byte header) and some v0 files the payload lands at an offset that isn't a multiple
+        // of the element size, where a direct view throws RangeError. All supported files are
+        // little-endian (big-endian is rejected at header parse), so a raw byte copy is correct.
+        readTypedArray: function (Ctor, byteOffset, length) {
+            return alignedTypedArray(Ctor, this.AB, byteOffset, length);
+        },
     };
 
     self.onmessage = parseFile;
@@ -132,11 +145,25 @@ function worker_code () {
             This allows the underlying binary data to be changed.
         */
 
+    // Construct a TypedArray view over the file buffer, copying into a fresh aligned buffer when
+    // the byte offset isn't a multiple of the element size. Blender packs blocks with no padding,
+    // so on v1 (17-byte header) and some v0 files the payload lands at unaligned offsets where a
+    // direct `new Float32Array(buf, oddOffset, n)` would throw. All supported files are
+    // little-endian (big-endian is rejected at header parse), so a raw byte copy is correct.
+    function alignedTypedArray (Ctor, buffer, byteOffset, length) {
+        if ((byteOffset % Ctor.BYTES_PER_ELEMENT) === 0) {
+            return new Ctor(buffer, byteOffset, length);
+        }
+        const out = new Ctor(length);
+        new Uint8Array(out.buffer).set(new Uint8Array(buffer, byteOffset, length * Ctor.BYTES_PER_ELEMENT));
+        return out;
+    }
+
     function float64Prop (offset, Blender_Array_Length, length) {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Float64Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Float64Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getFloat64(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -153,7 +180,7 @@ function worker_code () {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Float32Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Float32Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getFloat32(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -170,7 +197,7 @@ function worker_code () {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Int32Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Int32Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getInt32(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -187,7 +214,7 @@ function worker_code () {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Uint32Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Uint32Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getUint32(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -204,7 +231,7 @@ function worker_code () {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Int16Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Int16Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getInt16(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -221,7 +248,7 @@ function worker_code () {
         return {
             get: function () {
                 return (Blender_Array_Length > 1) ?
-                    new Uint16Array(this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    alignedTypedArray(Uint16Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
                     this.__blender_file__.dv.getUint16(this.__data_address__ + offset, this.__blender_file__.template.endianess);
             },
             set: function (float) {
@@ -327,6 +354,35 @@ function worker_code () {
         };
     }
 
+    // Signed 1-byte field (int8_t). Used widely in Blender 5.0 DNA (enum domains, flags, etc).
+    function int8Prop (offset, Blender_Array_Length, length) {
+        return {
+            get: function () {
+                return (Blender_Array_Length > 1) ?
+                    alignedTypedArray(Int8Array, this.__blender_file__.AB, this.__data_address__ + offset, length) :
+                    this.__blender_file__.dv.getInt8(this.__data_address__ + offset);
+            },
+            set: function (v) { if (Blender_Array_Length <= 1) this.__blender_file__.dv.setInt8(this.__data_address__ + offset, v); },
+            enumerable: true, configurable: true,
+        };
+    }
+
+    // 8-byte integer field (int64_t / uint64_t). Returned as a JS Number — .blend counts/sizes are
+    // well under 2^53. Used by Blender 5.0 DNA (AttributeArray.size, LargeBHead lengths, etc).
+    function int64Prop (offset, Blender_Array_Length, length, unsigned) {
+        return {
+            get: function () {
+                if (Blender_Array_Length > 1) {
+                    return alignedTypedArray(unsigned ? BigUint64Array : BigInt64Array, this.__blender_file__.AB, this.__data_address__ + offset, length);
+                }
+                const dv = this.__blender_file__.dv, le = this.__blender_file__.template.endianess;
+                return Number(unsigned ? dv.getBigUint64(this.__data_address__ + offset, le) : dv.getBigInt64(this.__data_address__ + offset, le));
+            },
+            set: function () {},
+            enumerable: true, configurable: true,
+        };
+    }
+
     function compileProp (obj, name, type, offset, array_size, IS_POINTER, pointer_size, length) {
 
         if (!IS_POINTER) {
@@ -338,17 +394,33 @@ function worker_code () {
                 Object.defineProperty(obj, name, floatProp(offset, array_size, length >> 2));
                 break;
             case 'int':
+            case 'int32_t':
                 Object.defineProperty(obj, name, intProp(offset, array_size, length >> 2));
                 break;
+            case 'uint32_t':
+                Object.defineProperty(obj, name, uIntProp(offset, array_size, length >> 2));
+                break;
             case 'short':
+            case 'int16_t':
                 Object.defineProperty(obj, name, shortProp(offset, array_size, length >> 1));
                 break;
             case 'ushort':
+            case 'uint16_t':
                 Object.defineProperty(obj, name, uShortProp(offset, array_size, length >> 1));
+                break;
+            case 'int8_t':
+                Object.defineProperty(obj, name, int8Prop(offset, array_size, length));
                 break;
             case 'char':
             case 'uchar':
+            case 'uint8_t':
                 Object.defineProperty(obj, name, charProp(offset, array_size, length));
+                break;
+            case 'int64_t':
+                Object.defineProperty(obj, name, int64Prop(offset, array_size, length >> 3, false));
+                break;
+            case 'uint64_t':
+                Object.defineProperty(obj, name, int64Prop(offset, array_size, length >> 3, true));
                 break;
             default:
                 // compile list to
@@ -530,6 +602,11 @@ function worker_code () {
             BLENDER_FILE.addObject(this);
 
             this.__blender_file__ = BLENDER_FILE;
+            // Byte length of this block's payload (data_block_length is the end offset). Lets
+            // consumers derive element counts for raw DATA blocks (e.g. poly_offset_indices) whose
+            // logical length isn't available elsewhere — needed for Blender 5.0 where Mesh.tot* are
+            // runtime (post-geometry-nodes) counts, not the stored array sizes.
+            this.__byte_length__ = data_block_length - _data_offset;
 
             const struct = this.__list__;
             let j = 0,
@@ -617,24 +694,69 @@ function worker_code () {
         const magic = toString(_data, offset, 7)
         if (magic !== 'BLENDER') return ERROR = 'File supplied is not a .blend compatible Blender file.';
 
-        // otherwise get templete from save version.
-
-        offset += 7;
-        pointer_size = ((toString(_data, offset++, offset)) == '_') ? 4 : 8;
-        BIG_ENDIAN = toString(_data, offset++, offset) !== 'V';
-        const version = toString(_data, offset, offset + 3);
-
-
-        // create new master template if none exist for current blender version;
-        if (!templates[version]) {
-            templates[version] = new MASTER_SDNA_SCHEMA(version);
+        // Decode the file header. Two formats exist
+        // (.repos/blender/source/blender/blenloader_core/intern/blo_core_blend_header.cc):
+        //   v0 (12 bytes): 'BLENDER' + ('_'|'-') + ('v'|'V') + 3-digit version
+        //                  '_' = 4-byte pointers (BHead4), '-' = 8-byte pointers (SmallBHead8)
+        //   v1 (17 bytes, Blender 5.0+): 'BLENDER' + '17' + '-' + '01' + 'v' + 4-digit version
+        //                  always 8-byte pointers, little-endian, LargeBHead8 blocks.
+        // BIG_ENDIAN is misleadingly named — it is `true` for little-endian files (the value is
+        // passed straight to DataView getters as the `littleEndian` arg). Keep that convention.
+        let version, large_bhead = false
+        const fmtByte = toString(_data, 7, 8)
+        if (fmtByte === '_' || fmtByte === '-') {
+            pointer_size = fmtByte === '_' ? 4 : 8
+            BIG_ENDIAN = toString(_data, 8, 9) !== 'V'
+            version = toString(_data, 9, 12)
+            offset = 12
+        } else {
+            // New-style 17-byte header. Bytes 7-8 = header size ('17'), 9 = '-',
+            // 10-11 = file-format version ('01'), 12 = 'v', 13-16 = blender version.
+            const headerSize = parseInt(toString(_data, 7, 9), 10)
+            if (headerSize !== 17) return ERROR = 'Unsupported new-style blend header size: ' + headerSize;
+            pointer_size = 8
+            BIG_ENDIAN = true // v1 is always little-endian
+            large_bhead = true
+            version = toString(_data, 13, 17)
+            offset = headerSize
         }
 
-        current_SDNA_template = templates[version];
+        if (!BIG_ENDIAN) {
+            // Big-endian .blend files (ancient PowerPC/SGI era, e.g. Blender < 2.0) need every field
+            // byte-swapped, which we don't do. Bail clearly instead of producing garbage.
+            return ERROR = 'Big-endian .blend files are not supported';
+        }
+
+        // Per-format block-header layout. BHead variants
+        // (.repos/blender/source/blender/blenloader_core/BLO_core_bhead.hh):
+        //   BHead4 (ptr=4):     code@0 len@4(i32) old@8(u32) SDNAnr@12 nr@16        — 20 bytes
+        //   SmallBHead8 (v0):   code@0 len@4(i32) old@8(u64) SDNAnr@16 nr@20        — 24 bytes
+        //   LargeBHead8 (v1):   code@0 SDNAnr@4 old@8(u64) len@16(i64) nr@24(i64)   — 32 bytes
+        // For v0 these reduce to the original parametrised offsets, so v0 behaviour is unchanged.
+        const BLOCK_HDR = large_bhead ? 32 : (16 + pointer_size)
+        const SDNA_OFF = large_bhead ? 4 : (8 + pointer_size)
+        const LEN_OFF = large_bhead ? 16 : 4
+        const NR_OFF = large_bhead ? 24 : (12 + pointer_size)
+        const LEN_I64 = large_bhead
+        const NR_I64 = large_bhead
+        // Blender packs blocks with no inter-block padding (verified empirically + writefile.cc),
+        // so block offsets advance by exactly BLOCK_HDR + len. The v1 17-byte header (and some v0
+        // files) leave block payloads at offsets that aren't multiples of 4/8 — those are handled
+        // at the TypedArray getter level (alignedTypedArray) rather than by realigning the buffer.
+        const readLen = (o) => LEN_I64 ? Number(data.getBigInt64(o + LEN_OFF, true)) : data.getInt32(o + LEN_OFF, true)
+        const readSdna = (o) => data.getInt32(o + SDNA_OFF, BIG_ENDIAN)
+        const readNr = (o) => NR_I64 ? Number(data.getBigInt64(o + NR_OFF, true)) : data.getInt32(o + NR_OFF, BIG_ENDIAN)
+
+        // create new master template if none exist for current blender version;
+        // Key on format + version so a v0 "050" and a v1 "0500" can never share a template.
+        const templateKey = (large_bhead ? 'v1:' : 'v0:') + version
+        if (!templates[templateKey]) {
+            templates[templateKey] = new MASTER_SDNA_SCHEMA(version);
+        }
+
+        current_SDNA_template = templates[templateKey];
 
         FILE.template = current_SDNA_template;
-
-        offset += 3;
 
         // Set SDNA structs if template hasn't been set.
         // Todo: Move the following block into the MASTER_SDNA_SCHEMA object.
@@ -647,11 +769,20 @@ function worker_code () {
             offset2 = offset;
 
             while (true) {
-                sdna_index = data.getInt32(offset2 + pointer_size + 8, BIG_ENDIAN);
+                // Bounds guard: the SDNA-search loop walks block headers looking for DNA1.
+                // If a previous block's block_length is wrong (happens on some Blender 4.x
+                // geometry-nodes files), offset2 lands past EOF and the getInt32 below throws
+                // RangeError synchronously, killing the whole load. Match the main block
+                // loop's guard pattern (line ~810).
+                if (offset2 + BLOCK_HDR > data.byteLength) {
+                    ERROR = 'Unexpected end of file while searching for DNA1';
+                    break
+                }
+                sdna_index = readSdna(offset2);
                 // eslint-disable-next-line no-control-regex
                 code = toString(_data, offset2, offset2 + 4).replace(/\u0000/g, '');
-                block_length = data.getInt32(offset2 + 4, true);
-                offset2 += 16 + (pointer_size);
+                block_length = readLen(offset2);
+                offset2 += BLOCK_HDR;
                 if (code === 'DNA1') {
                     // DNA found; This is the core of the __blender_file__ and contains all the structure for the various data types used in Blender.
                     count = 0;
@@ -794,6 +925,9 @@ function worker_code () {
             //     debugger
             //     offset = (4 - (offset % 4)) + offset;
             // }
+            // Defensive: skip any stray NUL padding before a block header. Blender writes none
+            // between blocks (verified), so for correctly-decoded files this is a no-op; it only
+            // matters as a safety net against a mis-decoded length. Block codes are always A-Z.
             for (let j = 0; j < 8; j++) {
                 if(data.getInt8(offset) === 0) {
                     offset++
@@ -801,41 +935,31 @@ function worker_code () {
                 }
                 break
             }
-            if(data.getInt8(offset) === 0) {
-                debugger
-            }
 
             data_offset = offset;
 
-            if (offset + pointer_size + 12 >= data.byteLength) {
+            if (offset + BLOCK_HDR > data.byteLength) {
                 ERROR = 'Unexpected end of file while parsing';
                 break
             }
 
-            sdna_index = data.getInt32(offset + pointer_size + 8, BIG_ENDIAN);
-            // let code_uint = data.getUint32(offset, BIG_ENDIAN);
-            const code_str = toString(_data, offset, offset + 4) // data.getUint32(offset, BIG_ENDIAN);
+            sdna_index = readSdna(offset);
+            const code_str = toString(_data, offset, offset + 4)
 
-            offset2 = offset + 16 + (pointer_size);
-            // console.log(code_str, code_str.length, data.getInt8(offset))
+            offset2 = offset + BLOCK_HDR;
 
-            const blockLength = data.getInt32(offset + 4, true);
-            if (blockLength < 0 || offset + blockLength + 16 + pointer_size > data.byteLength) {
+            const blockLength = readLen(offset);
+            if (blockLength < 0 || offset + blockLength + BLOCK_HDR > data.byteLength) {
                 ERROR = 'Invalid block length detected';
                 break
             }
-            // if(blockLength === 1) {
-            //     debugger
-            // }
 
-            // last_offset = offset
-
-            offset += blockLength + 16 + (pointer_size);
+            offset += blockLength + BLOCK_HDR;
 
             if (code_str === 'DNA1') {} // skip - already processed at this point
             else if (code_str === 'ENDB') break; // end of __blender_file__ found
             else if (code_str === 'TEST') { // snapshot
-                const data_start = data_offset + pointer_size + 16;
+                const data_start = data_offset + BLOCK_HDR;
                 const width = data.getInt32(data_start, BIG_ENDIAN);
                 const height = data.getInt32(data_start + 4, BIG_ENDIAN);
                 if ((width * height > 0)) {
@@ -844,7 +968,7 @@ function worker_code () {
                         ERROR = 'Invalid TEST block length detected';
                         break;
                     }
-                    const image_data = new Uint32Array(_data, data_start + 8, data_len >> 2);
+                    const image_data = alignedTypedArray(Uint32Array, _data, data_start + 8, data_len >> 2);
                     const image = {
                         width: width,
                         height: height,
@@ -855,14 +979,14 @@ function worker_code () {
             }
             else {
                 // Create a Blender object using a constructor template from current_SDNA_template
-                const data_start = data_offset + pointer_size + 16;
+                const data_start = data_offset + BLOCK_HDR;
 
                 // Get a SDNA constructor by name;
                 const constructor = current_SDNA_template.getSDNAStructureConstructor(current_SDNA_template.SDNA_NAMES[sdna_index]);
 
-                const size = data.getInt32(data_offset + 4, BIG_ENDIAN);
+                const size = readLen(data_offset);
 
-                count = data.getInt32(data_offset + 12 + pointer_size, BIG_ENDIAN);
+                count = readNr(data_offset);
 
                 if (count > 0 && constructor) {
                     let obj = new constructor();
