@@ -16,11 +16,45 @@ import {
     PhysicalMaterial,
     PointLight2,
     Scene, SpotLight2,
+    SRGBColorSpace,
+    Texture,
+    TextureLoader,
     UnlitMaterial,
 } from 'threepipe'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 import {decompressBlend} from './decompress'
+
+/**
+ * Load an external (file-path) image referenced by a Blender Image datablock. The path is resolved
+ * relative to the `.blend`'s directory by threepipe's {@link LoadingManager} URL modifier (active while
+ * the file is importing), so caching, dropped-sibling-file remap and progress tracking all apply.
+ *
+ * Returns the Texture immediately (its image fills in on load); the returned promise is collected so the
+ * loader can await it before the scene is handed back. A missing file logs a warning and resolves
+ * (no throw) so one bad path doesn't fail the whole import. Returns `null` outside a DOM (Node).
+ */
+function loadExternalBlendTexture(blenderPath: string, srgb: boolean, manager: any, pending: Promise<any>[]): Texture | null {
+    if (typeof document === 'undefined') return null // TextureLoader decodes via an <img> element
+    // Blender path conventions: leading "//" means relative to the .blend's directory; normalize
+    // Windows separators and a leading "./". Absolute/remote paths are passed through as-is (and will
+    // 404 gracefully if unreachable). The LoadingManager prepends the .blend's base URL to relatives.
+    const path = blenderPath.replace(/^\/\//, '').replace(/\\/g, '/').replace(/^\.\//, '')
+    if (!path) return null
+    const loader = new TextureLoader(manager)
+    let texture: Texture | null = null
+    const p = new Promise<void>((resolve) => {
+        texture = loader.load(
+            path,
+            () => resolve(),
+            undefined,
+            () => { console.warn('BlendLoadPlugin - external texture not found:', blenderPath); resolve() },
+        )
+        if (srgb && texture) texture.colorSpace = SRGBColorSpace
+    })
+    pending.push(p)
+    return texture
+}
 
 /**
  * Shape of the parsed Blender file passed to {@link BlendLoadOptions.onBlendLoad}.
@@ -97,6 +131,11 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             res = null
             const blend = await parseBlend(decompressed)
             // console.log(bakeGetters(blend))
+            // External textures load through this loader's LoadingManager (this.manager), which resolves
+            // paths relative to the .blend and caches them. Collect the load promises so we can await them
+            // below — while the AssetImporter's root context (relative-URL resolution) is still active.
+            const pending: Promise<any>[] = []
+            const manager = (this as any).manager
             const ctx = {
                 Object3D: Object3D2,
                 Mesh: Mesh2 as typeof Mesh,
@@ -110,8 +149,10 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 AmbientLight: AmbientLight2,
                 BufferGeometry: BufferGeometry2,
                 BufferAttribute: BufferAttribute,
+                loadExternalTexture: (p: string, srgb: boolean) => loadExternalBlendTexture(p, srgb, manager, pending),
             }
             const objects = await createObjects(blend, ctx)
+            if (pending.length) await Promise.all(pending)
             const root = new Object3D()
             root.add(...objects)
             blend.scene = root

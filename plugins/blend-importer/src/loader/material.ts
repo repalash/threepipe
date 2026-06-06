@@ -1,5 +1,12 @@
-import {SRGBColorSpace, Texture} from 'threepipe'
+import {DoubleSide, FrontSide, SRGBColorSpace, Texture} from 'threepipe'
 import {Ctx} from './ctx'
+
+// Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
+// The Python `use_backface_culling` property binds to this exact bit (rna_material.cc:1136).
+const MA_BL_CULL_BACKFACE = 1 << 2
+// Material.blend_method: alpha-clip cutout (DNA_material_types.h: MA_BM_CLIP). HASHED(4)/BLEND(5)/SOLID(0)
+// map to alpha blend; only CLIP becomes an alpha test.
+const MA_BM_CLIP = 3
 
 // Faithful-ish port of Blender's glTF exporter material extraction (Principled BSDF -> glTF PBR),
 // mapped onto three.js MeshPhysicalMaterial (which is glTF-first). Reference:
@@ -79,11 +86,23 @@ function packedTexture(imageNode: any, srgb: boolean): Texture | null {
     el.src = url
     return texture
 }
+// Resolve an Image Texture node's image to a Texture: packed bytes if embedded, else an external
+// file load through threepipe's pipeline (ctx.loadExternalTexture, when provided). External images are
+// IMA_SRC_FILE (source === 1) datablocks whose path is in `Image.name` (e.g. "//tex/wood.png").
+function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
+    const packed = packedTexture(imageNode, srgb)
+    if (packed) return packed
+    const img = imageNode && imageNode.id
+    if (img && img.source === 1 && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
+        return ctx.loadExternalTexture(img.name, srgb)
+    }
+    return null
+}
 // Trace a socket to its Image Texture node (directly, or through a Normal Map node for normals) and load it.
-function textureFromSocket(links: any[], socket: any, srgb: boolean): Texture | null {
+function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): Texture | null {
     let src = nodeFeeding(links, socket)
     if (src && idnameOf(src).includes('NormalMap')) src = nodeFeeding(links, socketByName(inputsOf(src), 'Color'))
-    if (src && idnameOf(src).includes('TexImage')) return packedTexture(src, srgb)
+    if (src && idnameOf(src).includes('TexImage')) return imageNodeTexture(src, srgb, ctx)
     return null
 }
 
@@ -116,6 +135,13 @@ function resolveShaders(nodes: any[], links: any[]): {principled: any, emission:
  */
 export function createMaterial(mat: any, ctx: Ctx) {
     const material = new ctx.MeshPhysicalMaterial()
+
+    // Blender materials default to backface culling OFF, i.e. they render double-sided. The glTF exporter
+    // maps this directly: doubleSided = not use_backface_culling (materials.py:289). three.js defaults to
+    // FrontSide, so without this most thin/open geometry (planes, leaves, interiors) is invisible from
+    // behind. Only the explicit "Backface Culling" toggle (MA_BL_CULL_BACKFACE) forces single-sided.
+    material.side = (typeof mat.blend_flag === 'number' && (mat.blend_flag & MA_BL_CULL_BACKFACE)) ? FrontSide : DoubleSide
+
     const nodes = mat.nodetree ? listBaseToArray(mat.nodetree.nodes) : []
     const links = mat.nodetree ? listBaseToArray(mat.nodetree.links) : []
     const {principled, emission} = resolveShaders(nodes, links)
@@ -127,7 +153,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
         // Base color: texture takes precedence; factor (clamped) otherwise. (pbr_metallic_roughness.py:73)
         const baseSock = socketByName(inp, 'Base Color', 'BaseColor')
-        const baseTex = textureFromSocket(links, baseSock, true)
+        const baseTex = textureFromSocket(links, baseSock, true, ctx)
         if (baseTex) {
             material.map = baseTex
             material.color.setRGB(1, 1, 1)
@@ -138,18 +164,18 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
         // Roughness / Metallic (factor or grayscale map; three.js reads G/B but greyscale maps work).
         const roughSock = socketByName(inp, 'Roughness')
-        const roughTex = textureFromSocket(links, roughSock, false)
+        const roughTex = textureFromSocket(links, roughSock, false, ctx)
         if (roughTex) material.roughnessMap = roughTex
         else { const r = num(socketConst(roughSock)); if (r !== undefined) material.roughness = r }
         const metalSock = socketByName(inp, 'Metallic')
-        const metalTex = textureFromSocket(links, metalSock, false)
+        const metalTex = textureFromSocket(links, metalSock, false, ctx)
         if (metalTex) material.metalnessMap = metalTex
         else { const m = num(socketConst(metalSock)); if (m !== undefined) material.metalness = m }
 
         // Normal map + strength (materials.py:376; Normal Map node "Strength").
         const normSrc = nodeFeeding(links, socketByName(inp, 'Normal'))
         if (normSrc) {
-            const normTex = textureFromSocket(links, socketByName(inp, 'Normal'), false)
+            const normTex = textureFromSocket(links, socketByName(inp, 'Normal'), false, ctx)
             if (normTex) {
                 material.normalMap = normTex
                 const strength = num(socketConst(socketByName(inputsOf(normSrc), 'Strength')))
@@ -157,13 +183,24 @@ export function createMaterial(mat: any, ctx: Ctx) {
             }
         }
 
-        // Alpha -> opacity / transparency (search_node_tree gather_alpha_info; simplified: constant only).
+        // Alpha -> opacity (constant) or alphaMap (texture), plus the alpha *mode* from the material's
+        // Eevee blend_method. Only applied when the material actually has an alpha input, so opaque
+        // materials are never made see-through (notably the default material, which reports HASHED but
+        // is fully opaque at alpha=1). Mode mapping is the canonical glTF one: CLIP -> alpha test
+        // (cutout, using alpha_threshold); HASHED/BLEND/SOLID -> alpha blend. The 4.2+ glTF exporter
+        // derives this from the node graph, but blend_method is the authoritative stored value for <=4.1
+        // and a usable hint after (gather_alpha_info — search_node_tree.py).
         const alphaSock = socketByName(inp, 'Alpha')
-        const alphaTex = textureFromSocket(links, alphaSock, false)
-        if (alphaTex) { material.alphaMap = alphaTex; material.transparent = true }
-        else {
-            const a = num(socketConst(alphaSock))
-            if (a !== undefined && a < 1.0) { material.opacity = a; material.transparent = true }
+        const alphaTex = textureFromSocket(links, alphaSock, false, ctx)
+        const alphaC = num(socketConst(alphaSock))
+        const hasAlpha = !!alphaTex || (alphaC !== undefined && alphaC < 1.0)
+        if (alphaTex) material.alphaMap = alphaTex
+        else if (alphaC !== undefined && alphaC < 1.0) material.opacity = alphaC
+        if (hasAlpha) {
+            if (mat.blend_method === MA_BM_CLIP) {
+                const thr = num(mat.alpha_threshold)
+                material.alphaTest = thr !== undefined && thr > 0 ? thr : 0.5
+            } else material.transparent = true
         }
 
         // IOR (extensions/ior.py — default 1.5).
@@ -206,7 +243,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
         : (principled ? socketByName(inputsOf(principled), 'Emission Color', 'Emission') : null)
     const emStrSock = emission ? socketByName(inputsOf(emission), 'Strength')
         : (principled ? socketByName(inputsOf(principled), 'Emission Strength') : null)
-    const emTex = textureFromSocket(links, emSock, true)
+    const emTex = textureFromSocket(links, emSock, true, ctx)
     let emCol = socketConst(emSock)
     if (emTex) { material.emissiveMap = emTex; if (!emCol || emCol.length < 3) emCol = [1, 1, 1] }
     if (emCol && emCol.length >= 3 && (emCol[0] || emCol[1] || emCol[2] || emTex)) {
