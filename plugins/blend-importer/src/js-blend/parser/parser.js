@@ -301,22 +301,38 @@ function worker_code () {
     function pointerProp2 (offset) {
         return {
             get: function () {
-                let pointer = this.__blender_file__.getPointer(this.__data_address__ + offset, this.__blender_file__);
-                const link = this.__blender_file__.memory_lookup[pointer];
+                const bf = this.__blender_file__;
+                let pointer = bf.getPointer(this.__data_address__ + offset, bf);
+                const link = bf.memory_lookup[pointer];
 
                 const results = [];
 
                 if (link) {
                     const address = link.__data_address__;
-                    let j = 0;
-                    while (true) {
-                        pointer = this.__blender_file__.getPointer(address + j * 8, this.__blender_file__);
-                        let obj = this.__blender_file__.memory_lookup[pointer];
-                        if (!obj) break;
-                        results.push(obj);
-                        j++;
+                    const ps = (bf.template && bf.template.pointer_size) || 8;
+                    // The pointed-to block is a malloc'd array of `block_length / pointer_size` pointers
+                    // (e.g. `Material **mat` is `totcol` pointers). Read the WHOLE array and keep null
+                    // (unresolved) entries as null — Blender leaves empty/object-linked material slots as
+                    // null pointers in the middle of the array, so breaking at the first null silently
+                    // drops every slot after it (lost materials, invisible faces).
+                    const count = (typeof link.__byte_length__ === 'number' && link.__byte_length__ > 0)
+                        ? Math.floor(link.__byte_length__ / ps) : 0;
+                    if (count > 0) {
+                        for (let j = 0; j < count; j++) {
+                            pointer = bf.getPointer(address + j * ps, bf);
+                            results.push(bf.memory_lookup[pointer] || null);
+                        }
+                    } else {
+                        // Fallback (no known block length): read until the first null, as before.
+                        let j = 0;
+                        while (true) {
+                            pointer = bf.getPointer(address + j * ps, bf);
+                            const obj = bf.memory_lookup[pointer];
+                            if (!obj) break;
+                            results.push(obj);
+                            j++;
+                        }
                     }
-
                 }
 
                 return results;

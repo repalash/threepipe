@@ -1,4 +1,4 @@
-import {DoubleSide, FrontSide, SRGBColorSpace, Texture} from 'threepipe'
+import {ClampToEdgeWrapping, DoubleSide, FrontSide, MirroredRepeatWrapping, RepeatWrapping, SRGBColorSpace, Texture} from 'threepipe'
 import {Ctx} from './ctx'
 
 // Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
@@ -73,7 +73,12 @@ function packedTexture(imageNode: any, srgb: boolean): Texture | null {
     const block = pf && pf.data
     const size = pf && typeof pf.size === 'number' ? pf.size : 0
     if (!block || block.__data_address__ === undefined || size <= 0) return null
-    const bytes = new Uint8Array(block.__blender_file__.byte.buffer, block.__data_address__, size).slice()
+    // Bounds-check before constructing the view: a stale/corrupt PackedFile.size or address would otherwise
+    // make `new Uint8Array(buffer, offset, size)` throw a RangeError that bubbles up and fails the whole
+    // import. Skip the one bad texture instead.
+    const buf = block.__blender_file__.byte.buffer
+    if (block.__data_address__ + size > buf.byteLength) return null
+    const bytes = new Uint8Array(buf, block.__data_address__, size).slice()
     const mime = imageMime(bytes)
     if (!mime || typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
     const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
@@ -86,24 +91,45 @@ function packedTexture(imageNode: any, srgb: boolean): Texture | null {
     el.src = url
     return texture
 }
-// Resolve an Image Texture node's image to a Texture: packed bytes if embedded, else an external
-// file load through threepipe's pipeline (ctx.loadExternalTexture, when provided). External images are
-// IMA_SRC_FILE (source === 1) datablocks whose path is in `Image.name` (e.g. "//tex/wood.png").
+// Image source enum (DNA_image_types.h): GENERATED = 4, VIEWER = 5 have no backing file.
+const IMA_SRC_GENERATED = 4, IMA_SRC_VIEWER = 5
+// Resolve an Image Texture node's image to a Texture: packed bytes if embedded, else an external file
+// load through threepipe's pipeline (ctx.loadExternalTexture, when provided). External images reference a
+// file by path in `Image.name` (e.g. "//tex/wood.png"). `source` is usually IMA_SRC_FILE (1), but some
+// files store 0 for a file reference that wasn't loaded at save time — so treat any non-packed image with
+// a path as external, excluding only GENERATED/VIEWER (which have no real file).
+// Map the Image Texture node's "Extension" (NodeTexImage.extension) to a three.js wrap mode. Blender's
+// DEFAULT is Repeat (0) — three.js defaults to ClampToEdge, so without this any mesh whose UVs fall outside
+// [0,1] (very common: tiled materials, the Poly Haven preview sphere whose unwrap spans U[-0.5,1.5]) clamps
+// to the edge texel and smears it into stripes instead of tiling. SHD_IMAGE_EXTENSION_*: 0 Repeat, 1 Extend,
+// 2 Clip, 3 Mirror.
+function applyWrap(tex: Texture | null, imageNode: any): Texture | null {
+    if (!tex) return tex
+    const ext = imageNode?.storage?.extension
+    tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ClampToEdgeWrapping : ext === 3 ? MirroredRepeatWrapping : RepeatWrapping
+    tex.needsUpdate = true
+    return tex
+}
 function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
     const packed = packedTexture(imageNode, srgb)
-    if (packed) return packed
+    if (packed) return applyWrap(packed, imageNode)
     const img = imageNode && imageNode.id
-    if (img && img.source === 1 && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
-        return ctx.loadExternalTexture(img.name, srgb)
+    if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
+        && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
+        return applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode)
     }
     return null
 }
-// Trace a socket to its Image Texture node (directly, or through a Normal Map node for normals) and load it.
-function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): Texture | null {
+// The Image Texture node feeding a socket (directly, or through a Normal Map node for normals), or null.
+function imageNodeFeeding(links: any[], socket: any): any {
     let src = nodeFeeding(links, socket)
     if (src && idnameOf(src).includes('NormalMap')) src = nodeFeeding(links, socketByName(inputsOf(src), 'Color'))
-    if (src && idnameOf(src).includes('TexImage')) return imageNodeTexture(src, srgb, ctx)
-    return null
+    return src && idnameOf(src).includes('TexImage') ? src : null
+}
+// Trace a socket to its Image Texture node and load it.
+function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): Texture | null {
+    const src = imageNodeFeeding(links, socket)
+    return src ? imageNodeTexture(src, srgb, ctx) : null
 }
 
 // ── Surface shader resolution ───────────────────────────────────────
@@ -153,7 +179,8 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
         // Base color: texture takes precedence; factor (clamped) otherwise. (pbr_metallic_roughness.py:73)
         const baseSock = socketByName(inp, 'Base Color', 'BaseColor')
-        const baseTex = textureFromSocket(links, baseSock, true, ctx)
+        const baseImgNode = imageNodeFeeding(links, baseSock)
+        const baseTex = baseImgNode ? imageNodeTexture(baseImgNode, true, ctx) : null
         if (baseTex) {
             material.map = baseTex
             material.color.setRGB(1, 1, 1)
@@ -191,11 +218,18 @@ export function createMaterial(mat: any, ctx: Ctx) {
         // derives this from the node graph, but blend_method is the authoritative stored value for <=4.1
         // and a usable hint after (gather_alpha_info — search_node_tree.py).
         const alphaSock = socketByName(inp, 'Alpha')
-        const alphaTex = textureFromSocket(links, alphaSock, false, ctx)
+        const alphaImgNode = imageNodeFeeding(links, alphaSock)
+        // If Alpha comes from the SAME image as Base Color (the common cutout setup: Image.Color -> Base
+        // Color, Image.Alpha -> Alpha), three.js material.map (RGBA) already supplies per-pixel opacity from
+        // the texture's alpha channel. A separate material.alphaMap would instead read the GREEN channel
+        // (three.js samples alphaMap.g), giving wrong cutouts — so only use a distinct alphaMap when the
+        // alpha image differs from the base image.
+        const alphaFromBase = !!(alphaImgNode && baseImgNode && alphaImgNode === baseImgNode)
+        const alphaTex = (alphaImgNode && !alphaFromBase) ? imageNodeTexture(alphaImgNode, false, ctx) : null
         const alphaC = num(socketConst(alphaSock))
-        const hasAlpha = !!alphaTex || (alphaC !== undefined && alphaC < 1.0)
+        const hasAlpha = !!alphaTex || alphaFromBase || (alphaC !== undefined && alphaC < 1.0)
         if (alphaTex) material.alphaMap = alphaTex
-        else if (alphaC !== undefined && alphaC < 1.0) material.opacity = alphaC
+        else if (!alphaFromBase && alphaC !== undefined && alphaC < 1.0) material.opacity = alphaC
         if (hasAlpha) {
             if (mat.blend_method === MA_BM_CLIP) {
                 const thr = num(mat.alpha_threshold)
@@ -238,6 +272,32 @@ export function createMaterial(mat: any, ctx: Ctx) {
         }
     }
 
+    // Displacement: Material Output "Displacement" <- Displacement node <- Height image. three.js
+    // `displacementMap` moves vertices along the normal (needs tessellated geometry); we also drive
+    // `bumpMap` from the same height so the relief is visible on coarse meshes, but only when there is no
+    // normal map (bump + normal would double-perturb). Scale comes from the Displacement node, clamped.
+    const matOutput = nodes.find(n => idnameOf(n).includes('OutputMaterial') && n.is_active_output)
+        || nodes.find(n => idnameOf(n).includes('OutputMaterial'))
+    const dispNode = matOutput ? nodeFeeding(links, socketByName(inputsOf(matOutput), 'Displacement')) : null
+    if (dispNode && idnameOf(dispNode).includes('Displacement')) {
+        const heightTex = textureFromSocket(links, socketByName(inputsOf(dispNode), 'Height'), false, ctx)
+        if (heightTex) {
+            const scale = num(socketConst(socketByName(inputsOf(dispNode), 'Scale')))
+            const s = scale !== undefined && scale > 0 ? scale : 1
+            const mid = num(socketConst(socketByName(inputsOf(dispNode), 'Midlevel')))
+            if ((material as any).displacementMap !== undefined) {
+                (material as any).displacementMap = heightTex
+                ;(material as any).displacementScale = s
+                ;(material as any).displacementBias = -(mid ?? 0.5) * s
+            }
+            // Bump fallback for un-tessellated meshes — only when the material has no normal map.
+            if (!material.normalMap && (material as any).bumpMap !== undefined) {
+                (material as any).bumpMap = heightTex
+                ;(material as any).bumpScale = s
+            }
+        }
+    }
+
     // Emission: dedicated Emission node "Color"/"Strength", else Principled "Emission Color"/"Emission".
     const emSock = emission ? socketByName(inputsOf(emission), 'Color')
         : (principled ? socketByName(inputsOf(principled), 'Emission Color', 'Emission') : null)
@@ -245,7 +305,10 @@ export function createMaterial(mat: any, ctx: Ctx) {
         : (principled ? socketByName(inputsOf(principled), 'Emission Strength') : null)
     const emTex = textureFromSocket(links, emSock, true, ctx)
     let emCol = socketConst(emSock)
-    if (emTex) { material.emissiveMap = emTex; if (!emCol || emCol.length < 3) emCol = [1, 1, 1] }
+    // When a texture drives emission, the Emission Color factor multiplies it. Blender's default factor is
+    // black [0,0,0] (and stays black even with a texture linked), which would zero out the map — so treat a
+    // missing/short/all-black factor as white so the emissive map is actually visible.
+    if (emTex && (!emCol || emCol.length < 3 || (!emCol[0] && !emCol[1] && !emCol[2]))) emCol = [1, 1, 1]
     if (emCol && emCol.length >= 3 && (emCol[0] || emCol[1] || emCol[2] || emTex)) {
         const f = [emCol[0], emCol[1], emCol[2]]
         const strength = num(socketConst(emStrSock))
