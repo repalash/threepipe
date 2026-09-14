@@ -130,9 +130,9 @@ function tokenize(src, file) {
             i = e + 2
             continue
         }
-        // preprocessor directive: skip the whole logical line (handles `\` continuations).
-        // Macros are irrelevant to the declarative tables; `#define`s are collected separately
-        // by collectSymbols() which runs its own directive-aware pass.
+        // preprocessor directive: emitted as a single `pp` token carrying the whole logical line
+        // (handles `\` continuations) so that #ifdef-guarded operators/slots can be flagged.
+        // `#define`s are still collected separately by collectSymbols()'s textual pass.
         if (c === '#') {
             let e = i
             for (;;) {
@@ -142,6 +142,8 @@ function tokenize(src, file) {
                 e = n
                 break
             }
+            const text = src.slice(i + 1, e).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, '').trim()
+            toks.push({t: 'pp', v: text, line, start: i, end: e})
             nl(src.slice(i, e))
             i = e
             continue
@@ -240,16 +242,26 @@ function splitTopLevel(toks, start, end, file) {
     let pending = [] // comments seen after an item's tokens but before its terminating comma
     let cur = {toks: [], leading: [], trailing: null}
     let depth = 0
+    let pendingPp = []
     const newItem = () => {
-        const it = {toks: [], leading: pending, trailing: null}
+        const it = {toks: [], leading: pending, trailing: null, pp: pendingPp}
         pending = []
+        pendingPp = []
         return it
     }
     cur = newItem()
     for (let j = start; j < end; j++) {
         const t = toks[j]
+        if (t.t === 'pp') {
+            if (depth !== 0) { cur.toks.push(t); continue }
+            if (cur.toks.length === 0) cur.pp.push(t)
+            else pendingPp.push(t)
+            continue
+        }
         if (t.t === 'comment') {
-            if (depth !== 0) continue // comments inside a nested group belong to that group's own split
+            // comments inside a nested group are kept in the item's token stream so that a later,
+            // deeper splitTopLevel() call can still see them (that is where slot docs live)
+            if (depth !== 0) { cur.toks.push(t); continue }
             if (cur.toks.length === 0) cur.leading.push(t)
             else if (!t.ownLine && t.line === cur.toks[cur.toks.length - 1].line) cur.trailing = t
             else pending.push(t) // documents whatever follows the upcoming comma
@@ -274,12 +286,42 @@ function splitTopLevel(toks, start, end, file) {
     return items.filter((it) => it.toks.length > 0)
 }
 
-/** Doc text for an item: own-line leading comment (preferred) or the inline trailing one. */
+/**
+ * Doc text for an item: own-line leading comment (preferred) or the inline trailing one.
+ * Following Blender's rst_from_bmesh_opdefines.py, a comment starting with `NOTE` is an
+ * implementation note rather than user documentation - it is returned separately as `note`
+ * (Blender simply discards it; keeping it loses nothing).
+ */
 function itemDoc(item) {
     const lead = item.leading.filter((c) => c.ownLine)
     const c = lead.length ? lead[lead.length - 1] : item.trailing
-    if (!c) return ''
-    return washComment(c.v)
+    if (!c) return {doc: '', note: ''}
+    const text = washComment(c.v)
+    if (/^NOTE\b/.test(text)) return {doc: '', note: text}
+    return {doc: text, note: ''}
+}
+
+/**
+ * Apply a `#...` directive to a condition stack.
+ * Returns the current condition (a `&&`-joined string) or null when unconditional.
+ */
+function applyPp(stack, tok, file) {
+    const m = tok.v.match(/^(\w+)\s*(.*)$/)
+    if (!m) return
+    const [, dir, rest] = m
+    switch (dir) {
+        case 'ifdef': stack.push(rest.trim()); break
+        case 'ifndef': stack.push(`!${rest.trim()}`); break
+        case 'if': stack.push(rest.trim()); break
+        case 'elif': if (!stack.length) fail(`${file}:${tok.line}: #elif without #if`); stack[stack.length - 1] = rest.trim(); break
+        case 'else': if (!stack.length) fail(`${file}:${tok.line}: #else without #if`); stack[stack.length - 1] = `!(${stack[stack.length - 1]})`; break
+        case 'endif': if (!stack.length) fail(`${file}:${tok.line}: #endif without #if`); stack.pop(); break
+        default: break // include / define / undef / pragma / error - irrelevant here
+    }
+}
+
+function ppCondition(stack) {
+    return stack.length ? stack.join(' && ') : null
 }
 
 /** Strip C block-comment decoration, keeping reStructuredText content. */
@@ -370,7 +412,7 @@ class Symbols {
  */
 function evalExpr(tokens, file, lookup) {
     // Drop wrapper calls and casts around unknown identifiers.
-    const ts = tokens.filter((t) => t.t !== 'comment')
+    const ts = tokens.filter((t) => t.t !== 'comment' && t.t !== 'pp')
     let pos = 0
 
     const peek = () => ts[pos]
@@ -568,9 +610,11 @@ function parseOpdefines(src, file) {
     const enumTables = []
     const ops = []
     let opdefinesOrder = null
+    const ppStack = []
 
     for (let i = 0; i < toks.length; i++) {
         const t = toks[i]
+        if (t.t === 'pp') { applyPp(ppStack, t, file); continue }
         if (!(t.t === 'id' && t.v === 'static')) {
             // `BMOpDefine *bmo_opdefines[] = { ... };` - the registration order / completeness list
             if (t.t === 'id' && t.v === 'bmo_opdefines' && toks[i + 1] && toks[i + 1].v === '[') {
@@ -631,8 +675,12 @@ function parseOpdefines(src, file) {
             const close = matchBracket(toks, braceIdx, file)
 
             // operator doc = the block comment immediately preceding `static`
+            // (skip back over preprocessor lines; Blender's own line-based parser keeps the pending
+            //  comment across them too)
             let doc = ''
-            const prev = toks[i - 1]
+            let p = i - 1
+            while (p >= 0 && toks[p].t === 'pp') p--
+            const prev = toks[p]
             if (prev && prev.t === 'comment' && prev.ownLine) doc = washComment(prev.v)
             else warn(`${file}:${nameTok.line}: ${nameTok.v} has no doc comment`)
 
@@ -670,6 +718,7 @@ function parseOpdefines(src, file) {
                 name: opname,
                 cName: nameTok.v,
                 line: nameTok.line,
+                condition: ppCondition(ppStack),
                 doc,
                 slotsIn: parseSlotList(src, mIn.toks, file, `${opname}.slot_types_in`),
                 slotsOut: parseSlotList(src, mOut.toks, file, `${opname}.slot_types_out`),
@@ -696,7 +745,9 @@ function parseSlotList(src, toks, file, where) {
     const items = splitTopLevel(toks, 1, close, file)
     const slots = []
     let sawTerminator = false
+    const ppStack = []
     for (const item of items) {
+        for (const p of item.pp) applyPp(ppStack, p, file)
         const its = item.toks
         if (!(its[0] && its[0].t === 'punct' && its[0].v === '{')) {
             fail(`${file}:${its[0] && its[0].line}: ${where}: slot entry is not brace-initialised`)
@@ -720,18 +771,22 @@ function parseSlotList(src, toks, file, where) {
         if (!(nameToks.length === 1 && nameToks[0].t === 'str')) {
             fail(`${file}:${nameToks[0].line}: ${where}: slot name is not a plain string literal`)
         }
+        const {doc, note} = itemDoc(item)
         slots.push({
             name: nameToks[0].v,
             line: nameToks[0].line,
+            condition: ppCondition(ppStack),
             typeTokens: fields[1].toks,
             typeSrc: srcText(src, fields[1].toks),
             subtypeTokens: fields[2] ? fields[2].toks : null,
             subtypeSrc: fields[2] ? srcText(src, fields[2].toks) : null,
             enumTokens: fields[3] ? fields[3].toks : null,
-            doc: itemDoc(item),
+            doc,
+            note,
         })
     }
     if (!sawTerminator) fail(`${file}: ${where}: missing {{'\\0'}} terminator`)
+    if (ppStack.length) fail(`${file}: ${where}: unbalanced preprocessor conditional (${ppStack.join(', ')})`)
     return slots
 }
 
@@ -748,7 +803,12 @@ const SLOT_SET_FNS = {
     BMO_slot_mat_set: 'mat4',
 }
 
-/** Find `void <fn>(BMOperator *op) { ... }` and extract the BMO_slot_*_set calls it makes. */
+/**
+ * Locate the definitions of the named operator callbacks under the bmesh tree and, for `init`
+ * callbacks, extract the `BMO_slot_*_set` calls they make (the only sourced non-zero defaults).
+ * The defining file is also Blender's own grouping of the operator set, so it doubles as the
+ * operator category.
+ */
 function parseInitFns(bmeshDir, wantedFns) {
     const found = new Map()
     if (!wantedFns.size) return found
@@ -1063,6 +1123,10 @@ function main() {
             warn(`${op.name}: input slot ${JSON.stringify(s.name)} ends in ".out"`)
         }
 
+        if (s.condition) {
+            warn(`${op.name}.${s.name}: slot only exists when \`${s.condition}\` is defined at build time`)
+        }
+
         return {
             name: s.name,
             tsName: toTsName(s.name),
@@ -1075,11 +1139,14 @@ function main() {
             isSingle,
             enumName,
             doc: s.doc || '',
+            note: s.note || '',
+            condition: s.condition,
             sourceLine: s.line,
         }
     }
 
-    const initFns = parseInitFns(bmeshDir, new Set(ops.map((o) => o.initC).filter(Boolean)))
+    const callbackFns = parseInitFns(bmeshDir, new Set([...ops.map((o) => o.initC), ...ops.map((o) => o.execC)].filter(Boolean)))
+    const initFns = callbackFns
 
     const operators = ops.map((op) => {
         const slotsIn = op.slotsIn.map((s) => resolveSlot(op, s, 'in'))
@@ -1119,10 +1186,16 @@ function main() {
             }
         }
 
+        if (op.condition) warn(`${op.name}: operator only exists when \`${op.condition}\` is defined at build time`)
+
+        const execInfo = callbackFns.get(op.execC)
+        if (!execInfo) warn(`${op.name}: exec callback ${op.execC} not found under ${rel(bmeshDir)}`)
+
         return {
             name: op.name,
             tsName: toTsName(op.name),
             cName: op.cName,
+            condition: op.condition,
             doc: op.doc,
             slotsIn,
             slotsOut,
@@ -1131,6 +1204,8 @@ function main() {
             initC: op.initC,
             initDefaults,
             execC: op.execC,
+            /** Blender source file implementing `exec` - also the operator's natural category. */
+            execFile: execInfo ? rel(execInfo.file) : null,
             sourceLine: op.line,
         }
     })
@@ -1316,6 +1391,8 @@ function emitSchemaTs(json) {
     out += `    /** True when the \`elems\` slot holds a single element rather than a buffer. */\n    isSingle?: boolean\n`
     out += `    /** Key into {@link BMO_ENUMS} for \`INT_ENUM\`/\`INT_FLAG\` slots. */\n    enumName?: string\n`
     out += `    /** Slot documentation from the C source (reStructuredText). */\n    doc?: string\n`
+    out += `    /** \`NOTE:\` implementation comment attached to the slot (Blender's doc generator drops these). */\n    note?: string\n`
+    out += `    /** Set when the slot only exists under a build-time \`#ifdef\` in bmesh_opdefines.cc. */\n    condition?: string\n`
     out += `}\n\n`
 
     out += `export interface BMOOpDef {\n`
@@ -1326,8 +1403,10 @@ function emitSchemaTs(json) {
     out += `    slotsOut: BMOSlotDef[]\n`
     out += `    typeFlags: BMOTypeFlag[]\n`
     out += `    /** C name of the \`exec\` callback - the function a port has to reimplement. */\n    execC: string\n`
+    out += `    /** Blender source file implementing \`execC\`; doubles as the operator's category. */\n    execFile?: string\n`
     out += `    /** C name of the optional \`init\` callback that sets non-zero slot defaults. */\n    initC?: string\n`
     out += `    /** Slot defaults set by \`initC\`, keyed by Blender slot name. */\n    initDefaults?: Record<string, {valueSrc: string, source: string}>\n`
+    out += `    /** Set when the operator only exists under a build-time \`#ifdef\` in bmesh_opdefines.cc. */\n    condition?: string\n`
     out += `}\n\n`
 
     // enums
@@ -1347,15 +1426,17 @@ function emitSchemaTs(json) {
     out += `/** Every operator in \`bmo_opdefines[]\`, keyed by its Blender name. */\n`
     out += `export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {\n`
     for (const op of json.operators) {
-        out += tsDoc(op.doc, '    ')
+        out += tsDoc(op.doc + (op.condition ? `\n\nBuild-time conditional: only present when \`${op.condition}\` is defined.` : ''), '    ')
         out += `    ${q(op.name)}: {\n`
         out += `        name: ${q(op.name)},\n`
         out += `        tsName: ${q(op.tsName)},\n`
         out += `        doc: ${q(op.doc)},\n`
+        if (op.condition) out += `        condition: ${q(op.condition)},\n`
         out += `        slotsIn: [\n${op.slotsIn.map((s) => emitSlotLiteral(s, '            ')).join('')}        ],\n`
         out += `        slotsOut: [\n${op.slotsOut.map((s) => emitSlotLiteral(s, '            ')).join('')}        ],\n`
         out += `        typeFlags: [${op.typeFlags.map(q).join(', ')}],\n`
         out += `        execC: ${q(op.execC)},\n`
+        if (op.execFile) out += `        execFile: ${q(op.execFile)},\n`
         if (op.initC) out += `        initC: ${q(op.initC)},\n`
         if (Object.keys(op.initDefaults).length) {
             out += `        initDefaults: {\n`
@@ -1388,13 +1469,18 @@ function emitSchemaTs(json) {
 
 function emitSlotLiteral(s, indent) {
     let out = ''
-    out += tsDoc(s.doc, indent)
+    const docLines = [s.doc, s.note ? s.note : '', s.condition ? `Only present when \`${s.condition}\` is defined.` : '']
+        .filter(Boolean)
+        .join('\n\n')
+    out += tsDoc(docLines, indent)
     const parts = [`name: ${q(s.name)}`, `tsName: ${q(s.tsName)}`, `type: ${q(s.type)}`, `cType: ${q(s.cType)}`]
     if (s.subtype) parts.push(`subtype: ${q(s.subtype)}`)
     if (s.elemMask !== null && s.elemMask !== undefined) parts.push(`elemMask: ${s.elemMask} /* ${s.elemTypes.join('|')} */`)
     if (s.isSingle) parts.push(`isSingle: true`)
     if (s.enumName) parts.push(`enumName: ${q(s.enumName)}`)
     if (s.doc) parts.push(`doc: ${q(s.doc)}`)
+    if (s.note) parts.push(`note: ${q(s.note)}`)
+    if (s.condition) parts.push(`condition: ${q(s.condition)}`)
     out += `${indent}{${parts.join(', ')}},\n`
     return out
 }
@@ -1477,7 +1563,10 @@ function slotDefaultComment(op, slot, enums) {
             if (slot.enumName) {
                 const e = enums.get(slot.enumName)
                 const first = e.entries[0]
-                return `default: ${q(first.name)} (= ${first.value}; bmo_op_slots_init uses enum_flags[0].value)`
+                // bmesh_operators.cc:109 - both ENUM and FLAG slots are initialised to enum_flags[0].value.
+                // (Blender's Python doc generator claims `set()` for FLAG slots; the C code disagrees.)
+                const shown = slot.subtype === 'INT_FLAG' ? `[${q(first.name)}]` : q(first.name)
+                return `default: ${shown} (= ${first.value}; bmo_op_slots_init uses enum_flags[0].value, bmesh_operators.cc:109)`
             }
             return 'default: 0 (slots are zero-initialised by BMO_op_init)'
         }
@@ -1534,7 +1623,12 @@ function emitTypesTs(json) {
 
     for (const op of json.operators) {
         const P = toPascal(op.tsName)
-        out += tsDoc(op.doc)
+        out += tsDoc(
+            op.doc +
+            `\n\nBlender operator: \`${op.name}\` (exec: \`${op.execC}\`)` +
+            (op.typeFlags.length ? `\ntype flags: ${op.typeFlags.join(', ')}` : '') +
+            (op.condition ? `\n\nOnly present when \`${op.condition}\` is defined at build time.` : '')
+        )
         out += `export interface ${P}Params {\n`
         if (!op.slotsIn.length) out += `    // this operator takes no input slots\n`
         for (const s of op.slotsIn) {
@@ -1542,9 +1636,13 @@ function emitTypesTs(json) {
             const def = slotDefaultComment(op, s, enums)
             const lines = []
             if (s.doc) lines.push(...s.doc.split('\n'))
+            else lines.push('Undocumented in the Blender source.')
+            if (s.note) lines.push('', s.note)
+            if (s.condition) lines.push('', `Only present when \`${s.condition}\` is defined at build time.`)
+            lines.push('', `slot: \`${s.name}\` (${s.cType}${s.subtypeC ? ', ' + s.subtypeC : ''})`)
+            if (s.enumName) lines.push(`enum table: \`${s.enumName}\``)
             if (def && !required) lines.push(def)
-            if (s.enumName) lines.push(`enum table: ${s.enumName}`)
-            if (lines.length) out += tsDoc(lines.join('\n'), '    ')
+            out += tsDoc(lines.join('\n'), '    ')
             out += `    ${s.tsName}${required ? '' : '?'}: ${slotTsType(s, enums)}\n`
         }
         out += `}\n\n`
@@ -1553,7 +1651,12 @@ function emitTypesTs(json) {
         out += `export interface ${P}Result {\n`
         if (!op.slotsOut.length) out += `    // this operator has no output slots\n`
         for (const s of op.slotsOut) {
-            if (s.doc) out += tsDoc(s.doc, '    ')
+            const lines = []
+            if (s.doc) lines.push(...s.doc.split('\n'))
+            else lines.push('Undocumented in the Blender source.')
+            if (s.note) lines.push('', s.note)
+            lines.push('', `slot: \`${s.name}\` (${s.cType}${s.subtypeC ? ', ' + s.subtypeC : ''})`)
+            out += tsDoc(lines.join('\n'), '    ')
             out += `    ${s.tsName}: ${slotTsType(s, enums)}\n`
         }
         out += `}\n\n`

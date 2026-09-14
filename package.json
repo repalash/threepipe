@@ -49,6 +49,7 @@
     "serve": "ws -d . -p 9229",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
+    "test:unit:mesh-kernel": "npm run test --prefix plugins/mesh-kernel",
     "test:e2e:precache": "node tests/precache-cdn.mjs",
     "test:e2e": "npx playwright test",
     "test:e2e:interactive": "npx playwright test tests/interactive.spec.ts",

@@ -76,6 +76,10 @@ export interface BMOSlotDef {
     enumName?: string
     /** Slot documentation from the C source (reStructuredText). */
     doc?: string
+    /** `NOTE:` implementation comment attached to the slot (Blender's doc generator drops these). */
+    note?: string
+    /** Set when the slot only exists under a build-time `#ifdef` in bmesh_opdefines.cc. */
+    condition?: string
 }
 
 export interface BMOOpDef {
@@ -90,10 +94,14 @@ export interface BMOOpDef {
     typeFlags: BMOTypeFlag[]
     /** C name of the `exec` callback - the function a port has to reimplement. */
     execC: string
+    /** Blender source file implementing `execC`; doubles as the operator's category. */
+    execFile?: string
     /** C name of the optional `init` callback that sets non-zero slot defaults. */
     initC?: string
     /** Slot defaults set by `initC`, keyed by Blender slot name. */
     initDefaults?: Record<string, {valueSrc: string, source: string}>
+    /** Set when the operator only exists under a build-time `#ifdef` in bmesh_opdefines.cc. */
+    condition?: string
 }
 
 /** Every `static BMO_FlagSet bmo_enum_*[]` table, keyed by its C name. */
@@ -214,20 +222,30 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "smoothVert",
         doc: "Vertex Smooth.\n\nSmooths vertices by using a basic vertex averaging scheme.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "mirror_clip_x", tsName: "mirrorClipX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_clip_y", tsName: "mirrorClipY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_clip_z", tsName: "mirrorClipZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "clip_dist", tsName: "clipDist", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_axis_x", tsName: "useAxisX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_axis_y", tsName: "useAxisY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_axis_z", tsName: "useAxisZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Smoothing factor. */
+            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Smoothing factor."},
+            /** Set vertices close to the x axis before the operation to 0. */
+            {name: "mirror_clip_x", tsName: "mirrorClipX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Set vertices close to the x axis before the operation to 0."},
+            /** Set vertices close to the y axis before the operation to 0. */
+            {name: "mirror_clip_y", tsName: "mirrorClipY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Set vertices close to the y axis before the operation to 0."},
+            /** Set vertices close to the z axis before the operation to 0. */
+            {name: "mirror_clip_z", tsName: "mirrorClipZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Set vertices close to the z axis before the operation to 0."},
+            /** Clipping threshold for the above three slots. */
+            {name: "clip_dist", tsName: "clipDist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Clipping threshold for the above three slots."},
+            /** Smooth vertices along X axis. */
+            {name: "use_axis_x", tsName: "useAxisX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth vertices along X axis."},
+            /** Smooth vertices along Y axis. */
+            {name: "use_axis_y", tsName: "useAxisY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth vertices along Y axis."},
+            /** Smooth vertices along Z axis. */
+            {name: "use_axis_z", tsName: "useAxisZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth vertices along Z axis."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_smooth_vert_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Vertex Smooth Laplacian.
@@ -240,18 +258,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "smoothLaplacianVert",
         doc: "Vertex Smooth Laplacian.\n\nSmooths vertices by using Laplacian smoothing proposed by\nDesbrun, et al. Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "lambda_factor", tsName: "lambdaFactor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "lambda_border", tsName: "lambdaBorder", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_x", tsName: "useX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_y", tsName: "useY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_z", tsName: "useZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "preserve_volume", tsName: "preserveVolume", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Lambda parameter. */
+            {name: "lambda_factor", tsName: "lambdaFactor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Lambda parameter."},
+            /** Lambda param in border. */
+            {name: "lambda_border", tsName: "lambdaBorder", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Lambda param in border."},
+            /** Smooth object along X axis. */
+            {name: "use_x", tsName: "useX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth object along X axis."},
+            /** Smooth object along Y axis. */
+            {name: "use_y", tsName: "useY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth object along Y axis."},
+            /** Smooth object along Z axis. */
+            {name: "use_z", tsName: "useZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth object along Z axis."},
+            /** Apply volume preservation after smooth. */
+            {name: "preserve_volume", tsName: "preserveVolume", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Apply volume preservation after smooth."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_smooth_laplacian_vert_exec",
+        execFile: "source/blender/bmesh/operators/bmo_smooth_laplacian.cc",
     },
     /**
      * Right-Hand Faces.
@@ -263,12 +289,14 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "recalcFaceNormals",
         doc: "Right-Hand Faces.\n\nComputes an \"outside\" normal for the specified input faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_recalc_face_normals_exec",
+        execFile: "source/blender/bmesh/operators/bmo_normals.cc",
     },
     /**
      * Planar Faces.
@@ -280,15 +308,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "planarFaces",
         doc: "Planar Faces.\n\nIteratively flatten faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "iterations", tsName: "iterations", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT"},
+            /** Input geometry. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input geometry."},
+            /** Number of times to flatten faces (for when connected faces are used) */
+            {name: "iterations", tsName: "iterations", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of times to flatten faces (for when connected faces are used)"},
+            /** Influence for making planar each iteration */
+            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Influence for making planar each iteration"},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output slot, computed boundary geometry. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Output slot, computed boundary geometry."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_planar_faces_exec",
+        execFile: "source/blender/bmesh/operators/bmo_planar_faces.cc",
     },
     /**
      * Region Extend.
@@ -304,16 +337,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "regionExtend",
         doc: "Region Extend.\n\nUsed to implement the select more/less tools.\nPuts geometry surrounding regions of geometry in `geom` into `geom.out`.\n\nIf `use_faces` is 0 then `geom.out` spits out verts and edges,\notherwise it spits out faces.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "use_contract", tsName: "useContract", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_faces", tsName: "useFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_face_step", tsName: "useFaceStep", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Find boundary inside the regions, not outside. */
+            {name: "use_contract", tsName: "useContract", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Find boundary inside the regions, not outside."},
+            /** Extend from faces instead of edges. */
+            {name: "use_faces", tsName: "useFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Extend from faces instead of edges."},
+            /** Step over connected faces. */
+            {name: "use_face_step", tsName: "useFaceStep", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Step over connected faces."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output slot, computed boundary geometry. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Output slot, computed boundary geometry."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_region_extend_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Edge Rotate.
@@ -326,14 +365,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "rotateEdges",
         doc: "Edge Rotate.\n\nRotates edges topologically. Also known as \"spin edge\" to some people.\nSimple example: `[/] becomes [|] then [\\]`.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Rotate edge counter-clockwise if true, otherwise clockwise. */
+            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Rotate edge counter-clockwise if true, otherwise clockwise."},
         ],
         slotsOut: [
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Newly spun edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Newly spun edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_rotate_edges_exec",
+        execFile: "source/blender/bmesh/operators/bmo_rotate_edges.cc",
     },
     /**
      * Reverse Faces.
@@ -346,13 +389,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "reverseFaces",
         doc: "Reverse Faces.\n\nReverses the winding (vertex order) of faces.\nThis has the effect of flipping the normal.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "flip_multires", tsName: "flipMultires", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Maintain multi-res offset. */
+            {name: "flip_multires", tsName: "flipMultires", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Maintain multi-res offset."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_reverse_faces_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Flip Quad Tessellation
@@ -364,12 +410,14 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "flipQuadTessellation",
         doc: "Flip Quad Tessellation\n\nFlip the tessellation direction of the selected quads.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_flip_quad_tessellation_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Edge Bisect.
@@ -382,15 +430,19 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "bisectEdges",
         doc: "Edge Bisect.\n\nSplits input edges (but doesn't do anything else).\nThis creates a 2-valence vert.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Number of cuts. */
+            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of cuts."},
             {name: "edge_percents", tsName: "edgePercents", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_FLT"},
         ],
         slotsOut: [
-            {name: "geom_split.out", tsName: "geomSplit", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Newly created vertices and edges. */
+            {name: "geom_split.out", tsName: "geomSplit", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Newly created vertices and edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_bisect_edges_exec",
+        execFile: "source/blender/bmesh/operators/bmo_subdivide.cc",
     },
     /**
      * Mirror.
@@ -404,20 +456,30 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "mirror",
         doc: "Mirror.\n\nMirrors geometry along an axis. The resulting geometry is welded on using\n`merge_dist`. Pairs of original/mirrored vertices are welded using the `merge_dist`\nparameter (which defines the minimum distance for welding to happen).",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "merge_dist", tsName: "mergeDist", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "axis", tsName: "axis", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_axis_xyz"},
-            {name: "mirror_u", tsName: "mirrorU", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_v", tsName: "mirrorV", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_udim", tsName: "mirrorUdim", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Matrix defining the mirror transformation. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix defining the mirror transformation."},
+            /** Maximum distance for merging. does no merging if 0. */
+            {name: "merge_dist", tsName: "mergeDist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum distance for merging. does no merging if 0."},
+            /** The axis to use. */
+            {name: "axis", tsName: "axis", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_axis_xyz", doc: "The axis to use."},
+            /** Mirror UVs across the u axis. */
+            {name: "mirror_u", tsName: "mirrorU", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Mirror UVs across the u axis."},
+            /** Mirror UVs across the v axis. */
+            {name: "mirror_v", tsName: "mirrorV", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Mirror UVs across the v axis."},
+            /** Mirror UVs in each tile. */
+            {name: "mirror_udim", tsName: "mirrorUdim", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Mirror UVs in each tile."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output geometry, mirrored. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Output geometry, mirrored."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_mirror_exec",
+        execFile: "source/blender/bmesh/operators/bmo_mirror.cc",
     },
     /**
      * Find Doubles.
@@ -433,16 +495,21 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "findDoubles",
         doc: "Find Doubles.\n\nTakes input verts and finds vertices they should weld to.\nOutputs a mapping slot suitable for use with the weld verts BMOP.\n\nIf `keep_verts` is used, vertices outside that set can only be merged\nwith vertices in that set.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "keep_verts", tsName: "keepVerts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_connected", tsName: "useConnected", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** List of verts to keep. */
+            {name: "keep_verts", tsName: "keepVerts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "List of verts to keep."},
+            /** Limit the search for doubles by connected geometry. */
+            {name: "use_connected", tsName: "useConnected", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Limit the search for doubles by connected geometry."},
+            /** Maximum distance. */
+            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum distance."},
         ],
         slotsOut: [
             {name: "targetmap.out", tsName: "targetmap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
         ],
         typeFlags: [],
         execC: "bmo_find_doubles_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Remove Doubles.
@@ -455,14 +522,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "removeDoubles",
         doc: "Remove Doubles.\n\nFinds groups of vertices closer than dist and merges them together,\nusing the weld verts BMOP.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_connected", tsName: "useConnected", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT"},
+            /** Input verts. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input verts."},
+            /** Limit the search for doubles by connected geometry. */
+            {name: "use_connected", tsName: "useConnected", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Limit the search for doubles by connected geometry."},
+            /** Maximum distance. */
+            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum distance."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_remove_doubles_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Circularize.
@@ -474,24 +545,38 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "circularize",
         doc: "Circularize.\n\nShape selected geometry into a circle.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "custom_radius", tsName: "customRadius", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "angle", tsName: "angle", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "fit_method", tsName: "fitMethod", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "flatten", tsName: "flatten", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "regular", tsName: "regular", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_x", tsName: "mirrorX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_y", tsName: "mirrorY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mirror_z", tsName: "mirrorZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Influence factor: spans from 0.0 to 1.0. */
+            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Influence factor: spans from 0.0 to 1.0."},
+            /** Custom radius. */
+            {name: "custom_radius", tsName: "customRadius", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Custom radius."},
+            /** Rotation angle. */
+            {name: "angle", tsName: "angle", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Rotation angle."},
+            /** Method to fit the circle. */
+            {name: "fit_method", tsName: "fitMethod", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Method to fit the circle."},
+            /** Flatten factor: 0.0 projects onto the mesh, 1.0 flattens on the optimal plane. */
+            {name: "flatten", tsName: "flatten", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Flatten factor: 0.0 projects onto the mesh, 1.0 flattens on the optimal plane."},
+            /** Distributes vertices at constant distances, otherwise preserves original spacing. */
+            {name: "regular", tsName: "regular", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Distributes vertices at constant distances, otherwise preserves original spacing."},
+            /** Lock X-axis editing. */
+            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock X-axis editing."},
+            /** Lock Y-axis editing. */
+            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Y-axis editing."},
+            /** Lock Z-axis editing. */
+            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Z-axis editing."},
+            /** Use X axis of the mirror modifier. */
+            {name: "mirror_x", tsName: "mirrorX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use X axis of the mirror modifier."},
+            /** Use Y axis of the mirror modifier. */
+            {name: "mirror_y", tsName: "mirrorY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use Y axis of the mirror modifier."},
+            /** Use Z axis of the mirror modifier. */
+            {name: "mirror_z", tsName: "mirrorZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use Z axis of the mirror modifier."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_circularize_exec",
+        execFile: "source/blender/bmesh/operators/bmo_circularize.cc",
     },
     /**
      * Flatten.
@@ -503,18 +588,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "flatten",
         doc: "Flatten.\n\nFlatten vertices on a best-fitting plane.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "method", tsName: "method", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "view_normal", tsName: "viewNormal", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Influence factor: spans from 0.0 to 1.0. */
+            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Influence factor: spans from 0.0 to 1.0."},
+            /** Plane on which vertices are flattened. */
+            {name: "method", tsName: "method", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Plane on which vertices are flattened."},
+            /** View direction in object local space. */
+            {name: "view_normal", tsName: "viewNormal", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "View direction in object local space."},
+            /** Lock X axis editing. */
+            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock X axis editing."},
+            /** Lock Y axis editing. */
+            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Y axis editing."},
+            /** Lock Z axis editing. */
+            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Z axis editing."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_flatten_exec",
+        execFile: "source/blender/bmesh/operators/bmo_flatten.cc",
     },
     /**
      * Collapse Connected.
@@ -526,13 +619,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "collapse",
         doc: "Collapse Connected.\n\nCollapses connected vertices",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "uvs", tsName: "uvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Also collapse UVs and such. */
+            {name: "uvs", tsName: "uvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Also collapse UVs and such."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_collapse_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Face-Data Point Merge.
@@ -544,13 +640,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "pointmergeFacedata",
         doc: "Face-Data Point Merge.\n\nMerge uv/vcols at a specific vertex.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "vert_target", tsName: "vertTarget", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, isSingle: true},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Target vertex to merge into. */
+            {name: "vert_target", tsName: "vertTarget", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, isSingle: true, doc: "Target vertex to merge into."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_pointmerge_facedata_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Average Vertices Face-vert Data.
@@ -563,12 +662,14 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "averageVertFacedata",
         doc: "Average Vertices Face-vert Data.\n\nMerge uv/vcols associated with the input vertices at\nthe bounding box center.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_average_vert_facedata_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Point Merge.
@@ -580,14 +681,21 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "pointmerge",
         doc: "Point Merge.\n\nMerge verts together at a point.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "merge_co", tsName: "mergeCo", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "vert_target", tsName: "vertTarget", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, isSingle: true},
+            /** Input vertices (all verts will be merged into the first). */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices (all verts will be merged into the first)."},
+            /** Position to merge at. */
+            {name: "merge_co", tsName: "mergeCo", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Position to merge at."},
+            /**
+             * Optional target vertex to merge into. Does not override merge_co.
+             * Set this to preserve the custom data of the target vertex.
+             */
+            {name: "vert_target", tsName: "vertTarget", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, isSingle: true, doc: "Optional target vertex to merge into. Does not override merge_co.\nSet this to preserve the custom data of the target vertex."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_pointmerge_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Collapse Connected UVs.
@@ -599,12 +707,14 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "collapseUvs",
         doc: "Collapse Connected UVs.\n\nCollapses connected UV vertices.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_collapse_uvs_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Weld Verts.
@@ -618,14 +728,21 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "weldVerts",
         doc: "Weld Verts.\n\nWelds verts together (kind-of like remove doubles, merge, etc, all of which\nuse or will use this BMOP). You pass in mappings from vertices to the vertices\nthey weld with.",
         slotsIn: [
-            {name: "targetmap", tsName: "targetmap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
-            {name: "use_centroid", tsName: "useCentroid", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "average_vert_data", tsName: "averageVertData", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Maps welded vertices to verts they should weld to. */
+            {name: "targetmap", tsName: "targetmap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM", doc: "Maps welded vertices to verts they should weld to."},
+            /**
+             * Merge vertices to their centroid position,
+             * otherwise use the position of the target vertex.
+             */
+            {name: "use_centroid", tsName: "useCentroid", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Merge vertices to their centroid position,\notherwise use the position of the target vertex."},
+            /** Whether to average custom data of merged vertices. */
+            {name: "average_vert_data", tsName: "averageVertData", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Whether to average custom data of merged vertices."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_weld_verts_exec",
+        execFile: "source/blender/bmesh/operators/bmo_removedoubles.cc",
     },
     /**
      * Make Vertex.
@@ -638,13 +755,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createVert",
         doc: "Make Vertex.\n\nCreates a single vertex; this BMOP was necessary\nfor click-create-vertex.",
         slotsIn: [
-            {name: "co", tsName: "co", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
+            /** The coordinate of the new vert. */
+            {name: "co", tsName: "co", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "The coordinate of the new vert."},
         ],
         slotsOut: [
-            {name: "vert.out", tsName: "vert", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** The new vert. */
+            {name: "vert.out", tsName: "vert", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "The new vert."},
         ],
         typeFlags: [],
         execC: "bmo_create_vert_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Join Triangles.
@@ -657,24 +777,34 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "joinTriangles",
         doc: "Join Triangles.\n\nTries to intelligently join triangles according\nto angle threshold and delimiters.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "cmp_seam", tsName: "cmpSeam", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cmp_sharp", tsName: "cmpSharp", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cmp_uvs", tsName: "cmpUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cmp_vcols", tsName: "cmpVcols", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cmp_materials", tsName: "cmpMaterials", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input geometry."},
+            /** Compare seam */
+            {name: "cmp_seam", tsName: "cmpSeam", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Compare seam"},
+            /** Compare sharp */
+            {name: "cmp_sharp", tsName: "cmpSharp", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Compare sharp"},
+            /** Compare UVs */
+            {name: "cmp_uvs", tsName: "cmpUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Compare UVs"},
+            /** Compare VCols. */
+            {name: "cmp_vcols", tsName: "cmpVcols", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Compare VCols."},
+            /** Compare materials. */
+            {name: "cmp_materials", tsName: "cmpMaterials", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Compare materials."},
             {name: "angle_face_threshold", tsName: "angleFaceThreshold", type: "float", cType: "BMO_OP_SLOT_FLT"},
             {name: "angle_shape_threshold", tsName: "angleShapeThreshold", type: "float", cType: "BMO_OP_SLOT_FLT"},
             {name: "topology_influence", tsName: "topologyInfluence", type: "float", cType: "BMO_OP_SLOT_FLT"},
             {name: "deselect_joined", tsName: "deselectJoined", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "merge_limit", tsName: "mergeLimit", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "neighbor_debug", tsName: "neighborDebug", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Only present when `USE_JOIN_TRIANGLE_INTERACTIVE_TESTING` is defined. */
+            {name: "merge_limit", tsName: "mergeLimit", type: "int", cType: "BMO_OP_SLOT_INT", condition: "USE_JOIN_TRIANGLE_INTERACTIVE_TESTING"},
+            /** Only present when `USE_JOIN_TRIANGLE_INTERACTIVE_TESTING` is defined. */
+            {name: "neighbor_debug", tsName: "neighborDebug", type: "int", cType: "BMO_OP_SLOT_INT", condition: "USE_JOIN_TRIANGLE_INTERACTIVE_TESTING"},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Joined faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Joined faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_join_triangles_exec",
+        execFile: "source/blender/bmesh/operators/bmo_join_triangles.cc",
     },
     /**
      * Contextual Create.
@@ -691,16 +821,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "contextualCreate",
         doc: "Contextual Create.\n\nThis is basically F-key, it creates\nnew faces from vertices, makes stuff from edge nets,\nmakes wire edges, etc. It also dissolves faces.\n\nThree verts become a triangle, four become a quad. Two\nbecome a wire edge.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Material to use. */
+            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Material to use."},
+            /** Set smooth shading on newly created faces. */
+            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Set smooth shading on newly created faces."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Newly-made face(s). */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Newly-made face(s)."},
+            /** Newly-made edge(s). */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Newly-made edge(s)."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_contextual_create_exec",
+        execFile: "source/blender/bmesh/operators/bmo_create.cc",
     },
     /** Bridge edge loops with faces. */
     "bridge_loops": {
@@ -708,19 +844,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "bridgeLoops",
         doc: "Bridge edge loops with faces.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
             {name: "use_pairs", tsName: "usePairs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
             {name: "use_cyclic", tsName: "useCyclic", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_merge", tsName: "useMerge", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "merge_factor", tsName: "mergeFactor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "twist_offset", tsName: "twistOffset", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Merge rather than creating faces. */
+            {name: "use_merge", tsName: "useMerge", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Merge rather than creating faces."},
+            /** Merge factor. */
+            {name: "merge_factor", tsName: "mergeFactor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Merge factor."},
+            /** Twist offset for closed loops. */
+            {name: "twist_offset", tsName: "twistOffset", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Twist offset for closed loops."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** New faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "New faces."},
+            /** New edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "New edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_bridge_loops_exec",
+        execFile: "source/blender/bmesh/operators/bmo_bridge.cc",
     },
     /**
      * Grid Fill.
@@ -732,16 +875,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "gridFill",
         doc: "Grid Fill.\n\nCreate faces defined by 2 disconnected edge loops (which share edges).",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_interp_simple", tsName: "useInterpSimple", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Material to use. */
+            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Material to use."},
+            /** Smooth state to use. */
+            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth state to use."},
+            /** Use simple interpolation. */
+            {name: "use_interp_simple", tsName: "useInterpSimple", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use simple interpolation."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** New faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "New faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_grid_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_fill_grid.cc",
     },
     /**
      * Fill Holes.
@@ -753,14 +902,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "holesFill",
         doc: "Fill Holes.\n\nFill boundary edges with faces, copying surrounding custom-data.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "sides", tsName: "sides", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Maximum number of sides for holes to fill (holes with more edges are skipped). */
+            {name: "sides", tsName: "sides", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Maximum number of sides for holes to fill (holes with more edges are skipped)."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** New faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "New faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_holes_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_fill_holes.cc",
     },
     /**
      * Face Attribute Fill.
@@ -772,15 +925,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "faceAttributeFill",
         doc: "Face Attribute Fill.\n\nFill in faces with data from adjacent faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_normals", tsName: "useNormals", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_data", tsName: "useData", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Copy face winding. */
+            {name: "use_normals", tsName: "useNormals", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Copy face winding."},
+            /** Copy face data. */
+            {name: "use_data", tsName: "useData", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Copy face data."},
         ],
         slotsOut: [
-            {name: "faces_fail.out", tsName: "facesFail", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Faces that could not be handled. */
+            {name: "faces_fail.out", tsName: "facesFail", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Faces that could not be handled."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_face_attribute_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_fill_attribute.cc",
     },
     /**
      * Edge Loop Fill.
@@ -792,15 +950,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "edgeloopFill",
         doc: "Edge Loop Fill.\n\nCreate faces defined by one or more non overlapping edge loops.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Material to use. */
+            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Material to use."},
+            /** Smooth state to use. */
+            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth state to use."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** New faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "New faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_edgeloop_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_fill_edgeloop.cc",
     },
     /**
      * Edge Net Fill.
@@ -812,16 +975,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "edgenetFill",
         doc: "Edge Net Fill.\n\nCreate faces defined by enclosed edges.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "sides", tsName: "sides", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Material to use. */
+            {name: "mat_nr", tsName: "matNr", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Material to use."},
+            /** Smooth state to use. */
+            {name: "use_smooth", tsName: "useSmooth", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Smooth state to use."},
+            /** Maximum number of sides for created faces. */
+            {name: "sides", tsName: "sides", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Maximum number of sides for created faces."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** New faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "New faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_edgenet_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_edgenet.cc",
     },
     /**
      * Edge-net Prepare.
@@ -838,13 +1007,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "edgenetPrepare",
         doc: "Edge-net Prepare.\n\nIdentifies several useful edge loop cases and modifies them so\nthey'll become a face when edgenet_fill is called. The cases covered are:\n\n- One single loop; an edge is added to connect the ends\n- Two loops; two edges are added to connect the endpoints (based on the\n  shortest distance between each endpoint).",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
         ],
         slotsOut: [
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** New edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "New edges."},
         ],
         typeFlags: [],
         execC: "bmo_edgenet_prepare_exec",
+        execFile: "source/blender/bmesh/operators/bmo_edgenet.cc",
     },
     /**
      * Rotate.
@@ -856,16 +1028,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "rotate",
         doc: "Rotate.\n\nRotate vertices around a center, using a 3x3 rotation matrix.",
         slotsIn: [
-            {name: "cent", tsName: "cent", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Center of rotation. */
+            {name: "cent", tsName: "cent", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Center of rotation."},
+            /** Matrix defining rotation. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix defining rotation."},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Matrix to define the space (typically object matrix). */
+            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to define the space (typically object matrix)."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_rotate_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Translate.
@@ -877,15 +1055,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "translate",
         doc: "Translate.\n\nTranslate vertices by an offset.",
         slotsIn: [
-            {name: "vec", tsName: "vec", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Translation offset. */
+            {name: "vec", tsName: "vec", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Translation offset."},
+            /** Matrix to define the space (typically object matrix). */
+            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to define the space (typically object matrix)."},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_translate_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Scale.
@@ -897,15 +1080,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "scale",
         doc: "Scale.\n\nScales vertices by a factor.",
         slotsIn: [
-            {name: "vec", tsName: "vec", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Scale factor. */
+            {name: "vec", tsName: "vec", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Scale factor."},
+            /** Matrix to define the space (typically object matrix). */
+            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to define the space (typically object matrix)."},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_scale_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Transform.
@@ -918,15 +1106,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "transform",
         doc: "Transform.\n\nTransforms a set of vertices by a matrix. Multiplies\nthe vertex coordinates with the matrix.",
         slotsIn: [
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Transform matrix. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Transform matrix."},
+            /** Matrix to define the space (typically object matrix). */
+            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to define the space (typically object matrix)."},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_transform_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Object Load BMesh.
@@ -939,13 +1132,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "objectLoadBmesh",
         doc: "Object Load BMesh.\n\nLoads a bmesh into an object/mesh. This is a \"private\"\nBMOP.",
         slotsIn: [
-            {name: "scene", tsName: "scene", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_SCENE"},
-            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT"},
+            /** The scene. */
+            {name: "scene", tsName: "scene", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_SCENE", doc: "The scene."},
+            /** The object. */
+            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT", doc: "The object."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_object_load_bmesh_exec",
+        execFile: "source/blender/bmesh/operators/bmo_mesh_convert.cc",
     },
     /**
      * BMesh to Mesh.
@@ -957,13 +1153,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "bmeshToMesh",
         doc: "BMesh to Mesh.\n\nConverts a bmesh to a Mesh. This is reserved for exiting edit-mode.",
         slotsIn: [
-            {name: "mesh", tsName: "mesh", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_MESH"},
-            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT"},
+            /** The mesh to write into. */
+            {name: "mesh", tsName: "mesh", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_MESH", doc: "The mesh to write into."},
+            /** The object. */
+            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT", doc: "The object."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_bmesh_to_mesh_exec",
+        execFile: "source/blender/bmesh/operators/bmo_mesh_convert.cc",
     },
     /**
      * Mesh to BMesh.
@@ -976,14 +1175,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "meshToBmesh",
         doc: "Mesh to BMesh.\n\nLoad the contents of a mesh into the bmesh. this BMOP is private, it's\nreserved exclusively for entering edit-mode.",
         slotsIn: [
-            {name: "mesh", tsName: "mesh", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_MESH"},
-            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT"},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** The mesh to read from. */
+            {name: "mesh", tsName: "mesh", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_MESH", doc: "The mesh to read from."},
+            /** The object. */
+            {name: "object", tsName: "object", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_OBJECT", doc: "The object."},
+            /** Load active shapekey coordinates into verts. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Load active shapekey coordinates into verts."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_mesh_to_bmesh_exec",
+        execFile: "source/blender/bmesh/operators/bmo_mesh_convert.cc",
     },
     /**
      * Individual Face Extrude.
@@ -995,15 +1198,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "extrudeDiscreteFaces",
         doc: "Individual Face Extrude.\n\nExtrudes faces individually.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Create faces with reversed direction. */
+            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Create faces with reversed direction."},
+            /** Preserve the selection history in the extruded geometry. */
+            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Preserve the selection history in the extruded geometry."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_extrude_discrete_faces_exec",
+        execFile: "source/blender/bmesh/operators/bmo_extrude.cc",
     },
     /**
      * Extrude Only Edges.
@@ -1016,15 +1224,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "extrudeEdgeOnly",
         doc: "Extrude Only Edges.\n\nExtrudes Edges into faces, note that this is very simple, there's no fancy\nwinged extrusion.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Create faces with reversed direction. */
+            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Create faces with reversed direction."},
+            /** Preserve the selection history in the extruded geometry. */
+            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Preserve the selection history in the extruded geometry."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output geometry. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Output geometry."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_extrude_edge_only_exec",
+        execFile: "source/blender/bmesh/operators/bmo_extrude.cc",
     },
     /**
      * Individual Vertex Extrude.
@@ -1036,15 +1249,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "extrudeVertIndiv",
         doc: "Individual Vertex Extrude.\n\nExtrudes individual vertices, creating new vertices connected by wire edges.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Preserve the selection history in the extruded geometry. */
+            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Preserve the selection history in the extruded geometry."},
         ],
         slotsOut: [
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output wire edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Output wire edges."},
+            /** Output vertices. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output vertices."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_extrude_vert_indiv_exec",
+        execFile: "source/blender/bmesh/operators/bmo_extrude.cc",
     },
     /**
      * Connect Verts.
@@ -1056,15 +1274,19 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "connectVerts",
         doc: "Connect Verts.\n\nSplit faces by adding edges that connect `verts`.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "check_degenerate", tsName: "checkDegenerate", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Input faces to explicitly exclude from connecting. */
+            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces to explicitly exclude from connecting."},
+            /** Prevent splits with overlaps & intersections. */
+            {name: "check_degenerate", tsName: "checkDegenerate", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Prevent splits with overlaps & intersections."},
         ],
         slotsOut: [
             {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_connect_verts_exec",
+        execFile: "source/blender/bmesh/operators/bmo_connect.cc",
     },
     /**
      * Connect Verts to form Convex Faces.
@@ -1076,7 +1298,8 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "connectVertsConcave",
         doc: "Connect Verts to form Convex Faces.\n\nSplits concave faces into convex faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
         ],
         slotsOut: [
             {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
@@ -1084,6 +1307,7 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_connect_verts_concave_exec",
+        execFile: "source/blender/bmesh/operators/bmo_connect_concave.cc",
     },
     /**
      * Connect Verts Across non Planar Faces.
@@ -1095,8 +1319,10 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "connectVertsNonplanar",
         doc: "Connect Verts Across non Planar Faces.\n\nSplit faces by connecting edges along non planar `faces`.",
         slotsIn: [
-            {name: "angle_limit", tsName: "angleLimit", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Maximum angle of non-planarity before splitting (radians). */
+            {name: "angle_limit", tsName: "angleLimit", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum angle of non-planarity before splitting (radians)."},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
         ],
         slotsOut: [
             {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
@@ -1104,6 +1330,7 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_connect_verts_nonplanar_exec",
+        execFile: "source/blender/bmesh/operators/bmo_connect_nonplanar.cc",
     },
     /**
      * Connect Vert Pair.
@@ -1115,15 +1342,19 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "connectVertPair",
         doc: "Connect Vert Pair.\n\nConnect a pair of vertices by splitting faces along the shortest path between them.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "verts_exclude", tsName: "vertsExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Input vertices to explicitly exclude from connecting. */
+            {name: "verts_exclude", tsName: "vertsExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices to explicitly exclude from connecting."},
+            /** Input faces to explicitly exclude from connecting. */
+            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces to explicitly exclude from connecting."},
         ],
         slotsOut: [
             {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_connect_vert_pair_exec",
+        execFile: "source/blender/bmesh/operators/bmo_connect_pair.cc",
     },
     /**
      * Extrude Faces.
@@ -1135,20 +1366,29 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "extrudeFaceRegion",
         doc: "Extrude Faces.\n\nExtrude operator (does not transform)",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "edges_exclude", tsName: "edgesExclude", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_EMPTY"},
-            {name: "use_keep_orig", tsName: "useKeepOrig", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_normal_from_adjacent", tsName: "useNormalFromAdjacent", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_dissolve_ortho_edges", tsName: "useDissolveOrthoEdges", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "skip_input_flip", tsName: "skipInputFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Edges and faces. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Edges and faces."},
+            /** Input edges to explicitly exclude from extrusion. */
+            {name: "edges_exclude", tsName: "edgesExclude", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_EMPTY", doc: "Input edges to explicitly exclude from extrusion."},
+            /** Keep original geometry (requires `geom` to include edges). */
+            {name: "use_keep_orig", tsName: "useKeepOrig", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Keep original geometry (requires `geom` to include edges)."},
+            /** Create faces with reversed direction. */
+            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Create faces with reversed direction."},
+            /** Use winding from surrounding faces instead of this region. */
+            {name: "use_normal_from_adjacent", tsName: "useNormalFromAdjacent", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use winding from surrounding faces instead of this region."},
+            /** Dissolve edges whose faces form a flat surface. */
+            {name: "use_dissolve_ortho_edges", tsName: "useDissolveOrthoEdges", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Dissolve edges whose faces form a flat surface."},
+            /** Preserve the selection history in the extruded geometry. */
+            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Preserve the selection history in the extruded geometry."},
+            /** Skip flipping of input faces to preserve original orientation. */
+            {name: "skip_input_flip", tsName: "skipInputFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Skip flipping of input faces to preserve original orientation."},
         ],
         slotsOut: [
             {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_extrude_face_region_exec",
+        execFile: "source/blender/bmesh/operators/bmo_extrude.cc",
     },
     /** Dissolve Verts. */
     "dissolve_verts": {
@@ -1156,14 +1396,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "dissolveVerts",
         doc: "Dissolve Verts.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_face_split", tsName: "useFaceSplit", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_boundary_tear", tsName: "useBoundaryTear", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Split off face corners to maintain surrounding geometry. */
+            {name: "use_face_split", tsName: "useFaceSplit", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Split off face corners to maintain surrounding geometry."},
+            /** Split off face corners instead of merging faces. */
+            {name: "use_boundary_tear", tsName: "useBoundaryTear", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Split off face corners instead of merging faces."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_dissolve_verts_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dissolve.cc",
     },
     /** Dissolve Edges. */
     "dissolve_edges": {
@@ -1171,17 +1415,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "dissolveEdges",
         doc: "Dissolve Edges.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_face_split", tsName: "useFaceSplit", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "angle_threshold", tsName: "angleThreshold", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_preserve_quads", tsName: "usePreserveQuads", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Dissolve verts left between only 2 edges. */
+            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Dissolve verts left between only 2 edges."},
+            /** Split off face corners to maintain surrounding geometry. */
+            {name: "use_face_split", tsName: "useFaceSplit", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Split off face corners to maintain surrounding geometry."},
+            /**
+             * Do not dissolve verts between 2 edges when their angle exceeds this threshold.
+             * Disabled by default.
+             */
+            {name: "angle_threshold", tsName: "angleThreshold", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Do not dissolve verts between 2 edges when their angle exceeds this threshold.\nDisabled by default."},
+            /** When dissolving the edge between 2 triangles, don't dissolve the verts. */
+            {name: "use_preserve_quads", tsName: "usePreserveQuads", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "When dissolving the edge between 2 triangles, don't dissolve the verts."},
         ],
         slotsOut: [
             {name: "region.out", tsName: "region", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_dissolve_edges_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dissolve.cc",
         initC: "bmo_dissolve_edges_init",
         initDefaults: {
             "angle_threshold": {valueSrc: "M_PI", source: "source/blender/bmesh/operators/bmo_dissolve.cc:452"},
@@ -1193,14 +1446,17 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "dissolveFaces",
         doc: "Dissolve Faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Dissolve verts left between only 2 edges. */
+            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Dissolve verts left between only 2 edges."},
         ],
         slotsOut: [
             {name: "region.out", tsName: "region", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_dissolve_faces_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dissolve.cc",
     },
     /**
      * Limited Dissolve.
@@ -1212,17 +1468,23 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "dissolveLimit",
         doc: "Limited Dissolve.\n\nDissolve planar faces and co-linear edges.",
         slotsIn: [
-            {name: "angle_limit", tsName: "angleLimit", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_dissolve_boundaries", tsName: "useDissolveBoundaries", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "delimit", tsName: "delimit", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_FLAG", enumName: "bmo_enum_dissolve_limit_flags"},
+            /** Maximum angle (radians) between face normals for dissolving. */
+            {name: "angle_limit", tsName: "angleLimit", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum angle (radians) between face normals for dissolving."},
+            /** Dissolve all vertices in between face boundaries. */
+            {name: "use_dissolve_boundaries", tsName: "useDissolveBoundaries", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Dissolve all vertices in between face boundaries."},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Delimit dissolve operation. */
+            {name: "delimit", tsName: "delimit", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_FLAG", enumName: "bmo_enum_dissolve_limit_flags", doc: "Delimit dissolve operation."},
         ],
         slotsOut: [
             {name: "region.out", tsName: "region", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_dissolve_limit_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dissolve.cc",
     },
     /**
      * Degenerate Dissolve.
@@ -1234,13 +1496,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "dissolveDegenerate",
         doc: "Degenerate Dissolve.\n\nDissolve edges with no length, faces with no area.",
         slotsIn: [
-            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Maximum distance to consider degenerate. */
+            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Maximum distance to consider degenerate."},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_dissolve_degenerate_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dissolve.cc",
     },
     /**
      * Triangulate.
@@ -1252,18 +1517,23 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "triangulate",
         doc: "Triangulate.\n\nTriangulate faces, splitting quads and n-gons into triangles.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "quad_method", tsName: "quadMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_triangulate_quad_method"},
-            {name: "ngon_method", tsName: "ngonMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_triangulate_ngon_method"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Method for splitting the quads into triangles. */
+            {name: "quad_method", tsName: "quadMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_triangulate_quad_method", doc: "Method for splitting the quads into triangles."},
+            /** Method for splitting the polygons into triangles. */
+            {name: "ngon_method", tsName: "ngonMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_triangulate_ngon_method", doc: "Method for splitting the polygons into triangles."},
         ],
         slotsOut: [
             {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
             {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
             {name: "face_map.out", tsName: "faceMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
-            {name: "face_map_double.out", tsName: "faceMapDouble", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
+            /** Duplicate faces. */
+            {name: "face_map_double.out", tsName: "faceMapDouble", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM", doc: "Duplicate faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_triangulate_exec",
+        execFile: "source/blender/bmesh/operators/bmo_triangulate.cc",
     },
     /**
      * Un-Subdivide.
@@ -1275,13 +1545,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "unsubdivide",
         doc: "Un-Subdivide.\n\nReduce detail in geometry containing grids.",
         slotsIn: [
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "iterations", tsName: "iterations", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input vertices. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Input vertices."},
+            /** Number of times to unsubdivide. */
+            {name: "iterations", tsName: "iterations", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of times to unsubdivide."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_unsubdivide_exec",
+        execFile: "source/blender/bmesh/operators/bmo_unsubdivide.cc",
     },
     /**
      * Subdivide Edges.
@@ -1294,29 +1567,47 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "subdivideEdges",
         doc: "Subdivide Edges.\n\nAdvanced operator for subdividing edges\nwith options for face patterns, smoothing and randomization.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "smooth", tsName: "smooth", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "smooth_falloff", tsName: "smoothFalloff", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_falloff_type"},
-            {name: "fractal", tsName: "fractal", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "along_normal", tsName: "alongNormal", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "seed", tsName: "seed", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "custom_patterns", tsName: "customPatterns", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_INTERNAL"},
-            {name: "edge_percents", tsName: "edgePercents", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_FLT"},
-            {name: "quad_corner_type", tsName: "quadCornerType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_subdivide_edges_quad_corner_type"},
-            {name: "use_grid_fill", tsName: "useGridFill", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_single_edge", tsName: "useSingleEdge", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_only_quads", tsName: "useOnlyQuads", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_sphere", tsName: "useSphere", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_smooth_even", tsName: "useSmoothEven", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Smoothness factor. */
+            {name: "smooth", tsName: "smooth", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Smoothness factor."},
+            /** Smooth falloff type. */
+            {name: "smooth_falloff", tsName: "smoothFalloff", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_falloff_type", doc: "Smooth falloff type."},
+            /** Fractal randomness factor. */
+            {name: "fractal", tsName: "fractal", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Fractal randomness factor."},
+            /** Factor (0 to 1) controlling how much fractal displacement is restricted to the normal. */
+            {name: "along_normal", tsName: "alongNormal", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Factor (0 to 1) controlling how much fractal displacement is restricted to the normal."},
+            /** Number of cuts. */
+            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of cuts."},
+            /** Seed for the random number generator. */
+            {name: "seed", tsName: "seed", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Seed for the random number generator."},
+            /** Internal use only, not accessible from Python. */
+            {name: "custom_patterns", tsName: "customPatterns", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_INTERNAL", doc: "Internal use only, not accessible from Python."},
+            /** Mapping of edges to a float (0 to 1) controlling the cut position along each edge. */
+            {name: "edge_percents", tsName: "edgePercents", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_FLT", doc: "Mapping of edges to a float (0 to 1) controlling the cut position along each edge."},
+            /** Quad corner type. */
+            {name: "quad_corner_type", tsName: "quadCornerType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_subdivide_edges_quad_corner_type", doc: "Quad corner type."},
+            /** Fill in fully-selected faces with a grid. */
+            {name: "use_grid_fill", tsName: "useGridFill", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Fill in fully-selected faces with a grid."},
+            /** Tessellate the case of one edge selected in a quad or triangle. */
+            {name: "use_single_edge", tsName: "useSingleEdge", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Tessellate the case of one edge selected in a quad or triangle."},
+            /** Only subdivide quads (for loop-cut). */
+            {name: "use_only_quads", tsName: "useOnlyQuads", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Only subdivide quads (for loop-cut)."},
+            /** Project new vertices onto a sphere (used for spherical primitives). */
+            {name: "use_sphere", tsName: "useSphere", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Project new vertices onto a sphere (used for spherical primitives)."},
+            /** Maintain even offset when smoothing. */
+            {name: "use_smooth_even", tsName: "useSmoothEven", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Maintain even offset when smoothing."},
         ],
         slotsOut: [
-            {name: "geom_inner.out", tsName: "geomInner", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** NOTE: these next three can have multiple types of elements in them. */
+            {name: "geom_inner.out", tsName: "geomInner", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, note: "NOTE: these next three can have multiple types of elements in them."},
             {name: "geom_split.out", tsName: "geomSplit", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Contains all output geometry. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Contains all output geometry."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_subdivide_edges_exec",
+        execFile: "source/blender/bmesh/operators/bmo_subdivide.cc",
     },
     /**
      * Subdivide Edge-Ring.
@@ -1328,18 +1619,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "subdivideEdgering",
         doc: "Subdivide Edge-Ring.\n\nTake an edge-ring, and subdivide with interpolation options.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "interp_mode", tsName: "interpMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_subdivide_edgering_interp_mode"},
-            {name: "smooth", tsName: "smooth", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "profile_shape", tsName: "profileShape", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_falloff_type"},
-            {name: "profile_shape_factor", tsName: "profileShapeFactor", type: "float", cType: "BMO_OP_SLOT_FLT"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Interpolation method. */
+            {name: "interp_mode", tsName: "interpMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_subdivide_edgering_interp_mode", doc: "Interpolation method."},
+            /** Smoothness factor. */
+            {name: "smooth", tsName: "smooth", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Smoothness factor."},
+            /** Number of cuts. */
+            {name: "cuts", tsName: "cuts", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of cuts."},
+            /** Profile shape type. */
+            {name: "profile_shape", tsName: "profileShape", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_falloff_type", doc: "Profile shape type."},
+            /** How much intermediary new edges are shrunk/expanded. */
+            {name: "profile_shape_factor", tsName: "profileShapeFactor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "How much intermediary new edges are shrunk/expanded."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_subdivide_edgering_exec",
+        execFile: "source/blender/bmesh/operators/bmo_subdivide_edgering.cc",
     },
     /**
      * Bisect Plane.
@@ -1351,20 +1650,30 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "bisectPlane",
         doc: "Bisect Plane.\n\nBisects the mesh by a plane (cut the mesh in half).",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "plane_co", tsName: "planeCo", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "plane_no", tsName: "planeNo", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "use_snap_center", tsName: "useSnapCenter", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "clear_outer", tsName: "clearOuter", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "clear_inner", tsName: "clearInner", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Minimum distance when testing if a vert is exactly on the plane. */
+            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Minimum distance when testing if a vert is exactly on the plane."},
+            /** Point on the plane. */
+            {name: "plane_co", tsName: "planeCo", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Point on the plane."},
+            /** Normal of the plane. */
+            {name: "plane_no", tsName: "planeNo", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Normal of the plane."},
+            /** Snap axis aligned verts to the center. */
+            {name: "use_snap_center", tsName: "useSnapCenter", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Snap axis aligned verts to the center."},
+            /** When enabled, remove all geometry on the positive side of the plane. */
+            {name: "clear_outer", tsName: "clearOuter", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "When enabled, remove all geometry on the positive side of the plane."},
+            /** When enabled, remove all geometry on the negative side of the plane. */
+            {name: "clear_inner", tsName: "clearInner", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "When enabled, remove all geometry on the negative side of the plane."},
         ],
         slotsOut: [
-            {name: "geom_cut.out", tsName: "geomCut", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 3 /* VERT|EDGE */},
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output geometry aligned with the plane (new and existing). */
+            {name: "geom_cut.out", tsName: "geomCut", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 3 /* VERT|EDGE */, doc: "Output geometry aligned with the plane (new and existing)."},
+            /** Input and output geometry (result of cut). */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input and output geometry (result of cut)."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_bisect_plane_exec",
+        execFile: "source/blender/bmesh/operators/bmo_bisect_plane.cc",
     },
     /**
      * Delete Geometry.
@@ -1376,13 +1685,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "delete",
         doc: "Delete Geometry.\n\nUtility operator to delete geometry.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "context", tsName: "context", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_delete_context"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Geometry types to delete. */
+            {name: "context", tsName: "context", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_delete_context", doc: "Geometry types to delete."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_delete_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dupe.cc",
     },
     /**
      * Duplicate Geometry.
@@ -1395,22 +1707,35 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "duplicate",
         doc: "Duplicate Geometry.\n\nUtility operator to duplicate geometry,\noptionally into a destination mesh.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "dest", tsName: "dest", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_BMESH"},
-            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_edge_flip_from_face", tsName: "useEdgeFlipFromFace", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Destination bmesh, if None will use current one. */
+            {name: "dest", tsName: "dest", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_BMESH", doc: "Destination bmesh, if None will use current one."},
+            /** Preserve the selection history in the duplicated geometry. */
+            {name: "use_select_history", tsName: "useSelectHistory", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Preserve the selection history in the duplicated geometry."},
+            /** Copy edge flip state from connected faces. */
+            {name: "use_edge_flip_from_face", tsName: "useEdgeFlipFromFace", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Copy edge flip state from connected faces."},
         ],
         slotsOut: [
             {name: "geom_orig.out", tsName: "geomOrig", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
             {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "vert_map.out", tsName: "vertMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
+            /**
+             * NOTE: face_map maps from source faces to dupe faces,
+             * and from dupe faces to source faces.
+             */
+            {name: "vert_map.out", tsName: "vertMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM", note: "NOTE: face_map maps from source faces to dupe faces,\nand from dupe faces to source faces."},
             {name: "edge_map.out", tsName: "edgeMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
             {name: "face_map.out", tsName: "faceMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
-            {name: "boundary_map.out", tsName: "boundaryMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
+            /**
+             * Boundary edges from the split geometry that maps edges from the original geometry
+             * to the destination edges.
+             */
+            {name: "boundary_map.out", tsName: "boundaryMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM", doc: "Boundary edges from the split geometry that maps edges from the original geometry\nto the destination edges."},
             {name: "isovert_map.out", tsName: "isovertMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_duplicate_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dupe.cc",
     },
     /**
      * Split Off Geometry.
@@ -1423,17 +1748,28 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "split",
         doc: "Split Off Geometry.\n\nDisconnect geometry from adjacent edges and faces,\noptionally into a destination mesh.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "dest", tsName: "dest", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_BMESH"},
-            {name: "use_only_faces", tsName: "useOnlyFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Destination bmesh, if None will use current one. */
+            {name: "dest", tsName: "dest", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_BMESH", doc: "Destination bmesh, if None will use current one."},
+            /** When enabled, don't duplicate loose verts/edges. */
+            {name: "use_only_faces", tsName: "useOnlyFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "When enabled, don't duplicate loose verts/edges."},
         ],
         slotsOut: [
             {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "boundary_map.out", tsName: "boundaryMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
+            /**
+             * Boundary edges from the split geometry that maps edges from the original geometry
+             * to the destination edges.
+             *
+             * When the source edges have been deleted, the destination edge will be used
+             * for both the key and the value.
+             */
+            {name: "boundary_map.out", tsName: "boundaryMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM", doc: "Boundary edges from the split geometry that maps edges from the original geometry\nto the destination edges.\n\nWhen the source edges have been deleted, the destination edge will be used\nfor both the key and the value."},
             {name: "isovert_map.out", tsName: "isovertMap", type: "map", cType: "BMO_OP_SLOT_MAPPING", subtype: "MAP_ELEM"},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_split_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dupe.cc",
     },
     /**
      * Spin.
@@ -1446,22 +1782,34 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "spin",
         doc: "Spin.\n\nExtrude or duplicate geometry a number of times,\nrotating and possibly translating after each step",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "cent", tsName: "cent", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "axis", tsName: "axis", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "dvec", tsName: "dvec", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
-            {name: "angle", tsName: "angle", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "steps", tsName: "steps", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "use_merge", tsName: "useMerge", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_duplicate", tsName: "useDuplicate", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Rotation center. */
+            {name: "cent", tsName: "cent", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Rotation center."},
+            /** Rotation axis. */
+            {name: "axis", tsName: "axis", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Rotation axis."},
+            /** Translation delta per step. */
+            {name: "dvec", tsName: "dvec", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Translation delta per step."},
+            /** Total rotation angle (radians). */
+            {name: "angle", tsName: "angle", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Total rotation angle (radians)."},
+            /** Matrix to define the space (typically object matrix). */
+            {name: "space", tsName: "space", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to define the space (typically object matrix)."},
+            /** Number of steps. */
+            {name: "steps", tsName: "steps", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of steps."},
+            /** Merge first/last when the angle is a full revolution. */
+            {name: "use_merge", tsName: "useMerge", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Merge first/last when the angle is a full revolution."},
+            /** Create faces with reversed direction. */
+            {name: "use_normal_flip", tsName: "useNormalFlip", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Create faces with reversed direction."},
+            /** Duplicate the geometry, otherwise extrude. */
+            {name: "use_duplicate", tsName: "useDuplicate", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Duplicate the geometry, otherwise extrude."},
         ],
         slotsOut: [
-            {name: "geom_last.out", tsName: "geomLast", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Result of last step. */
+            {name: "geom_last.out", tsName: "geomLast", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Result of last step."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_spin_exec",
+        execFile: "source/blender/bmesh/operators/bmo_dupe.cc",
     },
     /**
      * UV Rotation.
@@ -1473,13 +1821,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "rotateUvs",
         doc: "UV Rotation.\n\nCycle the loop UVs",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Rotate counter-clockwise if true, otherwise clockwise. */
+            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Rotate counter-clockwise if true, otherwise clockwise."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_rotate_uvs_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * UV Reverse.
@@ -1491,12 +1842,14 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "reverseUvs",
         doc: "UV Reverse.\n\nReverse the UVs",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_reverse_uvs_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Color Rotation.
@@ -1508,14 +1861,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "rotateColors",
         doc: "Color Rotation.\n\nCycle the loop colors",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "color_index", tsName: "colorIndex", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Rotate counter-clockwise if true, otherwise clockwise. */
+            {name: "use_ccw", tsName: "useCcw", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Rotate counter-clockwise if true, otherwise clockwise."},
+            /** Index into color attribute list. */
+            {name: "color_index", tsName: "colorIndex", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Index into color attribute list."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_rotate_colors_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Color Reverse
@@ -1527,13 +1884,16 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "reverseColors",
         doc: "Color Reverse\n\nReverse the loop colors.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "color_index", tsName: "colorIndex", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Index into color attribute list. */
+            {name: "color_index", tsName: "colorIndex", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Index into color attribute list."},
         ],
         slotsOut: [
         ],
         typeFlags: [],
         execC: "bmo_reverse_colors_exec",
+        execFile: "source/blender/bmesh/operators/bmo_utils.cc",
     },
     /**
      * Edge Split.
@@ -1545,15 +1905,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "splitEdges",
         doc: "Edge Split.\n\nDisconnects faces along input edges.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Optional tag verts, use to have greater control of splits. */
+            {name: "verts", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Optional tag verts, use to have greater control of splits."},
+            /** Use `verts` for splitting, else just find verts to split from edges. */
+            {name: "use_verts", tsName: "useVerts", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use `verts` for splitting, else just find verts to split from edges."},
         ],
         slotsOut: [
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** The original edges that were disconnected. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "The original edges that were disconnected."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_split_edges_exec",
+        execFile: "source/blender/bmesh/operators/bmo_split_edges.cc",
     },
     /**
      * Create Grid.
@@ -1565,17 +1930,24 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createGrid",
         doc: "Create Grid.\n\nCreates a grid with a variable number of subdivisions",
         slotsIn: [
-            {name: "x_segments", tsName: "xSegments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "y_segments", tsName: "ySegments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "size", tsName: "size", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Number of x segments. */
+            {name: "x_segments", tsName: "xSegments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of x segments."},
+            /** Number of y segments. */
+            {name: "y_segments", tsName: "ySegments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of y segments."},
+            /** Size of the grid. */
+            {name: "size", tsName: "size", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Size of the grid."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_grid_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Create UV Sphere.
@@ -1587,17 +1959,24 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createUvsphere",
         doc: "Create UV Sphere.\n\nCreates a UV sphere with a variable number of subdivisions.",
         slotsIn: [
-            {name: "u_segments", tsName: "uSegments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "v_segments", tsName: "vSegments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Number of u segments. */
+            {name: "u_segments", tsName: "uSegments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of u segments."},
+            /** Number of v segments. */
+            {name: "v_segments", tsName: "vSegments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of v segments."},
+            /** Radius. */
+            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Radius."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_uvsphere_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Create Ico-Sphere.
@@ -1609,16 +1988,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createIcosphere",
         doc: "Create Ico-Sphere.\n\nCreates an ico-sphere with a variable number of subdivisions.",
         slotsIn: [
-            {name: "subdivisions", tsName: "subdivisions", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** How many times to recursively subdivide the sphere. */
+            {name: "subdivisions", tsName: "subdivisions", type: "int", cType: "BMO_OP_SLOT_INT", doc: "How many times to recursively subdivide the sphere."},
+            /** Radius. */
+            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Radius."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_icosphere_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Create Suzanne.
@@ -1630,14 +2015,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createMonkey",
         doc: "Create Suzanne.\n\nCreates a monkey (standard blender primitive).",
         slotsIn: [
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_monkey_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Create Cone.
@@ -1649,20 +2038,30 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createCone",
         doc: "Create Cone.\n\nCreates a cone with variable radius at both ends",
         slotsIn: [
-            {name: "cap_ends", tsName: "capEnds", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cap_tris", tsName: "capTris", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "radius1", tsName: "radius1", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "radius2", tsName: "radius2", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Whether or not to fill in the ends with faces. */
+            {name: "cap_ends", tsName: "capEnds", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Whether or not to fill in the ends with faces."},
+            /** Fill ends with triangles instead of ngons. */
+            {name: "cap_tris", tsName: "capTris", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Fill ends with triangles instead of ngons."},
+            /** Number of vertices in the base circle. */
+            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of vertices in the base circle."},
+            /** Radius of one end. */
+            {name: "radius1", tsName: "radius1", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Radius of one end."},
+            /** Radius of the opposite end. */
+            {name: "radius2", tsName: "radius2", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Radius of the opposite end."},
+            /** Distance between ends. */
+            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Distance between ends."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_cone_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /** Creates a Circle. */
     "create_circle": {
@@ -1670,18 +2069,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createCircle",
         doc: "Creates a Circle.",
         slotsIn: [
-            {name: "cap_ends", tsName: "capEnds", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "cap_tris", tsName: "capTris", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Whether or not to fill in the circle with a face. */
+            {name: "cap_ends", tsName: "capEnds", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Whether or not to fill in the circle with a face."},
+            /** Fill the circle with triangles instead of an n-gon. */
+            {name: "cap_tris", tsName: "capTris", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Fill the circle with triangles instead of an n-gon."},
+            /** Number of vertices in the circle. */
+            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of vertices in the circle."},
+            /** Radius of the circle. */
+            {name: "radius", tsName: "radius", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Radius of the circle."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_circle_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Create Cube
@@ -1693,15 +2100,20 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "createCube",
         doc: "Create Cube\n\nCreates a cube.",
         slotsIn: [
-            {name: "size", tsName: "size", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT"},
-            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Size of the cube. */
+            {name: "size", tsName: "size", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Size of the cube."},
+            /** Matrix to multiply the new geometry with. */
+            {name: "matrix", tsName: "matrix", type: "mat4", cType: "BMO_OP_SLOT_MAT", doc: "Matrix to multiply the new geometry with."},
+            /** Calculate default UVs. */
+            {name: "calc_uvs", tsName: "calcUvs", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Calculate default UVs."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_create_cube_exec",
+        execFile: "source/blender/bmesh/operators/bmo_primitive.cc",
     },
     /**
      * Bevel.
@@ -1713,33 +2125,56 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "bevel",
         doc: "Bevel.\n\nBevels edges and vertices",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "offset_type", tsName: "offsetType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_offset_type"},
-            {name: "profile_type", tsName: "profileType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_profile_type"},
-            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "profile", tsName: "profile", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "affect", tsName: "affect", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_affect_type"},
-            {name: "clamp_overlap", tsName: "clampOverlap", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "material", tsName: "material", type: "int", cType: "BMO_OP_SLOT_INT"},
-            {name: "loop_slide", tsName: "loopSlide", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mark_seam", tsName: "markSeam", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "mark_sharp", tsName: "markSharp", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "harden_normals", tsName: "hardenNormals", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "face_strength_mode", tsName: "faceStrengthMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_face_strength_type"},
-            {name: "miter_outer", tsName: "miterOuter", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_miter_type"},
-            {name: "miter_inner", tsName: "miterInner", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_miter_type"},
-            {name: "spread", tsName: "spread", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "custom_profile", tsName: "customProfile", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_STRUCT"},
-            {name: "vmesh_method", tsName: "vmeshMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_vmesh_method"},
+            /** Input edges and vertices. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input edges and vertices."},
+            /** Amount to offset beveled edge. */
+            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Amount to offset beveled edge."},
+            /** How to measure the offset. */
+            {name: "offset_type", tsName: "offsetType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_offset_type", doc: "How to measure the offset."},
+            /** The profile type to use for bevel. */
+            {name: "profile_type", tsName: "profileType", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_profile_type", doc: "The profile type to use for bevel."},
+            /** Number of segments in bevel. */
+            {name: "segments", tsName: "segments", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Number of segments in bevel."},
+            /** Profile shape, 0->1 (.5=>round). */
+            {name: "profile", tsName: "profile", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Profile shape, 0->1 (.5=>round)."},
+            /** Whether to bevel vertices or edges. */
+            {name: "affect", tsName: "affect", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_affect_type", doc: "Whether to bevel vertices or edges."},
+            /** Do not allow beveled edges/vertices to overlap each other. */
+            {name: "clamp_overlap", tsName: "clampOverlap", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Do not allow beveled edges/vertices to overlap each other."},
+            /** Material for bevel faces, -1 means get from adjacent faces. */
+            {name: "material", tsName: "material", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Material for bevel faces, -1 means get from adjacent faces."},
+            /** Prefer to slide along edges to having even widths. */
+            {name: "loop_slide", tsName: "loopSlide", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Prefer to slide along edges to having even widths."},
+            /** Extend edge data to allow seams to run across bevels. */
+            {name: "mark_seam", tsName: "markSeam", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Extend edge data to allow seams to run across bevels."},
+            /** Extend edge data to allow sharp edges to run across bevels. */
+            {name: "mark_sharp", tsName: "markSharp", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Extend edge data to allow sharp edges to run across bevels."},
+            /** Harden normals. */
+            {name: "harden_normals", tsName: "hardenNormals", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Harden normals."},
+            /** Whether to set face strength, and which faces to set if so. */
+            {name: "face_strength_mode", tsName: "faceStrengthMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_face_strength_type", doc: "Whether to set face strength, and which faces to set if so."},
+            /** Outer miter kind. */
+            {name: "miter_outer", tsName: "miterOuter", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_miter_type", doc: "Outer miter kind."},
+            /** Inner miter kind. */
+            {name: "miter_inner", tsName: "miterInner", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_miter_type", doc: "Inner miter kind."},
+            /** Amount to spread the miter. */
+            {name: "spread", tsName: "spread", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Amount to spread the miter."},
+            /** CurveProfile, if None ignored */
+            {name: "custom_profile", tsName: "customProfile", type: "ptr", cType: "BMO_OP_SLOT_PTR", subtype: "PTR_STRUCT", doc: "CurveProfile, if None ignored"},
+            /** The method to use to create meshes at intersections. */
+            {name: "vmesh_method", tsName: "vmeshMethod", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_bevel_vmesh_method", doc: "The method to use to create meshes at intersections."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
+            /** Output edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Output edges."},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_bevel_exec",
+        execFile: "source/blender/bmesh/operators/bmo_bevel.cc",
     },
     /**
      * Beautify Fill.
@@ -1751,16 +2186,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "beautifyFill",
         doc: "Beautify Fill.\n\nRotate edges to create more evenly spaced triangles.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "use_restrict_tag", tsName: "useRestrictTag", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "method", tsName: "method", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_beautify_fill_method"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Edges that can be flipped. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Edges that can be flipped."},
+            /** Restrict edge rotation to mixed tagged vertices. */
+            {name: "use_restrict_tag", tsName: "useRestrictTag", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Restrict edge rotation to mixed tagged vertices."},
+            /** Method to define what is beautiful. */
+            {name: "method", tsName: "method", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_beautify_fill_method", doc: "Method to define what is beautiful."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** New flipped faces and edges. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "New flipped faces and edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_beautify_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_beautify.cc",
     },
     /**
      * Triangle Fill.
@@ -1772,16 +2213,22 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "triangleFill",
         doc: "Triangle Fill.\n\nFill edges with triangles",
         slotsIn: [
-            {name: "use_beauty", tsName: "useBeauty", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_dissolve", tsName: "useDissolve", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "normal", tsName: "normal", type: "vec3", cType: "BMO_OP_SLOT_VEC"},
+            /** Use best triangulation division. */
+            {name: "use_beauty", tsName: "useBeauty", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Use best triangulation division."},
+            /** Dissolve resulting faces. */
+            {name: "use_dissolve", tsName: "useDissolve", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Dissolve resulting faces."},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Optionally pass the fill normal to use. */
+            {name: "normal", tsName: "normal", type: "vec3", cType: "BMO_OP_SLOT_VEC", doc: "Optionally pass the fill normal to use."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** New faces and edges. */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "New faces and edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_UNTAN_MULTIRES", "BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_triangle_fill_exec",
+        execFile: "source/blender/bmesh/operators/bmo_triangulate.cc",
     },
     /**
      * Solidify.
@@ -1793,14 +2240,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "solidify",
         doc: "Solidify.\n\nTurns a mesh into a shell with thickness",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Thickness of the solidified shell. */
+            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Thickness of the solidified shell."},
         ],
         slotsOut: [
-            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
+            /** Output geometry (new shell faces, edges, and vertices). */
+            {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Output geometry (new shell faces, edges, and vertices)."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_solidify_face_region_exec",
+        execFile: "source/blender/bmesh/operators/bmo_extrude.cc",
     },
     /**
      * Face Inset (Individual).
@@ -1812,18 +2263,26 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "insetIndividual",
         doc: "Face Inset (Individual).\n\nInsets individual faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_interpolate", tsName: "useInterpolate", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Inset distance from the boundary. */
+            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Inset distance from the boundary."},
+            /** Distance to raise or lower the inset face along its normal. */
+            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Distance to raise or lower the inset face along its normal."},
+            /** Scale the offset to give more even thickness. */
+            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset to give more even thickness."},
+            /** Blend face data across the inset. */
+            {name: "use_interpolate", tsName: "useInterpolate", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Blend face data across the inset."},
+            /** Scale the offset by surrounding geometry. */
+            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset by surrounding geometry."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_inset_individual_exec",
+        execFile: "source/blender/bmesh/operators/bmo_inset.cc",
     },
     /**
      * Face Inset (Regions).
@@ -1835,22 +2294,34 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "insetRegion",
         doc: "Face Inset (Regions).\n\nInset or outset face regions.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "use_boundary", tsName: "useBoundary", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_interpolate", tsName: "useInterpolate", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_edge_rail", tsName: "useEdgeRail", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_outset", tsName: "useOutset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Input faces to explicitly exclude from inset. */
+            {name: "faces_exclude", tsName: "facesExclude", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces to explicitly exclude from inset."},
+            /** Inset face boundaries. */
+            {name: "use_boundary", tsName: "useBoundary", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Inset face boundaries."},
+            /** Scale the offset to give more even thickness. */
+            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset to give more even thickness."},
+            /** Blend face data across the inset. */
+            {name: "use_interpolate", tsName: "useInterpolate", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Blend face data across the inset."},
+            /** Scale the offset by surrounding geometry. */
+            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset by surrounding geometry."},
+            /** Inset the region along existing edges. */
+            {name: "use_edge_rail", tsName: "useEdgeRail", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Inset the region along existing edges."},
+            /** Inset distance from the boundary. */
+            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Inset distance from the boundary."},
+            /** Distance to raise or lower the inset face along its normal. */
+            {name: "depth", tsName: "depth", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Distance to raise or lower the inset face along its normal."},
+            /** Outset rather than inset. */
+            {name: "use_outset", tsName: "useOutset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Outset rather than inset."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_inset_region_exec",
+        execFile: "source/blender/bmesh/operators/bmo_inset.cc",
     },
     /**
      * Edge-loop Offset.
@@ -1862,14 +2333,18 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "offsetEdgeloops",
         doc: "Edge-loop Offset.\n\nCreates edge loops based on simple edge-outset method.",
         slotsIn: [
-            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "use_cap_endpoint", tsName: "useCapEndpoint", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input edges. */
+            {name: "edges", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input edges."},
+            /** Extend loop around end-points. */
+            {name: "use_cap_endpoint", tsName: "useCapEndpoint", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Extend loop around end-points."},
         ],
         slotsOut: [
-            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
+            /** Output edges. */
+            {name: "edges.out", tsName: "edges", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Output edges."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH"],
         execC: "bmo_offset_edgeloops_exec",
+        execFile: "source/blender/bmesh/operators/bmo_offset_edgeloops.cc",
     },
     /**
      * Wire Frame.
@@ -1881,22 +2356,34 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "wireframe",
         doc: "Wire Frame.\n\nMakes a wire-frame copy of faces.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_replace", tsName: "useReplace", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_boundary", tsName: "useBoundary", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "use_crease", tsName: "useCrease", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "crease_weight", tsName: "creaseWeight", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "material_offset", tsName: "materialOffset", type: "int", cType: "BMO_OP_SLOT_INT"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Wire thickness. */
+            {name: "thickness", tsName: "thickness", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Wire thickness."},
+            /** Offset the thickness from the center. */
+            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Offset the thickness from the center."},
+            /** Remove original geometry. */
+            {name: "use_replace", tsName: "useReplace", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Remove original geometry."},
+            /** Inset face boundaries. */
+            {name: "use_boundary", tsName: "useBoundary", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Inset face boundaries."},
+            /** Scale the offset to give more even thickness. */
+            {name: "use_even_offset", tsName: "useEvenOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset to give more even thickness."},
+            /** Crease hub edges for improved subdivision surface. */
+            {name: "use_crease", tsName: "useCrease", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Crease hub edges for improved subdivision surface."},
+            /** The mean crease weight for resulting edges. */
+            {name: "crease_weight", tsName: "creaseWeight", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "The mean crease weight for resulting edges."},
+            /** Scale the offset by surrounding geometry. */
+            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Scale the offset by surrounding geometry."},
+            /** Offset material index of generated faces. */
+            {name: "material_offset", tsName: "materialOffset", type: "int", cType: "BMO_OP_SLOT_INT", doc: "Offset material index of generated faces."},
         ],
         slotsOut: [
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_wireframe_exec",
+        execFile: "source/blender/bmesh/operators/bmo_wireframe.cc",
     },
     /**
      * Pokes a face.
@@ -1908,17 +2395,24 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "poke",
         doc: "Pokes a face.\n\nSplits a face into a triangle fan.",
         slotsIn: [
-            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
-            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "center_mode", tsName: "centerMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_poke_center_mode"},
-            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input faces. */
+            {name: "faces", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Input faces."},
+            /** Center vertex offset along normal. */
+            {name: "offset", tsName: "offset", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Center vertex offset along normal."},
+            /** Calculation mode for center vertex. */
+            {name: "center_mode", tsName: "centerMode", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_poke_center_mode", doc: "Calculation mode for center vertex."},
+            /** Apply offset. */
+            {name: "use_relative_offset", tsName: "useRelativeOffset", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Apply offset."},
         ],
         slotsOut: [
-            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */},
-            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */},
+            /** Output verts. */
+            {name: "verts.out", tsName: "verts", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 1 /* VERT */, doc: "Output verts."},
+            /** Output faces. */
+            {name: "faces.out", tsName: "faces", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 8 /* FACE */, doc: "Output faces."},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_poke_exec",
+        execFile: "source/blender/bmesh/operators/bmo_poke.cc",
     },
     /**
      * Convex Hull
@@ -1934,14 +2428,19 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
      * `geom_unused.out` slot will contain all interior geometry that is
      * completely unused. Lastly, `geom_holes.out` contains edges and faces
      * that were in the input and are part of the hull.
+     *
+     * Build-time conditional: only present when `WITH_BULLET` is defined.
      */
     "convex_hull": {
         name: "convex_hull",
         tsName: "convexHull",
         doc: "Convex Hull\n\nBuilds a convex hull from the vertices in `input`.\n\nIf `use_existing_faces` is true, the hull will not output triangles\nthat are covered by a pre-existing face.\n\nAll hull vertices, faces, and edges are added to `geom.out`. Any\ninput elements that end up inside the hull (i.e. are not used by an\noutput face) are added to the `geom_interior.out` slot. The\n`geom_unused.out` slot will contain all interior geometry that is\ncompletely unused. Lastly, `geom_holes.out` contains edges and faces\nthat were in the input and are part of the hull.",
+        condition: "WITH_BULLET",
         slotsIn: [
-            {name: "input", tsName: "input", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "use_existing_faces", tsName: "useExistingFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "input", tsName: "input", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Skip hull triangles that are covered by a pre-existing face. */
+            {name: "use_existing_faces", tsName: "useExistingFaces", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Skip hull triangles that are covered by a pre-existing face."},
         ],
         slotsOut: [
             {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
@@ -1951,6 +2450,7 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_convex_hull_exec",
+        execFile: "source/blender/bmesh/operators/bmo_hull.cc",
     },
     /**
      * Space Evenly.
@@ -1962,17 +2462,24 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "spaceEdgeLoopsEvenly",
         doc: "Space Evenly.\n\nSpace the vertices in a regular distribution on the loop.",
         slotsIn: [
-            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */},
-            {name: "interpolation", tsName: "interpolation", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_space_edge_loops_evenly_interpolation_method"},
-            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
-            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "geom", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 2 /* EDGE */, doc: "Input geometry."},
+            /** Method used for interpolation. */
+            {name: "interpolation", tsName: "interpolation", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_space_edge_loops_evenly_interpolation_method", doc: "Method used for interpolation."},
+            /** Influence factor: spans from 0.0 to 1.0. */
+            {name: "factor", tsName: "factor", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Influence factor: spans from 0.0 to 1.0."},
+            /** Lock X-axis editing. */
+            {name: "lock_x", tsName: "lockX", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock X-axis editing."},
+            /** Lock Y-axis editing. */
+            {name: "lock_y", tsName: "lockY", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Y-axis editing."},
+            /** Lock Z-axis editing. */
+            {name: "lock_z", tsName: "lockZ", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Lock Z-axis editing."},
         ],
         slotsOut: [
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC"],
         execC: "bmo_space_edge_loops_evenly_exec",
+        execFile: "source/blender/bmesh/operators/bmo_space_edge_loops_evenly.cc",
     },
     /**
      * Symmetrize.
@@ -1989,16 +2496,21 @@ export const BMO_OPS: Readonly<Record<string, BMOOpDef>> = {
         tsName: "symmetrize",
         doc: "Symmetrize.\n\nMakes the mesh elements in the `input` slot symmetrical. Unlike\nnormal mirroring, it only copies in one direction, as specified by\nthe `direction` slot. The edges and faces that cross the plane of\nsymmetry are split as needed to enforce symmetry.\n\nAll new vertices, edges, and faces are added to the `geom.out` slot.",
         slotsIn: [
-            {name: "input", tsName: "input", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
-            {name: "direction", tsName: "direction", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_axis_neg_xyz_and_xyz"},
-            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT"},
-            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL"},
+            /** Input geometry. */
+            {name: "input", tsName: "input", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */, doc: "Input geometry."},
+            /** Axis to use. */
+            {name: "direction", tsName: "direction", type: "int", cType: "BMO_OP_SLOT_INT", subtype: "INT_ENUM", enumName: "bmo_enum_axis_neg_xyz_and_xyz", doc: "Axis to use."},
+            /** Minimum distance. */
+            {name: "dist", tsName: "dist", type: "float", cType: "BMO_OP_SLOT_FLT", doc: "Minimum distance."},
+            /** Transform shape keys too. */
+            {name: "use_shapekey", tsName: "useShapekey", type: "bool", cType: "BMO_OP_SLOT_BOOL", doc: "Transform shape keys too."},
         ],
         slotsOut: [
             {name: "geom.out", tsName: "geom", type: "elems", cType: "BMO_OP_SLOT_ELEMENT_BUF", elemMask: 11 /* VERT|EDGE|FACE */},
         ],
         typeFlags: ["BMO_OPTYPE_FLAG_NORMALS_CALC", "BMO_OPTYPE_FLAG_SELECT_FLUSH", "BMO_OPTYPE_FLAG_SELECT_VALIDATE"],
         execC: "bmo_symmetrize_exec",
+        execFile: "source/blender/bmesh/operators/bmo_symmetrize.cc",
     },
 }
 

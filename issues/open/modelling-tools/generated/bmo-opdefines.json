@@ -73,7 +73,11 @@
   "defaultsPolicy": {
     "note": "Blender memsets BMOperator to 0 in BMO_op_init (bmesh_operators.cc:147) and then runs bmo_op_slots_init (bmesh_operators.cc:87). So: bool=false, int=0, float=0, vec3=(0,0,0), ptr=null, elems=empty, map=empty. INT_ENUM/INT_FLAG slots are explicitly set to enum_flags[0].value (bmesh_operators.cc:109). MAT slots hold a null pointer, and BMO_slot_mat4_get returns the identity matrix when the pointer is null (bmesh_operators.cc:383-388). Anything else comes from the operator init callback."
   },
-  "warnings": [],
+  "warnings": [
+    "join_triangles.merge_limit: slot only exists when `USE_JOIN_TRIANGLE_INTERACTIVE_TESTING` is defined at build time",
+    "join_triangles.neighbor_debug: slot only exists when `USE_JOIN_TRIANGLE_INTERACTIVE_TESTING` is defined at build time",
+    "convex_hull: operator only exists when `WITH_BULLET` is defined at build time"
+  ],
   "enums": [
     {
       "cName": "bmo_enum_axis_xyz",
@@ -501,6 +505,7 @@
       "name": "smooth_vert",
       "tsName": "smoothVert",
       "cName": "bmo_smooth_vert_def",
+      "condition": null,
       "doc": "Vertex Smooth.\n\nSmooths vertices by using a basic vertex averaging scheme.",
       "slotsIn": [
         {
@@ -516,7 +521,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 150
         },
         {
@@ -530,7 +537,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smoothing factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 152
         },
         {
@@ -544,7 +553,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Set vertices close to the x axis before the operation to 0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 154
         },
         {
@@ -558,7 +569,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Set vertices close to the y axis before the operation to 0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 156
         },
         {
@@ -572,7 +585,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Set vertices close to the z axis before the operation to 0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 158
         },
         {
@@ -586,7 +601,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Clipping threshold for the above three slots.",
+          "note": "",
+          "condition": null,
           "sourceLine": 160
         },
         {
@@ -600,7 +617,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth vertices along X axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 162
         },
         {
@@ -614,7 +633,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth vertices along Y axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 164
         },
         {
@@ -628,7 +649,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth vertices along Z axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 166
         }
       ],
@@ -640,12 +663,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_smooth_vert_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 145
     },
     {
       "name": "smooth_laplacian_vert",
       "tsName": "smoothLaplacianVert",
       "cName": "bmo_smooth_laplacian_vert_def",
+      "condition": null,
       "doc": "Vertex Smooth Laplacian.\n\nSmooths vertices by using Laplacian smoothing proposed by\nDesbrun, et al. Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow.",
       "slotsIn": [
         {
@@ -661,7 +686,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 187
         },
         {
@@ -675,7 +702,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lambda parameter.",
+          "note": "",
+          "condition": null,
           "sourceLine": 189
         },
         {
@@ -689,7 +718,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lambda param in border.",
+          "note": "",
+          "condition": null,
           "sourceLine": 191
         },
         {
@@ -703,7 +734,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth object along X axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 193
         },
         {
@@ -717,7 +750,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth object along Y axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 195
         },
         {
@@ -731,7 +766,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth object along Z axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 197
         },
         {
@@ -745,7 +782,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Apply volume preservation after smooth.",
+          "note": "",
+          "condition": null,
           "sourceLine": 199
         }
       ],
@@ -757,12 +796,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_smooth_laplacian_vert_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_smooth_laplacian.cc",
       "sourceLine": 182
     },
     {
       "name": "recalc_face_normals",
       "tsName": "recalcFaceNormals",
       "cName": "bmo_recalc_face_normals_def",
+      "condition": null,
       "doc": "Right-Hand Faces.\n\nComputes an \"outside\" normal for the specified input faces.",
       "slotsIn": [
         {
@@ -778,7 +819,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 219
         }
       ],
@@ -791,12 +834,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_recalc_face_normals_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_normals.cc",
       "sourceLine": 214
     },
     {
       "name": "planar_faces",
       "tsName": "planarFaces",
       "cName": "bmo_planar_faces_def",
+      "condition": null,
       "doc": "Planar Faces.\n\nIteratively flatten faces.",
       "slotsIn": [
         {
@@ -812,7 +857,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 239
         },
         {
@@ -826,7 +873,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of times to flatten faces (for when connected faces are used)",
+          "note": "",
+          "condition": null,
           "sourceLine": 241
         },
         {
@@ -840,7 +889,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Influence for making planar each iteration",
+          "note": "",
+          "condition": null,
           "sourceLine": 243
         }
       ],
@@ -860,7 +911,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output slot, computed boundary geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 249
         }
       ],
@@ -872,12 +925,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_planar_faces_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_planar_faces.cc",
       "sourceLine": 234
     },
     {
       "name": "region_extend",
       "tsName": "regionExtend",
       "cName": "bmo_region_extend_def",
+      "condition": null,
       "doc": "Region Extend.\n\nUsed to implement the select more/less tools.\nPuts geometry surrounding regions of geometry in `geom` into `geom.out`.\n\nIf `use_faces` is 0 then `geom.out` spits out verts and edges,\notherwise it spits out faces.",
       "slotsIn": [
         {
@@ -895,7 +950,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 271
         },
         {
@@ -909,7 +966,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Find boundary inside the regions, not outside.",
+          "note": "",
+          "condition": null,
           "sourceLine": 273
         },
         {
@@ -923,7 +982,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Extend from faces instead of edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 275
         },
         {
@@ -937,7 +998,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Step over connected faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 277
         }
       ],
@@ -957,7 +1020,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output slot, computed boundary geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 283
         }
       ],
@@ -969,12 +1034,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_region_extend_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 266
     },
     {
       "name": "rotate_edges",
       "tsName": "rotateEdges",
       "cName": "bmo_rotate_edges_def",
+      "condition": null,
       "doc": "Edge Rotate.\n\nRotates edges topologically. Also known as \"spin edge\" to some people.\nSimple example: `[/] becomes [|] then [\\]`.",
       "slotsIn": [
         {
@@ -990,7 +1057,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 302
         },
         {
@@ -1004,7 +1073,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotate edge counter-clockwise if true, otherwise clockwise.",
+          "note": "",
+          "condition": null,
           "sourceLine": 304
         }
       ],
@@ -1022,7 +1093,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Newly spun edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 310
         }
       ],
@@ -1036,12 +1109,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_rotate_edges_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_rotate_edges.cc",
       "sourceLine": 297
     },
     {
       "name": "reverse_faces",
       "tsName": "reverseFaces",
       "cName": "bmo_reverse_faces_def",
+      "condition": null,
       "doc": "Reverse Faces.\n\nReverses the winding (vertex order) of faces.\nThis has the effect of flipping the normal.",
       "slotsIn": [
         {
@@ -1057,7 +1132,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 331
         },
         {
@@ -1071,7 +1148,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maintain multi-res offset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 333
         }
       ],
@@ -1084,12 +1163,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_reverse_faces_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 326
     },
     {
       "name": "flip_quad_tessellation",
       "tsName": "flipQuadTessellation",
       "cName": "bmo_flip_quad_tessellation_def",
+      "condition": null,
       "doc": "Flip Quad Tessellation\n\nFlip the tessellation direction of the selected quads.",
       "slotsIn": [
         {
@@ -1105,7 +1186,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 353
         }
       ],
@@ -1118,12 +1201,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_flip_quad_tessellation_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 348
     },
     {
       "name": "bisect_edges",
       "tsName": "bisectEdges",
       "cName": "bmo_bisect_edges_def",
+      "condition": null,
       "doc": "Edge Bisect.\n\nSplits input edges (but doesn't do anything else).\nThis creates a 2-valence vert.",
       "slotsIn": [
         {
@@ -1139,7 +1224,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 374
         },
         {
@@ -1153,7 +1240,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of cuts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 376
         },
         {
@@ -1168,6 +1257,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 377
         }
       ],
@@ -1187,7 +1278,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Newly created vertices and edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 385
         }
       ],
@@ -1201,12 +1294,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_bisect_edges_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_subdivide.cc",
       "sourceLine": 369
     },
     {
       "name": "mirror",
       "tsName": "mirror",
       "cName": "bmo_mirror_def",
+      "condition": null,
       "doc": "Mirror.\n\nMirrors geometry along an axis. The resulting geometry is welded on using\n`merge_dist`. Pairs of original/mirrored vertices are welded using the `merge_dist`\nparameter (which defines the minimum distance for welding to happen).",
       "slotsIn": [
         {
@@ -1224,7 +1319,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 407
         },
         {
@@ -1238,7 +1335,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix defining the mirror transformation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 409
         },
         {
@@ -1252,7 +1351,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum distance for merging. does no merging if 0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 411
         },
         {
@@ -1266,7 +1367,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_axis_xyz",
-          "doc": "",
+          "doc": "The axis to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 413
         },
         {
@@ -1280,7 +1383,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Mirror UVs across the u axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 418
         },
         {
@@ -1294,7 +1399,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Mirror UVs across the v axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 420
         },
         {
@@ -1308,7 +1415,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Mirror UVs in each tile.",
+          "note": "",
+          "condition": null,
           "sourceLine": 422
         },
         {
@@ -1322,7 +1431,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 424
         }
       ],
@@ -1342,7 +1453,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output geometry, mirrored.",
+          "note": "",
+          "condition": null,
           "sourceLine": 430
         }
       ],
@@ -1355,12 +1468,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_mirror_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_mirror.cc",
       "sourceLine": 402
     },
     {
       "name": "find_doubles",
       "tsName": "findDoubles",
       "cName": "bmo_find_doubles_def",
+      "condition": null,
       "doc": "Find Doubles.\n\nTakes input verts and finds vertices they should weld to.\nOutputs a mapping slot suitable for use with the weld verts BMOP.\n\nIf `keep_verts` is used, vertices outside that set can only be merged\nwith vertices in that set.",
       "slotsIn": [
         {
@@ -1376,7 +1491,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 454
         },
         {
@@ -1392,7 +1509,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "List of verts to keep.",
+          "note": "",
+          "condition": null,
           "sourceLine": 456
         },
         {
@@ -1406,7 +1525,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Limit the search for doubles by connected geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 458
         },
         {
@@ -1420,7 +1541,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum distance.",
+          "note": "",
+          "condition": null,
           "sourceLine": 460
         }
       ],
@@ -1437,6 +1560,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 465
         }
       ],
@@ -1445,12 +1570,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_find_doubles_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 449
     },
     {
       "name": "remove_doubles",
       "tsName": "removeDoubles",
       "cName": "bmo_remove_doubles_def",
+      "condition": null,
       "doc": "Remove Doubles.\n\nFinds groups of vertices closer than dist and merges them together,\nusing the weld verts BMOP.",
       "slotsIn": [
         {
@@ -1466,7 +1593,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 486
         },
         {
@@ -1480,7 +1609,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Limit the search for doubles by connected geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 488
         },
         {
@@ -1494,7 +1625,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum distance.",
+          "note": "",
+          "condition": null,
           "sourceLine": 490
         }
       ],
@@ -1509,12 +1642,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_remove_doubles_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 481
     },
     {
       "name": "circularize",
       "tsName": "circularize",
       "cName": "bmo_circularize_def",
+      "condition": null,
       "doc": "Circularize.\n\nShape selected geometry into a circle.",
       "slotsIn": [
         {
@@ -1532,7 +1667,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 512
         },
         {
@@ -1546,7 +1683,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Influence factor: spans from 0.0 to 1.0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 514
         },
         {
@@ -1560,7 +1699,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Custom radius.",
+          "note": "",
+          "condition": null,
           "sourceLine": 516
         },
         {
@@ -1574,7 +1715,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotation angle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 518
         },
         {
@@ -1588,7 +1731,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Method to fit the circle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 520
         },
         {
@@ -1602,7 +1747,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Flatten factor: 0.0 projects onto the mesh, 1.0 flattens on the optimal plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 522
         },
         {
@@ -1616,7 +1763,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Distributes vertices at constant distances, otherwise preserves original spacing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 524
         },
         {
@@ -1630,7 +1779,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock X-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 526
         },
         {
@@ -1644,7 +1795,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Y-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 528
         },
         {
@@ -1658,7 +1811,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Z-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 530
         },
         {
@@ -1672,7 +1827,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use X axis of the mirror modifier.",
+          "note": "",
+          "condition": null,
           "sourceLine": 532
         },
         {
@@ -1686,7 +1843,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use Y axis of the mirror modifier.",
+          "note": "",
+          "condition": null,
           "sourceLine": 534
         },
         {
@@ -1700,7 +1859,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use Z axis of the mirror modifier.",
+          "note": "",
+          "condition": null,
           "sourceLine": 536
         }
       ],
@@ -1712,12 +1873,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_circularize_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_circularize.cc",
       "sourceLine": 507
     },
     {
       "name": "flatten",
       "tsName": "flatten",
       "cName": "bmo_flatten_def",
+      "condition": null,
       "doc": "Flatten.\n\nFlatten vertices on a best-fitting plane.",
       "slotsIn": [
         {
@@ -1735,7 +1898,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 557
         },
         {
@@ -1749,7 +1914,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Influence factor: spans from 0.0 to 1.0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 559
         },
         {
@@ -1763,7 +1930,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Plane on which vertices are flattened.",
+          "note": "",
+          "condition": null,
           "sourceLine": 561
         },
         {
@@ -1777,7 +1946,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "View direction in object local space.",
+          "note": "",
+          "condition": null,
           "sourceLine": 563
         },
         {
@@ -1791,7 +1962,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock X axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 565
         },
         {
@@ -1805,7 +1978,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Y axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 567
         },
         {
@@ -1819,7 +1994,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Z axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 569
         }
       ],
@@ -1831,12 +2008,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_flatten_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_flatten.cc",
       "sourceLine": 552
     },
     {
       "name": "collapse",
       "tsName": "collapse",
       "cName": "bmo_collapse_def",
+      "condition": null,
       "doc": "Collapse Connected.\n\nCollapses connected vertices",
       "slotsIn": [
         {
@@ -1852,7 +2031,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 590
         },
         {
@@ -1866,7 +2047,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Also collapse UVs and such.",
+          "note": "",
+          "condition": null,
           "sourceLine": 592
         }
       ],
@@ -1881,12 +2064,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_collapse_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 585
     },
     {
       "name": "pointmerge_facedata",
       "tsName": "pointmergeFacedata",
       "cName": "bmo_pointmerge_facedata_def",
+      "condition": null,
       "doc": "Face-Data Point Merge.\n\nMerge uv/vcols at a specific vertex.",
       "slotsIn": [
         {
@@ -1902,7 +2087,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 614
         },
         {
@@ -1918,7 +2105,9 @@
           ],
           "isSingle": true,
           "enumName": null,
-          "doc": "",
+          "doc": "Target vertex to merge into.",
+          "note": "",
+          "condition": null,
           "sourceLine": 616
         }
       ],
@@ -1928,12 +2117,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_pointmerge_facedata_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 609
     },
     {
       "name": "average_vert_facedata",
       "tsName": "averageVertFacedata",
       "cName": "bmo_average_vert_facedata_def",
+      "condition": null,
       "doc": "Average Vertices Face-vert Data.\n\nMerge uv/vcols associated with the input vertices at\nthe bounding box center.",
       "slotsIn": [
         {
@@ -1949,7 +2140,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 637
         }
       ],
@@ -1959,12 +2152,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_average_vert_facedata_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 632
     },
     {
       "name": "pointmerge",
       "tsName": "pointmerge",
       "cName": "bmo_pointmerge_def",
+      "condition": null,
       "doc": "Point Merge.\n\nMerge verts together at a point.",
       "slotsIn": [
         {
@@ -1980,7 +2175,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices (all verts will be merged into the first).",
+          "note": "",
+          "condition": null,
           "sourceLine": 657
         },
         {
@@ -1994,7 +2191,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Position to merge at.",
+          "note": "",
+          "condition": null,
           "sourceLine": 659
         },
         {
@@ -2010,7 +2209,9 @@
           ],
           "isSingle": true,
           "enumName": null,
-          "doc": "",
+          "doc": "Optional target vertex to merge into. Does not override merge_co.\nSet this to preserve the custom data of the target vertex.",
+          "note": "",
+          "condition": null,
           "sourceLine": 662
         }
       ],
@@ -2025,12 +2226,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_pointmerge_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 652
     },
     {
       "name": "collapse_uvs",
       "tsName": "collapseUvs",
       "cName": "bmo_collapse_uvs_def",
+      "condition": null,
       "doc": "Collapse Connected UVs.\n\nCollapses connected UV vertices.",
       "slotsIn": [
         {
@@ -2046,7 +2249,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 684
         }
       ],
@@ -2056,12 +2261,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_collapse_uvs_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 679
     },
     {
       "name": "weld_verts",
       "tsName": "weldVerts",
       "cName": "bmo_weld_verts_def",
+      "condition": null,
       "doc": "Weld Verts.\n\nWelds verts together (kind-of like remove doubles, merge, etc, all of which\nuse or will use this BMOP). You pass in mappings from vertices to the vertices\nthey weld with.",
       "slotsIn": [
         {
@@ -2075,7 +2282,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maps welded vertices to verts they should weld to.",
+          "note": "",
+          "condition": null,
           "sourceLine": 706
         },
         {
@@ -2089,7 +2298,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Merge vertices to their centroid position,\notherwise use the position of the target vertex.",
+          "note": "",
+          "condition": null,
           "sourceLine": 709
         },
         {
@@ -2103,7 +2314,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Whether to average custom data of merged vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 711
         }
       ],
@@ -2118,12 +2331,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_weld_verts_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_removedoubles.cc",
       "sourceLine": 701
     },
     {
       "name": "create_vert",
       "tsName": "createVert",
       "cName": "bmo_create_vert_def",
+      "condition": null,
       "doc": "Make Vertex.\n\nCreates a single vertex; this BMOP was necessary\nfor click-create-vertex.",
       "slotsIn": [
         {
@@ -2137,7 +2352,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The coordinate of the new vert.",
+          "note": "",
+          "condition": null,
           "sourceLine": 734
         }
       ],
@@ -2155,7 +2372,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The new vert.",
+          "note": "",
+          "condition": null,
           "sourceLine": 740
         }
       ],
@@ -2164,12 +2383,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_vert_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 729
     },
     {
       "name": "join_triangles",
       "tsName": "joinTriangles",
       "cName": "bmo_join_triangles_def",
+      "condition": null,
       "doc": "Join Triangles.\n\nTries to intelligently join triangles according\nto angle threshold and delimiters.",
       "slotsIn": [
         {
@@ -2185,7 +2406,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 764
         },
         {
@@ -2199,7 +2422,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Compare seam",
+          "note": "",
+          "condition": null,
           "sourceLine": 766
         },
         {
@@ -2213,7 +2438,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Compare sharp",
+          "note": "",
+          "condition": null,
           "sourceLine": 768
         },
         {
@@ -2227,7 +2454,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Compare UVs",
+          "note": "",
+          "condition": null,
           "sourceLine": 770
         },
         {
@@ -2241,7 +2470,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Compare VCols.",
+          "note": "",
+          "condition": null,
           "sourceLine": 772
         },
         {
@@ -2255,7 +2486,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Compare materials.",
+          "note": "",
+          "condition": null,
           "sourceLine": 774
         },
         {
@@ -2270,6 +2503,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 775
         },
         {
@@ -2284,6 +2519,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 776
         },
         {
@@ -2298,6 +2535,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 777
         },
         {
@@ -2312,6 +2551,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 778
         },
         {
@@ -2326,6 +2567,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": "USE_JOIN_TRIANGLE_INTERACTIVE_TESTING",
           "sourceLine": 780
         },
         {
@@ -2340,6 +2583,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": "USE_JOIN_TRIANGLE_INTERACTIVE_TESTING",
           "sourceLine": 781
         }
       ],
@@ -2357,7 +2602,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Joined faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 788
         }
       ],
@@ -2371,12 +2618,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_join_triangles_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_join_triangles.cc",
       "sourceLine": 759
     },
     {
       "name": "contextual_create",
       "tsName": "contextualCreate",
       "cName": "bmo_contextual_create_def",
+      "condition": null,
       "doc": "Contextual Create.\n\nThis is basically F-key, it creates\nnew faces from vertices, makes stuff from edge nets,\nmakes wire edges, etc. It also dissolves faces.\n\nThree verts become a triangle, four become a quad. Two\nbecome a wire edge.",
       "slotsIn": [
         {
@@ -2394,7 +2643,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 813
         },
         {
@@ -2408,7 +2659,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Material to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 815
         },
         {
@@ -2422,7 +2675,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Set smooth shading on newly created faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 817
         }
       ],
@@ -2440,7 +2695,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Newly-made face(s).",
+          "note": "",
+          "condition": null,
           "sourceLine": 823
         },
         {
@@ -2456,7 +2713,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Newly-made edge(s).",
+          "note": "",
+          "condition": null,
           "sourceLine": 829
         }
       ],
@@ -2470,12 +2729,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_contextual_create_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_create.cc",
       "sourceLine": 808
     },
     {
       "name": "bridge_loops",
       "tsName": "bridgeLoops",
       "cName": "bmo_bridge_loops_def",
+      "condition": null,
       "doc": "Bridge edge loops with faces.",
       "slotsIn": [
         {
@@ -2491,7 +2752,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 847
         },
         {
@@ -2506,6 +2769,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 848
         },
         {
@@ -2520,6 +2785,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 849
         },
         {
@@ -2533,7 +2800,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Merge rather than creating faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 851
         },
         {
@@ -2547,7 +2816,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Merge factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 853
         },
         {
@@ -2561,7 +2832,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Twist offset for closed loops.",
+          "note": "",
+          "condition": null,
           "sourceLine": 855
         }
       ],
@@ -2579,7 +2852,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 861
         },
         {
@@ -2595,7 +2870,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 863
         }
       ],
@@ -2608,12 +2885,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_bridge_loops_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_bridge.cc",
       "sourceLine": 842
     },
     {
       "name": "grid_fill",
       "tsName": "gridFill",
       "cName": "bmo_grid_fill_def",
+      "condition": null,
       "doc": "Grid Fill.\n\nCreate faces defined by 2 disconnected edge loops (which share edges).",
       "slotsIn": [
         {
@@ -2629,7 +2908,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 883
         },
         {
@@ -2643,7 +2924,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Material to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 888
         },
         {
@@ -2657,7 +2940,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth state to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 890
         },
         {
@@ -2671,7 +2956,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use simple interpolation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 892
         }
       ],
@@ -2689,7 +2976,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 899
         }
       ],
@@ -2701,12 +2990,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_grid_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_fill_grid.cc",
       "sourceLine": 878
     },
     {
       "name": "holes_fill",
       "tsName": "holesFill",
       "cName": "bmo_holes_fill_def",
+      "condition": null,
       "doc": "Fill Holes.\n\nFill boundary edges with faces, copying surrounding custom-data.",
       "slotsIn": [
         {
@@ -2722,7 +3013,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 917
         },
         {
@@ -2736,7 +3029,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum number of sides for holes to fill (holes with more edges are skipped).",
+          "note": "",
+          "condition": null,
           "sourceLine": 919
         }
       ],
@@ -2754,7 +3049,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 925
         }
       ],
@@ -2766,12 +3063,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_holes_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_fill_holes.cc",
       "sourceLine": 912
     },
     {
       "name": "face_attribute_fill",
       "tsName": "faceAttributeFill",
       "cName": "bmo_face_attribute_fill_def",
+      "condition": null,
       "doc": "Face Attribute Fill.\n\nFill in faces with data from adjacent faces.",
       "slotsIn": [
         {
@@ -2787,7 +3086,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 943
         },
         {
@@ -2801,7 +3102,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Copy face winding.",
+          "note": "",
+          "condition": null,
           "sourceLine": 945
         },
         {
@@ -2815,7 +3118,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Copy face data.",
+          "note": "",
+          "condition": null,
           "sourceLine": 947
         }
       ],
@@ -2833,7 +3138,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Faces that could not be handled.",
+          "note": "",
+          "condition": null,
           "sourceLine": 953
         }
       ],
@@ -2844,12 +3151,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_face_attribute_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_fill_attribute.cc",
       "sourceLine": 938
     },
     {
       "name": "edgeloop_fill",
       "tsName": "edgeloopFill",
       "cName": "bmo_edgeloop_fill_def",
+      "condition": null,
       "doc": "Edge Loop Fill.\n\nCreate faces defined by one or more non overlapping edge loops.",
       "slotsIn": [
         {
@@ -2865,7 +3174,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 971
         },
         {
@@ -2879,7 +3190,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Material to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 976
         },
         {
@@ -2893,7 +3206,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth state to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 978
         }
       ],
@@ -2911,7 +3226,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 984
         }
       ],
@@ -2923,12 +3240,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_edgeloop_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_fill_edgeloop.cc",
       "sourceLine": 966
     },
     {
       "name": "edgenet_fill",
       "tsName": "edgenetFill",
       "cName": "bmo_edgenet_fill_def",
+      "condition": null,
       "doc": "Edge Net Fill.\n\nCreate faces defined by enclosed edges.",
       "slotsIn": [
         {
@@ -2944,7 +3263,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1002
         },
         {
@@ -2958,7 +3279,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Material to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1004
         },
         {
@@ -2972,7 +3295,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smooth state to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1006
         },
         {
@@ -2986,7 +3311,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum number of sides for created faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1008
         }
       ],
@@ -3004,7 +3331,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1014
         }
       ],
@@ -3016,12 +3345,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_edgenet_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_edgenet.cc",
       "sourceLine": 997
     },
     {
       "name": "edgenet_prepare",
       "tsName": "edgenetPrepare",
       "cName": "bmo_edgenet_prepare_def",
+      "condition": null,
       "doc": "Edge-net Prepare.\n\nIdentifies several useful edge loop cases and modifies them so\nthey'll become a face when edgenet_fill is called. The cases covered are:\n\n- One single loop; an edge is added to connect the ends\n- Two loops; two edges are added to connect the endpoints (based on the\n  shortest distance between each endpoint).",
       "slotsIn": [
         {
@@ -3037,7 +3368,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1037
         }
       ],
@@ -3055,7 +3388,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1043
         }
       ],
@@ -3064,12 +3399,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_edgenet_prepare_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_edgenet.cc",
       "sourceLine": 1032
     },
     {
       "name": "rotate",
       "tsName": "rotate",
       "cName": "bmo_rotate_def",
+      "condition": null,
       "doc": "Rotate.\n\nRotate vertices around a center, using a 3x3 rotation matrix.",
       "slotsIn": [
         {
@@ -3083,7 +3420,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Center of rotation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1061
         },
         {
@@ -3097,7 +3436,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix defining rotation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1063
         },
         {
@@ -3113,7 +3454,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1065
         },
         {
@@ -3127,7 +3470,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to define the space (typically object matrix).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1067
         },
         {
@@ -3141,7 +3486,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1069
         }
       ],
@@ -3153,12 +3500,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_rotate_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 1056
     },
     {
       "name": "translate",
       "tsName": "translate",
       "cName": "bmo_translate_def",
+      "condition": null,
       "doc": "Translate.\n\nTranslate vertices by an offset.",
       "slotsIn": [
         {
@@ -3172,7 +3521,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Translation offset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1089
         },
         {
@@ -3186,7 +3537,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to define the space (typically object matrix).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1091
         },
         {
@@ -3202,7 +3555,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1093
         },
         {
@@ -3216,7 +3571,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1095
         }
       ],
@@ -3228,12 +3585,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_translate_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 1084
     },
     {
       "name": "scale",
       "tsName": "scale",
       "cName": "bmo_scale_def",
+      "condition": null,
       "doc": "Scale.\n\nScales vertices by a factor.",
       "slotsIn": [
         {
@@ -3247,7 +3606,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1115
         },
         {
@@ -3261,7 +3622,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to define the space (typically object matrix).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1117
         },
         {
@@ -3277,7 +3640,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1119
         },
         {
@@ -3291,7 +3656,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1121
         }
       ],
@@ -3303,12 +3670,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_scale_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 1110
     },
     {
       "name": "transform",
       "tsName": "transform",
       "cName": "bmo_transform_def",
+      "condition": null,
       "doc": "Transform.\n\nTransforms a set of vertices by a matrix. Multiplies\nthe vertex coordinates with the matrix.",
       "slotsIn": [
         {
@@ -3322,7 +3691,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform matrix.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1142
         },
         {
@@ -3336,7 +3707,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to define the space (typically object matrix).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1144
         },
         {
@@ -3352,7 +3725,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1146
         },
         {
@@ -3366,7 +3741,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1148
         }
       ],
@@ -3378,12 +3755,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_transform_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 1137
     },
     {
       "name": "object_load_bmesh",
       "tsName": "objectLoadBmesh",
       "cName": "bmo_object_load_bmesh_def",
+      "condition": null,
       "doc": "Object Load BMesh.\n\nLoads a bmesh into an object/mesh. This is a \"private\"\nBMOP.",
       "slotsIn": [
         {
@@ -3397,7 +3776,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The scene.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1169
         },
         {
@@ -3411,7 +3792,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The object.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1172
         }
       ],
@@ -3421,12 +3804,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_object_load_bmesh_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_mesh_convert.cc",
       "sourceLine": 1164
     },
     {
       "name": "bmesh_to_mesh",
       "tsName": "bmeshToMesh",
       "cName": "bmo_bmesh_to_mesh_def",
+      "condition": null,
       "doc": "BMesh to Mesh.\n\nConverts a bmesh to a Mesh. This is reserved for exiting edit-mode.",
       "slotsIn": [
         {
@@ -3440,7 +3825,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The mesh to write into.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1193
         },
         {
@@ -3454,7 +3841,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The object.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1195
         }
       ],
@@ -3464,12 +3853,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_bmesh_to_mesh_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_mesh_convert.cc",
       "sourceLine": 1187
     },
     {
       "name": "mesh_to_bmesh",
       "tsName": "meshToBmesh",
       "cName": "bmo_mesh_to_bmesh_def",
+      "condition": null,
       "doc": "Mesh to BMesh.\n\nLoad the contents of a mesh into the bmesh. this BMOP is private, it's\nreserved exclusively for entering edit-mode.",
       "slotsIn": [
         {
@@ -3483,7 +3874,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The mesh to read from.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1216
         },
         {
@@ -3497,7 +3890,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The object.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1218
         },
         {
@@ -3511,7 +3906,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Load active shapekey coordinates into verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1220
         }
       ],
@@ -3521,12 +3918,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_mesh_to_bmesh_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_mesh_convert.cc",
       "sourceLine": 1211
     },
     {
       "name": "extrude_discrete_faces",
       "tsName": "extrudeDiscreteFaces",
       "cName": "bmo_extrude_discrete_faces_def",
+      "condition": null,
       "doc": "Individual Face Extrude.\n\nExtrudes faces individually.",
       "slotsIn": [
         {
@@ -3542,7 +3941,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1240
         },
         {
@@ -3556,7 +3957,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Create faces with reversed direction.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1242
         },
         {
@@ -3570,7 +3973,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Preserve the selection history in the extruded geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1244
         }
       ],
@@ -3588,7 +3993,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1250
         }
       ],
@@ -3599,12 +4006,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_extrude_discrete_faces_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_extrude.cc",
       "sourceLine": 1235
     },
     {
       "name": "extrude_edge_only",
       "tsName": "extrudeEdgeOnly",
       "cName": "bmo_extrude_edge_only_def",
+      "condition": null,
       "doc": "Extrude Only Edges.\n\nExtrudes Edges into faces, note that this is very simple, there's no fancy\nwinged extrusion.",
       "slotsIn": [
         {
@@ -3620,7 +4029,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1269
         },
         {
@@ -3634,7 +4045,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Create faces with reversed direction.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1271
         },
         {
@@ -3648,7 +4061,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Preserve the selection history in the extruded geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1273
         }
       ],
@@ -3668,7 +4083,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1279
         }
       ],
@@ -3679,12 +4096,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_extrude_edge_only_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_extrude.cc",
       "sourceLine": 1264
     },
     {
       "name": "extrude_vert_indiv",
       "tsName": "extrudeVertIndiv",
       "cName": "bmo_extrude_vert_indiv_def",
+      "condition": null,
       "doc": "Individual Vertex Extrude.\n\nExtrudes individual vertices, creating new vertices connected by wire edges.",
       "slotsIn": [
         {
@@ -3700,7 +4119,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1297
         },
         {
@@ -3714,7 +4135,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Preserve the selection history in the extruded geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1299
         }
       ],
@@ -3732,7 +4155,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output wire edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1305
         },
         {
@@ -3748,7 +4173,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1307
         }
       ],
@@ -3759,12 +4186,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_extrude_vert_indiv_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_extrude.cc",
       "sourceLine": 1292
     },
     {
       "name": "connect_verts",
       "tsName": "connectVerts",
       "cName": "bmo_connect_verts_def",
+      "condition": null,
       "doc": "Connect Verts.\n\nSplit faces by adding edges that connect `verts`.",
       "slotsIn": [
         {
@@ -3780,7 +4209,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1325
         },
         {
@@ -3796,7 +4227,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces to explicitly exclude from connecting.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1327
         },
         {
@@ -3810,7 +4243,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Prevent splits with overlaps & intersections.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1329
         }
       ],
@@ -3829,6 +4264,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1334
         }
       ],
@@ -3841,12 +4278,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_connect_verts_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_connect.cc",
       "sourceLine": 1320
     },
     {
       "name": "connect_verts_concave",
       "tsName": "connectVertsConcave",
       "cName": "bmo_connect_verts_concave_def",
+      "condition": null,
       "doc": "Connect Verts to form Convex Faces.\n\nSplits concave faces into convex faces.",
       "slotsIn": [
         {
@@ -3862,7 +4301,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1353
         }
       ],
@@ -3881,6 +4322,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1358
         },
         {
@@ -3897,6 +4340,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1359
         }
       ],
@@ -3909,12 +4354,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_connect_verts_concave_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_connect_concave.cc",
       "sourceLine": 1348
     },
     {
       "name": "connect_verts_nonplanar",
       "tsName": "connectVertsNonplanar",
       "cName": "bmo_connect_verts_nonplanar_def",
+      "condition": null,
       "doc": "Connect Verts Across non Planar Faces.\n\nSplit faces by connecting edges along non planar `faces`.",
       "slotsIn": [
         {
@@ -3928,7 +4375,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum angle of non-planarity before splitting (radians).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1378
         },
         {
@@ -3944,7 +4393,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1380
         }
       ],
@@ -3963,6 +4414,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1385
         },
         {
@@ -3979,6 +4432,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1386
         }
       ],
@@ -3991,12 +4446,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_connect_verts_nonplanar_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_connect_nonplanar.cc",
       "sourceLine": 1373
     },
     {
       "name": "connect_vert_pair",
       "tsName": "connectVertPair",
       "cName": "bmo_connect_vert_pair_def",
+      "condition": null,
       "doc": "Connect Vert Pair.\n\nConnect a pair of vertices by splitting faces along the shortest path between them.",
       "slotsIn": [
         {
@@ -4012,7 +4469,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1405
         },
         {
@@ -4028,7 +4487,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices to explicitly exclude from connecting.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1407
         },
         {
@@ -4044,7 +4505,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces to explicitly exclude from connecting.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1409
         }
       ],
@@ -4063,6 +4526,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1414
         }
       ],
@@ -4075,12 +4540,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_connect_vert_pair_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_connect_pair.cc",
       "sourceLine": 1400
     },
     {
       "name": "extrude_face_region",
       "tsName": "extrudeFaceRegion",
       "cName": "bmo_extrude_face_region_def",
+      "condition": null,
       "doc": "Extrude Faces.\n\nExtrude operator (does not transform)",
       "slotsIn": [
         {
@@ -4098,7 +4565,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Edges and faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1433
         },
         {
@@ -4112,7 +4581,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges to explicitly exclude from extrusion.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1435
         },
         {
@@ -4126,7 +4597,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Keep original geometry (requires `geom` to include edges).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1437
         },
         {
@@ -4140,7 +4613,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Create faces with reversed direction.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1439
         },
         {
@@ -4154,7 +4629,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use winding from surrounding faces instead of this region.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1441
         },
         {
@@ -4168,7 +4645,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Dissolve edges whose faces form a flat surface.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1443
         },
         {
@@ -4182,7 +4661,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Preserve the selection history in the extruded geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1445
         },
         {
@@ -4196,7 +4677,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Skip flipping of input faces to preserve original orientation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1447
         }
       ],
@@ -4217,6 +4700,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1452
         }
       ],
@@ -4227,12 +4712,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_extrude_face_region_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_extrude.cc",
       "sourceLine": 1428
     },
     {
       "name": "dissolve_verts",
       "tsName": "dissolveVerts",
       "cName": "bmo_dissolve_verts_def",
+      "condition": null,
       "doc": "Dissolve Verts.",
       "slotsIn": [
         {
@@ -4248,7 +4735,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1468
         },
         {
@@ -4262,7 +4751,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Split off face corners to maintain surrounding geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1470
         },
         {
@@ -4276,7 +4767,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Split off face corners instead of merging faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1472
         }
       ],
@@ -4291,12 +4784,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_dissolve_verts_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dissolve.cc",
       "sourceLine": 1463
     },
     {
       "name": "dissolve_edges",
       "tsName": "dissolveEdges",
       "cName": "bmo_dissolve_edges_def",
+      "condition": null,
       "doc": "Dissolve Edges.",
       "slotsIn": [
         {
@@ -4312,7 +4807,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1492
         },
         {
@@ -4326,7 +4823,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Dissolve verts left between only 2 edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1494
         },
         {
@@ -4340,7 +4839,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Split off face corners to maintain surrounding geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1496
         },
         {
@@ -4354,7 +4855,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Do not dissolve verts between 2 edges when their angle exceeds this threshold.\nDisabled by default.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1499
         },
         {
@@ -4368,7 +4871,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "When dissolving the edge between 2 triangles, don't dissolve the verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1501
         }
       ],
@@ -4387,6 +4892,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1506
         }
       ],
@@ -4406,12 +4913,14 @@
         }
       },
       "execC": "bmo_dissolve_edges_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dissolve.cc",
       "sourceLine": 1487
     },
     {
       "name": "dissolve_faces",
       "tsName": "dissolveFaces",
       "cName": "bmo_dissolve_faces_def",
+      "condition": null,
       "doc": "Dissolve Faces.",
       "slotsIn": [
         {
@@ -4427,7 +4936,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1524
         },
         {
@@ -4441,7 +4952,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Dissolve verts left between only 2 edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1526
         }
       ],
@@ -4460,6 +4973,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1531
         }
       ],
@@ -4473,12 +4988,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_dissolve_faces_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dissolve.cc",
       "sourceLine": 1519
     },
     {
       "name": "dissolve_limit",
       "tsName": "dissolveLimit",
       "cName": "bmo_dissolve_limit_def",
+      "condition": null,
       "doc": "Limited Dissolve.\n\nDissolve planar faces and co-linear edges.",
       "slotsIn": [
         {
@@ -4492,7 +5009,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum angle (radians) between face normals for dissolving.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1560
         },
         {
@@ -4506,7 +5025,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Dissolve all vertices in between face boundaries.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1562
         },
         {
@@ -4522,7 +5043,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1564
         },
         {
@@ -4538,7 +5061,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1566
         },
         {
@@ -4552,7 +5077,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_dissolve_limit_flags",
-          "doc": "",
+          "doc": "Delimit dissolve operation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1568
         }
       ],
@@ -4571,6 +5098,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1576
         }
       ],
@@ -4584,12 +5113,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_dissolve_limit_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dissolve.cc",
       "sourceLine": 1555
     },
     {
       "name": "dissolve_degenerate",
       "tsName": "dissolveDegenerate",
       "cName": "bmo_dissolve_degenerate_def",
+      "condition": null,
       "doc": "Degenerate Dissolve.\n\nDissolve edges with no length, faces with no area.",
       "slotsIn": [
         {
@@ -4603,7 +5134,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maximum distance to consider degenerate.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1596
         },
         {
@@ -4619,7 +5152,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1598
         }
       ],
@@ -4634,12 +5169,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_dissolve_degenerate_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dissolve.cc",
       "sourceLine": 1591
     },
     {
       "name": "triangulate",
       "tsName": "triangulate",
       "cName": "bmo_triangulate_def",
+      "condition": null,
       "doc": "Triangulate.\n\nTriangulate faces, splitting quads and n-gons into triangles.",
       "slotsIn": [
         {
@@ -4655,7 +5192,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1635
         },
         {
@@ -4669,7 +5208,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_triangulate_quad_method",
-          "doc": "",
+          "doc": "Method for splitting the quads into triangles.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1637
         },
         {
@@ -4683,7 +5224,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_triangulate_ngon_method",
-          "doc": "",
+          "doc": "Method for splitting the polygons into triangles.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1642
         }
       ],
@@ -4702,6 +5245,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1650
         },
         {
@@ -4718,6 +5263,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1651
         },
         {
@@ -4732,6 +5279,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1652
         },
         {
@@ -4745,7 +5294,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Duplicate faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1656
         }
       ],
@@ -4758,12 +5309,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_triangulate_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_triangulate.cc",
       "sourceLine": 1630
     },
     {
       "name": "unsubdivide",
       "tsName": "unsubdivide",
       "cName": "bmo_unsubdivide_def",
+      "condition": null,
       "doc": "Un-Subdivide.\n\nReduce detail in geometry containing grids.",
       "slotsIn": [
         {
@@ -4779,7 +5332,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1677
         },
         {
@@ -4793,7 +5348,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of times to unsubdivide.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1679
         }
       ],
@@ -4808,12 +5365,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_unsubdivide_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_unsubdivide.cc",
       "sourceLine": 1672
     },
     {
       "name": "subdivide_edges",
       "tsName": "subdivideEdges",
       "cName": "bmo_subdivide_edges_def",
+      "condition": null,
       "doc": "Subdivide Edges.\n\nAdvanced operator for subdividing edges\nwith options for face patterns, smoothing and randomization.",
       "slotsIn": [
         {
@@ -4829,7 +5388,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1710
         },
         {
@@ -4843,7 +5404,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smoothness factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1712
         },
         {
@@ -4857,7 +5420,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_falloff_type",
-          "doc": "",
+          "doc": "Smooth falloff type.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1714
         },
         {
@@ -4871,7 +5436,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Fractal randomness factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1719
         },
         {
@@ -4885,7 +5452,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Factor (0 to 1) controlling how much fractal displacement is restricted to the normal.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1722
         },
         {
@@ -4899,7 +5468,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of cuts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1724
         },
         {
@@ -4913,7 +5484,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Seed for the random number generator.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1726
         },
         {
@@ -4927,7 +5500,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Internal use only, not accessible from Python.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1728
         },
         {
@@ -4941,7 +5516,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Mapping of edges to a float (0 to 1) controlling the cut position along each edge.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1732
         },
         {
@@ -4955,7 +5532,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_subdivide_edges_quad_corner_type",
-          "doc": "",
+          "doc": "Quad corner type.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1734
         },
         {
@@ -4969,7 +5548,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Fill in fully-selected faces with a grid.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1739
         },
         {
@@ -4983,7 +5564,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Tessellate the case of one edge selected in a quad or triangle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1741
         },
         {
@@ -4997,7 +5580,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Only subdivide quads (for loop-cut).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1743
         },
         {
@@ -5011,7 +5596,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Project new vertices onto a sphere (used for spherical primitives).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1745
         },
         {
@@ -5025,7 +5612,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Maintain even offset when smoothing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1747
         }
       ],
@@ -5046,6 +5635,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "NOTE: these next three can have multiple types of elements in them.",
+          "condition": null,
           "sourceLine": 1753
         },
         {
@@ -5064,6 +5655,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1754
         },
         {
@@ -5081,7 +5674,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Contains all output geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1756
         }
       ],
@@ -5095,12 +5690,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_subdivide_edges_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_subdivide.cc",
       "sourceLine": 1705
     },
     {
       "name": "subdivide_edgering",
       "tsName": "subdivideEdgering",
       "cName": "bmo_subdivide_edgering_def",
+      "condition": null,
       "doc": "Subdivide Edge-Ring.\n\nTake an edge-ring, and subdivide with interpolation options.",
       "slotsIn": [
         {
@@ -5116,7 +5713,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1783
         },
         {
@@ -5130,7 +5729,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_subdivide_edgering_interp_mode",
-          "doc": "",
+          "doc": "Interpolation method.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1785
         },
         {
@@ -5144,7 +5745,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Smoothness factor.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1790
         },
         {
@@ -5158,7 +5761,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of cuts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1792
         },
         {
@@ -5172,7 +5777,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_falloff_type",
-          "doc": "",
+          "doc": "Profile shape type.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1794
         },
         {
@@ -5186,7 +5793,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "How much intermediary new edges are shrunk/expanded.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1799
         }
       ],
@@ -5204,7 +5813,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1805
         }
       ],
@@ -5218,12 +5829,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_subdivide_edgering_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_subdivide_edgering.cc",
       "sourceLine": 1778
     },
     {
       "name": "bisect_plane",
       "tsName": "bisectPlane",
       "cName": "bmo_bisect_plane_def",
+      "condition": null,
       "doc": "Bisect Plane.\n\nBisects the mesh by a plane (cut the mesh in half).",
       "slotsIn": [
         {
@@ -5241,7 +5854,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1825
         },
         {
@@ -5255,7 +5870,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Minimum distance when testing if a vert is exactly on the plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1827
         },
         {
@@ -5269,7 +5886,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Point on the plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1829
         },
         {
@@ -5283,7 +5902,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Normal of the plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1831
         },
         {
@@ -5297,7 +5918,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Snap axis aligned verts to the center.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1833
         },
         {
@@ -5311,7 +5934,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "When enabled, remove all geometry on the positive side of the plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1835
         },
         {
@@ -5325,7 +5950,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "When enabled, remove all geometry on the negative side of the plane.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1837
         }
       ],
@@ -5344,7 +5971,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output geometry aligned with the plane (new and existing).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1843
         },
         {
@@ -5362,7 +5991,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input and output geometry (result of cut).",
+          "note": "",
+          "condition": null,
           "sourceLine": 1845
         }
       ],
@@ -5376,12 +6007,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_bisect_plane_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_bisect_plane.cc",
       "sourceLine": 1820
     },
     {
       "name": "delete",
       "tsName": "delete",
       "cName": "bmo_delete_def",
+      "condition": null,
       "doc": "Delete Geometry.\n\nUtility operator to delete geometry.",
       "slotsIn": [
         {
@@ -5399,7 +6032,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1876
         },
         {
@@ -5413,7 +6048,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_delete_context",
-          "doc": "",
+          "doc": "Geometry types to delete.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1878
         }
       ],
@@ -5427,12 +6064,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_delete_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dupe.cc",
       "sourceLine": 1871
     },
     {
       "name": "duplicate",
       "tsName": "duplicate",
       "cName": "bmo_duplicate_def",
+      "condition": null,
       "doc": "Duplicate Geometry.\n\nUtility operator to duplicate geometry,\noptionally into a destination mesh.",
       "slotsIn": [
         {
@@ -5450,7 +6089,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1904
         },
         {
@@ -5464,7 +6105,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Destination bmesh, if None will use current one.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1906
         },
         {
@@ -5478,7 +6121,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Preserve the selection history in the duplicated geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1908
         },
         {
@@ -5492,7 +6137,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Copy edge flip state from connected faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1910
         }
       ],
@@ -5513,6 +6160,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1915
         },
         {
@@ -5531,6 +6180,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1916
         },
         {
@@ -5545,6 +6196,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "NOTE: face_map maps from source faces to dupe faces,\nand from dupe faces to source faces.",
+          "condition": null,
           "sourceLine": 1921
         },
         {
@@ -5559,6 +6212,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1924
         },
         {
@@ -5573,6 +6228,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1927
         },
         {
@@ -5586,7 +6243,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Boundary edges from the split geometry that maps edges from the original geometry\nto the destination edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1932
         },
         {
@@ -5601,6 +6260,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1935
         }
       ],
@@ -5612,12 +6273,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_duplicate_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dupe.cc",
       "sourceLine": 1899
     },
     {
       "name": "split",
       "tsName": "split",
       "cName": "bmo_split_def",
+      "condition": null,
       "doc": "Split Off Geometry.\n\nDisconnect geometry from adjacent edges and faces,\noptionally into a destination mesh.",
       "slotsIn": [
         {
@@ -5635,7 +6298,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1956
         },
         {
@@ -5649,7 +6314,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Destination bmesh, if None will use current one.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1958
         },
         {
@@ -5663,7 +6330,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "When enabled, don't duplicate loose verts/edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1960
         }
       ],
@@ -5684,6 +6353,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1965
         },
         {
@@ -5697,7 +6368,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Boundary edges from the split geometry that maps edges from the original geometry\nto the destination edges.\n\nWhen the source edges have been deleted, the destination edge will be used\nfor both the key and the value.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1971
         },
         {
@@ -5712,6 +6385,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 1974
         }
       ],
@@ -5723,12 +6398,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_split_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dupe.cc",
       "sourceLine": 1951
     },
     {
       "name": "spin",
       "tsName": "spin",
       "cName": "bmo_spin_def",
+      "condition": null,
       "doc": "Spin.\n\nExtrude or duplicate geometry a number of times,\nrotating and possibly translating after each step",
       "slotsIn": [
         {
@@ -5746,7 +6423,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1995
         },
         {
@@ -5760,7 +6439,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotation center.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1997
         },
         {
@@ -5774,7 +6455,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotation axis.",
+          "note": "",
+          "condition": null,
           "sourceLine": 1999
         },
         {
@@ -5788,7 +6471,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Translation delta per step.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2001
         },
         {
@@ -5802,7 +6487,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Total rotation angle (radians).",
+          "note": "",
+          "condition": null,
           "sourceLine": 2003
         },
         {
@@ -5816,7 +6503,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to define the space (typically object matrix).",
+          "note": "",
+          "condition": null,
           "sourceLine": 2005
         },
         {
@@ -5830,7 +6519,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of steps.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2007
         },
         {
@@ -5844,7 +6535,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Merge first/last when the angle is a full revolution.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2009
         },
         {
@@ -5858,7 +6551,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Create faces with reversed direction.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2011
         },
         {
@@ -5872,7 +6567,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Duplicate the geometry, otherwise extrude.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2013
         }
       ],
@@ -5892,7 +6589,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Result of last step.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2019
         }
       ],
@@ -5904,12 +6603,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_spin_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_dupe.cc",
       "sourceLine": 1990
     },
     {
       "name": "rotate_uvs",
       "tsName": "rotateUvs",
       "cName": "bmo_rotate_uvs_def",
+      "condition": null,
       "doc": "UV Rotation.\n\nCycle the loop UVs",
       "slotsIn": [
         {
@@ -5925,7 +6626,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2037
         },
         {
@@ -5939,7 +6642,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotate counter-clockwise if true, otherwise clockwise.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2039
         }
       ],
@@ -5949,12 +6654,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_rotate_uvs_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 2032
     },
     {
       "name": "reverse_uvs",
       "tsName": "reverseUvs",
       "cName": "bmo_reverse_uvs_def",
+      "condition": null,
       "doc": "UV Reverse.\n\nReverse the UVs",
       "slotsIn": [
         {
@@ -5970,7 +6677,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2059
         }
       ],
@@ -5980,12 +6689,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_reverse_uvs_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 2054
     },
     {
       "name": "rotate_colors",
       "tsName": "rotateColors",
       "cName": "bmo_rotate_colors_def",
+      "condition": null,
       "doc": "Color Rotation.\n\nCycle the loop colors",
       "slotsIn": [
         {
@@ -6001,7 +6712,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2079
         },
         {
@@ -6015,7 +6728,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Rotate counter-clockwise if true, otherwise clockwise.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2081
         },
         {
@@ -6029,7 +6744,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Index into color attribute list.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2083
         }
       ],
@@ -6039,12 +6756,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_rotate_colors_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 2074
     },
     {
       "name": "reverse_colors",
       "tsName": "reverseColors",
       "cName": "bmo_reverse_colors_def",
+      "condition": null,
       "doc": "Color Reverse\n\nReverse the loop colors.",
       "slotsIn": [
         {
@@ -6060,7 +6779,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2103
         },
         {
@@ -6074,7 +6795,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Index into color attribute list.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2105
         }
       ],
@@ -6084,12 +6807,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_reverse_colors_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_utils.cc",
       "sourceLine": 2098
     },
     {
       "name": "split_edges",
       "tsName": "splitEdges",
       "cName": "bmo_split_edges_def",
+      "condition": null,
       "doc": "Edge Split.\n\nDisconnects faces along input edges.",
       "slotsIn": [
         {
@@ -6105,7 +6830,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2125
         },
         {
@@ -6121,7 +6848,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Optional tag verts, use to have greater control of splits.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2131
         },
         {
@@ -6135,7 +6864,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use `verts` for splitting, else just find verts to split from edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2133
         }
       ],
@@ -6153,7 +6884,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The original edges that were disconnected.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2139
         }
       ],
@@ -6166,12 +6899,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_split_edges_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_split_edges.cc",
       "sourceLine": 2120
     },
     {
       "name": "create_grid",
       "tsName": "createGrid",
       "cName": "bmo_create_grid_def",
+      "condition": null,
       "doc": "Create Grid.\n\nCreates a grid with a variable number of subdivisions",
       "slotsIn": [
         {
@@ -6185,7 +6920,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of x segments.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2158
         },
         {
@@ -6199,7 +6936,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of y segments.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2160
         },
         {
@@ -6213,7 +6952,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Size of the grid.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2162
         },
         {
@@ -6227,7 +6968,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2164
         },
         {
@@ -6241,7 +6984,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2166
         }
       ],
@@ -6259,7 +7004,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2172
         }
       ],
@@ -6271,12 +7018,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_grid_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2153
     },
     {
       "name": "create_uvsphere",
       "tsName": "createUvsphere",
       "cName": "bmo_create_uvsphere_def",
+      "condition": null,
       "doc": "Create UV Sphere.\n\nCreates a UV sphere with a variable number of subdivisions.",
       "slotsIn": [
         {
@@ -6290,7 +7039,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of u segments.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2190
         },
         {
@@ -6304,7 +7055,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of v segments.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2192
         },
         {
@@ -6318,7 +7071,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Radius.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2194
         },
         {
@@ -6332,7 +7087,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2196
         },
         {
@@ -6346,7 +7103,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2198
         }
       ],
@@ -6364,7 +7123,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2204
         }
       ],
@@ -6376,12 +7137,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_uvsphere_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2185
     },
     {
       "name": "create_icosphere",
       "tsName": "createIcosphere",
       "cName": "bmo_create_icosphere_def",
+      "condition": null,
       "doc": "Create Ico-Sphere.\n\nCreates an ico-sphere with a variable number of subdivisions.",
       "slotsIn": [
         {
@@ -6395,7 +7158,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "How many times to recursively subdivide the sphere.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2222
         },
         {
@@ -6409,7 +7174,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Radius.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2224
         },
         {
@@ -6423,7 +7190,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2226
         },
         {
@@ -6437,7 +7206,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2228
         }
       ],
@@ -6455,7 +7226,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2234
         }
       ],
@@ -6467,12 +7240,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_icosphere_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2217
     },
     {
       "name": "create_monkey",
       "tsName": "createMonkey",
       "cName": "bmo_create_monkey_def",
+      "condition": null,
       "doc": "Create Suzanne.\n\nCreates a monkey (standard blender primitive).",
       "slotsIn": [
         {
@@ -6486,7 +7261,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2252
         },
         {
@@ -6500,7 +7277,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2254
         }
       ],
@@ -6518,7 +7297,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2260
         }
       ],
@@ -6530,12 +7311,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_monkey_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2247
     },
     {
       "name": "create_cone",
       "tsName": "createCone",
       "cName": "bmo_create_cone_def",
+      "condition": null,
       "doc": "Create Cone.\n\nCreates a cone with variable radius at both ends",
       "slotsIn": [
         {
@@ -6549,7 +7332,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Whether or not to fill in the ends with faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2278
         },
         {
@@ -6563,7 +7348,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Fill ends with triangles instead of ngons.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2280
         },
         {
@@ -6577,7 +7364,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of vertices in the base circle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2282
         },
         {
@@ -6591,7 +7380,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Radius of one end.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2284
         },
         {
@@ -6605,7 +7396,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Radius of the opposite end.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2286
         },
         {
@@ -6619,7 +7412,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Distance between ends.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2288
         },
         {
@@ -6633,7 +7428,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2290
         },
         {
@@ -6647,7 +7444,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2292
         }
       ],
@@ -6665,7 +7464,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2298
         }
       ],
@@ -6677,12 +7478,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_cone_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2273
     },
     {
       "name": "create_circle",
       "tsName": "createCircle",
       "cName": "bmo_create_circle_def",
+      "condition": null,
       "doc": "Creates a Circle.",
       "slotsIn": [
         {
@@ -6696,7 +7499,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Whether or not to fill in the circle with a face.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2314
         },
         {
@@ -6710,7 +7515,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Fill the circle with triangles instead of an n-gon.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2316
         },
         {
@@ -6724,7 +7531,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of vertices in the circle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2318
         },
         {
@@ -6738,7 +7547,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Radius of the circle.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2320
         },
         {
@@ -6752,7 +7563,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2322
         },
         {
@@ -6766,7 +7579,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2324
         }
       ],
@@ -6784,7 +7599,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2330
         }
       ],
@@ -6796,12 +7613,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_circle_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2309
     },
     {
       "name": "create_cube",
       "tsName": "createCube",
       "cName": "bmo_create_cube_def",
+      "condition": null,
       "doc": "Create Cube\n\nCreates a cube.",
       "slotsIn": [
         {
@@ -6815,7 +7634,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Size of the cube.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2348
         },
         {
@@ -6829,7 +7650,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Matrix to multiply the new geometry with.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2350
         },
         {
@@ -6843,7 +7666,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Calculate default UVs.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2352
         }
       ],
@@ -6861,7 +7686,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2358
         }
       ],
@@ -6873,12 +7700,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_create_cube_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_primitive.cc",
       "sourceLine": 2343
     },
     {
       "name": "bevel",
       "tsName": "bevel",
       "cName": "bmo_bevel_def",
+      "condition": null,
       "doc": "Bevel.\n\nBevels edges and vertices",
       "slotsIn": [
         {
@@ -6896,7 +7725,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges and vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2418
         },
         {
@@ -6910,7 +7741,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Amount to offset beveled edge.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2420
         },
         {
@@ -6924,7 +7757,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_offset_type",
-          "doc": "",
+          "doc": "How to measure the offset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2422
         },
         {
@@ -6938,7 +7773,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_profile_type",
-          "doc": "",
+          "doc": "The profile type to use for bevel.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2427
         },
         {
@@ -6952,7 +7789,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Number of segments in bevel.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2432
         },
         {
@@ -6966,7 +7805,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Profile shape, 0->1 (.5=>round).",
+          "note": "",
+          "condition": null,
           "sourceLine": 2434
         },
         {
@@ -6980,7 +7821,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_affect_type",
-          "doc": "",
+          "doc": "Whether to bevel vertices or edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2436
         },
         {
@@ -6994,7 +7837,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Do not allow beveled edges/vertices to overlap each other.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2441
         },
         {
@@ -7008,7 +7853,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Material for bevel faces, -1 means get from adjacent faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2443
         },
         {
@@ -7022,7 +7869,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Prefer to slide along edges to having even widths.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2445
         },
         {
@@ -7036,7 +7885,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Extend edge data to allow seams to run across bevels.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2447
         },
         {
@@ -7050,7 +7901,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Extend edge data to allow sharp edges to run across bevels.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2449
         },
         {
@@ -7064,7 +7917,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Harden normals.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2451
         },
         {
@@ -7078,7 +7933,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_face_strength_type",
-          "doc": "",
+          "doc": "Whether to set face strength, and which faces to set if so.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2453
         },
         {
@@ -7092,7 +7949,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_miter_type",
-          "doc": "",
+          "doc": "Outer miter kind.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2458
         },
         {
@@ -7106,7 +7965,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_miter_type",
-          "doc": "",
+          "doc": "Inner miter kind.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2463
         },
         {
@@ -7120,7 +7981,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Amount to spread the miter.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2468
         },
         {
@@ -7134,7 +7997,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "CurveProfile, if None ignored",
+          "note": "",
+          "condition": null,
           "sourceLine": 2470
         },
         {
@@ -7148,7 +8013,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_bevel_vmesh_method",
-          "doc": "",
+          "doc": "The method to use to create meshes at intersections.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2472
         }
       ],
@@ -7166,7 +8033,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2481
         },
         {
@@ -7182,7 +8051,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2483
         },
         {
@@ -7198,7 +8069,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2485
         }
       ],
@@ -7212,12 +8085,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_bevel_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_bevel.cc",
       "sourceLine": 2413
     },
     {
       "name": "beautify_fill",
       "tsName": "beautifyFill",
       "cName": "bmo_beautify_fill_def",
+      "condition": null,
       "doc": "Beautify Fill.\n\nRotate edges to create more evenly spaced triangles.",
       "slotsIn": [
         {
@@ -7233,7 +8108,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2513
         },
         {
@@ -7249,7 +8126,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Edges that can be flipped.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2515
         },
         {
@@ -7263,7 +8142,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Restrict edge rotation to mixed tagged vertices.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2517
         },
         {
@@ -7277,7 +8158,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_beautify_fill_method",
-          "doc": "",
+          "doc": "Method to define what is beautiful.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2519
         }
       ],
@@ -7297,7 +8180,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New flipped faces and edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2528
         }
       ],
@@ -7311,12 +8196,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_beautify_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_beautify.cc",
       "sourceLine": 2508
     },
     {
       "name": "triangle_fill",
       "tsName": "triangleFill",
       "cName": "bmo_triangle_fill_def",
+      "condition": null,
       "doc": "Triangle Fill.\n\nFill edges with triangles",
       "slotsIn": [
         {
@@ -7330,7 +8217,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Use best triangulation division.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2548
         },
         {
@@ -7344,7 +8233,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Dissolve resulting faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2550
         },
         {
@@ -7360,7 +8251,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2552
         },
         {
@@ -7374,7 +8267,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Optionally pass the fill normal to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2554
         }
       ],
@@ -7394,7 +8289,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "New faces and edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2560
         }
       ],
@@ -7407,12 +8304,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_triangle_fill_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_triangulate.cc",
       "sourceLine": 2543
     },
     {
       "name": "solidify",
       "tsName": "solidify",
       "cName": "bmo_solidify_def",
+      "condition": null,
       "doc": "Solidify.\n\nTurns a mesh into a shell with thickness",
       "slotsIn": [
         {
@@ -7430,7 +8329,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2579
         },
         {
@@ -7444,7 +8345,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Thickness of the solidified shell.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2581
         }
       ],
@@ -7464,7 +8367,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output geometry (new shell faces, edges, and vertices).",
+          "note": "",
+          "condition": null,
           "sourceLine": 2587
         }
       ],
@@ -7476,12 +8381,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_solidify_face_region_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_extrude.cc",
       "sourceLine": 2574
     },
     {
       "name": "inset_individual",
       "tsName": "insetIndividual",
       "cName": "bmo_inset_individual_def",
+      "condition": null,
       "doc": "Face Inset (Individual).\n\nInsets individual faces.",
       "slotsIn": [
         {
@@ -7497,7 +8404,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2605
         },
         {
@@ -7511,7 +8420,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Inset distance from the boundary.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2607
         },
         {
@@ -7525,7 +8436,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Distance to raise or lower the inset face along its normal.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2609
         },
         {
@@ -7539,7 +8452,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset to give more even thickness.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2611
         },
         {
@@ -7553,7 +8468,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Blend face data across the inset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2613
         },
         {
@@ -7567,7 +8484,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset by surrounding geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2615
         }
       ],
@@ -7585,7 +8504,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2621
         }
       ],
@@ -7596,12 +8517,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_inset_individual_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_inset.cc",
       "sourceLine": 2600
     },
     {
       "name": "inset_region",
       "tsName": "insetRegion",
       "cName": "bmo_inset_region_def",
+      "condition": null,
       "doc": "Face Inset (Regions).\n\nInset or outset face regions.",
       "slotsIn": [
         {
@@ -7617,7 +8540,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2640
         },
         {
@@ -7633,7 +8558,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces to explicitly exclude from inset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2642
         },
         {
@@ -7647,7 +8574,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Inset face boundaries.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2644
         },
         {
@@ -7661,7 +8590,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset to give more even thickness.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2646
         },
         {
@@ -7675,7 +8606,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Blend face data across the inset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2648
         },
         {
@@ -7689,7 +8622,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset by surrounding geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2650
         },
         {
@@ -7703,7 +8638,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Inset the region along existing edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2652
         },
         {
@@ -7717,7 +8654,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Inset distance from the boundary.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2654
         },
         {
@@ -7731,7 +8670,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Distance to raise or lower the inset face along its normal.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2656
         },
         {
@@ -7745,7 +8686,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Outset rather than inset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2658
         }
       ],
@@ -7763,7 +8706,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2664
         }
       ],
@@ -7775,12 +8720,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_inset_region_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_inset.cc",
       "sourceLine": 2635
     },
     {
       "name": "offset_edgeloops",
       "tsName": "offsetEdgeloops",
       "cName": "bmo_offset_edgeloops_def",
+      "condition": null,
       "doc": "Edge-loop Offset.\n\nCreates edge loops based on simple edge-outset method.",
       "slotsIn": [
         {
@@ -7796,7 +8743,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2682
         },
         {
@@ -7810,7 +8759,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Extend loop around end-points.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2684
         }
       ],
@@ -7828,7 +8779,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2690
         }
       ],
@@ -7840,12 +8793,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_offset_edgeloops_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_offset_edgeloops.cc",
       "sourceLine": 2677
     },
     {
       "name": "wireframe",
       "tsName": "wireframe",
       "cName": "bmo_wireframe_def",
+      "condition": null,
       "doc": "Wire Frame.\n\nMakes a wire-frame copy of faces.",
       "slotsIn": [
         {
@@ -7861,7 +8816,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2708
         },
         {
@@ -7875,7 +8832,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Wire thickness.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2710
         },
         {
@@ -7889,7 +8848,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Offset the thickness from the center.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2712
         },
         {
@@ -7903,7 +8864,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Remove original geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2714
         },
         {
@@ -7917,7 +8880,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Inset face boundaries.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2716
         },
         {
@@ -7931,7 +8896,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset to give more even thickness.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2718
         },
         {
@@ -7945,7 +8912,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Crease hub edges for improved subdivision surface.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2720
         },
         {
@@ -7959,7 +8928,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "The mean crease weight for resulting edges.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2722
         },
         {
@@ -7973,7 +8944,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Scale the offset by surrounding geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2724
         },
         {
@@ -7987,7 +8960,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Offset material index of generated faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2726
         }
       ],
@@ -8005,7 +8980,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2732
         }
       ],
@@ -8018,12 +8995,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_wireframe_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_wireframe.cc",
       "sourceLine": 2703
     },
     {
       "name": "poke",
       "tsName": "poke",
       "cName": "bmo_poke_def",
+      "condition": null,
       "doc": "Pokes a face.\n\nSplits a face into a triangle fan.",
       "slotsIn": [
         {
@@ -8039,7 +9018,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2759
         },
         {
@@ -8053,7 +9034,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Center vertex offset along normal.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2761
         },
         {
@@ -8067,7 +9050,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_poke_center_mode",
-          "doc": "",
+          "doc": "Calculation mode for center vertex.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2763
         },
         {
@@ -8081,7 +9066,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Apply offset.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2768
         }
       ],
@@ -8099,7 +9086,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output verts.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2774
         },
         {
@@ -8115,7 +9104,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Output faces.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2776
         }
       ],
@@ -8128,12 +9119,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_poke_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_poke.cc",
       "sourceLine": 2754
     },
     {
       "name": "convex_hull",
       "tsName": "convexHull",
       "cName": "bmo_convex_hull_def",
+      "condition": "WITH_BULLET",
       "doc": "Convex Hull\n\nBuilds a convex hull from the vertices in `input`.\n\nIf `use_existing_faces` is true, the hull will not output triangles\nthat are covered by a pre-existing face.\n\nAll hull vertices, faces, and edges are added to `geom.out`. Any\ninput elements that end up inside the hull (i.e. are not used by an\noutput face) are added to the `geom_interior.out` slot. The\n`geom_unused.out` slot will contain all interior geometry that is\ncompletely unused. Lastly, `geom_holes.out` contains edges and faces\nthat were in the input and are part of the hull.",
       "slotsIn": [
         {
@@ -8151,7 +9144,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2807
         },
         {
@@ -8165,7 +9160,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Skip hull triangles that are covered by a pre-existing face.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2809
         }
       ],
@@ -8186,6 +9183,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 2814
         },
         {
@@ -8204,6 +9203,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 2815
         },
         {
@@ -8222,6 +9223,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 2816
         },
         {
@@ -8240,6 +9243,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 2817
         }
       ],
@@ -8252,12 +9257,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_convex_hull_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_hull.cc",
       "sourceLine": 2802
     },
     {
       "name": "space_edge_loops_evenly",
       "tsName": "spaceEdgeLoopsEvenly",
       "cName": "bmo_space_edge_loops_evenly_def",
+      "condition": null,
       "doc": "Space Evenly.\n\nSpace the vertices in a regular distribution on the loop.",
       "slotsIn": [
         {
@@ -8273,7 +9280,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2844
         },
         {
@@ -8287,7 +9296,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_space_edge_loops_evenly_interpolation_method",
-          "doc": "",
+          "doc": "Method used for interpolation.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2846
         },
         {
@@ -8301,7 +9312,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Influence factor: spans from 0.0 to 1.0.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2851
         },
         {
@@ -8315,7 +9328,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock X-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2853
         },
         {
@@ -8329,7 +9344,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Y-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2855
         },
         {
@@ -8343,7 +9360,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Lock Z-axis editing.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2857
         }
       ],
@@ -8355,12 +9374,14 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_space_edge_loops_evenly_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_space_edge_loops_evenly.cc",
       "sourceLine": 2839
     },
     {
       "name": "symmetrize",
       "tsName": "symmetrize",
       "cName": "bmo_symmetrize_def",
+      "condition": null,
       "doc": "Symmetrize.\n\nMakes the mesh elements in the `input` slot symmetrical. Unlike\nnormal mirroring, it only copies in one direction, as specified by\nthe `direction` slot. The edges and faces that cross the plane of\nsymmetry are split as needed to enforce symmetry.\n\nAll new vertices, edges, and faces are added to the `geom.out` slot.",
       "slotsIn": [
         {
@@ -8378,7 +9399,9 @@
           ],
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Input geometry.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2883
         },
         {
@@ -8392,7 +9415,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": "bmo_enum_axis_neg_xyz_and_xyz",
-          "doc": "",
+          "doc": "Axis to use.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2885
         },
         {
@@ -8406,7 +9431,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Minimum distance.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2890
         },
         {
@@ -8420,7 +9447,9 @@
           "elemTypes": null,
           "isSingle": false,
           "enumName": null,
-          "doc": "",
+          "doc": "Transform shape keys too.",
+          "note": "",
+          "condition": null,
           "sourceLine": 2892
         }
       ],
@@ -8441,6 +9470,8 @@
           "isSingle": false,
           "enumName": null,
           "doc": "",
+          "note": "",
+          "condition": null,
           "sourceLine": 2897
         }
       ],
@@ -8453,6 +9484,7 @@
       "initC": null,
       "initDefaults": {},
       "execC": "bmo_symmetrize_exec",
+      "execFile": "source/blender/bmesh/operators/bmo_symmetrize.cc",
       "sourceLine": 2878
     }
   ]

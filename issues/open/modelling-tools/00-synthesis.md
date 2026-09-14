@@ -126,11 +126,13 @@ Resolved 2026-09-14 by the maintainer:
 - **D5 sketchpunklabs/bmesh** — port fresh from Blender source; use it only as a cross-check. (Recommended; not explicitly confirmed.)
 - **D6 Booleans** — manifold-3d as a lazy optional plugin, Babylon `InitializeCSG2Async`-style injectable init. (Recommended; not explicitly confirmed.)
 
+- **D7a Plugin name — `MeshEditPlugin`** (`PluginType = 'MeshEditPlugin'`). `EditModePlugin` stays the Blueprint editor's viewport mode.
+- **D7b Package names** — kernel `@threepipe/mesh-kernel` in `plugins/mesh-kernel`; editor plugin `@threepipe/plugin-mesh-edit` in `plugins/mesh-edit`.
+- **D7c Keymap — mode-scoped.** Object mode keeps `W`/`E`/`R` and the rest of today's bindings untouched. Edit mode binds Blender defaults (`G`/`R`/`S`, `E`, `I`, `Ctrl+B`, `Ctrl+R`, `K`, `F`, `M`, `Tab`, `1`/`2`/`3`) and, while active, takes ownership of `X`/`Y`/`Z`, `E`, `R`, `F`, `Delete` and `Escape` from the object-mode handlers via keyed `disable('meshEdit')`.
+
 Still open:
 
-- **D7a Plugin name.** `EditModePlugin` is taken by the Blueprint editor and means "editor viewport mode". Proposal: `MeshEditPlugin` (`PluginType = 'MeshEditPlugin'`). Must be fixed before M4 because the editor is patched in lockstep.
-- **D7b Package names.** e.g. `@threepipe/mesh` (kernel) and `@threepipe/plugin-modelling` (editor). Existing convention is `@threepipe/plugin-*` for plugins; the kernel is a library, not a plugin.
-- **D7c API surface details** — camelCase operator names (`extrudeFaceRegion`), output slots without `.out`, where the Z-up/Y-up conversion boundary sits, and whether object mode keeps `W`/`E`/`R` while edit mode uses Blender's `G`/`R`/`S`/`E` (recommended: yes, don't break existing users).
+- **D7d API surface details** — camelCase operator names (`extrudeFaceRegion`), output slots without `.out`, and where the Z-up/Y-up conversion boundary sits. To be settled while designing the op table.
 
 ### 4.1 Agent-facing API and the MCP bridge
 
