@@ -119,12 +119,14 @@ async function importExternalTexture(req: ExternalTextureRequest, importer: IAss
         if (imported && imported.isTexture && imported.image) {
             // Copy the FULL texture state — source, type, format, filters, flipY — not just the image, so a
             // HalfFloat/Float DataTexture (EXR/HDR) uploads with the correct type (copying only the source
-            // onto a default UnsignedByte texture crashes the GPU upload). But preserve the wrap mode the
-            // loader set from the Blender node's Extension (copy would overwrite it with the importer's
-            // ClampToEdge default → tiled UVs outside [0,1] would clamp/smear instead of repeat).
-            const wrapS = req.texture.wrapS, wrapT = req.texture.wrapT
+            // onto a default UnsignedByte texture crashes the GPU upload). But preserve the wrap mode (from the
+            // node's Extension) and the UV transform (from a Mapping node) the loader set on the placeholder —
+            // copy() would overwrite them with the importer's defaults (ClampToEdge, repeat 1 / offset 0).
+            const wrapS = req.texture.wrapS, wrapT = req.texture.wrapT, rotation = req.texture.rotation
+            const repeat = req.texture.repeat.clone(), offset = req.texture.offset.clone(), center = req.texture.center.clone()
             req.texture.copy(imported)
-            req.texture.wrapS = wrapS; req.texture.wrapT = wrapT
+            req.texture.wrapS = wrapS; req.texture.wrapT = wrapT; req.texture.rotation = rotation
+            req.texture.repeat.copy(repeat); req.texture.offset.copy(offset); req.texture.center.copy(center)
             req.texture.colorSpace = req.srgb ? SRGBColorSpace : imported.colorSpace
             // Align flipY=false data textures (EXR/HDR) to the flipY=true raster convention — see helper.
             if (imported.isDataTexture && imported.flipY === false) flipDataTextureRowsY(req.texture as DataTexture)

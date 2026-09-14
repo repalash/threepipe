@@ -640,6 +640,8 @@ function worker_code () {
                 obj = null;
                 name = struct[i];
                 type = struct[i + 1];
+                length = struct[i + 2]; // field byte length (pushed at compileProp/__list__) — was never read,
+                // leaving `length` undefined → inline-struct array members got NaN addresses (see line 653/661).
                 Blender_Array_Length = struct[i + 4];
                 Pointer_Match = struct[i + 5];
                 offset = this.__data_address__ + struct[i + 3];
