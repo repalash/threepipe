@@ -4,8 +4,8 @@ prev:
     link: './FragmentClippingExtensionPlugin'
 
 next:
-    text: 'CanvasSnapshotPlugin'
-    link: './CanvasSnapshotPlugin'
+    text: 'MultiLayerRoughnessPlugin'
+    link: './MultiLayerRoughnessPlugin'
 
 ---
 

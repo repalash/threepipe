@@ -83,6 +83,8 @@ compose.dev.yaml
 .aibox
 .repos
 .archived
+three.js-modded
+three-ts-types
 
 # Playwright
 /test-results/
@@ -91,3 +93,5 @@ compose.dev.yaml
 tests/snapshots/
 tests/download-file-hashes.json.lock
 
+plugins/procedural-generation
+issues

@@ -1,9 +1,9 @@
 {
     "name": "@threepipe/plugin-tweakpane",
     "description": "Tweakpane UI Plugin for ThreePipe",
-    "version": "0.10.1",
+    "version": "0.10.2",
     "devDependencies": {
-        "tweakpane-image-plugin": "https://pkg.threepipe.org/dep/tweakpane-image-plugin/-/v1.1.404/package.tgz",
+        "tweakpane-image-plugin": "https://pkg.threepipe.org/dep/tweakpane-image-plugin/-/v1.1.405/package.tgz",
         "uiconfig-tweakpane": "1.0.1",
         "ts-browser-helpers": "file:./../../node_modules/ts-browser-helpers",
         "uiconfig.js": "file:./../../node_modules/uiconfig.js",

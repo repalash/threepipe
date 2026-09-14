@@ -942,7 +942,7 @@ export function jsonToBlob(json: any): BlobExt {
  * @param mime
  */
 export function serializeTextureInExtras(texture: ITexture & ImportResultExtras, meta: any, name?: string, mime?: string) {
-    if (meta?.extras[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
+    if (meta?.extras?.[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
 
     let url: any = ''
     if (texture.source?._sourceImgBuffer || texture.__sourceBuffer) {
@@ -953,7 +953,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
         url = {
             data: Array.from(data), // texture need to be a normal array, not a typed array.
             type: data.constructor.name,
-            path: texture.userData.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
+            path: texture.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
         }
         if (mimeType) url.mimeType = mimeType
     } else if (texture.userData.rootPath) {

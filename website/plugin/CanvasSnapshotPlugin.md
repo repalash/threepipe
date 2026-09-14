@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'ParallaxMappingPlugin'
-    link: './ParallaxMappingPlugin'
+    text: 'MultiLayerRoughnessPlugin'
+    link: './MultiLayerRoughnessPlugin'
 
 next:
     text: 'AssetExporterPlugin'

@@ -29,11 +29,22 @@ By default, these files are loaded from one of the reliable CDNs, or from [three
     - `https://threejs.org/examples/jsm/libs/draco/`
     - `https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/`
   - Release Files can be downloaded from - https://github.com/google/draco/releases/tag/1.5.6
-  - Offline/Mobile Apps - Embedded File - Put the draco_decoder.js file in your src folder, then import it in js/ts as a string
+  - **WASM decoder is used by default.** Three.js's `DRACOLoader` auto-detects `WebAssembly` and fetches `draco_wasm_wrapper.js` + `draco_decoder.wasm` on first use. Falls back to the pure-JS `draco_decoder.js` when `WebAssembly` isn't available. Override with `loader.setDecoderConfig({type: 'js'})` on an instance to force the JS path.
+  - **Encoder default remains JS-only** because the default CDN path does not ship `draco_encoder.wasm`. Override `loader.encoderConfig` (or use a CDN that hosts it, e.g. `draco3dgltf` npm package) if you need the WASM encoder.
+  - Offline/Mobile Apps — embed the decoder with your app source:
+    - **JS-only decoder** — put `draco_decoder.js` in your src folder and:
 ```typescript
 import draco_decoder from './libs/draco_decoder.1.5.6.js?raw' // vite will load this as a string
-// console.log(draco_decoder) // this should be a string with js content
-DRACOLoader2.SetDecoderJsString(draco_decoder) // this sets DRACOLoader2.LibraryValueMap['draco_decoder.js']
+DRACOLoader2.SetDecoderJsString(draco_decoder) // sets DRACOLoader2.LibraryValueMap['draco_decoder.js']
+// Also force JS path so the WASM fetch is skipped:
+dracoLoader.setDecoderConfig({type: 'js'})
+```
+    - **WASM decoder** (smaller, faster) — bundle both the wrapper JS and the `.wasm` binary:
+```typescript
+import draco_wasm_wrapper from './libs/draco_wasm_wrapper.1.5.6.js?raw'
+import draco_decoder_wasm from './libs/draco_decoder.1.5.6.wasm?arraybuffer'
+DRACOLoader2.SetDecoderWasmBinary(draco_wasm_wrapper, draco_decoder_wasm)
+// sets DRACOLoader2.LibraryValueMap['draco_wasm_wrapper.js'] and ['draco_decoder.wasm']
 ```
 - `Rhino3dmLoader2.LIBRARY_PATH` - The URL to the Rhino3dm library used for loading Rhino 3D models.
   - Default: `https://cdn.jsdelivr.net/npm/rhino3dm@8.0.1`

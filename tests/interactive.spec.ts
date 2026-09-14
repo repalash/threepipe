@@ -412,6 +412,41 @@ test('glb-draco-export', async({page}, testInfo) => {
     await downloadFileMatch(page, 'scene_with_config.glb', async() => btnClick(page, 'Download Scene GLB (With Viewer Config) + DRACO'))
 })
 
+test('draco-js-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Draco JS Decode Plugin')
+
+    // The plugin should have swapped the .drc decoder to the pure-JS DRACOLoader2Pure and decoded
+    // the Draco glTF natively (no WASM fallback for EdgeBreaker content).
+    const state = await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const importers = v?.assetManager?.importer?.importers ?? []
+        // bundlers may prefix the minified class name (e.g. `_DRACOLoader2Pure`), so match by suffix
+        const decoderSwapped = importers.some((i: any) => i.cls?.name?.replace(/^_/, '') === 'DRACOLoader2Pure')
+        let verts = 0
+        v?.scene?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {hasPlugin: !!plugin, fallbackCount: plugin?.fallbackCount, decoderSwapped, verts}
+    })
+    expect(state.hasPlugin).toBe(true)
+    expect(state.decoderSwapped).toBe(true)
+    expect(state.fallbackCount).toBe(0)
+    expect(state.verts).toBeGreaterThan(0)
+
+    // Real-browser fallback: a SEQUENTIAL-encoded .drc (draco.js silently mis-decodes it) must be
+    // detected and decoded by the actual WASM decode worker instead — proving the safety net holds.
+    const seq = await page.evaluate(async() => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const before = plugin?.fallbackCount
+        const obj = await v.load('/tests/fixtures/draco/sequential.drc', {autoCenter: true, autoScale: true})
+        let verts = 0
+        obj?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {before, after: plugin?.fallbackCount, verts}
+    })
+    expect(seq.after, 'sequential .drc detected → fell back to WASM').toBeGreaterThan(seq.before)
+    expect(seq.verts, 'WASM fallback decoded the sequential mesh').toBeGreaterThan(0)
+})
+
 test('normal-buffer-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Normal Buffer Plugin')
     await btnClick(page, 'Toggle Normal rendering')
@@ -560,6 +595,107 @@ test('render-target-preview', async({page}, testInfo) => {
     await screenshotMatch(page, testInfo, 'after-multi-remove')
 })
 
+// Covers the LUT plugin issues hit during the webgi sync work:
+//   - GBuffer flags float-precision bug (`* 255. + 0.5`) — caught by initial render
+//     producing three distinct LUT-graded outputs across the helmet (slot 0), sphere
+//     (slot 1) and cube (slot 2). Without the fix, every material falls back to slot 0
+//     and the three meshes look identical.
+//   - LUTPlugin priority order (-150, after tonemap) — caught by toggling lutBackground.
+//     Wrong priority would render the bg in pre-tonemap colors regardless of the toggle.
+//   - LUTPlugin `outColor = color` initialization — caught by `Disable on all materials`
+//     producing raw colors (not garbage).
+//   - enableOnAll / disableOnAll buttons — clicked directly.
+//   - Inter-slot drag-drop for `.cube` LUT wrappers — drag LUT 1 thumb onto LUT 0 slot
+//     and verify both slots end up pointing at the same wrapper. Without the
+//     `textureMap` registration in proxyGetValue, the .cube guard in setterTex would
+//     reject the drop because the panel <img> resolves to `new Texture()` instead of
+//     the wrapper.
+test('lut-plugin', async({page}, testInfo) => {
+    await expect(page).toHaveTitle('LUT Plugin')
+
+    // Initial state sanity (catches gbuffer flags float-precision regression — without
+    // proper rounding, slot routing collapses and these still look right at the data
+    // layer but the render comes out wrong).
+    const initial = await page.evaluate(() => {
+        const v = (window as any).threeViewers[0]
+        const lut = v.getPlugin('LUTPlugin1')
+        return {
+            enabled: !!lut?.enabled,
+            lutBackground: !!lut?.lutBackground,
+            slot0Bound: !!lut?.lutMap?.texture3D,
+            slot1Bound: !!lut?.lutMap1?.texture3D,
+            slot2Bound: !!lut?.lutMap2?.texture3D,
+            distinct: lut?.lutMap !== lut?.lutMap1
+                && lut?.lutMap1 !== lut?.lutMap2
+                && lut?.lutMap !== lut?.lutMap2,
+            lut0_uuid: lut?.lutMap?.uuid,
+            lut1_uuid: lut?.lutMap1?.uuid,
+            lut2_uuid: lut?.lutMap2?.uuid,
+        }
+    })
+    expect(initial.enabled).toBe(true)
+    expect(initial.lutBackground).toBe(true)
+    expect(initial.slot0Bound).toBe(true)
+    expect(initial.slot1Bound).toBe(true)
+    expect(initial.slot2Bound).toBe(true)
+    expect(initial.distinct).toBe(true)
+
+    // Open the LUT folder. setupPluginUi(LUTPlugin) creates a uiFolderContainer('LUT')
+    // folder; controls inside aren't rendered until expanded.
+    await page.getByRole('button', {name: 'LUT', exact: true}).first().click()
+    await page.waitForTimeout(300)
+
+    // Toggle LUT Background OFF — bg returns to raw `#2d3436` instead of being LUT-graded.
+    // Catches: priority drift (LUT applied before tonemap renders bg wrong even with toggle off).
+    const bgRow = page.locator('.tp-lblv').filter({has: page.getByText('LUT Background', {exact: true})}).first()
+    const bgCheckbox = bgRow.locator('label').getByRole('img').first()
+    await bgCheckbox.click()
+    await page.waitForTimeout(300)
+    await screenshotMatch(page, testInfo, 'lut-bg-off')
+    await bgCheckbox.click()
+    await page.waitForTimeout(300)
+
+    // Disable on all materials button — clears userData[LUTPlugin1].enable on every material.
+    // All three meshes render raw colors. Catches: button works + outColor=color init safety.
+    await btnClick(page, 'Disable on all materials')
+    await page.waitForTimeout(300)
+    await screenshotMatch(page, testInfo, 'disable-all')
+
+    // Enable on all materials — every material (including label text, which started disabled)
+    // gets userData[LUTPlugin1] = {enable: true, index: 0}. Labels go from raw to graded.
+    await btnClick(page, 'Enable on all materials')
+    await page.waitForTimeout(300)
+    await screenshotMatch(page, testInfo, 'enable-all')
+
+    // Drag LUT 1 thumbnail onto LUT 0 — slot 0 ends up pointing at LUT 1's wrapper.
+    // Catches: .cube guard accepting LUT wrapper, identity-check null guard, textureMap
+    // registration in proxyGetValue (without it the drop falls through to `new Texture()`
+    // which the .cube guard rejects).
+    const lut0Row = page.locator('.tp-lblv').filter({hasText: /^LUT$/}).first()
+    const lut1Row = page.locator('.tp-lblv').filter({hasText: /^LUT 1$/}).first()
+    await expect(lut0Row).toBeVisible()
+    await expect(lut1Row).toBeVisible()
+    const lut0Img = lut0Row.locator('.tp-imgv_image').first()
+    const lut1Img = lut1Row.locator('.tp-imgv_image').first()
+
+    await lut1Img.dragTo(lut0Img)
+    await page.waitForTimeout(500)
+
+    const afterDrag = await page.evaluate(() => {
+        const v = (window as any).threeViewers[0]
+        const lut = v.getPlugin('LUTPlugin1')
+        return {
+            sameInstance: lut.lutMap === lut.lutMap1,
+            sameTexture3D: lut.lutMap?.texture3D === lut.lutMap1?.texture3D,
+            lut0_uuid: lut.lutMap?.uuid,
+        }
+    })
+    expect(afterDrag.sameInstance || afterDrag.sameTexture3D).toBe(true)
+    expect(afterDrag.lut0_uuid).toBe(initial.lut1_uuid)
+    await page.waitForTimeout(300)
+    await screenshotMatch(page, testInfo, 'after-drag-lut1-to-lut0')
+})
+
 test('tonemap-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Tonemap Plugin')
     await page.getByRole('button', {name: 'Tonemapping'}).click()
@@ -636,6 +772,53 @@ test('tonemap-plugin', async({page}, testInfo) => {
     await exposureBox.fill('3')
     await exposureBox.press('Enter')
     await screenshotMatch(page, testInfo, 'reinhard-bright-grayscale')
+
+    // ── FilmicGrain priority verification ─────────────────────────────────────
+    // The example loads FilmicGrainPlugin disabled. Enable it with a high-intensity
+    // grain on top of ACESFilmic tonemap and a normal exposure. If FilmicGrain runs
+    // BEFORE tonemap (priority -50 — the bug), the grain pattern's contribution gets
+    // compressed by the tonemap curve in highlights and crushed in shadows, producing
+    // a lopsided noise distribution. If grain runs AFTER tonemap (priority -200 — the
+    // fix), the noise is uniform across the image. This snapshot locks the post-tonemap
+    // ordering — flipping the priority will produce a different baseline.
+    //
+    // See: src/plugins/postprocessing/FilmicGrainPlugin.ts:41 — priority anchor
+    //      issues/open/post-extension-priority-tonemap-order.md — full audit
+    await page.getByRole('combobox').selectOption('ACESFilmic')
+    await exposureBox.dblclick()
+    await exposureBox.fill('1')
+    await exposureBox.press('Enter')
+
+    // Reset saturation/contrast so only grain interacts with tonemap.
+    await saturationBox.dblclick()
+    await saturationBox.fill('1')
+    await saturationBox.press('Enter')
+    await contrastBox.dblclick()
+    await contrastBox.fill('1')
+    await contrastBox.press('Enter')
+
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const grain = v?.getPlugin('FilmicGrain')
+        if (!grain) throw new Error('FilmicGrainPlugin not registered')
+        grain.intensity = 80   // visibly above the default 10
+        grain.enabled = true
+        grain.setDirty()
+    })
+    await page.waitForTimeout(300)
+    await screenshotMatch(page, testInfo, 'grain-post-tonemap')
+
+    // Sanity check programmatic priority — FilmicGrain must compose AFTER Tonemap.
+    // Lower priority is applied later and ends up at the bottom of the prepended chain
+    // (= runs last). See AScreenPassExtensionPlugin / MaterialExtender sort.
+    const priorities = await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const t = v?.getPlugin('Tonemap')?.priority
+        const g = v?.getPlugin('FilmicGrain')?.priority
+        return {tonemap: t, grain: g}
+    })
+    expect(priorities.tonemap, JSON.stringify(priorities)).toBe(-100)
+    expect(priorities.grain, JSON.stringify(priorities)).toBeLessThan(priorities.tonemap)
 })
 
 test('gbuffer-plugin', async({page}, testInfo) => {
@@ -2356,5 +2539,85 @@ test('hdr-to-exr', async({page}, testInfo) => {
     // Download the EXR file via the button
     await downloadFileMatch(page, 'file.exr',
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
+})
+
+// Regression: inter-slot drag-drop of an image input must hand the destination the original
+// full-resolution Texture, not a wrapped 160px panel-preview thumbnail.
+//
+// Flow under test (see plugins/tweakpane/src/tpImageInputGenerator.ts):
+//   - tweakpane-image-plugin v1.1.404+ drag carries `dataTransfer.setData('img-id', srcPanelImg.id)`;
+//     drop calls `document.getElementById(imgId)` and passes the source panel `<img>` element to setValue.
+//   - proxySetValue then receives `v = panel <img>` and goes through the HTMLImageElement branch.
+//   - It must recover the original Texture via `staticData.textureMap` lookup; if recovery fails it
+//     falls through to `new Texture(v)` which silently wraps the 160px preview.
+//   - The recovery is set up by the proxy `get` registering `textureMap[id] = config.__proxy.value_`
+//     where `id` is the data URL string returned by `proxyGetValue`. We verify that registration
+//     succeeded by checking the destination ends up with the same underlying image.
+test('tweakpane-editor', async({page}, testInfo) => {
+    await expect(page).toHaveTitle('Tweakpane Editor')
+
+    // Default env in the editor is an HDR (DataTexture) — that takes a different code path than
+    // raster textures and bypasses the bug. Replace with a JPG so cc.image is an HTMLImageElement.
+    const sourceUrl = 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/Default_albedo.jpg'
+    const envInfo = await page.evaluate(async(url) => {
+        const v = (window as any).threeViewers[0]
+        const tex = await v.assetManager.importer.importSingle(url)
+        v.scene.environment = tex
+        v.scene.setDirty()
+        return {
+            naturalWidth: tex.image?.naturalWidth ?? tex.image?.width ?? 0,
+            isHTMLImage: tex.image instanceof HTMLImageElement,
+        }
+    }, sourceUrl)
+    expect(envInfo.isHTMLImage).toBe(true)
+    expect(envInfo.naturalWidth).toBeGreaterThan(500)
+
+    await page.waitForTimeout(800)
+
+    // Resolve the env and background image input rows by their @uiImage labels.
+    // Use exact text match so `Environment` doesn't collide with `Environment Intensity` / `Environment Rotation`.
+    //   @uiImage('Environment')                    → 'Environment'
+    //   @uiImage('Background Image', ...)          → 'Background Image'
+    // The labels are tweakpane `.tp-lblv` rows; the draggable thumbnail inside each is `.tp-imgv_image`.
+    // (No folder-expansion needed — the editor's UI plugin renders Scene controls eagerly.)
+    const envRow = page.locator('.tp-lblv').filter({has: page.getByText('Environment', {exact: true})}).first()
+    const bgRow = page.locator('.tp-lblv').filter({has: page.getByText('Background Image', {exact: true})}).first()
+    await expect(envRow).toBeVisible({timeout: 10000})
+    await expect(bgRow).toBeVisible({timeout: 10000})
+    await envRow.scrollIntoViewIfNeeded()
+
+    const envImg = envRow.locator('.tp-imgv_image').first()
+    const bgImg = bgRow.locator('.tp-imgv_image').first()
+    await expect(envImg).toBeVisible({timeout: 5000})
+    await expect(bgImg).toBeVisible({timeout: 5000})
+
+    // Trigger the inter-slot drag-drop. Playwright's dragTo dispatches dragstart → dragover → drop
+    // with a real DataTransfer, which is what the plugin's listeners require.
+    await envImg.dragTo(bgImg, {timeout: 10000})
+    await page.waitForTimeout(500)
+
+    // Verify the destination slot received the ORIGINAL texture, not a wrapped preview.
+    const result = await page.evaluate(() => {
+        const v = (window as any).threeViewers[0]
+        const bg = v.scene.background
+        const env = v.scene.environment
+        return {
+            isTexture: !!bg?.isTexture,
+            sameImage: bg?.image && env?.image && bg.image === env.image,
+            sameTexture: bg === env,
+            naturalWidth: bg?.image?.naturalWidth ?? bg?.image?.width ?? 0,
+            envNaturalWidth: env?.image?.naturalWidth ?? env?.image?.width ?? 0,
+            srcStartsWithDataPng: !!bg?.image?.src?.startsWith?.('data:image/png'),
+        }
+    })
+
+    expect(result.isTexture).toBe(true)
+    // Either the same Texture instance, or at minimum the same underlying image element — both indicate
+    // the lookup recovered the original instead of wrapping the preview.
+    expect(result.sameTexture || result.sameImage).toBe(true)
+    // The bug manifests as bg.image being the 160px base64 preview. Width must match env.
+    expect(result.naturalWidth).toBe(result.envNaturalWidth)
+    // Sanity: the data URL of the preview is what wrapping produces; it must NOT be the bg src.
+    expect(result.srcStartsWithDataPng).toBe(false)
 })
 

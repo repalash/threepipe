@@ -40,10 +40,7 @@ TBD
 
 ## Publishing
 
-For core and for each package -
-- Update the package version in `package.json` and run `npm run new:publish` to publish the package to npm.
-- Add tag like `v0.0.1` or `@threepipe/plugin-name-0.0.1` to the git repository.
-- Push/Merge to `master` on github. 
+See [the Publishing guide](./website/guide/publishing.md) ([live](https://threepipe.org/guide/publishing.html)) for the full publish workflow.
 
 ## Creating a Core Plugin
 
@@ -88,5 +85,5 @@ Checklist
 - Add info to `./website/package/plugin-name.md`
 - Add entry to sidebar in `./website/.vitepress/config.ts`
 - `npm run build` and test with example
-- Publish package with `npm run new:publish`. Check that tag is added to git like `plugin-name-v0.0.1`
+- See [the Publishing guide](./website/guide/publishing.md) ([live](https://threepipe.org/guide/publishing.html)) for the full publish workflow.
 - Update core CHANGELOG.md with link to new package. 

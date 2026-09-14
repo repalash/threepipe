@@ -43,7 +43,10 @@ uniform sampler2D tGBufferFlags;
 #endif
 ivec4 getGBufferFlags(const in vec2 uv){
     #if defined(GBUFFER_HAS_FLAGS) && GBUFFER_HAS_FLAGS == 1
-    return ivec4(texture2D(tGBufferFlags, uv) * 255.);
+    // +0.5 then truncate = round. Without this the readback round-trip (n/255 then *255 in float)
+    // lands just below n on some channels (e.g. 0.976470588 * 255 ≈ 248.9999...), and ivec4 truncates
+    // → off-by-one. That broke per-mesh LUT index dispatch (lutIndex=1 read back as 0 → always LUT0).
+    return ivec4(texture2D(tGBufferFlags, uv) * 255. + 0.5);
     #else
     return ivec4(1);
     #endif

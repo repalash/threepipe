@@ -73,6 +73,7 @@ Check packages for more advanced post-processing effects.
 - [VignettePlugin](../plugin/VignettePlugin) - Add Vignette effect  by patching the final screen pass
 - [ChromaticAberrationPlugin](../plugin/ChromaticAberrationPlugin) - Add Chromatic Aberration effect  by patching the final screen pass
 - [FilmicGrainPlugin](../plugin/FilmicGrainPlugin) - Add Filmic Grain effect  by patching the final screen pass
+- [LUTPlugin](../plugin/LUTPlugin) - Apply color-grading via up to 3 `.cube` 3D LUTs with per-material slot selection; patches the final screen pass
 
 ## Interaction
 
@@ -110,6 +111,7 @@ Plugins to add support for custom materials and material extensions for existing
 - [NoiseBumpMaterialPlugin](../plugin/NoiseBumpMaterialPlugin) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
 - [CustomBumpMapPlugin](../plugin/CustomBumpMapPlugin) - Custom Bump Map material extension for PhysicalMaterial
 - [ClearcoatTintPlugin](../plugin/ClearcoatTintPlugin) - Clearcoat Tint material extension for PhysicalMaterial
+- [MultiLayerRoughnessPlugin](../plugin/MultiLayerRoughnessPlugin) - Multi-lobe specular roughness blending (reflection tail-off) material extension for PhysicalMaterial
 - [FragmentClippingExtensionPlugin](../plugin/FragmentClippingExtensionPlugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
 - [ParallaxMappingPlugin](../plugin/ParallaxMappingPlugin) - Relief Parallax Bump Mapping extension for PhysicalMaterial
 

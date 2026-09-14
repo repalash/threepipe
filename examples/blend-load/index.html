@@ -42,6 +42,15 @@
             const result = await viewer.load('https://samples.threepipe.org/minimal/default-cube.blend', {
                 autoCenter: true,
                 autoScale: false,
+                // todo show it in ui as html image to show users that this is a feature. bottom right of screen maybe
+                // onBlendLoad receives the raw parsed Blender file — use to access the embedded
+                // thumbnail, DNA tree, etc. without re-parsing. Avoid stashing data on userData
+                // (it round-trips through export/serialization).
+                onBlendLoad: (blend) => {
+                    if (blend.thumbnail) {
+                        console.log(`blend thumbnail: ${blend.thumbnail.width}x${blend.thumbnail.height}`)
+                    }
+                },
             })
             // console.log(result)
         }

@@ -25,6 +25,7 @@ const alias = {
     '@threepipe/plugin-gaussian-splatting': path.resolve(__dirname, './plugins/gaussian-splatting/src/index.ts'),
     '@threepipe/plugin-configurator': path.resolve(__dirname, './plugins/configurator/src/index.ts'),
     '@threepipe/plugin-gltf-transform': path.resolve(__dirname, './plugins/gltf-transform/src/index.ts'),
+    '@threepipe/plugin-draco-js': path.resolve(__dirname, './plugins/draco-js/src/index.ts'),
     '@threepipe/plugin-assimpjs': path.resolve(__dirname, './plugins/assimpjs/src/index.ts'),
     '@threepipe/plugin-r3f': path.resolve(__dirname, './plugins/r3f/src/index.ts'),
     '@threepipe/plugin-path-tracing': path.resolve(__dirname, './plugins/path-tracing/src/index.ts'),
@@ -33,7 +34,8 @@ const alias = {
     '@threepipe/plugin-troika-text': path.resolve(__dirname, './plugins/troika-text/src/index.ts'),
     '@threepipe/plugin-procedural-generation/graph': path.resolve(__dirname, './plugins/procedural-generation/src/graph/index.ts'),
     '@threepipe/plugin-procedural-generation': path.resolve(__dirname, './plugins/procedural-generation/src/index.ts'),
-    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.6.4/dist/index.mjs',
+    // '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.6.4/dist/index.mjs',
+    '@threepipe/webgi-plugins': path.resolve(__dirname, './experiments/threepipe-webgi/src/index.ts'),
     'suspend-react': 'https://esm.sh/suspend-react',
     'react': 'https://esm.sh/react@19/',
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
@@ -173,6 +175,9 @@ export default defineConfig(async ()=>{
             //     return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
             // },
             sourcemapIgnoreList: false,
+            watch: {
+                ignored: ['**/three.js-modded/**', '**/three-ts-types/**'],
+            },
         },
         build: {
             sourcemap: false,

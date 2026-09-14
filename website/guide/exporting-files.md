@@ -48,6 +48,19 @@ downloadBlob(glb, 'object.glb')
 
 Check the examples [glb-export](https://threepipe.org/examples/#glb-export/), [gltf-export](https://threepipe.org/examples/#gltf-export/) to see a demo.
 
+::: tip Byte-stable texture export with `TextureLoader2.SAVE_SOURCE_BLOBS`
+
+By default, three.js's `GLTFExporter` re-encodes every embedded texture via `canvas.drawImage`
++ `canvas.toBlob('image/jpeg')` — which is non-deterministic across Chromium builds / GL
+backends, loses quality, and is slow. Enable `TextureLoader2.SAVE_SOURCE_BLOBS = true`
+**before loading textures** and `GLTFWriter2.processTexture` will take a fast path: emit
+the preserved raw bytes directly, skipping the canvas round-trip. Deterministic, quality-
+preserving, faster. Trade-off: each loaded image retains ~source-size extra memory. See
+[TextureLoader2](../plugin/TextureLoader2) for details.
+
+:::
+
+
 ::: tip DRACO compression
 
 Models can be processed with [gltf-transform](https://gltf-transform.donmccurdy.com/) to apply DRACO compression and other optimizations after exporting.

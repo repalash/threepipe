@@ -5,6 +5,7 @@ import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/
 import {ITexture, LineMaterial2, PhysicalMaterial} from '../../core'
 import {threeMaterialPropList} from '../../core/material/threeMaterialPropList'
 import {isNonRelativeUrl} from '../../utils'
+import {GLTFMaterialsBumpMapExtension} from './GLTFMaterialsBumpMapExtension'
 
 export class GLTFMaterialExtrasExtension {
     static readonly WebGiMaterialExtrasExtension = 'WEBGI_material_extras'
@@ -18,6 +19,30 @@ export class GLTFMaterialExtrasExtension {
         name: '__' + GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension, // __ is prefix so that the extension is added to userdata, and we can process later in afterRoot
         afterRoot: async(result: GLTF) => {
             const scenes = result.scenes || (result.scene ? [result.scene] : [])
+
+            // file-level legacy bump scale signal (computed once per file).
+            // Cascade — see per-material check below for the full priority list.
+            // todo: remove asset.subversion check after Jun 2026 — normalizedScale in bump extension replaces it
+            let fileLevelLegacy = false
+            const assetSubversion = (parser.json?.asset as any)?.subversion
+            if (assetSubversion !== undefined) {
+                fileLevelLegacy = assetSubversion < 1
+            } else {
+                // subversion stripped (draco) or absent (foreign / hand-crafted file).
+                // Fall back to viewer-config version, generator-aware: threepipe never shipped
+                // the buggy bump shader; webgi did pre-0.12.0; unknown generators default to modern.
+                let vcVersion: string | undefined
+                let vcGenerator: string | undefined
+                for (const sc of parser.json.scenes || []) {
+                    const vc = sc?.extensions?.WEBGI_viewer
+                    if (vc?.version) { vcVersion = vc.version; vcGenerator = vc.metadata?.generator; break }
+                }
+                if (vcGenerator === 'WebGiViewerApp') {
+                    fileLevelLegacy = vcVersion ? compareVersions(vcVersion, '0.12.0') < 0 : true
+                }
+                // generator === 'ThreePipe' or anything else → fileLevelLegacy stays false
+            }
+
             for (const s of scenes) {
                 const resExt = s.userData?.gltfExtensions?.[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension] // Note: see exporter for details of material extra resources in scene.
                 const resources = resExt?.resources ? await loadConfigResources(resExt.resources) : {}
@@ -130,14 +155,38 @@ export class GLTFMaterialExtrasExtension {
 
                     delete o.userData.gltfExtensions[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
 
-                    // legacy bump map scale fix, test model - test model - http://samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
-                    const assetVersion = parser.json?.asset?.version ? parseFloat(parser.json?.asset?.version) : null
+                    // legacy bump map scale fix, test model - http://samples.threepipe.org/tests/bumpmap_normalize_migrate.glb
                     // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
-                    if ((o.userData.legacyBumpScale || assetVersion && assetVersion <= 2.0) && (o as any)?.bumpScale !== undefined && o?.bumpMap && o.defines) {
-                        console.warn('MaterialManager: Old format material loaded, bump map might be incorrect.', o, (o as any).bumpScale)
-                        o.defines.BUMP_MAP_SCALE_LEGACY = '1'
-                        o.userData.legacyBumpScale = true
-                        o.needsUpdate = true
+                    if ((o as any)?.bumpScale !== undefined && o?.bumpMap && o.defines) {
+                        // detection priority:
+                        // 1. normalizedScale in WEBGI_materials_bumpmap (cross-tool authoritative, survives draco)
+                        // 2. userData.legacyBumpScale from extras (round-tripped flag)
+                        // 3. file-level fileLevelLegacy (subversion → viewer-config-version, generator-aware)
+                        const matIndex = parser.associations.get(o)?.materials
+                        const bumpExt = matIndex !== undefined
+                            ? parser.json.materials?.[matIndex]?.extensions?.[GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension]
+                            : undefined
+                        let isLegacy: boolean
+                        let explicitNotLegacy = false
+                        if (bumpExt?.normalizedScale !== undefined) {
+                            isLegacy = !bumpExt.normalizedScale
+                            explicitNotLegacy = !isLegacy
+                        } else if (o.userData.legacyBumpScale) {
+                            isLegacy = true
+                        } else {
+                            isLegacy = fileLevelLegacy
+                        }
+
+                        if (isLegacy) {
+                            console.warn('GLTFMaterialExtras: legacy material loaded, bump map may render incorrectly until "Legacy Bump Scale" is toggled in the material UI.', o, (o as any).bumpScale)
+                            o.defines.BUMP_MAP_SCALE_LEGACY = '1'
+                            o.userData.legacyBumpScale = true
+                            o.needsUpdate = true
+                        } else if (explicitNotLegacy) {
+                            // normalizedScale=true explicitly says not legacy — clear any stale flag from extras
+                            delete o.userData.legacyBumpScale
+                            delete o.defines.BUMP_MAP_SCALE_LEGACY
+                        }
                     }
 
                 })
@@ -331,4 +380,19 @@ export class GLTFMaterialExtrasExtension {
 
     // see GLTFDracoExportPlugin
     static Textures: Record<string, string|number>|undefined = undefined
+}
+
+/** Numeric semver compare. Returns negative if a < b, positive if a > b, 0 if equal. Pre-release is treated as < release of the same core. */
+function compareVersions(a: string, b: string): number {
+    const stripPre = (v: string) => v.replace(/^v/, '').split('-')[0]
+    const pa = stripPre(a).split('.').map(Number)
+    const pb = stripPre(b).split('.').map(Number)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const na = pa[i] || 0, nb = pb[i] || 0
+        if (na !== nb) return na - nb
+    }
+    const aHasPre = a.includes('-'), bHasPre = b.includes('-')
+    if (aHasPre && !bHasPre) return -1
+    if (!aHasPre && bHasPre) return 1
+    return 0
 }

@@ -50,6 +50,8 @@ async function init() {
         console.log(obj)
     }
 
+    ;(window as any).viewer = viewer // for debugging in console
+
 }
 
 _testStart()
