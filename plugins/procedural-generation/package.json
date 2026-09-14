@@ -1,0 +1,78 @@
+{
+    "name": "@threepipe/plugin-procedural-generation",
+    "description": "Procedural generation framework for threepipe — noise, point distribution, instancing, and sample generators (terrain, buildings, cities, roads).",
+    "version": "0.1.0",
+    "devDependencies": {
+    },
+    "dependencies": {
+        "threepipe": "file:./../../src/"
+    },
+    "peerDependencies": {
+        "threepipe": ">=0.4.0"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./graph": {
+            "types": "./src/graph/index.ts",
+            "import": "./src/graph/index.ts"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "overrides",
+            "//"
+        ],
+        "replace": {
+            "dependencies": {}
+        }
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "prepare": "npm run build",
+        "build": "rimraf dist && vite build",
+        "dev": "NODE_ENV=development vite build --watch",
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "three.js",
+        "threepipe",
+        "procedural",
+        "generation",
+        "terrain",
+        "building",
+        "city",
+        "noise",
+        "plugin"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://github.com/repalash/threepipe#readme",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/procedural-generation"
+    }
+}

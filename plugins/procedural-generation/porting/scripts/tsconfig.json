@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "module": "es2020",
+        "target": "ES2021",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "paths": {
+            "@threepipe/plugin-procedural-generation/graph": ["../../src/graph/index.ts"],
+            "@threepipe/plugin-procedural-generation": ["../../src/index.ts"],
+            "threepipe": ["../../../../dist/index.mjs"]
+        },
+        "baseUrl": "."
+    }
+}
