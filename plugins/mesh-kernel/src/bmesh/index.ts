@@ -1,3 +1,5 @@
 export * from './types'
 export * from './structure'
+export * from './customdata'
 export * from './BMesh'
+export * from './convert'

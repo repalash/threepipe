@@ -21,7 +21,8 @@ import {
     validateDisk,
     validateRadial,
 } from './structure'
-import {ElemFlag, ElemType, SelectMode, SelectModeMask} from '../constants'
+import {AttrType, ElemFlag, ElemType, SelectMode, SelectModeMask} from '../constants'
+import {BMCustomDataLayout, copyElemAttrs} from './customdata'
 
 /** Options for {@link BMesh.edgeCreate}. */
 export interface EdgeCreateOptions {
@@ -47,6 +48,15 @@ export class BMesh {
 
     /** Loops are owned by their faces, but tracked so validation and counts can see them all. */
     readonly loops = new Set<BMLoop>()
+
+    /**
+     * Attribute layer layouts, one per domain. Blender's `bm->vdata/edata/ldata/pdata`.
+     * `ldata` is the corner domain, where UVs and split normals live.
+     */
+    readonly vdata = new BMCustomDataLayout()
+    readonly edata = new BMCustomDataLayout()
+    readonly ldata = new BMCustomDataLayout()
+    readonly pdata = new BMCustomDataLayout()
 
     /** Names of material slots, carried through from MeshData. */
     materials: string[] = []
@@ -81,6 +91,21 @@ export class BMesh {
         return this.loops.size
     }
 
+    /** The layer layout for a domain, by the same names Blender uses. */
+    layoutFor(domain: 'vert' | 'edge' | 'loop' | 'face'): BMCustomDataLayout {
+        switch (domain) {
+        case 'vert': return this.vdata
+        case 'edge': return this.edata
+        case 'loop': return this.ldata
+        case 'face': return this.pdata
+        }
+    }
+
+    /** Declare an attribute layer on a domain. Idempotent when the type matches. */
+    addLayer(domain: 'vert' | 'edge' | 'loop' | 'face', name: string, type: AttrType) {
+        return this.layoutFor(domain).add(name, type)
+    }
+
     private _id(): number {
         return this._nextId++
     }
@@ -98,7 +123,7 @@ export class BMesh {
         const v = new BMVert(this._id(), x, y, z)
         if (example) {
             v.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
-            if (example.data) v.data = new Map(example.data)
+            copyElemAttrs(example, v, this.vdata)
         }
         this.verts.add(v)
         this._invalidateTables()
@@ -118,7 +143,7 @@ export class BMesh {
         const e = new BMEdge(this._id(), v1, v2)
         if (example) {
             e.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
-            if (example.data) e.data = new Map(example.data)
+            copyElemAttrs(example, e, this.edata)
         } else {
             // Blender defaults new edges to smooth; sharpness is the opt-in.
             e.hflag |= ElemFlag.Smooth
@@ -175,7 +200,7 @@ export class BMesh {
         if (example) {
             f.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
             f.matNr = example.matNr
-            if (example.data) f.data = new Map(example.data)
+            copyElemAttrs(example, f, this.pdata)
         } else {
             f.hflag |= ElemFlag.Smooth
         }

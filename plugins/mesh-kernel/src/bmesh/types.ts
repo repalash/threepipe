@@ -34,8 +34,14 @@ export abstract class BMElem {
      * `BMesh.elemIndexEnsure()` before relying on it.
      */
     index = -1
-    /** Per-element attribute values, keyed by layer name. Sparse: absent means "layer default". */
-    data: Map<string, number | number[]> | null = null
+    /**
+     * Float-typed attribute values for this element, addressed by layer offset.
+     * Null until a layer is first written; a short block reads as the layer default.
+     * See `customdata.ts`, the equivalent of Blender's `head.data` block.
+     */
+    fdata: Float32Array | null = null
+    /** Integer-typed attribute values, addressed the same way. */
+    idata: Int32Array | null = null
 
     protected constructor(id: number) {
         this.id = id

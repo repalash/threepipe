@@ -12,8 +12,8 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
 | 1. `MeshData` (SoA) + `AttributeStorage` + constants | **done** — 26 tests |
 | 2. Operator schema generated from `bmesh_opdefines.cc` | **done** — 83 ops, verified against Blender's own generator |
 | 3. BMesh elements + disk/radial/loop cycles + create/kill + validate | **done** — 32 tests |
-| 4. Attribute layers on BMesh elements (`CustomData` equivalent) + interpolation | next |
-| 5. `bmFromMesh` / `bmToMesh` round trip | next |
+| 4. Attribute layers on BMesh elements (`CustomData` equivalent) + interpolation | **done** — layouts per domain, offset-addressed blocks, weighted interp |
+| 5. `bmFromMesh` / `bmToMesh` round trip | **done** — 16 tests; **self-consistency only, see Verification** |
 | 6. Euler operators (SFME, SEMV, JEKV, JVKE, JFKE, `facesJoin`, `vertSplice`) | |
 | 7. Queries, iterators, walkers (loop/ring/boundary/shell) | |
 | 8. Selection flags, counters, flush rules, history | |
@@ -29,9 +29,17 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
   accessors `diskNext(v)` / `setDiskNext(v, e)`. The algorithms are unchanged line for line.
 - **Ids are integers**, assigned by the mesh, not pointers. `index` remains Blender's separate lazily
   validated field.
-- **Element attribute data** is a sparse `Map<string, number | number[]>` per element for now. Step 4
-  replaces this with an offset-addressed block mirroring `CustomData`, once the layout is needed for
-  interpolation. Keeping it sparse until then avoids designing the layout twice.
+- **Element attribute data** is two typed blocks per element (`fdata: Float32Array`, `idata: Int32Array`)
+  addressed by a per-domain layer layout, mirroring `CustomData` and its `BM_ELEM_CD_GET_*` offsets.
+  Blender uses one byte block with typed views; splitting by storage class avoids creating a view per
+  access. Blocks are allocated on first write, and a short block reads as the layer default, so adding
+  a layer to an existing mesh costs nothing until it is used.
+- **Categorical layers are not blended.** Integer-typed layers (material index, group ids) take the
+  value of the highest-weighted source rather than an average, which is what `CustomData_interp` does.
+  Averaging two material slots produces a slot that means nothing.
+- **Flag attributes are written only when needed.** `bmToMesh` scans first and allocates
+  `.select_vert`, `sharp_edge`, `material_index` and friends only if some element needs them, matching
+  `BM_mesh_bm_to_me`. A mesh with nothing selected carries no selection arrays at all.
 - **Loops are tracked in a mesh-level set** as well as by their face, so validation and counts can see
   orphans. Blender relies on its mempool for this.
 - **`validate()` returns a list of strings rather than throwing.** Cheap invariants that catch a broken
@@ -46,9 +54,19 @@ Every step must be provable, not asserted:
 - **Euler's formula** (V − E + F = 2 for the closed test meshes) as an independent cross-check.
 - **Node-safety** is proved by importing the built bundle in plain `node` with no polyfill, not by
   inspection.
-- **Blender parity** for steps 5 to 9: build the same mesh in Blender via `bmesh.ops`, dump the arrays,
-  and compare against the kernel's output. Fixtures to live under `plugins/mesh-kernel/tests/fixtures/`.
-  This is the step that catches a port that merely looks right.
+- **Blender parity is NOT yet established.** This matters: the round-trip tests prove the two
+  conversions agree with each other, which a shared bug would also satisfy. They do not prove either
+  agrees with Blender. Treat step 5 as unverified against ground truth until the harness below exists.
+- **The ground-truth harness is feasible and cheaper than expected.** Confirmed this session: the
+  blend-importer's parser runs standalone in Node (`plugins/blend-importer/src/js-blend/main.js`,
+  `parseBlend(arrayBuffer)`), and 14 of the 56 fixtures in `tmp/blend-fixtures/` use the modern
+  3.6+ layout with `poly_offset_indices`. `blend-load-test-prim-cube.blend` is a Blender-authored cube
+  (V8 E12 P6 L24) carrying `position`, `.edge_verts`, `.corner_vert`, `.corner_edge` and a `UVMap`
+  corner layer — exactly the arrays the kernel claims to reproduce. Reading them needs the decoding
+  helpers in `loader/geometry.ts` (`readAttrArray` and friends) rather than touching `layer.data`
+  directly, which returns lazily-decoded proxies. Wire this up as the first task of M2, then use it to
+  retro-verify step 5: in particular, whether `calculateEdges()` derives the same 12 edges and the same
+  `.corner_edge` mapping Blender wrote.
 
 ## Open questions
 
