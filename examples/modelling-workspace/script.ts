@@ -8,6 +8,7 @@ import {
     PickingPlugin,
     ThreeViewer,
     TransformControlsPlugin,
+    CylinderGeometryGenerator,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {MeshEditPlugin, ReferenceImagePlugin} from '@threepipe/plugin-mesh-edit'
@@ -42,7 +43,25 @@ async function init() {
 
     // --- add primitives, the demo's Add > Mesh menu -------------------------------------------
 
-    const primitives = ['box', 'plane', 'circle', 'sphere', 'cylinder', 'torus'] as const
+    // A cone is a cylinder with no top radius. The demo's Add > Mesh menu has one, and registering it
+    // here rather than in core keeps the example self-contained.
+    //
+    // Two steps are needed, not one: GeometryGeneratorPlugin snapshots its generator keys into
+    // Object3DGeneratorPlugin when it is added, so a generator registered afterwards has no matching
+    // object generator and the Add button would silently do nothing.
+    //
+    // Use the singular addObject3DGenerator here. The plural form clears the whole prefix group first,
+    // so registering one entry under 'geometry-' would delete box, sphere, cylinder and the rest.
+    // Filed as issues/open/object3d-generator-add-removes-prefix-group.md.
+    const geometryGen = viewer.getPlugin(GeometryGeneratorPlugin)!
+    geometryGen.generators.cone = new CylinderGeometryGenerator('cone', {radiusTop: 0}) as never
+    generators.addObject3DGenerator('geometry-cone', (params: any) => {
+        const obj = geometryGen.generateObject('cone' as never, params)
+        obj.name = 'cone'
+        return obj
+    })
+
+    const primitives = ['box', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus'] as const
 
     function addPrimitive(type: typeof primitives[number]) {
         const obj = generators.generate('geometry-' + type, {})

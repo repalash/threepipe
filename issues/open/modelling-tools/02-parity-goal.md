@@ -52,7 +52,7 @@ demo* are narrower than the full manual suggests:
 | Edit mode: element selection, overlays, transform | large | M4, the main unlock |
 | Reference image overlays | **done** | `ReferenceImagePlugin`: drop, drag, resize, screen-space |
 | Numeric transform entry | small | uiConfig already supports it; needs wiring in the editor |
-| n-gon primitives from Blender | medium | Torus and cone exist as triangulated generators today |
+| n-gon primitives from Blender | medium | All seven exist as triangulated generators; Blender's quad-topology versions are still to port |
 
 The heavy edit-mode ports (bevel, knife, loop cut) remain on the checklist because the manual documents
 them and parity means parity. But they are **not** on the critical path to reproducing this demo, and
@@ -96,19 +96,19 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 | Knife | todo | M6 |
 | Edge slide | todo | M5 |
 | New face from vertices | todo | M5, Blender's `contextual_create` |
-| Merge | todo | M5 |
-| Split / separate | todo | M5 |
-| Delete elements | kernel ready | Kill operators exist; needs the delete-context modes |
+| Merge | **done** | M, centre/first/last |
+| Split / separate | **partly** | Y splits the selection off; separate to its own object is todo |
+| Delete elements | **done** | X, with Blender's delete contexts |
 | Subdivide | kernel ready | `splitEdgeMakeVert` does the topology; smoothing is M5 |
 | Dissolve | kernel ready | `joinFaceKillEdge` works; the operator wrapper is M5 |
 
 ### Object-mode actions
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Duplicate / copy / paste / delete | **done** | `PickingPlugin`, `ObjectClipboard` |
+| Duplicate / copy / paste / delete | **done** | Object mode: `PickingPlugin`. Edit mode: Shift+D, X |
 | Join objects | todo | M5 |
 | Apply transform | **done** | Existing threepipe |
-| Add primitives | partly | `Object3DGeneratorPlugin` exists; n-gon primitives ported from Blender are M5 |
+| Add primitives | **done for the demo's menu** | Cube, plane, circle, sphere, cylinder, cone, torus. n-gon versions ported from Blender are still M5 |
 | Outliner | **done** | `HierarchyUiPlugin` |
 | Context menus | **done** | `CustomContextMenu` plus uiconfig tags |
 

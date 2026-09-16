@@ -46,6 +46,11 @@ import {
     vertSelectSet,
     walkVertShell,
     extrudeSelection,
+    duplicateSelection,
+    splitSelection,
+    deleteSelection,
+    mergeSelectedVerts,
+    DeleteContext,
 } from '@threepipe/mesh-kernel'
 import {Matrix4} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
@@ -414,6 +419,60 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return true
     }
 
+    /**
+     * Duplicate the selection and start moving it. Blender's `Shift+D`, and the operation the
+     * kit-bashing workflow leans on most: copy a piece, place it, repeat.
+     */
+    duplicate(): boolean {
+        const state = this.state
+        if (!state) return false
+        const result = duplicateSelection(state.bm)
+        if (!result) {
+            this._viewer?.console.warn('MeshEditPlugin: nothing selected to duplicate')
+            return false
+        }
+        state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state})
+        this.startTransform('translate')
+        return true
+    }
+
+    /** Split the selection away from the rest of the mesh. Blender's `Y`. */
+    split(): boolean {
+        const state = this.state
+        if (!state || !splitSelection(state.bm)) return false
+        this._commitTopologyChange()
+        return true
+    }
+
+    /** Delete the selection with the given context. Blender's `X` menu. */
+    deleteSelected(context: DeleteContext = 'verts'): boolean {
+        const state = this.state
+        if (!state) return false
+        const removed = deleteSelection(state.bm, context)
+        if (!removed) return false
+        this._commitTopologyChange()
+        return true
+    }
+
+    /** Merge the selected vertices. Blender's `M`. */
+    merge(mode: 'center' | 'first' | 'last' = 'center'): boolean {
+        const state = this.state
+        if (!state || !mergeSelectedVerts(state.bm, mode)) return false
+        this._commitTopologyChange()
+        return true
+    }
+
+    private _commitTopologyChange(): void {
+        const state = this.state!
+        state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state})
+    }
+
     // endregion
 
     // region modal transform
@@ -641,6 +700,25 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             break
         case 'KeyE':
             this.extrude()
+            break
+        case 'KeyD':
+            if (event.shiftKey) this.duplicate()
+            else return
+            break
+        case 'KeyY':
+            this.split()
+            break
+        case 'KeyM':
+            this.merge()
+            break
+        case 'KeyX':
+        case 'Delete':
+        case 'Backspace':
+            // Face mode deletes faces, edge mode edges, vertex mode vertices - which is the
+            // sensible default for each; the full context menu comes with the operator UI.
+            this.deleteSelected(
+                this.selectMode & SelectMode.Face ? 'faces'
+                    : this.selectMode & SelectMode.Edge ? 'edges' : 'verts')
             break
         case 'Escape':
             this.exit(true)
