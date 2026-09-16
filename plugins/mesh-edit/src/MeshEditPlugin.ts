@@ -45,6 +45,7 @@ import {
     selectNone,
     vertSelectSet,
     walkVertShell,
+    extrudeSelection,
 } from '@threepipe/mesh-kernel'
 import {Matrix4} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
@@ -386,6 +387,35 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     // endregion
 
+    // region operators
+
+    /**
+     * Extrude the selection and immediately start moving it.
+     *
+     * This is Blender's `MESH_OT_extrude_region_move` macro: the topology change happens once, up
+     * front, and the following drag only moves vertices. Cancelling the move leaves the extrusion in
+     * place, which is Blender's behaviour too and is what makes a mistaken `E` recoverable with undo
+     * rather than surprising.
+     */
+    extrude(): boolean {
+        const state = this.state
+        if (!state) return false
+        const result = extrudeSelection(state.bm)
+        if (!result) {
+            this._viewer?.console.warn('MeshEditPlugin: nothing selected to extrude')
+            return false
+        }
+        state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state})
+        // Chain straight into a move, so the new geometry lands where the user drags it.
+        this.startTransform('translate')
+        return true
+    }
+
+    // endregion
+
     // region modal transform
 
     /**
@@ -608,6 +638,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             break
         case 'KeyS':
             this.startTransform('resize')
+            break
+        case 'KeyE':
+            this.extrude()
             break
         case 'Escape':
             this.exit(true)

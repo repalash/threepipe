@@ -65,7 +65,7 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 ### Modes and navigation
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Object mode / Edit mode toggle | todo | M4. Plugin named `MeshEditPlugin`; `EditModePlugin` is taken by the Blueprint editor |
+| Object mode / Edit mode toggle | **done** | Tab, in `MeshEditPlugin` |
 | Orbit / pan / zoom / focus | **done** | threepipe already has these |
 | View helper gizmo | **done** | `EditorViewWidgetPlugin` |
 | X-ray mode | todo | M4, needs the edit-mode overlay |
@@ -76,20 +76,20 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 | --- | --- | --- |
 | Click select, object | **done** | `PickingPlugin` |
 | Multi-select, object | **done** | `PickingPlugin`, primary is index 0 |
-| Vertex / edge / face sub-modes | todo | Kernel selection flags exist; picking and overlays are M4 |
+| Vertex / edge / face sub-modes | **done** | `MeshEditPlugin`, keys 1/2/3 |
 | Box select | todo | Object-level issue already filed as marquee select |
-| Select all / none / invert | kernel ready | Flags exist; needs the flush rules |
-| Select linked | todo | Needs the shell walker |
+| Select all / none / invert | **done** | A, Alt+A, Ctrl+I |
+| Select linked | **done** | L, via the vert-shell walker |
 | Select loops and rings | todo | Needs the loop and ring walkers, the same ones loop cut uses |
 | Selection history and active element | **done** | Kernel side, round-trips through conversion |
 
 ### Edit-mode tools
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Move / rotate / scale with axis constraints | todo | M4 transform state machine, ported from Blender |
-| Numeric input during a modal op | todo | M4 |
+| Move / rotate / scale with axis constraints | **done** | G/R/S, X/Y/Z, Shift+axis for planes |
+| Numeric input during a modal op | **done** | Type digits mid-transform |
 | Snapping | todo | M4, plus vertex and grid targets |
-| Extrude | todo | M5. Composition of duplicate, delete and side-face creation |
+| Extrude | **done** | E, chained into a move as Blender's macro does |
 | Inset | todo | M5 |
 | Bevel | todo | M6, the largest single port |
 | Loop cut | todo | M5, via subdivide with the ring walker |
