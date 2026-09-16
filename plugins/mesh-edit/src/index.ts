@@ -1,4 +1,5 @@
 export * from './EditMeshState'
 export * from './overlays'
 export * from './picking'
+export * from './transform'
 export * from './MeshEditPlugin'

@@ -83,11 +83,14 @@ async function init() {
             `selected ${bm.totvertsel} / ${bm.totedgesel} / ${bm.totfacesel}`,
         ]
         if (state.weldedCount > 0) lines.push(`welded ${state.weldedCount} split corners on entry`)
+        const t = meshEdit.activeTransform
+        if (t) lines.push('', t.status)
         statsEl.textContent = lines.join('\n')
     }
 
     meshEdit.addEventListener('editModeChanged', refreshStats)
     meshEdit.addEventListener('elementSelectionChanged', refreshStats)
+    meshEdit.addEventListener('transformChanged', refreshStats)
     picking.addEventListener('selectedObjectChanged', refreshStats)
 
     for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('#panel button'))) {

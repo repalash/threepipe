@@ -46,7 +46,9 @@ import {
     vertSelectSet,
     walkVertShell,
 } from '@threepipe/mesh-kernel'
+import {Matrix4} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
+import {ModalTransform, TransformMode} from './transform'
 import {buildEdgeOverlay, buildFaceOverlay, buildVertexOverlay} from './overlays'
 import {PickCycleState, pickElement, ProjectFn} from './picking'
 
@@ -57,6 +59,8 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     elementSelectionChanged: {state: EditMeshState}
     /** The mesh topology or positions changed. */
     meshChanged: {state: EditMeshState}
+    /** A modal transform started, updated or finished. Null when it ended. */
+    transformChanged: {transform: ModalTransform | null}
 }
 
 /** Plugins disabled while edit mode is active, so their keys and gizmos do not collide. */
@@ -90,9 +94,15 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     private _edgeLines: LineSegments | null = null
     private _faceHighlight: Mesh2 | null = null
     private _cycle = new PickCycleState()
+    private _transform: ModalTransform | null = null
 
     get isEditing(): boolean {
         return this.state !== null
+    }
+
+    /** The running modal transform, if any. While this is set, input belongs to it. */
+    get activeTransform(): ModalTransform | null {
+        return this._transform
     }
 
     get selectMode(): SelectModeMask {
@@ -103,11 +113,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         super.onAdded(viewer)
         window.addEventListener('keydown', this._onKeyDown)
         viewer.canvas.addEventListener('pointerdown', this._onPointerDown)
+        viewer.canvas.addEventListener('pointermove', this._onPointerMove)
     }
 
     onRemove(viewer: ThreeViewer): void {
         window.removeEventListener('keydown', this._onKeyDown)
         viewer.canvas.removeEventListener('pointerdown', this._onPointerDown)
+        viewer.canvas.removeEventListener('pointermove', this._onPointerMove)
         if (this.isEditing) this.exit(false)
         super.onRemove(viewer)
     }
@@ -374,6 +386,89 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     // endregion
 
+    // region modal transform
+
+    /**
+     * Begin a modal move, rotate or scale on the current selection.
+     *
+     * Mirrors Blender: the transform owns the input until it is confirmed with a click or Enter, or
+     * cancelled with Escape. Axis keys and typed numbers refine it while it runs.
+     */
+    startTransform(mode: TransformMode): boolean {
+        const viewer = this._viewer
+        const state = this.state
+        if (!viewer || !state) return false
+        if (this._transform) this._transform.cancel()
+
+        const camera = viewer.scene.mainCamera
+        const object = this.editObject!
+        object.updateWorldMatrix(true, false)
+
+        // Camera basis expressed in the object's local space, so screen motion maps into the mesh
+        // regardless of how the object is transformed.
+        const toLocal = new Matrix4().copy(object.matrixWorld as never).invert()
+        const camMatrix = new Matrix4().copy(camera.matrixWorld as never).premultiply(toLocal)
+        const right: [number, number, number] = [camMatrix.elements[0], camMatrix.elements[1], camMatrix.elements[2]]
+        const up: [number, number, number] = [camMatrix.elements[4], camMatrix.elements[5], camMatrix.elements[6]]
+        const forward: [number, number, number] = [camMatrix.elements[8], camMatrix.elements[9], camMatrix.elements[10]]
+
+        const rect = viewer.canvas.getBoundingClientRect()
+        const unitsPerPixel = this._unitsPerPixel(rect.height)
+
+        const transform = new ModalTransform(state.bm, {
+            mode,
+            startX: this._pointerX,
+            startY: this._pointerY,
+            unitsPerPixel,
+            cameraRight: right,
+            cameraUp: up,
+            cameraForward: forward,
+        })
+
+        if (transform.isEmpty) {
+            viewer.console.warn('MeshEditPlugin: nothing selected to transform')
+            return false
+        }
+        this._transform = transform
+        this.dispatchEvent({type: 'transformChanged', transform})
+        return true
+    }
+
+    /** World units per screen pixel at the selection's depth, so drags feel consistent at any zoom. */
+    private _unitsPerPixel(canvasHeight: number): number {
+        const viewer = this._viewer!
+        const camera = viewer.scene.mainCamera as any
+        const object = this.editObject!
+        // Distance from the camera to the object's origin is a good enough proxy for the pivot depth.
+        const cw = new Vector3().setFromMatrixPosition(object.matrixWorld as never)
+        const cp = new Vector3().setFromMatrixPosition(camera.matrixWorld)
+        const dist = Math.max(0.001, cw.distanceTo(cp))
+        const fov = (camera.fov ?? 45) * Math.PI / 180
+        return (2 * Math.tan(fov / 2) * dist) / Math.max(1, canvasHeight)
+    }
+
+    /** Finish the running transform, keeping the result. */
+    confirmTransform(): void {
+        if (!this._transform || !this.state) return
+        this._transform.confirm()
+        this._transform = null
+        this.state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'transformChanged', transform: null})
+    }
+
+    /** Abandon the running transform, restoring the starting positions exactly. */
+    cancelTransform(): void {
+        if (!this._transform) return
+        this._transform.cancel()
+        this._transform = null
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'transformChanged', transform: null})
+    }
+
+    // endregion
+
     // region input
 
     private _projectFn(): ProjectFn | null {
@@ -398,8 +493,30 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         }
     }
 
+    private _pointerX = 0
+    private _pointerY = 0
+
+    private _onPointerMove = (event: PointerEvent): void => {
+        if (!this.isEditing || this.isDisabled()) return
+        const rect = this._viewer!.canvas.getBoundingClientRect()
+        this._pointerX = event.clientX - rect.left
+        this._pointerY = event.clientY - rect.top
+        if (this._transform) {
+            this._transform.setMousePosition(this._pointerX, this._pointerY)
+            this.refreshOverlays()
+            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+        }
+    }
+
     private _onPointerDown = (event: PointerEvent): void => {
         if (!this.isEditing || this.isDisabled()) return
+        // A click confirms a running transform rather than changing the selection.
+        if (this._transform) {
+            if (event.button === 0) this.confirmTransform()
+            else this.cancelTransform()
+            event.stopPropagation()
+            return
+        }
         if (event.button !== 0) return
         const project = this._projectFn()
         if (!project || !this.state) return
@@ -430,6 +547,34 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             return
         }
         if (!this.isEditing) return
+
+        // A running transform owns the keyboard, exactly as in Blender.
+        if (this._transform) {
+            const t = this._transform
+            if (event.code === 'Escape') {
+                this.cancelTransform()
+            } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+                this.confirmTransform()
+            } else if (event.code === 'KeyX') {
+                t.setAxis(0, event.shiftKey)
+            } else if (event.code === 'KeyY') {
+                t.setAxis(1, event.shiftKey)
+            } else if (event.code === 'KeyZ') {
+                t.setAxis(2, event.shiftKey)
+            } else if (event.code === 'KeyC') {
+                t.clearConstraint()
+            } else if (t.handleNumericKey(event.key)) {
+                // consumed by the numeric buffer
+            } else {
+                return
+            }
+            t.precision = event.shiftKey
+            this.refreshOverlays()
+            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+            event.preventDefault()
+            return
+        }
+
         if (event.ctrlKey || event.metaKey) {
             if (event.code === 'KeyI') {
                 event.preventDefault()
@@ -454,6 +599,15 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             break
         case 'KeyL':
             this.selectLinked()
+            break
+        case 'KeyG':
+            this.startTransform('translate')
+            break
+        case 'KeyR':
+            this.startTransform('rotate')
+            break
+        case 'KeyS':
+            this.startTransform('resize')
             break
         case 'Escape':
             this.exit(true)
