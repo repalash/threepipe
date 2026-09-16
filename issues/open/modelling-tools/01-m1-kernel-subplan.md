@@ -13,7 +13,7 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
 | 2. Operator schema generated from `bmesh_opdefines.cc` | **done** — 83 ops, verified against Blender's own generator |
 | 3. BMesh elements + disk/radial/loop cycles + create/kill + validate | **done** — 32 tests |
 | 4. Attribute layers on BMesh elements (`CustomData` equivalent) + interpolation | **done** — layouts per domain, offset-addressed blocks, weighted interp |
-| 5. `bmFromMesh` / `bmToMesh` round trip | **done** — 16 tests; **self-consistency only, see Verification** |
+| 5. `bmFromMesh` / `bmToMesh` round trip | **done and verified against Blender** — 16 round-trip tests plus 110 parity tests over 6 real `.blend` fixtures |
 | 6. Euler operators | **partly done** — SEMV, SFME, JFKE, JEKV ported and tested. JVKE, `facesJoin`, `vertSplice` still to do |
 | 7. Queries, iterators, walkers (loop/ring/boundary/shell) | |
 | 8. Selection flags, counters, flush rules, history | |
@@ -54,19 +54,35 @@ Every step must be provable, not asserted:
 - **Euler's formula** (V − E + F = 2 for the closed test meshes) as an independent cross-check.
 - **Node-safety** is proved by importing the built bundle in plain `node` with no polyfill, not by
   inspection.
-- **Blender parity is NOT yet established.** This matters: the round-trip tests prove the two
-  conversions agree with each other, which a shared bug would also satisfy. They do not prove either
-  agrees with Blender. Treat step 5 as unverified against ground truth until the harness below exists.
-- **The ground-truth harness is feasible and cheaper than expected.** Confirmed this session: the
-  blend-importer's parser runs standalone in Node (`plugins/blend-importer/src/js-blend/main.js`,
-  `parseBlend(arrayBuffer)`), and 14 of the 56 fixtures in `tmp/blend-fixtures/` use the modern
-  3.6+ layout with `poly_offset_indices`. `blend-load-test-prim-cube.blend` is a Blender-authored cube
-  (V8 E12 P6 L24) carrying `position`, `.edge_verts`, `.corner_vert`, `.corner_edge` and a `UVMap`
-  corner layer — exactly the arrays the kernel claims to reproduce. Reading them needs the decoding
-  helpers in `loader/geometry.ts` (`readAttrArray` and friends) rather than touching `layer.data`
-  directly, which returns lazily-decoded proxies. Wire this up as the first task of M2, then use it to
-  retro-verify step 5: in particular, whether `calculateEdges()` derives the same 12 edges and the same
-  `.corner_edge` mapping Blender wrote.
+- **Blender parity is established for steps 1 to 5.** `plugins/mesh-kernel/tests/blender-parity.test.ts`
+  checks the kernel against arrays Blender itself wrote, extracted straight from the DNA blocks of six
+  `.blend` fixtures by `tests/fixtures/extract-blend-fixture.mjs`. The fixtures were chosen to cover
+  what synthetic tests miss: quads, all-triangles, n-gons from 3 to 22 sides, a 482-vertex sphere with
+  32-valence poles, an open mesh with boundary edges and two components, and a non-manifold mesh with
+  21 three-face edges.
+
+  Headline result: given only positions and Blender's face-vertex lists, `calculateEdges()` derives
+  exactly Blender's edge count and edge set, and a `.corner_edge` array identical to Blender's element
+  for element under the edge correspondence. `validate()` accepts real Blender topology verbatim, and
+  the round trip returns Blender's positions, offsets, corner arrays and UV layer unchanged.
+
+  Two differences found, both legitimate rather than bugs. Edge *index ordering* differs, because
+  Blender's order comes from per-thread hash maps and is not reproducible even between Blender runs;
+  the suite asserts a bijection instead. And `calculateEdges()` normalises each pair to (low, high)
+  while Blender keeps the authored direction; `.corner_edge` and `validate()` are both
+  orientation-agnostic, and the round trip preserves Blender's orientation byte for byte.
+
+- **The parity suite has verified discriminating power.** Reversing the winding order inside
+  `MeshData.fromFaces` leaves all 110 self-consistency tests green and fails 6 parity tests. That is
+  exactly the class of shared-convention bug the old suite could not see, and it is the reason parity
+  fixtures were worth building. Confirmed independently by mutating the source, running both suites,
+  and reverting.
+
+- **Still not proven against Blender**, and recorded in `tests/fixtures/README.md`: loose edges (no
+  mesh in the 143-mesh fixture corpus has one, so `calculateEdges()` dropping them is untested and the
+  suite asserts the precondition so the gap stays visible), edges with four or more faces, attributes
+  beyond the four required ones and a single UV map, normals, and Blender's actual edit-mode
+  behaviour.
 
 ## Bugs found and fixed during the port
 
