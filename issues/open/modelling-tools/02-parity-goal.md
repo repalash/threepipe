@@ -10,6 +10,54 @@ Reminder on provenance: kokraf is BUSL-1.1. This is a **behaviour** target, not 
 algorithm is ported from Blender, which is also the better implementation — kokraf's own loop cut is
 quads-only, its knife handles one straight segment, and its edge slide has a placeholder scorer.
 
+## What the demo actually shows
+
+Analysed from the 4m08s video at 8-second sampling (31 frames). This matters, because the demo and the
+manual are not the same target, and the demo is the one the maintainer pointed at.
+
+**The build is kit-bashing in object mode, not sculpting in edit mode.** A floating house is assembled
+almost entirely from scaled and rotated primitives: the outliner is a long column of `Cube` entries
+plus a few `Cylinder`s. Object-level translate, rotate, scale, duplicate and numeric entry in the
+sidebar carry most of the work. Edit mode appears regularly but in a supporting role, nudging vertices
+and faces to shape the hull, roof slopes and plank details.
+
+**Observed, in rough order of screen time**
+1. Object transform gizmos: translate arrows, rotate trackball rings, scale handles, with a
+   `GLOBAL`/`LOCAL` orientation dropdown.
+2. Add menu: Group, Mesh (Plane, Cube, Circle, Sphere, Cylinder, Cone, Torus), Light, Camera.
+3. Numeric transform entry in the properties panel, typed directly into Position/Rotation/Scale.
+4. **Reference images as picture-in-picture overlays**, several at once, repositioned around the
+   viewport while modelling. This is central to the workflow and I had not accounted for it at all.
+5. Edit mode with vertex / edge / face sub-mode buttons, selection highlighted in yellow, transform
+   gizmo on the selection.
+6. Outliner listing every object, with an OBJECT / MATERIAL properties pane: Type, UUID, Name,
+   Position, Rotation, Scale, Shadow cast and receive, Visible, Frustum Cull, Render Order.
+7. Lights, with a point light's Intensity, Color, Distance, Decay, Shadow Intensity, Shadow Bias,
+   Shadow Normal Bias and Shadow Radius.
+8. Viewport shading modes `SOLID` and `MATERIAL`, a camera selector, and a view-orientation gizmo.
+9. Final shaded render with lighting.
+
+**Not clearly exercised in the sampled frames**: loop cut, knife, bevel, inset and edge slide. They are
+documented in the manual and exist in the product, but the demo does not lean on them. Extrude may
+appear during hull and roof shaping; at 8-second sampling I cannot confirm it, so I am not claiming it
+either way.
+
+**What this changes.** Most of the demo is object-level scene assembly, and threepipe is already strong
+there: picking with multi-select, transform and pivot gizmos, the hierarchy outliner, primitive
+generators, lights, materials and viewport shading all exist. The genuinely missing pieces for *this
+demo* are narrower than the full manual suggests:
+
+| Gap | Size | Note |
+| --- | --- | --- |
+| Edit mode: element selection, overlays, transform | large | M4, the main unlock |
+| Reference image overlays | small | Not previously on the checklist. A viewport-space image plane plugin |
+| Numeric transform entry | small | uiConfig already supports it; needs wiring in the editor |
+| n-gon primitives from Blender | medium | Torus and cone exist as triangulated generators today |
+
+The heavy edit-mode ports (bevel, knife, loop cut) remain on the checklist because the manual documents
+them and parity means parity. But they are **not** on the critical path to reproducing this demo, and
+should come after edit mode and the reference-image workflow.
+
 ## Parity checklist
 
 Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **todo**.
