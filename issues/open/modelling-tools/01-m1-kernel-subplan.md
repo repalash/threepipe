@@ -14,7 +14,7 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
 | 3. BMesh elements + disk/radial/loop cycles + create/kill + validate | **done** — 32 tests |
 | 4. Attribute layers on BMesh elements (`CustomData` equivalent) + interpolation | **done** — layouts per domain, offset-addressed blocks, weighted interp |
 | 5. `bmFromMesh` / `bmToMesh` round trip | **done** — 16 tests; **self-consistency only, see Verification** |
-| 6. Euler operators (SFME, SEMV, JEKV, JVKE, JFKE, `facesJoin`, `vertSplice`) | |
+| 6. Euler operators | **partly done** — SEMV, SFME, JFKE, JEKV ported and tested. JVKE, `facesJoin`, `vertSplice` still to do |
 | 7. Queries, iterators, walkers (loop/ring/boundary/shell) | |
 | 8. Selection flags, counters, flush rules, history | |
 | 9. Tessellation (`polyfill2d` port) + normals (corner-angle weighted, sharp-edge fans) | |
@@ -67,6 +67,20 @@ Every step must be provable, not asserted:
   directly, which returns lazily-decoded proxies. Wire this up as the first task of M2, then use it to
   retro-verify step 5: in particular, whether `calculateEdges()` derives the same 12 edges and the same
   `.corner_edge` mapping Blender wrote.
+
+## Bugs found and fixed during the port
+
+- **`joinEdgeKillVert` left a dangling radial pointer.** The first version unlinked the dropped loop
+  with the equivalent of `bmesh_radial_loop_unlink`, which clears the loop's own links but does not
+  repoint `edge.l`. When the dropped loop happened to be the one its edge pointed at, the edge was
+  left referencing a deleted loop. Twenty-five hand-written Euler tests all passed, because only some
+  relative positions of the dropped loop trigger it. An exhaustive test that splits and rejoins every
+  edge of a 3-, 4-, 5-, 6- and 8-gon in both orientations caught it immediately. Fixed by using
+  `radialLoopRemove`, which repoints the edge. The exhaustive test is now a permanent regression guard.
+
+  The lesson generalises to the rest of the port: for cycle-mutating operators, enumerate the
+  configurations rather than picking representative cases. Hand-picked examples systematically miss
+  position-dependent link bugs.
 
 ## Open questions
 

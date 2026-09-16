@@ -110,6 +110,14 @@ export class BMesh {
         return this._nextId++
     }
 
+    /**
+     * Allocate an element id. Public so the Euler operators, which build loops and faces directly
+     * rather than through the create helpers, can stay consistent with the mesh's numbering.
+     */
+    nextId(): number {
+        return this._id()
+    }
+
     private _invalidateTables(): void {
         this._vertTable = null
         this._edgeTable = null
