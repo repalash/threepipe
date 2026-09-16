@@ -28,6 +28,14 @@ export interface TransformConstraint {
     axes: number[]
     /** `local` uses the object's axes; `global` uses world axes. */
     orientation: 'global' | 'local'
+    /**
+     * An arbitrary direction to slide along, overriding {@link axes} while set.
+     *
+     * This is how extrude works: Blender constrains the follow-up move to the region's averaged
+     * normal rather than to a world axis, which is why `E` pushes a face straight out of the surface
+     * whichever way it happens to be facing. Pressing an axis key clears it.
+     */
+    customAxis?: [number, number, number]
 }
 
 export interface TransformStartOptions {
@@ -163,7 +171,8 @@ export class ModalTransform {
     /** Human-readable status, the text Blender puts in the header during a modal op. */
     get status(): string {
         const axisNames = this.constraint.axes.map(a => 'XYZ'[a]).join('')
-        const axis = axisNames ? ` [${axisNames}${this.constraint.orientation === 'local' ? ' local' : ''}]` : ''
+        const axis = this.constraint.customAxis ? ' [normal]'
+            : axisNames ? ` [${axisNames}${this.constraint.orientation === 'local' ? ' local' : ''}]` : ''
         const num = this.numeric.active ? ` = ${this.numeric.text}` : ''
         const value = this._scalarValue()
         const shown = this.numeric.active ? this.numeric.text : value.toFixed(3)
@@ -180,8 +189,20 @@ export class ModalTransform {
         this.apply()
     }
 
+    /**
+     * Constrain to an arbitrary direction, such as a face normal.
+     * Blender calls this a custom orientation; extrude sets it to the region's averaged normal.
+     */
+    setCustomAxis(axis: [number, number, number]): void {
+        this.constraint.customAxis = normalise(axis)
+        this.constraint.axes = []
+        this.apply()
+    }
+
     /** Constrain to one axis, or to the plane perpendicular to it when `plane` is set. */
     setAxis(axis: number, plane = false): void {
+        // An explicit axis key always overrides a custom direction.
+        this.constraint.customAxis = undefined
         const wanted = plane ? [0, 1, 2].filter(a => a !== axis) : [axis]
         const same = wanted.length === this.constraint.axes.length
             && wanted.every(a => this.constraint.axes.includes(a))
@@ -200,6 +221,7 @@ export class ModalTransform {
 
     clearConstraint(): void {
         this.constraint.axes = []
+        this.constraint.customAxis = undefined
         this.constraint.orientation = 'global'
         this.apply()
     }
@@ -253,6 +275,12 @@ export class ModalTransform {
      * Blender builds a projection matrix for this; the result is the same and this is clearer.
      */
     private _constrain(delta: [number, number, number]): [number, number, number] {
+        const custom = this.constraint.customAxis
+        if (custom) {
+            // Project the free delta onto the direction, so dragging any which way still slides along it.
+            const d = delta[0] * custom[0] + delta[1] * custom[1] + delta[2] * custom[2]
+            return [custom[0] * d, custom[1] * d, custom[2] * d]
+        }
         const axes = this.constraint.axes
         if (!axes.length) return delta
 
@@ -280,7 +308,10 @@ export class ModalTransform {
             if (numeric !== null) {
                 // With a typed value, the constraint axis gives the direction; otherwise use the
                 // free direction normalised to the typed length.
-                if (this.constraint.axes.length === 1) {
+                if (this.constraint.customAxis) {
+                    const c = this.constraint.customAxis
+                    delta = [c[0] * numeric, c[1] * numeric, c[2] * numeric]
+                } else if (this.constraint.axes.length === 1) {
                     delta = [0, 0, 0]
                     delta[this.constraint.axes[0]] = numeric
                 } else {

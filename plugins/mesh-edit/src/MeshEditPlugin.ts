@@ -46,6 +46,7 @@ import {
     vertSelectSet,
     walkVertShell,
     extrudeSelection,
+    averageFaceNormal,
     duplicateSelection,
     splitSelection,
     deleteSelection,
@@ -405,6 +406,10 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     extrude(): boolean {
         const state = this.state
         if (!state) return false
+        // The normal has to be measured before the topology changes, from the faces being extruded.
+        const selectedFaces = [...state.bm.faces].filter(f => f.hflag & ElemFlag.Select)
+        const normal = selectedFaces.length ? averageFaceNormal(selectedFaces) : null
+
         const result = extrudeSelection(state.bm)
         if (!result) {
             this._viewer?.console.warn('MeshEditPlugin: nothing selected to extrude')
@@ -414,8 +419,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.applyToObject()
         this.refreshOverlays()
         this.dispatchEvent({type: 'meshChanged', state})
-        // Chain straight into a move, so the new geometry lands where the user drags it.
+
+        // Chain into a move constrained to the region's normal, which is what makes `E` push a face
+        // straight out of the surface however it is oriented. An axis key overrides it.
         this.startTransform('translate')
+        if (normal && this._transform) this._transform.setCustomAxis(normal)
         return true
     }
 
