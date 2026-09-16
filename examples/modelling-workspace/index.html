@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Modelling Workspace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/mesh-kernel": "./../../plugins/mesh-kernel/dist/index.mjs",
+          "@threepipe/plugin-mesh-edit": "./../../plugins/mesh-edit/dist/index.mjs"
+        }
+    }
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        body { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+        #topbar {
+            position: absolute; top: 0; left: 0; right: 0; height: 34px;
+            display: flex; align-items: center; gap: 10px; padding: 0 10px;
+            background: rgba(18,18,22,0.9); color: #e6e6ea; backdrop-filter: blur(6px);
+            z-index: 10;
+        }
+        #mode { font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 4px; }
+        #mode.object { background: #2b3550; color: #a8c4ff; }
+        #mode.edit { background: #4a3a12; color: #ffcf6b; }
+        #topbar .group { display: flex; gap: 4px; align-items: center; }
+        #topbar .label { color: #8a8a96; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+        #topbar button {
+            padding: 4px 9px; border: 1px solid #3a3a44; border-radius: 4px;
+            background: #26262e; color: #e6e6ea; font: inherit; cursor: pointer;
+        }
+        #topbar button:hover { background: #33333d; }
+
+        #panel {
+            position: absolute; top: 46px; left: 10px; width: 232px; padding: 11px;
+            background: rgba(20,20,24,0.87); border-radius: 8px; color: #e6e6ea;
+            backdrop-filter: blur(6px); z-index: 9;
+        }
+        #panel .sep { margin: 9px 0 3px; color: #8a8a96; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+        #panel .help { color: #b9b9c4; }
+        #panel .help b { color: #e6e6ea; }
+        #stats { margin-top: 9px; padding-top: 8px; border-top: 1px solid #3a3a44; color: #b9b9c4; white-space: pre-line; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+<div id="topbar">
+    <span id="mode" class="object">OBJECT MODE</span>
+    <span class="group">
+        <span class="label">Add</span>
+        <button data-add="box">Cube</button>
+        <button data-add="plane">Plane</button>
+        <button data-add="circle">Circle</button>
+        <button data-add="sphere">Sphere</button>
+        <button data-add="cylinder">Cylinder</button>
+        <button data-add="torus">Torus</button>
+    </span>
+    <span class="group">
+        <button id="clear">Clear scene</button>
+    </span>
+</div>
+
+<div id="panel">
+    <div class="sep">Object mode</div>
+    <div class="help">
+        click to select, <b>W/E/R</b> gizmo<br>
+        <b>Ctrl+D</b> duplicate, <b>Del</b> delete<br>
+        <b>F</b> focus selected
+    </div>
+
+    <div class="sep">Edit mode</div>
+    <div class="help">
+        <b>Tab</b> enter / leave<br>
+        <b>1 / 2 / 3</b> vertex / edge / face<br>
+        <b>A</b> all, <b>Alt+A</b> none, <b>L</b> linked<br>
+        <b>G / R / S</b> move / rotate / scale<br>
+        <b>E</b> extrude<br>
+        <b>X / Y / Z</b> lock axis, digits for exact<br>
+        <b>click</b> confirm, <b>Esc</b> cancel
+    </div>
+
+    <div class="sep">Reference</div>
+    <div class="help">Drag photos onto the viewport, then drag and resize them.</div>
+
+    <div id="stats">loading…</div>
+</div>
+
+</body>
+</html>
