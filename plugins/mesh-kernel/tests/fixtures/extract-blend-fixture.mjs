@@ -126,8 +126,9 @@ function pickMesh(blend, selector) {
     if (!meshes || !meshes.length) fail('file contains no Mesh datablocks')
     if (selector === undefined) {
         if (meshes.length > 1) {
-            fail(`file has ${meshes.length} meshes; pass --mesh <name|index> ` +
-                `(names: ${meshes.map(m => meshName(m)).join(', ')})`)
+            const names = meshes.map(m => meshName(m))
+            const shown = names.slice(0, 12).join(', ') + (names.length > 12 ? `, ...${names.length - 12} more` : '')
+            fail(`file has ${meshes.length} meshes; pass --mesh <name|index> (names: ${shown})`)
         }
         return meshes[0]
     }
@@ -162,16 +163,20 @@ export async function extractBlendFixture(blendPath, meshSelector) {
 
     const mesh = pickMesh(blend, meshSelector)
 
+    // Only the 3.6-4.x layout is decoded. Blender 5.0 moved mesh attributes into `attribute_storage`
+    // and made the `tot*` fields runtime (post-geometry-nodes) values that do not match the stored
+    // arrays; pre-3.6 files use `MPoly`/`MLoop` instead of face offsets. Both are rejected rather
+    // than half-decoded - see `plugins/blend-importer/src/loader/geometry.ts` for those paths.
+    if (mesh.attribute_storage) fail('Blender 5.0 attribute_storage layout is not supported by this extractor')
+    if (mesh.mpoly) fail('pre-3.6 MPoly layout is not supported by this extractor')
+
     // The four element counts, straight from `Mesh` in the DNA. Every array read below is checked
     // against these, so a file where they disagree with the stored blocks fails rather than silently
-    // producing a truncated fixture. (Blender 5.0 makes `tot*` runtime values; those files have an
-    // `attribute_storage` block instead of `vdata`/`ldata` and are rejected above.)
+    // producing a truncated fixture.
     const vertsNum = mesh.totvert | 0
     const edgesNum = mesh.totedge | 0
     const facesNum = mesh.totpoly | 0
     const cornersNum = mesh.totloop | 0
-    if (mesh.attribute_storage) fail('Blender 5.0 attribute_storage layout is not supported by this extractor')
-    if (mesh.mpoly) fail('pre-3.6 MPoly layout is not supported by this extractor')
     for (const [name, n] of [['totvert', vertsNum], ['totedge', edgesNum], ['totpoly', facesNum], ['totloop', cornersNum]]) {
         if (!Number.isInteger(n) || n <= 0) fail(`${name} is ${n}; this extractor only handles non-empty meshes`)
     }
@@ -250,6 +255,7 @@ function serialise(fixture) {
             lines.push(`  ${JSON.stringify(key)}: ${JSON.stringify(value)}${comma}`)
             continue
         }
+        if (!stride[key] || !perRow[key]) fail(`no row layout for array field '${key}'`)
         const group = stride[key] * perRow[key]
         const rows = []
         for (let i = 0; i < value.length; i += group) {
