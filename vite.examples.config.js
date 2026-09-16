@@ -21,6 +21,7 @@ const alias = {
     '@threepipe/plugin-tweakpane-editor': path.resolve(__dirname, './plugins/tweakpane-editor/src/index.ts'),
     '@threepipe/plugin-blend-importer': path.resolve(__dirname, './plugins/blend-importer/src/index.ts'),
     '@threepipe/mesh-kernel': path.resolve(__dirname, './plugins/mesh-kernel/src/index.ts'),
+    '@threepipe/plugin-mesh-edit': path.resolve(__dirname, './plugins/mesh-edit/src/index.ts'),
     '@threepipe/plugins-extra-importers': path.resolve(__dirname, './plugins/extra-importers/src/index.ts'),
     '@threepipe/plugin-geometry-generator': path.resolve(__dirname, './plugins/geometry-generator/src/index.ts'),
     '@threepipe/plugin-gaussian-splatting': path.resolve(__dirname, './plugins/gaussian-splatting/src/index.ts'),

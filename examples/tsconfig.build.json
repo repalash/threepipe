@@ -5,7 +5,8 @@
             "threepipe": ["../dist/"],
             "@threepipe/plugin-*": ["../plugins/*/dist"],
             "@threepipe/plugins-*": ["../plugins/*/dist"],
-            "@threepipe/mesh-kernel": ["../plugins/mesh-kernel/dist"]
+            "@threepipe/mesh-kernel": ["../plugins/mesh-kernel/dist"],
+            "@threepipe/plugin-mesh-edit": ["../plugins/mesh-edit/dist"]
         },
     },
 }
