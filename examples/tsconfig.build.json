@@ -4,7 +4,8 @@
         "paths": {
             "threepipe": ["../dist/"],
             "@threepipe/plugin-*": ["../plugins/*/dist"],
-            "@threepipe/plugins-*": ["../plugins/*/dist"]
+            "@threepipe/plugins-*": ["../plugins/*/dist"],
+            "@threepipe/mesh-kernel": ["../plugins/mesh-kernel/dist"]
         },
     },
 }

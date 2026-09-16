@@ -16,8 +16,8 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
 | 5. `bmFromMesh` / `bmToMesh` round trip | **done and verified against Blender** — 16 round-trip tests plus 110 parity tests over 6 real `.blend` fixtures |
 | 6. Euler operators | **partly done** — SEMV, SFME, JFKE, JEKV ported and tested. JVKE, `facesJoin`, `vertSplice` still to do |
 | 7. Queries, iterators, walkers (loop/ring/boundary/shell) | |
-| 8. Selection flags, counters, flush rules, history | |
-| 9. Tessellation (`polyfill2d` port) + normals (corner-angle weighted, sharp-edge fans) | |
+| 8. Selection flags, counters, flush rules, history | **done** — 26 tests |
+| 9. Tessellation + bake to render buffers | **done** — ear clipping, corner-indexed, faceId map, 8 tests. Corner-angle normals with sharp-edge fans still to do |
 | 10. Operator slot machinery (`BMO_op_init/exec/finish`, flag layers) driving the generated table | |
 | 11. Chunked snapshot undo store (`BLI_array_store` port) | |
 

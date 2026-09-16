@@ -70,6 +70,15 @@ export class BMesh {
     /** Active face, which drives active UV and material in Blender. */
     actFace: BMFace | null = null
 
+    /**
+     * Selection counters, kept in step by the functions in `marking.ts`. Blender maintains these
+     * incrementally because recounting a multi-million-element mesh per frame is not viable.
+     * `selectCountsRecalc` rebuilds them after bulk flag edits.
+     */
+    totvertsel = 0
+    totedgesel = 0
+    totfacesel = 0
+
     private _nextId = 0
     private _vertTable: BMVert[] | null = null
     private _edgeTable: BMEdge[] | null = null
