@@ -15,7 +15,7 @@ per-domain attributes, with every algorithm ported from Blender rather than inve
 | 4. Attribute layers on BMesh elements (`CustomData` equivalent) + interpolation | **done** — layouts per domain, offset-addressed blocks, weighted interp |
 | 5. `bmFromMesh` / `bmToMesh` round trip | **done and verified against Blender** — 16 round-trip tests plus 110 parity tests over 6 real `.blend` fixtures |
 | 6. Euler operators | **partly done** — SEMV, SFME, JFKE, JEKV ported and tested. JVKE, `facesJoin`, `vertSplice` still to do |
-| 7. Queries, iterators, walkers (loop/ring/boundary/shell) | |
+| 7. Queries, iterators, walkers | **mostly done** — vert shell, edge loop, edge ring, face loop, boundary, loop shell, island. 41 tests |
 | 8. Selection flags, counters, flush rules, history | **done** — 26 tests |
 | 9. Tessellation + bake to render buffers | **done** — ear clipping, corner-indexed, faceId map, 8 tests. Corner-angle normals with sharp-edge fans still to do |
 | 10. Operator slot machinery (`BMO_op_init/exec/finish`, flag layers) driving the generated table | |
@@ -97,6 +97,21 @@ Every step must be provable, not asserted:
   The lesson generalises to the rest of the port: for cycle-mutating operators, enumerate the
   configurations rather than picking representative cases. Hand-picked examples systematically miss
   position-dependent link bugs.
+
+## Walkers: Blender behaviours worth remembering
+
+Ported as found, because each one is load-bearing and each one is surprising:
+
+- **A cube has no edge loops.** The walk needs a valence of exactly 4 or 2 to cross a vertex, and every
+  cube corner is valence 3. An n-gon hub additionally needs a face longer than 4.
+- **A boundary loop turns corners** and takes the whole border ring, because at a corner the first fan
+  step already lands on another boundary edge.
+- **A face loop never starts from a boundary edge**, even though the code appears to test for that case
+  first; it still requires manifold afterwards.
+- **A delimited face loop excludes the delimited face, but a delimited edge ring includes the delimited
+  edge.** Opposite conventions for the same idea. Both are tested so neither drifts.
+- Two walkers can yield an element twice, which is harmless in Blender. The generator forms reproduce
+  it faithfully and the array forms deduplicate.
 
 ## Open questions
 
