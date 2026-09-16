@@ -50,7 +50,7 @@ demo* are narrower than the full manual suggests:
 | Gap | Size | Note |
 | --- | --- | --- |
 | Edit mode: element selection, overlays, transform | large | M4, the main unlock |
-| Reference image overlays | small | Not previously on the checklist. A viewport-space image plane plugin |
+| Reference image overlays | **done** | `ReferenceImagePlugin`: drop, drag, resize, screen-space |
 | Numeric transform entry | small | uiConfig already supports it; needs wiring in the editor |
 | n-gon primitives from Blender | medium | Torus and cone exist as triangulated generators today |
 

@@ -11,7 +11,7 @@ import {
     BoxGeometry,
     iGeometryCommons,
 } from 'threepipe'
-import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
+import {MeshEditPlugin, ReferenceImagePlugin} from '@threepipe/plugin-mesh-edit'
 import {SelectMode} from '@threepipe/mesh-kernel'
 
 /**
@@ -33,6 +33,8 @@ async function init() {
 
     const picking = viewer.getPlugin(PickingPlugin)!
     const meshEdit = viewer.addPluginSync(MeshEditPlugin)
+    // Modelling from reference: drop photos onto the viewport, then drag and resize them.
+    const references = viewer.addPluginSync(ReferenceImagePlugin)
 
     const material = new PhysicalMaterial({color: '#b9bcc6', roughness: 0.4, metalness: 0.05})
 
@@ -105,7 +107,7 @@ async function init() {
     refreshStats()
 
     // The scripting API is the agent API: everything the UI does is reachable from here.
-    Object.assign(window as never, {viewer, meshEdit, picking})
+    Object.assign(window as never, {viewer, meshEdit, picking, references})
     console.log('Try: meshEdit.enter(); meshEdit.selectAllElements(); meshEdit.state.describe()')
 }
 
