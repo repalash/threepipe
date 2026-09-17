@@ -2533,6 +2533,47 @@ test('modelling-api', async({page}) => {
     expect((computed.data as any).source).toBe('computed')
     expect((computed.data as any).saved).toBe('overhead')
 
+    // --- edit mode shares the document, rather than re-deriving it ------------------------------
+
+    await run({op: 'delete', object: '*'})
+    const cyl = await run({op: 'primitive', type: 'cylinder', name: 'drum', radius: 0.5,
+        height: 1, segments: 16})
+    const cylFaces = (cyl.data as any).faces
+    const cylVerts = (cyl.data as any).verts
+
+    const entered = await page.evaluate(() => {
+        const m = (window as any).modelling
+        const edit = (window as any).viewer.getPlugin('MeshEditPlugin')
+        const entry = m.document.entries[0]
+        const ok = edit.enter(entry.object)
+        return ok ? {verts: edit.state.bm.totvert, faces: edit.state.bm.totface} : null
+    })
+    // Exact, not welded: a 16-segment cylinder keeps its two n-gon caps and its 16 quad sides.
+    // Recovering this from triangles would renumber vertices and guess at the caps.
+    expect(entered).toEqual({verts: cylVerts, faces: cylFaces})
+
+    // An edit made by hand must come back to the document, or the next command would re-bake over it.
+    const committed = await page.evaluate(() => {
+        const m = (window as any).modelling
+        const edit = (window as any).viewer.getPlugin('MeshEditPlugin')
+        const v = [...edit.state.bm.verts][0]
+        v.setCo(v.x, v.y + 5, v.z)
+        edit.exit(true)
+        const entry = m.document.entries[0]
+        let highest = -Infinity
+        const pos = entry.mesh.positions
+        for (let i = 1; i < entry.mesh.vertsNum * 3; i += 3) highest = Math.max(highest, pos[i])
+        return {highest, verts: entry.mesh.vertsNum, faces: entry.mesh.facesNum}
+    })
+    expect(committed.highest).toBeGreaterThan(4)
+    expect(committed.faces).toBe(cylFaces)
+
+    // ...and it is undoable like any other change.
+    const undone = await run({op: 'undo'})
+    expect((undone.data as any).undone).toBe(1)
+    const back = await run({op: 'inspect', object: 'drum'})
+    expect((back.data as any).bounds.max[1]).toBeLessThan(1)
+
     const final = await run({op: 'selftest'})
     expect((final.data as any).failed).toBe(0)
 })

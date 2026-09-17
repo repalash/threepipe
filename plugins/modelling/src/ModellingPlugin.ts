@@ -19,7 +19,8 @@
  * ```
  */
 
-import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from 'threepipe'
+import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, ThreeViewer} from 'threepipe'
+import type {MeshData} from '@threepipe/mesh-kernel'
 import {ModellingDocument} from './document'
 import {ModellingHistory} from './history'
 import {CommandRegistry} from './commands/registry'
@@ -86,6 +87,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         super.onAdded(viewer)
         this.document = new ModellingDocument(viewer)
         this.history = new ModellingHistory(this.document)
+        this._connectMeshEdit(viewer)
         this.commands.registerAll([
             ...createCommands,
             ...editCommands,
@@ -94,6 +96,37 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...referenceCommands,
             ...modifierCommands,
         ])
+    }
+
+    /**
+     * Hand exact topology to `MeshEditPlugin` when it is present, and take committed edits back.
+     *
+     * Without this, opening a lathed wheel in edit mode would weld its triangles back into topology -
+     * n-gons guessed at, vertex indices renumbered, so the indices `vertices` and `transform` use
+     * would silently stop meaning what they meant. And a hand edit would be discarded the next time
+     * a command re-baked the object.
+     *
+     * Registered by plugin-type string through `forPlugin` rather than by importing the plugin, so
+     * this package keeps its one-way dependency and still runs headless with no edit-mode UI at all.
+     */
+    private _connectMeshEdit(viewer: ThreeViewer): void {
+        const provider = (object: IObject3D) => this.document.find(object.uuid)?.mesh ?? null
+        const sink = (object: IObject3D, mesh: MeshData) => {
+            const entry = this.document.find(object.uuid)
+            if (!entry) return
+            this.document.beginRecording()
+            this.document.setMesh(entry, mesh.clone())
+            const before = this.document.endRecording()
+            this.history.push('editMode', `edit ${entry.name}`, before, ++this._index)
+            this.dispatchEvent({type: 'documentChanged', document: this.document})
+        }
+        viewer.forPlugin('MeshEditPlugin', (plugin: any) => {
+            plugin.meshProviders?.push(provider)
+            plugin.meshSinks?.push(sink)
+        }, (plugin: any) => {
+            remove(plugin.meshProviders, provider)
+            remove(plugin.meshSinks, sink)
+        }, this)
     }
 
     onRemove(viewer: ThreeViewer): void {
@@ -280,6 +313,11 @@ function describeCommand(command: Command): string {
         if (typeof v === 'string' || typeof v === 'number') parts.push(`${key}=${v}`)
     }
     return parts.join(' ')
+}
+
+function remove<T>(list: T[] | undefined, item: T): void {
+    const index = list?.indexOf(item) ?? -1
+    if (index >= 0) list!.splice(index, 1)
 }
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())

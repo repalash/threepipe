@@ -36,6 +36,7 @@ import {
     edgeSelectSet,
     faceSelectSet,
     geometryDataToBufferGeometry,
+    MeshData,
     selectAll,
     selectHistoryStore,
     selectInvert,
@@ -89,6 +90,28 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** The live editing session. Null outside edit mode. */
     state: EditMeshState | null = null
+
+    /**
+     * Sources of exact topology, consulted before falling back to welding triangles.
+     *
+     * Entering edit mode normally has to *recover* topology from a triangle buffer: weld by
+     * position, guess at n-gons. That is lossy, and it is unnecessary when something else in the
+     * scene already holds the real mesh - `ModellingPlugin` keeps a `MeshData` per object, n-gons
+     * and vertex indices intact. A provider hands that over, so a lathed wheel opens in edit mode as
+     * the quads it was built from rather than as a welded triangle soup with renumbered vertices.
+     *
+     * Register with `viewer.forPlugin('MeshEditPlugin', ...)` rather than importing this plugin, so
+     * the dependency runs one way only.
+     */
+    readonly meshProviders: ((object: IObject3D) => MeshData | null | undefined)[] = []
+
+    /**
+     * Where a committed edit goes back to, besides the object's geometry.
+     *
+     * Without this, an object whose topology is owned elsewhere would have its hand edits silently
+     * discarded the next time that owner re-baked it.
+     */
+    readonly meshSinks: ((object: IObject3D, mesh: MeshData) => void)[] = []
 
     /** Pixel radius for element picking. */
     pickDistance = 24
@@ -154,15 +177,19 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             viewer.console.warn('MeshEditPlugin: geometry has no position attribute')
             return false
         }
-        const uv = geometry.getAttribute('uv')
-        const index = geometry.getIndex()
-
-        this.state = new EditMeshState({
-            position: position.array as ArrayLike<number>,
-            index: index ? (index.array as ArrayLike<number>) : null,
-            uv: uv ? (uv.array as ArrayLike<number>) : null,
-            groups: geometry.groups,
-        })
+        const provided = this._providedMesh(target)
+        if (provided) {
+            this.state = EditMeshState.fromMeshData(provided.clone())
+        } else {
+            const uv = geometry.getAttribute('uv')
+            const index = geometry.getIndex()
+            this.state = new EditMeshState({
+                position: position.array as ArrayLike<number>,
+                index: index ? (index.array as ArrayLike<number>) : null,
+                uv: uv ? (uv.array as ArrayLike<number>) : null,
+                groups: geometry.groups,
+            })
+        }
         this.editObject = target
 
         this._suspendObjectModePlugins(true)
@@ -207,7 +234,29 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const old = this.editObject.geometry
         this.editObject.geometry = geometry as never
         if (old && old !== geometry) old.dispose?.()
+
+        // Hand the result back to whatever owns this object's topology, before anyone re-bakes it.
+        for (const sink of this.meshSinks) {
+            try {
+                sink(this.editObject, this.state.mesh)
+            } catch (e) {
+                this._viewer?.console.error('MeshEditPlugin: a mesh sink threw', e)
+            }
+        }
         this.dispatchEvent({type: 'meshChanged', state: this.state})
+    }
+
+    /** The first provider that recognises this object, if any. */
+    private _providedMesh(object: IObject3D): MeshData | undefined {
+        for (const provider of this.meshProviders) {
+            try {
+                const mesh = provider(object)
+                if (mesh) return mesh
+            } catch (e) {
+                this._viewer?.console.error('MeshEditPlugin: a mesh provider threw', e)
+            }
+        }
+        return undefined
     }
 
     private _selectedMesh(): IObject3D | undefined {
