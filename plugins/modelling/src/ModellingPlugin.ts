@@ -31,6 +31,7 @@ import {sceneCommands} from './commands/scene'
 import {sessionCommands} from './commands/session'
 import {referenceCommands, ReferencePlaneState} from './commands/reference'
 import {modifierCommands} from './commands/modifiers'
+import {shapeCommands} from './commands/shape'
 
 export interface CaptureResult {
     dataUrl: string
@@ -95,6 +96,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...sessionCommands,
             ...referenceCommands,
             ...modifierCommands,
+            ...shapeCommands,
         ])
     }
 

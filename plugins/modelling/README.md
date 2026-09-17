@@ -64,6 +64,8 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `vertices` | move individual vertices by index |
 | `transform` | move / rotate / scale objects, or a listed subset of their vertices, about a pivot |
 | `extrude` | push faces out along their own normal, with an optional taper |
+| `inset` | a smaller copy of a face ringed by new side faces — panel lines, hatch rims |
+| `solidify` | give a surface thickness, with a rim closing it — plates and panels |
 | `array` | repeat geometry in a line, around a pivot, or along a path - baked, or `live` |
 | `modifier` | the live stack: add, update, reorder, remove, apply |
 | `duplicate` | copy objects, optionally repeated and offset |

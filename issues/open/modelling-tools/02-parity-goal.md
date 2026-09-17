@@ -102,7 +102,7 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 | Numeric input during a modal op | **done** | Type digits mid-transform |
 | Snapping | todo | M4, plus vertex and grid targets |
 | Extrude | **done** | E, chained into a move as Blender's macro does |
-| Inset | in progress | `bmo_inset.cc`, region and individual |
+| Inset | **done** | `mesh-kernel/src/ops/inset.ts`, `bmo_inset.cc` region and individual, with even offset, edge rail, outset, depth and interpolation |
 | Bevel | todo | M6, the largest single port |
 | Loop cut | todo | M5, via subdivide with the ring walker |
 | Knife | todo | M6 |

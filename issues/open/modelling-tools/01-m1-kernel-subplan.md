@@ -167,20 +167,39 @@ Ported as found, because each one is load-bearing and each one is surprising:
 
 ### Filed, still open
 
-- [`kernel-extrude-delorig-divergence.md`](./kernel-extrude-delorig-divergence.md) —
-  `extrudeFaceRegion` always deletes the originals; Blender's `delorig` is conditional. Fixing it
-  changes existing `extrude.test.ts` expectations, so it needs a deliberate pass.
+- [`kernel-extrude-delorig-divergence.md`](./kernel-extrude-delorig-divergence.md) — **fixed.**
+  `extrudeFaceRegion` now computes `delorig` and only deletes the originals when the region has a
+  neighbour, and reverses them with `bmesh/flip.ts` when it keeps them, which is the other half of
+  the rule the report missed. Extruding a lone face gives a closed box. See the issue for what it
+  means for `spin`, which passes `skip_input_flip` and so leaves its seed cap wound as drawn.
 - [`kernel-split-edge-copies-corner-data.md`](./kernel-split-edge-copies-corner-data.md) —
   `splitEdgeMakeVert` copies corner attributes instead of interpolating (`BM_data_interp_face_vert_edge`
   is missing). Visible as stepped UVs on an icosphere above subdivision 1.
 - [`kernel-weld-verts-not-ported.md`](./kernel-weld-verts-not-ported.md) — resolved in substance by
   `ops/weld.ts`; the remaining item is the selection-history remap (`BM_select_history_merge_from_targetmap`).
 
-### Cleanup debt
+### Cleanup debt — done
 
-`primitives.ts` carries private copies of five helpers that later landed as shared files —
-`edgeVertSwap`, `edgeSplice`, `faceFindDouble` (now `bmesh/splice.ts`) and `faceExists`, `weldVerts`
-(now `ops/weld.ts`). They were written before those files existed and were not switched over because
-the signatures were still moving. Collapse them, and promote the rest of its private helpers
-(`BM_faces_join`, JVKE, `subdivide_edges`, `BM_face_create_ngon`) into `ops/` and `bmesh/` where they
-belong. Tracked here rather than filed, because nothing is wrong — it is duplication, not a defect.
+`primitives.ts` went from 1862 lines to 1117. Its private copies were collapsed onto the shared
+implementations and the rest of its private operators were promoted out:
+
+| was private in `primitives.ts` | now |
+| --- | --- |
+| `edgeVertSwap`, `edgeSplice` | `bmesh/splice.ts`, identical ports, deleted |
+| `faceFindDouble` | `bmesh/splice.ts`. The private copy compared vertex *sets*; the shared one is the real `BM_face_find_double`, which compares the edge cycle in both directions. The shared one is stricter and correct |
+| `faceExists`, `weldVerts`, `remdoubles_splitface`, `remdoubles_createface` | `ops/weld.ts`, deleted. The shared weld also does `BM_elem_flag_merge_ex` properly, which the private copy approximated with a bitwise or |
+| `invert_m4_m4` | `math/index.ts`'s `mat4Invert`. Differs only for a singular matrix, where Blender's own `invert_m4_m4` returns false and leaves a partially reduced matrix — undefined either way |
+| `BM_faces_join`, `bmo_dissolve_faces_exec`, `bm_vert_is_manifold_flagged` | `ops/dissolve.ts` (new) |
+| `bmesh_kernel_join_vert_kill_edge`, `BM_edge_collapse` | `bmesh/collapse.ts` (new). **These belong in `bmesh/euler.ts`** and should move there; that file was owned by another agent at the time |
+| `bmo_subdivide_edges_exec` (`tri_3edge` + `use_sphere`), `BM_vert_pair_share_face_by_len` | `ops/subdivide.ts` (new) |
+| `BM_face_create_ngon`, `bm_edges_sort_winding` | `bmesh/ngon.ts` (new). Natural home is `BMesh.ts`, next to `faceCreate` |
+
+Still private in `primitives.ts`, with no shared home yet: `sin_cos_from_fraction` and
+`BM_face_calc_normal` (neither is in `math/index.ts`; the latter is also open-coded as
+`averageFaceNormal` in `ops/extrude.ts`), `bmo_remove_doubles_exec` and its KD-tree half, and the
+chainable `extrude_edge_only` that exists because `ops/extrude.ts`'s cannot be chained the way the UV
+sphere needs.
+
+Each promoted module has its own test file; they previously had only indirect coverage through the
+primitives. `bmesh/flip.ts` (`bmesh_kernel_loop_reverse`, `BM_face_normal_flip`) is new for the same
+reason as `collapse.ts` and belongs in `euler.ts` too.

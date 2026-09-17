@@ -2533,6 +2533,58 @@ test('modelling-api', async({page}) => {
     expect((computed.data as any).source).toBe('computed')
     expect((computed.data as any).saved).toBe('overhead')
 
+    // --- inset and solidify -------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'plate', width: 2, height: 0.2, depth: 2})
+
+    // The top face of a 2 x 0.2 x 2 plate, found by its centre rather than assumed.
+    const plate = await run({op: 'inspect', object: 'plate', detail: true})
+    const plateData = plate.data as any
+    const topFaces: number[] = plateData.faceVerts
+        .map((verts: number[], i: number) =>
+            ({i, y: verts.reduce((a: number, v: number) => a + plateData.vertices[v][1], 0) / verts.length}))
+        .filter((f: any) => f.y > 0.05)
+        .map((f: any) => f.i)
+    expect(topFaces.length).toBe(1)
+
+    const inset = await run({op: 'inset', object: 'plate', faces: topFaces, thickness: 0.3})
+    expect(inset.ok).toBe(true)
+    // A single-quad region inset adds four vertices and four rim faces; the face passed in survives
+    // with the same identity, which is why `insetFaces` and `rimFaces` are reported separately.
+    expect((inset.data as any).verts).toBe(12)
+    expect((inset.data as any).rimFaces.length).toBe(4)
+    expect((inset.data as any).insetFaces).toEqual(topFaces)
+
+    // The inset distance is a real distance: the inner ring sits 0.3 inside a 2-wide face.
+    const insetShape = await run({op: 'inspect', object: 'plate', detail: true})
+    const innerXs = (insetShape.data as any).vertices
+        .filter((v: number[]) => v[1] > 0.05)
+        .map((v: number[]) => Math.abs(v[0]))
+    expect(Math.min(...innerXs)).toBeCloseTo(0.7, 4)
+    expect(Math.max(...innerXs)).toBeCloseTo(1.0, 4)
+
+    // Chaining on `insetFaces` is what makes a rim: a second inset, pushed up.
+    const raised = await run({op: 'inset', object: 'plate', faces: (inset.data as any).insetFaces,
+        thickness: 0.15, depth: 0.1})
+    expect(raised.ok).toBe(true)
+    const raisedShape = await run({op: 'inspect', object: 'plate'})
+    expect((raisedShape.data as any).bounds.max[1]).toBeCloseTo(0.2, 4)
+
+    // Solidify a flat grid: the two surfaces end up exactly `thickness` apart.
+    await run({op: 'primitive', type: 'grid', name: 'sheet', xSegments: 2, ySegments: 2, width: 2,
+        depth: 2, position: [0, 5, 0]})
+    const solid = await run({op: 'solidify', object: 'sheet', thickness: 0.25, offset: -1})
+    expect(solid.ok).toBe(true)
+    expect((solid.data as any).rimFaces).toBeGreaterThan(0)
+    const sheet = await run({op: 'inspect', object: 'sheet'})
+    expect((sheet.data as any).bounds.size[1]).toBeCloseTo(0.25, 4)
+    // ...and it is closed, so it survives a validate and has no holes.
+    const solidHealth = await run({op: 'selftest'})
+    expect((solidHealth.data as any).failed).toBe(0)
+
+    await run({op: 'delete', object: '*'})
+
     // --- join and separate ------------------------------------------------------------------------
 
     await run({op: 'delete', object: '*'})
