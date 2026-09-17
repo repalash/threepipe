@@ -61,3 +61,43 @@ Blender's rule wholesale, plus the matching updates to `extrude.test.ts`.
    rule (`edge_face_tot > 1 && !found`) rather than by the current "not a boundary edge" test.
 3. Update `extrude.test.ts` for the island case, and add a lone-face case asserting a closed box.
 4. Re-assert the spin face-input counts.
+
+---
+
+## Fixed
+
+`extrudeFaceRegion` now runs Blender's scan verbatim: `EXT_INPUT` is every edge of the region,
+`delorig` is set by any input edge with a face user outside it, `EXT_DEL` is `edge_face_tot > 1 &&
+!found` on edges and "every edge here is input and deleted, every face here is input" on vertices,
+and the delete is `DEL_ONLYTAGGED` - faces, then tagged edges, then tagged vertices.
+
+Two things the original report missed, both found by reading past line 411 of `bmo_extrude.cc`:
+
+1. **Keeping the original is only half of it.** `if (!delorig && !skip_input_flip)` flips every input
+   face (`bmo_extrude.cc:437`). Without that the kept original faces *into* the new solid, because
+   the side face traverses their shared edge in the same direction as the original does. The closed
+   box you get from a Plane is closed *and* outward-facing because of this line. Ported as
+   `ExtrudeOptions.skipInputFlip` plus `bmesh/flip.ts`, a port of `bmesh_kernel_loop_reverse` and
+   `BM_face_normal_flip` - the face, its loops and their corner data all survive a flip, which
+   matters because the caller is holding the faces it passed in.
+
+   `flip.ts` is a new file because `bmesh/euler.ts`, where the other `bmesh_kernel_*` operators live,
+   was owned by another agent that session. It should move there.
+
+2. **`use_keep_orig` flips too.** It leaves `delorig` false, so it takes the same branch. Only
+   `skip_input_flip` suppresses the flip, and `bmo_spin_exec` is the only caller in Blender that
+   passes it (`bmo_dupe.cc:638`, always `true`).
+
+### Consequence for spin, which is Blender's and not a kernel bug
+
+Because spin passes `skip_input_flip=true`, a spun *face* island keeps the winding the user drew.
+Spinning a lone quad 360 degrees now gives `4 * steps + 2` faces and a closed surface
+(`V - E + F = 2`), as the report predicted - but the surviving seed cap is wound against the tube it
+caps, so four edges are traversed the same way by both their faces. `spin.test.ts` asserts that
+exactly: the seed may disagree, nothing else may, and the count is pinned at 4 so that dropping
+`skipInputFlip` would fail the test rather than silently "improve" it.
+
+That is Blender's output. `edbm_spin_exec` does no normal recalculation afterwards, which is why
+spinning a face rather than a profile is something Blender users are told to follow with
+Shift-N. If the kernel ever wants a friendlier default it should be a new option on `spin`, not a
+change to the extrude rule.

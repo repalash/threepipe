@@ -147,6 +147,10 @@ function spinExtrudeStep(bm: BMesh, geom: StepGeom, options: {
         const res = extrudeFaceRegion(bm, geom.faces, {
             keepOriginal: options.keepOriginal,
             useNormalFlip: options.useNormalFlip,
+            // `skip_input_flip=%b ... true` (`bmo_dupe.cc:638`). Spin is the only caller that passes
+            // it, and it always passes true: the seed profile is the user's own geometry, not one
+            // side of a new solid, so a spin never reverses it even when it survives the step.
+            skipInputFlip: true,
             selectResult: false,
         })
         if (res) {

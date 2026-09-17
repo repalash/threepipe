@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {BMesh} from '../bmesh/BMesh'
-import {BMVert} from '../bmesh/types'
+import {BMFace, BMVert} from '../bmesh/types'
 import {edgeIsManifold, radialLength, radialLoops} from '../bmesh/structure'
 import {bmToMesh} from '../bmesh/convert'
 import {ElemFlag} from '../constants'
@@ -44,6 +44,28 @@ function quadFace(bm: BMesh) {
         bm.vertCreate(1, 0, 0.5),
     ]
     return {verts: v, face: bm.faceCreate(v)}
+}
+
+/**
+ * {@link windingProblems}, but tolerating the one face a spin is documented to leave alone.
+ *
+ * `bmo_spin_exec` extrudes with `skip_input_flip=true` (`bmo_dupe.cc:638`), so when the seed region
+ * survives its step - which it does whenever the seed is a whole island, because then `delorig` is
+ * false - the seed keeps the winding the user gave it, while the side faces around it are wound for
+ * the new solid. Every edge of the seed is therefore traversed the same way twice. That is Blender's
+ * result, not a kernel bug, and this asserts it exactly: the seed may disagree with its neighbours,
+ * and nothing else may.
+ */
+function seamProblemsExcept(bm: BMesh, seed: BMFace): string[] {
+    const problems: string[] = []
+    for (const e of bm.edges) {
+        const loops = [...radialLoops(e)]
+        if (loops.length !== 2 || loops[0].v !== loops[1].v) continue
+        if (loops[0].f === seed || loops[1].f === seed) continue
+        problems.push(
+            `edge ${e.id} is traversed the same way by faces ${loops[0].f.id} and ${loops[1].f.id}`)
+    }
+    return problems
 }
 
 describe('spin - wire input', () => {
@@ -220,24 +242,25 @@ describe('spin - face input', () => {
         const steps = 10
         spin(bm, {faces: [face]}, {axis: Z, angle: Math.PI * 2, steps, useMerge: false})
 
-        // Each step replaces the cap with its duplicate, so only the last cap survives along with
-        // 4 side faces per step, over `steps + 1` rings of 4 vertices.
+        // Both caps survive, plus 4 side faces per step, over `steps + 1` rings of 4 vertices.
         //
-        // Blender keeps the *first* cap as well: `bmo_extrude_face_region_exec` only sets `delorig`
-        // when some input face has a neighbour outside the region, which a lone face does not, so the
-        // step-0 original survives and the sweep comes out closed. The kernel's `extrudeFaceRegion`
-        // deletes the originals unconditionally when `keepOriginal` is false, so there is one cap
-        // rather than two. Recorded in `issues/open/modelling-tools/`; it does not affect the lathe,
-        // which spins a wire profile.
-        expect(bm.totface).toBe(4 * steps + 1)
+        // The *first* cap is the seed face itself. `bmo_extrude_face_region_exec` only sets `delorig`
+        // when some input face has a neighbour outside the region, which a lone face does not, so
+        // step 0 keeps its input; from step 1 on the input cap does have a neighbour - the side faces
+        // step 0 built - and is deleted. So exactly two caps, whatever `steps` is.
+        expect(bm.totface).toBe(4 * steps + 2)
         expect(bm.totvert).toBe(4 * (steps + 1))
         expect(bm.totedge).toBe(4 * (steps + 1) + 4 * steps)
-        // A tube capped at one end: the characteristic of a disk.
-        expect(eulerCharacteristic(bm)).toBe(1)
+        // Capped at both ends: a closed surface.
+        expect(eulerCharacteristic(bm)).toBe(2)
         expect(bm.validate()).toEqual([])
-        expect(windingProblems(bm)).toEqual([])
+        expect(seamProblemsExcept(bm, face)).toEqual([])
         expect(degenerateFaceProblems(bm)).toEqual([])
         for (const f of bm.faces) expect(f.len).toBe(4)
+
+        // And the seed really is the one face that disagrees, on all four of its edges - the direct
+        // observable consequence of `skip_input_flip`. Drop that flag and this is 0, not 4.
+        expect(windingProblems(bm).length).toBe(4)
     })
 
     it('leaves the mesh valid and wound consistently over a partial sweep', () => {
@@ -245,7 +268,7 @@ describe('spin - face input', () => {
         const {face} = quadFace(bm)
         spin(bm, {faces: [face]}, {axis: Z, angle: Math.PI / 2, steps: 4})
         expect(bm.validate()).toEqual([])
-        expect(windingProblems(bm)).toEqual([])
+        expect(seamProblemsExcept(bm, face)).toEqual([])
         expect(degenerateFaceProblems(bm)).toEqual([])
     })
 })
