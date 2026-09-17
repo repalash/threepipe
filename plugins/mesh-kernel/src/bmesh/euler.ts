@@ -14,6 +14,13 @@
  *
  * These are low-level: they assume their preconditions and do not flush selection or recalculate
  * normals. Callers in the operator layer are responsible for that, exactly as in Blender.
+ *
+ * **Attribute handling.** Only SEMV interpolates. `bmesh_kernel_split_face_make_edge` copies from its
+ * example loops and example face and nothing more (`bm_loop_create(bm, v2, e, f, l_v2, ...)`,
+ * `bm_face_create__sfme`), and `bmesh_kernel_join_face_kill_edge` and
+ * `bmesh_kernel_join_edge_kill_vert` touch customdata not at all - they only drop loops. Checked
+ * against `bmesh_core.cc:1507`, `:2049` and `:1799` respectively. Interpolation on a collapse lives
+ * one level up in `BM_vert_collapse_faces` (`bmesh_mods.cc`), which is operator-layer work.
  */
 
 import {BMEdge, BMFace, BMLoop, BMVert} from './types'
@@ -28,7 +35,8 @@ import {
     radialLoopRemove,
     radialLoops,
 } from './structure'
-import {copyElemAttrs, interpElemAttrsMidpoint} from './customdata'
+import {copyElemAttrs} from './customdata'
+import {dataInterpFaceVertEdge, dataInterpFromVerts} from './interp'
 
 /** Remove a loop from its radial cycle without clearing `l.e`. Blender's `bmesh_radial_loop_unlink`. */
 function radialLoopUnlink(l: BMLoop): void {
@@ -104,10 +112,12 @@ export function splitEdgeMakeVert(bm: BMesh, e: BMEdge, tv: BMVert, factor?: num
     diskEdgeAppend(eNew, tv)
 
     if (factor !== undefined) {
+        // `BM_edge_split` (`bmesh_mods.cc:516`):
+        //     sub_v3_v3v3(v_new->co, v_other->co, v->co);
+        //     madd_v3_v3v3fl(v_new->co, v->co, v_new->co, fac);
         vNew.x = tv.x + (vOld.x - tv.x) * factor
         vNew.y = tv.y + (vOld.y - tv.y) * factor
         vNew.z = tv.z + (vOld.z - tv.z) * factor
-        interpElemAttrsMidpoint(vNew, tv, vOld, bm.vdata, factor)
     }
 
     // Split the radial cycle: each existing loop becomes two, one per half of the edge.
@@ -156,6 +166,18 @@ export function splitEdgeMakeVert(bm: BMesh, e: BMEdge, tv: BMVert, factor?: num
                 throw new Error(`mesh-kernel: split of edge ${e.id} left loop ${lNew.id} spanning neither half`)
             }
         }
+    }
+
+    if (factor !== undefined) {
+        // Both domains, in `BM_edge_split`'s order (`bmesh_mods.cc:521`):
+        //     BM_data_interp_face_vert_edge(bm, v_other, v, v_new, e, fac);
+        //     BM_data_interp_from_verts(bm, v, v_other, v_new, fac);
+        // `e` now runs from `vNew` to `vOld`, so its radial cycle is exactly the set of faces whose
+        // corners need blending. Doing this after the radial split is not optional - the new corners
+        // do not exist until then. Corner data was previously only *copied* from the corner it was
+        // split from, which is what `kernel-split-edge-copies-corner-data.md` filed.
+        dataInterpFaceVertEdge(bm, vOld, tv, vNew, e, factor)
+        dataInterpFromVerts(bm, tv, vOld, vNew, factor)
     }
 
     return {vNew, eNew}
