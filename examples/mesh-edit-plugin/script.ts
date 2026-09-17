@@ -38,6 +38,12 @@ async function init() {
 
     const material = new PhysicalMaterial({color: '#b9bcc6', roughness: 0.4, metalness: 0.05})
 
+    /**
+     * Returns the framing promise rather than dropping it: `fitToView` animates the camera, so a
+     * caller that does not wait carries on with the view still moving. At startup that made the
+     * example's first rendered frame depend on timing, which is exactly the sort of thing that shows
+     * up later as a flickering screenshot test rather than as an obvious bug.
+     */
     function setObject(obj: IObject3D) {
         if (meshEdit.isEditing) meshEdit.exit(false)
         for (const child of [...viewer.scene.modelRoot.children]) {
@@ -46,7 +52,7 @@ async function init() {
         }
         viewer.scene.addObject(obj)
         picking.setSelectedObject(obj)
-        viewer.fitToView(undefined, 1.6)
+        return viewer.fitToView(undefined, 1.6)
     }
 
     // Raw three geometries need threepipe's upgrade before a Mesh2 will take them.
@@ -103,7 +109,7 @@ async function init() {
         })
     }
 
-    load.cube()
+    await load.cube()
     refreshStats()
 
     // The scripting API is the agent API: everything the UI does is reachable from here.
