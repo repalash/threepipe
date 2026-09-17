@@ -52,11 +52,23 @@ demo* are narrower than the full manual suggests:
 | Edit mode: element selection, overlays, transform | large | M4, the main unlock |
 | Reference image overlays | **done** | `ReferenceImagePlugin`: drop, drag, resize, screen-space |
 | Numeric transform entry | small | uiConfig already supports it; needs wiring in the editor |
-| n-gon primitives from Blender | medium | All seven exist as triangulated generators; Blender's quad-topology versions are still to port |
+| n-gon primitives from Blender | **done** | `mesh-kernel/src/generate/primitives.ts`, ported from `bmo_primitive.cc` with UVs. Torus composed as a lathe, as Blender's own add-on does. |
 
 The heavy edit-mode ports (bevel, knife, loop cut) remain on the checklist because the manual documents
 them and parity means parity. But they are **not** on the critical path to reproducing this demo, and
 should come after edit mode and the reference-image workflow.
+
+## Note on priorities, 2026-09-17
+
+This checklist is driven by the demo *video*, which is a human at a mouse. A second target arrived
+since - the SU-152 lab report, an agent building a tank through a JSON command API - and it reorders
+things sharply: it built a whole vehicle with no bevel, inset, boolean or knife, and what it actually
+needed was lathe, sweep, array and vertex edits by index. Those are done
+([`03-agent-modelling-api.md`](./03-agent-modelling-api.md)), along with the command API itself.
+
+Both targets stay. This one is the human-UX checklist; 03 is the agent-API one. Where they disagree
+about what to do next, 03 wins, because it is the one with published evidence about which operations
+carry a real build.
 
 ## Parity checklist
 
@@ -90,7 +102,7 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 | Numeric input during a modal op | **done** | Type digits mid-transform |
 | Snapping | todo | M4, plus vertex and grid targets |
 | Extrude | **done** | E, chained into a move as Blender's macro does |
-| Inset | todo | M5 |
+| Inset | in progress | `bmo_inset.cc`, region and individual |
 | Bevel | todo | M6, the largest single port |
 | Loop cut | todo | M5, via subdivide with the ring walker |
 | Knife | todo | M6 |

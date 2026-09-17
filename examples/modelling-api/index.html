@@ -18,52 +18,92 @@
     }
     </script>
     <style id="example-style">
-        html, body, #canvas-container, #mcanvas {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body {
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: #e6e6ea; background: #101014;
+            display: grid;
+            grid-template-columns: 1fr 318px;
+            grid-template-rows: 1fr 218px;
+            grid-template-areas: "view side" "console side";
         }
-        body { font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: #e6e6ea; }
 
-        #console {
-            position: absolute; left: 10px; bottom: 10px; width: 430px;
-            background: rgba(18,18,22,0.92); border-radius: 8px; backdrop-filter: blur(6px);
-            display: flex; flex-direction: column; z-index: 10; overflow: hidden;
+        /*
+          The split the report asked for as its eighth request: reference, the part being worked on,
+          its parameters, and the resulting change, all visible at once. Judging a proportion against
+          a photograph does not work if you have to switch windows to see either one.
+        */
+        #canvas-container { grid-area: view; position: relative; min-width: 0; min-height: 0; }
+        #mcanvas { width: 100%; height: 100%; display: block; }
+
+        #side {
+            grid-area: side; border-left: 1px solid #2a2a32; background: #17171c;
+            display: flex; flex-direction: column; overflow: hidden;
         }
+        #side section { border-bottom: 1px solid #2a2a32; display: flex; flex-direction: column; min-height: 0; }
+        #side h4 {
+            margin: 0; padding: 7px 10px; font-size: 10px; letter-spacing: .08em; font-weight: 600;
+            color: #8a8a96; text-transform: uppercase; display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; user-select: none;
+        }
+        #side h4 span { color: #5e5e6a; text-transform: none; letter-spacing: 0; }
+        #side .body { padding: 0 10px 9px; overflow: auto; }
+        #side section.collapsed .body { display: none; }
+
+        #reference-body img {
+            width: 100%; border-radius: 4px; display: block; background: #0b0b0e;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+        .chips button { padding: 3px 7px; font-size: 11px; }
+
+        #selected-body { color: #b9b9c4; white-space: pre-line; }
+        #selected-body b { color: #e6e6ea; }
+        #modifier-list { margin-top: 6px; }
+        #modifier-list div { color: #ffcf6b; }
+
+        #timeline { flex: 1; }
+        #timeline-body { flex: 1; }
+        .step {
+            display: flex; gap: 6px; padding: 2px 0; cursor: pointer; align-items: baseline;
+            border-radius: 3px;
+        }
+        .step:hover { background: #22222a; }
+        .step.undone { opacity: .42; }
+        .step .n { color: #5e5e6a; min-width: 22px; text-align: right; }
+        .step .op { color: #a8c4ff; }
+        .step .detail { color: #8a8a96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .step.fail .op { color: #ff9c9c; }
+        .step .cp { color: #9fd89f; }
+
+        #ops-body .op-row { cursor: pointer; padding: 1px 0; }
+        #ops-body .op-row:hover { color: #a8c4ff; }
+        #ops-body code { color: #ffcf6b; }
+
+        #console { grid-area: console; display: flex; flex-direction: column; background: #131318;
+            border-top: 1px solid #2a2a32; overflow: hidden; }
         #console header {
-            display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-            border-bottom: 1px solid #33333d;
+            display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+            border-bottom: 1px solid #2a2a32;
         }
         #console header b { font-weight: 600; letter-spacing: .04em; }
-        #console header span { color: #8a8a96; }
-        #log { height: 190px; overflow: auto; padding: 8px 10px; white-space: pre-wrap; }
+        #console header span { color: #5e5e6a; }
+        #log { flex: 1; overflow: auto; padding: 6px 10px; white-space: pre-wrap; }
         #log .ok { color: #9fd89f; }
         #log .err { color: #ff9c9c; }
         #log .cmd { color: #a8c4ff; }
         #log .warn { color: #ffcf6b; }
         #input {
-            border: 0; border-top: 1px solid #33333d; background: #16161a; color: #e6e6ea;
-            font: inherit; padding: 8px 10px; resize: vertical; height: 58px; outline: none;
+            border: 0; border-top: 1px solid #2a2a32; background: #0e0e12; color: #e6e6ea;
+            font: inherit; padding: 7px 10px; resize: none; height: 46px; outline: none;
         }
-        #console footer { display: flex; gap: 6px; padding: 7px 10px; border-top: 1px solid #33333d; }
-        button {
-            padding: 4px 10px; border: 1px solid #3a3a44; border-radius: 4px;
-            background: #26262e; color: #e6e6ea; font: inherit; cursor: pointer;
-        }
-        button:hover { background: #33333d; }
+        #console footer { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid #2a2a32; }
 
-        #ops {
-            position: absolute; top: 10px; left: 10px; width: 250px; max-height: 60vh; overflow: auto;
-            background: rgba(18,18,22,0.9); border-radius: 8px; padding: 9px 11px;
-            backdrop-filter: blur(6px); z-index: 10;
+        button {
+            padding: 4px 9px; border: 1px solid #33333d; border-radius: 4px;
+            background: #23232b; color: #e6e6ea; font: inherit; cursor: pointer;
         }
-        #ops h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .06em; color: #8a8a96;
-            text-transform: uppercase; font-weight: 600; }
-        #ops .op { cursor: pointer; padding: 2px 0; }
-        #ops .op:hover { color: #a8c4ff; }
-        #ops .op code { color: #ffcf6b; }
-        #ops .op em { color: #8a8a96; font-style: normal; }
+        button:hover { background: #2e2e38; }
+        button:disabled { opacity: .4; cursor: default; }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
@@ -74,9 +114,31 @@
     <canvas id="mcanvas"></canvas>
 </div>
 
-<div id="ops">
-    <h4>Commands</h4>
-    <div id="op-list">loading…</div>
+<div id="side">
+    <section id="reference">
+        <h4>Reference <span id="reference-scale"></span></h4>
+        <div class="body" id="reference-body">
+            <div style="color:#5e5e6a">none placed — <code>{"op":"reference", …}</code></div>
+        </div>
+    </section>
+
+    <section id="selected">
+        <h4>Selected <span id="selected-name"></span></h4>
+        <div class="body">
+            <div id="selected-body">nothing selected</div>
+            <div id="modifier-list"></div>
+        </div>
+    </section>
+
+    <section id="timeline">
+        <h4>Timeline <span id="timeline-count"></span></h4>
+        <div class="body" id="timeline-body"></div>
+    </section>
+
+    <section id="ops" class="collapsed">
+        <h4>Commands <span>click to expand</span></h4>
+        <div class="body" id="ops-body"></div>
+    </section>
 </div>
 
 <div id="console">
@@ -86,6 +148,7 @@
     <footer>
         <button id="run">Run  (Ctrl+Enter)</button>
         <button id="undo">Undo</button>
+        <button id="redo">Redo</button>
         <button id="capture">Capture</button>
         <button id="demo">Run demo build</button>
     </footer>

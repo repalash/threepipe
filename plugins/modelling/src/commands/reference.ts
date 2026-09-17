@@ -177,7 +177,11 @@ export const referenceCommand: CommandDefinition = {
         }
 
         const material = state.object.material as UnlitMaterial
-        if (texture) material.map = texture as never
+        if (texture) {
+            material.map = texture as never
+            // Adding a map changes the shader, not just a uniform.
+            material.needsUpdate = true
+        }
         if (p.opacity !== undefined) state.opacity = p.opacity as number
         material.opacity = state.opacity
         material.depthTest = p.behind === undefined ? true : !(p.behind as boolean)

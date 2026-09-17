@@ -518,7 +518,41 @@ export const helpCommand: CommandDefinition = {
     },
 }
 
+export const historyCommand: CommandDefinition = {
+    op: 'history',
+    summary: 'The command history: what has been done, what has been undone, and the checkpoints.',
+    description:
+        'One entry per mutating command, oldest first, with `undone` marking everything above the '
+        + 'current position. An agent that has lost track of where it is asks this; a UI draws a '
+        + 'timeline from it.',
+    mutates: false,
+    schema: schema({
+        limit: S.integer('Return only the most recent N entries.', {minimum: 1}),
+        results: S.boolean('Include the full result log as well, not only the undo stack.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const log = ctx.plugin.history.log
+        const limit = p.limit as number | undefined
+        return {
+            data: {
+                entries: limit ? log.slice(-limit) : log,
+                canUndo: ctx.plugin.history.canUndo,
+                canRedo: ctx.plugin.history.canRedo,
+                checkpoints: log.filter(e => e.checkpoint).map(e => e.checkpoint),
+                results: p.results
+                    ? ctx.plugin.results.map(r => ({
+                        index: r.index, op: r.op, ok: r.ok, ms: r.ms,
+                        objects: r.objects, error: r.error, warnings: r.warnings,
+                    }))
+                    : undefined,
+            },
+        }
+    },
+}
+
 export const sessionCommands = [
     cameraCommand, captureCommand, inspectCommand, measureCommand,
-    undoCommand, redoCommand, checkpointCommand, selftestCommand, exportCommand, helpCommand,
+    undoCommand, redoCommand, checkpointCommand, historyCommand, selftestCommand, exportCommand,
+    helpCommand,
 ]

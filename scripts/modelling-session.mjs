@@ -21,7 +21,7 @@
 
 import {chromium} from 'playwright'
 import {spawn} from 'node:child_process'
-import {mkdir, writeFile} from 'node:fs/promises'
+import {mkdir, writeFile, appendFile, readFile, stat} from 'node:fs/promises'
 import {resolve, isAbsolute, join, dirname} from 'node:path'
 import {pathToFileURL} from 'node:url'
 
@@ -37,16 +37,19 @@ for (let i = 0; i < args.length; i++) {
     } else positional.push(args[i])
 }
 
+const watchDir = flags.get('watch')
 const buildPath = positional[0]
-if (!buildPath) {
+if (!buildPath && !watchDir) {
     console.error('usage: npm run modelling:session -- <build-script.mjs> [--out dir] [--port 9229]'
+        + '\n   or: npm run modelling:session -- --watch <dir>  (live session; append JSON commands'
+        + ' to <dir>/commands.jsonl, read <dir>/results.jsonl)'
         + ' [--width 1280] [--height 800] [--headed] [--keep-open] [--no-serve]'
-        + ' [--command-timeout 60000]')
+        + ' [--command-timeout 60000] [--keep-ui]')
     process.exit(1)
 }
 
 const port = Number(flags.get('port') ?? 9229)
-const outDir = resolve(flags.get('out') ?? 'tmp/modelling-session')
+const outDir = resolve(flags.get('out') ?? (watchDir ? watchDir : 'tmp/modelling-session'))
 const width = Number(flags.get('width') ?? 1280)
 const height = Number(flags.get('height') ?? 800)
 const url = flags.get('url')
@@ -98,12 +101,21 @@ console.log(`opening ${url}`)
 await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000})
 // The viewer renders continuously, so `networkidle` never settles. Wait for the plugin instead.
 await page.waitForFunction(() => !!window.modelling, {timeout: 90000})
-await page.evaluate(() => {
-    for (const sel of ['#console', '#ops', '#tweakpaneUiContainer', '.code-preview',
-        '#example-code-preview', '#example-code-btn']) {
-        document.querySelectorAll(sel).forEach(n => (n.style.display = 'none'))
-    }
-})
+// Captures are of the model, not of the tool - unless you are documenting the tool itself.
+if (!flags.get('keep-ui')) {
+    await page.evaluate(() => {
+        for (const sel of ['#console', '#side', '#tweakpaneUiContainer', '.code-preview',
+            '#example-code-preview', '#example-code-btn']) {
+            document.querySelectorAll(sel).forEach(n => (n.style.display = 'none'))
+        }
+        // The viewport was one cell of a grid; with the panels gone it should take the lot.
+        document.body.style.gridTemplateColumns = '1fr'
+        document.body.style.gridTemplateRows = '1fr'
+        document.body.style.gridTemplateAreas = '"view"'
+        window.dispatchEvent(new Event('resize'))
+    })
+    await sleep(300)
+}
 
 // --- the session --------------------------------------------------------------------------------
 
@@ -198,7 +210,96 @@ async function inspect(object, detail = false) {
 
 const log = (...parts) => console.log(' ', ...parts)
 
+// --- live session -------------------------------------------------------------------------------
+
+/**
+ * Watch a file of commands and answer them as they arrive.
+ *
+ * This is the loop the SU-152 report describes and the one a build script cannot reproduce: send a
+ * command, look at what it did, decide the next one. An agent - or a person with a text editor -
+ * appends a JSON command per line to `commands.jsonl` and reads the matching line from
+ * `results.jsonl`; a `capture` writes a numbered PNG beside them.
+ *
+ *     npm run modelling:session -- --watch tmp/session &
+ *     echo '{"op":"primitive","type":"cube","name":"hull","width":2.4}' >> tmp/session/commands.jsonl
+ *     echo '{"op":"capture","label":"hull"}' >> tmp/session/commands.jsonl
+ *     tail -2 tmp/session/results.jsonl
+ */
+async function watchSession(dir) {
+    const commandsPath = join(dir, 'commands.jsonl')
+    const resultsPath = join(dir, 'results.jsonl')
+    await appendFile(commandsPath, '')
+    await appendFile(resultsPath, '')
+
+    let consumed = (await readFile(commandsPath, 'utf8')).split('\n').filter(Boolean).length
+    console.log(`watching ${commandsPath} (${consumed} lines already there, skipping them)`)
+    console.log(`results   ${resultsPath}`)
+    console.log(`captures  ${dir}`)
+    console.log('ready')
+
+    let lastSize = -1
+    for (;;) {
+        let size = 0
+        try {
+            size = (await stat(commandsPath)).size
+        } catch {
+            await sleep(300)
+            continue
+        }
+        if (size === lastSize) {
+            await sleep(250)
+            continue
+        }
+        lastSize = size
+
+        const lines = (await readFile(commandsPath, 'utf8')).split('\n').filter(Boolean)
+        for (const line of lines.slice(consumed)) {
+            consumed++
+            let command
+            try {
+                command = JSON.parse(line)
+            } catch (e) {
+                await appendFile(resultsPath,
+                    JSON.stringify({ok: false, error: `not valid JSON: ${e.message}`, line}) + '\n')
+                continue
+            }
+            if (command.op === 'quit') {
+                await appendFile(resultsPath, JSON.stringify({ok: true, op: 'quit'}) + '\n')
+                return
+            }
+
+            const isCapture = command.op === 'capture'
+            const result = isCapture
+                ? await captureToFile(command)
+                : await run(command).catch(e => ({ok: false, op: command.op, error: e.message}))
+
+            // The data URL is megabytes; the caller wants the filename, not the pixels.
+            if (result?.data?.dataUrl) delete result.data.dataUrl
+            await appendFile(resultsPath, JSON.stringify(result) + '\n')
+        }
+    }
+}
+
+/** A `capture` in watch mode writes a PNG and reports its name. */
+async function captureToFile(command) {
+    const label = command.label ?? `capture-${captureIndex + 1}`
+    const name = await capture(label, {view: command.view, fit: command.fit, padding: command.padding})
+    const last = transcript[transcript.length - 1]
+    return {...last?.result, capture: name, file: name ? join(outDir, name) : null}
+}
+
 // --- execute ------------------------------------------------------------------------------------
+
+if (watchDir) {
+    await watchSession(outDir)
+    await writeFile(join(outDir, 'transcript.json'),
+        JSON.stringify({operations: transcript}, null, 2))
+    console.log('session ended')
+    await context.close()
+    await browser.close()
+    server?.kill()
+    process.exit(0)
+}
 
 const modulePath = isAbsolute(buildPath) ? buildPath : resolve(buildPath)
 const build = (await import(pathToFileURL(modulePath).href)).default
