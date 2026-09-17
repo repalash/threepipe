@@ -12,6 +12,14 @@ Reports (read these for evidence, line numbers and file paths):
 
 Work happens in the `modelling-tools` branch worktree at `.repos/threepipe-modelling/` (base `0641fb7`).
 
+Subplans:
+- `01-m1-kernel-subplan.md` — kernel milestone (M1) status and porting decisions
+- `02-parity-goal.md` — kokraf parity checklist, driven by the demo video (human UX target)
+- `03-agent-modelling-api.md` — **primary goal**: the command API an agent drives, from the SU-152
+  lab report. Generators (lathe/sweep/array), the `@threepipe/plugin-modelling` command surface,
+  calibrated reference planes, live modifiers. Reorders M3/M5 — the report built a whole tank with
+  no bevel, inset, boolean or knife.
+
 ---
 
 ## 1. Goals (restated from the brief)
