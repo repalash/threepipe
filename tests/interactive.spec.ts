@@ -2600,3 +2600,183 @@ test('modelling-api', async({page}) => {
     const final = await run({op: 'selftest'})
     expect((final.data as any).failed).toBe(0)
 })
+
+test('mesh-kernel-playground', async({page}) => {
+    await expect(page).toHaveTitle('Mesh Kernel Playground')
+
+    const stats = async() => page.evaluate(() => {
+        const m = (window as any).kernel.mesh
+        return {verts: m.vertsNum, edges: m.edgesNum, faces: m.facesNum, problems: m.validate()}
+    })
+
+    // A cube is 8/12/6 and Euler-valid. If the kernel ever starts triangulating on the way in or
+    // out, this is the first thing that changes.
+    const cube = await stats()
+    expect(cube).toEqual({verts: 8, edges: 12, faces: 6, problems: []})
+    expect(cube.verts - cube.edges + cube.faces).toBe(2)
+
+    const op = async(name: string) => {
+        await page.locator(`[data-op="${name}"]`).click()
+        await page.waitForTimeout(120)
+        return stats()
+    }
+
+    // SEMV on every edge: one new vertex per edge, faces unchanged, still closed.
+    const split = await op('subdivide')
+    expect(split.verts).toBe(cube.verts + cube.edges)
+    expect(split.edges).toBe(cube.edges * 2)
+    expect(split.faces).toBe(cube.faces)
+    expect(split.verts - split.edges + split.faces).toBe(2)
+    expect(split.problems).toEqual([])
+
+    // SFME once per face: each quad becomes two triangles, no new vertices.
+    await op('reset')
+    const triangulated = await op('triangulate')
+    expect(triangulated.verts).toBe(cube.verts)
+    expect(triangulated.faces).toBe(cube.faces * 2)
+    expect(triangulated.edges).toBe(cube.edges + cube.faces)
+    expect(triangulated.problems).toEqual([])
+
+    // JFKE on one manifold edge: two quads become one n-gon.
+    await op('reset')
+    const dissolved = await op('dissolve')
+    expect(dissolved.verts).toBe(cube.verts)
+    expect(dissolved.faces).toBe(cube.faces - 1)
+    expect(dissolved.edges).toBe(cube.edges - 1)
+    expect(dissolved.problems).toEqual([])
+
+    // The fan is built from repeated SFME, so like `triangulate` it adds no vertices - it cuts each
+    // quad down to triangles rather than adding a centre vertex.
+    await op('reset')
+    const poked = await op('poke')
+    expect(poked.verts).toBe(cube.verts)
+    expect(poked.faces).toBeGreaterThan(cube.faces)
+    expect(poked.problems).toEqual([])
+
+    // The array form and the linked form must agree in both directions.
+    await op('reset')
+    const roundTripped = await op('roundtrip')
+    expect(roundTripped).toEqual(cube)
+
+    const ngon = await op('ngon')
+    expect(ngon.faces).toBe(1)
+    expect(ngon.verts).toBe(12)
+    expect(ngon.problems).toEqual([])
+
+    const grid = await op('grid')
+    expect(grid.faces).toBe(16)
+    expect(grid.problems).toEqual([])
+})
+
+test('mesh-edit-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Mesh Edit Plugin')
+
+    const state = async() => page.evaluate(() => {
+        const e = (window as any).meshEdit
+        if (!e.state) return null
+        const bm = e.state.bm
+        return {
+            verts: bm.totvert, edges: bm.totedge, faces: bm.totface,
+            selected: [bm.totvertsel, bm.totedgesel, bm.totfacesel],
+            problems: bm.validate(),
+            welded: e.state.weldedCount,
+        }
+    })
+
+    await page.locator('[data-op="cube"]').click()
+    await page.waitForTimeout(250)
+    expect(await state()).toBe(null)
+
+    const raw = await page.evaluate(() => {
+        const picking = (window as any).picking
+        const object = picking.getSelectedObject()
+        return object?.geometry?.getAttribute('position')?.count ?? 0
+    })
+
+    await page.evaluate(() => (window as any).meshEdit.enter())
+    await page.waitForTimeout(200)
+
+    // The example's cube is a 2x2x2 BoxGeometry: 24 quads, so 48 triangles and 26 distinct corners.
+    // Edit mode recovers topology by welding those triangles, which is the lossy path - the
+    // interesting assertion is that the weld actually happened and the result is valid, not that it
+    // guessed the quads back.
+    const entered = await state()
+    expect(entered!.faces).toBe(48)
+    expect(entered!.verts).toBe(26)
+    expect(entered!.verts).toBeLessThan(raw)
+    expect(entered!.verts - entered!.edges + entered!.faces).toBe(2)
+    expect(entered!.problems).toEqual([])
+
+    await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        e.setSelectMode(4)
+        e.selectAllElements()
+    })
+    await page.waitForTimeout(120)
+    expect((await state())!.selected[2]).toBe(48)
+
+    // Extrude every face of a closed mesh: nothing borders the region, so Blender keeps the
+    // originals and reverses them, giving a shell inside a shell.
+    await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        e.extrude()
+        for (const key of ['0', '.', '3']) e.activeTransform?.handleNumericKey(key)
+        e.confirmTransform()
+    })
+    await page.waitForTimeout(250)
+    const extruded = await state()
+    expect(extruded!.faces).toBeGreaterThan(48)
+    expect(extruded!.problems).toEqual([])
+
+    // Leaving edit mode must bake a valid geometry back onto the object.
+    const baked = await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        const object = e.editObject
+        e.exit(true)
+        const position = object.geometry.getAttribute('position')
+        const index = object.geometry.getIndex()
+        return {editing: e.isEditing, positions: position?.count ?? 0, indices: index?.count ?? 0}
+    })
+    expect(baked.editing).toBe(false)
+    expect(baked.positions).toBeGreaterThan(0)
+    expect(baked.indices % 3).toBe(0)
+})
+
+test('modelling-workspace', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Workspace')
+
+    const count = async() => page.evaluate(() =>
+        (window as any).viewer.scene.modelRoot.children.filter((c: any) => c.assetType !== 'widget').length)
+
+    await page.locator('#clear').click()
+    await page.waitForTimeout(150)
+    expect(await count()).toBe(0)
+
+    // Every entry in the Add bar must produce exactly one object with usable geometry.
+    for (const primitive of ['box', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
+        await page.locator(`[data-add="${primitive}"]`).click()
+        await page.waitForTimeout(160)
+    }
+    expect(await count()).toBe(7)
+
+    const geometries = await page.evaluate(() =>
+        (window as any).viewer.scene.modelRoot.children
+            .filter((c: any) => c.assetType !== 'widget')
+            .map((c: any) => ({
+                name: c.name,
+                verts: c.geometry?.getAttribute('position')?.count ?? 0,
+            })))
+    for (const g of geometries) expect(g.verts).toBeGreaterThan(2)
+
+    // The mode indicator has to track edit mode, since it is the only thing telling you which
+    // keymap is live.
+    const mode = await page.evaluate(async() => {
+        const e = (window as any).meshEdit
+        e.enter()
+        const inEdit = document.getElementById('mode')!.textContent
+        e.exit(false)
+        return {inEdit, after: document.getElementById('mode')!.textContent}
+    })
+    expect(mode.inEdit).toBe('EDIT MODE')
+    expect(mode.after).toBe('OBJECT MODE')
+})
