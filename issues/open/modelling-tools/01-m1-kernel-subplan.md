@@ -136,6 +136,11 @@ Ported as found, because each one is load-bearing and each one is surprising:
 | `mirror.ts` | `bmo_mirror.cc`, with the winding reversal from `mesh_flip_faces.cc` (which is where Blender actually does it) |
 | `../bmesh/splice.ts` | `BM_vert_splice`, `BM_edge_splice`, `bmesh_edge_vert_swap`, `BM_edge_find_double`, `BM_face_find_double` |
 | `../ops/weld.ts` | `bmo_removedoubles.cc` `bmo_weld_verts_exec` |
+| `../ops/inset.ts` | `bmo_inset.cc`, both forms, every option. Needed three core kernels that did not exist here — `bmesh_kernel_edge_separate`, `bmesh_kernel_vert_separate`, `bmesh_kernel_unglue_region_make_vert` — which are private there for now and belong in `bmesh/` |
+| `../ops/solidify.ts` | `MOD_solidify_extrude.cc` simple mode (the entry point is `MOD_solidify_extrude_modifyMesh:150`; there is no `solidify_extrude_modifyMesh`). Non-manifold mode and vertex-group weighting out of scope, stated in the header |
+| `../ops/join.ts` | `join_geometries.cc` for the attribute union, `BM_mesh_separate_loose` and `P > Selection` for the splits |
+| `../bmesh/interp.ts` | `bmesh_interp.cc` + `interp_weights_poly_v2` from `math_geom.cc`. Multires paths out of scope |
+| `../bmesh/flip.ts`, `../bmesh/ngon.ts`, `../bmesh/collapse.ts`, `../ops/dissolve.ts`, `../ops/subdivide.ts` | promoted out of `primitives.ts` and `extrude.ts` — see Cleanup debt |
 
 ### Three real bugs this work found in existing kernel code
 
@@ -172,9 +177,16 @@ Ported as found, because each one is load-bearing and each one is surprising:
   neighbour, and reverses them with `bmesh/flip.ts` when it keeps them, which is the other half of
   the rule the report missed. Extruding a lone face gives a closed box. See the issue for what it
   means for `spin`, which passes `skip_input_flip` and so leaves its seed cap wound as drawn.
-- [`kernel-split-edge-copies-corner-data.md`](./kernel-split-edge-copies-corner-data.md) —
-  `splitEdgeMakeVert` copies corner attributes instead of interpolating (`BM_data_interp_face_vert_edge`
-  is missing). Visible as stepped UVs on an icosphere above subdivision 1.
+- [`kernel-split-edge-copies-corner-data.md`](./kernel-split-edge-copies-corner-data.md) — **fixed.**
+  `bmesh/interp.ts` ports `bmesh_interp.cc` and `splitEdgeMakeVert` now ends with `BM_edge_split`'s
+  pair. A second bug turned up with it: `interpElemAttrs` treated every integer-storage layer as
+  categorical, so a vertex-colour layer took one endpoint verbatim on every split; it now dispatches
+  per type as `CustomData_bmesh_interp` does.
+- [`kernel-elem-attrs-copy-flags.md`](./kernel-elem-attrs-copy-flags.md) — **open.** Element creation
+  does not follow `BM_elem_attrs_copy`'s flag rule: Blender keeps the destination's select bit and
+  takes everything else including `BM_ELEM_TAG`, the kernel does the opposite. Both inset and
+  duplicate work around it locally. Wants a deliberate pass, not a drive-by, because it changes every
+  operator's output flags at once.
 - [`kernel-weld-verts-not-ported.md`](./kernel-weld-verts-not-ported.md) — resolved in substance by
   `ops/weld.ts`; the remaining item is the selection-history remap (`BM_select_history_merge_from_targetmap`).
 
@@ -193,6 +205,12 @@ implementations and the rest of its private operators were promoted out:
 | `bmesh_kernel_join_vert_kill_edge`, `BM_edge_collapse` | `bmesh/collapse.ts` (new). **These belong in `bmesh/euler.ts`** and should move there; that file was owned by another agent at the time |
 | `bmo_subdivide_edges_exec` (`tri_3edge` + `use_sphere`), `BM_vert_pair_share_face_by_len` | `ops/subdivide.ts` (new) |
 | `BM_face_create_ngon`, `bm_edges_sort_winding` | `bmesh/ngon.ts` (new). Natural home is `BMesh.ts`, next to `faceCreate` |
+
+Still outstanding, from the later ports: `bmesh_kernel_edge_separate`, `bmesh_kernel_vert_separate`
+and `bmesh_kernel_unglue_region_make_vert` are private in `ops/inset.ts` and belong in `bmesh/`;
+`sin_cos_from_fraction` and `BM_face_calc_normal` are still private in `primitives.ts` (the latter is
+also open-coded as `averageFaceNormal` in `extrude.ts` and ported again as `faceCalcNormal` in
+`bmesh/interp.ts` — three copies of one Blender function, which is two too many).
 
 Still private in `primitives.ts`, with no shared home yet: `sin_cos_from_fraction` and
 `BM_face_calc_normal` (neither is in `math/index.ts`; the latter is also open-coded as
