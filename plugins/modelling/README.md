@@ -68,6 +68,8 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `modifier` | the live stack: add, update, reorder, remove, apply |
 | `duplicate` | copy objects, optionally repeated and offset |
 | `mirror` | mirror geometry across a plane, welding what sits on it |
+| `join` | merge objects into one mesh, keeping relative placement |
+| `separate` | split by loose parts, or by a list of faces |
 | `delete` | remove objects |
 | `rename`, `material`, `select` | naming, colour and surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
@@ -76,7 +78,7 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `capture` | render a frame and hand it back |
 | `inspect` | counts, bounds, transform, and per-vertex detail |
 | `measure` | world bounds, and intersecting pairs - clearance checking |
-| `undo`, `redo`, `checkpoint` | history, with named points to rewind to |
+| `undo`, `redo`, `checkpoint`, `history` | history, with named points to rewind to |
 | `selftest` | validate every mesh's topology and render bake |
 | `export` | GLB or glTF |
 | `help` | the table itself |

@@ -2533,6 +2533,29 @@ test('modelling-api', async({page}) => {
     expect((computed.data as any).source).toBe('computed')
     expect((computed.data as any).saved).toBe('overhead')
 
+    // --- join and separate ------------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'left', size: 1, position: [-3, 0, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'right', size: 1, position: [3, 0, 0]})
+    const joined = await run({op: 'join', object: ['left', 'right'], name: 'pair'})
+    expect(joined.ok).toBe(true)
+    // Nothing is welded, so the counts are exactly the sum.
+    expect((joined.data as any).verts).toBe(16)
+    expect((joined.data as any).faces).toBe(12)
+    expect((await state()).objects.map(o => o.name)).toEqual(['pair'])
+
+    // The parts kept their relative placement: the joined mesh spans both original positions.
+    const pairBounds = await run({op: 'inspect', object: 'pair'})
+    expect((pairBounds.data as any).bounds.size[0]).toBeCloseTo(7, 1)
+
+    const split = await run({op: 'separate', object: 'pair', mode: 'loose'})
+    expect((split.data as any).created).toBe(1)
+    expect((await state()).objects.length).toBe(2)
+    for (const o of (await state()).objects) expect(o.faces).toBe(6)
+
+    await run({op: 'delete', object: '*'})
+
     // --- edit mode shares the document, rather than re-deriving it ------------------------------
 
     await run({op: 'delete', object: '*'})

@@ -18,8 +18,11 @@ import {
     bmFromMesh,
     bmToMesh,
     extrudeFaceRegion,
+    joinMeshes,
     Mat4,
     mirrorGeometry,
+    separateFaces,
+    separateLooseParts,
     translateVerts,
     Vec3,
 } from '@threepipe/mesh-kernel'
@@ -487,6 +490,129 @@ export const extrudeCommand: CommandDefinition = {
     },
 }
 
+export const joinCommand: CommandDefinition = {
+    op: 'join',
+    summary: 'Merge several objects into one mesh, keeping their relative placement.',
+    description:
+        'The first object listed keeps its name and transform; the rest are brought into its space '
+        + 'and removed. Nothing is welded - coincident vertices from two parts stay distinct, as in '
+        + 'Blender - so follow with a `weld` if that is what you want.\n\n'
+        + 'Useful before export, and useful when a group of parts has stopped being separately '
+        + 'editable in any meaningful sense.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('Objects to join. The first one listed is the survivor.'),
+        objects: S.objectRef('Alias for `object`.'),
+        name: S.string('Rename the result.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const targets = readTargets(p, ctx.doc)
+        if (targets.length < 2) throw new Error('join needs at least two objects')
+
+        const primary = targets[0]
+        primary.object.updateWorldMatrix(true, false)
+        const toLocal = new Matrix4().copy(primary.object.matrixWorld as Matrix4).invert()
+
+        const inputs = targets.map(entry => {
+            entry.object.updateWorldMatrix(true, false)
+            const relative = new Matrix4()
+                .multiplyMatrices(toLocal, entry.object.matrixWorld as Matrix4)
+            return {
+                mesh: entry.evaluated,
+                matrix: relative.toArray() as Mat4,
+            }
+        })
+
+        const joined = joinMeshes(inputs)
+        ctx.doc.record(primary)
+        primary.modifiers.length = 0   // the stack was baked into `evaluated` by the join
+        ctx.doc.setMesh(primary, joined)
+        for (const entry of targets.slice(1)) ctx.doc.remove(entry)
+        if (p.name) ctx.doc.rename(primary, p.name as string)
+
+        return {
+            objects: [primary.name],
+            data: {
+                name: primary.name,
+                joined: targets.length,
+                verts: joined.vertsNum,
+                faces: joined.facesNum,
+            },
+        }
+    },
+}
+
+export const separateCommand: CommandDefinition = {
+    op: 'separate',
+    summary: 'Split an object: by loose parts, or by a list of faces.',
+    description:
+        'Blender\'s `P`. `loose` pulls every disconnected shell into its own object - the usual way '
+        + 'to undo an over-eager join. `faces` pulls the listed faces out into a new object and '
+        + 'leaves the rest behind; vertices shared with faces that stay exist in both halves, again '
+        + 'as in Blender.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to split.'),
+        objects: S.objectRef('Alias for `object`.'),
+        mode: S.enum('`loose` by connected component, `faces` by an explicit list.',
+            ['loose', 'faces']),
+        faces: S.array('Face indices, for `faces` mode.', {type: 'integer'}),
+        name: S.string('Base name for the new objects. Defaults to the source name.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const mode = (p.mode as string) ?? (p.faces ? 'faces' : 'loose')
+        const base = (p.name as string) ?? entry.name
+
+        // A modifier stack has to be applied first: its copies are not in the master, and splitting
+        // a master while a stack still multiplies it would silently drop them.
+        if (entry.modifiers.length) {
+            ctx.doc.record(entry)
+            entry.mesh = entry.evaluated
+            entry.modifiers.length = 0
+            ctx.doc.rebake(entry)
+            ctx.warn(`applied ${entry.name}'s modifier stack before separating`)
+        }
+
+        const made: string[] = []
+        const place = (mesh: import('@threepipe/mesh-kernel').MeshData, name: string) => {
+            const copy = ctx.doc.add(mesh, {name: ctx.doc.uniqueName(name)})
+            copy.object.position.copy(entry.object.position)
+            copy.object.quaternion.copy(entry.object.quaternion)
+            copy.object.scale.copy(entry.object.scale)
+            const mat = entry.object.material as {color?: {getHexString(): string}} | undefined
+            const copyMat = copy.object.material as {color?: {set(v: string): void}} | undefined
+            if (mat?.color && copyMat?.color) copyMat.color.set('#' + mat.color.getHexString())
+            made.push(copy.name)
+        }
+
+        if (mode === 'faces') {
+            if (!Array.isArray(p.faces) || !p.faces.length) {
+                throw new Error('separate by faces needs a non-empty `faces` list')
+            }
+            const {separated, remaining} = separateFaces(entry.mesh, p.faces as number[])
+            if (!remaining.facesNum) throw new Error('that would separate every face, leaving nothing')
+            ctx.doc.setMesh(entry, remaining)
+            place(separated, base)
+        } else {
+            const parts = separateLooseParts(entry.mesh)
+            if (parts.length < 2) {
+                ctx.warn(`"${entry.name}" is a single connected part; nothing to separate`)
+                return {objects: [entry.name], data: {parts: 1}}
+            }
+            ctx.doc.setMesh(entry, parts[0])
+            for (const part of parts.slice(1)) place(part, base)
+        }
+
+        return {
+            objects: [entry.name, ...made],
+            data: {mode, created: made.length, remaining: entry.mesh.facesNum},
+        }
+    },
+}
+
 export const deleteCommand: CommandDefinition = {
     op: 'delete',
     summary: 'Remove objects from the document and the scene.',
@@ -506,5 +632,5 @@ export const deleteCommand: CommandDefinition = {
 
 export const editCommands = [
     verticesCommand, transformCommand, extrudeCommand, arrayCommand, duplicateCommand,
-    mirrorCommand, deleteCommand,
+    mirrorCommand, joinCommand, separateCommand, deleteCommand,
 ]
