@@ -50,6 +50,8 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:mesh-kernel": "npm run test --prefix plugins/mesh-kernel",
+    "test:unit:modelling": "npm run test --prefix plugins/modelling",
+    "modelling:session": "node scripts/modelling-session.mjs",
     "test:e2e:precache": "node tests/precache-cdn.mjs",
     "test:e2e": "npx playwright test",
     "test:e2e:interactive": "npx playwright test tests/interactive.spec.ts",

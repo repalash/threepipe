@@ -2358,3 +2358,181 @@ test('hdr-to-exr', async({page}, testInfo) => {
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
 })
 
+
+test('modelling-api', async({page}) => {
+    await expect(page).toHaveTitle('Modelling command API')
+
+    /** Run a command through the plugin, exactly as the console and a script do. */
+    const run = async(command: Record<string, unknown>) =>
+        page.evaluate(c => (window as any).modelling.run(c), command)
+
+    const state = async() => page.evaluate(() => {
+        const m = (window as any).modelling
+        return {
+            objects: m.document.entries.map((e: any) => ({
+                name: e.name,
+                verts: e.mesh.vertsNum,
+                faces: e.mesh.facesNum,
+                evaluatedVerts: e.evaluated.vertsNum,
+                modifiers: e.modifiers.length,
+            })),
+            canUndo: m.history.canUndo,
+        }
+    })
+
+    // The page builds its starting cube through the API, so the document is not empty.
+    expect((await state()).objects.map(o => o.name)).toEqual(['hull'])
+
+    // --- the table an agent reads ------------------------------------------------------------
+
+    const described = await page.evaluate(() => (window as any).modelling.describeCommands())
+    const ops = described.map((d: any) => d.name)
+    for (const op of ['primitive', 'lathe', 'sweep', 'vertices', 'transform', 'array', 'duplicate',
+        'mirror', 'modifier', 'reference', 'capture', 'inspect', 'measure', 'undo', 'selftest']) {
+        expect(ops).toContain(op)
+    }
+    // Every command must carry a usable schema; an agent cannot call what it cannot see.
+    for (const d of described) {
+        expect(d.description.length).toBeGreaterThan(10)
+        expect(d.inputSchema.type).toBe('object')
+    }
+
+    // --- errors say what went wrong -----------------------------------------------------------
+
+    const unknownOp = await run({op: 'primitiv', type: 'cube'})
+    expect(unknownOp.ok).toBe(false)
+    expect(unknownOp.error).toContain('did you mean "primitive"')
+
+    const unknownParam = await run({op: 'primitive', type: 'cube', raduis: 2})
+    expect(unknownParam.ok).toBe(false)
+    expect(unknownParam.error).toContain('did you mean "radius"')
+
+    const missingObject = await run({op: 'transform', object: 'nope', move: [1, 0, 0]})
+    expect(missingObject.ok).toBe(false)
+    expect(missingObject.error).toContain('no object "nope"')
+
+    // A failed command must leave nothing behind.
+    expect((await state()).objects.length).toBe(1)
+
+    // --- creation -----------------------------------------------------------------------------
+
+    const wheel = await run({
+        op: 'lathe', name: 'wheel', axis: 'x', segments: 16,
+        profile: [[0, -0.05], [0.3, -0.05], [0.3, 0.05], [0, 0.05]],
+        position: [-1, 0.35, -2],
+    })
+    expect(wheel.ok).toBe(true)
+    expect((wheel.data as any).faces).toBeGreaterThan(0)
+
+    const sweep = await run({
+        op: 'sweep', name: 'rail', radius: 0.03, steps: 6,
+        path: [[-1, 1.2, -2], [-1, 1.4, -1], [-1, 1.4, 1], [-1, 1.2, 2]],
+    })
+    expect(sweep.ok).toBe(true)
+
+    // Every mesh the generators produced must be valid topology that bakes.
+    const health = await run({op: 'selftest'})
+    expect((health.data as any).failed).toBe(0)
+
+    // --- live modifiers, the point of the exercise --------------------------------------------
+
+    const arrayed = await run({op: 'array', object: 'wheel', count: 6, step: [0, 0, 0.8], live: true})
+    expect(arrayed.ok).toBe(true)
+
+    const before = (await state()).objects.find(o => o.name === 'wheel')!
+    expect(before.modifiers).toBe(1)
+    // The master stays small; only the evaluated mesh grows.
+    expect(before.evaluatedVerts).toBeGreaterThan(before.verts * 5)
+
+    // Edit one vertex of the master and every copy must follow.
+    const detail = await run({op: 'inspect', object: 'wheel', detail: true})
+    const firstVert = (detail.data as any).vertices[0]
+    const moved = await run({op: 'vertices', object: 'wheel',
+        verts: [[0, firstVert[0], firstVert[1] + 0.5, firstVert[2]]]})
+    expect(moved.ok).toBe(true)
+
+    const after = (await state()).objects.find(o => o.name === 'wheel')!
+    expect(after.verts).toBe(before.verts)          // the master did not grow
+    expect(after.evaluatedVerts).toBe(before.evaluatedVerts) // nor did the evaluation
+    // and the bounds moved, proving the copies were rebuilt rather than left stale
+    const bounds = await run({op: 'inspect', object: 'wheel'})
+    expect((bounds.data as any).bounds.max[1]).toBeGreaterThan(0.4)
+
+    // Changing the modifier count re-evaluates without touching the master.
+    const recount = await run({op: 'modifier', object: 'wheel', index: 0, update: {count: 3}})
+    expect(recount.ok).toBe(true)
+    expect((recount.data as any).evaluatedVerts).toBeLessThan(after.evaluatedVerts)
+
+    // --- history ------------------------------------------------------------------------------
+
+    await run({op: 'checkpoint', name: 'running gear'})
+    await run({op: 'primitive', type: 'cylinder', name: 'scrap', radius: 0.4, height: 1})
+    expect((await state()).objects.map(o => o.name)).toContain('scrap')
+
+    const rewound = await run({op: 'undo', to: 'running gear'})
+    expect(rewound.ok).toBe(true)
+    expect((await state()).objects.map(o => o.name)).not.toContain('scrap')
+
+    await run({op: 'redo'})
+    expect((await state()).objects.map(o => o.name)).toContain('scrap')
+    await run({op: 'delete', object: 'scrap'})
+
+    // --- clearance ----------------------------------------------------------------------------
+
+    await run({op: 'primitive', type: 'cube', name: 'a', size: 1, position: [10, 0, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'b', size: 1, position: [10.5, 0, 0]})
+    const overlaps = await run({op: 'measure', object: ['a', 'b'], mode: 'overlaps'})
+    expect((overlaps.data as any).pairs).toBe(1)
+    await run({op: 'transform', object: 'b', move: [5, 0, 0]})
+    const clear = await run({op: 'measure', object: ['a', 'b'], mode: 'overlaps'})
+    expect((clear.data as any).pairs).toBe(0)
+    await run({op: 'delete', object: ['a', 'b']})
+
+    // --- capture and export -------------------------------------------------------------------
+
+    await run({op: 'camera', view: 'iso', fit: '*'})
+    const shot = await run({op: 'capture'})
+    expect(shot.ok).toBe(true)
+    expect((shot.data as any).dataUrl.startsWith('data:image/png')).toBe(true)
+
+    const exported = await run({op: 'export', format: 'glb'})
+    expect(exported.ok).toBe(true)
+    expect((exported.data as any).bytes).toBeGreaterThan(1000)
+
+    // --- reference calibration ------------------------------------------------------------------
+
+    // A 100x50 pixel image standing in for a photograph; the calibration is what is under test.
+    const png = await page.evaluate(() => {
+        const c = document.createElement('canvas')
+        c.width = 100
+        c.height = 50
+        const ctx = c.getContext('2d')!
+        ctx.fillStyle = '#446688'
+        ctx.fillRect(0, 0, 100, 50)
+        return c.toDataURL('image/png')
+    })
+    const ref = await run({
+        op: 'reference', name: 'side', plane: 'right', image: png,
+        calibrate: {from: [0.2, 0.5], to: [0.7, 0.5], distance: 5},
+    })
+    expect(ref.ok).toBe(true)
+    // 0.5 of the image width spans 5 units, so the whole image spans 10.
+    expect((ref.data as any).width).toBeCloseTo(10, 5)
+    // ...and a 100x50 image is twice as wide as it is tall, so it is 5 units high.
+    expect((ref.data as any).height).toBeCloseTo(5, 5)
+    expect((ref.data as any).savedView).toBe('ref:side')
+
+    // The registered view must be replayable.
+    const replay = await run({op: 'camera', view: 'ref:side'})
+    expect(replay.ok).toBe(true)
+    // `source` says how the framing was arrived at; `saved` only ever names where one was stored.
+    expect((replay.data as any).source).toBe('saved')
+    expect((replay.data as any).saved).toBe(null)
+
+    const computed = await run({op: 'camera', view: 'top', fit: '*', save: 'overhead'})
+    expect((computed.data as any).source).toBe('computed')
+    expect((computed.data as any).saved).toBe('overhead')
+
+    const final = await run({op: 'selftest'})
+    expect((final.data as any).failed).toBe(0)
+})
