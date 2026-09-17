@@ -11,6 +11,7 @@
  *   editing starts. Every operator runs here, then writes back.
  */
 
+export * from './math'
 export * from './constants'
 export * from './attributes'
 export * from './MeshData'
@@ -18,3 +19,4 @@ export * from './bmesh'
 export * from './bake'
 export * from './unbake'
 export * from './ops'
+export * from './generate'

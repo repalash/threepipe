@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import {BMesh} from './BMesh'
+import {ElemFlag} from '../constants'
 import {BMVert} from './types'
 import {
     diskCount,
@@ -330,5 +331,36 @@ describe('index and table access', () => {
 describe('describe', () => {
     it('summarises the mesh', () => {
         expect(cube().bm.describe()).toBe('verts 8, edges 12, faces 6, loops 24')
+    })
+})
+
+describe('element flag defaults, against bmesh_core.cc', () => {
+    // These three lines of Blender decide whether a generated mesh renders faceted or inflated, and
+    // they do not agree with each other:
+    //   v->head.hflag = 0               bmesh_core.cc:161
+    //   e->head.hflag = BM_ELEM_SMOOTH  bmesh_core.cc:250
+    //   f->head.hflag = 0               bmesh_core.cc:493
+    // A face defaulting to smooth is what made every primitive bake with averaged vertex normals.
+    it('creates faces flat and edges smooth', () => {
+        const bm = new BMesh()
+        const a = bm.vertCreate(0, 0, 0)
+        const b = bm.vertCreate(1, 0, 0)
+        const c = bm.vertCreate(1, 1, 0)
+
+        expect(a.hflag).toBe(0)
+        expect(bm.edgeCreate(a, b).hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
+
+        const f = bm.faceCreate([a, b, c])
+        expect(f.hflag & ElemFlag.Smooth).toBe(0)
+    })
+
+    it('takes the smooth flag from an example face', () => {
+        const bm = new BMesh()
+        const v = [bm.vertCreate(0, 0, 0), bm.vertCreate(1, 0, 0), bm.vertCreate(1, 1, 0)]
+        const example = bm.faceCreate(v)
+        example.hflag |= ElemFlag.Smooth
+
+        const w = [bm.vertCreate(0, 0, 1), bm.vertCreate(1, 0, 1), bm.vertCreate(1, 1, 1)]
+        expect(bm.faceCreate(w, example).hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
     })
 })

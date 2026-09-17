@@ -119,3 +119,68 @@ Ported as found, because each one is load-bearing and each one is surprising:
   port it eagerly in step 4 or per-operator as each one needs it.
 - The undo store (step 11) could reuse the same chunk hashing for glTF binary payloads. Worth checking
   before designing it twice.
+
+---
+
+## Generators (milestone MA of [`03-agent-modelling-api.md`](./03-agent-modelling-api.md))
+
+`src/generate/`, all ported from Blender, 550 kernel tests green.
+
+| File | Blender source |
+| --- | --- |
+| `primitives.ts` | `bmo_primitive.cc` — grid, cube, circle, cone/cylinder, UV sphere, icosphere, with UVs. Monkey skipped (a 271-vertex literal table). |
+| `spin.ts` | `bmo_utils.cc` `bmo_spin_exec`, plus the `edbm_spin_exec` sanity checks and the loose-vertex branch from `bmo_extrude.cc:594` |
+| `lathe.ts` | spin over a wire profile, the way `MOD_screw.cc` does it, with `mesh_remove_doubles_on_axis` for the pole weld. `primitiveTorus` follows `add_mesh_torus.py` and is checked vertex-for-vertex against it. |
+| `sweep.ts` | `curve_to_mesh_convert.cc` + `curve_poly.cc` (`calculate_tangents`, `calculate_normals_minimum` including the cyclic correction, `calculate_normals_z_up`) |
+| `array.ts` | `MOD_array.cc` in full — three fit modes, three summed offset sources, `dm_mvert_map_doubles`, caps. Curve placement from `curve_deform.cc` + `anim_path.cc` + the legacy `BevList` in `curve.cc`. |
+| `mirror.ts` | `bmo_mirror.cc`, with the winding reversal from `mesh_flip_faces.cc` (which is where Blender actually does it) |
+| `../bmesh/splice.ts` | `BM_vert_splice`, `BM_edge_splice`, `bmesh_edge_vert_swap`, `BM_edge_find_double`, `BM_face_find_double` |
+| `../ops/weld.ts` | `bmo_removedoubles.cc` `bmo_weld_verts_exec` |
+
+### Three real bugs this work found in existing kernel code
+
+1. **`faceCreate` defaulted faces to `SMOOTH`.** Blender: `v->head.hflag = 0`,
+   `e->head.hflag = BM_ELEM_SMOOTH`, `f->head.hflag = 0` (`bmesh_core.cc:161/250/493`) — vertices and
+   **faces** start with nothing set, only edges start smooth. Because the kernel set `SMOOTH` on new
+   faces, `bmToMesh` never wrote a `sharp_face` layer, and every generated mesh baked with averaged
+   vertex normals. Invisible to topology tests; glaring in a render, where every box looked inflated.
+   Fixed, with a flag-default test in `BMesh.test.ts` quoting the three Blender lines, and a bake test
+   asserting a cube comes out with six face normals rather than eight corner-averaged ones.
+
+   The knock-on: `sweep.ts` only *cleared* `SMOOTH` on its caps, relying on the wrong default for its
+   sides. It now sets the flag both ways, which is what `bmFromMesh` does and what Blender's Mesh
+   semantics mean (absence of `sharp_face` = smooth).
+
+2. **`mergeVerts` silently dropped every rebuilt face's attributes.** It killed the original face and
+   then passed `bm.faces.has(example) ? example : undefined` as the example — always `undefined`,
+   because it had just been killed. Header flags, material slot, face attributes and all per-corner
+   attributes were lost on every merge. The comment claimed they had been copied first; nothing was.
+   Fixed by building the replacement while the original is alive, which is `remdoubles_createface`'s
+   order.
+
+3. **`extrudeEdgeOnly` could not be chained** — filed as
+   [`kernel-extrude-edge-only-orientation.md`](./kernel-extrude-edge-only-orientation.md), now fixed.
+   It hardcoded the quad as `[a, b, b2, a2]`, so the second extrusion off a rim wound the opposite way.
+   A lathe is a rim extruded `segments` times, so both the primitives port and the spin port hit it
+   independently. `ExtrudeOptions` grew `useNormalFlip` and `useNormalFromAdjacent`, both defaulting to
+   the old behaviour.
+
+### Filed, still open
+
+- [`kernel-extrude-delorig-divergence.md`](./kernel-extrude-delorig-divergence.md) —
+  `extrudeFaceRegion` always deletes the originals; Blender's `delorig` is conditional. Fixing it
+  changes existing `extrude.test.ts` expectations, so it needs a deliberate pass.
+- [`kernel-split-edge-copies-corner-data.md`](./kernel-split-edge-copies-corner-data.md) —
+  `splitEdgeMakeVert` copies corner attributes instead of interpolating (`BM_data_interp_face_vert_edge`
+  is missing). Visible as stepped UVs on an icosphere above subdivision 1.
+- [`kernel-weld-verts-not-ported.md`](./kernel-weld-verts-not-ported.md) — resolved in substance by
+  `ops/weld.ts`; the remaining item is the selection-history remap (`BM_select_history_merge_from_targetmap`).
+
+### Cleanup debt
+
+`primitives.ts` carries private copies of five helpers that later landed as shared files —
+`edgeVertSwap`, `edgeSplice`, `faceFindDouble` (now `bmesh/splice.ts`) and `faceExists`, `weldVerts`
+(now `ops/weld.ts`). They were written before those files existed and were not switched over because
+the signatures were still moving. Collapse them, and promote the rest of its private helpers
+(`BM_faces_join`, JVKE, `subdivide_edges`, `BM_face_create_ngon`) into `ops/` and `bmesh/` where they
+belong. Tracked here rather than filed, because nothing is wrong — it is duplication, not a defect.

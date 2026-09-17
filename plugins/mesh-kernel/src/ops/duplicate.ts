@@ -6,7 +6,7 @@
  * chasing assembles almost an entire scene this way.
  */
 
-import {BMEdge, BMFace, BMVert} from '../bmesh/types'
+import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
 import {diskEdges, radialLoops} from '../bmesh/structure'
 import {copyElemAttrs} from '../bmesh/customdata'
@@ -256,7 +256,9 @@ export function mergeVerts(
     for (const f of facesToKill) if (bm.faces.has(f)) bm.faceKill(f)
 
     // Rebuild every remaining face that referenced a doomed vertex, with the survivor in its place.
-    const rebuild: {verts: BMVert[], example: BMFace}[] = []
+    // `sources` keeps the loop each surviving corner came from, the way `remdoubles_createface`
+    // stacks `loops[]` alongside `verts[]`, so per-corner attributes survive the rebuild.
+    const rebuild: {verts: BMVert[], sources: BMLoop[], example: BMFace}[] = []
     const seen = new Set<BMFace>()
     for (const v of doomed) {
         for (const e of [...diskEdges(v)]) {
@@ -264,24 +266,37 @@ export function mergeVerts(
                 if (seen.has(l.f)) continue
                 seen.add(l.f)
                 const mapped: BMVert[] = []
+                const sources: BMLoop[] = []
                 for (const fl of l.f.eachLoop()) {
                     const m = doomed.has(fl.v) ? keep : fl.v
                     // Collapse consecutive duplicates produced by the merge.
-                    if (!mapped.length || mapped[mapped.length - 1] !== m) mapped.push(m)
+                    if (!mapped.length || mapped[mapped.length - 1] !== m) {
+                        mapped.push(m)
+                        sources.push(fl)
+                    }
                 }
-                if (mapped.length > 1 && mapped[0] === mapped[mapped.length - 1]) mapped.pop()
-                if (mapped.length >= 3) rebuild.push({verts: mapped, example: l.f})
+                if (mapped.length > 1 && mapped[0] === mapped[mapped.length - 1]) {
+                    mapped.pop()
+                    sources.pop()
+                }
+                if (mapped.length >= 3) rebuild.push({verts: mapped, sources, example: l.f})
             }
         }
     }
-    for (const {example} of rebuild) if (bm.faces.has(example)) bm.faceKill(example)
-    for (const {verts: fv, example} of rebuild) {
-        // The example face is gone by now; its flags were copied before the kill.
+    // Build the replacement while the original is still there, so it can act as the example for
+    // header flags, material slot and face attributes, then drop the original. This is the order
+    // `bmo_weld_verts_exec` uses (`remdoubles_createface`, then one delete pass at the end); killing
+    // first loses everything the face carried.
+    for (const {verts: fv, sources, example} of rebuild) {
+        if (!bm.faces.has(example)) continue
         try {
-            bm.faceCreate(fv, bm.faces.has(example) ? example : undefined)
+            const nf = bm.faceCreate(fv, example)
+            const dstLoops = [...nf.eachLoop()]
+            for (let i = 0; i < dstLoops.length; i++) copyElemAttrs(sources[i], dstLoops[i], bm.ldata)
         } catch {
             // A face that cannot be rebuilt (a repeated vertex after the merge) is simply dropped.
         }
+        bm.faceKill(example)
     }
 
     for (const v of doomed) if (bm.verts.has(v)) bm.vertKill(v)

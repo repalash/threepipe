@@ -218,9 +218,11 @@ export class BMesh {
             f.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
             f.matNr = example.matNr
             copyElemAttrs(example, f, this.pdata)
-        } else {
-            f.hflag |= ElemFlag.Smooth
         }
+        // No `SMOOTH` default: `bm_face_create__internal` sets `f->head.hflag = 0`
+        // (`bmesh_core.cc:493`), so a new face is flat unless something says otherwise. Edges are the
+        // other way round - `e->head.hflag = BM_ELEM_SMOOTH` at `:250`, which `edgeCreate` matches.
+        // This is why a generated cube renders faceted rather than looking inflated.
 
         let lastl: BMLoop | null = null
         let startl: BMLoop | null = null

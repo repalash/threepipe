@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {BMesh} from '../bmesh/BMesh'
 import {BMVert} from '../bmesh/types'
-import {edgeIsManifold, radialLength} from '../bmesh/structure'
+import {edgeIsManifold, radialLength, radialLoops} from '../bmesh/structure'
 import {faceSelectSet, selectAll} from '../bmesh/marking'
 import {SelectMode} from '../constants'
 import {averageFaceNormal, extrudeEdgeOnly, extrudeFaceRegion, extrudeSelection, translateVerts} from './extrude'
@@ -167,5 +167,55 @@ describe('repeated extrude', () => {
         for (const e of bm.edges) expect(radialLength(e)).toBe(2)
         expect(bm.totvert - bm.totedge + bm.totface).toBe(2)
         expect(bm.totface).toBe(6 + 5 * 4)
+    })
+})
+
+describe('chained extrudeEdgeOnly', () => {
+    /** Every pair of faces sharing an edge must traverse it in opposite directions. */
+    function windingProblems(bm: BMesh): string[] {
+        const problems: string[] = []
+        for (const e of bm.edges) {
+            const loops = [...radialLoops(e)]
+            if (loops.length === 2 && loops[0].v === loops[1].v) {
+                problems.push(`edge ${e.id} runs the same way in faces ${loops[0].f.id} and ${loops[1].f.id}`)
+            }
+        }
+        return problems
+    }
+
+    function wireChain(bm: BMesh, n: number) {
+        const verts: BMVert[] = []
+        for (let i = 0; i <= n; i++) verts.push(bm.vertCreate(0, i, 0))
+        const edges = []
+        for (let i = 0; i < n; i++) edges.push(bm.edgeCreate(verts[i], verts[i + 1]))
+        return {verts, edges}
+    }
+
+    it('keeps the winding consistent across repeats with useNormalFromAdjacent', () => {
+        // The rim edge comes back from `faceCreate` in whichever direction the quad walked it, so a
+        // second extrusion that only reads `e.v1`/`e.v2` winds the opposite way. Blender's
+        // `bmo_extrude_edge_only_exec` decides from the face already on the edge instead.
+        const bm = new BMesh()
+        let edges = wireChain(bm, 3).edges
+        for (let step = 0; step < 4; step++) {
+            const res = extrudeEdgeOnly(bm, edges, {useNormalFromAdjacent: true, selectResult: false})!
+            translateVerts(res.verts, 0.5, 0, 0)
+            edges = edges.map(e => res.edgeMap.get(e)!)
+            expect(edges.every(Boolean)).toBe(true)
+        }
+        expect(bm.totface).toBe(3 * 4)
+        expect(bm.validate()).toEqual([])
+        expect(windingProblems(bm)).toEqual([])
+    })
+
+    it('reports the new rim through edgeMap, oriented like the edge it came from', () => {
+        const bm = new BMesh()
+        const {edges} = wireChain(bm, 2)
+        const res = extrudeEdgeOnly(bm, edges, {selectResult: false})!
+        expect(res.edgeMap.size).toBe(2)
+        for (const e of edges) {
+            const rim = res.edgeMap.get(e)!
+            expect(rim.joins(res.vertMap.get(e.v1)!, res.vertMap.get(e.v2)!)).toBe(true)
+        }
     })
 })

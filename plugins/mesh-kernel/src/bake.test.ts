@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {MeshData} from './MeshData'
 import {bakeGeometry, totalTriangleCount} from './bake'
+import {primitiveCube} from './generate/primitives'
 import {AttrDomain, AttrName} from './constants'
 
 function cube(): MeshData {
@@ -94,5 +95,40 @@ describe('bakeGeometry', () => {
         expect(typeof globalThis.ImageData).toBe('undefined')
         const mod = await import('./bake')
         expect(typeof mod.bakeGeometry).toBe('function')
+    })
+})
+
+describe('shading', () => {
+    // A new BMesh face is flat (`bmesh_core.cc:493`), so a generated primitive bakes with one normal
+    // per corner rather than an averaged one per vertex. Getting this wrong is invisible in topology
+    // tests and glaring in a render: every box looks inflated.
+    it('bakes a generated cube flat, one normal per face', () => {
+        const mesh = primitiveCube({size: 2})
+        expect(mesh.attributes.get(AttrName.sharpFace)).toBeDefined()
+
+        const {data} = bakeGeometry(mesh, {includeNormals: true})
+        const normals = new Set<string>()
+        for (let i = 0; i < data.normal!.length; i += 3) {
+            normals.add([data.normal![i], data.normal![i + 1], data.normal![i + 2]]
+                .map(n => n.toFixed(4)).join(','))
+        }
+        expect(normals.size).toBe(6)
+        for (const n of normals) {
+            // Each is an axis direction, not a corner-averaged diagonal.
+            expect(n.split(',').filter(c => Math.abs(+c) > 0.001).length).toBe(1)
+        }
+    })
+
+    it('bakes smoothed normals when the faces are marked smooth', () => {
+        const mesh = primitiveCube({size: 2})
+        mesh.attributes.get(AttrName.sharpFace)!.data.fill(0)
+
+        const {data} = bakeGeometry(mesh, {includeNormals: true})
+        const normals = new Set<string>()
+        for (let i = 0; i < data.normal!.length; i += 3) {
+            normals.add([data.normal![i], data.normal![i + 1], data.normal![i + 2]]
+                .map(n => n.toFixed(4)).join(','))
+        }
+        expect(normals.size).toBe(8)
     })
 })

@@ -15,7 +15,7 @@
 
 import {BMEdge, BMFace, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {radialLoops} from '../bmesh/structure'
+import {diskEdgeExists, radialLoops} from '../bmesh/structure'
 import {copyElemAttrs} from '../bmesh/customdata'
 import {ElemFlag} from '../constants'
 import {faceSelectSet, selectNone, vertSelectSet} from '../bmesh/marking'
@@ -29,6 +29,13 @@ export interface ExtrudeResult {
     verts: BMVert[]
     /** Original vertex to its duplicate. */
     vertMap: Map<BMVert, BMVert>
+    /**
+     * Original edge to the edge that spans its two duplicates - Blender's `boundary_map.out` read
+     * the other way round. Filled by {@link extrudeEdgeOnly}, where it is the new rim and so the
+     * input to the next extrusion in a chain; empty for {@link extrudeFaceRegion}, whose caller has
+     * the duplicated faces to walk instead.
+     */
+    edgeMap: Map<BMEdge, BMEdge>
 }
 
 export interface ExtrudeOptions {
@@ -36,6 +43,32 @@ export interface ExtrudeOptions {
     keepOriginal?: boolean
     /** Select the result and deselect everything else, as the interactive operator does. */
     selectResult?: boolean
+    /**
+     * Wind the side faces the other way round, so they face inwards instead of outwards.
+     * Blender's `use_normal_flip`.
+     */
+    useNormalFlip?: boolean
+    /**
+     * Take each side face's winding from the face already attached to the source edge, rather than
+     * from the duplicate. Blender's `use_normal_from_adjacent`, and its comment says why it exists:
+     * "needed for repetitive extrusions that use the normals from the previously created faces".
+     *
+     * This is what makes {@link extrudeEdgeOnly} chainable. Extruding a wire ring produces a ribbon
+     * whose rim edges now carry a face; extruding the rim again without this rule winds the second
+     * ribbon the same way round the shared edge as the first, which is inside out. A spin, a lathe
+     * and a UV sphere are all repeated extrusions of the same rim, so all three need it.
+     *
+     * Turning it on gives exactly `bmo_extrude_edge_only_exec` (`bmo_extrude.cc:167`), whose rule is
+     * `edge_normal_flip = !(e->l && e->v1 != e->l->v)` with no alternative. Leaving it off gives the
+     * first-extrusion rule of `bmo_extrude_face_region_exec` (`bmo_extrude.cc:518`), which is what
+     * the operator did before the option existed and what the existing tests expect. The two differ
+     * by a flip on a wire edge, which is a real difference between the two Blender operators and not
+     * a mistake in either.
+     *
+     * Only meaningful for {@link extrudeEdgeOnly}; {@link extrudeFaceRegion} already takes its
+     * winding from the region face.
+     */
+    useNormalFromAdjacent?: boolean
 }
 
 /**
@@ -112,7 +145,10 @@ export function extrudeFaceRegion(
         const a2 = vertMap.get(a)!
         const b2 = vertMap.get(b)!
         if (a2 === b2) continue
-        const side = bm.faceCreate([a, b, b2, a2])
+        // `use_normal_flip` reverses the strip; the reversal of (a, b, b', a') written from b.
+        const side = options.useNormalFlip
+            ? bm.faceCreate([b, a, a2, b2])
+            : bm.faceCreate([a, b, b2, a2])
         side.hflag &= ~ElemFlag.Select
         sideFaces.push(side)
     }
@@ -141,6 +177,7 @@ export function extrudeFaceRegion(
         sideFaces,
         verts: [...vertMap.values()],
         vertMap,
+        edgeMap: new Map(),
     }
 }
 
@@ -166,15 +203,38 @@ export function extrudeEdgeOnly(
         return nv
     }
 
+    const useNormalFlip = options.useNormalFlip === true
+    const useNormalFromAdjacent = options.useNormalFromAdjacent === true
+
     const sideFaces: BMFace[] = []
+    const edgeMap = new Map<BMEdge, BMEdge>()
     for (const e of edges) {
         const a = e.v1
         const b = e.v2
+        // Create both duplicates before deciding the winding, so the order vertices are created in
+        // follows the order the edges were given in. Generators such as the lathe rely on that.
         const a2 = ensure(a)
         const b2 = ensure(b)
-        const face = bm.faceCreate([a, b, b2, a2])
+
+        // Port of the winding decision in `bmo_extrude_face_region_exec` (`bmo_extrude.cc:518`).
+        // `eNew` is Blender's `e_new`, the duplicate of `e`; it normally does not exist yet, which is
+        // the `e_new->l == null` arm of the original expression.
+        const eNew = diskEdgeExists(a2, b2)
+        const edgeNormalFlip = useNormalFromAdjacent
+            ? !(e.l !== null && e.v1 !== e.l.v)
+            : !(eNew && eNew.l ? eNew.l.v === eNew.v1 : (!e.l || !(e.l.v === e.v1)))
+
+        const face = edgeNormalFlip === useNormalFlip
+            ? bm.faceCreate([a, b, b2, a2])
+            : bm.faceCreate([b, a, a2, b2])
         face.hflag &= ~ElemFlag.Select
         sideFaces.push(face)
+
+        // The far rim, which is what a chained extrusion has to be handed next. Looking it up by
+        // endpoint afterwards is not equivalent: `faceCreate` stores it in whichever direction the
+        // quad happened to walk it.
+        const rim = diskEdgeExists(a2, b2)
+        if (rim) edgeMap.set(e, rim)
     }
 
     if (options.selectResult !== false) {
@@ -182,7 +242,7 @@ export function extrudeEdgeOnly(
         for (const v of vertMap.values()) vertSelectSet(bm, v, true)
     }
 
-    return {faces: [], sideFaces, verts: [...vertMap.values()], vertMap}
+    return {faces: [], sideFaces, verts: [...vertMap.values()], vertMap, edgeMap}
 }
 
 /**
