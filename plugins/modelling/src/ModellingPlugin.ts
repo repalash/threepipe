@@ -30,6 +30,7 @@ import {editCommands} from './commands/edit'
 import {sceneCommands} from './commands/scene'
 import {sessionCommands} from './commands/session'
 import {referenceCommands, ReferencePlaneState} from './commands/reference'
+import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 
@@ -83,12 +84,14 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
 
     private _index = 0
     private _queue: Promise<unknown> = Promise.resolve()
+    private _gltfExtension: GLTFMeshTopologyExtension | null = null
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         this.document = new ModellingDocument(viewer)
         this.history = new ModellingHistory(this.document)
         this._connectMeshEdit(viewer)
+        this._registerGltfExtension(viewer)
         this.commands.registerAll([
             ...createCommands,
             ...editCommands,
@@ -131,7 +134,35 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         }, this)
     }
 
+    /**
+     * Register `THREEPIPE_mesh_topology`, so editable topology survives a glTF round trip.
+     *
+     * Without it, exporting and reloading turns everything built here back into a triangle soup with
+     * renumbered vertices - the indices `vertices` and `transform` address would silently stop
+     * meaning what they meant. The mesh primitive itself is unchanged, so other viewers are
+     * unaffected; see `gltf/GLTFMeshTopologyExtension.ts`.
+     */
+    private _registerGltfExtension(viewer: ThreeViewer): void {
+        this._gltfExtension = new GLTFMeshTopologyExtension({
+            read: (object) => {
+                const entry = this.document.find((object as IObject3D).uuid)
+                return entry ? {mesh: entry.mesh, modifiers: entry.modifiers} : null
+            },
+            write: (object, mesh, modifiers) => {
+                this.document.beginRecording()
+                this.document.adopt(object, mesh, modifiers)
+                this.document.endRecording()
+                this.dispatchEvent({type: 'documentChanged', document: this.document})
+            },
+        })
+        viewer.assetManager.registerGltfExtension(this._gltfExtension.extension as never)
+    }
+
     onRemove(viewer: ThreeViewer): void {
+        if (this._gltfExtension) {
+            viewer.assetManager.unregisterGltfExtension(GLTFMeshTopologyExtension.Name)
+            this._gltfExtension = null
+        }
         for (const state of this.references.values()) {
             state.object.removeFromParent()
             state.object.dispose?.(true)

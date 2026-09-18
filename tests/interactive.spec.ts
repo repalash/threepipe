@@ -2499,6 +2499,60 @@ test('modelling-api', async({page}) => {
     expect(exported.ok).toBe(true)
     expect((exported.data as any).bytes).toBeGreaterThan(1000)
 
+    // --- editable topology survives a glTF round trip ---------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    // A cylinder has n-gon caps, which is exactly what a triangle buffer cannot give back.
+    await run({op: 'primitive', type: 'cylinder', name: 'drum', radius: 0.5, height: 1,
+        segments: 12})
+    await run({op: 'array', object: 'drum', count: 3, step: [1.2, 0, 0], live: true})
+    const beforeTrip = await run({op: 'inspect', object: 'drum'})
+
+    const roundTrip = await page.evaluate(async() => {
+        const m = (window as any).modelling
+        const v = (window as any).viewer
+
+        const exported = await m.run({op: 'export', format: 'glb', includeData: true})
+        if (!exported.ok) return {error: exported.error}
+        const bytes = Uint8Array.from(atob(exported.data.base64), c => c.charCodeAt(0))
+        // A File, not a blob URL: the importer picks its loader from the name, and a blob URL has no
+        // extension to pick from.
+        const file = new File([bytes], 'topology.glb', {type: 'model/gltf-binary'})
+
+        await m.run({op: 'delete', object: '*'})
+        const before = m.document.size
+        await v.load(file, {autoScale: false, autoCenter: false})
+
+        return {
+            bytes: exported.data.bytes,
+            emptiedTo: before,
+            entries: m.document.entries.map((e: any) => ({
+                verts: e.mesh.vertsNum,
+                edges: e.mesh.edgesNum,
+                faces: e.mesh.facesNum,
+                modifiers: e.modifiers.length,
+                evaluatedFaces: e.evaluated.facesNum,
+                problems: e.mesh.validate(),
+            })),
+        }
+    })
+
+    expect(roundTrip.error).toBeUndefined()
+    expect(roundTrip.emptiedTo).toBe(0)
+    // The reloaded object is editable again, with the master topology it was exported with - not the
+    // triangles, and not the evaluated copy the array produced.
+    expect(roundTrip.entries!.length).toBe(1)
+    const restored = roundTrip.entries![0]
+    expect(restored.verts).toBe((beforeTrip.data as any).verts)
+    expect(restored.edges).toBe((beforeTrip.data as any).edges)
+    expect(restored.faces).toBe((beforeTrip.data as any).faces)
+    expect(restored.problems).toEqual([])
+    // ...and the live modifier stack came back with it, so the render still shows three drums.
+    expect(restored.modifiers).toBe(1)
+    expect(restored.evaluatedFaces).toBeGreaterThan(restored.faces * 2)
+
+    await run({op: 'delete', object: '*'})
+
     // --- reference calibration ------------------------------------------------------------------
 
     // A 100x50 pixel image standing in for a photograph; the calibration is what is under test.

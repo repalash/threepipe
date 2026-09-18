@@ -200,6 +200,41 @@ export class ModellingDocument {
         return entry
     }
 
+    /**
+     * Take an object that already exists in the scene under management, with topology from elsewhere.
+     *
+     * This is the import path: a glTF or a `.blend` arrives as an object with baked triangles plus
+     * the `MeshData` they were baked from, and the object must keep its identity - its uuid, its
+     * place in the hierarchy, its material - while becoming editable. {@link add} cannot do that; it
+     * builds a new object.
+     */
+    adopt(object: IObject3D, mesh: MeshData, modifiers: ModifierSpec[] = []): ModellingEntry {
+        const existing = this.find(object.uuid)
+        if (existing) {
+            this.record(existing)
+            existing.mesh = mesh
+            existing.modifiers = modifiers.map(m => ({...m}))
+            this.rebake(existing)
+            return existing
+        }
+
+        const name = this.uniqueName(object.name || 'object')
+        object.name = name
+        const entry: ModellingEntry = {
+            id: `o${this._nextId++}`,
+            name,
+            object,
+            mesh,
+            modifiers: modifiers.map(m => ({...m})),
+            evaluated: mesh,
+            revision: 0,
+        }
+        this._entries.set(entry.id, entry)
+        this.record(entry, true)
+        this.rebake(entry)
+        return entry
+    }
+
     /** Remove an object from the document and the scene. */
     remove(entry: ModellingEntry): void {
         this.record(entry)
