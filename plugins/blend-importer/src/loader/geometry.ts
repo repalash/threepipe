@@ -96,7 +96,10 @@ function readFaceMaterialIndex(meshData: any, faceCount: number): number[] | nul
 // the inverted legacy `ME_SMOOTH`). A face with sharp_face=true is flat-shaded (all its corners take the
 // face normal). Stored exactly like `material_index`: a `pdata` CD_PROP_BOOL layer in 4.x, or an
 // `attribute_storage` Bool attribute in 5.0. Returns null when absent → caller keeps the smooth path.
-const ATTR_TYPE_BOOL = 50 // CD_PROP_BOOL
+// `bke::AttrType::Bool`, from BKE_attribute_enums.hh. NOT `CD_PROP_BOOL` (50): attribute_storage
+// tags its types with AttrType, a different enum from the CD_* numbers the CustomData layers use.
+// This said 50 and so never matched, which is why 5.0 files used to import fully smooth-shaded.
+const ATTR_TYPE_BOOL = 0
 function readFaceSharp(meshData: any, faceCount: number): boolean[] | null {
     const toBool = (e: any) => !!((e && typeof e === 'object') ? (e.i ?? e.value ?? e.b ?? 0) : e)
     // 4.x / legacy: named pdata layer.

@@ -28,7 +28,7 @@ import {
 import type {MeshData} from '@threepipe/mesh-kernel'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
-import {MESH_DATA_KEY} from './loader/meshData'
+import {MESH_TOPOLOGY_USERDATA} from './loader/meshData'
 import {decompressBlend} from './decompress'
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
@@ -209,37 +209,57 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
     }
 
     /**
-     * Hands `MeshEditPlugin` the exact n-gon topology of an imported object.
-     *
-     * Without it, entering edit mode on a `.blend` import would have to *recover* topology from the
-     * baked triangles - weld by position, guess at n-gons, renumber the vertices. The importer already
-     * decoded the real mesh, so it is simply handed over. Held as a field so it can be unregistered.
+     * `ModellingPlugin`, when one is installed. Held by plugin-type string only, so this package gains
+     * no dependency on `@threepipe/plugin-modelling` and a `.blend` still loads with neither the
+     * modelling nor the edit-mode plugin present.
      */
-    private _meshProvider = (object: IObject3D): MeshData | null =>
-        (object.geometry as any)?.userData?.[MESH_DATA_KEY] ?? null
-
-    private _unregisterMeshProvider(plugin: any) {
-        const providers = plugin && plugin.meshProviders
-        if (!Array.isArray(providers)) return
-        const i = providers.indexOf(this._meshProvider)
-        if (i >= 0) providers.splice(i, 1)
-    }
+    private _modelling: any = null
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        // Registered by plugin-type string rather than by importing the plugin, the way
-        // `ModellingPlugin._connectMeshEdit` does it, so this package gains no dependency on
-        // `@threepipe/plugin-mesh-edit` and still loads a `.blend` with no edit mode present at all.
-        viewer.forPlugin('MeshEditPlugin',
-            (plugin: any) => plugin.meshProviders?.push(this._meshProvider),
-            (plugin: any) => this._unregisterMeshProvider(plugin))
+        viewer.forPlugin('ModellingPlugin',
+            (plugin: any) => this._modelling = plugin,
+            () => this._modelling = null)
     }
 
     onRemove(viewer: ThreeViewer) {
-        // `forPlugin`'s unmount only fires when the *other* plugin goes away; this covers the case of
-        // this plugin being removed first, which would otherwise leave a dangling provider behind.
-        this._unregisterMeshProvider(viewer.getPlugin<any>('MeshEditPlugin'))
+        this._modelling = null
         super.onRemove(viewer)
+    }
+
+    /**
+     * Hand every imported object's n-gon topology to whoever owns topology.
+     *
+     * The loader leaves the editable {@link MeshData} on `object.userData[MESH_TOPOLOGY_USERDATA]`.
+     * If `ModellingPlugin` is installed, `document.adopt` takes the object over - keeping its uuid,
+     * material and place in the hierarchy - and the key is cleared so there is exactly one owner. If
+     * it is not, the key stays, so nothing is dropped and a plugin added later can still pick it up.
+     *
+     * `adopt` re-bakes the object's geometry from the mesh it is given. That is the same
+     * `bakeGeometry` + `geometryDataToBufferGeometry` pair the loader itself used, on the same mesh,
+     * so the geometry it installs is identical to the one it replaces.
+     */
+    private _adoptTopology(root: Object3D): void {
+        const document = this._modelling && this._modelling.document
+        if (!document || typeof document.adopt !== 'function') return
+        const pending: IObject3D[] = []
+        root.traverse((o: Object3D) => {
+            if ((o as IObject3D).userData?.[MESH_TOPOLOGY_USERDATA]) pending.push(o as IObject3D)
+        })
+        if (!pending.length) return
+        for (const object of pending) {
+            const mesh = object.userData[MESH_TOPOLOGY_USERDATA] as MeshData
+            try {
+                document.beginRecording()
+                document.adopt(object, mesh)
+                document.endRecording()
+                delete object.userData[MESH_TOPOLOGY_USERDATA]
+            } catch (e) {
+                document.endRecording?.()
+                console.warn(`BlendLoadPlugin - "${object.name}": could not hand topology to ModellingPlugin:`, e)
+            }
+        }
+        this._modelling.dispatchEvent?.({type: 'documentChanged', document})
     }
     protected _importer = new Importer(class extends FileLoader implements ILoader {
         // The AssetImporter that constructed this loader (injected via the Importer onCtor below). Used to
@@ -288,15 +308,22 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             return blend
         }
 
+        /** Injected below, bound to the owning plugin. See {@link BlendLoadPlugin._adoptTopology}. */
+        adoptTopology?: (root: Object3D) => void
+
         transform(res: BlendFile, options: AnyOptions & BlendLoadOptions): Scene {
             if (typeof options.onBlendLoad === 'function') {
                 options.onBlendLoad(res)
             }
+            // After the callback, so `onBlendLoad` still sees the scene exactly as it was parsed.
+            this.adoptTopology?.(res.scene)
             return res.scene as unknown as Scene
         }
     }, ['blend'], ['application/x-blender'], true, (loader, assetImporter) => {
         // Inject the AssetImporter so the loader can import external textures through the full pipeline.
         if (loader) (loader as any).assetImporter = assetImporter
+        // ...and a bound hook, so an imported mesh's topology can be handed to ModellingPlugin.
+        if (loader) (loader as any).adoptTopology = (root: Object3D) => this._adoptTopology(root)
         return loader
     })
 }

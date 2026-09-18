@@ -28,18 +28,31 @@
 import {AttrDomain, AttrName, AttrType, MeshData} from '@threepipe/mesh-kernel'
 
 /**
- * `geometry.userData[MESH_DATA_KEY]` holds the editable n-gon {@link MeshData} the geometry was baked
- * from, when the importer could produce one.
+ * Internal: `geometry.userData[MESH_DATA_KEY]` is the {@link MeshData} a geometry was baked from.
  *
- * It lives on the *geometry* rather than the object because that is the datablock-level thing: two
- * Alt+D linked duplicates share one geometry and must agree on its topology. The leading underscores
- * keep threepipe's `userData` serialiser away from it - a `MeshData` is a class instance, and half of
- * one written into glTF `primitive.extras` would be worse than none.
- *
- * `BlendLoadPlugin` hands it to `MeshEditPlugin` through `viewer.forPlugin('MeshEditPlugin', ...)`, so
- * nothing here depends on the edit-mode plugin being installed.
+ * It sits on the *geometry* because that is the datablock-level thing - `loader/mesh.ts` caches one
+ * geometry per Blender mesh datablock, and Alt+D linked duplicates share it - and because the Subsurf
+ * modifier needs the n-gon cage before any object exists. The public, cross-plugin handover is
+ * {@link MESH_TOPOLOGY_USERDATA} on the object.
  */
 export const MESH_DATA_KEY = '__meshData'
+
+/**
+ * Where an imported object's editable topology is left for whoever owns topology to pick it up:
+ * `object.userData[MESH_TOPOLOGY_USERDATA]` holds the {@link MeshData} the object's geometry was
+ * baked from.
+ *
+ * The string is `MESH_TOPOLOGY_USERDATA` from `@threepipe/plugin-modelling`
+ * (`src/gltf/GLTFMeshTopologyExtension.ts`), which uses it for the same purpose on the glTF import
+ * path. It is repeated here rather than imported so this package keeps no dependency on the modelling
+ * plugin; `BlendLoadPlugin` hands the mesh to `ModellingPlugin.document.adopt` when that plugin is
+ * installed, and leaves it here when it is not.
+ *
+ * Double-underscored so threepipe's `userData` serialiser leaves it alone - a `MeshData` is a class
+ * instance and half of one in glTF `extras` would be worse than none. `THREEPIPE_mesh_topology` is
+ * how it survives an export.
+ */
+export const MESH_TOPOLOGY_USERDATA = '__meshTopology'
 
 // `CD_*` values from `DNA_customdata_types.h`. Read as: what the layer must be, not what we hope.
 const CD_PROP_FLOAT = 10
@@ -73,10 +86,10 @@ const DOMAIN_POINT = 0, DOMAIN_CORNER = 3
 // Legacy struct bit-flags, `DNA_meshdata_types.h` "Deprecated Structs". Blender converts these to
 // named attributes on file read (`mesh_legacy_convert.cc`); we do the same conversion here.
 const SELECT = 1 << 0
-const ME_SEAM = 1 << 2      // MEdge.flag
-const ME_HIDE = 1 << 4      // MVert/MEdge/MPoly.flag
-const ME_SHARP = 1 << 9     // MEdge.flag
-const ME_SMOOTH = 1 << 0    // MPoly.flag - note this is the INVERSE of `sharp_face`
+const ME_SEAM = 1 << 2 // MEdge.flag
+const ME_HIDE = 1 << 4 // MVert/MEdge/MPoly.flag
+const ME_SHARP = 1 << 9 // MEdge.flag
+const ME_SMOOTH = 1 << 0 // MPoly.flag - note this is the INVERSE of `sharp_face`
 
 /** Upper bound on face/corner counts we will attempt, so a corrupt header cannot allocate gigabytes. */
 const MAX_ELEMENTS = 1 << 27
@@ -196,7 +209,7 @@ function attributeStorageRecords(meshData: any): any[] {
     if (!as) return []
     const attrs = as.dna_attributes
     if (!attrs) return []
-    return (Array.isArray(attrs) || attrs.length !== undefined) ? Array.from(attrs) as any[] : [attrs]
+    return Array.isArray(attrs) || attrs.length !== undefined ? Array.from(attrs) as any[] : [attrs]
 }
 
 /**
@@ -230,9 +243,9 @@ function readAttrArray(attr: any, Ctor: any, count: number): any | null {
  * `.uv_seam` is the 4.x spelling; Blender itself renames it to `uv_seam` in `versioning_520.cc`, and
  * the kernel uses the modern name, so the rename happens here too.
  */
-const RENAMED_ATTRS: Record<string, string> = {
-    '.uv_seam': AttrName.uvSeam,
-}
+const RENAMED_ATTRS = new Map<string, string>([
+    ['.uv_seam', AttrName.uvSeam],
+])
 
 /** Attributes that are per-file UI state rather than mesh data, and are not worth carrying. */
 const SKIPPED_ATTRS = new Set([
@@ -297,7 +310,7 @@ const TYPE_READ: Record<string, {ctor: any, components: number}> = {
  * `MLoop` carries `.v` **and** `.e`, so `.corner_edge` is authored here too and nothing is derived.
  */
 function rawFromMPoly(meshData: any, skip: Skip): RawMesh | null {
-    const polys: any[] = Array.isArray(meshData.mpoly) ? meshData.mpoly : (meshData.mpoly ? [meshData.mpoly] : [])
+    const polys: any[] = Array.isArray(meshData.mpoly) ? meshData.mpoly : meshData.mpoly ? [meshData.mpoly] : []
     const loops: any = meshData.mloop
     const verts: any = meshData.mvert
     if (!polys.length || !loops || !verts) return skip('MPoly layout is missing mvert/mloop/mpoly')
@@ -411,7 +424,7 @@ function rawFromMPoly(meshData: any, skip: Skip): RawMesh | null {
             const flag = p.flag | 0
             if (!(flag & ME_SMOOTH)) { sharpFace[f] = 1; anySharp = true }
             if (flag & ME_HIDE) { hide[f] = 1; anyHide = true }
-            if (flag & (1 << 1)) { select[f] = 1; anySelect = true } // ME_FACE_SEL
+            if (flag & 1 << 1) { select[f] = 1; anySelect = true } // ME_FACE_SEL
         }
         if (anyMaterial) layers.push({name: AttrName.materialIndex, domain: AttrDomain.Face, type: 'int32', data: material})
         if (anySharp) layers.push({name: AttrName.sharpFace, domain: AttrDomain.Face, type: 'bool', data: sharpFace})
@@ -464,8 +477,8 @@ function rawFromCustomData(meshData: any, skip: Skip): RawMesh | null {
 
     const positions = readLayerArray(findCdLayer(meshData, 'vdata', 'position', CD_PROP_FLOAT3), Float32Array, vertsNum * 3)
     const cornerVerts = readLayerArray(findCdLayer(meshData, 'ldata', '.corner_vert', CD_PROP_INT32), Int32Array, cornersNum)
-    if (!positions) return skip("no readable 'position' layer")
-    if (!cornerVerts) return skip("no readable '.corner_vert' layer")
+    if (!positions) return skip('no readable \'position\' layer')
+    if (!cornerVerts) return skip('no readable \'.corner_vert\' layer')
 
     const poi = meshData.poly_offset_indices
     if (!poi || poi.__data_address__ === undefined || !poi.__blender_file__) return skip('no poly_offset_indices block')
@@ -522,7 +535,7 @@ function collectCustomDataLayers(
             }
             const type = cdPropType(layer.type === CD_CREASE || layer.type === CD_BWEIGHT ? CD_PROP_FLOAT : layer.type)
             if (!type) continue
-            name = RENAMED_ATTRS[name] ?? name
+            name = RENAMED_ATTRS.get(name) ?? name
             if (SKIPPED_ATTRS.has(name)) continue
             if (name === AttrName.position || name === AttrName.edgeVerts ||
                 name === AttrName.cornerVert || name === AttrName.cornerEdge) continue
@@ -555,8 +568,8 @@ function rawFromAttributeStorage(meshData: any, skip: Skip): RawMesh | null {
 
     const posAttr = named.get(AttrName.position)
     const cvAttr = named.get(AttrName.cornerVert)
-    if (!posAttr || posAttr.data_type !== AT_FLOAT3) return skip("attribute_storage has no float3 'position'")
-    if (!cvAttr || cvAttr.data_type !== AT_INT32) return skip("attribute_storage has no int32 '.corner_vert'")
+    if (!posAttr || posAttr.data_type !== AT_FLOAT3) return skip('attribute_storage has no float3 \'position\'')
+    if (!cvAttr || cvAttr.data_type !== AT_INT32) return skip('attribute_storage has no int32 \'.corner_vert\'')
 
     const vertsNum = attrSize(posAttr)
     const cornersNum = attrSize(cvAttr)
@@ -587,7 +600,7 @@ function rawFromAttributeStorage(meshData: any, skip: Skip): RawMesh | null {
     for (const a of attrs) {
         const rawName = readCString(a.name)
         if (!rawName) continue
-        const name = RENAMED_ATTRS[rawName] ?? rawName
+        const name = RENAMED_ATTRS.get(rawName) ?? rawName
         if (SKIPPED_ATTRS.has(name)) continue
         if (name === AttrName.position || name === AttrName.edgeVerts ||
             name === AttrName.cornerVert || name === AttrName.cornerEdge) continue
@@ -624,7 +637,7 @@ function readMaterialSlots(meshData: any): string[] {
     const totcol = meshData.totcol | 0
     if (totcol <= 0) return []
     const mat = meshData.mat
-    const slots: any[] = Array.isArray(mat) ? mat : (mat ? [mat] : [])
+    const slots: any[] = Array.isArray(mat) ? mat : mat ? [mat] : []
     const out: string[] = new Array(totcol)
     for (let i = 0; i < totcol; i++) {
         const m = slots[i]

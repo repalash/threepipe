@@ -31,6 +31,9 @@
             "dom"
         ],
         "paths": {
+            "threepipe": [
+                "../../../dist/index.d.ts"
+            ],
             "@threepipe/mesh-kernel": [
                 "../../mesh-kernel/dist/index.d.ts"
             ]

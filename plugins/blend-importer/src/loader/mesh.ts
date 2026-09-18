@@ -7,7 +7,7 @@ import {mirrorGeometry} from './mirror'
 import {arrayGeometry} from './array'
 import {solidifyGeometry} from './solidify'
 import {Ctx} from './ctx'
-import {MESH_DATA_KEY} from './meshData'
+import {MESH_DATA_KEY, MESH_TOPOLOGY_USERDATA} from './meshData'
 
 function listToArray(lb: any): any[] {
     const out: any[] = []
@@ -43,10 +43,12 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     // per-object below. (Caching the *modified* result per datablock was wrong for objects that share a
     // datablock but have different modifier stacks — Alt+D linked duplicates.)
     let geometry = loaded.get(object.data)
+    const firstUse = !geometry
     if (!geometry) {
         geometry = createBufferGeometry(object.data, ctx)
         loaded.set(object.data, geometry)
     }
+    const baseGeometry = geometry
 
     // Evaluate the modifier stack in order. Each step returns a NEW geometry (the cached base is never
     // mutated). Render-disabled modifiers (eModifierMode_Render unset) are skipped to match Blender's
@@ -123,6 +125,20 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     }
 
     const mesh = new ctx.Mesh(geometry, material)
+
+    // Hand the editable n-gon topology to the object, but only when the geometry it carries really is
+    // the bake of that mesh. Every modifier above returns a NEW geometry, so `geometry === baseGeometry`
+    // is exactly the "nothing evaluated on top" test. Attaching it after a Subsurf or an Array would be
+    // a lie: whoever adopted it would re-bake the un-modified master and quietly drop the modifier
+    // result, because Blender's Subsurf and Solidify have no equivalent in the modelling plugin's
+    // modifier stack yet (it has array and mirror only).
+    const ngons = baseGeometry.userData && baseGeometry.userData[MESH_DATA_KEY]
+    if (ngons && geometry === baseGeometry) {
+        // Linked duplicates (Alt+D) share one datablock and so one geometry. They must not share one
+        // mutable `MeshData`, or editing either object would silently change the other, so every user
+        // after the first gets its own copy.
+        mesh.userData[MESH_TOPOLOGY_USERDATA] = firstUse ? ngons : ngons.clone()
+    }
 
     mesh.castShadow = true
     mesh.receiveShadow = true

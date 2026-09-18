@@ -51,6 +51,7 @@
     "test:unit:watch": "vitest",
     "test:unit:mesh-kernel": "npm run test --prefix plugins/mesh-kernel",
     "test:unit:modelling": "npm run test --prefix plugins/modelling",
+    "test:unit:blend-importer": "npm run test --prefix plugins/blend-importer",
     "typecheck:plugins": "npm run typecheck --prefix plugins/mesh-kernel && npm run typecheck --prefix plugins/mesh-edit && npm run typecheck --prefix plugins/modelling",
     "modelling:session": "node scripts/modelling-session.mjs",
     "test:e2e:precache": "node tests/precache-cdn.mjs",

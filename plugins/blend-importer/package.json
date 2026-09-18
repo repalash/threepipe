@@ -2,8 +2,7 @@
     "name": "@threepipe/plugin-blend-importer",
     "description": "Basic importer for .blend file",
     "version": "0.2.0",
-    "devDependencies": {
-    },
+    "devDependencies": {},
     "dependencies": {
         "fzstd": "^0.1.1",
         "threepipe": "file:./../../src/",
@@ -40,13 +39,20 @@
     "types": "dist/index.d.ts",
     "files": [
         "dist",
-        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
+        "src",
+        "README.md",
+        "CHANGELOG.md",
+        "docs",
+        "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "prepare": "npm run build",
         "build": "rimraf dist && vite build",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
         "dev": "NODE_ENV=development vite build --watch",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
