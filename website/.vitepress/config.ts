@@ -40,6 +40,7 @@ export default defineConfig({
           {text: 'UI Configuration', link: 'guide/ui-config'},
           {text: 'Serialization', link: 'guide/serialization'},
           {text: 'Plugin System', link: 'guide/plugin-system'},
+          {text: 'Modelling', link: 'guide/modelling'},
           {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
         ]
