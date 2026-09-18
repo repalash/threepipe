@@ -115,11 +115,16 @@ object a command touches before it changes it, and the history stack restores th
 a point with `{op: 'checkpoint', name: 'hull done'}` and come back to it with
 `{op: 'undo', to: 'hull done'}`.
 
-## Headless
+## Without a browser
 
-The package depends on threepipe and `@threepipe/mesh-kernel` but not on the edit-mode UI, so a
-build script runs without a viewport. `ModellingPlugin.fileSink` is where `capture {path}` and
-`export {path}` write when you are driving it from Node.
+The geometry half of this package is `@threepipe/mesh-kernel`, which has no dependencies and touches
+no browser API — so geometry can be generated in Node with no viewport at all, by calling the kernel
+directly. The *commands* need a `ThreeViewer`, and a viewer needs a DOM and a WebGL context, so
+running them headlessly means a headless browser. That is what `scripts/modelling-session.mjs` does,
+and `plugins/modelling/tests/headless.test.ts` pins where the line actually falls.
+
+The package does not depend on the edit-mode UI either way. `ModellingPlugin.fileSink` is where
+`capture {path}` and `export {path}` write when driving it from Node.
 
 ## Driving a session
 

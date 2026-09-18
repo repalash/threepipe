@@ -9,7 +9,8 @@ prev:
 threepipe can build and edit geometry, not only display it. Three packages, layered:
 
 - **[`@threepipe/mesh-kernel`](../package/mesh-kernel)** — n-gon topology, per-domain attributes and
-  Blender's mesh operators, ported from source. No dependencies; runs in Node.
+  Blender's mesh operators, ported from source. No dependencies, no browser API: geometry can be
+  generated in Node with no viewport at all.
 - **[`@threepipe/plugin-modelling`](../package/plugin-modelling)** — a JSON command API over it, with
   undo, validation and a document model.
 - **[`@threepipe/plugin-mesh-edit`](../package/plugin-mesh-edit)** — edit mode for a person: element

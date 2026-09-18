@@ -138,11 +138,15 @@ await modelling.run({op: 'checkpoint', name: 'hull done'})
 await modelling.run({op: 'undo', to: 'hull done'})
 ```
 
-## Running headless
+## Without a browser
 
-The package depends on `threepipe` and `@threepipe/mesh-kernel` but not on the edit-mode UI, so a
-build script runs without a viewport. `ModellingPlugin.fileSink` is where `capture {path}` and
-`export {path}` write when driving it from Node.
+Geometry can be generated in Node with no viewport at all, by calling
+[`@threepipe/mesh-kernel`](./mesh-kernel) directly — it has no dependencies and touches no browser
+API. The *commands* need a `ThreeViewer`, which needs a DOM and a WebGL context, so running those
+headlessly means a headless browser; `scripts/modelling-session.mjs` uses one.
+
+The package does not depend on the edit-mode UI either way. `ModellingPlugin.fileSink` is where
+`capture {path}` and `export {path}` write when driving it from Node.
 
 ## Driving a session
 

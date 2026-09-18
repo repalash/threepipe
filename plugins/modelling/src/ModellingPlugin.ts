@@ -8,8 +8,13 @@
  *
  * Deliberately independent of `@threepipe/plugin-mesh-edit`: that package is the human interaction
  * layer - overlays, picking, the modal transform - and this one is the document layer. Keeping them
- * apart means a build script runs headless in Node with no viewport at all, and means the editor UI
- * can drive exactly the same commands a script does.
+ * apart means a build script needs no edit-mode UI, and means the editor UI can drive exactly the
+ * same commands a script does.
+ *
+ * It does still need a viewer: the commands run against a live scene, and a `ThreeViewer` wants a DOM
+ * and a WebGL context. Generating geometry with no browser at all means calling
+ * `@threepipe/mesh-kernel` directly, which has neither dependency. `tests/headless.test.ts` pins
+ * where that line falls.
  *
  * ```js
  * const m = viewer.addPluginSync(ModellingPlugin)
