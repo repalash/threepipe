@@ -103,7 +103,7 @@ Status: **done** / **kernel ready** (the kernel supports it, UI missing) / **tod
 | Snapping | todo | M4, plus vertex and grid targets |
 | Extrude | **done** | E, chained into a move as Blender's macro does |
 | Inset | **done** | `mesh-kernel/src/ops/inset.ts`, `bmo_inset.cc` region and individual, with even offset, edge rail, outset, depth and interpolation |
-| Bevel | todo | M6, the largest single port |
+| Bevel | **done** | `mesh-kernel/src/ops/bevel.ts` and ten sibling modules — `bmo_bevel.cc` + `bmesh_bevel.cc`, every option, 95 tests |
 | Loop cut | todo | M5, via subdivide with the ring walker |
 | Knife | todo | M6 |
 | Edge slide | todo | M5 |

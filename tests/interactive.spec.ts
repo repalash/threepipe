@@ -2659,6 +2659,47 @@ test('modelling-api', async({page}) => {
 
     await run({op: 'delete', object: '*'})
 
+    // --- bevel -------------------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'chamfer', size: 2})
+    const chamfer = await run({op: 'bevel', object: 'chamfer', offset: 0.2})
+    expect(chamfer.ok).toBe(true)
+    // All twelve edges at one segment: each original corner becomes a triangle, each edge a quad.
+    expect((chamfer.data as any).verts).toBe(24)
+    expect((chamfer.data as any).edges).toBe(48)
+    expect((chamfer.data as any).faces).toBe(26)
+
+    // At `profile: 0.5` the intermediate points lie on a circular arc, so a rounded cube's corner
+    // vertices all sit the same distance from the corner they replaced.
+    await run({op: 'primitive', type: 'cube', name: 'rounded', size: 2, position: [5, 0, 0]})
+    const rounded = await run({op: 'bevel', object: 'rounded', offset: 0.3, segments: 5,
+        profile: 0.5})
+    expect(rounded.ok).toBe(true)
+    expect((rounded.data as any).faces).toBeGreaterThan(200)
+    const roundedShape = await run({op: 'inspect', object: 'rounded', detail: true, limit: 2000})
+    const corner = [0.7, 0.7, 0.7]   // the inset corner for a size-2 cube beveled by 0.3
+    const nearCorner = (roundedShape.data as any).vertices
+        .filter((v: number[]) => v[0] > 0.6 && v[1] > 0.6 && v[2] > 0.6)
+        .map((v: number[]) => Math.hypot(v[0] - corner[0], v[1] - corner[1], v[2] - corner[2]))
+    expect(nearCorner.length).toBeGreaterThan(5)
+    for (const d of nearCorner) expect(d).toBeCloseTo(0.3, 3)
+
+    // Boundary edges are declined rather than corrupted. A single quad has nothing but boundary
+    // edges, so the whole operation is a no-op - where a 2x2 grid would still bevel its four
+    // interior edges, which is the behaviour and not a get-out.
+    await run({op: 'primitive', type: 'plane', name: 'sheet', width: 2, depth: 2,
+        position: [-5, 0, 0]})
+    const sheetBefore = await run({op: 'inspect', object: 'sheet'})
+    const declined = await run({op: 'bevel', object: 'sheet', offset: 0.1})
+    expect(declined.ok).toBe(true)
+    const sheetAfter = await run({op: 'inspect', object: 'sheet'})
+    expect((sheetAfter.data as any).faces).toBe((sheetBefore.data as any).faces)
+
+    const bevelHealth = await run({op: 'selftest'})
+    expect((bevelHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
     // --- join and separate ------------------------------------------------------------------------
 
     await run({op: 'delete', object: '*'})

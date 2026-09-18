@@ -51,9 +51,10 @@ Their priority order, kept:
    hand to change the master. Blender's answer is a modifier stack; so is ours.
 5. **Saved front / side / rear / detail cameras.**
 6. **Clearance / collision checks.**
-7. **Bevel, inset, extrusion, shell, boolean.** Extrude, **inset** (`bmo_inset.cc`, both forms) and
-   **solidify** (`MOD_solidify_extrude.cc`, simple mode) are done. Bevel is the large remaining port;
-   booleans wait on manifold-3d (D6).
+7. **Bevel, inset, extrusion, shell, boolean.** Extrude, **inset** (`bmo_inset.cc`, both forms),
+   **solidify** (`MOD_solidify_extrude.cc`, simple mode) and **bevel** (`bmesh_bevel.cc`, 8.5k lines,
+   every option except custom profiles and harden-normals) are all done. Booleans wait on manifold-3d
+   (D6), which is the only one of the five left.
 8. **Reference panel + operation timeline in a split viewport.** Done - `examples/modelling-api` is
    reference, selected part, parameters and timeline on screen together, refreshed by the plugin's
    `commandRun` event so a script moves the same panels a person does.

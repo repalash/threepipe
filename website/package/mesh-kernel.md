@@ -54,7 +54,8 @@ const {data} = bakeGeometry(bmToMesh(bm), {includeNormals: true})
 
 ## Operators
 
-`extrudeFaceRegion`, `extrudeEdgeOnly`, `insetRegion`, `insetIndividual`, `solidify`,
+`extrudeFaceRegion`, `extrudeEdgeOnly`, `insetRegion`, `insetIndividual`, `bevelEdges`,
+`bevelVerts`, `solidify`,
 `duplicateGeometry`, `splitSelection`, `deleteSelection`, `mergeVerts`, `weldVerts`, `removeDoubles`, `joinMeshes`,
 `separateLooseParts`, `separateFaces`, `dissolveFaces`, `subdivideEdges`, plus the four Euler
 operators (`splitEdgeMakeVert`, `splitFaceMakeEdge`, `joinFaceKillEdge`, `joinEdgeKillVert`),
@@ -77,5 +78,5 @@ That is what keeps the package usable from Node without a polyfill, and it is gu
 
 ## Node safety
 
-Every algorithm here is portable and tested under plain Node — 760+ unit tests, including parity
+Every algorithm here is portable and tested under plain Node — 860+ unit tests, including parity
 fixtures extracted from real `.blend` files and reference values generated from three.js itself.

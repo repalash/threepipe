@@ -59,7 +59,7 @@ await modelling.run({op: 'vertices', object: 'wheel', relative: true,
     verts: [[0, 0, 0.02, 0]]})
 ```
 
-Then `extrude`, `inset`, `solidify`, `mirror`, `join`, `separate` and `weld` for the rest. `{op:
+Then `extrude`, `inset`, `bevel`, `solidify`, `mirror`, `join`, `separate` and `weld` for the rest. `{op:
 'help'}` lists everything at runtime.
 
 ## Live modifiers

@@ -827,7 +827,10 @@ export function setProfileSpacing(bp: BevelParams, proSpacing: ProfileSpacing, c
 
     bp.proSpacing.seg2 = seg2
     if (seg2 === seg) {
-        // Filled in below, once `xvals` exists - Blender aliases the two pointers.
+        /* Blender aliases `xvals_2 = xvals` here, *before* `xvals` is allocated, so on that branch
+         * its `xvals_2` ends up null. Nothing reads it - `calculateProfile` only touches `xvals2`
+         * when `seg != seg2` - so the aliasing is done below instead, once there is something to
+         * alias. Same observable behaviour, minus a null pointer. */
         proSpacing.xvals2 = null
         proSpacing.yvals2 = null
     } else {

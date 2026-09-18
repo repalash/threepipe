@@ -8,27 +8,33 @@
  */
 
 import {
+    bevelEdges,
+    bevelVerts,
     bmFromMesh,
     bmToMesh,
     insetIndividual,
     insetRegion,
     solidify,
 } from '@threepipe/mesh-kernel'
-import type {BMFace} from '@threepipe/mesh-kernel'
+import type {BMEdge, BMFace, BMVert} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget} from './params'
 
-/** Resolve a `faces` parameter to BMesh faces, defaulting to the whole mesh. */
-function facesOf(bm: ReturnType<typeof bmFromMesh>, indices: unknown, name: string): BMFace[] {
-    const all = [...bm.faces]
+/** Resolve an index list against an element array, with a message worth reading when it is wrong. */
+function elementsOf<T>(all: T[], indices: unknown, kind: string, name: string): T[] {
     if (indices === undefined) return all
-    if (!Array.isArray(indices)) throw new Error('`faces` must be a list of face indices')
+    if (!Array.isArray(indices)) throw new Error(`\`${kind}\` must be a list of indices`)
     return indices.map(i => {
         if (!Number.isInteger(i) || i < 0 || i >= all.length) {
-            throw new Error(`face ${i} is out of range - "${name}" has ${all.length}`)
+            throw new Error(`${kind.slice(0, -1)} ${i} is out of range - "${name}" has ${all.length}`)
         }
         return all[i as number]
     })
+}
+
+/** Resolve a `faces` parameter to BMesh faces, defaulting to the whole mesh. */
+function facesOf(bm: ReturnType<typeof bmFromMesh>, indices: unknown, name: string): BMFace[] {
+    return elementsOf<BMFace>([...bm.faces], indices, 'faces', name)
 }
 
 export const insetCommand: CommandDefinition = {
@@ -160,4 +166,93 @@ export const solidifyCommand: CommandDefinition = {
     },
 }
 
-export const shapeCommands = [insetCommand, solidifyCommand]
+const OFFSET_TYPES = ['offset', 'width', 'depth', 'percent', 'absolute'] as const
+
+export const bevelCommand: CommandDefinition = {
+    op: 'bevel',
+    summary: 'Round or chamfer edges, or a vertex corner.',
+    description:
+        'What stops a model reading as untouched primitives. One segment gives a flat chamfer; more '
+        + 'give a rounded profile, and `profile: 0.5` puts those points on a circular arc.\n\n'
+        + '`offsetType` decides what the number means, and the five give five different distances: '
+        + '`offset` is perpendicular from the edge, `width` is across the new face, `depth` is into '
+        + 'the corner, `percent` is a fraction of the adjacent edge, `absolute` is along it.\n\n'
+        + '`clampOverlap` stops a bevel wider than its geometry turning the solid inside out - it '
+        + 'reduces the offset to the point where the faces would collapse, which means asking for far '
+        + 'too much gives zero-area faces at exactly that limit rather than a mess.\n\n'
+        + 'Non-manifold and boundary edges are declined rather than corrupted.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to bevel.'),
+        objects: S.objectRef('Alias for `object`.'),
+        edges: S.array('Edge indices to bevel. Default every edge.', {type: 'integer'}),
+        verts: S.array('Vertex indices, for a corner bevel. Use instead of `edges`.',
+            {type: 'integer'}),
+        offset: S.number('How far to bevel. Default 0.1.'),
+        offsetType: S.enum('What `offset` measures.', OFFSET_TYPES),
+        segments: S.integer('Segments across the bevel. 1 is a flat chamfer. Default 1.',
+            {minimum: 1}),
+        profile: S.number('Profile shape, 0 to 1. 0.5 is a circular arc; below it is concave.',
+            {minimum: 0, maximum: 1}),
+        clampOverlap: S.boolean('Reduce the offset rather than self-intersect. Default true.'),
+        loopSlide: S.boolean('Slide along an existing edge where one is available. Default true.'),
+        markSeam: S.boolean('Mark the new edges as UV seams.'),
+        markSharp: S.boolean('Mark the new edges sharp.'),
+        miterOuter: S.enum('How an outer corner is finished.', ['sharp', 'patch', 'arc']),
+        miterInner: S.enum('How an inner corner is finished.', ['sharp', 'arc']),
+        spread: S.number('Distance between the arms of an arc miter.'),
+        materialIndex: S.integer('Material slot for the new faces. -1 keeps the neighbours\'.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const bm = bmFromMesh(entry.mesh)
+
+        const opts = {
+            offset: (p.offset as number) ?? 0.1,
+            offsetType: p.offsetType as typeof OFFSET_TYPES[number] | undefined,
+            segments: (p.segments as number) ?? 1,
+            profile: (p.profile as number) ?? 0.5,
+            clampOverlap: p.clampOverlap === undefined ? true : p.clampOverlap as boolean,
+            loopSlide: p.loopSlide === undefined ? true : p.loopSlide as boolean,
+            markSeam: p.markSeam as boolean | undefined,
+            markSharp: p.markSharp as boolean | undefined,
+            miterOuter: p.miterOuter as 'sharp' | 'patch' | 'arc' | undefined,
+            miterInner: p.miterInner as 'sharp' | 'arc' | undefined,
+            spread: p.spread as number | undefined,
+            materialIndex: p.materialIndex as number | undefined,
+        }
+
+        const byVerts = p.verts !== undefined
+        if (byVerts && p.edges !== undefined) {
+            throw new Error('give `edges` or `verts`, not both - they are different operations')
+        }
+
+        const result = byVerts
+            ? bevelVerts(bm, elementsOf<BMVert>([...bm.verts], p.verts, 'verts', entry.name), opts)
+            : bevelEdges(bm, elementsOf<BMEdge>([...bm.edges], p.edges, 'edges', entry.name), opts)
+
+        if (!result.faces.length) {
+            ctx.warn('nothing was beveled - the selection may be boundary or non-manifold edges, '
+                + 'which are declined rather than corrupted')
+            return {objects: [entry.name], data: {newFaces: 0}}
+        }
+
+        const mesh = bmToMesh(bm)
+        ctx.doc.setMesh(entry, mesh)
+
+        const all = [...bm.faces]
+        return {
+            objects: [entry.name],
+            data: {
+                mode: byVerts ? 'verts' : 'edges',
+                newFaces: result.faces.map(f => all.indexOf(f)).filter(i => i >= 0),
+                verts: mesh.vertsNum,
+                edges: mesh.edgesNum,
+                faces: mesh.facesNum,
+            },
+        }
+    },
+}
+
+export const shapeCommands = [insetCommand, solidifyCommand, bevelCommand]
