@@ -9,7 +9,7 @@ import {
     FileLoader,
     IAssetImporter,
     ILoader,
-    Importer, Mesh,
+    Importer, IObject3D, Mesh,
     Mesh2,
     Object3D,
     Object3D2,
@@ -22,10 +22,13 @@ import {
     SpotLight2,
     SRGBColorSpace,
     Texture,
+    ThreeViewer,
     UnlitMaterial,
 } from 'threepipe'
+import type {MeshData} from '@threepipe/mesh-kernel'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
+import {MESH_DATA_KEY} from './loader/meshData'
 import {decompressBlend} from './decompress'
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
@@ -203,6 +206,40 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'BlendLoadPlugin'
     constructor() {
         super()
+    }
+
+    /**
+     * Hands `MeshEditPlugin` the exact n-gon topology of an imported object.
+     *
+     * Without it, entering edit mode on a `.blend` import would have to *recover* topology from the
+     * baked triangles - weld by position, guess at n-gons, renumber the vertices. The importer already
+     * decoded the real mesh, so it is simply handed over. Held as a field so it can be unregistered.
+     */
+    private _meshProvider = (object: IObject3D): MeshData | null =>
+        (object.geometry as any)?.userData?.[MESH_DATA_KEY] ?? null
+
+    private _unregisterMeshProvider(plugin: any) {
+        const providers = plugin && plugin.meshProviders
+        if (!Array.isArray(providers)) return
+        const i = providers.indexOf(this._meshProvider)
+        if (i >= 0) providers.splice(i, 1)
+    }
+
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        // Registered by plugin-type string rather than by importing the plugin, the way
+        // `ModellingPlugin._connectMeshEdit` does it, so this package gains no dependency on
+        // `@threepipe/plugin-mesh-edit` and still loads a `.blend` with no edit mode present at all.
+        viewer.forPlugin('MeshEditPlugin',
+            (plugin: any) => plugin.meshProviders?.push(this._meshProvider),
+            (plugin: any) => this._unregisterMeshProvider(plugin))
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        // `forPlugin`'s unmount only fires when the *other* plugin goes away; this covers the case of
+        // this plugin being removed first, which would otherwise leave a dangling provider behind.
+        this._unregisterMeshProvider(viewer.getPlugin<any>('MeshEditPlugin'))
+        super.onRemove(viewer)
     }
     protected _importer = new Importer(class extends FileLoader implements ILoader {
         // The AssetImporter that constructed this loader (injected via the Importer onCtor below). Used to

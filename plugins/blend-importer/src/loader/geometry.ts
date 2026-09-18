@@ -1,4 +1,6 @@
+import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
 import {Ctx} from './ctx'
+import {createMeshData, MESH_DATA_KEY} from './meshData'
 
 function getLayer(layers: any, i: number) {
     if (!Array.isArray(layers)) return layers
@@ -261,8 +263,57 @@ function createBufferGeometryFromAttributes(meshData: any, ctx: Ctx): any {
     return geometry
 }
 
+/**
+ * Bake an n-gon {@link MeshData} into a renderable `BufferGeometry`, and leave the mesh itself on the
+ * geometry's `userData` so it stays editable.
+ *
+ * The bake is corner-indexed (one output vertex per face corner) and ear-clips concave n-gons, which
+ * is what Blender's own draw path does. Compared with the legacy fan triangulation below that means
+ * per-corner UVs survive exactly rather than being welded "last write wins", and a concave n-gon
+ * tessellates without the inverted triangles a fan produces. It costs vertices - a cube bakes to 24
+ * rather than 8 - which is the same trade Blender makes.
+ */
+function bakeMeshData(mesh: MeshData, name: string, ctx: Ctx): any {
+    const baked = bakeGeometry(mesh, {includeNormals: true})
+    const geometry = geometryDataToBufferGeometry<any>(baked.data, ctx)
+    geometry.name = name
+    geometry.userData = geometry.userData || {}
+    // Double-underscored so threepipe's serialiser leaves it alone: `MeshData` is a class, and a
+    // half-JSONified copy in glTF `primitive.extras` would be worse than none. Binary persistence is
+    // a glTF extension of its own (see issues/open/modelling-tools/00-synthesis.md 3.3).
+    geometry.userData[MESH_DATA_KEY] = mesh
+    return geometry
+}
+
+/**
+ * How many times one parsed file may complain about a datablock it could not decode as n-gons, before
+ * it stops. A geometry-nodes scene can hold hundreds of affected meshes and the console is not the
+ * place to list them all; the count is reported at the cut-off so nothing is hidden.
+ */
+const MAX_FALLBACK_WARNINGS = 8
+const fallbackWarnings = new WeakMap<object, number>()
+
+function warnFallback(meshData: any, name: string, reason: string) {
+    const file = meshData.__blender_file__
+    if (!file) return
+    const seen = (fallbackWarnings.get(file) ?? 0) + 1
+    fallbackWarnings.set(file, seen)
+    if (seen > MAX_FALLBACK_WARNINGS) return
+    console.warn(`BlendLoader - "${name}": not importable as n-gons (${reason}), falling back to the triangulating path.` +
+        (seen === MAX_FALLBACK_WARNINGS ? ' Further meshes in this file will not be reported.' : ''))
+}
+
 // https://github.com/blender/blender/blob/55e2fd2929b7577e0785c128c8f8069efd990c07/source/blender/blenkernel/intern/mesh.cc#L413
 export function createBufferGeometry(meshData: any, ctx: Ctx) {
+
+    // N-gon path: transcribe the datablock into a `MeshData` and bake that. It reads all three DNA
+    // layouts, so this is the path for every file the parser resolves cleanly. The paths below stay
+    // as the fallback for datablocks it cannot make a well-formed mesh out of - `.blend` files with
+    // mis-resolved or half-written geometry still have to load.
+    let reason = ''
+    const mesh = createMeshData(meshData, r => { reason ||= r })
+    if (mesh) return bakeMeshData(mesh, meshData.aname || '', ctx)
+    if (reason) warnFallback(meshData, meshData.aname || '', reason)
 
     if (meshData.mpoly) return createBufferGeometryOld(meshData, ctx)
 
@@ -534,32 +585,6 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
     // compute stuff not present
     if (geometry.attributes.position && !geometry.attributes.normal)
         geometry.computeVertexNormals()
-
-    // Catmull-Clark cage: the un-triangulated n-gon faces + per-corner UVs, kept on userData so a Subsurf
-    // (subdivType==0) can be done as faithful Catmull-Clark (which needs the quad topology this triangulated
-    // geometry has thrown away). mesh.ts subdivides this cage and re-triangulates. Mid path only.
-    if (faceIndices.length > 1 && indicesData && verticesData && verticesData.length) {
-        const cagePositions: number[][] = []
-        for (const vd of verticesData) { const c = vco(vd); cagePositions.push([c[0], c[2], -c[1]]) } // Z-up→Y-up
-        const cageFaces: number[][] = []
-        const cageUVs: number[][][] | null = uvLayerData ? [] : null
-        // Per-face material slot (only when >1 slot) — carried alongside the faces so the CC subdivider can
-        // re-emit geometry groups (each cage face → a contiguous run of output quads of the same slot).
-        const faceMat = (meshData.totcol || 0) > 1 ? readFaceMaterialIndex(meshData, faceIndices.length - 1) : null
-        const cageMats: number[] | null = faceMat ? [] : null
-        for (let i = 0; i < faceIndices.length - 1; i++) {
-            const face: number[] = [], fuv: number[][] = []
-            for (let l = faceIndices[i]; l < faceIndices[i + 1]; l++) {
-                const v = indicesData[l]?.i
-                if (v >= 0 && v < cagePositions.length) {
-                    face.push(v)
-                    if (cageUVs && uvLayerData) { const e = uvLayerData[l]; fuv.push([e?.x || 0, e?.y || 0]) }
-                }
-            }
-            if (face.length >= 3) { cageFaces.push(face); if (cageUVs) cageUVs.push(fuv); if (cageMats && faceMat) cageMats.push(faceMat[i] || 0) }
-        }
-        if (cageFaces.length) { geometry.userData = geometry.userData || {}; geometry.userData.__cage = {positions: cagePositions, faces: cageFaces, uvs: cageUVs, materialIndices: cageMats} }
-    }
 
     // if (meshData.loc) { // maybe this is the bbox center?
     //     geometry.translate(meshData.loc[0], meshData.loc[2], -meshData.loc[1])

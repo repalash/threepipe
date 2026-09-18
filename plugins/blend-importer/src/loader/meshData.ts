@@ -27,6 +27,20 @@
 
 import {AttrDomain, AttrName, AttrType, MeshData} from '@threepipe/mesh-kernel'
 
+/**
+ * `geometry.userData[MESH_DATA_KEY]` holds the editable n-gon {@link MeshData} the geometry was baked
+ * from, when the importer could produce one.
+ *
+ * It lives on the *geometry* rather than the object because that is the datablock-level thing: two
+ * Alt+D linked duplicates share one geometry and must agree on its topology. The leading underscores
+ * keep threepipe's `userData` serialiser away from it - a `MeshData` is a class instance, and half of
+ * one written into glTF `primitive.extras` would be worse than none.
+ *
+ * `BlendLoadPlugin` hands it to `MeshEditPlugin` through `viewer.forPlugin('MeshEditPlugin', ...)`, so
+ * nothing here depends on the edit-mode plugin being installed.
+ */
+export const MESH_DATA_KEY = '__meshData'
+
 // `CD_*` values from `DNA_customdata_types.h`. Read as: what the layer must be, not what we hope.
 const CD_PROP_FLOAT = 10
 const CD_PROP_INT32 = 11

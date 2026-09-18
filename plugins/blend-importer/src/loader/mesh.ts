@@ -2,11 +2,12 @@ import {DoubleSide} from 'threepipe'
 import {createBufferGeometry} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
-import {subdivideCage} from './catmull'
+import {cageFromMeshData, subdivideCage} from './catmull'
 import {mirrorGeometry} from './mirror'
 import {arrayGeometry} from './array'
 import {solidifyGeometry} from './solidify'
 import {Ctx} from './ctx'
+import {MESH_DATA_KEY} from './meshData'
 
 function listToArray(lb: any): any[] {
     const out: any[] = []
@@ -60,13 +61,15 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
             const levels = Math.max(0, Math.min(5, (m.renderLevels ?? m.levels ?? 0) as number))
             // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
             if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
-                const cage = geometry.userData && geometry.userData.__cage
-                if (m.subdivType !== 1 && cage) {
+                // The editable n-gon mesh the importer attached, when it could produce one. Catmull-Clark
+                // needs that topology; the baked triangles no longer have it.
+                const ngons = geometry.userData && geometry.userData[MESH_DATA_KEY]
+                if (m.subdivType !== 1 && ngons) {
                     // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
                     // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
                     // approximation if the cage subdivider throws.
                     try {
-                        const sub = subdivideCage(cage, ctx, levels)
+                        const sub = subdivideCage(cageFromMeshData(ngons), ctx, levels)
                         sub.name = geometry.name
                         geometry = sub
                     } catch (e) {

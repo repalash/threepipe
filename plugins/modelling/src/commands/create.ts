@@ -94,7 +94,7 @@ export const primitiveCommand: CommandDefinition = {
     mutates: true,
     schema: schema({
         type: S.enum('Which primitive.', PRIMITIVE_TYPES),
-        size: S.number('Uniform size. For a cube, its edge length; for a plane or grid, its side.'),
+        size: S.number('Uniform size: the finished extent, whatever the type. A cube of size 2 is\n2 units across, and so is a grid.'),
         width: S.number('X size. Overrides `size` on that axis.'),
         height: S.number('Y size. For a cylinder or cone, its length along `axis`.'),
         depth: S.number('Z size.'),
@@ -131,16 +131,21 @@ export const primitiveCommand: CommandDefinition = {
             mesh = primitiveCube({size: 1, matrix: scaleMatrix(s)})
             break
         }
+        // Blender's `create_grid` takes `size` as a half-extent while `create_cube` takes it as a
+        // full edge length (`bmo_primitive.cc`), and the kernel is faithful to both. This command
+        // promises exact sizes, so the grid is halved here - otherwise `width: 0.78` silently builds
+        // something 1.56 across, which is the sort of thing that is only noticed as bad proportions
+        // three captures later.
         case 'plane':
             mesh = primitiveGrid({
-                xSegments: 1, ySegments: 1, size: 1,
+                xSegments: 1, ySegments: 1, size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)],
                     axisMatrix(axis === 'y' ? 'y' : axis)),
             })
             break
         case 'grid':
             mesh = primitiveGrid({
-                xSegments: num('xSegments', 1), ySegments: num('ySegments', 1), size: 1,
+                xSegments: num('xSegments', 1), ySegments: num('ySegments', 1), size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)], axisMatrix('y')),
             })
             break

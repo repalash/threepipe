@@ -436,6 +436,14 @@ export interface BevelParams {
     mathLayerNames: string[]
     /** The UV (float2) loop layer names, in order, one entry per {@link uvVertMaps} slot. */
     uvLayerNames: string[]
+    /**
+     * Blender's `VERT_OUT` and `EDGE_OUT` operator flags (`:754`), which the kernel has no layer
+     * for. `BM_mesh_bevel` sets them on everything it makes so `bmo_bevel_exec` can fill its output
+     * slots, and `disable_flag_out_edge` clears one again when an edge turns out to be internal.
+     * Two sets reproduce that exactly, with the same lifetime as Blender's flag layer.
+     */
+    outVerts: Set<BMVert>
+    outEdges: Set<BMEdge>
 }
 
 /**

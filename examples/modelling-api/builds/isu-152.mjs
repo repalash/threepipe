@@ -152,18 +152,34 @@ export default async ({run, runAll, capture, inspect, log}) => {
 
     // Fenders cover the top run of track. Without them the running gear reads as exposed bogies,
     // which is the single biggest difference from the reference photograph.
-    await run({op: 'primitive', type: 'cube', name: 'fender', color: GREEN,
-        width: 0.78, height: 0.05, depth: 5.4, position: [-1.21, TRACK.top + 0.14, 0.15]})
+    //
+    // Built as a surface and then given thickness, rather than as a flattened box: a pressed steel
+    // fender is a sheet, and `solidify` is what turns one into a plate with a rim closing its edges.
+    // Doing it this way also means the downturned ends keep their thickness through the bend, which a
+    // scaled box cannot.
+    await run({op: 'primitive', type: 'grid', name: 'fender', color: GREEN,
+        xSegments: 1, ySegments: 8, width: 0.78, depth: 5.4,
+        position: [-1.21, TRACK.top + 0.16, 0.15]})
     // Turn the leading and trailing edges down, the way a pressed steel fender is shaped.
     const fender = await inspect('fender', true)
     const ends = pick(fender, v => Math.abs(v[2]) > 2.6)
     await run({op: 'vertices', object: 'fender', relative: true,
-        verts: ends.map(i => [i, 0, -0.14, 0])})
+        verts: ends.map(i => [i, 0, -0.16, 0])})
+    await run({op: 'solidify', object: 'fender', thickness: 0.035, offset: 0})
     await run({op: 'duplicate', object: 'fender', name: 'fender-r', scale: [-1, 1, 1]})
 
+    // A hatch is a disc with a rim: lathe the disc, then inset its top face twice - once inward and
+    // down for the recess, once more and back up for the raised lip. Two commands where modelling the
+    // same shape as a profile would take a dozen profile points to get wrong.
     await run({op: 'lathe', name: 'hatch', axis: 'y', segments: 18, color: GREEN,
-        profile: [[0, 0], [0.27, 0], [0.28, 0.04], [0, 0.05]],
+        profile: [[0, 0], [0.28, 0], [0.28, 0.05], [0, 0.05]],
         position: [-0.62, CASEMATE.roof, 0.75]})
+    const hatch = await inspect('hatch', true)
+    const hatchTop = topFacesOf(hatch)
+    const recess = await run({op: 'inset', object: 'hatch', faces: hatchTop,
+        thickness: 0.035, depth: -0.015})
+    await run({op: 'inset', object: 'hatch', faces: recess.data.insetFaces,
+        thickness: 0.03, depth: 0.022})
     await run({op: 'duplicate', object: 'hatch', name: 'hatch-r', move: [1.24, 0, 0]})
 
     await run({op: 'sweep', name: 'grabrail', radius: 0.012, steps: 6, color: STEEL,
@@ -181,6 +197,9 @@ export default async ({run, runAll, capture, inspect, log}) => {
 
     await run({op: 'primitive', type: 'cube', name: 'deck', color: GREEN,
         width: 2.32, height: 0.1, depth: 2.0, position: [0, HULL.roof + 0.05, -2.2]})
+    // Recess the grille panel into the deck rather than sitting a slab on top of it.
+    const deck = await inspect('deck', true)
+    await run({op: 'inset', object: 'deck', faces: topFacesOf(deck), thickness: 0.16, depth: -0.035})
     await run({op: 'primitive', type: 'cube', name: 'louver', color: DARK,
         width: 1.6, height: 0.03, depth: 0.05, position: [0, HULL.roof + 0.11, -1.6]})
     await run({op: 'array', object: 'louver', count: 14, step: [0, 0, -0.07], live: true})
@@ -203,6 +222,18 @@ export default async ({run, runAll, capture, inspect, log}) => {
     await capture('top', {view: 'top', fit: '*'})
     await capture('three quarter', {view: 'iso', fit: '*'})
     await run({op: 'export', format: 'glb', path: 'tmp/isu-152/isu-152.glb'})
+}
+
+/** Indices of the upward-facing faces of an inspected object, by their corner average. */
+function topFacesOf(inspected) {
+    const top = Math.max(...inspected.vertices.map(v => v[1]))
+    return inspected.faceVerts
+        .map((verts, i) => ({
+            i,
+            y: verts.reduce((a, v) => a + inspected.vertices[v][1], 0) / verts.length,
+        }))
+        .filter(f => f.y > top - 1e-4)
+        .map(f => f.i)
 }
 
 /** Indices of an inspected object's vertices matching a predicate on its local position. */

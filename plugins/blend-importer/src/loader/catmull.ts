@@ -16,6 +16,8 @@
 //     boundary vertex) is PINNED. This is the same "Keep Corners" rule the Loop subdivider uses, so a square
 //     plane keeps its four right-angle corners (Blender's rendered output keeps them).
 
+import {AttrDomain, AttrName, MeshData} from '@threepipe/mesh-kernel'
+
 type V3 = number[]
 
 interface PointObj { point: V3; faces: FaceObj[]; edges: Set<EdgeObj>; newPoint?: V3; _i?: number }
@@ -126,8 +128,52 @@ export function catmullClark(positions: V3[], cells: number[][], levels: number)
     return obj
 }
 
-/** A polygon cage extracted from the mesh datablock (see geometry.ts `userData.__cage`). */
+/** A polygon cage: the n-gon faces the subdivider runs on, with per-corner UVs and per-face slots. */
 export interface Cage { positions: V3[]; faces: number[][]; uvs: number[][][] | null; materialIndices?: number[] | null }
+
+/**
+ * The cage view of an imported {@link MeshData}.
+ *
+ * Catmull-Clark needs the n-gon topology the render bake has tessellated away, which used to be kept
+ * in a partial side-channel (`geometry.userData.__cage`) built only on the 3.6-4.x import path. The
+ * `MeshData` the importer now attaches is that same information and more, on every path, so the cage
+ * is derived from it instead - which is why a pre-3.6 or a 5.0 file gets faithful Catmull-Clark too.
+ *
+ * Positions are already in three's Y-up space (converted at import). UVs are read per corner from the
+ * same layer the render bake picks, so the base mesh and the subdivided one agree. Material indices
+ * are passed on only when there is more than one slot, matching what the bake does with groups.
+ */
+export function cageFromMeshData(mesh: MeshData): Cage {
+    const p = mesh.positions
+    const positions: V3[] = new Array(mesh.vertsNum)
+    for (let v = 0; v < mesh.vertsNum; v++) positions[v] = [p[v * 3], p[v * 3 + 1], p[v * 3 + 2]]
+
+    const faces: number[][] = new Array(mesh.facesNum)
+    for (let f = 0; f < mesh.facesNum; f++) faces[f] = mesh.faceVerts(f)
+
+    const uvLayer = mesh.attributes.layersOnDomain(AttrDomain.Corner)
+        .find(l => l.type === 'float2' && !l.name.startsWith('.'))
+    let uvs: number[][][] | null = null
+    if (uvLayer) {
+        const d = uvLayer.data
+        uvs = new Array(mesh.facesNum)
+        for (let f = 0; f < mesh.facesNum; f++) {
+            const start = mesh.faceOffsets[f], end = mesh.faceOffsets[f + 1]
+            const fuv: number[][] = new Array(end - start)
+            for (let c = start; c < end; c++) fuv[c - start] = [d[c * 2], d[c * 2 + 1]]
+            uvs[f] = fuv
+        }
+    }
+
+    const mat = mesh.attributes.get(AttrName.materialIndex)
+    let materialIndices: number[] | null = null
+    if (mat && mesh.materials.length > 1) {
+        materialIndices = new Array(mesh.facesNum)
+        for (let f = 0; f < mesh.facesNum; f++) materialIndices[f] = mat.data[f]
+    }
+
+    return {positions, faces, uvs, materialIndices}
+}
 
 /**
  * Subdivide a polygon cage with `levels` of Catmull-Clark and return a triangulated, indexed BufferGeometry

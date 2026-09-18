@@ -2414,6 +2414,26 @@ test('modelling-api', async({page}) => {
     // A failed command must leave nothing behind.
     expect((await state()).objects.length).toBe(1)
 
+    // --- sizes mean what they say ----------------------------------------------------------------
+
+    // Blender's own primitives disagree about whether `size` is a radius or an edge length - the
+    // grid's is a half-extent, the cube's is not. The command layer promises finished extents for
+    // all of them, and this is the assertion that keeps that true.
+    await run({op: 'delete', object: '*'})
+    for (const [type, extra, expected] of [
+        ['cube', {width: 2, height: 3, depth: 4}, [2, 3, 4]],
+        ['plane', {width: 2, depth: 4}, [2, 0, 4]],
+        ['grid', {width: 3, depth: 1.5, xSegments: 3, ySegments: 2}, [3, 0, 1.5]],
+        ['cylinder', {radius: 1.5, height: 4}, [3, 4, 3]],
+        ['sphere', {radius: 2}, [4, 4, 4]],
+    ] as [string, Record<string, unknown>, number[]][]) {
+        const made = await run({op: 'primitive', type, name: `sized-${type}`, ...extra})
+        expect(made.ok).toBe(true)
+        const size = (made.data as any).bounds.size as number[]
+        for (let i = 0; i < 3; i++) expect(size[i]).toBeCloseTo(expected[i], 4)
+    }
+    await run({op: 'delete', object: 'sized-*'})
+
     // --- creation -----------------------------------------------------------------------------
 
     const wheel = await run({

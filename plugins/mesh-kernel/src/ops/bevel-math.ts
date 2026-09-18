@@ -387,6 +387,17 @@ export function closestToPlaneV3(rClose: V3, plane: readonly number[], pt: reado
     maddV3V3V3Fl(rClose, pt, plane, -side / lenSq)
 }
 
+/**
+ * `dist_squared_to_plane_v3` (`math_geom.cc:474`) - signed, and note it is *not* `fabsf`'d, so the
+ * sign says which side of the plane the point is on.
+ */
+export function distSquaredToPlaneV3(pt: readonly number[], plane: readonly number[]): number {
+    const lenSq = lenSquaredV3(plane)
+    const side = planePointSideV3(plane, pt)
+    const fac = side / lenSq
+    return Math.sign(side) * (lenSq * (fac * fac))
+}
+
 /** `closest_to_plane_normalized_v3` (`math_geom.cc:458`). */
 export function closestToPlaneNormalizedV3(rClose: V3, plane: readonly number[], pt: readonly number[]): void {
     const side = planePointSideV3(plane, pt)
