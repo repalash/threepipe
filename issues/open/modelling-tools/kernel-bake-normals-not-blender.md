@@ -1,5 +1,7 @@
 # `bakeGeometry` normals are not Blender's, and there is no welded bake
 
+**Status**: parts 1 and 2 are **fixed**; part 3 is still open.
+
 **Severity**: medium. Nothing is wrong on the test meshes, and it is visible on real ones.
 
 `plugins/mesh-kernel/src/bake.ts`. Found while moving the `.blend` importer onto the kernel's bake
@@ -40,6 +42,13 @@ The fix is a direct port of the loop above. It is contained, but it changes the 
 so it needs a pass over `mesh-edit`'s and `modelling`'s snapshots at the same time rather than a
 drive-by.
 
+**Fixed.** `bake.ts` `computeNormals` now weights each face's contribution by the angle it subtends at
+the corner's vertex, using exact `acos` where Blender uses its `safe_acos_approx` polynomial - the
+same value, computed more precisely rather than differently. In the event none of the six interactive
+snapshots moved: they are all axis-aligned boxes and lathes, where every face around a vertex subtends
+the same angle and the two agree exactly. It is on a UV sphere's pole and on mixed triangle/quad
+fans that they differ.
+
 ## 2. `sharp_edge` does not split normals
 
 The bake reads `sharp_face` and nothing else. Blender additionally splits the normal fan at any edge
@@ -51,7 +60,13 @@ bake time - so a mesh marked sharp along an edge loop renders smooth across it.
 Because the bake is already corner-indexed, this costs no extra vertices: it is a question of which
 corners share an accumulation bucket, not of splitting geometry.
 
-## 3. There is no welded bake, and import pays for it
+**Fixed.** Corners are grouped into fans by union-find: two corners at the same vertex merge only
+across an edge that is manifold, not `sharp_edge`, and between two faces neither of which is
+`sharp_face`. A boundary edge has nothing to merge with and a non-manifold edge is treated as sharp,
+which is `normals_calc_corners`' own rule. Still not ported: the auto-smooth angle and
+`custom_normal`, neither of which the kernel has a layer for.
+
+## 3. There is no welded bake, and import pays for it — **still open**
 
 Every output vertex is one corner. That is right for editing and for exact per-corner attributes, and
 it is what Blender's draw path does. It also means a cube imports as 24 vertices rather than 8, and a

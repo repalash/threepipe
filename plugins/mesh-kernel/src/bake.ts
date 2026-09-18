@@ -257,54 +257,7 @@ export function bakeGeometry(mesh: MeshData, options: BakeOptions = {}): BakeRes
 
     // --- normals ---
     if (options.includeNormals !== false) {
-        const sharpFace = mesh.attributes.get(AttrName.sharpFace)
-        const outNormals = new Float32Array(cornersNum * 3)
-        // Accumulate face normals per vertex for smooth shading.
-        const vertNormals = new Float32Array(mesh.vertsNum * 3)
-        const faceNormals = new Float32Array(mesh.facesNum * 3)
-
-        for (let f = 0; f < mesh.facesNum; f++) {
-            const start = mesh.faceOffsets[f]
-            const end = mesh.faceOffsets[f + 1]
-            faceNormal(mesh, start, end, normal)
-            faceNormals[f * 3] = normal[0]
-            faceNormals[f * 3 + 1] = normal[1]
-            faceNormals[f * 3 + 2] = normal[2]
-            for (let c = start; c < end; c++) {
-                const v = cornerVerts[c] * 3
-                vertNormals[v] += normal[0]
-                vertNormals[v + 1] += normal[1]
-                vertNormals[v + 2] += normal[2]
-            }
-        }
-        for (let v = 0; v < mesh.vertsNum; v++) {
-            const i = v * 3
-            const len = Math.hypot(vertNormals[i], vertNormals[i + 1], vertNormals[i + 2])
-            if (len > 0) {
-                vertNormals[i] /= len
-                vertNormals[i + 1] /= len
-                vertNormals[i + 2] /= len
-            }
-        }
-        for (let f = 0; f < mesh.facesNum; f++) {
-            const flat = sharpFace ? sharpFace.data[f] !== 0 : false
-            const start = mesh.faceOffsets[f]
-            const end = mesh.faceOffsets[f + 1]
-            for (let c = start; c < end; c++) {
-                const o = c * 3
-                if (flat) {
-                    outNormals[o] = faceNormals[f * 3]
-                    outNormals[o + 1] = faceNormals[f * 3 + 1]
-                    outNormals[o + 2] = faceNormals[f * 3 + 2]
-                } else {
-                    const v = cornerVerts[c] * 3
-                    outNormals[o] = vertNormals[v]
-                    outNormals[o + 1] = vertNormals[v + 1]
-                    outNormals[o + 2] = vertNormals[v + 2]
-                }
-            }
-        }
-        data.normal = outNormals
+        computeNormals(mesh, cornerVerts, cornersNum, data)
     }
 
     // --- uvs ---
@@ -394,3 +347,187 @@ export function totalTriangleCount(mesh: MeshData): number {
 
 /** Re-export so callers can size attribute arrays without importing constants directly. */
 export {ATTR_TYPE_INFO}
+
+/**
+ * Corner normals, the way Blender computes them.
+ *
+ * Two things here that an unweighted average gets wrong, both ported from
+ * `blenkernel/intern/mesh_normals.cc`:
+ *
+ * **Angle weighting** (`normals_calc_verts`, `:194`). Each face contributes its normal scaled by the
+ * angle it subtends *at that vertex*, not equally. Where the faces around a vertex have unequal
+ * angles - a UV sphere's pole, or one long thin triangle meeting several square quads - an unweighted
+ * average leans toward whichever side has more faces rather than toward the surface. three does it a
+ * third way again, weighting by area, so all three disagree on exactly those meshes.
+ *
+ * **Sharp edges split the fan** (`normals_calc_corners`). A vertex does not get one normal; it gets
+ * one per group of faces reachable from each other without crossing a sharp edge, a boundary, or a
+ * flat face. The bake is already corner-indexed, so this costs nothing extra - it is a question of
+ * which corners share an accumulation bucket, not of splitting geometry. Without it, a mesh marked
+ * sharp along an edge loop renders smooth across it, and `sharp_edge` is carried by every `.blend`
+ * that has one.
+ *
+ * Not ported: the auto-smooth angle and `custom_normal`, which the kernel has no layer for.
+ */
+function computeNormals(
+    mesh: MeshData, cornerVerts: Int32Array, cornersNum: number, data: GeometryData,
+): void {
+    const sharpFace = mesh.attributes.get(AttrName.sharpFace)
+    const sharpEdge = mesh.attributes.get(AttrName.sharpEdge)
+    const cornerEdges = mesh.cornerEdges
+    const offsets = mesh.faceOffsets
+    const positions = mesh.positions
+    const facesNum = mesh.facesNum
+
+    const faceNormals = new Float32Array(facesNum * 3)
+    const normal: [number, number, number] = [0, 0, 1]
+    for (let f = 0; f < facesNum; f++) {
+        faceNormal(mesh, offsets[f], offsets[f + 1], normal)
+        faceNormals[f * 3] = normal[0]
+        faceNormals[f * 3 + 1] = normal[1]
+        faceNormals[f * 3 + 2] = normal[2]
+    }
+
+    // Which face owns each corner, so a fan can name the normal it should accumulate.
+    const cornerFace = new Int32Array(cornersNum)
+    for (let f = 0; f < facesNum; f++) {
+        for (let c = offsets[f]; c < offsets[f + 1]; c++) cornerFace[c] = f
+    }
+
+    // --- fans: union corners that share a vertex across a smooth manifold edge ---
+
+    const parent = new Int32Array(cornersNum)
+    for (let c = 0; c < cornersNum; c++) parent[c] = c
+    const find = (c: number): number => {
+        let root = c
+        while (parent[root] !== root) root = parent[root]
+        while (parent[c] !== root) {
+            const next = parent[c]
+            parent[c] = root
+            c = next
+        }
+        return root
+    }
+    const union = (a: number, b: number) => {
+        const ra = find(a)
+        const rb = find(b)
+        if (ra !== rb) parent[rb] = ra
+    }
+
+    const faceStartOf = (f: number) => offsets[f]
+    const faceEndOf = (f: number) => offsets[f + 1]
+    const nextCorner = (c: number) => {
+        const f = cornerFace[c]
+        return c + 1 < faceEndOf(f) ? c + 1 : faceStartOf(f)
+    }
+    const prevCorner = (c: number) => {
+        const f = cornerFace[c]
+        return c > faceStartOf(f) ? c - 1 : faceEndOf(f) - 1
+    }
+
+    // `cornerEdges[c]` is the edge from corner `c` to the next corner of the same face, so the
+    // corners sharing an edge are exactly those whose `corner_edge` is that edge.
+    if (mesh.edgesNum > 0) {
+        const firstCornerOfEdge = new Int32Array(mesh.edgesNum).fill(-1)
+        const secondCornerOfEdge = new Int32Array(mesh.edgesNum).fill(-1)
+        const edgeUsers = new Int32Array(mesh.edgesNum)
+        for (let c = 0; c < cornersNum; c++) {
+            const e = cornerEdges[c]
+            if (e < 0 || e >= mesh.edgesNum) continue
+            const users = edgeUsers[e]++
+            if (users === 0) firstCornerOfEdge[e] = c
+            else if (users === 1) secondCornerOfEdge[e] = c
+        }
+
+        for (let e = 0; e < mesh.edgesNum; e++) {
+            // A boundary edge has nothing to merge with, and a non-manifold one is treated as sharp -
+            // the same rule `normals_calc_corners` applies.
+            if (edgeUsers[e] !== 2) continue
+            if (sharpEdge && sharpEdge.data[e]) continue
+
+            const c1 = firstCornerOfEdge[e]
+            const c2 = secondCornerOfEdge[e]
+            const f1 = cornerFace[c1]
+            const f2 = cornerFace[c2]
+            if (f1 === f2) continue
+            if (sharpFace && (sharpFace.data[f1] || sharpFace.data[f2])) continue
+
+            // The edge's two vertices, found in each face, then matched up.
+            const a = cornerVerts[c1]
+            const c1Next = nextCorner(c1)
+            const c2Next = nextCorner(c2)
+            if (cornerVerts[c2] === a) {
+                union(c1, c2)
+                union(c1Next, c2Next)
+            } else {
+                union(c1, c2Next)
+                union(c1Next, c2)
+            }
+        }
+    }
+
+    // --- accumulate, weighted by the angle each face subtends at the corner's vertex ---
+
+    const groupNormals = new Float32Array(cornersNum * 3)
+    for (let c = 0; c < cornersNum; c++) {
+        const v = cornerVerts[c]
+        const p = cornerVerts[prevCorner(c)]
+        const n = cornerVerts[nextCorner(c)]
+        const factor = cornerAngle(positions, v, p, n)
+        const f = cornerFace[c] * 3
+        const root = find(c) * 3
+        groupNormals[root] += faceNormals[f] * factor
+        groupNormals[root + 1] += faceNormals[f + 1] * factor
+        groupNormals[root + 2] += faceNormals[f + 2] * factor
+    }
+
+    const outNormals = new Float32Array(cornersNum * 3)
+    for (let c = 0; c < cornersNum; c++) {
+        const root = find(c) * 3
+        let x = groupNormals[root]
+        let y = groupNormals[root + 1]
+        let z = groupNormals[root + 2]
+        const len = Math.hypot(x, y, z)
+        if (len > 0) {
+            x /= len
+            y /= len
+            z /= len
+        } else {
+            // A degenerate fan - every contribution cancelled. Fall back to the face normal, which is
+            // the best available answer and is what a flat face would have given anyway.
+            const f = cornerFace[c] * 3
+            x = faceNormals[f]
+            y = faceNormals[f + 1]
+            z = faceNormals[f + 2]
+        }
+        const o = c * 3
+        outNormals[o] = x
+        outNormals[o + 1] = y
+        outNormals[o + 2] = z
+    }
+
+    data.normal = outNormals
+}
+
+/**
+ * The angle a face subtends at one of its corners - `math::safe_acos_approx` of the dot of the two
+ * normalised edge directions (`mesh_normals.cc:216`).
+ *
+ * Blender's `safe_acos_approx` is a float32 polynomial chosen for speed; exact `acos` with the same
+ * clamping is strictly closer to the value it approximates.
+ */
+function cornerAngle(positions: Float32Array, vert: number, prev: number, next: number): number {
+    const px = positions[prev * 3] - positions[vert * 3]
+    const py = positions[prev * 3 + 1] - positions[vert * 3 + 1]
+    const pz = positions[prev * 3 + 2] - positions[vert * 3 + 2]
+    const nx = positions[next * 3] - positions[vert * 3]
+    const ny = positions[next * 3 + 1] - positions[vert * 3 + 1]
+    const nz = positions[next * 3 + 2] - positions[vert * 3 + 2]
+
+    const pl = Math.hypot(px, py, pz)
+    const nl = Math.hypot(nx, ny, nz)
+    if (pl === 0 || nl === 0) return 0
+
+    const dot = (px * nx + py * ny + pz * nz) / (pl * nl)
+    return Math.acos(dot < -1 ? -1 : dot > 1 ? 1 : dot)
+}
