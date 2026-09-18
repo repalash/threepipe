@@ -73,7 +73,7 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `solidify` | give a surface thickness, with a rim closing it — plates and panels |
 | `array` | repeat in a line, around a pivot, or along a path — baked, or `live` |
 | `modifier` | the live stack: add, update, reorder, remove, apply |
-| `duplicate`, `mirror`, `join`, `separate`, `delete` | the rest of object assembly |
+| `duplicate`, `mirror`, `join`, `separate`, `weld`, `delete` | the rest of object assembly |
 | `rename`, `material`, `select` | naming, surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
 | `camera` | named views, fit-to-objects, saved views |

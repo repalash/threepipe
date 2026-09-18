@@ -72,6 +72,7 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `mirror` | mirror geometry across a plane, welding what sits on it |
 | `join` | merge objects into one mesh, keeping relative placement |
 | `separate` | split by loose parts, or by a list of faces |
+| `weld` | merge coincident vertices — merge by distance, optionally connected-only |
 | `delete` | remove objects |
 | `rename`, `material`, `select` | naming, colour and surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |

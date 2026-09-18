@@ -29,7 +29,12 @@
             "es2020",
             "esnext",
             "dom"
-        ]
+        ],
+        "paths": {
+            "@threepipe/mesh-kernel": [
+                "../../mesh-kernel/dist/index.d.ts"
+            ]
+        }
     },
     "include": [
         "src/**/*"

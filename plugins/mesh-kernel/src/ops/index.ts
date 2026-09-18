@@ -1,6 +1,7 @@
 export * from './extrude'
 export * from './duplicate'
 export * from './weld'
+export * from './removeDoubles'
 export * from './join'
 export * from './dissolve'
 export * from './subdivide'

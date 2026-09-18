@@ -2655,6 +2655,23 @@ test('modelling-api', async({page}) => {
     const pairBounds = await run({op: 'inspect', object: 'pair'})
     expect((pairBounds.data as any).bounds.size[0]).toBeCloseTo(7, 1)
 
+    // `join` deliberately does not weld, so `weld` is what closes the seam afterwards.
+    await run({op: 'primitive', type: 'cube', name: 'a', size: 1, position: [0, 20, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'b', size: 1, position: [1, 20, 0]})
+    const touching = await run({op: 'join', object: ['a', 'b'], name: 'touching'})
+    expect((touching.data as any).verts).toBe(16)
+
+    // Connected finds nothing: the two cubes are separate shells that merely touch.
+    const connected = await run({op: 'weld', object: 'touching', distance: 0.001, connected: true})
+    expect((connected.data as any).merged).toBe(0)
+    // The plain search merges the shared face's four corners.
+    const welded = await run({op: 'weld', object: 'touching', distance: 0.001})
+    expect((welded.data as any).merged).toBe(4)
+    expect((welded.data as any).verts).toBe(12)
+    const weldHealth = await run({op: 'selftest'})
+    expect((weldHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: 'touching'})
+
     const split = await run({op: 'separate', object: 'pair', mode: 'loose'})
     expect((split.data as any).created).toBe(1)
     expect((await state()).objects.length).toBe(2)

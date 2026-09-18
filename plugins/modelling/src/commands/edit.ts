@@ -20,6 +20,7 @@ import {
     extrudeFaceRegion,
     joinMeshes,
     Mat4,
+    removeDoubles,
     mirrorGeometry,
     separateFaces,
     separateLooseParts,
@@ -613,6 +614,68 @@ export const separateCommand: CommandDefinition = {
     },
 }
 
+export const weldCommand: CommandDefinition = {
+    op: 'weld',
+    summary: 'Merge vertices that sit on top of each other.',
+    description:
+        'Blender\'s Merge by Distance. The natural companion to `join`, which deliberately does not '
+        + 'weld: join first, then decide the tolerance.\n\n'
+        + '`connected` changes what counts as a double. By default anything within range of anything '
+        + 'else is merged, which is what you want after an import that split vertices at every UV '
+        + 'seam. With `connected`, the search only follows edges and face corners, so two surfaces '
+        + 'that merely touch are left alone - which is what you want after joining overlapping parts, '
+        + 'where merging across the join would weld unrelated geometry together.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('Objects to weld. `prefix*` and `*` work.'),
+        objects: S.objectRef('Alias for `object`.'),
+        distance: S.number('Merge distance. Default 0.0001, as in Blender.', {minimum: 0}),
+        connected: S.boolean('Only merge along edges and face corners.'),
+        verts: S.array('Restrict the search to these vertex indices. Default all of them.',
+            {type: 'integer'}),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const targets = readTargets(p, ctx.doc)
+        const changed: string[] = []
+        const reports: unknown[] = []
+
+        for (const entry of targets) {
+            const bm = bmFromMesh(entry.mesh)
+            const all = [...bm.verts]
+            const verts = p.verts === undefined ? all : (p.verts as number[]).map(i => {
+                if (!Number.isInteger(i) || i < 0 || i >= all.length) {
+                    throw new Error(`vertex ${i} is out of range - "${entry.name}" has ${all.length}`)
+                }
+                return all[i]
+            })
+
+            const before = entry.mesh.vertsNum
+            const result = removeDoubles(bm, verts, {
+                distance: (p.distance as number) ?? 0.0001,
+                useConnected: p.connected as boolean | undefined,
+            })
+            if (!result.merged) {
+                reports.push({object: entry.name, merged: 0})
+                continue
+            }
+            const mesh = bmToMesh(bm)
+            ctx.doc.setMesh(entry, mesh)
+            changed.push(entry.name)
+            reports.push({
+                object: entry.name,
+                merged: result.merged,
+                verts: mesh.vertsNum,
+                removed: before - mesh.vertsNum,
+                faces: mesh.facesNum,
+            })
+        }
+
+        if (!changed.length) ctx.warn('nothing was close enough to merge')
+        return {objects: changed, data: reports.length === 1 ? reports[0] : reports}
+    },
+}
+
 export const deleteCommand: CommandDefinition = {
     op: 'delete',
     summary: 'Remove objects from the document and the scene.',
@@ -632,5 +695,5 @@ export const deleteCommand: CommandDefinition = {
 
 export const editCommands = [
     verticesCommand, transformCommand, extrudeCommand, arrayCommand, duplicateCommand,
-    mirrorCommand, joinCommand, separateCommand, deleteCommand,
+    mirrorCommand, joinCommand, separateCommand, weldCommand, deleteCommand,
 ]

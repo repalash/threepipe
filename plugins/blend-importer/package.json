@@ -6,10 +6,12 @@
     },
     "dependencies": {
         "fzstd": "^0.1.1",
-        "threepipe": "file:./../../src/"
+        "threepipe": "file:./../../src/",
+        "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.1.0",
+        "@threepipe/mesh-kernel": ">=0.1.0"
     },
     "exports": {
         ".": {

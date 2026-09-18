@@ -42,6 +42,7 @@ import {selectFlush, selectNone, vertSelectSet} from '../bmesh/marking'
 import {dissolveFaces} from '../ops/dissolve'
 import {subdivideTrisOnSphere} from '../ops/subdivide'
 import {weldVerts} from '../ops/weld'
+import {removeDoubles} from '../ops/removeDoubles'
 import {ElemFlag} from '../constants'
 import {Mat4, Vec3, mat4Identity, mat4Invert, mat4RotationAxis, mat4TransformDir, mat4TransformPoint, v3normalize} from '../math'
 
@@ -220,85 +221,6 @@ function extrudeEdgeOnlyOp(
     return {vertMap, edgeMap, faces}
 }
 
-/**
- * Group `verts` by proximity and map every member of a cluster onto one survivor.
- *
- * Port of the second pass of `kdtree_calc_duplicates_cb` (`BLI_kdtree.hh:802`) driving
- * `bmesh_find_doubles_by_distance_impl` (`bmo_removedoubles.cc:688`), which is what
- * `bmo_remove_doubles_exec` feeds to the weld. The first pass is skipped because it only runs with
- * `keep_verts`, which `remove_doubles` does not have.
- *
- * The KD-tree is replaced by a direct range scan. The tree is a lookup structure, not part of the
- * algorithm: `duplicates_cb` sees the same candidate set either way. The survivor choice is Blender's
- * `deduplicate_target_calc_fn` verbatim, including the lowest-index tie break, so a cluster picks the
- * same member Blender would.
- */
-function findDoublesByDistance(verts: BMVert[], dist: number): Map<BMVert, BMVert> {
-    const n = verts.length
-    const duplicates: number[] = new Array(n).fill(-1)
-    const distSq = dist * dist
-
-    const targetCalc = (cluster: number[]): number => {
-        if (cluster.length === 2) {
-            // No use calculating a centroid; the lowest index wins for stability.
-            return cluster[0] < cluster[1] ? 0 : 1
-        }
-        let cx = 0, cy = 0, cz = 0
-        for (const ci of cluster) {
-            cx += verts[ci].x
-            cy += verts[ci].y
-            cz += verts[ci].z
-        }
-        cx /= cluster.length
-        cy /= cluster.length
-        cz /= cluster.length
-
-        // Pick the most central member, starting from the last (the search origin).
-        const end = cluster.length - 1
-        let iBest = end
-        const dsq = (i: number) => {
-            const v = verts[cluster[i]]
-            return (v.x - cx) ** 2 + (v.y - cy) ** 2 + (v.z - cz) ** 2
-        }
-        let best = dsq(iBest)
-        for (let i = 0; i < end; i++) {
-            const test = dsq(i)
-            if (test > best) continue
-            if (test === best && cluster[i] > cluster[iBest]) continue
-            iBest = i
-            best = test
-        }
-        return iBest
-    }
-
-    for (let i = 0; i < n; i++) {
-        if (duplicates[i] !== -1) continue
-        const a = verts[i]
-        const cluster: number[] = []
-        for (let j = 0; j < n; j++) {
-            if (duplicates[j] !== -1) continue
-            if (j === i) continue
-            const b = verts[j]
-            if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2 <= distSq) cluster.push(j)
-        }
-        if (!cluster.length) continue
-        cluster.push(i)
-        const target = cluster[targetCalc(cluster)]
-        for (const ci of cluster) duplicates[ci] = target
-    }
-
-    const map = new Map<BMVert, BMVert>()
-    for (let i = 0; i < n; i++) {
-        if (duplicates[i] === -1 || duplicates[i] === i) continue
-        map.set(verts[i], verts[duplicates[i]])
-    }
-    return map
-}
-
-/** Port of `bmo_remove_doubles_exec` (`bmo_removedoubles.cc:911`): find doubles, then weld them. */
-function removeDoubles(bm: BMesh, verts: BMVert[], dist: number): void {
-    weldVerts(bm, findDoublesByDistance(verts, dist))
-}
 
 // endregion
 
@@ -905,7 +827,7 @@ export function createUVSphere(bm: BMesh, opts: UVSphereOptions = {}): Primitive
         const len2 = Math.hypot(vec[0] - vec2[0], vec[1] - vec2[1], vec[2] - vec2[2])
 
         // Use the shortest segment length divided by 3 as the merge threshold.
-        removeDoubles(bm, marked.filter(v => bm.verts.has(v)), Math.min(len, len2) / 3)
+        removeDoubles(bm, marked.filter(v => bm.verts.has(v)), {distance: Math.min(len, len2) / 3})
     }
 
     // Blender cannot tag the faces while building, so it tags them afterwards from all their

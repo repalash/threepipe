@@ -139,6 +139,7 @@ Ported as found, because each one is load-bearing and each one is surprising:
 | `../ops/inset.ts` | `bmo_inset.cc`, both forms, every option. Needed three core kernels that did not exist here — `bmesh_kernel_edge_separate`, `bmesh_kernel_vert_separate`, `bmesh_kernel_unglue_region_make_vert` — which are private there for now and belong in `bmesh/` |
 | `../ops/solidify.ts` | `MOD_solidify_extrude.cc` simple mode (the entry point is `MOD_solidify_extrude_modifyMesh:150`; there is no `solidify_extrude_modifyMesh`). Non-manifold mode and vertex-group weighting out of scope, stated in the header |
 | `../ops/join.ts` | `join_geometries.cc` for the attribute union, `BM_mesh_separate_loose` and `P > Selection` for the splits |
+| `../ops/removeDoubles.ts` | `bmo_removedoubles.cc` — both find-doubles variants (plain and `use_connected`), `keep_verts`, and `bmo_remove_doubles_exec`. Promoted out of `primitives.ts`, which had the plain half privately |
 | `../bmesh/interp.ts` | `bmesh_interp.cc` + `interp_weights_poly_v2` from `math_geom.cc`. Multires paths out of scope |
 | `../bmesh/flip.ts`, `../bmesh/ngon.ts`, `../bmesh/collapse.ts`, `../ops/dissolve.ts`, `../ops/subdivide.ts` | promoted out of `primitives.ts` and `extrude.ts` — see Cleanup debt |
 
@@ -211,6 +212,8 @@ and `bmesh_kernel_unglue_region_make_vert` are private in `ops/inset.ts` and bel
 `sin_cos_from_fraction` and `BM_face_calc_normal` are still private in `primitives.ts` (the latter is
 also open-coded as `averageFaceNormal` in `extrude.ts` and ported again as `faceCalcNormal` in
 `bmesh/interp.ts` — three copies of one Blender function, which is two too many).
+`bmo_remove_doubles_exec` has since been promoted to `ops/removeDoubles.ts` and gained the
+`use_connected` half it was missing.
 
 Still private in `primitives.ts`, with no shared home yet: `sin_cos_from_fraction` and
 `BM_face_calc_normal` (neither is in `math/index.ts`; the latter is also open-coded as
