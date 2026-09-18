@@ -27,7 +27,7 @@ Subplans:
 1. Blender-quality polygonal modelling in threepipe: edit mode with vert/edge/face selection, extrude, inset, bevel, loop cut, knife, dissolve, merge, bridge, subdivide, booleans, primitives.
 2. A first-class programmatic API usable by humans and AI agents through scripting (typed TS, not MCP). API quality is as important as UX.
 3. A proper editable-mesh representation instead of editing `BufferGeometry` directly, as a plugin, Node-safe.
-4. `.blend` files load with their n-gon topology intact and editable, not only triangulated.
+4. `.blend` files load with their n-gon topology intact and editable, not only triangulated. **Done** (M2) — `plugins/blend-importer/src/loader/meshData.ts`, all three DNA layouts.
 5. Kokraf is the UX/three.js-editor reference; Blender is the algorithm and architecture reference.
 
 ## 2. Key findings
@@ -162,7 +162,7 @@ The typed TS API is the single source of truth. The op-definition table generate
 
 M0 Design: op-definition table extracted from `bmesh_opdefines.cc` into a TS schema (also emitting MCP `inputSchema` JSON, so the bridge never grows a second hand-written tool list); kernel type sketch; API doc draft; test strategy (Node unit tests against Blender-generated fixtures: build the same mesh in Blender via `bmesh.ops`, export arrays, compare).
 M1 Kernel: `MeshData`, attributes, `BMesh` core (create/kill, Euler ops, cycles, iterators, queries, interp, marking/select, walkers), `bmFromMesh/bmToMesh`, tessellation, normals, `validate()`, chunked undo store. Node-tested.
-M2 Bake + import: `MeshData → BufferGeometry`, glTF extension, blend-importer emits `MeshData` with n-gons and edge attributes; Subsurf on `MeshData`.
+M2 Bake + import — **done apart from Subsurf**: `MeshData → BufferGeometry` (`bake.ts`); the glTF extension `THREEPIPE_mesh_topology` carries editable topology and the modifier stack through an export/import round trip (`plugins/modelling/src/gltf/`); blend-importer emits `MeshData` with n-gons and Blender's authored edges for all three DNA layouts, and `__cage` is gone. Subsurf still runs on the extracted cage rather than as a `ModifierSpec`, which is why an object carrying a Blender modifier is not adopted as editable — that is the follow-up.
 M3 Operators batch 1: utils (transform/smooth/reverse/region_extend), dupe/split/delete, extrude family, primitives (incl. monkey), contextual_create (F), remove_doubles/merge/collapse, dissolve, split_edges.
 M4 Edit mode UX (needs D7a fixed and the editor bumped to threepipe 0.5.x): edit-mode plugin, overlays, picking, select modes/flush/history, loop/ring/linked, keymap, transform modal (G/R/S with constraints, numeric input, pivots, orientations, snapping, proportional), extrude/duplicate macros, undo/redo panel, tweakpane tab, docs + interactive tests.
 M5 Operators batch 2: inset, subdivide + loop cut + edge slide, connect/J, rotate edges, normals, triangulate/join tris, bridge, fills, poke, bisect, mirror/symmetrize.
