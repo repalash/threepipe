@@ -1,3 +1,4 @@
+import {faceNormalUpdate} from '../bmesh/polygon'
 /**
  * Mesh primitive generators - grid, cube, circle, cone/cylinder, UV sphere, icosphere.
  *
@@ -103,32 +104,6 @@ function sinCosFromFraction(numerator: number, denominator: number): [number, nu
     const s = Math.sin(angle)
     const c = Math.cos(angle) * cosSign
     return swap ? [c, s] : [s, c]
-}
-
-/**
- * Recompute a face's normal from its loop cycle. Port of `BM_face_calc_normal`, which is Newell's
- * method - the only formula that is correct for a non-planar n-gon. The cone UV pass needs it to
- * tell a top cap from a bottom cap.
- */
-function faceNormalUpdate(f: BMFace): void {
-    let nx = 0, ny = 0, nz = 0
-    for (const l of f.eachLoop()) {
-        const a = l.v
-        const b = l.next.v
-        nx += (a.y - b.y) * (a.z + b.z)
-        ny += (a.z - b.z) * (a.x + b.x)
-        nz += (a.x - b.x) * (a.y + b.y)
-    }
-    const len = Math.hypot(nx, ny, nz)
-    if (len > 0) {
-        f.nx = nx / len
-        f.ny = ny / len
-        f.nz = nz / len
-    } else {
-        f.nx = 0
-        f.ny = 0
-        f.nz = 1
-    }
 }
 
 // endregion

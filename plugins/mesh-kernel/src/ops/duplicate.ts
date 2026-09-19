@@ -57,17 +57,18 @@ export function duplicateGeometry(
         srcVerts.add(e.v2)
     }
 
+    // No need to clear the select bit on the copies: `BM_elem_attrs_copy`'s rule keeps the
+    // *destination's* selection and takes everything else, so a fresh element is never born
+    // selected. See `bmesh/customdata.ts` `copyElemHeader`.
     const vertMap = new Map<BMVert, BMVert>()
     for (const v of srcVerts) {
         const nv = bm.vertCreate(v.x, v.y, v.z, v)
-        nv.hflag &= ~ElemFlag.Select
         vertMap.set(v, nv)
     }
 
     const edgeMap = new Map<BMEdge, BMEdge>()
     for (const e of srcEdges) {
         const ne = bm.edgeCreate(vertMap.get(e.v1)!, vertMap.get(e.v2)!, e, {noDouble: true})
-        ne.hflag &= ~ElemFlag.Select
         edgeMap.set(e, ne)
     }
 
@@ -75,7 +76,6 @@ export function duplicateGeometry(
     for (const f of srcFaces) {
         const loops = [...f.eachLoop()]
         const nf = bm.faceCreate(loops.map(l => vertMap.get(l.v)!), f)
-        nf.hflag &= ~ElemFlag.Select
         const dstLoops = [...nf.eachLoop()]
         for (let i = 0; i < loops.length; i++) copyElemAttrs(loops[i], dstLoops[i], bm.ldata)
         faceMap.set(f, nf)

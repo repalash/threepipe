@@ -11,7 +11,7 @@
  * splits an edge asks the layout to interpolate, rather than knowing what layers exist.
  */
 
-import {ATTR_TYPE_INFO, AttrType} from '../constants'
+import {ATTR_TYPE_INFO, AttrType, ElemFlag} from '../constants'
 import {BMElem} from './types'
 
 /** Which of an element's two blocks a layer lives in. */
@@ -206,6 +206,52 @@ export function setValue(
         const v = values[c] ?? 0
         if (layer.storage === 'float') elem.fdata![i] = v
         else elem.idata![i] = v
+    }
+}
+
+/**
+ * Which header flags a copy leaves alone, per domain - Blender's `hflag_mask`.
+ *
+ * `BM_elem_attrs_copy` (`bmesh_construct.cc:333-364`) is one line repeated four times:
+ *
+ * ```c
+ * dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
+ * ```
+ *
+ * So the destination **keeps its own selection** and takes **everything else** from the source,
+ * including `BM_ELEM_TAG`. Both halves matter and both are easy to get backwards: an operator that
+ * tags geometry before separating it needs the tag to survive, and a new face must not arrive
+ * selected just because its example was - the selection counters are maintained by `faceSelectSet`
+ * and friends, not by `faceCreate`, so an inherited bit desynchronises them silently.
+ *
+ * The mask widens with the domain because Blender has more selection bits further down. This kernel
+ * has no `BM_ELEM_SELECT_UV_EDGE`, so the loop mask is the face mask.
+ */
+export const HFLAG_COPY_MASK = {
+    vert: ElemFlag.Select,
+    edge: ElemFlag.Select,
+    face: ElemFlag.Select | ElemFlag.SelectUV,
+    loop: ElemFlag.Select | ElemFlag.SelectUV,
+} as const
+
+/**
+ * Copy `src`'s header flags onto `dst`, keeping `dst`'s own selection.
+ *
+ * The header half of `BM_elem_attrs_copy`; {@link copyElemAttrs} is the custom-data half. Blender
+ * also copies the cached `no` for verts and faces, and so does this - `nx`/`ny`/`nz` on the element,
+ * which operators that read a normal before recomputing it depend on.
+ */
+export function copyElemHeader(
+    src: {hflag: number, nx?: number, ny?: number, nz?: number},
+    dst: {hflag: number, nx?: number, ny?: number, nz?: number},
+    domain: keyof typeof HFLAG_COPY_MASK,
+): void {
+    const mask = HFLAG_COPY_MASK[domain]
+    dst.hflag = (dst.hflag & mask) | (src.hflag & ~mask)
+    if (src.nx !== undefined && dst.nx !== undefined) {
+        dst.nx = src.nx
+        dst.ny = src.ny!
+        dst.nz = src.nz!
     }
 }
 

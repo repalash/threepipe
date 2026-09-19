@@ -1,5 +1,15 @@
 # Element creation does not follow `BM_elem_attrs_copy`'s flag rule
 
+**Status: fixed.** `bmesh/customdata.ts` now has `copyElemHeader`, which is Blender's one line per
+domain, and `vertCreate` / `edgeCreate` / `faceCreate` use it. The local workarounds in
+`ops/duplicate.ts`, `ops/inset.ts` and `ops/bevel-create.ts` are gone — three operators had grown the
+same fix-up, which is what finally made it worth doing.
+
+Worth recording: **the whole suite passed both before and after the change**, which is why it sat
+this long. The rule was wrong in both directions — `Tag` stripped where Blender keeps it, `Select`
+inherited where Blender does not — and nothing covered either. Four tests now pin it, and the
+mutation that restores the old line fails two of them.
+
 Found while porting inset (`plugins/mesh-kernel/src/ops/inset.ts`), which depends on the rule in both
 directions and had to work around it with three private `*CreateFrom` helpers.
 

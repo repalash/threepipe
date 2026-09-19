@@ -1,3 +1,4 @@
+import {faceNormalUpdate} from '../bmesh/polygon'
 /**
  * The `bmesh_query.cc`, `bmesh_polygon.cc` and `bmesh_mesh_normals.cc` functions that bevel needs and
  * that `src/bmesh` does not export yet.
@@ -190,47 +191,12 @@ export function facePointInsideTest(f: BMFace, point: readonly number[]): boolea
 // region normals
 
 /**
- * `BM_face_calc_normal` (`bmesh_polygon.cc:824`) written into `f->no`.
+ * `BM_face_normal_update` (`bmesh_polygon.cc:838`).
  *
- * Triangles and quads do not go through Newell: Blender uses `normal_tri_v3` and the cross of a
- * quad's two diagonals, which for a non-planar quad is a different answer, so the special cases are
- * not an optimisation.
- *
- * (`bmesh/interp.ts` exports `faceCalcNormal` with the same body but returning a value; this writes
- * the normal onto the face, which `faceNormalUpdate` needs and that one does not do.)
+ * Re-exported rather than re-implemented: this was a fourth copy of the same function, and they
+ * differed only in what they returned for a degenerate face.
  */
-export function faceNormalUpdate(f: BMFace): void {
-    const n = nv3()
-    if (f.len === 4) {
-        const l0 = f.lFirst, l1 = l0.next, l2 = l1.next, l3 = l2.next
-        const a = nv3(), b = nv3()
-        subV3V3V3(a, co(l0.v), co(l2.v))
-        subV3V3V3(b, co(l1.v), co(l3.v))
-        crossV3V3V3(n, a, b)
-    } else if (f.len === 3) {
-        const l0 = f.lFirst, l1 = l0.next, l2 = l1.next
-        const a = nv3(), b = nv3()
-        subV3V3V3(a, co(l0.v), co(l1.v))
-        subV3V3V3(b, co(l1.v), co(l2.v))
-        crossV3V3V3(n, a, b)
-    } else {
-        // `bm_face_calc_poly_normal` - Newell's method over the loop cycle.
-        let lPrev = co(f.lFirst.prev.v)
-        let l = f.lFirst
-        do {
-            const lCurr = co(l.v)
-            n[0] += (lPrev[1] - lCurr[1]) * (lPrev[2] + lCurr[2])
-            n[1] += (lPrev[2] - lCurr[2]) * (lPrev[0] + lCurr[0])
-            n[2] += (lPrev[0] - lCurr[0]) * (lPrev[1] + lCurr[1])
-            lPrev = lCurr
-            l = l.next
-        } while (l !== f.lFirst)
-    }
-    normalizeV3(n)
-    f.nx = n[0]
-    f.ny = n[1]
-    f.nz = n[2]
-}
+export {faceNormalUpdate}
 
 /**
  * `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`) - adjacent face normals weighted by the

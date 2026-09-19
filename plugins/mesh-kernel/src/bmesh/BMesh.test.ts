@@ -364,3 +364,71 @@ describe('element flag defaults, against bmesh_core.cc', () => {
         expect(bm.faceCreate(w, example).hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
     })
 })
+
+describe('creating from an example, against BM_elem_attrs_copy', () => {
+    // `bmesh_construct.cc:333-364` is one line repeated per domain:
+    //   dst->head.hflag = (dst->head.hflag & hflag_mask) | (src->head.hflag & ~hflag_mask);
+    // The destination keeps its own selection and takes everything else, including BM_ELEM_TAG.
+    // Both halves are easy to get backwards, and the kernel had them backwards both ways.
+
+    const triangle = (bm: BMesh, z = 0) => [
+        bm.vertCreate(0, 0, z), bm.vertCreate(1, 0, z), bm.vertCreate(1, 1, z),
+    ]
+
+    it('carries the tag from the example', () => {
+        const bm = new BMesh()
+        const a = bm.vertCreate(0, 0, 0)
+        a.hflag |= ElemFlag.Tag
+        expect(bm.vertCreate(1, 0, 0, a).hflag & ElemFlag.Tag).toBe(ElemFlag.Tag)
+
+        const b = bm.vertCreate(2, 0, 0)
+        const edge = bm.edgeCreate(a, b)
+        edge.hflag |= ElemFlag.Tag
+        const c = bm.vertCreate(3, 0, 0)
+        expect(bm.edgeCreate(b, c, edge).hflag & ElemFlag.Tag).toBe(ElemFlag.Tag)
+
+        const face = bm.faceCreate(triangle(bm))
+        face.hflag |= ElemFlag.Tag
+        expect(bm.faceCreate(triangle(bm, 1), face).hflag & ElemFlag.Tag).toBe(ElemFlag.Tag)
+    })
+
+    it('does not carry selection from the example', () => {
+        // The selection counters are maintained by `vertSelectSet` and friends, not by `vertCreate`,
+        // so an inherited select bit desynchronises them without anything noticing.
+        const bm = new BMesh()
+        const a = bm.vertCreate(0, 0, 0)
+        a.hflag |= ElemFlag.Select
+        expect(bm.vertCreate(1, 0, 0, a).hflag & ElemFlag.Select).toBe(0)
+
+        const face = bm.faceCreate(triangle(bm))
+        face.hflag |= ElemFlag.Select | ElemFlag.SelectUV
+        const copy = bm.faceCreate(triangle(bm, 1), face)
+        expect(copy.hflag & (ElemFlag.Select | ElemFlag.SelectUV)).toBe(0)
+    })
+
+    it('carries the other flags, and the material slot', () => {
+        const bm = new BMesh()
+        const face = bm.faceCreate(triangle(bm))
+        face.hflag |= ElemFlag.Smooth | ElemFlag.Seam | ElemFlag.Hidden
+        face.matNr = 3
+
+        const copy = bm.faceCreate(triangle(bm, 1), face)
+        expect(copy.hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
+        expect(copy.hflag & ElemFlag.Seam).toBe(ElemFlag.Seam)
+        expect(copy.hflag & ElemFlag.Hidden).toBe(ElemFlag.Hidden)
+        expect(copy.matNr).toBe(3)
+    })
+
+    it('leaves an edge smooth by default and takes the example\'s sharpness otherwise', () => {
+        const bm = new BMesh()
+        const a = bm.vertCreate(0, 0, 0)
+        const b = bm.vertCreate(1, 0, 0)
+        const c = bm.vertCreate(2, 0, 0)
+
+        const smooth = bm.edgeCreate(a, b)
+        expect(smooth.hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
+
+        smooth.hflag &= ~ElemFlag.Smooth
+        expect(bm.edgeCreate(b, c, smooth).hflag & ElemFlag.Smooth).toBe(0)
+    })
+})

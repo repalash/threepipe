@@ -33,6 +33,7 @@
  */
 
 import {BMEdge, BMFace, BMLoop, BMVert} from './types'
+import {faceCalcNormal} from './polygon'
 import {BMesh} from './BMesh'
 import {copyElemAttrs, interpElemAttrs} from './customdata'
 import {Vec3} from '../math'
@@ -119,84 +120,6 @@ function orthoV3V3(v: Vec3): Vec3 {
 // endregion
 
 // region face normal and tangent
-
-/** `normal_tri_v3` (`blenlib/intern/math_geom.cc:45`). Returns the normal, normalised. */
-function normalTriV3(v1: BMVert, v2: BMVert, v3: BMVert): Vec3 {
-    const n1x = v1.x - v2.x, n1y = v1.y - v2.y, n1z = v1.z - v2.z
-    const n2x = v2.x - v3.x, n2y = v2.y - v3.y, n2z = v2.z - v3.z
-    const n: Vec3 = [
-        n1y * n2z - n1z * n2y,
-        n1z * n2x - n1x * n2z,
-        n1x * n2y - n1y * n2x,
-    ]
-    normalizeV3(n)
-    return n
-}
-
-/** `normal_quad_v3` (`blenlib/intern/math_geom.cc:62`): the cross of the two diagonals. */
-function normalQuadV3(v1: BMVert, v2: BMVert, v3: BMVert, v4: BMVert): Vec3 {
-    const n1x = v1.x - v3.x, n1y = v1.y - v3.y, n1z = v1.z - v3.z
-    const n2x = v2.x - v4.x, n2y = v2.y - v4.y, n2z = v2.z - v4.z
-    const n: Vec3 = [
-        n1y * n2z - n1z * n2y,
-        n1z * n2x - n1x * n2z,
-        n1x * n2y - n1y * n2x,
-    ]
-    normalizeV3(n)
-    return n
-}
-
-/** `bm_face_calc_poly_normal` (`bmesh_polygon.cc:54`): Newell's method over the loop cycle. */
-function faceCalcPolyNormal(f: BMFace): Vec3 {
-    const lFirst = f.lFirst
-    let lIter: BMLoop = lFirst
-    let prev = lFirst.prev.v
-    let curr = lFirst.v
-    const n: Vec3 = [0, 0, 0]
-
-    do {
-        // add_newell_cross_v3_v3v3 (`math_vector_inline.cc:700`)
-        n[0] += (prev.y - curr.y) * (prev.z + curr.z)
-        n[1] += (prev.z - curr.z) * (prev.x + curr.x)
-        n[2] += (prev.x - curr.x) * (prev.y + curr.y)
-
-        lIter = lIter.next
-        prev = curr
-        curr = lIter.v
-    } while (lIter !== lFirst)
-
-    normalizeV3(n)
-    return n
-}
-
-/**
- * `BM_face_calc_normal` (`bmesh_polygon.cc:824`). Triangles and quads take a closed form; anything
- * else goes through Newell.
- *
- * Kept here rather than in `structure.ts` because nothing else in the kernel needs a face normal
- * yet; promote it when something does. (`generate/primitives.ts` has a private Newell-only copy,
- * already tracked as cleanup debt in the M1 subplan.)
- */
-export function faceCalcNormal(f: BMFace): Vec3 {
-    let l = f.lFirst
-    switch (f.len) {
-    case 4: {
-        const v1 = l.v
-        const v2 = (l = l.next).v
-        const v3 = (l = l.next).v
-        const v4 = l.next.v
-        return normalQuadV3(v1, v2, v3, v4)
-    }
-    case 3: {
-        const v1 = l.v
-        const v2 = (l = l.next).v
-        const v3 = l.next.v
-        return normalTriV3(v1, v2, v3)
-    }
-    default:
-        return faceCalcPolyNormal(f)
-    }
-}
 
 /** `axis_sort_v3` (`blenlib/intern/math_vector.cc:758`): indices of `values`, ascending. */
 function axisSortV3(values: readonly [number, number, number]): [number, number, number] {

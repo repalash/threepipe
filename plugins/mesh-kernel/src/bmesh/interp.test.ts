@@ -4,15 +4,7 @@ import {BMFace, BMLoop, BMVert} from './types'
 import {splitEdgeMakeVert} from './euler'
 import {diskEdgeExists} from './structure'
 import {getComponent, getValue, setValue} from './customdata'
-import {
-    dataInterpFromEdges,
-    dataInterpFromVerts,
-    faceCalcNormal,
-    faceInterpFromFace,
-    interpWeightsPolyV2,
-    loopInterpFromFace,
-    vertInterpFromFace,
-} from './interp'
+import {dataInterpFromEdges, dataInterpFromVerts, faceInterpFromFace, interpWeightsPolyV2, loopInterpFromFace, vertInterpFromFace} from './interp'
 import {createIcoSphere, PRIMITIVE_UV_LAYER} from '../generate/primitives'
 
 /**
@@ -434,24 +426,6 @@ describe('vertInterpFromFace / faceInterpFromFace', () => {
     })
 })
 
-describe('faceCalcNormal', () => {
-    it('matches the winding of a triangle, a quad and an n-gon', () => {
-        const bm = new BMesh()
-        const tri = bm.faceCreate([
-            bm.vertCreate(0, 0, 0), bm.vertCreate(1, 0, 0), bm.vertCreate(0, 1, 0)])
-        expect(faceCalcNormal(tri)).toEqual([0, 0, 1])
-
-        const quad = bm.faceCreate([
-            bm.vertCreate(3, 0, 0), bm.vertCreate(4, 0, 0),
-            bm.vertCreate(4, 1, 0), bm.vertCreate(3, 1, 0)])
-        expect(faceCalcNormal(quad)).toEqual([0, 0, 1])
-
-        const ngon = bm.faceCreate([0, 1, 2, 3, 4].map(i =>
-            bm.vertCreate(10 + Math.cos(i * 2 * Math.PI / 5), Math.sin(i * 2 * Math.PI / 5), 0)))
-        const n = faceCalcNormal(ngon)
-        expect(n[2]).toBeCloseTo(1, 6)
-    })
-})
 
 describe('icosphere UVs - the symptom the bug was filed for', () => {
     // `kernel-split-edge-copies-corner-data.md`: "an icosphere at subdivisions > 1 gets stepped UVs

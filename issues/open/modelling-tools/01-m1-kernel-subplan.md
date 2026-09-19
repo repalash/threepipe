@@ -184,11 +184,10 @@ Ported as found, because each one is load-bearing and each one is surprising:
   pair. A second bug turned up with it: `interpElemAttrs` treated every integer-storage layer as
   categorical, so a vertex-colour layer took one endpoint verbatim on every split; it now dispatches
   per type as `CustomData_bmesh_interp` does.
-- [`kernel-elem-attrs-copy-flags.md`](./kernel-elem-attrs-copy-flags.md) — **open.** Element creation
-  does not follow `BM_elem_attrs_copy`'s flag rule: Blender keeps the destination's select bit and
-  takes everything else including `BM_ELEM_TAG`, the kernel does the opposite. Both inset and
-  duplicate work around it locally. Wants a deliberate pass, not a drive-by, because it changes every
-  operator's output flags at once.
+- [`kernel-elem-attrs-copy-flags.md`](./kernel-elem-attrs-copy-flags.md) — **fixed.**
+  `bmesh/customdata.ts` `copyElemHeader` is Blender's rule, and the three operators that had grown
+  their own fix-up no longer need it. The suite passed both before and after, which is why it lasted:
+  the rule was wrong in both directions and nothing covered either. Four tests pin it now.
 - [`kernel-weld-verts-not-ported.md`](./kernel-weld-verts-not-ported.md) — resolved in substance by
   `ops/weld.ts`; the remaining item is the selection-history remap (`BM_select_history_merge_from_targetmap`).
 
@@ -210,9 +209,16 @@ implementations and the rest of its private operators were promoted out:
 
 Still outstanding, from the later ports: `bmesh_kernel_edge_separate`, `bmesh_kernel_vert_separate`
 and `bmesh_kernel_unglue_region_make_vert` are private in `ops/inset.ts` and belong in `bmesh/`;
-`sin_cos_from_fraction` and `BM_face_calc_normal` are still private in `primitives.ts` (the latter is
-also open-coded as `averageFaceNormal` in `extrude.ts` and ported again as `faceCalcNormal` in
-`bmesh/interp.ts` — three copies of one Blender function, which is two too many).
+`sin_cos_from_fraction` is still private in `primitives.ts`. `BM_face_calc_normal` is **no longer**
+duplicated: `bmesh/polygon.ts` holds the one implementation and `inset.ts`, `primitives.ts` and
+`bevel-bmquery.ts` all delegate to it. (`extrude.ts`'s `averageFaceNormal` is a different function —
+it averages several faces — and stays.) The four copies agreed on direction; where they differed was
+on degenerate faces, one returning a zero vector and another falling back to +Z.
+
+Still outstanding there: `bevel-bmquery.ts` holds nineteen general-purpose BMesh queries that belong
+in `bmesh/structure.ts`, and `ops/inset.ts` keeps `bmesh_kernel_edge_separate`,
+`bmesh_kernel_vert_separate` and `bmesh_kernel_unglue_region_make_vert` private — all of them general
+topology surgery that belongs beside the Euler operators.
 `bmo_remove_doubles_exec` has since been promoted to `ops/removeDoubles.ts` and gained the
 `use_connected` half it was missing.
 

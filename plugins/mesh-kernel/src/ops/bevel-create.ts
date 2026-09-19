@@ -24,7 +24,7 @@
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {BMLayerDef, copyElemAttrs, getValue, setValue} from '../bmesh/customdata'
+import {BMLayerDef, copyElemAttrs, copyElemHeader, getValue, setValue} from '../bmesh/customdata'
 import {loopInterpFromFace} from '../bmesh/interp'
 import {ElemFlag} from '../constants'
 import {
@@ -60,43 +60,24 @@ export function disableFlagOutEdge(bp: BevelParams, bme: BMEdge): void {
 // region element creation matching BM_elem_attrs_copy
 
 /**
- * `BM_elem_attrs_copy`'s header rule (`bmesh_construct.cc:337`):
- * `dst->hflag = (dst->hflag & SELECT) | (src->hflag & ~SELECT)`.
+ * `BM_vert_create(bm, co, eg, BM_CREATE_NOP)`.
  *
- * The kernel's `vertCreate`/`edgeCreate`/`faceCreate` do the opposite - they take the example's
- * flags but strip `Tag` and keep nothing of the destination. Bevel depends on both halves of the
- * real rule: `Tag` must propagate (`bev_create_ngon` and the final vertex sweep both read it), and a
- * new face must not silently inherit a selected example's select bit or `bm.totfacesel` desynchronises.
- * So each `*CreateFrom` below fixes the header up after the fact, the same workaround `ops/inset.ts`
- * uses and for the same reason - `issues/open/modelling-tools/kernel-elem-attrs-copy-flags.md`.
+ * Bevel depends on both halves of `BM_elem_attrs_copy`'s header rule: `Tag` must propagate
+ * (`bev_create_ngon` and the final vertex sweep both read it), and a new face must not inherit a
+ * selected example's select bit or `bm.totfacesel` desynchronises. The kernel's create methods used
+ * to do the opposite on both counts, so these wrappers corrected the header afterwards; `vertCreate`
+ * now follows the rule itself (`bmesh/customdata.ts` `copyElemHeader`) and the wrappers are just
+ * named entry points.
  */
-function elemHflagFromExample(dstHflag: number, srcHflag: number): number {
-    const mask = ElemFlag.Select | ElemFlag.SelectUV
-    return (dstHflag & mask) | (srcHflag & ~mask)
-}
-
-/** `BM_vert_create(bm, co, eg, BM_CREATE_NOP)` with `BM_elem_attrs_copy`'s flag rule. */
 export function vertCreateFrom(bm: BMesh, point: readonly number[], example: BMVert | null): BMVert {
-    const v = bm.vertCreate(point[0], point[1], point[2], example ?? undefined)
-    if (example) {
-        v.hflag = elemHflagFromExample(0, example.hflag)
-        // `BM_elem_attrs_copy` copies `v->no` too, which the kernel does not.
-        v.nx = example.nx
-        v.ny = example.ny
-        v.nz = example.nz
-    }
-    return v
+    return bm.vertCreate(point[0], point[1], point[2], example ?? undefined)
 }
 
-/** `BM_edge_create` with the same correction. */
+/** `BM_edge_create`. */
 export function edgeCreateFrom(
     bm: BMesh, v1: BMVert, v2: BMVert, example: BMEdge | null, noDouble = false,
 ): BMEdge {
-    const e = bm.edgeCreate(v1, v2, example ?? undefined, {noDouble})
-    if (example && e.v1 === v1 && e.v2 === v2) {
-        e.hflag = elemHflagFromExample(0, example.hflag)
-    }
-    return e
+    return bm.edgeCreate(v1, v2, example ?? undefined, {noDouble})
 }
 
 /**
@@ -495,11 +476,11 @@ export function bevCreateNgon(
     }
     if (facerep || (faceArr && faceArr[0])) {
         const src = facerep ?? faceArr![0]!
+        // `bev_create_ngon` copies from `src` even when the face was created from `facerep`,
+        // because `faceArr[0]` can be a different face; `copyElemHeader` is the same rule
+        // `faceCreate` already applied, reapplied against the right source.
         copyElemAttrs(src, f, bm.pdata)
-        // Blender's face is fresh (`hflag == 0`) when `BM_elem_attrs_copy` runs, so the destination
-        // half of the mask contributes nothing; passing 0 reproduces that regardless of what the
-        // kernel's `faceCreate` already put there.
-        f.hflag = elemHflagFromExample(0, src.hflag)
+        copyElemHeader(src, f, 'face')
         f.matNr = src.matNr
         if (doInterp) {
             let i = 0

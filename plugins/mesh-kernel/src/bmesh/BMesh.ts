@@ -22,7 +22,7 @@ import {
     validateRadial,
 } from './structure'
 import {AttrType, ElemFlag, ElemType, SelectMode, SelectModeMask} from '../constants'
-import {BMCustomDataLayout, copyElemAttrs} from './customdata'
+import {BMCustomDataLayout, copyElemAttrs, copyElemHeader} from './customdata'
 
 /** Options for {@link BMesh.edgeCreate}. */
 export interface EdgeCreateOptions {
@@ -139,7 +139,7 @@ export class BMesh {
     vertCreate(x = 0, y = 0, z = 0, example?: BMVert): BMVert {
         const v = new BMVert(this._id(), x, y, z)
         if (example) {
-            v.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
+            copyElemHeader(example, v, 'vert')
             copyElemAttrs(example, v, this.vdata)
         }
         this.verts.add(v)
@@ -159,7 +159,7 @@ export class BMesh {
         }
         const e = new BMEdge(this._id(), v1, v2)
         if (example) {
-            e.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
+            copyElemHeader(example, e, 'edge')
             copyElemAttrs(example, e, this.edata)
         } else {
             // Blender defaults new edges to smooth; sharpness is the opt-in.
@@ -215,7 +215,7 @@ export class BMesh {
 
         const f = new BMFace(this._id())
         if (example) {
-            f.hflag = example.hflag & ~(ElemFlag.Tag | ElemFlag.InternalTag)
+            copyElemHeader(example, f, 'face')
             f.matNr = example.matNr
             copyElemAttrs(example, f, this.pdata)
         }

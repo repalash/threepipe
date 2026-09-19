@@ -1,3 +1,4 @@
+import {faceNormalUpdate} from '../bmesh/polygon'
 /**
  * Inset operators.
  *
@@ -42,7 +43,7 @@ import {
     diskEdgeExists, diskEdges, edgeIsBoundary, radialLoopAppend, radialLoopRemove, radialLoops,
 } from '../bmesh/structure'
 import {edgeVertSwap, vertSplice} from '../bmesh/splice'
-import {BMCustomDataLayout, copyElemAttrs, getValue, setValue} from '../bmesh/customdata'
+import {BMCustomDataLayout, copyElemAttrs, copyElemHeader, getValue, setValue} from '../bmesh/customdata'
 import {faceInterpFromFace} from '../bmesh/interp'
 import {ElemFlag} from '../constants'
 import {faceSelectSet, selectNone} from '../bmesh/marking'
@@ -109,48 +110,6 @@ function edgeCalcLength(e: BMEdge): number {
 // endregion
 
 // region bmesh_polygon.cc / bmesh_mesh_normals.cc - normals
-
-/**
- * Port of `BM_face_calc_normal` (`bmesh_polygon.cc`), special cases and all.
- *
- * Triangles and quads do not go through Newell: Blender uses `normal_tri_v3` and the "real cross" of
- * a quad's two diagonals. For a non-planar quad the diagonal cross and the Newell accumulation give
- * different answers, so the special cases are not an optimisation and cannot be skipped.
- */
-function faceNormalUpdate(f: BMFace): void {
-    let n: Vec3
-    if (f.len === 4) {
-        const l0 = f.lFirst
-        const l1 = l0.next
-        const l2 = l1.next
-        const l3 = l2.next
-        // `normal_quad_v3`: cross(v1 - v3, v2 - v4).
-        n = v3cross(v3sub(co(l0.v), co(l2.v)), v3sub(co(l1.v), co(l3.v)))
-    } else if (f.len === 3) {
-        const l0 = f.lFirst
-        const l1 = l0.next
-        const l2 = l1.next
-        // `normal_tri_v3`: cross(v1 - v2, v2 - v3).
-        n = v3cross(v3sub(co(l0.v), co(l1.v)), v3sub(co(l1.v), co(l2.v)))
-    } else {
-        // `bm_face_calc_poly_normal` - Newell's method over the loop cycle.
-        n = [0, 0, 0]
-        let vPrev = co(f.lFirst.prev.v)
-        let l = f.lFirst
-        do {
-            const vCurr = co(l.v)
-            n[0] += (vPrev[1] - vCurr[1]) * (vPrev[2] + vCurr[2])
-            n[1] += (vPrev[2] - vCurr[2]) * (vPrev[0] + vCurr[0])
-            n[2] += (vPrev[0] - vCurr[0]) * (vPrev[1] + vCurr[1])
-            vPrev = vCurr
-            l = l.next
-        } while (l !== f.lFirst)
-    }
-    const unit = v3normalize(n)
-    f.nx = unit[0]
-    f.ny = unit[1]
-    f.nz = unit[2]
-}
 
 /**
  * Port of `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`): each adjacent face normal weighted
@@ -334,26 +293,17 @@ function vertCalcShellFactor(v: BMVert): number {
 // region bmesh_construct.cc - element creation that matches BM_elem_attrs_copy
 
 /**
- * Blender's header rule when copying from an example: the destination keeps its own select bits and
- * takes every other flag - crucially including `BM_ELEM_TAG` - from the source. See the four
- * `BM_elem_attrs_copy` overloads at `bmesh_construct.cc:365`.
+ * `BM_vert_create(bm, v_example->co, v_example, BM_CREATE_NOP)`, normal and flags included.
  *
- * `BMesh`'s create helpers do the reverse, stripping `Tag` and inheriting `Select`. Inset needs
- * Blender's rule: tags have to survive onto separated edges, and a new face that quietly arrives
- * selected would leave `bm.totfacesel` wrong.
+ * These three used to correct the header after the fact, because the kernel's create methods took
+ * the example's flags but stripped `Tag` and kept nothing of the destination - the opposite of
+ * `BM_elem_attrs_copy` on both counts. Inset needs the real rule in both directions: tags have to
+ * survive onto separated geometry, and a new face must not arrive selected. `vertCreate` and friends
+ * now follow it themselves (`bmesh/customdata.ts` `copyElemHeader`), so these are named entry points
+ * matching the Blender calls they stand for.
  */
-function elemHflagFromExample(dstSelectMask: number, srcHflag: number): number {
-    return srcHflag & ~dstSelectMask
-}
-
-/** `BM_vert_create(bm, v_example->co, v_example, BM_CREATE_NOP)`, normal and flags included. */
 function vertCreateFrom(bm: BMesh, example: BMVert): BMVert {
-    const v = bm.vertCreate(example.x, example.y, example.z, example)
-    v.hflag = elemHflagFromExample(ElemFlag.Select, example.hflag)
-    v.nx = example.nx
-    v.ny = example.ny
-    v.nz = example.nz
-    return v
+    return bm.vertCreate(example.x, example.y, example.z, example)
 }
 
 /**
@@ -367,19 +317,12 @@ function edgeCreateFrom(bm: BMesh, v1: BMVert, v2: BMVert, example: BMEdge, noDo
         const existing = diskEdgeExists(v1, v2)
         if (existing) return existing
     }
-    const e = bm.edgeCreate(v1, v2, example)
-    e.hflag = elemHflagFromExample(ElemFlag.Select, example.hflag)
-    return e
+    return bm.edgeCreate(v1, v2, example)
 }
 
 /** `BM_face_create_verts(bm, varr, len, f_example, BM_CREATE_NOP, true)`. */
 function faceCreateFrom(bm: BMesh, verts: BMVert[], example: BMFace): BMFace {
-    const f = bm.faceCreate(verts, example)
-    f.hflag = elemHflagFromExample(ElemFlag.Select | ElemFlag.SelectUV, example.hflag)
-    f.nx = example.nx
-    f.ny = example.ny
-    f.nz = example.nz
-    return f
+    return bm.faceCreate(verts, example)
 }
 
 /**
@@ -398,8 +341,7 @@ function blockReplace(src: BMElem, dst: BMElem, layout: BMCustomDataLayout): voi
 function loopAttrsCopy(bm: BMesh, src: BMLoop, dst: BMLoop): void {
     if (src === dst) return
     copyElemAttrs(src, dst, bm.ldata)
-    dst.hflag = (dst.hflag & (ElemFlag.Select | ElemFlag.SelectUV))
-        | (src.hflag & ~(ElemFlag.Select | ElemFlag.SelectUV))
+    copyElemHeader(src, dst, 'loop')
 }
 
 // endregion
