@@ -168,6 +168,8 @@ export class MeshNormalMaterialOverride extends MeshNormalMaterial {
         if (material.bumpMap !== undefined) this.bumpMap = material.bumpMap
         if (material.bumpScale !== undefined) this.bumpScale = material.bumpScale
         // if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
+        // Note: MeshNormalMaterial's shader samples neither map nor alphaMap and has no alpha test, so
+        // these two have no effect: alpha-cut materials are solid in the normal buffer and cut in the GBuffer.
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
         if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 
