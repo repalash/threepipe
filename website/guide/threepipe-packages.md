@@ -19,7 +19,7 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 
 ## List of all the packages
 
-- [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
+- [@threepipe/webgi-plugins](../package/webgi-plugins) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
 - [@threepipe/plugin-tweakpane](../package/plugin-tweakpane) Tweakpane UI Plugin. Renders a [tweakpane](https://tweakpane.github.io/docs/) UI attached to the viewer for any ui config object.
 - [@threepipe/plugin-blueprintjs](../package/plugin-blueprintjs) BlueprintJs UI Plugin. Renders a [blueprintjs](https://blueprintjs.com/) ([React](https://react.dev/)) UI attached to the viewer for any ui config object.
 - [@threepipe/plugin-tweakpane-editor](../package/plugin-tweakpane-editor) - Tweakpane Editor Plugin. Uses the tweakpane ui plugin to create a [full editor](https://threepipe.org/examples/tweakpane-editor). 

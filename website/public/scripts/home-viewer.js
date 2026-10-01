@@ -1,5 +1,6 @@
 // import {TweakpaneUiPlugin} from 'https://unpkg.com/@threepipe/plugin-tweakpane/dist/index.mjs';
 import {setupAbstract, teardownAbstract} from "./home-3d-abstract.js";
+import {icons, createButtonRow, toggleDarkMode} from "./viewer-controls.js";
 const {
     ThreeViewer,
     LoadingScreenPlugin,
@@ -25,44 +26,44 @@ const ppSplit = {splitLine: document.createElement('div'), enabled: false, x: 1}
 const models = [
     {
         label: 'Abstract',
-        path: 'https://webgi.dev/lights-only-env.glb',
+        path: 'https://samples.threepipe.org/demos/webgi/lights-only-env.glb',
         bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shapes-icon lucide-shapes"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>',
+        icon: icons.shapes,
         ground: true,
     },
     {
         label: 'Watch',
-        path: 'https://webgi.dev/watch-2.glb',
+        path: 'https://samples.threepipe.org/demos/classic-watch.glb',
         bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-watch-icon lucide-watch"><path d="M12 10v2.2l1.6 1"/><path d="m16.13 7.66-.81-4.05a2 2 0 0 0-2-1.61h-2.68a2 2 0 0 0-2 1.61l-.78 4.05"/><path d="m7.88 16.36.8 4a2 2 0 0 0 2 1.61h2.72a2 2 0 0 0 2-1.61l.81-4.05"/><circle cx="12" cy="12" r="6"/></svg>',
+        icon: icons.watch,
         ground: true,
     },
     {
         label: 'City',
-        path: 'https://webgi.dev/gi-city-2.glb',
+        path: 'https://samples.threepipe.org/demos/webgi/gi-city-2.glb',
         bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building2-icon lucide-building-2"><path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/></svg>',
+        icon: icons.building,
         ground: false,
     },
     {
         label: 'Car',
         // path: 'https://webgi.dev/gi-city-8.glb',
-        path: 'https://webgi.dev/car-scene.glb',
+        path: 'https://samples.threepipe.org/demos/webgi/car-scene.glb',
         bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" style="transform: scaleX(-1);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-car-icon lucide-car"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>',
+        icon: icons.car,
         ground: false,
     },
     {
         label: 'Robot',
-        path: 'https://webgi.dev/robot-2.glb',
+        path: 'https://samples.threepipe.org/demos/webgi/robot-2.glb',
         bg: false,
-        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot-icon lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+        icon: icons.bot,
         ground: true,
     },
 ]
 const barButtons = [{
     label: 'Toggle Ground',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrows-up-from-line-icon lucide-arrows-up-from-line"><path d="m4 6 3-3 3 3"/><path d="M7 17V3"/><path d="m14 6 3-3 3 3"/><path d="M17 17V3"/><path d="M4 21h16"/></svg>',
+    icon: icons.ground,
     action: (viewer) => {
         const ground = viewer.getPlugin(ContactShadowGroundPlugin)
         if(ground) {
@@ -72,10 +73,13 @@ const barButtons = [{
     active: (viewer) => {
         const ground = viewer.getPlugin(ContactShadowGroundPlugin)
         return ground && ground.mapMode === 'aoMap'
-    }
+    },
+    visible: (viewer) => {
+        return !!viewer.getPlugin(ContactShadowGroundPlugin) && !!currentModel?.ground
+    },
 }, {
     label: 'Toggle webgi',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles-icon lucide-sparkles"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg>',
+    icon: icons.sparkles,
     action: (viewer) => {
         ppSplit.enabled = !ppSplit.enabled
         ppSplit.x = 0.9
@@ -87,32 +91,9 @@ const barButtons = [{
 }, {
     label: 'Toggle Dark Mode',
     className: 'dark-mode-btn',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon-icon lucide-moon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
-// https://github.com/vuejs/vitepress/blob/c4909e4298ec706cf1762cb36af03e5fd3637ccc/src/client/theme-default/components/VPSwitchAppearance.vue#L45-L67
+    icon: icons.moon,
     action: (viewer) => {
-
-        const css = document.createElement('style')
-        css.type = 'text/css'
-        css.appendChild(
-            document.createTextNode(
-                `:not(.dark-mode-btn):not(.dark-mode-btn *) {
-  -webkit-transition: none !important;
-  -moz-transition: none !important;
-  -o-transition: none !important;
-  -ms-transition: none !important;
-  transition: none !important;
-}`
-            )
-        )
-        document.head.appendChild(css)
-
-        document.documentElement.classList.toggle('dark')
-
-        // @ts-expect-error keep unused declaration, used to force the browser to redraw
-        const _ = window.getComputedStyle(css).opacity
-        document.head.removeChild(css)
-
-        // handleDarkMode(viewer)
+        toggleDarkMode()
     },
     active: (viewer) => {
         return document.documentElement.classList.contains('dark')
@@ -310,8 +291,8 @@ function handleDarkMode(viewer) {
 }
 
 async function loadModel(viewer, model) {
-    const btns = document.querySelectorAll('.model-tab')
-    btns.forEach(b => b.classList.add('disabled'))
+    modelTabs?.setDisabled(true)
+    buttonBar?.setDisabled(true)
     // viewer.scene.clearSceneModels()
     viewer.scene.disposeSceneModels()
 
@@ -337,35 +318,27 @@ async function loadModel(viewer, model) {
         window.handleDarkModeChange()
 
     updateButtonsActiveState(viewer)
-    btns.forEach(b => b.classList.remove('disabled'))
+    modelTabs?.setDisabled(false)
+    buttonBar?.setDisabled(false)
 }
 
-function addModelTabs(viewer) {
-    const container = viewer.container
-    const tabs = document.createElement('div')
-    tabs.className = 'model-tabs'
-    container.appendChild(tabs)
-    models.forEach((model, i) => {
-        const tab = document.createElement('div')
-        tab.className = 'model-tab' + (i===0 ? ' model-tab-selected' : '')
-        tab.innerHTML = model.icon
-        tab.title = model.label
-        tab.addEventListener('click', async () => {
-            if(tab.classList.contains('model-tab-selected')) return
-            const tabs = document.querySelectorAll('.model-tab')
-            tabs.forEach(t => {
-                // t.classList.remove('model-tab-selected')
-                if(t.classList.contains('model-tab-selected')) {
-                    t.classList.remove('model-tab-selected')
-                    // t.classList.add('hidden')
-                }
-            })
-            tab.classList.add('model-tab-selected')
+let modelTabs = null
+let buttonBar = null
+let selectedModel = null
 
-            await loadModel(viewer, model);
-        })
-        tabs.appendChild(tab)
-    })
+function addModelTabs(viewer) {
+    selectedModel = models[0]
+    modelTabs = createButtonRow(viewer.container, 'model-tabs', models.map(model => ({
+        label: model.label,
+        icon: model.icon,
+        action: async () => {
+            if (selectedModel === model) return
+            selectedModel = model
+            modelTabs.update()
+            await loadModel(viewer, model)
+        },
+        active: () => selectedModel === model,
+    })))
 }
 
 function updateSplit(viewer) {
@@ -418,48 +391,16 @@ function setupSplit(viewer) {
 }
 
 function updateButtonsActiveState(viewer) {
-    const container = viewer.container
-    const tabs = container.querySelector('.btn-bar')
-    if(!tabs) return
-    const tabDivs = tabs.querySelectorAll('.model-tab')
-    barButtons.forEach((model, i) => {
-        const tab = tabDivs[i]
-        const active = model.active(viewer)
-        if(active) {
-            tab.classList.add('model-tab-selected')
-        } else {
-            tab.classList.remove('model-tab-selected')
-        }
-
-        if(model.label === 'Toggle Ground'){
-            const ground = viewer.getPlugin(ContactShadowGroundPlugin)
-            if(ground && currentModel && currentModel.ground){
-                tab.style.display = 'flex'
-            } else {
-                tab.style.display = 'none'
-            }
-        }
-    })
+    buttonBar?.update()
 }
 
 function addButtonBar(viewer) {
-    const container = viewer.container
-    const tabs = document.createElement('div')
-    tabs.className = 'btn-bar'
-    barButtons.forEach((model, i) => {
-        const tab = document.createElement('div')
-        tab.className = 'model-tab'
-        tab.innerHTML = model.icon
-        tab.title = model.label
-        tab.className += model.className ? ` ${model.className}` : ''
-        tab.addEventListener('click', async () => {
-            model.action(viewer)
-            updateButtonsActiveState(viewer)
-        })
-        tabs.appendChild(tab)
-    })
-    container.appendChild(tabs)
-    updateButtonsActiveState(viewer)
+    buttonBar = createButtonRow(viewer.container, 'btn-bar', barButtons.map(button => ({
+        ...button,
+        action: () => button.action(viewer),
+        active: () => button.active(viewer),
+        visible: button.visible && (() => button.visible(viewer)),
+    })))
 }
 
 window.setupViewer = setupViewer;

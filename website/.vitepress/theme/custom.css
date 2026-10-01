@@ -301,3 +301,148 @@
     left: 50%;
     display: none;
 }
+
+/* package/webgi-plugins: tutorial on the left, sticky live viewer (WebgiShowcase) on the right */
+.webgi-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+}
+.webgi-split-right {
+    position: sticky;
+    top: var(--vp-nav-height);
+    z-index: 2;
+}
+.webgi-showcase {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - var(--vp-nav-height));
+    overflow: hidden;
+}
+.webgi-showcase canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+/* viewer controls, always inside the viewer: effects at the top, models bottom center, ground and dark mode bottom right (as on the home page) */
+.webgi-showcase .effect-bar {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    z-index: 1000;
+    user-select: none;
+}
+.webgi-showcase .btn-bar {
+    top: auto;
+    bottom: 24px;
+    right: 16px;
+}
+.webgi-showcase .model-tabs {
+    top: auto;
+    bottom: 24px;
+    left: 50%;
+    right: auto;
+}
+.webgi-showcase .model-tab {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); /* visible on the white background of the light mode */
+}
+.webgi-showcase .model-tab.effect-btn {
+    width: auto;
+    padding: 0 10px 0 8px;
+    gap: 6px;
+    border-radius: 15px;
+    font-weight: 600;
+}
+.webgi-showcase .effect-btn::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #9ca3af;
+    transition: background 0.3s;
+}
+.webgi-showcase .effect-btn.model-tab-selected::before {
+    background: rgb(56, 189, 248);
+    box-shadow: 0 0 6px rgb(56, 189, 248);
+}
+.webgi-plugins-page .tagline {
+    font-weight: 500;
+    color: var(--vp-c-text-2);
+    line-height: 36px;
+    font-size: 24px;
+}
+.webgi-plugins-page .badge {
+    background: var(--vp-c-brand-1);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+}
+.webgi-plugins-page .effect-toggle-row {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+.webgi-plugins-page .r-section {
+    min-height: 500px;
+}
+@media (min-width: 960px) {
+    /* the viewer runs from the nav bar to the screen bottom and to the right screen edge, as the sidebar does on the left */
+    .webgi-plugins-page .VPContent.has-sidebar {
+        padding-right: 0;
+    }
+    .webgi-plugins-page .VPDoc,
+    .webgi-plugins-page .VPDoc .content {
+        padding-right: 0;
+    }
+    .webgi-plugins-page .VPDocFooter {
+        padding-right: 32px;
+    }
+    .webgi-split-right {
+        margin-top: -48px; /* top padding of .VPDoc */
+    }
+}
+@media (max-width: 959px) {
+    .webgi-split {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+    /* viewer first, edge to edge; it sticks under the local nav bar (48px + border) */
+    .webgi-split-right {
+        order: -1;
+        top: 49px;
+        margin: -32px -24px 0; /* padding of .VPDoc */
+    }
+    .webgi-showcase {
+        height: 50vh;
+    }
+    .webgi-showcase .effect-bar {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        gap: 6px;
+    }
+    .webgi-showcase .btn-bar {
+        bottom: 12px;
+        right: 10px;
+    }
+    .webgi-showcase .model-tabs {
+        bottom: 12px;
+    }
+    .webgi-plugins-page .r-section {
+        min-height: 100px;
+    }
+}
+@media (min-width: 768px) and (max-width: 959px) {
+    .webgi-split-right {
+        margin: -48px -32px 0; /* padding of .VPDoc */
+    }
+}
