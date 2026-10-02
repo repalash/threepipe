@@ -14,9 +14,7 @@ import {DRACOLoader2Pure} from './DRACOLoader2Pure'
  * It works by replacing the registered `.drc` importer on the viewer's {@link AssetImporter} with
  * one backed by {@link DRACOLoader2Pure}; removing the plugin restores the original importer.
  *
- * Add the plugin before loading any Draco file. The importer creates its loader on the first Draco
- * decode and keeps using it, so a loader that already exists is not replaced when the plugin is
- * added or removed.
+ * The plugin can be added and removed at any time, it applies to the files loaded after that.
  *
  * @example
  * ```ts
