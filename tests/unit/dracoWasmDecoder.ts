@@ -1,13 +1,12 @@
 /**
- * Node-side WASM Draco decoder used ONLY by the draco-decode benchmark.
+ * Node-side WASM Draco decoder, the reference for the DRACOLoader2Pure unit tests (dracojs-adapter.test.ts).
  *
  * Loads three.js's bundled WASM Draco decoder (the exact decoder threepipe ships
  * via the CDN at runtime) and decodes a `.drc` buffer on the main thread, porting
  * three.js's DRACOLoader worker decode logic (decodeGeometry/decodeIndex/decodeAttribute).
  *
  * This lets us compare the official WASM decoder against mrdoob/draco.js (pure JS)
- * head-to-head in Node, with no worker/CDN involved, so the timing isolates
- * module-init + decode cost.
+ * head-to-head in Node, with no worker/CDN involved.
  */
 import {readFileSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
@@ -28,7 +27,9 @@ const DRACO_DIR = resolve(__dirname2, '../../node_modules/three/examples/jsm/lib
 
 export interface DecodedGeometry {
     numPoints: number
+    /** 0 for a point cloud */
     numFaces: number
+    /** empty for a point cloud */
     index: Uint32Array
     position?: Float32Array
     normal?: Float32Array
@@ -78,20 +79,23 @@ export function decodeWithWasm(draco: any, buffer: ArrayBuffer): DecodedGeometry
     const decoder = new draco.Decoder()
 
     const geometryType = decoder.GetEncodedGeometryType(array)
-    if (geometryType !== draco.TRIANGULAR_MESH) {
+    const isMesh = geometryType === draco.TRIANGULAR_MESH
+    if (!isMesh && geometryType !== draco.POINT_CLOUD) {
         draco.destroy(decoder)
-        throw new Error('dracoWasmDecoder: only triangular mesh supported in benchmark')
+        throw new Error('dracoWasmDecoder: unexpected geometry type')
     }
 
-    const dracoGeometry = new draco.Mesh()
-    const status = decoder.DecodeArrayToMesh(array, array.byteLength, dracoGeometry)
+    const dracoGeometry = isMesh ? new draco.Mesh() : new draco.PointCloud()
+    const status = isMesh ?
+        decoder.DecodeArrayToMesh(array, array.byteLength, dracoGeometry) :
+        decoder.DecodeArrayToPointCloud(array, array.byteLength, dracoGeometry)
     if (!status.ok() || dracoGeometry.ptr === 0) {
         draco.destroy(dracoGeometry); draco.destroy(decoder)
         throw new Error('dracoWasmDecoder: decode failed: ' + status.error_msg())
     }
 
     const numPoints = dracoGeometry.num_points()
-    const out: DecodedGeometry = {numPoints, numFaces: dracoGeometry.num_faces(), index: new Uint32Array(0)}
+    const out: DecodedGeometry = {numPoints, numFaces: isMesh ? dracoGeometry.num_faces() : 0, index: new Uint32Array(0)}
 
     const attrs = ATTR(draco)
     for (const name of Object.keys(attrs) as (keyof typeof attrs)[]) {
@@ -109,12 +113,14 @@ export function decodeWithWasm(draco: any, buffer: ArrayBuffer): DecodedGeometry
     }
 
     // index
-    const numIndices = out.numFaces * 3
-    const byteLength = numIndices * 4
-    const ptr = draco._malloc(byteLength)
-    decoder.GetTrianglesUInt32Array(dracoGeometry, byteLength, ptr)
-    out.index = new Uint32Array(draco.HEAPF32.buffer, ptr, numIndices).slice()
-    draco._free(ptr)
+    if (isMesh) {
+        const numIndices = out.numFaces * 3
+        const byteLength = numIndices * 4
+        const ptr = draco._malloc(byteLength)
+        decoder.GetTrianglesUInt32Array(dracoGeometry, byteLength, ptr)
+        out.index = new Uint32Array(draco.HEAPF32.buffer, ptr, numIndices).slice()
+        draco._free(ptr)
+    }
 
     draco.destroy(dracoGeometry)
     draco.destroy(decoder)

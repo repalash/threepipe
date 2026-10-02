@@ -7,9 +7,9 @@ import {DRACOLoader2Pure} from './DRACOLoader2Pure'
  * with the pure-JS {@link https://github.com/mrdoob/draco.js | draco.js} decoder instead of the
  * default WASM decoder — smaller, no `.wasm` fetch, no worker spin-up, Node/SSR-safe.
  *
- * Anything draco.js can't decode (sequential connectivity, point-cloud, KD-tree, metadata, or any
- * error) **transparently falls back to the WASM decoder** ({@link DRACOLoader2Pure}), so enabling
- * this never breaks a model. The WASM path also remains the encoder for Draco export.
+ * Anything draco.js can't decode (point clouds, bitstreams older than Draco 2.2, or any error)
+ * **transparently falls back to the WASM decoder** ({@link DRACOLoader2Pure}), so enabling this
+ * never breaks a model. The encoder for Draco export is not changed.
  *
  * It works by replacing the registered `.drc` importer on the viewer's {@link AssetImporter} with
  * one backed by {@link DRACOLoader2Pure}; removing the plugin restores the original importer.

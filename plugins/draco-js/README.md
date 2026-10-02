@@ -48,10 +48,10 @@ itself is **lazy-loaded** via dynamic `import()` the first time a Draco mesh is 
 
 ## Universal WASM fallback
 
-draco.js implements only the EdgeBreaker triangle-mesh path — exactly what glTF
-`KHR_draco_mesh_compression` uses in practice. For anything it cannot decode (sequential
-connectivity, point clouds, KD-tree, metadata) **or any decode error**, `DRACOLoader2Pure`
-transparently falls back to the WASM decoder.
+draco.js decodes triangle meshes in Draco bitstream version 2.2 (EdgeBreaker and sequential
+connectivity) — what current Draco encoders and glTF `KHR_draco_mesh_compression` exporters write.
+For anything it cannot decode (point clouds, bitstreams older than 2.2) **or any decode error**,
+`DRACOLoader2Pure` transparently falls back to the WASM decoder.
 
 ```typescript
 import {DRACOLoader2Pure} from '@threepipe/plugin-draco-js'
@@ -65,25 +65,27 @@ DRACOLoader2Pure.fallbackCount          // diagnostics: how many decodes fell ba
 
 | | draco.js (this plugin) | WASM (default `DRACOLoader2`) |
 |---|---|---|
-| Loader size (gzip) | **~25 KB** | ~100 KB |
+| Loader size (gzip) | **~24 KB** minified (~36 KB for the unminified `dist` files) | ~100 KB |
 | Decoder init | none | worker spawn + wasm instantiate (+ CDN fetch by default) |
-| Decode speed | ~2× slower | faster |
-| Node.js / SSR | works as-is | needs worker/wasm setup |
-| Encode (export) | not supported (falls back to WASM) | supported |
+| Decode speed | about the same (upstream reports ~1.0–1.4× the WASM decode time) | — |
+| Threading | main thread (blocks while a mesh decodes) | worker pool (parallel, non-blocking) |
+| Node.js / SSR | works as-is (streams that need the fallback do not) | needs worker/wasm setup |
+| Encode (export) | not supported by draco.js (the `DRACOLoader2` encoder is kept) | supported |
 
 Because the WASM decoder pays a per-load worker/wasm init that draco.js avoids, draco.js tends to
 win **total** time for small/medium models on a cold start (e.g. QuickLook-style one-shot previews),
-while the WASM decoder pulls ahead on large/heavy meshes where raw decode throughput dominates.
-Output is byte-for-byte equivalent to the WASM decoder (validated against it in the adapter unit test).
+while the WASM decoder keeps the main thread free and decodes meshes in parallel, which matters for
+large/heavy scenes. Output is byte-for-byte equivalent to the WASM decoder (validated against it in
+the adapter unit test).
 
 ## Roadmap — future default
 
 This plugin is **opt-in** today because [draco.js](https://github.com/mrdoob/draco.js) is very new
-(decode-only, EdgeBreaker-only, pre-release).
+(decode-only, meshes only, no releases or npm package yet — it is vendored at a pinned commit, see
+`src/dracojs/NOTICE.md`).
 
-**Once draco.js is stable** — published to npm, with sequential/point-cloud coverage (or a
-confirmed guarantee that only EdgeBreaker matters in practice), and the benchmark crossover
-validated on real asset mixes — **this can be promoted to the default Draco decoder in threepipe**
+**Once draco.js is stable** — published to npm, and the benchmark crossover validated on real asset
+mixes — **this can be promoted to the default Draco decoder in threepipe**
 (likely as a size-aware default: pure-JS for small/medium meshes, WASM for large ones), with the
 WASM path kept only as a fallback. Until then it stays an explicit, reversible opt-in.
 
