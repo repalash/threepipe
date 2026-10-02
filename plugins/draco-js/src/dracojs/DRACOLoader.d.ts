@@ -1,4 +1,4 @@
-import {BufferGeometry, Loader} from 'three'
+import {BufferAttribute, BufferGeometry, Loader} from 'three'
 
 /**
  * Type declaration for the vendored pure-JS Draco decoder ({@link DRACOLoader.js}).
@@ -17,6 +17,8 @@ export class DRACOLoader extends Loader {
     parse(buffer: ArrayBuffer, onLoad: (geometry: BufferGeometry) => void, onError?: (err: any) => void): void
     preload(): this
     dispose(): this
+    /** Converts the decoded `color` attribute to the working color space when `inputColorSpace` is sRGB. Replaced by `DRACOLoader2Pure`. */
+    _assignVertexColorSpace(attribute: BufferAttribute, inputColorSpace: string): void
     /** no-op — pure JS, no decoder path to configure. Accepted for drop-in compatibility. */
     setDecoderPath(path?: string): this
     /** no-op — pure JS, no wasm/js config. Accepted for drop-in compatibility. */

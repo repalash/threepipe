@@ -15,8 +15,9 @@ All notable changes to this plugin will be documented in this file.
   `KHR_draco_mesh_compression`) with the pure-JS [draco.js](https://github.com/mrdoob/draco.js)
   decoder, reversibly swapping the `.drc` importer.
 - `DRACOLoader2Pure` — `DRACOLoader2` subclass that decodes via lazy-loaded draco.js with an
-  automatic WASM fallback (`EnableFallback`, `LogFallback`, `fallbackCount`). The fallback uses
-  **eager Draco-header detection** (`isJsDecodable`) to route point-cloud / sequential /
-  metadata-bearing streams straight to WASM — draco.js mis-decodes those *silently* (no throw), so a
-  try/catch alone would let broken geometry through. `preload()` warms the JS module instead of
-  eagerly fetching the `.wasm`.
+  automatic WASM fallback (`EnableFallback`, `LogFallback`, `fallbackCount`). The fallback is used
+  on any decode error, and **eager Draco-header detection** (`isJsDecodable`) routes the streams
+  draco.js does not implement (point clouds, bitstreams older than 2.2) straight to WASM.
+  `preload()` warms the JS module instead of eagerly fetching the `.wasm`.
+- Vendors draco.js at commit `700d1fb` (2026-09-25), which decodes Draco 2.2 triangle meshes with
+  EdgeBreaker or sequential connectivity, with or without metadata, bit-exact with the WASM decoder.

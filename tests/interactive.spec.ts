@@ -432,19 +432,26 @@ test('draco-js-plugin', async({page}) => {
     expect(state.fallbackCount).toBe(0)
     expect(state.verts).toBeGreaterThan(0)
 
-    // Real-browser fallback: a SEQUENTIAL-encoded .drc (draco.js silently mis-decodes it) must be
-    // detected and decoded by the actual WASM decode worker instead — proving the safety net holds.
-    const seq = await page.evaluate(async() => {
+    const loadDrc = async(path: string) => page.evaluate(async(p) => {
         const v = (window as any).threeViewers?.[0]
         const plugin = v?.getPlugin('DracoJSDecodePlugin')
         const before = plugin?.fallbackCount
-        const obj = await v.load('/tests/fixtures/draco/sequential.drc', {autoCenter: true, autoScale: true})
+        const obj = await v.load(p, {autoCenter: true, autoScale: true})
         let verts = 0
         obj?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
         return {before, after: plugin?.fallbackCount, verts}
-    })
-    expect(seq.after, 'sequential .drc detected → fell back to WASM').toBeGreaterThan(seq.before)
-    expect(seq.verts, 'WASM fallback decoded the sequential mesh').toBeGreaterThan(0)
+    }, path)
+
+    // A standalone .drc with SEQUENTIAL connectivity is decoded by draco.js as well, no fallback.
+    const seq = await loadDrc('/tests/fixtures/draco/sequential.drc')
+    expect(seq.after, 'sequential .drc decoded by draco.js').toBe(seq.before)
+    expect(seq.verts, 'draco.js decoded the sequential mesh').toBeGreaterThan(0)
+
+    // Real-browser fallback: a point cloud .drc (not implemented in draco.js) must be detected
+    // and decoded by the actual WASM decode worker instead — proving the safety net holds.
+    const points = await loadDrc('/tests/fixtures/draco/point-cloud.drc')
+    expect(points.after, 'point cloud .drc detected → fell back to WASM').toBeGreaterThan(points.before)
+    expect(points.verts, 'WASM fallback decoded the point cloud').toBeGreaterThan(0)
 })
 
 test('normal-buffer-plugin', async({page}, testInfo) => {

@@ -5,7 +5,7 @@ import type {DRACOLoader as DracoJSDRACOLoader} from './dracojs/DRACOLoader.js'
  * Drop-in import-decode replacement for {@link DRACOLoader2} that decodes Draco meshes with the
  * pure-JS {@link https://github.com/mrdoob/draco.js | draco.js} decoder (no wasm, no worker, no
  * CDN fetch) — and transparently **falls back to the WASM decoder** for anything draco.js can't
- * handle (sequential connectivity, point-cloud, KD-tree, metadata, or any decode error).
+ * handle (point clouds, bitstreams older than Draco 2.2, or any decode error).
  *
  * Why this shape:
  * - It **extends {@link DRACOLoader2}**, so it inherits the encoder ({@link DRACOLoader2.initEncoder}
@@ -13,9 +13,9 @@ import type {DRACOLoader as DracoJSDRACOLoader} from './dracojs/DRACOLoader.js'
  *   `isDRACOLoader2` marker, and the WASM `decodeGeometry` used as the fallback. Only the decode
  *   entry point is overridden.
  * - The pure-JS decoder is **lazy-loaded via dynamic `import()`** ({@link loadDecoderModule}), so
- *   the ~110 KB decoder stays out of the initial bundle/parse until Draco decoding actually
- *   happens. The WASM fallback only initialises if/when a buffer needs it, so the common
- *   (EdgeBreaker glTF) path pays zero wasm/worker cost.
+ *   the decoder (~24 KB minified + gzip) stays out of the initial bundle/parse until Draco decoding
+ *   actually happens. The WASM fallback only initialises if/when a buffer needs it, so the common
+ *   (glTF mesh) path pays zero wasm/worker cost.
  *
  * This is the engine behind {@link DracoJSDecodePlugin}, which is the opt-in way to enable it.
  * The WASM {@link DRACOLoader2} remains the default decoder and the export encoder.
@@ -57,7 +57,13 @@ export class DRACOLoader2Pure extends DRACOLoader2 {
     protected async _getJs(): Promise<DracoJSDRACOLoader> {
         if (!this._js) {
             const mod = await DRACOLoader2Pure.loadDecoderModule()
-            this._js = new mod.DRACOLoader()
+            const js = new mod.DRACOLoader()
+            // draco.js is written against a newer three.js than the one threepipe uses, its sRGB vertex color
+            // conversion (used for standalone .drc files) calls `ColorManagement.colorSpaceToWorking` which is
+            // not available here. Use the conversion of the three.js DRACOLoader this class extends, which is
+            // also what the WASM path does. (Not declared in @types/three's DRACOLoader, hence the cast)
+            js._assignVertexColorSpace = (attribute, inputColorSpace) => (this as any)._assignVertexColorSpace(attribute, inputColorSpace)
+            this._js = js
         }
         return this._js
     }
@@ -75,23 +81,23 @@ export class DRACOLoader2Pure extends DRACOLoader2 {
     }
 
     /**
-     * Returns true only for streams draco.js actually decodes correctly: an **EdgeBreaker
-     * triangular mesh with no metadata**. Read straight from the Draco header (see
-     * {@link https://github.com/google/draco | Draco} bitstream: `"DRACO"` magic, then version,
-     * `encoderType` @ byte 7, `encoderMethod` @ byte 8, `flags` @ bytes 9-10).
+     * Returns true only for streams draco.js decodes: a **triangular mesh in Draco bitstream
+     * version 2.2** (what current Draco encoders and glTF exporters write) — with EdgeBreaker or
+     * sequential connectivity, with or without metadata (draco.js parses and discards metadata, the
+     * WASM path does not surface it on the geometry either). Read straight from the Draco header
+     * (see {@link https://github.com/google/draco | Draco} bitstream: `"DRACO"` magic, then version
+     * major @ byte 5 and minor @ byte 6, `encoderType` @ byte 7).
      *
-     * This is needed because draco.js **fails silently** on unsupported streams — e.g. a
-     * sequential-encoded mesh decodes to a geometry with *no position attribute* rather than
-     * throwing — so a try/catch alone would let broken geometry through. Eager detection routes
-     * point-cloud / sequential / metadata-bearing streams straight to the WASM decoder.
+     * Point clouds (sequential and KD-tree) and meshes in older bitstream versions are not
+     * implemented in draco.js. It rejects them with an error (which the fallback in
+     * {@link decodeGeometry} would also catch), this check routes them straight to the WASM decoder.
      */
     static isJsDecodable(buffer: ArrayBuffer): boolean {
         const b = new Uint8Array(buffer)
         if (b.length < 11) return false
         if (b[0] !== 0x44 || b[1] !== 0x52 || b[2] !== 0x41 || b[3] !== 0x43 || b[4] !== 0x4F) return false // "DRACO"
+        if (b[5] !== 2 || b[6] !== 2) return false // mesh bitstream version must be 2.2 — older ones are rejected by draco.js
         if (b[7] !== 1) return false // encoderType must be TRIANGULAR_MESH (1) — not POINT_CLOUD
-        if (b[8] !== 1) return false // encoderMethod must be MESH_EDGEBREAKER (1) — not SEQUENTIAL
-        if (((b[9] | (b[10] << 8)) & 0x8000) !== 0) return false // METADATA flag set — draco.js mishandles it
         return true
     }
 
@@ -100,13 +106,13 @@ export class DRACOLoader2Pure extends DRACOLoader2 {
     // the inherited three.js DRACOLoader.decodeGeometry.
     decodeGeometry(buffer: ArrayBuffer, taskConfig: any): Promise<BufferGeometry> {
         if (DRACOLoader2Pure.EnableFallback && !DRACOLoader2Pure.isJsDecodable(buffer)) {
-            // Unsupported stream draco.js would mis-decode (silently) — go straight to WASM.
-            return this._fallback(buffer, taskConfig, 'unsupported Draco stream (not an EdgeBreaker triangle mesh, or has metadata)')
+            // Stream that draco.js does not implement — go straight to WASM.
+            return this._fallback(buffer, taskConfig, 'unsupported Draco stream (not a triangle mesh in Draco bitstream version 2.2)')
         }
         const decode = this._getJs().then(js => js.decodeGeometry(buffer, taskConfig))
         if (!DRACOLoader2Pure.EnableFallback) return decode
         return decode.then(geometry => {
-            // draco.js does not always throw on a stream it cannot decode, it can return a geometry without positions.
+            // Safety net, never accept a geometry without positions (early draco.js builds returned one for streams they could not decode).
             if (!geometry?.getAttribute('position')?.count) throw new Error('draco.js decoded a geometry without positions')
             return geometry
         }).catch((e: any) => this._fallback(buffer, taskConfig, e?.message ?? e))
