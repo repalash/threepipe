@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file.
   - Enabled in the `tweakpane-editor` example along with `KTX2LoadPlugin.SAVE_SOURCE_BLOBS`
 - **Breaking**: `__sourceBlob`, `__sourceBuffer` and `__needsSourceBuffer` moved from `userData` to the asset itself (`IImportResultUserData` → `ImportResultExtras`). `AssetImporter.processRaw` sets `asset.__sourceBlob` / `asset.__sourceBuffer`, and loaders request the buffer with `asset.__needsSourceBuffer = true`. `serializeTextureInExtras` already read `texture.__sourceBuffer`, so the buffer saved in `userData` was never used
 - Fix a crash when serializing textures and render targets with a `meta` that has no `textures` / `extras`
+- Add `LUTPlugin` ([docs](./website/plugin/LUTPlugin.md), [example](./examples/lut-plugin/)) — ported from webgi. Applies `.cube` 3D LUTs to the final frame as a `ScreenPass` extension, after tonemapping (priority `-150`)
+  - Up to three LUT slots (`lutMap`, `lutMap1`, `lutMap2`) with `intensity` and `lutBackground`. Materials pick a slot or opt out with `lutPlugin.setMaterialLUT(material, {slot, enable})` or from the material UI, saved in `userData.LUTPlugin1` (same as webgi)
+  - Per-material slots need `GBufferPlugin` with the flags texture. Without it the LUT in slot 0 is applied to everything
+  - `Enable on all materials` / `Disable on all materials` buttons
+- Add `LUTCubeLoader2` and `LUTCubeTextureWrapper` ([docs](./website/plugin/LUTCubeLoader2.md)) — `.cube` files can be loaded with `viewer.load` and are saved with the viewer config
+- **Breaking**: `FilmicGrainPlugin.priority` changed from `-50` to `-200`, the grain is now applied after tonemapping and the LUT instead of before tonemapping
+- Fix gbuffer flags being read off by one for some values in `getGBufferFlags` (`GBufferPlugin.unpack.glsl`) because of float precision, the value is now rounded
 
 ### Fixed
 

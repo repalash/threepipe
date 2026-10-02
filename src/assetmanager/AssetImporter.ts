@@ -24,6 +24,7 @@ import {escapeRegExp, getOrCall, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
 import {IGeometry, LineMaterial2, UnlitLineMaterial, UnlitMaterial} from '../core'
+import {LUTCubeLoader2} from './import/LUTCubeLoader2'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -111,7 +112,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     readonly importers: IImporter[] = [
         new Importer(FileLoader, ['txt'], ['text/plain'], false),
         // new Importer(RGBEPNGLoader, ['rgbe.png', 'hdr.png', 'hdrpng'], ['image/png+rgbe'], false), // todo: not working on windows?
-        // new Importer(LUTCubeLoader2, ['cube'], false),
+        new Importer(LUTCubeLoader2, ['cube'], [], false),
     ]
 
     constructor(logging = false, {simpleCache = false, storage}: AssetManagerOptions = {}) {

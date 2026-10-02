@@ -4,8 +4,8 @@ prev:
     link: './ChromaticAberrationPlugin'
 
 next:
-    text: 'ProgressivePlugin'
-    link: './ProgressivePlugin'
+    text: 'LUTPlugin'
+    link: './LUTPlugin'
 
 ---
 

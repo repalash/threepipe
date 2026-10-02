@@ -39,7 +39,7 @@ test('sphere-half-float-test', async({page}) => expect(page).toHaveTitle('Half f
 test('sphere-msaa-test', async({page}) => expect(page).toHaveTitle('MSAA Test'))
 test('sphere-rgbm-test', async({page}) => expect(page).toHaveTitle('RGBM Render pipeline test'))
 test('stl-load', async({page}) => expect(page).toHaveTitle('STL Load'))
-test('tweakpane-editor', async({page}) => expect(page).toHaveTitle('Tweakpane Editor'))
+// tweakpane-editor — covered by interactive test (slot-to-slot image drag-drop)
 test('uint8-rgbm-hdr-test', async({page}) => expect(page).toHaveTitle('Uint8 RGBM HDR Test'))
 test('usdz-load', async({page}) => expect(page).toHaveTitle('USDZ / USDA Load'))
 test('viewer-uiconfig', async({page}) => expect(page).toHaveTitle('Viewer UiConfig'))

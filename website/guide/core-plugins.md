@@ -73,6 +73,7 @@ Check packages for more advanced post-processing effects.
 - [VignettePlugin](../plugin/VignettePlugin) - Add Vignette effect  by patching the final screen pass
 - [ChromaticAberrationPlugin](../plugin/ChromaticAberrationPlugin) - Add Chromatic Aberration effect  by patching the final screen pass
 - [FilmicGrainPlugin](../plugin/FilmicGrainPlugin) - Add Filmic Grain effect  by patching the final screen pass
+- [LUTPlugin](../plugin/LUTPlugin) - Apply color-grading via up to 3 `.cube` 3D LUTs with per-material slot selection; patches the final screen pass
 
 ## Interaction
 

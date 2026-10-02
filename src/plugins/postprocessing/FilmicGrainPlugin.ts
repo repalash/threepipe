@@ -35,10 +35,20 @@ export class FilmicGrainPlugin extends AScreenPassExtensionPlugin {
     @serialize('grainMultiply') multiply = false
 
     /**
-     * The priority of the material extension when applied to the material in ScreenPass
-     * set to very low priority, so applied at the end
+     * Applied AFTER tonemap and LUT so the grain pattern lives in display-referred space.
+     * Sensor noise / film stock grain is a post-display-encoding artifact — running it
+     * pre-tonemap would mean the tonemap curve compresses bright-area grain (highlight
+     * grain looks weak) and re-saturates dark-area grain. Industry standard places grain
+     * after tonemap+LUT and before dither (Unity URP UberPost.shader, PPv2 RenderBuiltins,
+     * Unreal post-process material blendable location "After Tonemapping").
+     *
+     * Priority must be lower than {@link TonemapPlugin.priority} (-100) AND lower than
+     * {@link LUTPlugin.priority} (-150) so this extension's snippet ends up at the bottom
+     * of the screen-pass shader (= runs last among the four).
+     *
+     * See `issues/open/post-extension-priority-tonemap-order.md` for the audit and citations.
      */
-    priority = -50
+    priority = -200
 
     parsFragmentSnippet = () => {
         if (this.isDisabled()) return ''
