@@ -37,6 +37,10 @@ All notable changes to this project will be documented in this file.
   - Fix the original three.js `Cache` functions being lost when `overrideThreeCache` is called again after a call without a storage
   - Fix `json` and `document` responses being stored as `[object Object]` / `[object XMLDocument]` — they are serialized before writing to the storage
   - Fix urls that merely start with `blob` (like `blobstore/file.glb`) being skipped, only `blob:` urls are
+- Fix `DepthBufferPlugin` background being read as the near plane after the r168 upgrade — three.js changed `packDepthToRGBA` (most significant byte moved from alpha to red), so the depth target's black clear color unpacked to ~0 instead of ~1. With the plugin as the primary gbuffer this made `ScreenPass` drop the scene background (alpha 0) and disabled `tonemapBackground`/`clipBackground`. The target is now cleared to the packed far value for the active `depthPacking` (white for RGBA, black for Basic).
+- Fix textures randomly missing on OBJ+MTL models — `MTLLoader2` waited only 50ms for each texture and created the material without the map when the image took longer (the map was then never added). The loader now waits for each texture to load or fail, so `viewer.load()` of an `.obj` resolves with complete materials. (`obj-to-glb` example exported untextured or partly textured models because of this)
+- `snapObject` (and so `MaterialPreviewGenerator` and switch node previews) now clears to transparent explicitly instead of using the clear color left by the last pass. Previews have a transparent background.
+- Note: RGBA-packed depth (depth and shadow map targets, and their exported images) has a different byte layout since three.js r166. Values decoded with `unpackRGBAToDepth` in the same version are unchanged.
 
 ### three.js r168 Upgrade
 
