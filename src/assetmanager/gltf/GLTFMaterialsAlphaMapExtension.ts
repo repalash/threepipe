@@ -96,7 +96,7 @@ class GLTFMaterialsAlphaMapExtensionExport {
 
         }
 
-        if (!Object.keys(extensionDef)) return
+        if (!Object.keys(extensionDef).length) return
 
         materialDef.extensions = materialDef.extensions || {}
         materialDef.extensions[ this.name ] = extensionDef
