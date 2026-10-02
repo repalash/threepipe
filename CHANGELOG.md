@@ -26,6 +26,8 @@ All notable changes to this project will be documented in this file.
   - Added `DRACOLoader2.SetDecoderWasmBinary(wrapperJs, wasmBinary)` helper for bundling the WASM decoder with app source, symmetric with `SetDecoderJsString`
   - Updated `SetDecoderJsString` docblock: users bundling only the JS build should also call `setDecoderConfig({type: 'js'})` on the instance to skip the wasm fetch
   - Removed duplicate `setDecoderConfig({type: 'js'})` hack from `GLTFDracoExporterBase` (plugin-gltf-transform)
+- `AssetImporter.removeImporter` now also removes (and disposes) the loaders created by the importer. They were still used for new files after the importer was removed, so replacing the importer for an extension had no effect once a file of that type was loaded
+- `AssetImporter.clearLoaderCache` removes the handlers of the disposed loaders from the loading manager, the disposed loaders were still returned for new files
 - `drc-load` example: add `LoadingScreenPlugin`
 
 ### three.js r168 Upgrade
