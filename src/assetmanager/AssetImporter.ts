@@ -546,12 +546,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 userData.rootPath = rootPath
                 if (rootPathOptions) userData.rootPathOptions = rootPathOptions
             }
-            if (rootBlob) {
-                userData.__sourceBlob = rootBlob
-                if (userData.__needsSourceBuffer) { // set __sourceBuffer here if required during serialize later on, __needsSourceBuffer can be set in asset loaders
-                    userData.__sourceBuffer = await rootBlob.arrayBuffer()
-                    delete userData.__needsSourceBuffer
-                }
+        }
+        if (rootBlob) {
+            // Source bytes / blob live at top level on the asset (ImportResultExtras), not in userData.
+            // userData is for user-facing string config — internal byte buffers don't belong there.
+            res.__sourceBlob = rootBlob
+            if (res.__needsSourceBuffer) { // can be set in asset loaders to request raw-byte caching for serialization/re-export
+                res.__sourceBuffer = await rootBlob.arrayBuffer()
+                delete res.__needsSourceBuffer
             }
         }
 
