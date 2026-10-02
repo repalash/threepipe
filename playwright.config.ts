@@ -36,7 +36,7 @@ const executablePath = getExecutablePath()
 
 export default defineConfig({
     testDir: './tests',
-    testIgnore: ['**/snapshots/**', '**/setup.ts', '**/old-testing-branch-ref/**', '**/tests/*-agent-*.spec.ts'],
+    testIgnore: ['**/snapshots/**', '**/setup.ts', '**/old-testing-branch-ref/**', '**/tests/*-agent-*.spec.ts', '**/tests/unit/**'],
     timeout: 180000, // 3 min per test (includes asset download + rendering + screenshots)
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
