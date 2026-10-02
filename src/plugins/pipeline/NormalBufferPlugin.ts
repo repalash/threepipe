@@ -33,7 +33,8 @@ export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPlu
  * Adds a pre-render pass to render the normal buffer to a render target that can be used for postprocessing.
  *
  * By default, transparent and transmissive materials are rendered to the normal buffer like opaque ones.
- * Set {@link renderTransparent} to false to render the same objects as the depth in {@link GBufferPlugin}.
+ * Set {@link renderTransparent} to false to apply the same material rule as the depth in {@link GBufferPlugin}
+ * (objects with a `customGBufferMaterial` or `customNormalMaterial` can still differ).
  * Screen-space effects that compare normals across edges with the GBuffer depth need that: a transparent
  * surface in the normal buffer, over an object that only the depth shows, gives wrong normals at its edges.
  * The normal buffer of webgi v0 also left transparent materials out.
@@ -59,10 +60,12 @@ export class NormalBufferPlugin
     /**
      * Render transparent and transmissive materials to the normal buffer, like opaque ones. Default `true`.
      *
-     * When `false`, the normal buffer gets the same objects as the depth in {@link GBufferPlugin}: a
+     * When `false`, the normal buffer uses the same material rule as the depth in {@link GBufferPlugin}: a
      * transparent or transmissive material is rendered only when its `userData.renderToDepth` (or, when
      * that is not set, `userData.renderToGBuffer`) is `true`, and an opaque material is left out when it is
-     * `false`. Use it for screen-space effects that combine the normal buffer with the GBuffer depth.
+     * `false`. Objects with a `customGBufferMaterial` or `customNormalMaterial` can still differ, as each pass
+     * draws its own custom material. Use it for screen-space effects that combine the normal buffer with the
+     * GBuffer depth.
      */
     @uiToggle('Render Transparent')
     @onChange2(NormalBufferPlugin.prototype.setDirty)

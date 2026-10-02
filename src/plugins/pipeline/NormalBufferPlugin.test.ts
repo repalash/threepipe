@@ -8,10 +8,13 @@ import {beforeAll, describe, expect, test} from 'vitest'
 
 let tp: any
 
+// a cold import of the package entry can take longer than the default 10 s hook timeout
+const timeout = 60_000
+
 beforeAll(async() => {
     // through the package entry: importing the plugin module alone runs into an import cycle
     tp = await import('../../index')
-})
+}, timeout)
 
 /** The plugin with the parts of a viewer that `_createPass` uses. */
 function plugin(renderTransparent?: boolean) {
@@ -32,7 +35,7 @@ const transparent = (userData: any = {}) => Object.assign(new tp.PhysicalMateria
 const transmissive = (userData: any = {}) => Object.assign(new tp.PhysicalMaterial({transmission: 1}), {userData: {...userData}})
 const opaque = (userData: any = {}) => Object.assign(new tp.PhysicalMaterial(), {userData: {...userData}})
 
-describe('NormalBufferPlugin.renderTransparent', () => {
+describe('NormalBufferPlugin.renderTransparent', {timeout}, () => {
     test('defaults to true, is serialized and has a UI toggle', () => {
         const {p} = plugin()
         expect(p.renderTransparent).toBe(true)

@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to render the same objects to the normal buffer as the GBuffer depth, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides; for screen-space effects that combine both buffers
+- `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
 
 ### Changed
 
