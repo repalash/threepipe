@@ -73,6 +73,7 @@ export default defineConfig({
               {text: 'KTXLoadPlugin', link: 'plugin/KTXLoadPlugin'},
               {text: 'USDZLoadPlugin', link: 'plugin/USDZLoadPlugin'},
               {text: 'GLTFMeshOptDecodePlugin', link: 'plugin/GLTFMeshOptDecodePlugin'},
+              {text: 'LUTCubeLoader2', link: 'plugin/LUTCubeLoader2'},
               {text: 'TextureLoader2', link: 'plugin/TextureLoader2'},
             ],
           },
@@ -83,6 +84,7 @@ export default defineConfig({
               {text: 'VignettePlugin', link: 'plugin/VignettePlugin'},
               {text: 'ChromaticAberrationPlugin', link: 'plugin/ChromaticAberrationPlugin'},
               {text: 'FilmicGrainPlugin', link: 'plugin/FilmicGrainPlugin'},
+              {text: 'LUTPlugin', link: 'plugin/LUTPlugin'},
             ],
           },
           {
