@@ -8,6 +8,14 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Add `MultiLayerRoughnessPlugin` ([docs](./website/plugin/MultiLayerRoughnessPlugin.md)) — material extension for PhysicalMaterial that blends up to 4 extra specular (GGX) lobes with independent roughness and weight on one surface ("reflection tail-off" on real metals — sharp core reflection + rougher, fainter falloff lobes, the dual-lobe technique used by ILM on Iron Man and in RenderMan PxrSurface/Unreal dual-lobe shading).
+  - Per layer: `weight`, `roughness`, `baseInfluence` (0 = absolute roughness, 1 = "lifts" the material's mapped roughness so roughness maps flow into the layers).
+  - Blend modes resolved to per-lobe weights on CPU (no per-pixel cost): `mix` (energy conserving, default), `additive` (ILM-style, not energy conserving), `chain` (sequential mix chain like Blender Mix Shader nodes).
+  - Lobes evaluated for direct lights (per-lobe `BRDF_GGX` with shared F0/Fresnel — same convention as Unreal `DualSpecularGGX`/O3DE dual specular) and IBL (one extra env sample per lobe + per-lobe `computeMultiscattering` energy compensation; indirect diffuse rebalanced with the weighted total scattering).
+  - Composes with the webgi `AnisotropyPlugin` (priority 8 < 10): layers automatically use `BRDF_GGX_Anisotropy` and the bent-normal IBL when the material is anisotropic.
+  - `WEBGI_materials_multi_layer_roughness` glTF extension for import/export, per-material UI (add/remove/edit layers), `MultiLayerRoughnessPlugin.AddMultiLayerRoughness(material, params)` helper.
+  - Known limitations (documented): SSR/SSGI read only the base roughness from the GBuffer; rect area lights evaluate only the base lobe.
+  - Examples: `multi-layer-roughness-plugin` (comparison grid vs single roughness, 3D text labels) and `multi-layer-roughness-scene` (appliance-style metals with AnisotropyPlugin + SSReflectionPlugin + BloomPlugin and a neon sign); docs: `website/plugin/MultiLayerRoughnessPlugin.md`; also registered in the `tweakpane-editor` example.
 - Switch `three` and `@types/three` dependencies from GitHub Releases tgz URLs to npm packages using `npm:` aliases
   - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
   - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))

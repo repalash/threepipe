@@ -75,6 +75,8 @@ export {AnimationObjectPlugin, type AnimationObjectPluginEventMap} from './anima
 export {ClearcoatTintPlugin, clearCoatTintGLTFExtension} from './material/ClearcoatTintPlugin'
 export {NoiseBumpMaterialPlugin, noiseBumpMaterialGLTFExtension} from './material/NoiseBumpMaterialPlugin'
 export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/CustomBumpMapPlugin'
+export {MultiLayerRoughnessPlugin, multiLayerRoughnessGLTFExtension} from './material/MultiLayerRoughnessPlugin'
+export type {MultiLayerRoughnessLayer, MultiLayerRoughnessBlendMode} from './material/MultiLayerRoughnessPlugin'
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
 

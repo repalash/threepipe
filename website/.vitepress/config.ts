@@ -148,6 +148,7 @@ export default defineConfig({
               {text: 'NoiseBumpMaterialPlugin', link: 'plugin/NoiseBumpMaterialPlugin'},
               {text: 'CustomBumpMapPlugin', link: 'plugin/CustomBumpMapPlugin'},
               {text: 'ClearcoatTintPlugin', link: 'plugin/ClearcoatTintPlugin'},
+              {text: 'MultiLayerRoughnessPlugin', link: 'plugin/MultiLayerRoughnessPlugin'},
               {text: 'FragmentClippingExtensionPlugin', link: 'plugin/FragmentClippingExtensionPlugin'},
               {text: 'ParallaxMappingPlugin', link: 'plugin/ParallaxMappingPlugin'},
             ],
