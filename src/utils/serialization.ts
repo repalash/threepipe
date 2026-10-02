@@ -89,7 +89,7 @@ export class ThreeSerialization {
             if (!obj?.isTexture) throw new Error('Expected a texture')
             if (obj.isRenderTargetTexture) return undefined // todo: support render targets
             // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
-            if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
+            if (meta?.textures?.[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
             const imgData = obj.source.data
             const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
                 isNonRelativeUrl(obj.userData.rootPath)
@@ -364,7 +364,7 @@ export class ThreeSerialization {
         isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
         serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
             if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
-            if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
+            if (meta?.extras?.[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
 
             // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
             const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
@@ -942,7 +942,7 @@ export function jsonToBlob(json: any): BlobExt {
  * @param mime
  */
 export function serializeTextureInExtras(texture: ITexture & ImportResultExtras, meta: any, name?: string, mime?: string) {
-    if (meta?.extras[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
+    if (meta?.extras?.[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
 
     let url: any = ''
     if (texture.source?._sourceImgBuffer || texture.__sourceBuffer) {
@@ -953,7 +953,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
         url = {
             data: Array.from(data), // texture need to be a normal array, not a typed array.
             type: data.constructor.name,
-            path: texture.userData.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
+            path: texture.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
         }
         if (mimeType) url.mimeType = mimeType
     } else if (texture.userData.rootPath) {

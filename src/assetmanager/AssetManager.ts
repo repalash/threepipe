@@ -8,7 +8,6 @@ import {
     LinearMipmapLinearFilter,
     LoadingManager,
     Object3D,
-    TextureLoader,
 } from 'three'
 import {ISerializedConfig, IViewerPlugin, type ThreeViewer} from '../viewer'
 import {AssetImporter, IAssetImporterEventMap} from './AssetImporter'
@@ -47,6 +46,7 @@ import {
     OBJLoader2,
     SimpleJSONLoader,
     SVGTextureLoader,
+    TextureLoader2,
     VideoTextureLoader,
     ZipLoader,
 } from './import'
@@ -325,7 +325,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             new Importer(SVGTextureLoader, ['svg', 'data:image/svg'], ['image/svg+xml'], false), // todo: use ImageBitmapLoader if supported (better performance)
 
-            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
+            new Importer(TextureLoader2, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
                 'image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
             ], false), // todo: use ImageBitmapLoader if supported (better performance)
 
