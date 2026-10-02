@@ -18,6 +18,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
+- Legacy bump scale detection when importing glTF (`GLTFMaterialExtrasExtension`) — every glTF 2.0 file with a bump map was flagged as legacy (the check compared `asset.version`, which is always `2.0`). Detection priority is now: per-material `normalizedScale` in the `WEBGI_materials_bumpmap` extension → `userData.legacyBumpScale` from material extras → file-level fallback (`asset.subversion`, else the `WEBGI_viewer` config version when `metadata.generator` is `WebGiViewerApp`, legacy before `0.12.0`). Files from other generators are not legacy. A stale `userData.legacyBumpScale` / `BUMP_MAP_SCALE_LEGACY` define is cleared when `normalizedScale` is `true`
+  - Add a `Legacy Bump Scale` checkbox in the material UI (shown when the material has a bump map) to toggle it manually
+  - `GLTFMaterialsBumpMapExtension` export writes `normalizedScale` and always writes `bumpScale`, same as webgi (the exporter is still not registered in `GLTFExporter2`, bump maps are exported as `EXT_materials_bump`)
+- Fix the map being dropped on glTF export when `displacementScale` or `lightMapIntensity` is `0` but a map is set (`GLTFMaterialsDisplacementMapExtension`, `GLTFMaterialsLightMapExtension`)
+- Fix empty `WEBGI_materials_alphamap` / `WEBGI_materials_lightmap` / `WEBGI_materials_displacementmap` extensions being written to every material on glTF export
+- `GLTFDracoExportPlugin`(plugin-gltf-transform): register `EXT_materials_bump`, the bump map was dropped from materials in the glTF-Transform round-trip (draco export)
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
   - Fixed `initDecoder()` / `initEncoder()` to pass loader config (including `wasmBinary`) and await the `onModuleLoaded` emscripten callback before resolving — required for async WASM init; previously the WASM branch was dead code because the config was never forwarded to the module factory
