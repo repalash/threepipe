@@ -173,6 +173,9 @@ export default defineConfig(async ()=>{
             //     return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
             // },
             sourcemapIgnoreList: false,
+            watch: {
+                ignored: ['**/three.js-modded/**', '**/three-ts-types/**'],
+            },
         },
         build: {
             sourcemap: false,
