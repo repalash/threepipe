@@ -40,12 +40,13 @@ All notable changes to this project will be documented in this file.
 - Fix `DepthBufferPlugin` background being read as the near plane after the r168 upgrade — three.js changed `packDepthToRGBA` (most significant byte moved from alpha to red), so the depth target's black clear color unpacked to ~0 instead of ~1. With the plugin as the primary gbuffer this made `ScreenPass` drop the scene background (alpha 0) and disabled `tonemapBackground`/`clipBackground`. The target is now cleared to the packed far value for the active `depthPacking` (white for RGBA, black for Basic).
 - Fix textures randomly missing on OBJ+MTL models — `MTLLoader2` waited only 50ms for each texture and created the material without the map when the image took longer (the map was then never added). The loader now waits for each texture to load or fail, so `viewer.load()` of an `.obj` resolves with complete materials. (`obj-to-glb` example exported untextured or partly textured models because of this)
 - `snapObject` (and so `MaterialPreviewGenerator` and switch node previews) now clears to transparent explicitly instead of using the clear color left by the last pass. Previews have a transparent background.
-- Note: RGBA-packed depth (depth and shadow map targets, and their exported images) has a different byte layout since three.js r166. Values decoded with `unpackRGBAToDepth` in the same version are unchanged.
+- Note: RGBA-packed depth (depth and shadow map targets, and their exported images) has a different byte layout since three.js r167. Values decoded with `unpackRGBAToDepth` in the same version are unchanged.
 
 ### three.js r168 Upgrade
 
 - Upgrade `three` from v0.163.10003 to v0.168.10006 and `@types/three` to v0.168.10003
 - Upgrade `ts-browser-helpers` to >=0.20.0
+- ETC1 compressed textures with an sRGB `colorSpace` are now decoded as sRGB — three.js uploads ETC1 as ETC2 since r164, which has an sRGB variant (previously the color space was ignored for ETC1). Such textures render darker than before, matching the same image in BC/ASTC.
 - Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
 - Remove `useLegacyLights` — deprecated since r155, removed from r168 types. Removed from `IRenderManager` interface, `RenderManager` getter/setter, and viewer config migration
 - Update `IRenderTarget.depthTexture` type to `DepthTexture | null` (r168 nullability change)
