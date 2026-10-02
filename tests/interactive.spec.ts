@@ -412,6 +412,41 @@ test('glb-draco-export', async({page}, testInfo) => {
     await downloadFileMatch(page, 'scene_with_config.glb', async() => btnClick(page, 'Download Scene GLB (With Viewer Config) + DRACO'))
 })
 
+test('draco-js-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Draco JS Decode Plugin')
+
+    // The plugin should have swapped the .drc decoder to the pure-JS DRACOLoader2Pure and decoded
+    // the Draco glTF natively (no WASM fallback for EdgeBreaker content).
+    const state = await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const importers = v?.assetManager?.importer?.importers ?? []
+        // bundlers may prefix the minified class name (e.g. `_DRACOLoader2Pure`), so match by suffix
+        const decoderSwapped = importers.some((i: any) => i.cls?.name?.replace(/^_/, '') === 'DRACOLoader2Pure')
+        let verts = 0
+        v?.scene?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {hasPlugin: !!plugin, fallbackCount: plugin?.fallbackCount, decoderSwapped, verts}
+    })
+    expect(state.hasPlugin).toBe(true)
+    expect(state.decoderSwapped).toBe(true)
+    expect(state.fallbackCount).toBe(0)
+    expect(state.verts).toBeGreaterThan(0)
+
+    // Real-browser fallback: a SEQUENTIAL-encoded .drc (draco.js silently mis-decodes it) must be
+    // detected and decoded by the actual WASM decode worker instead — proving the safety net holds.
+    const seq = await page.evaluate(async() => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const before = plugin?.fallbackCount
+        const obj = await v.load('/tests/fixtures/draco/sequential.drc', {autoCenter: true, autoScale: true})
+        let verts = 0
+        obj?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {before, after: plugin?.fallbackCount, verts}
+    })
+    expect(seq.after, 'sequential .drc detected → fell back to WASM').toBeGreaterThan(seq.before)
+    expect(seq.verts, 'WASM fallback decoded the sequential mesh').toBeGreaterThan(0)
+})
+
 test('normal-buffer-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Normal Buffer Plugin')
     await btnClick(page, 'Toggle Normal rendering')

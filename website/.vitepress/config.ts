@@ -215,6 +215,7 @@ export default defineConfig({
           {text: 'Configurator Plugins', link: 'package/plugin-configurator'},
           {text: 'Geometry Generator Plugin', link: 'package/plugin-geometry-generator'},
           {text: 'glTF Transform Plugin', link: 'package/plugin-gltf-transform'},
+          {text: 'Draco.js Decode Plugin', link: 'package/plugin-draco-js'},
           {text: 'Extra Importers Plugins', link: 'package/plugins-extra-importers'},
           {text: 'Network Plugin', link: 'package/plugin-network'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},

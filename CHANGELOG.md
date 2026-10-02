@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
   - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
   - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
+- New package [`@threepipe/plugin-draco-js`](./plugins/draco-js) ([docs](./website/package/plugin-draco-js.md), [example](./examples/draco-js-plugin/)) — opt-in `DracoJSDecodePlugin` that decodes Draco meshes (standalone `.drc` and glTF `KHR_draco_mesh_compression`) with the pure-JS [draco.js](https://github.com/mrdoob/draco.js) decoder instead of the WASM decoder (~4× smaller, no wasm/worker/CDN, Node-safe), with an automatic WASM fallback (`DRACOLoader2Pure`) for streams draco.js cannot decode. draco.js is lazy-loaded so it stays out of core
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 
