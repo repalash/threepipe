@@ -176,7 +176,7 @@ Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system)
 
 Threepipe includes a built-in rendering and post-processing pipeline that is highly optimized and feature packed. Several realistic rendering plugins are included in the `threepipe core` like `SSAOPlugin` for quick ambient occlusion, `SSAAPlugin` for anti-aliasing, `TonemapPlugin` for tonemapping, etc.
 
-Threepipe provides the [`@threepipe/webgi-plugins`](http://npmjs.com/package/@threepipe/webgi-plugins) package (free forever) with even more advanced realistic rendering plugins like Screen Space Reflections, HDR Bloom, Depth Of Field etc that work in realtime on all devices.
+Threepipe provides the [`@threepipe/webgi-plugins`](http://npmjs.com/package/@threepipe/webgi-plugins) package with even more advanced realistic rendering plugins like Screen Space Reflections, HDR Bloom, Depth Of Field etc that work in realtime on all devices. From version 0.7.0 the package is under the webgi Free Forever License; earlier releases keep the license they shipped with.
 
 Follow the quickstart guide on various realistic rendering plugins and how they effect the lighting in the scene at [threepipe.org/package/webgi-plugins](https://threepipe.org/package/webgi-plugins.html)
 

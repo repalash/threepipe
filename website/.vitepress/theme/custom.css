@@ -410,6 +410,20 @@
         margin-top: -48px; /* top padding of .VPDoc */
     }
 }
+@media (min-width: 960px) and (max-width: 1279px) {
+    /* VitePress shows its local nav (48px with the border) under the nav bar in this range */
+    .webgi-split-right {
+        top: calc(var(--vp-nav-height) + 48px);
+    }
+    .webgi-showcase {
+        height: calc(100vh - var(--vp-nav-height) - 48px);
+    }
+    /* the viewer is narrow here: models on the left, so that they do not overlap the ground and dark mode buttons */
+    .webgi-showcase .model-tabs {
+        left: 16px;
+        transform: none;
+    }
+}
 @media (max-width: 959px) {
     .webgi-split {
         grid-template-columns: minmax(0, 1fr);

@@ -29,7 +29,7 @@ const {
 
 // bg: the model has its own background (no dark mode colors); ground: show the ground button
 const models = [
-    {label: 'Watch', path: 'https://samples.threepipe.org/demos/classic-watch.glb', icon: icons.watch, ground: true},
+    {label: 'Watch', path: 'https://samples.threepipe.org/demos/webgi/classic-watch.glb', icon: icons.watch, ground: true},
     {label: 'Robot', path: 'https://samples.threepipe.org/demos/webgi/robot.glb', icon: icons.bot, bg: true},
     {label: 'City', path: 'https://samples.threepipe.org/demos/webgi/gi-city-2.glb', icon: icons.building},
     {label: 'Car', path: 'https://samples.threepipe.org/demos/webgi/car-scene.glb', icon: icons.car},
@@ -177,7 +177,7 @@ async function init(canvas, state) {
         state.onCleanup(() => elem.removeEventListener('change', onChange))
     }
 
-    const handleDarkModeChange = handleDarkMode(viewer, state, () => buttonBar?.update())
+    const handleDarkModeChange = handleDarkMode(viewer, state, () => !!currentModel?.bg, () => buttonBar?.update())
 
     // effect buttons, at the top
     effectBar = createButtonRow(viewer.container, 'effect-bar', Object.entries(effects).map(([key, effect]) => ({
@@ -218,8 +218,7 @@ async function init(canvas, state) {
             if (state.disposed) return
             if (!model.path.includes('car'))
                 viewer.fitToView(undefined, 1.5)
-            if (!model.bg)
-                handleDarkModeChange()
+            handleDarkModeChange() // keeps the background of a model that has its own (bg)
         } finally {
             if (!state.disposed) {
                 modelTabs.setDisabled(false)
@@ -304,16 +303,18 @@ async function init(canvas, state) {
     state.onCleanup(() => observer.disconnect())
 }
 
-function handleDarkMode(viewer, state, onChange) {
+// keepModelBackground(): the current model has its own background, which the mode does not change
+function handleDarkMode(viewer, state, keepModelBackground, onChange) {
     const loading = viewer.getPlugin(LoadingScreenPlugin)
     const ground = viewer.getPlugin(ContactShadowGroundPlugin)
 
     function setMode(dark) {
         viewer.getPlugin(TonemapPlugin).tonemapBackground = false
+        loading.background = dark ? '#1B1B1F' : '#FFFFFF'
+        loading.textColor = dark ? '#eeeeee' : '#222222'
+        if (keepModelBackground()) return
         if (dark) {
             viewer.scene.setBackgroundColor('#1B1B1F')
-            loading.background = '#1B1B1F'
-            loading.textColor = '#eeeeee'
             ground.material.color.set('#1B1B1F')
             ground.material.roughness = 0.45;
             ground.material.metalness = 1;
@@ -321,8 +322,6 @@ function handleDarkMode(viewer, state, onChange) {
             ground.material.envMapIntensity = 0
         } else {
             viewer.scene.setBackgroundColor('#FFFFFF')
-            loading.background = '#FFFFFF'
-            loading.textColor = '#222222'
             ground.material.color.set('#FFFFFF')
             ground.material.roughness = 0.25;
             ground.material.metalness = 0.7820321917322556;

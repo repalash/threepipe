@@ -33,7 +33,7 @@ const models = [
     },
     {
         label: 'Watch',
-        path: 'https://samples.threepipe.org/demos/classic-watch.glb',
+        path: 'https://samples.threepipe.org/demos/webgi/classic-watch.glb',
         bg: false,
         icon: icons.watch,
         ground: true,

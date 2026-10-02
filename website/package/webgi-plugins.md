@@ -32,7 +32,7 @@ The plugins are added to a [threepipe](../guide/introduction) viewer. The viewer
 npm install threepipe @threepipe/webgi-plugins
 ```
 
-License: webgi Free Forever License, see the package LICENSE.
+License: webgi Free Forever License from version 0.7.0, see the package LICENSE. Earlier releases keep the license they shipped with.
 
 ## Plugins
 
@@ -145,7 +145,7 @@ async function init() {
             BaseGroundPlugin,
         ],
     });
-    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb');
+    await viewer.load('https://samples.threepipe.org/demos/webgi/classic-watch.glb');
 }
 init()
 ```
@@ -355,7 +355,7 @@ async function init() {
             BaseGroundPlugin,
         ],
     });
-    await viewer.load('https://asset-samples.threepipe.org/demos/classic-watch.glb');
+    await viewer.load('https://samples.threepipe.org/demos/webgi/classic-watch.glb');
 }
 init()
 </script>
