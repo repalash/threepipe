@@ -412,6 +412,48 @@ test('glb-draco-export', async({page}, testInfo) => {
     await downloadFileMatch(page, 'scene_with_config.glb', async() => btnClick(page, 'Download Scene GLB (With Viewer Config) + DRACO'))
 })
 
+test('draco-js-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Draco JS Decode Plugin')
+
+    // The plugin should have swapped the .drc decoder to the pure-JS DRACOLoader2Pure and decoded
+    // the Draco glTF natively (no WASM fallback for EdgeBreaker content).
+    const state = await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const importers = v?.assetManager?.importer?.importers ?? []
+        // bundlers may prefix the minified class name (e.g. `_DRACOLoader2Pure`), so match by suffix
+        const decoderSwapped = importers.some((i: any) => i.cls?.name?.replace(/^_/, '') === 'DRACOLoader2Pure')
+        let verts = 0
+        v?.scene?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {hasPlugin: !!plugin, fallbackCount: plugin?.fallbackCount, decoderSwapped, verts}
+    })
+    expect(state.hasPlugin).toBe(true)
+    expect(state.decoderSwapped).toBe(true)
+    expect(state.fallbackCount).toBe(0)
+    expect(state.verts).toBeGreaterThan(0)
+
+    const loadDrc = async(path: string) => page.evaluate(async(p) => {
+        const v = (window as any).threeViewers?.[0]
+        const plugin = v?.getPlugin('DracoJSDecodePlugin')
+        const before = plugin?.fallbackCount
+        const obj = await v.load(p, {autoCenter: true, autoScale: true})
+        let verts = 0
+        obj?.traverse?.((o: any) => { if (o.geometry?.attributes?.position) verts += o.geometry.attributes.position.count })
+        return {before, after: plugin?.fallbackCount, verts}
+    }, path)
+
+    // A standalone .drc with SEQUENTIAL connectivity is decoded by draco.js as well, no fallback.
+    const seq = await loadDrc('/tests/fixtures/draco/sequential.drc')
+    expect(seq.after, 'sequential .drc decoded by draco.js').toBe(seq.before)
+    expect(seq.verts, 'draco.js decoded the sequential mesh').toBeGreaterThan(0)
+
+    // Real-browser fallback: a point cloud .drc (not implemented in draco.js) must be detected
+    // and decoded by the actual WASM decode worker instead — proving the safety net holds.
+    const points = await loadDrc('/tests/fixtures/draco/point-cloud.drc')
+    expect(points.after, 'point cloud .drc detected → fell back to WASM').toBeGreaterThan(points.before)
+    expect(points.verts, 'WASM fallback decoded the point cloud').toBeGreaterThan(0)
+})
+
 test('normal-buffer-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Normal Buffer Plugin')
     await btnClick(page, 'Toggle Normal rendering')
