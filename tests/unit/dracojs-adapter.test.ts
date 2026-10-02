@@ -74,6 +74,31 @@ const expectIdentical = (geom: BufferGeometry, ref: DecodedGeometry, skip: strin
 
 afterEach(() => { DRACOLoader2Pure.EnableFallback = true })
 
+describe('DracoJSDecodePlugin', () => {
+    it('swaps the .drc loader when added and restores it when removed, also when a loader was already created', async() => {
+        const tp = await import('threepipe')
+        const {DracoJSDecodePlugin} = await import('../../plugins/draco-js/src/DracoJSDecodePlugin')
+        const importer = new tp.AssetImporter()
+        importer.addImporter(new tp.Importer(tp.DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true))
+        const viewer: any = {assetManager: {importer}}
+
+        // a wasm loader is created before the plugin is added
+        const wasm = importer.registerFile('a.drc')
+        expect(wasm).toBeInstanceOf(tp.DRACOLoader2)
+        expect(wasm).not.toBeInstanceOf(DRACOLoader2Pure)
+
+        const plugin = new DracoJSDecodePlugin()
+        plugin.onAdded(viewer)
+        const pure = importer.registerFile('b.drc')
+        expect(pure).toBeInstanceOf(DRACOLoader2Pure)
+
+        plugin.onRemove(viewer)
+        const restored = importer.registerFile('c.drc')
+        expect(restored).toBeInstanceOf(tp.DRACOLoader2)
+        expect(restored).not.toBeInstanceOf(DRACOLoader2Pure)
+    })
+})
+
 describe('DRACOLoader2Pure', () => {
     it('decodes via draco.js identically to the WASM reference decoder', async() => {
         const ref = decodeWithWasm(await getDracoModule(), fresh())

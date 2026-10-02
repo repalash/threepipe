@@ -40,7 +40,7 @@ const model = await viewer.load('model.glb')
 The plugin reversibly replaces the registered `.drc` importer on the viewer's `AssetImporter` with
 one backed by `DRACOLoader2Pure`. Since `GLTFLoader2` pulls its Draco decoder from that same
 registration, both standalone `.drc` loads and glTF `KHR_draco_mesh_compression` loads use the
-pure-JS path. Removing the plugin restores the default WASM decoder. Add the plugin before loading any Draco file, a Draco loader that was already created keeps being used. The draco.js decoder is
+pure-JS path. Removing the plugin restores the default WASM decoder. The plugin can be added and removed at any time, it applies to the files loaded after that. The draco.js decoder is
 **lazy-loaded** via dynamic `import()` the first time a Draco mesh is decoded.
 
 ## Universal WASM fallback
