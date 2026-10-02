@@ -27,7 +27,17 @@ All notable changes to this project will be documented in this file.
   - Added `DRACOLoader2.SetDecoderWasmBinary(wrapperJs, wasmBinary)` helper for bundling the WASM decoder with app source, symmetric with `SetDecoderJsString`
   - Updated `SetDecoderJsString` docblock: users bundling only the JS build should also call `setDecoderConfig({type: 'js'})` on the instance to skip the wasm fetch
   - Removed duplicate `setDecoderConfig({type: 'js'})` hack from `GLTFDracoExporterBase` (plugin-gltf-transform)
+- `AssetImporter.removeImporter` now also removes (and disposes) the loaders created by the importer. They were still used for new files after the importer was removed, so replacing the importer for an extension had no effect once a file of that type was loaded
+- `AssetImporter.clearLoaderCache` removes the handlers of the disposed loaders from the loading manager, the disposed loaders were still returned for new files
 - `drc-load` example: add `LoadingScreenPlugin`
+- `overrideThreeCache` (`src/three/utils/cache.ts`): reject invalid payloads on both read and write
+  - On `threeCache.add`, skip payloads whose `byteLength` / `size` / `length` is 0 — previously a one-off corrupted fetch (extension interference, aborted network, flaky response) persisted a 0-byte `Response` to `CacheStorage` that replayed on every subsequent load
+  - On `threeCache.get`, if the cached `Response` decodes to an empty payload or fails to decode (e.g. truncated json), delete the stale entry and return `undefined` so three.js falls through to a fresh network fetch. Existing 0-byte cached entries auto-heal on the next load
+  - Symptom this fixes: "THREE.DRACOLoader: Unexpected geometry type" (or similar binary-decode errors) persisting in one browser profile while working in Incognito
+  - Fix every `FileLoader` load throwing `Cannot read properties of undefined (reading 'then')` when no `CacheStorage` is available (insecure context, `file://`, Node) — the cache is no longer patched without a storage, three.js `Cache` is used as is
+  - Fix the original three.js `Cache` functions being lost when `overrideThreeCache` is called again after a call without a storage
+  - Fix `json` and `document` responses being stored as `[object Object]` / `[object XMLDocument]` — they are serialized before writing to the storage
+  - Fix urls that merely start with `blob` (like `blobstore/file.glb`) being skipped, only `blob:` urls are
 
 ### three.js r168 Upgrade
 
