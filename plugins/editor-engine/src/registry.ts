@@ -188,6 +188,25 @@ export interface NavigationApi {
     gestures(device?: PointingDevice): NavigationGesture[]
 }
 
+/** Metadata of a file the user opened, kept in `localStorage`; the file itself is never stored. */
+export interface RecentFile {
+    name: string
+    size: number
+    lastModified: number
+    openedAt: number
+}
+
+/** The document on disk, as far as a browser knows: a name, whether it has unsaved changes, and what was opened before. */
+export interface FileApi {
+    /** The document's name without extension; null until it is saved or opened. */
+    readonly name: string | null
+    /** True when the history moved since the last save, open or new. */
+    readonly dirty: boolean
+    readonly recent: RecentFile[]
+    clearRecent(): void
+    /** The scene as it is now counts as saved: an app's start scene, or after a save of its own. */
+    markClean(): void
+}
 
 /** A step recorded on the one undo stack. `label` is what the history list shows. */
 export interface LabelledUndoCommand {
@@ -252,6 +271,8 @@ export interface EditorEngineEventMap {
     keymapChanged: {preset: string}
     /** The pointing device changed (chosen, or detected from a wheel event). */
     navigationChanged: {device: PointingDevice, source: NavigationApi['deviceSource']}
+    /** The document's name, dirty flag or recent-files list changed. */
+    fileChanged: {name: string | null, dirty: boolean}
     /** Something to tell the user. The shell shows a toast. */
     message: {level: 'info' | 'warning' | 'error', text: string}
     /** An operator asks the shell to open one of its own surfaces, or a popup menu at the cursor. */
@@ -336,6 +357,7 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly keymap: KeymapApi
     readonly input: InputApi
     readonly navigation: NavigationApi
+    readonly file: FileApi
 
     readonly mode: EditorMode
     setMode(mode: EditorMode): boolean
@@ -356,6 +378,11 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     record(cmd: LabelledUndoCommand): void
     /** Tell the user something. The shell shows a toast. */
     message(level: 'info' | 'warning' | 'error', text: string): void
+    /**
+     * The key for an operator in the active preset, formatted for a sentence: ` (Tab)`, or an empty
+     * string when it has none. For messages that tell the user what to do next.
+     */
+    keyHint(id: string, mode?: EditorMode): string
     dispose(): void
 }
 

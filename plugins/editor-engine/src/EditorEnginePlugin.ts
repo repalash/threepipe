@@ -46,6 +46,7 @@ import {
     ToolDescriptor,
 } from './registry'
 import {EditorHistory} from './history/EditorHistory'
+import {EditorFile} from './files/EditorFile'
 import {Keymap} from './keymap/Keymap'
 import {blenderPreset} from './keymap/presets/blender'
 import {designPreset} from './keymap/presets/design'
@@ -69,8 +70,8 @@ export interface EditorEngineOptions {
     /** Keymap preset to start with. Default: the stored preference, else `blender`. */
     keymap?: string
     /**
-     * `localStorage` key for the keymap preference; the chosen pointing device uses it with a
-     * `-device` suffix. `null` turns persistence off.
+     * `localStorage` key for the keymap preference; the recent-files list and the chosen pointing
+     * device use it with a `-recent` and a `-device` suffix. `null` turns persistence off.
      */
     storageKey?: string | null
     /** Register the built-in operator packs and tools. Default true. */
@@ -101,6 +102,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     history!: EditorHistory
     input!: InputRouter
     navigation!: Navigation
+    file!: EditorFile
 
     private _options: EditorEngineOptions
     private _presets: KeymapPreset[] = [blenderPreset, designPreset]
@@ -152,6 +154,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         this._disposers.push(() => this.history.dispose())
 
         const storageKey = this._storageKey()
+        this.file = new EditorFile(this.history, storageKey ? storageKey + '-recent' : null, () => this._fileChanged())
 
         this.navigation = new Navigation(viewer, () => this.meshEdit)
         // A device the user chose is remembered; a detected one is detected again next time.
@@ -284,6 +287,11 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         }
     }
 
+    private _fileChanged(): void {
+        if (this._disposed) return
+        this.dispatchEvent({type: 'fileChanged', name: this.file.name, dirty: this.file.dirty})
+    }
+
     /**
      * An object entering edit mode joins the modelling document if it is not in it already, so an
      * imported mesh gets the same commands (inset, bevel, delete menu, ...), redo-last and agent API as
@@ -312,7 +320,12 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         // Blender drops the redo panel once its step is no longer the top of the stack (an undo, or any
         // other undoable action after it). Not while redo-last itself is popping and re-pushing.
         if (this._lastStep && !this._redoing && this.history.peek() !== this._lastStep) this.setLastOperation(null)
-        queueMicrotask(() => !this._disposed && this.dispatchEvent({type: 'historyChanged'}))
+        queueMicrotask(() => {
+            if (this._disposed) return
+            this.dispatchEvent({type: 'historyChanged'})
+            // The dirty flag is a function of the history; tell the shell when it may have flipped.
+            this._fileChanged()
+        })
     }
 
     // endregion
@@ -357,6 +370,11 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     private _storedPreset(): string | undefined {
         const key = this._storageKey()
         return key ? readStorage(key) ?? undefined : undefined
+    }
+
+    keyHint(id: string, mode?: EditorMode): string {
+        const key = this._keymap.shortcutFor(id, mode ?? this.mode)
+        return key ? ` (${key})` : ''
     }
 
     /** Every operator and tool shows the key the active preset gives it in the current mode. */
