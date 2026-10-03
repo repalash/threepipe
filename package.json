@@ -53,7 +53,7 @@
     "test:unit:modelling": "npm run test --prefix plugins/modelling",
     "test:unit:blend-importer": "npm run test --prefix plugins/blend-importer",
     "test:unit:mesh-edit": "npm run test --prefix plugins/mesh-edit",
-    "typecheck:plugins": "npm run typecheck --prefix plugins/mesh-kernel && npm run typecheck --prefix plugins/mesh-edit && npm run typecheck --prefix plugins/modelling && npm run typecheck --prefix plugins/modelling-editor",
+    "typecheck:plugins": "npm run typecheck --prefix plugins/mesh-kernel && npm run typecheck --prefix plugins/mesh-edit && npm run typecheck --prefix plugins/modelling && npm run typecheck --prefix plugins/modelling-editor && npm run typecheck --prefix plugins/editor-engine",
     "build:modelling-editor": "npm run build:dev --prefix plugins/modelling-editor",
     "dev:modelling-editor": "npm run dev --prefix plugins/modelling-editor",
     "vite:modelling-editor": "NODE_ENV=development vite --config vite.examples.config.js --host 0.0.0.0 --port 9361",
@@ -79,7 +79,9 @@
     "generate-example-env": "node ./scripts/generate-example-env.mjs",
     "compile:esm": "vite build --config vite.lib.config.js",
     "postcompile:esm": "#node scripts/fix-inline-imports.mjs",
-    "copy:inlines": "#copyfiles -u 1 \"src/**/*.{css,glsl}\" lib"
+    "copy:inlines": "#copyfiles -u 1 \"src/**/*.{css,glsl}\" lib",
+    "test:unit:editor-engine": "npm run test --prefix plugins/editor-engine",
+    "build:editor-engine": "npm run build:dev --prefix plugins/editor-engine"
   },
   "clean-package": {
     "remove": [

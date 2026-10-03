@@ -1,0 +1,225 @@
+---
+prev:
+    text: '@threepipe/plugin-mesh-edit'
+    link: './plugin-mesh-edit'
+next:
+    text: '@threepipe/plugin-modelling-editor'
+    link: './plugin-modelling-editor'
+
+aside: false
+---
+
+# @threepipe/plugin-editor-engine
+
+The interaction engine of the modelling editor, with no UI framework in it: operator and tool registries, a
+keymap with presets and one input router, one undo history with a label per step, redo-last ("Adjust Last
+Operation"), status hints and the events a shell renders from. The React shell
+(`@threepipe/plugin-modelling-editor`) only draws what this exposes; any other threepipe app, and an agent,
+drives the same surface.
+
+[Example](https://threepipe.org/examples/#modelling-editor/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/editor-engine/src/index.ts)
+
+```bash
+npm i @threepipe/plugin-editor-engine
+```
+
+```ts
+import {EditorEnginePlugin} from '@threepipe/plugin-editor-engine'
+
+const engine = viewer.addPluginSync(EditorEnginePlugin)   // adds Picking, UndoManager and MeshEdit if absent
+await engine.run('add.cube')                               // the operator the Add menu runs
+engine.setMode('edit')                                     // Tab
+engine.setSelectMode('face')                               // 3
+await engine.run('mesh.inset', {thickness: 0.1})           // one undo step, labelled "Inset cube"
+await engine.lastOperation!.redo!({thickness: 0.2})        // pop that step, run again, record again
+engine.history.undo()                                      // back to before the inset
+engine.keymap.setPreset('design')                          // Figma/trackpad keys
+```
+
+## What it composes
+
+- `MeshEditPlugin` (`@threepipe/plugin-mesh-edit`): the edit-mode session, element selection, overlays and
+  the modal transform. Its own key handler is switched off (`keyHandling = false`) while the engine is present;
+  modal keys are forwarded through `handleModalKey`.
+- `ModellingPlugin` (`@threepipe/plugin-modelling`): the document and the command table. Every command with a
+  schema becomes a `modelling.<op>` operator; the edit-mode inset, bevel, delete menu and separate run the
+  command on the edited object's document entry with the selected element indices, then the session reloads.
+  An object that is not in the document joins it when edit mode starts on it, so imported meshes get the same
+  commands.
+- threepipe's `PickingPlugin` (object selection, delete, duplicate, hide, transform clear; `keyboardShortcuts`
+  off while the engine runs), `TransformControlsPlugin` (the object gizmo behind the move/rotate/scale tools)
+  and `UndoManagerPlugin` (the one history).
+
+## Registries
+
+`src/registry.ts` is what a shell renders from (moved here from the shell package, unchanged in shape):
+
+- `OperatorDescriptor` - `id`, `label`, `description`, `icon`, `category`, `modes`, `contextMenu`, `props`
+  (JSON schema, rendered as the redo-last form), `flags` (`undo`, `register`), `hidden`, `poll(ctx)` (false or
+  a reason string disables with a tooltip) and `exec(ctx, props)`. `shortcut` is **filled in by the engine from
+  the active keymap**; descriptors never hard-code a key.
+- `ToolDescriptor` - sticky tools for the tool shelf: `activate` / `deactivate`, `hints`.
+- `EditorEngine` - the registries, `mode`, `selectMode`, `activeTool`, `lastOperation`, `history`, `keymap`,
+  `input`, `status`, `stats()`, `poll()`, `run(id, props)`, `record()`, `message()` and the events
+  (`modeChanged`, `selectionChanged`, `registryChanged`, `lastOperationChanged`, `historyChanged`,
+  `statusChanged`, `keymapChanged`, `message`, `uiRequest`).
+- `uiRequest` asks the shell for one of its surfaces: `palette`, `history`, `shortcuts`, `about`,
+  `operatorPanel`, or `menu` with a list of `{id, label?, props?}` items to open at the cursor - how Blender's
+  `X` (delete menu), `M` (merge), `Shift+A` (add) and `Ctrl+A` (apply) keys work (`WM_menu_invoke`).
+
+## One history
+
+Everything records on `UndoManagerPlugin`'s `JSUndoManager`, with a label per step: modelling commands (the
+plugin records them itself when the undo manager is present), edit-mode operations (`MeshEditPlugin` records
+them), object selection and deletes (`PickingPlugin`), property edits (uiconfig). One Ctrl+Z walks back through
+all of it in order, in both modes. `engine.history.entries()` lists the labels for a history dialog. An agent's
+`undo` command walks the same stack.
+
+## Redo-last
+
+`run()` remembers the undo step a registered operator pushed. `lastOperation.redo(newProps)` is Blender's
+`ED_undo_operator_repeat` (`editors/undo/ed_undo.cc:651`): undo until that step is popped (`ED_undo_pop_op`),
+run the operator again with the new props (`WM_operator_repeat`), and if the re-run fails redo what was undone
+(`ED_undo_redo`). Modal operators report their final props when the modal ends - a transform's value, axis
+and orientation (`MeshEditPlugin`'s `transformCommitted`, Blender's `saveTransform`), extrude's offset - so
+they re-run exactly. The panel goes away once its step is no longer the top of the stack.
+
+## Keymap presets
+
+Each preset is a list of `{keys, id, props?, tool?, mode?, repeat?}` bindings plus a navigation block. Keys are
+`KeyboardEvent.code` based (`z` is the physical Z key on any layout); `ctrl` also matches the Command key on a
+Mac. The display string of every operator and tool is derived from the active preset, so tooltips, menus, the
+palette and the shortcuts dialog cannot disagree with what is bound. Switch with `engine.keymap.setPreset(id)`,
+the Edit > Keymap operator, or the `edit.keymap` operator with `{preset}`; the choice persists in
+`localStorage` (`storageKey` option).
+
+### Blender
+
+Ported from Blender's default keymap (`scripts/presets/keyconfig/keymap_data/blender_default.py`; the source
+file cites the line of each binding).
+
+| Keys | Operator |
+|---|---|
+| Tab | Edit mode / Object mode |
+| 1 / 2 / 3 | Vertex / edge / face select |
+| A, Alt+A, Ctrl+I | Select all / none / invert |
+| L, Ctrl+L | Select linked |
+| G / R / S | Move / rotate / scale (modal; X/Y/Z lock an axis, numbers type a value, Shift precision) |
+| E | Extrude along the normal |
+| I | Inset faces |
+| Ctrl+B | Bevel |
+| M | Merge menu |
+| Y | Split |
+| P | Separate selection |
+| F | Fill (make face / edge) |
+| Shift+D | Duplicate |
+| X, Delete | Delete menu |
+| Ctrl+X, Ctrl+Delete | Dissolve |
+| Shift+A | Add menu |
+| Ctrl+J | Join |
+| Ctrl+P, Alt+P | Parent to active / clear parent |
+| Alt+G / Alt+R / Alt+S | Clear location / rotation / scale |
+| Ctrl+A | Apply menu |
+| H, Alt+H | Hide / unhide all |
+| Ctrl+Z, Ctrl+Shift+Z, Ctrl+Alt+Z | Undo, redo, undo history |
+| F9 | Adjust last operation |
+| Shift+R | Repeat last |
+| F3 | Command palette |
+| F2 | Rename |
+| Home, Numpad . | Frame all / frame selected |
+| Numpad 1/3/7 (+Ctrl) | Front/right/top (back/left/bottom) views |
+| Numpad 5 | Perspective / orthographic |
+| Alt+Z | X-ray |
+| W | Select tool |
+
+Navigation: middle-drag orbits, Shift+middle-drag pans, the wheel zooms, Alt+left-drag orbits ("Emulate 3 Button
+Mouse"), right-drag pans and a right click opens the context menu. A left drag belongs to selection (box select
+in edit mode, from track S). Trackpad: two-finger scroll orbits, Shift+two-finger pans, pinch zooms - Blender's
+own trackpad mapping.
+
+### Design (Figma / trackpad)
+
+For someone who knows Figma, Photoshop or a trackpad better than Blender. Built on Blender's Industry
+Compatible keymap (`industry_compatible_data.py`, the cross-DCC survey of task T54963) plus the 2D-tool
+conventions from the editor research: Enter drills into edit mode, Esc backs out one level, Space+drag pans,
+Alt+drag orbits.
+
+| Keys | Operator |
+|---|---|
+| Q / W / E / R | Select / move / rotate / scale tools |
+| Enter | Edit mode on the selection |
+| Esc | Back out: cancel a running tool, else clear the selection, else leave edit mode |
+| 1 / 2 / 3 | Vertex / edge / face select (enters edit mode if needed) |
+| 4 | Object mode |
+| Ctrl+A, Ctrl+Shift+A, Ctrl+I | Select all / none / invert |
+| Ctrl+L | Select linked |
+| Ctrl+E | Extrude |
+| I | Inset faces |
+| Ctrl+B | Bevel |
+| M | Merge menu |
+| Ctrl+D | Duplicate |
+| Delete, Backspace | Delete (by select mode, no menu) |
+| Ctrl+Backspace, Ctrl+Delete | Dissolve |
+| Ctrl+J, Ctrl+Shift+J | Join / separate |
+| P, Shift+P | Parent to active / clear parent |
+| Alt+W / Alt+E / Alt+R | Clear location / rotation / scale |
+| Ctrl+H, Alt+H | Hide / unhide all |
+| Shift+A | Add menu |
+| Ctrl+Z, Ctrl+Shift+Z, Ctrl+Alt+Z | Undo, redo, undo history |
+| F9 | Adjust last operation |
+| Ctrl+K | Command palette |
+| F2 | Rename |
+| F, A | Frame selected / frame all |
+| F1 / F2 (edit mode) / F3 (+Ctrl) | Front / right / top (back / bottom) views |
+| Alt+X | X-ray |
+
+Navigation: a left drag selects, Space+left-drag pans (Figma), Alt+left-drag orbits (Spline), right-drag
+orbits, middle-drag pans, the wheel zooms. Trackpad: two-finger scroll pans, Shift+two-finger orbits, pinch
+zooms.
+
+Both presets ignore keys typed into inputs, text areas, selects and editable content, and let Space/Enter
+activate a focused button. The shell suspends the router (`engine.input.suspend(key)`) while a dialog, the
+palette or a popup menu is open.
+
+## Operators
+
+Object mode: `add.<primitive>` (cube, plane, circle, sphere, icosphere, cylinder, cone, torus, grid; parametric,
+adjust in the panel), `add.menu`, `object.enter_edit`, `object.select_all/none/invert`, `object.delete`,
+`object.duplicate`, `object.join`, `object.separate`, `object.hide`, `object.unhide_all`, `object.parent`,
+`object.clear_parent`, `object.reset_position/rotation/scale`, `object.apply_transform`, `modelling.<op>` for the
+remaining document commands (inset, bevel, solidify, mirror, array, extrude, weld, poke, wireframe, material,
+light, lathe, sweep), `file.new/open/save/export_glb/export_obj/export_stl`, `edit.undo/redo/history/
+repeat_last/repeat/rename/escape/keymap`.
+
+Edit mode: `mesh.exit_edit`, `mesh.exit_discard`, `mesh.apply`, `mesh.select_mode_vertex/edge/face`,
+`mesh.select_all/none/invert/linked/loop/ring`, `mesh.move/rotate/scale` (modal, or exact with props),
+`mesh.extrude` (modal along the normal, or `{offset}`), `mesh.duplicate`, `mesh.split`, `mesh.merge`,
+`mesh.dissolve` (vertices, edges or faces by select mode - `bmo_dissolve.cc` ports in the kernel), `mesh.fill`
+(`F`: an edge from two vertices, a face from a closed edge loop, or a region dissolve - `bmo_contextual_create`
+without the edge-net fill), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
+`mesh.separate`, `mesh.toggle_xray`. `mesh.subdivide` is registered disabled: the kernel's `bmo_subdivide`
+port covers the icosphere's `tri_3edge` pattern only (P3 backlog).
+
+The shell adds `view.*` (frame, axis views, projection, grid, shading), `ui.command_palette` and `help.*`
+through `engine.operators.register`.
+
+## Tools
+
+`select`; `object.move/rotate/scale` (the `TransformControlsPlugin` gizmo); `mesh.move/rotate/scale` and
+`mesh.extrude` (one-shot: they start the modal and the shelf returns to Select when it ends - track T's element
+gizmo replaces this); `mesh.inset` and `mesh.bevel` (interactive: run with defaults, drag sets the
+thickness/width, the wheel changes bevel segments, click confirms, Esc cancels - each change is the redo-last
+path, so the drag and the panel cannot disagree); `mesh.loop_cut` and `mesh.knife` are registered disabled
+until P3.
+
+## Status hints
+
+`engine.status` is what the status bar shows: a running modal's text and keys, else the active tool's hints,
+else the mouse mapping of the preset plus the keys that matter most in the mode, read from the keymap.
+
+## Tests
+
+`npm run test:unit:editor-engine` - keymap parsing and presets, the router's dispatch rules, the history and
+`undoTo`. The real-input tests (keys and mouse through Playwright: presets, menus, palette, redo-last, undo
+across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`.

@@ -2,6 +2,9 @@
 prev:
     text: '@threepipe/plugin-modelling'
     link: './plugin-modelling'
+next:
+    text: '@threepipe/plugin-editor-engine'
+    link: './plugin-editor-engine'
 
 aside: false
 ---
