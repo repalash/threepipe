@@ -366,8 +366,8 @@ export default async ({run, capture, log, page}) => {
     }
     await deck('deck-1', FLOOR.first, PLATFORM.first, 30.0, 0.5)
     // The glazed pavilions along the platform edge and the canopy over them.
-    await deck('pavilions-1', FLOOR.first + 4.0, PLATFORM.first - 5.0, PLATFORM.first - 15.0, 4.0, '#46535a')
-    await must({op: 'material', object: 'pavilions-1', roughness: 0.12, metalness: 0.6})
+    await deck('pavilions-1', FLOOR.first + 4.0, PLATFORM.first - 5.0, PLATFORM.first - 15.0, 4.0, '#2f3a40')
+    await must({op: 'material', object: 'pavilions-1', roughness: 0.6, metalness: 0})
     await deck('canopy-1', FLOOR.first + 5.0, PLATFORM.first + 0.6, PLATFORM.first - 15.0, 0.6)
     await railing('railing-1', FLOOR.first, PLATFORM.first - 0.3, 48)
     await capture('first floor', {view: 'front', fit: ['girder-1', 'frieze-1', 'deck-1', 'arch']})
@@ -388,8 +388,8 @@ export default async ({run, capture, log, page}) => {
     await square('deck-2', PLATFORM.second, [0, FLOOR.second, 0], IRON_DARK)
     await must({op: 'solidify', object: 'deck-2', thickness: 0.4, offset: -1})
     await railing('railing-2', FLOOR.second + 0.3, PLATFORM.second - 0.2, 28)
-    await deck('pavilions-2', FLOOR.second + 4.0, PLATFORM.second - 4.0, PLATFORM.second - 12.0, 3.7, '#46535a')
-    await must({op: 'material', object: 'pavilions-2', roughness: 0.12, metalness: 0.6})
+    await deck('pavilions-2', FLOOR.second + 4.0, PLATFORM.second - 4.0, PLATFORM.second - 12.0, 3.7, '#2f3a40')
+    await must({op: 'material', object: 'pavilions-2', roughness: 0.6, metalness: 0})
     // Brackets from the shaft face under the fascia, eleven to a side.
     await must({op: 'sweep', name: 'brackets-2', color: IRON_DARK,
         path: bracketPath([-17, 110.0, O(110.0) + 0.4], [-17, FLOOR.second - 0.5, PLATFORM.second / 2 - 0.5]),
