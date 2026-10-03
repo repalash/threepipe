@@ -649,7 +649,8 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         const tip = this._emptyTip()
         if (this._activeTool?.hints) {
             const h = this._activeTool.hints
-            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(h.keys ?? []), ...nav.extra], tip}
+            // A tip (nothing to act on) stands in for the tool's keys; how to move the view stays.
+            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(tip ? [] : h.keys ?? []), ...nav.extra], tip}
         }
         // The keys that matter most in each mode, read from the active keymap so they are never stale.
         const hintOps: [string, string][] = this.mode === 'edit'
@@ -664,7 +665,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             lmb: `${nav.lmb} (Shift: extend)`,
             mmb: nav.mmb,
             rmb: nav.rmb,
-            keys: [...keys, ...nav.extra],
+            keys: [...(tip ? [] : keys), ...nav.extra],
             tip,
         }
     }

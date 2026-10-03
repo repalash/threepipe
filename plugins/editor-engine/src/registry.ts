@@ -102,8 +102,8 @@ export interface StatusHints {
     modal?: string
     /**
      * What to do next when there is nothing to act on - edit mode with no selection, object mode with
-     * nothing selected, an empty scene. The status bar shows it ahead of the mouse hints, in place of
-     * the key hints. Undefined when the user has something selected.
+     * nothing selected, an empty scene. Shown ahead of the mouse hints; `keys` then holds only the
+     * navigation keys, not the operator keys the tip stands in for. Undefined when something is selected.
      */
     tip?: string
 }
