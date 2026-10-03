@@ -3436,11 +3436,20 @@ test('modelling-workspace', async({page}) => {
     })
     expect(picked.depth).toBe(picked.nearest)
 
-    // Orbiting (a drag from empty space) leaves the selection alone.
+    // Orbiting (a middle-button drag; the left drag is box select in edit mode) leaves the selection
+    // alone, and so does a Shift+drag over empty space, which extends with nothing.
     await page.mouse.move(canvas.x + 120, canvas.y + canvas.height - 120)
-    await page.mouse.down()
+    await page.mouse.down({button: 'middle'})
     await page.mouse.move(canvas.x + 260, canvas.y + canvas.height - 200, {steps: 8})
+    await page.mouse.up({button: 'middle'})
+    await page.waitForTimeout(300)
+    expect((await state()).sel).toEqual([1, 0, 0])
+    await page.keyboard.down('Shift')
+    await page.mouse.move(canvas.x + 60, canvas.y + canvas.height - 60)
+    await page.mouse.down()
+    await page.mouse.move(canvas.x + 120, canvas.y + canvas.height - 120, {steps: 6})
     await page.mouse.up()
+    await page.keyboard.up('Shift')
     await page.waitForTimeout(300)
     expect((await state()).sel).toEqual([1, 0, 0])
 
@@ -3531,6 +3540,263 @@ test('modelling-workspace', async({page}) => {
     })
     expect(mode.inEdit).toBe('EDIT MODE')
     expect(mode.after).toBe('OBJECT MODE')
+})
+
+test('mesh-edit-select', async({page}) => {
+    await expect(page).toHaveTitle('Mesh Edit Select')
+
+    // ── Real input for the selection tools: box, lasso, loop, path, hide, with pixel checks. ──
+    const sel = () => page.evaluate(() => {
+        const bm = (window as any).meshEdit.state.bm
+        return [bm.totvertsel, bm.totedgesel, bm.totfacesel] as [number, number, number]
+    })
+    const canvas = (await page.locator('#mcanvas').boundingBox())!
+    // Screen positions of the grid's vertices (8x8 quads, 9x9 vertices from -1..1), from the plugin's projection.
+    type P = {x: number, y: number, gx: number, gy: number}
+    const positions = () => page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        return [...me.state.bm.verts].map((v: any) => {
+            const p = project(v.x, v.y, v.z)
+            return {x: p.x, y: p.y, gx: Math.round(v.x * 4), gy: Math.round(v.y * 4)} as P
+        })
+    })
+    let verts: P[] = await positions()
+    const at = (gx: number, gy: number) => verts.find(v => v.gx === gx && v.gy === gy)!
+
+    // Starts in edit mode, vertex select, nothing selected.
+    expect(await sel()).toEqual([0, 0, 0])
+    await expect(page.locator('[data-select="1"]')).toHaveClass(/active/)
+
+    // Box select: drag from empty space around the four vertices of the top-left quad (the box has
+    // to start off the mesh so the press is not a click on a vertex; the grid is small on screen).
+    const corners = [at(-4, 4), at(-3, 4), at(-4, 3), at(-3, 3)]
+    const minX = Math.min(...corners.map(p => p.x)) - 10
+    const maxX = Math.max(...corners.map(p => p.x)) + 10
+    const minY = Math.min(...corners.map(p => p.y)) - 10
+    const maxY = Math.max(...corners.map(p => p.y)) + 10
+    await page.mouse.move(canvas.x + minX, canvas.y + minY)
+    await page.mouse.down()
+    await page.mouse.move(canvas.x + maxX, canvas.y + maxY, {steps: 8})
+    // The marquee is on screen while dragging.
+    await expect(page.locator('[data-mesh-edit-region] rect')).toHaveCount(2)
+    await page.mouse.up()
+    await page.waitForTimeout(200)
+    await expect(page.locator('[data-mesh-edit-region]')).toHaveCount(0)
+    const boxed = await sel()
+    expect(boxed[0]).toBeGreaterThanOrEqual(4)
+    // Every selected vertex projects inside the box.
+    const outside = await page.evaluate(([x0, y0, x1, y1]) => {
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        return [...me.state.bm.verts].filter((v: any) => v.hflag & 1).filter((v: any) => {
+            const p = project(v.x, v.y, v.z)
+            return p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1
+        }).length
+    }, [minX, minY, maxX, maxY])
+    expect(outside).toBe(0)
+
+    // Shift+drag adds, Ctrl+drag subtracts.
+    const more = [at(4, -4), at(3, -4), at(4, -3), at(3, -3)]
+    const box2 = {
+        x0: Math.min(...more.map(p => p.x)) - 10, x1: Math.max(...more.map(p => p.x)) + 10,
+        y0: Math.min(...more.map(p => p.y)) - 10, y1: Math.max(...more.map(p => p.y)) + 10,
+    }
+    await page.keyboard.down('Shift')
+    await page.mouse.move(canvas.x + box2.x0, canvas.y + box2.y0)
+    await page.mouse.down()
+    await page.mouse.move(canvas.x + box2.x1, canvas.y + box2.y1, {steps: 8})
+    await page.mouse.up()
+    await page.keyboard.up('Shift')
+    await page.waitForTimeout(200)
+    const added = await sel()
+    expect(added[0]).toBeGreaterThan(boxed[0])
+    await page.keyboard.down('Control')
+    await page.mouse.move(canvas.x + box2.x0, canvas.y + box2.y0)
+    await page.mouse.down()
+    await page.mouse.move(canvas.x + box2.x1, canvas.y + box2.y1, {steps: 8})
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+    await page.waitForTimeout(200)
+    expect(await sel()).toEqual(boxed)
+
+    // A middle-button drag orbits and leaves the selection alone.
+    await page.mouse.move(canvas.x + 40, canvas.y + canvas.height - 40)
+    await page.mouse.down({button: 'middle'})
+    await page.mouse.move(canvas.x + 90, canvas.y + canvas.height - 80, {steps: 6})
+    await page.mouse.up({button: 'middle'})
+    await page.waitForTimeout(300)
+    expect(await sel()).toEqual(boxed)
+    // Put the camera back for the positions computed above (after stopping the orbit's damping).
+    await page.evaluate(async() => {
+        const v = (window as any).viewer
+        v.scene.mainCamera.controls?.stopDamping?.()
+        v.scene.mainCamera.position.set(1.2, 2.6, 3.4)
+        v.scene.mainCamera.target.set(0, 0, 0)
+        v.scene.mainCamera.setDirty()
+        await v.fitToView(undefined, 2.1)
+    })
+    await page.waitForTimeout(400)
+    // The view is close to the original but not guaranteed identical: re-read the positions.
+    verts = await positions()
+
+    // Lasso: a diamond around the centre vertex, drawn with the lasso tool, selects it and only it.
+    await page.locator('[data-tool="lasso"]').click()
+    const c = at(0, 0)
+    const r = 14
+    await page.mouse.move(canvas.x + c.x - r, canvas.y + c.y)
+    await page.mouse.down()
+    for (const [dx, dy] of [[0, -r], [r, 0], [0, r], [-r, 0]]) {
+        await page.mouse.move(canvas.x + c.x + dx, canvas.y + c.y + dy, {steps: 3})
+    }
+    await expect(page.locator('[data-mesh-edit-region] polygon')).toHaveCount(2)
+    await page.mouse.up()
+    await page.waitForTimeout(200)
+    expect(await sel()).toEqual([1, 0, 0])
+    await page.locator('[data-tool="box"]').click()
+
+    // Edge mode, Alt+click on an interior horizontal edge: the whole row of 8 edges.
+    await page.keyboard.press('Digit2')
+    const e1 = at(0, 1)
+    const e2 = at(1, 1)
+    const mid = {x: (e1.x + e2.x) / 2, y: (e1.y + e2.y) / 2}
+    await page.mouse.move(canvas.x + mid.x, canvas.y + mid.y)
+    await page.waitForTimeout(100)
+    await page.keyboard.down('Alt')
+    await page.mouse.click(canvas.x + mid.x, canvas.y + mid.y)
+    await page.keyboard.up('Alt')
+    await page.waitForTimeout(200)
+    const loop = await sel()
+    expect(loop[1]).toBe(8)
+    expect(loop[0]).toBe(9)
+    // Ctrl+Alt+click the same edge: the ring across the column of quads, 9 edges.
+    await page.keyboard.down('Control')
+    await page.keyboard.down('Alt')
+    await page.mouse.click(canvas.x + mid.x, canvas.y + mid.y)
+    await page.keyboard.up('Alt')
+    await page.keyboard.up('Control')
+    await page.waitForTimeout(200)
+    expect((await sel())[1]).toBe(9)
+
+    // Vertex mode: click one vertex, Ctrl+click another on the same row: the path between them.
+    await page.keyboard.press('Digit1')
+    const a = at(-3, -2)
+    const b = at(3, -2)
+    await page.mouse.click(canvas.x + a.x, canvas.y + a.y)
+    await page.waitForTimeout(150)
+    expect(await sel()).toEqual([1, 0, 0])
+    await page.keyboard.down('Control')
+    await page.mouse.click(canvas.x + b.x, canvas.y + b.y)
+    await page.keyboard.up('Control')
+    await page.waitForTimeout(200)
+    expect(await sel()).toEqual([7, 6, 0])
+
+    // Pixel checks: fat edges and face dots. `window` returns the pixels of an odd-sized square
+    // around a canvas point, row-major RGB triples.
+    const window = async(x: number, y: number, size: number) => {
+        const h = (size - 1) / 2
+        const png = await page.screenshot({clip: {x: canvas.x + Math.round(x) - h, y: canvas.y + Math.round(y) - h, width: size, height: size}})
+        return page.evaluate(async([b64, n]) => {
+            const img = new Image()
+            img.src = 'data:image/png;base64,' + b64
+            await img.decode()
+            const cv = document.createElement('canvas')
+            cv.width = img.width
+            cv.height = img.height
+            const ctx = cv.getContext('2d')!
+            ctx.drawImage(img, 0, 0)
+            const d = ctx.getImageData(0, 0, n, n).data
+            const out: number[][] = []
+            for (let i = 0; i < n * n; i++) out.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]])
+            return out
+        }, [png.toString('base64'), size] as const)
+    }
+    const pixel = async(x: number, y: number) => (await window(x, y, 3))[4]
+    const isOrange = (rgb: number[]) => rgb[0] > 200 && rgb[1] > 90 && rgb[1] < 190 && rgb[2] < 80
+    // The selected path's edges are orange (#ff9900) and fat. The width is measured across the edge:
+    // along its normal, each pixel's blue channel says how much of it the line covers (the line has
+    // none, the surface plenty), and the coverages sum to the width in pixels. A one-pixel line sums
+    // to about 1; the theme's 2 px edge sums to 1.5-2 depending on where the MSAA samples fall.
+    const p1 = at(-1, -2)
+    const p2 = at(0, -2)
+    const em = {x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2}
+    expect(isOrange(await pixel(em.x, em.y))).toBe(true)
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+    const nx = -(p2.y - p1.y) / len
+    const ny = (p2.x - p1.x) / len
+    const win = await window(em.x, em.y, 15)
+    const sample = (t: number) => win[Math.round(7 + t * ny) * 15 + Math.round(7 + t * nx)]
+    const surfaceBlue = (sample(-6)[2] + sample(6)[2]) / 2
+    expect(surfaceBlue).toBeGreaterThan(100)
+    let width = 0
+    const profile: number[][] = []
+    for (let t = -4; t <= 4; t++) {
+        profile.push(sample(t))
+        width += Math.min(1, Math.max(0, (surfaceBlue - sample(t)[2]) / surfaceBlue))
+    }
+    expect(width, 'profile across the edge: ' + JSON.stringify(profile)).toBeGreaterThanOrEqual(1.4)
+    // An unselected edge is black, not the surface colour.
+    const q1 = at(-1, 3)
+    const q2 = at(0, 3)
+    const qm = await pixel((q1.x + q2.x) / 2, (q1.y + q2.y) / 2)
+    expect(qm[0] + qm[1] + qm[2]).toBeLessThan(120)
+    // Face mode: a dot at the centre of a selected face is the face-dot orange (#ff8a00).
+    await page.keyboard.press('Digit3')
+    await page.waitForTimeout(150)
+    await page.evaluate(() => (window as any).meshEdit.selectAllElements())
+    await page.waitForTimeout(200)
+    const f = [at(0, 0), at(1, 0), at(1, 1), at(0, 1)]
+    const fc = {x: f.reduce((s, p) => s + p.x, 0) / 4, y: f.reduce((s, p) => s + p.y, 0) / 4}
+    expect(isOrange(await pixel(fc.x, fc.y))).toBe(true)
+
+    // Hide and reveal: H hides the selected faces (the drawn surface loses its triangles), Alt+H brings
+    // them back selected.
+    await page.evaluate(() => (window as any).meshEdit.deselectAllElements())
+    await page.mouse.click(canvas.x + fc.x, canvas.y + fc.y)
+    await page.waitForTimeout(150)
+    expect((await sel())[2]).toBe(1)
+    const triangles = () => page.evaluate(() => (window as any).meshEdit.editObject.geometry.getIndex().count / 3)
+    const before = await triangles()
+    await page.keyboard.press('KeyH')
+    await page.waitForTimeout(250)
+    expect(await triangles()).toBe(before - 2)
+    expect(await page.evaluate(() => [...(window as any).meshEdit.state.bm.faces].filter((f: any) => f.hidden).length)).toBe(1)
+    expect(await sel()).toEqual([0, 0, 0])
+    await page.keyboard.press('Alt+KeyH')
+    await page.waitForTimeout(250)
+    expect(await triangles()).toBe(before)
+    expect((await sel())[2]).toBe(1)
+    // Hiding is one undo step.
+    await page.keyboard.press('KeyH')
+    await page.waitForTimeout(250)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expect(await triangles()).toBe(before)
+
+    // Select more / less from the keyboard.
+    await page.keyboard.press('Control+NumpadAdd')
+    await page.waitForTimeout(150)
+    expect((await sel())[2]).toBe(5)
+    await page.keyboard.press('Control+NumpadSubtract')
+    await page.waitForTimeout(150)
+    expect((await sel())[2]).toBe(1)
+
+    // Shift+1 adds vertex mode to face mode. Ctrl+2 goes down to edge mode "contracting": only edges
+    // whose faces are all selected survive, so one face leaves nothing (EDBM_selectmode_convert).
+    await page.keyboard.press('Shift+Digit1')
+    expect(await page.evaluate(() => (window as any).meshEdit.selectMode)).toBe(5)
+    await page.keyboard.press('Control+Digit2')
+    expect(await page.evaluate(() => (window as any).meshEdit.selectMode)).toBe(2)
+    expect((await sel())[1]).toBe(0)
+    // Going up with Ctrl expands: one vertex becomes every edge that touches it.
+    await page.keyboard.press('Digit1')
+    const cv = at(0, 0)
+    await page.mouse.click(canvas.x + cv.x, canvas.y + cv.y)
+    await page.waitForTimeout(150)
+    expect(await sel()).toEqual([1, 0, 0])
+    await page.keyboard.press('Control+Digit2')
+    expect(await page.evaluate(() => (window as any).meshEdit.selectMode)).toBe(2)
+    expect(await sel()).toEqual([5, 4, 0])
 })
 
 test('modelling-editor', async({page}) => {

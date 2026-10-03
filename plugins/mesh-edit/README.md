@@ -42,12 +42,27 @@ surface is also the surface an agent drives, so a tool that only works from a gi
 | Key | Action |
 | --- | --- |
 | <kbd>Tab</kbd> | enter / leave edit mode |
-| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | vertex / edge / face mode |
+| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | vertex / edge / face mode; <kbd>Shift</kbd> combines modes, <kbd>Ctrl</kbd> expands (contracts going down) |
+| click / <kbd>Shift</kbd>+click | select / toggle an element |
+| drag | box select (`dragSelect`); <kbd>Shift</kbd> adds, <kbd>Ctrl</kbd> subtracts, both intersect |
+| <kbd>MMB</kbd> drag / <kbd>Alt</kbd>+drag | orbit while drag-select is on |
+| <kbd>B</kbd> / <kbd>C</kbd> | box tool / circle select modal (wheel resizes, <kbd>Esc</kbd> ends) |
+| <kbd>Alt</kbd>+click / <kbd>Ctrl+Alt</kbd>+click | edge loop / edge ring (face loop in face mode); <kbd>Shift</kbd> toggles |
+| <kbd>Ctrl</kbd>+click | shortest path from the active element |
+| <kbd>L</kbd> / <kbd>Shift+L</kbd> / <kbd>Ctrl+L</kbd> | select linked under the cursor / deselect it / grow the selection to linked |
+| <kbd>Ctrl</kbd>+<kbd>Numpad+</kbd> / <kbd>Numpad-</kbd> | select more / less |
 | <kbd>A</kbd> / <kbd>Alt+A</kbd> | select all / none |
 | <kbd>Ctrl+I</kbd> | invert selection |
-| <kbd>L</kbd> | select linked |
-| <kbd>Shift</kbd>+click | extend selection |
-| <kbd>Esc</kbd> | leave edit mode |
+| <kbd>H</kbd> / <kbd>Shift+H</kbd> / <kbd>Alt+H</kbd> | hide selected / hide unselected / reveal |
+| <kbd>Alt+Z</kbd> | X-ray: see and select through the surface |
+| <kbd>Esc</kbd> | cancel a drag or modal; never leaves edit mode |
+
+The selection tools are Blender's, ported from `editors/mesh/editmesh_select.cc`, `editmesh_path.cc`,
+`editmesh_utils.cc` and `space_view3d/view3d_select.cc` (see `src/select/`), and run on the GPU
+selection buffer when X-ray is off, so only visible elements take part. Each has a method the host
+editor can bind instead of the keys: `boxSelect`, `lassoSelect`, `circleSelect`, `selectLoop`,
+`selectShortestPath`, `selectLinkedPick`, `selectLinked`, `selectMore`, `selectLess`, `hideSelected`,
+`revealHidden`, `toggleSelectMode`; `dragSelect` and `setOrbitButtons` decide what the mouse does.
 
 While edit mode is active, `TransformControlsPlugin`, `PivotControlsPlugin`, `PivotEditPlugin` and
 `Object3DWidgetsPlugin` are disabled *by key*, so their shortcuts and gizmos do not fight with the

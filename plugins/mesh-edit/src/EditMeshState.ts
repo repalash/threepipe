@@ -96,9 +96,9 @@ export class EditMeshState {
         this.revision++
     }
 
-    /** Baked render buffers for the current state. */
-    bake(): {data: GeometryData, triangleToFace: Int32Array} {
-        const {data, triangleToFace} = bakeGeometry(this.mesh, {includeNormals: true})
+    /** Baked render buffers for the current state. With `skipHidden`, hidden faces are not drawn. */
+    bake(skipHidden = false): {data: GeometryData, triangleToFace: Int32Array} {
+        const {data, triangleToFace} = bakeGeometry(this.mesh, {includeNormals: true, skipHidden})
         return {data, triangleToFace}
     }
 

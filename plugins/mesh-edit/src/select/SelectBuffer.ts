@@ -35,6 +35,7 @@ import {
 import {BMesh, BMEdge, BMFace, BMVert, ElemFlag, tessellatePolygon} from '@threepipe/mesh-kernel'
 import {findNearestId} from './spiral'
 import type {SelectDomain, SelectElements, SelectSampler} from './findNearest'
+import {LassoPoint, rasterPolygonMask, ScreenRect} from './lasso'
 
 const ID_VERTEX = /* glsl */`
 attribute float aId;
@@ -241,6 +242,80 @@ export class SelectBuffer implements SelectSampler {
         const out = new Set<number>()
         if (ids) for (const id of ids) if (id) out.add(id - 1)
         return out
+    }
+
+    // endregion
+
+    // region bitmaps - `draw_select_buffer.cc`
+
+    private _bitmap(domain: SelectDomain): Uint8Array {
+        const n = domain === 'vert' ? this.elements.verts.length
+            : domain === 'edge' ? this.elements.edges.length : this.elements.faces.length
+        return new Uint8Array(n)
+    }
+
+    /**
+     * One byte per element of the domain: whether any of its pixels lies in the inclusive rectangle.
+     * `DRW_select_buffer_bitmap_from_rect` (`draw_select_buffer.cc:132`).
+     */
+    bitmapFromRect(domain: SelectDomain, rect: ScreenRect): Uint8Array {
+        const bitmap = this._bitmap(domain)
+        const w = rect.xmax - rect.xmin + 1
+        const h = rect.ymax - rect.ymin + 1
+        if (w <= 0 || h <= 0) return bitmap
+        const ids = this._readRect(domain, rect.xmin, rect.ymin, w, h)
+        if (!ids) return bitmap
+        for (let i = 0; i < ids.length; i++) {
+            const index = ids[i] - 1
+            if (index >= 0 && index < bitmap.length) bitmap[index] = 1
+        }
+        return bitmap
+    }
+
+    /**
+     * As {@link bitmapFromRect}, keeping only the pixels inside the polygon.
+     * `DRW_select_buffer_bitmap_from_poly` (`draw_select_buffer.cc:206`).
+     */
+    bitmapFromPoly(domain: SelectDomain, points: readonly LassoPoint[], rect: ScreenRect): Uint8Array {
+        const bitmap = this._bitmap(domain)
+        const w = rect.xmax - rect.xmin + 1
+        const h = rect.ymax - rect.ymin + 1
+        if (w <= 0 || h <= 0 || points.length < 3) return bitmap
+        const ids = this._readRect(domain, rect.xmin, rect.ymin, w, h)
+        if (!ids) return bitmap
+        // The mask is row 0 at the top; the buffer is row 0 at the bottom.
+        const mask = rasterPolygonMask(points, rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1)
+        for (let i = 0; i < ids.length; i++) {
+            const index = ids[i] - 1
+            if (index < 0 || index >= bitmap.length) continue
+            const row = h - 1 - Math.floor(i / w)
+            const col = i % w
+            if (mask[row * w + col]) bitmap[index] = 1
+        }
+        return bitmap
+    }
+
+    /**
+     * As {@link bitmapFromRect} for the pixels inside a circle (`xc² + yc² < r²`).
+     * `DRW_select_buffer_bitmap_from_circle` (`draw_select_buffer.cc:165`).
+     */
+    bitmapFromCircle(domain: SelectDomain, cx: number, cy: number, radius: number): Uint8Array {
+        const bitmap = this._bitmap(domain)
+        const r = Math.max(0, Math.floor(radius))
+        const w = 2 * r + 1
+        const ids = this._readRect(domain, Math.floor(cx) - r, Math.floor(cy) - r, w, w)
+        if (!ids) return bitmap
+        const radiusSq = r * r
+        let i = 0
+        for (let yc = -r; yc <= r; yc++) {
+            for (let xc = -r; xc <= r; xc++, i++) {
+                if (xc * xc + yc * yc < radiusSq) {
+                    const index = ids[i] - 1
+                    if (index >= 0 && index < bitmap.length) bitmap[index] = 1
+                }
+            }
+        }
+        return bitmap
     }
 
     // endregion

@@ -33,6 +33,12 @@ export interface BakeOptions {
     includeFaceIndex?: boolean
     /** Emit normals. Face normals are used for flat faces, smoothed ones otherwise. */
     includeNormals?: boolean
+    /**
+     * Leave hidden faces (`.hide_poly`) out of the index buffer, as Blender's edit-mode draw does. The
+     * positions and corner attributes are still emitted for every corner, so `triangleToFace` and
+     * `vertexToCorner` keep their meaning; only the triangles are missing.
+     */
+    skipHidden?: boolean
 }
 
 /** Plain-array geometry, ready to be handed to any renderer. */
@@ -251,7 +257,10 @@ export function bakeGeometry(mesh: MeshData, options: BakeOptions = {}): BakeRes
     const points: number[] = []
     const local: number[] = []
 
+    const hidden = options.skipHidden ? mesh.attributes.get(AttrName.hideFace)?.data : undefined
+
     for (let f = 0; f < mesh.facesNum; f++) {
+        if (hidden && hidden[f]) continue
         const start = mesh.faceOffsets[f]
         const end = mesh.faceOffsets[f + 1]
         const size = end - start

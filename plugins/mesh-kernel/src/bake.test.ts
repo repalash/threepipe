@@ -259,3 +259,21 @@ describe('normals, against mesh_normals.cc', () => {
         }
     })
 })
+
+describe('skipHidden', () => {
+    it('leaves hidden faces out of the index buffer and keeps every corner', () => {
+        const mesh = cube()
+        const hide = mesh.attributes.ensure(AttrName.hideFace, AttrDomain.Face, 'bool')
+        hide.data[0] = 1
+        hide.data[3] = 1
+        const full = bakeGeometry(mesh)
+        const baked = bakeGeometry(mesh, {skipHidden: true})
+        expect(full.data.index.length).toBe(12 * 3)
+        expect(baked.data.index.length).toBe(8 * 3)
+        expect(baked.data.position.length).toBe(full.data.position.length)
+        expect(Array.from(baked.triangleToFace)).not.toContain(0)
+        expect(Array.from(baked.triangleToFace)).not.toContain(3)
+        // Without the option, hidden faces are drawn.
+        expect(Array.from(full.triangleToFace)).toContain(0)
+    })
+})

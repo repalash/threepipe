@@ -68,8 +68,15 @@ export function buildVertexOverlay(bm: BMesh, active?: unknown, preselect?: unkn
     return {position, flag, elements}
 }
 
-/** Line segments for every visible edge. */
-export function buildEdgeOverlay(bm: BMesh, active?: unknown, preselect?: unknown): EdgeOverlayData {
+/**
+ * Line segments for every visible edge, with a flag per end.
+ *
+ * In vertex mode the ends take their selection from their vertices, so an edge with one selected
+ * vertex fades from orange to black along its length - Blender's `EDIT_MESH_edge_vertex_color`
+ * (`overlay_edit_mesh_common_lib.glsl:33`), which colours an edge end by `VERT_SELECTED`. In edge
+ * and face mode the edge's own flag is used for both ends (`select_override`).
+ */
+export function buildEdgeOverlay(bm: BMesh, active?: unknown, preselect?: unknown, vertexMode = false): EdgeOverlayData {
     const elements: BMEdge[] = []
     for (const e of bm.edges) if (!(e.hflag & ElemFlag.Hidden)) elements.push(e)
 
@@ -84,8 +91,48 @@ export function buildEdgeOverlay(bm: BMesh, active?: unknown, preselect?: unknow
         position[i * 6 + 4] = e.v2.y
         position[i * 6 + 5] = e.v2.z
         const f = flagFor(e, active, e, preselect)
-        flag[i * 2] = f
-        flag[i * 2 + 1] = f
+        if (vertexMode) {
+            const base = f & ~OverlayFlag.Selected
+            flag[i * 2] = base | (e.v1.hflag & ElemFlag.Select ? OverlayFlag.Selected : 0)
+            flag[i * 2 + 1] = base | (e.v2.hflag & ElemFlag.Select ? OverlayFlag.Selected : 0)
+        } else {
+            flag[i * 2] = f
+            flag[i * 2 + 1] = f
+        }
+    }
+    return {position, flag, elements}
+}
+
+export interface FaceDotOverlayData {
+    /** One point per visible face, at its median centre (`BM_face_calc_center_median`). */
+    position: Float32Array
+    flag: Float32Array
+    elements: BMFace[]
+}
+
+/**
+ * Face dots: Blender's facedot overlay (`extract_mesh_vbo_fdots_pos.cc:69`), one point at the
+ * median of each visible face's corners, flagged like the face.
+ */
+export function buildFaceDotOverlay(bm: BMesh, active?: unknown, preselect?: unknown): FaceDotOverlayData {
+    const elements: BMFace[] = []
+    for (const f of bm.faces) if (!(f.hflag & ElemFlag.Hidden)) elements.push(f)
+
+    const position = new Float32Array(elements.length * 3)
+    const flag = new Float32Array(elements.length)
+    for (let i = 0; i < elements.length; i++) {
+        const f = elements[i]
+        let x = 0, y = 0, z = 0, n = 0
+        for (const l of f.eachLoop()) {
+            x += l.v.x
+            y += l.v.y
+            z += l.v.z
+            n++
+        }
+        position[i * 3] = x / n
+        position[i * 3 + 1] = y / n
+        position[i * 3 + 2] = z / n
+        flag[i] = flagFor(f, active, f, preselect)
     }
     return {position, flag, elements}
 }
@@ -137,16 +184,67 @@ export function buildFaceOverlay(bm: BMesh, only?: BMFace): FaceOverlayData {
 }
 
 /** Rewrite only the flag arrays, for when selection changed but topology did not. */
-export function refreshVertexFlags(data: VertexOverlayData, active?: unknown): void {
+export function refreshVertexFlags(data: VertexOverlayData, active?: unknown, preselect?: unknown): void {
     for (let i = 0; i < data.elements.length; i++) {
-        data.flag[i] = flagFor(data.elements[i], active, data.elements[i])
+        data.flag[i] = flagFor(data.elements[i], active, data.elements[i], preselect)
     }
 }
 
-export function refreshEdgeFlags(data: EdgeOverlayData, active?: unknown): void {
+export function refreshEdgeFlags(data: EdgeOverlayData, active?: unknown, preselect?: unknown, vertexMode = false): void {
     for (let i = 0; i < data.elements.length; i++) {
-        const f = flagFor(data.elements[i], active, data.elements[i])
-        data.flag[i * 2] = f
-        data.flag[i * 2 + 1] = f
+        const e = data.elements[i]
+        const f = flagFor(e, active, e, preselect)
+        if (vertexMode) {
+            const base = f & ~OverlayFlag.Selected
+            data.flag[i * 2] = base | (e.v1.hflag & ElemFlag.Select ? OverlayFlag.Selected : 0)
+            data.flag[i * 2 + 1] = base | (e.v2.hflag & ElemFlag.Select ? OverlayFlag.Selected : 0)
+        } else {
+            data.flag[i * 2] = f
+            data.flag[i * 2 + 1] = f
+        }
+    }
+}
+
+export function refreshFaceDotFlags(data: FaceDotOverlayData, active?: unknown, preselect?: unknown): void {
+    for (let i = 0; i < data.elements.length; i++) {
+        data.flag[i] = flagFor(data.elements[i], active, data.elements[i], preselect)
+    }
+}
+
+/** Rewrite the positions in place after vertices moved; the element lists are unchanged. */
+export function refreshVertexPositions(data: VertexOverlayData): void {
+    for (let i = 0; i < data.elements.length; i++) {
+        const v = data.elements[i]
+        data.position[i * 3] = v.x
+        data.position[i * 3 + 1] = v.y
+        data.position[i * 3 + 2] = v.z
+    }
+}
+
+export function refreshEdgePositions(data: EdgeOverlayData): void {
+    for (let i = 0; i < data.elements.length; i++) {
+        const e = data.elements[i]
+        data.position[i * 6] = e.v1.x
+        data.position[i * 6 + 1] = e.v1.y
+        data.position[i * 6 + 2] = e.v1.z
+        data.position[i * 6 + 3] = e.v2.x
+        data.position[i * 6 + 4] = e.v2.y
+        data.position[i * 6 + 5] = e.v2.z
+    }
+}
+
+export function refreshFaceDotPositions(data: FaceDotOverlayData): void {
+    for (let i = 0; i < data.elements.length; i++) {
+        const f = data.elements[i]
+        let x = 0, y = 0, z = 0, n = 0
+        for (const l of f.eachLoop()) {
+            x += l.v.x
+            y += l.v.y
+            z += l.v.z
+            n++
+        }
+        data.position[i * 3] = x / n
+        data.position[i * 3 + 1] = y / n
+        data.position[i * 3 + 2] = z / n
     }
 }
