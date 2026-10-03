@@ -127,6 +127,47 @@ export class TransformView {
     }
 
     /**
+     * The near and far distances of the projection (`ED_view3d_clip_range_get`), read back from
+     * `winmat` (three.js / OpenGL clip conventions).
+     */
+    clipRange(): {start: number, end: number} {
+        const m10 = this.winmat[10], m14 = this.winmat[14]
+        if (this.isPersp) return {start: m14 / (m10 - 1), end: m14 / (m10 + 1)}
+        return {start: (m14 + 1) / m10, end: (m14 - 1) / m10}
+    }
+
+    /**
+     * `ED_view3d_win_to_segment_clipped` without clip planes (`view3d_project.cc:738`, through
+     * `view3d_win_to_ray_segment` `:325`, `ED_view3d_win_to_origin` `:700` and `ED_view3d_win_to_vector`
+     * `:721`): the start and end of the view segment under a region pixel.
+     */
+    winToSegment(mval: Vec2): {start: Vec3, end: Vec3} {
+        const nx = 2 * mval[0] / this.winx - 1
+        const ny = 2 * mval[1] / this.winy - 1
+        let co: Vec3
+        let dir: Vec3
+        let startOffset: number, endOffset: number
+        if (this.isPersp) {
+            co = this.viewinvCol(3)
+            dir = subV3(mulProjectM4V3(this.persinv, [nx, ny, -0.5]), co)
+            const clip = this.clipRange()
+            startOffset = clip.start
+            endOffset = clip.end
+        } else {
+            co = mulProjectM4V3(this.persinv, [nx, ny, 0])
+            const z = this.viewinvCol(2)
+            dir = [-z[0], -z[1], -z[2]]
+            endOffset = this.clipRange().end / 2
+            startOffset = -endOffset
+        }
+        normalizeV3(dir)
+        return {
+            start: [co[0] + dir[0] * startOffset, co[1] + dir[1] * startOffset, co[2] + dir[2] * startOffset],
+            end: [co[0] + dir[0] * endOffset, co[1] + dir[1] * endOffset, co[2] + dir[2] * endOffset],
+        }
+    }
+
+    /**
      * World units per screen pixel at a point, the factor `setNearestAxis3d` derives
      * (`transform_constraints.cc:1117`) and what keeps a gizmo the same size on screen.
      */

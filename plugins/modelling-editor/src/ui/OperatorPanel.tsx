@@ -20,19 +20,30 @@ import {PropsForm} from './PropsForm'
 
 export function OperatorPanel() {
     const {engine} = useEditor()
-    const [store] = useOnboarding()
+    const [store, onboarding] = useOnboarding()
     useEngineVersion('lastOperationChanged')
     const op = engine.lastOperation
     const [forcedFor, setForcedFor] = useState<LastOperation | null>(null)
+    // The operation the "first few" rule opened the panel for. Decided once, when the operation is
+    // counted: reading the count while rendering raced the count's own update, so the panel flashed
+    // open for the first operation past the few.
+    const [autoOpenFor, setAutoOpenFor] = useState<LastOperation | null>(null)
     const [values, setValues] = useState<Record<string, unknown>>({})
     const [busy, setBusy] = useState(false)
     const rerunning = useRef(false)
 
     useEffect(() => { setValues(op?.props ?? {}) }, [op])
-    // A new operation, not the panel's own re-run of the last one, counts towards the first few.
-    useEngineEvent('lastOperationChanged', e => { if (e.operation && !rerunning.current) store.noteOperation() })
+    useEngineEvent('lastOperationChanged', e => {
+        if (!e.operation) return
+        // The panel's own re-run of the last operation stays as it was.
+        if (rerunning.current) return setAutoOpenFor(prev => prev ? e.operation! : null)
+        // A new operation counts towards the first few.
+        store.noteOperation()
+        setAutoOpenFor(store.redoPanelOpen ? e.operation : null)
+    })
     useEngineEvent('uiRequest', e => { if (e.request === 'operatorPanel') setForcedFor(engine.lastOperation) })
-    const open = (!!op && forcedFor === op) || store.redoPanelOpen
+    const open = (!!op && forcedFor === op) ||
+        (onboarding.redoPanel === 'auto' ? !!op && autoOpenFor === op : store.redoPanelOpen)
 
     if (!op) return null
     const schema = op.operator.props

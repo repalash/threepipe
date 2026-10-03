@@ -505,6 +505,109 @@ export function isectPointPlanesV3Negated(planes: Vec4[], p: Vec3): boolean {
     return true
 }
 
+/** `line_point_factor_v3` (`math_geom.cc:3369`): where the projection of `p` falls along `l1 l2`, 0 for a zero-length line. */
+export function linePointFactorV3(p: Vec3, l1: Vec3, l2: Vec3): number {
+    const u = subV3(l2, l1)
+    const h = subV3(p, l1)
+    // better check for zero
+    const dot = lenSquaredV3(u)
+    return dot > 0 ? dotV3(u, h) / dot : 0
+}
+
+/** `isect_line_plane_v3` (`math_geom.cc:2192`): where the infinite line `l1 l2` meets the plane, or null when parallel. */
+export function isectLinePlaneV3(l1: Vec3, l2: Vec3, planeCo: Vec3, planeNo: Vec3): Vec3 | null {
+    const u = subV3(l2, l1)
+    const h = subV3(l1, planeCo)
+    const dot = dotV3(planeNo, u)
+    if (Math.abs(dot) > FLT_EPSILON) {
+        const lambda = -dotV3(planeNo, h) / dot
+        return maddV3(l1, u, lambda)
+    }
+    // The segment is parallel to plane
+    return null
+}
+
+/**
+ * `isect_line_line_epsilon_v3` (`math_geom.cc:2993`): 0 for a zero-length line, 1 with the single
+ * intersection of coplanar lines, 2 with the nearest points of skew lines (`i1` on the first line).
+ */
+export function isectLineLineEpsilonV3(v1: Vec3, v2: Vec3, v3_: Vec3, v4: Vec3, epsilon: number): {count: 0} | {count: 1 | 2, i1: Vec3, i2: Vec3} {
+    let c = subV3(v3_, v1)
+    let a = subV3(v2, v1)
+    let b = subV3(v4, v3_)
+
+    let ab = crossV3(a, b)
+    const d = dotV3(c, ab)
+    const div = dotV3(ab, ab)
+
+    // important not to use an epsilon here, see: #45919
+    // test zero length line
+    if (div === 0) return {count: 0}
+    // test if the two lines are coplanar
+    if (Math.abs(d) <= epsilon) {
+        const cb = crossV3(c, b)
+        a = mulV3Fl(a, dotV3(cb, ab) / div)
+        const i1 = addV3(v1, a)
+        return {count: 1, i1, i2: copyV3(i1)}
+    }
+    // if not
+    let t = subV3(v1, v3_)
+    // offset between both plane where the lines lies
+    const n = crossV3(a, b)
+    t = projectV3V3V3(t, n)
+
+    // for the first line, offset the second line until it is coplanar
+    const v3t = addV3(v3_, t)
+    const v4t = addV3(v4, t)
+
+    c = subV3(v3t, v1)
+    a = subV3(v2, v1)
+    b = subV3(v4t, v3t)
+
+    ab = crossV3(a, b)
+    const cb = crossV3(c, b)
+
+    a = mulV3Fl(a, dotV3(cb, ab) / dotV3(ab, ab))
+    const i1 = addV3(v1, a)
+    // for the second line, just subtract the offset from the first intersection point
+    return {count: 2, i1, i2: subV3(i1, t)}
+}
+
+/** `isect_ray_tri_v3` (`math_geom.cc:1764`): the distance along the ray to the triangle, or null for a miss. */
+export function isectRayTriV3(rayOrigin: Vec3, rayDirection: Vec3, v0: Vec3, v1: Vec3, v2: Vec3): number | null {
+    // NOTE(@ideasman42): these values were 0.000001 in 2.4x but for projection snapping on
+    // a human head `(1BU == 1m)`, subdivision-surface level 2, this gave many errors.
+    const epsilon = 0.00000001
+    const e1 = subV3(v1, v0)
+    const e2 = subV3(v2, v0)
+    const p = crossV3(rayDirection, e2)
+    const a = dotV3(e1, p)
+    if (a > -epsilon && a < epsilon) return null
+    const f = 1 / a
+    const s = subV3(rayOrigin, v0)
+    const u = f * dotV3(s, p)
+    if (u < 0 || u > 1) return null
+    const q = crossV3(s, e1)
+    const v = f * dotV3(rayDirection, q)
+    if (v < 0 || u + v > 1) return null
+    const lambda = f * dotV3(e2, q)
+    if (lambda < 0) return null
+    return lambda
+}
+
+/** `dist_squared_to_line_segment_v2` (`math_geom.cc:307`) via `closest_to_line_segment_v2` (`:381`). */
+export function distSquaredToLineSegmentV2(p: Vec2, l1: Vec2, l2: Vec2): number {
+    // `closest_to_line_v2` (`:3298`).
+    const u: Vec2 = [l2[0] - l1[0], l2[1] - l1[1]]
+    const h: Vec2 = [p[0] - l1[0], p[1] - l1[1]]
+    const denom = dotV2(u, u)
+    const lambda = denom === 0 ? 0 : dotV2(u, h) / denom
+    const cp: Vec2 = denom === 0 ? [l1[0], l1[1]] : [l1[0] + u[0] * lambda, l1[1] + u[1] * lambda]
+    // flip checks for !finite case (when segment is a point)
+    const closest: Vec2 = lambda <= 0 ? l1 : lambda >= 1 ? l2 : cp
+    return (closest[0] - p[0]) ** 2 + (closest[1] - p[1]) ** 2
+}
+
 /**
  * `geodesic_distance_propagate_across_triangle` (`math_geom.cc:5654`): the distance to `v0`
  * across the triangle, given the distances at `v1` and `v2`, falling back to the Dijkstra sum.

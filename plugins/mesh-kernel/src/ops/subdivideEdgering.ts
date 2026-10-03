@@ -24,6 +24,7 @@ import {
 import {edgeSplit, faceSplit} from '../bmesh/mods'
 import {elemHflagDisableAll} from '../bmesh/hflag'
 import {BmeshEditEndFlags, bmoOpExec} from './bmo'
+import {SubdFalloff, subdFalloffCalc} from './subdivide'
 import {closestToLineV3} from './bevel-math'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3, v3cross, v3dot, v3sub} from '../math'
@@ -71,30 +72,12 @@ export function edgeCalcFaceTangent(eLoop: BMLoop): Vec3 {
 /** `eSubdFalloff` / `PROP_*` names, as `rna_enum_proportional_falloff_curve_only_items` has them. */
 export type SubdivProfileShape = 'SMOOTH' | 'SPHERE' | 'ROOT' | 'INVERSE_SQUARE' | 'SHARP' | 'LINEAR'
 
-/** `bmesh_subd_falloff_calc` (`bmesh_query.cc:2477`). */
-export function subdFalloffCalc(falloff: SubdivProfileShape, val: number): number {
-    switch (falloff) {
-    case 'SMOOTH':
-        val = 3.0 * val * val - 2.0 * val * val * val
-        break
-    case 'SPHERE':
-        val = Math.sqrt(2.0 * val - val * val)
-        break
-    case 'ROOT':
-        val = Math.sqrt(val)
-        break
-    case 'SHARP':
-        val = val * val
-        break
-    case 'LINEAR':
-        break
-    case 'INVERSE_SQUARE':
-        val = val * (2.0 - val)
-        break
-    default:
-        throw new Error(`mesh-kernel: unknown profile shape ${falloff as string}`)
-    }
-    return val
+/**
+ * The profile shape's falloff (`SUBD_FALLOFF_*`, the kernel's {@link SubdFalloff}) for its RNA
+ * identifier: `rna_enum_proportional_falloff_curve_only_items` (`rna_scene.cc`) maps one to the other.
+ */
+const PROFILE_SHAPE_FALLOFF: Record<SubdivProfileShape, SubdFalloff> = {
+    SMOOTH: 'smooth', SPHERE: 'sphere', ROOT: 'root', INVERSE_SQUARE: 'inverseSquare', SHARP: 'sharp', LINEAR: 'linear',
 }
 
 // endregion
@@ -874,7 +857,7 @@ function subdivideEdgeringExec(bm: BMesh, edges: Iterable<BMEdge>, opts: Subdivi
             let shapeSize = 1.0
             let fac = i / (resolu - 1)
             fac = Math.abs(1.0 - 2.0 * Math.abs(0.5 - fac))
-            fac = subdFalloffCalc(profileShape, fac)
+            fac = subdFalloffCalc(PROFILE_SHAPE_FALLOFF[profileShape], fac)
             shapeSize += fac * profileShapeFactor
             falloffCache[i] = shapeSize
         }

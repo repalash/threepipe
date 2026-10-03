@@ -367,6 +367,10 @@
 .me-menu, .me-context-menu {
   min-width: 200px;
   padding: 4px;
+  // A menu taller than the window scrolls itself. Unbounded, it made the page taller than the window,
+  // and the browser scrolled the whole editor up and left it there.
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   .bp5-menu-item { font-size: var(--me-font-size-small); padding: 4px 8px; border-radius: 4px; line-height: 16px; }
   .bp5-menu-item-label { color: var(--me-text-muted); font-size: 10.5px; }
   .bp5-menu-header { margin: 2px 0 0; .bp5-heading { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--me-text-muted); } }

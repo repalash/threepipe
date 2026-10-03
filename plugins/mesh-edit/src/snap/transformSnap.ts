@@ -101,6 +101,8 @@ export function transformSnapFlagFromModifiersSet(t: TransInfo): void {
 /** `transformModeUseSnap` (`transform_snap.cc:155`). */
 export function transformModeUseSnap(t: TransInfo): boolean {
     const a = t.tsnap.affect
+    // Edge and vertex slide always snap.
+    if (t.mode === 'edgeSlide' || t.mode === 'vertSlide') return true
     return t.mode === 'translate' ? a.translate : t.mode === 'rotate' ? a.rotate : a.resize
 }
 

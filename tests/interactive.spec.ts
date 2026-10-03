@@ -4868,3 +4868,282 @@ test('modelling-editor-fill', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
 })
+
+test('modelling-loop-tools', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Loop Tools')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+
+    // Every step is a key press or a mouse click routed by the engine; state is read back afterwards.
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            selectMode: e.selectMode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            transform: (e.meshEdit.activeTransform?.mode ?? null) as string | null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+        }
+    })
+    const round = (n: number) => Math.round(n * 1e4) / 1e4 + 0
+    /** Every vertex, rounded, in mesh order; and the selected ones. */
+    const verts = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts]
+        .map((v: any) => ({co: [v.x, v.y, v.z], sel: !!(v.hflag & 1)})))
+        .then(vs => vs.map(v => ({co: v.co.map(round), sel: v.sel})))
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+
+    // ── Edge slide with G G (`transform.cc:1117`), a typed factor, the redo panel, undo ──
+    // Tab into edit mode, face mode, click the face under the centre, then edge mode: its four edges
+    // are a closed loop (each vertex has two selected edges).
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('3')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    await page.keyboard.press('2')
+    await expect.poll(async() => (await state()).selectMode).toBe('edge')
+    const cube = await verts()
+    const loop = cube.filter(v => v.sel)
+    expect(loop.length).toBe(4)
+    // The face's normal axis: the coordinate the four vertices share.
+    const axis = [0, 1, 2].find(i => loop.every(v => v.co[i] === loop[0].co[i]))!
+    const side = loop[0].co[axis]
+    // A factor of 0.5 slides the loop either halfway down the cube's side edges, or halfway across the
+    // face to the opposite corner, which is the face's centre: the two neighbouring "loops".
+    const down = (f: number) => loop.map(v => v.co.map((c, i) => i === axis ? round(side - side * 2 * f) : c))
+    const across = (f: number) => loop.map(v => v.co.map((c, i) => i === axis ? c : round(c - c * 2 * f)))
+    const slid = async() => (await verts()).filter((_, i) => cube[i].sel).map(v => v.co)
+
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe('translate')
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    for (const k of ['Digit0', 'Period', 'Digit5']) await page.keyboard.press(k)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    let s = await state()
+    expect(s.lastOp).toBe('mesh.edge_slide')
+    expect(s.lastProps?.value).toBe(0.5)
+    expect(s.history.at(-1)).toBe('Edge Slide')
+    const first = await slid()
+    const wentDown = JSON.stringify(first) === JSON.stringify(down(0.5))
+    expect(wentDown || JSON.stringify(first) === JSON.stringify(across(0.5)), JSON.stringify(first)).toBe(true)
+
+    // The redo panel re-runs it with -0.5: the other side.
+    await page.locator('[data-operator-panel="mesh.edge_slide"] .me-operator-title').click()
+    const factor = page.locator('[data-operator-panel="mesh.edge_slide"] #me-prop-value')
+    await expect(factor).toBeVisible()
+    await factor.fill('-0.5')
+    await expect.poll(async() => JSON.stringify(await slid())).toBe(JSON.stringify(wentDown ? across(0.5) : down(0.5)))
+    s = await state()
+    expect(s.lastProps?.value).toBe(-0.5)
+    expect(s.history.filter(h => h.startsWith('Edge Slide')).length).toBe(1)
+    // Undo puts the cube back.
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
+    expect((await state()).history.at(-1)).toBe('Edge Slide *')
+
+    // ── Vertex slide (Shift+V): a corner slides along the edge the mouse moves towards ──
+    await page.keyboard.press('1')
+    await expect.poll(async() => (await state()).selectMode).toBe('vertex')
+    // The corner nearest the view's centre, on screen.
+    const corner = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).engine.meshEdit
+        const cam = v.scene.mainCamera
+        const r = v.canvas.getBoundingClientRect()
+        const m = me.editObject.matrixWorld
+        let best: any = null
+        for (const vert of me.state.bm.verts) {
+            const p = new cam.position.constructor(vert.x, vert.y, vert.z).applyMatrix4(m).project(cam)
+            const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height
+            const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2))
+            if (!best || d < best.d) best = {x, y, d, co: [vert.x, vert.y, vert.z]}
+        }
+        return best
+    })
+    await page.mouse.click(corner.x, corner.y)
+    await expect.poll(async() => (await state()).sel![0]).toBe(1)
+    const picked = (await verts()).find(v => v.sel)!.co
+    await page.keyboard.press('Shift+KeyV')
+    await expect.poll(async() => (await state()).transform).toBe('vertSlide')
+    await page.mouse.move(corner.x + 30, corner.y + 20, {steps: 6})
+    await page.mouse.click(corner.x + 30, corner.y + 20)
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    s = await state()
+    expect(s.lastOp).toBe('mesh.vert_slide')
+    expect(s.history.at(-1)).toBe('Vertex Slide')
+    // It moved along one of the cube's edges: exactly one coordinate changed, inside the edge.
+    const moved = (await verts()).find(v => v.sel)!.co
+    const changed = [0, 1, 2].filter(i => Math.abs(moved[i] - picked[i]) > 1e-4)
+    expect(changed.length, `${JSON.stringify(picked)} -> ${JSON.stringify(moved)}`).toBe(1)
+    expect(Math.abs(moved[changed[0]])).toBeLessThan(Math.abs(picked[changed[0]]) + 1e-6)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
+
+    // ── Subdivide from the Mesh menu, the redo panel changing the cuts, undo ──
+    await page.keyboard.press('2')
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
+    await page.locator('[role="menubar"]').getByRole('button', {name: 'Mesh'}).click()
+    // The edit-mode entry; the object-mode Subdivide is listed too, disabled here.
+    await page.getByRole('menuitem', {name: /^Subdivide$/}).and(page.locator(':not([aria-disabled="true"])')).click()
+    // One cut: a vertex per edge and per face, four quads per face (`bmo_subdivide.cc`, quad_4edge).
+    await expect.poll(async() => (await state()).counts).toEqual([26, 48, 24])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.subdivide')
+    expect(s.history.at(-1)).toBe('Subdivide')
+    await page.locator('[data-operator-panel="mesh.subdivide"] .me-operator-title').click()
+    const cuts = page.locator('[data-operator-panel="mesh.subdivide"] #me-prop-cuts')
+    await expect(cuts).toBeVisible()
+    await cuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([56, 108, 54])
+    expect((await state()).lastProps?.cuts).toBe(2)
+    expect((await state()).history.filter(h => h.startsWith('Subdivide')).length).toBe(1)
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Subdivide Edge-Ring: Ctrl+Alt+click picks the ring around an edge, the palette runs it ──
+    const edgeMid = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).engine.meshEdit
+        const cam = v.scene.mainCamera
+        const r = v.canvas.getBoundingClientRect()
+        const m = me.editObject.matrixWorld
+        let best: any = null
+        for (const e of me.state.bm.edges) {
+            const p = new cam.position.constructor((e.v1.x + e.v2.x) / 2, (e.v1.y + e.v2.y) / 2, (e.v1.z + e.v2.z) / 2).applyMatrix4(m).project(cam)
+            const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height
+            const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2))
+            if (!best || d < best.d) best = {x, y, d}
+        }
+        return best
+    })
+    await page.keyboard.down('Control')
+    await page.keyboard.down('Alt')
+    await page.mouse.click(edgeMid.x, edgeMid.y)
+    await page.keyboard.up('Alt')
+    await page.keyboard.up('Control')
+    // A cube edge's ring is its four parallel edges.
+    await expect.poll(async() => (await state()).sel![1]).toBe(4)
+    await page.keyboard.press('F3')
+    const palette = page.locator('.me-palette input')
+    await expect(palette).toBeVisible()
+    await palette.fill('edge-ring')
+    await expect(page.locator('.me-palette .bp5-menu-item').first()).toContainText('Subdivide Edge-Ring')
+    await page.keyboard.press('Enter')
+    // Blender's defaults: 10 cuts along a blended path; the four side faces become 11 each.
+    await expect.poll(async() => (await state()).counts).toEqual([48, 92, 46])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.subdivide_edgering')
+    expect(s.history.at(-1)).toBe('Subdivide Edge-Ring')
+    await page.locator('[data-operator-panel="mesh.subdivide_edgering"] .me-operator-title').click()
+    const ringCuts = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-numberCuts')
+    await expect(ringCuts).toBeVisible()
+    await ringCuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Loop Cut and Slide (Ctrl+R): hover previews the ring, click cuts and slides, a typed factor ──
+    const loopCut = () => page.evaluate(() => {
+        const lc = (window as any).engine.meshEdit.activeLoopCut
+        return lc ? {cuts: lc.numberCuts, lines: lc.preview.edges.length, status: lc.status, edge: !!lc.edge} : null
+    })
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    // The editor's state comes along so a failure says what the key did instead.
+    await expect.poll(async() => ({loopCut: await loopCut(), state: await state(), focus: await page.evaluate(() => document.activeElement?.tagName)}))
+        .toMatchObject({loopCut: {cuts: 1, edge: true, lines: 4}})
+    // The ring of a cube edge is the four edges parallel to it: one loop of four segments.
+    await page.mouse.move(edgeMid.x + 1, edgeMid.y + 1)
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    expect(await loopCut()).toBeNull()
+    expect((await state()).counts).toEqual([12, 20, 10])
+    for (const k of ['Digit0', 'Period', 'Digit5']) await page.keyboard.press(k)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    s = await state()
+    expect(s.lastOp).toBe('mesh.loopcut_slide')
+    expect(s.lastProps).toMatchObject({cuts: 1, value: 0.5})
+    expect(s.history.at(-1)).toBe('Loop Cut and Slide')
+    // The new loop slid halfway to one side: its four vertices sit a quarter of the edge from a face.
+    const sliding = (await verts()).filter(v => v.sel).map(v => v.co)
+    expect(sliding.length).toBe(4)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Three cuts: the wheel adds them, the preview follows; a right click centres the slide ──
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    await expect.poll(loopCut).toMatchObject({cuts: 1, edge: true})
+    await page.mouse.wheel(0, -100)
+    await expect.poll(loopCut).toMatchObject({cuts: 2, lines: 8})
+    await page.mouse.wheel(0, -100)
+    await expect.poll(loopCut).toMatchObject({cuts: 3, lines: 12, status: 'Cuts: 3, Smoothness: 0.00'})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    await page.mouse.click(edgeMid.x + 40, edgeMid.y, {button: 'right'})
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    // Three loops of four around the cube, left evenly spaced.
+    expect((await state()).counts).toEqual([20, 36, 18])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.loopcut_slide')
+    expect(s.lastProps).toMatchObject({cuts: 3, value: 0})
+    expect(s.history.at(-1)).toBe('Loop Cut and Slide')
+    // No context menu from that right click.
+    await expect(page.locator('.me-context-menu')).toHaveCount(0)
+    // The redo panel re-cuts with two.
+    await page.locator('[data-operator-panel="mesh.loopcut_slide"] .me-operator-title').click()
+    const lcCuts = page.locator('[data-operator-panel="mesh.loopcut_slide"] #me-prop-cuts')
+    await expect(lcCuts).toBeVisible()
+    await lcCuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    expect((await state()).history.filter(h => h.startsWith('Loop Cut')).length).toBe(1)
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Esc while previewing cancels without cutting ──
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    await expect.poll(loopCut).not.toBeNull()
+    await page.keyboard.press('Escape')
+    await expect.poll(loopCut).toBeNull()
+    expect((await state()).counts).toEqual([8, 12, 6])
+
+    // ── The Loop Cut tool: press, drag to slide, release to place; the tool stays for the next cut ──
+    const tool = () => page.evaluate(() => (window as any).engine.activeTool?.id as string)
+    await page.locator('[data-tool="mesh.loop_cut"]').click()
+    await expect.poll(tool).toBe('mesh.loop_cut')
+    await page.mouse.move(edgeMid.x, edgeMid.y, {steps: 4})
+    await expect.poll(loopCut).toMatchObject({edge: true, lines: 4})
+    await page.mouse.down()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    await page.mouse.move(edgeMid.x + 30, edgeMid.y + 20, {steps: 5})
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    expect((await state()).counts).toEqual([12, 20, 10])
+    expect((await state()).history.at(-1)).toBe('Loop Cut and Slide')
+    // Previewing again for the next cut.
+    await expect.poll(loopCut).not.toBeNull()
+    expect(await tool()).toBe('mesh.loop_cut')
+    await page.keyboard.press('Escape')
+    await expect.poll(tool).toBe('select')
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+})

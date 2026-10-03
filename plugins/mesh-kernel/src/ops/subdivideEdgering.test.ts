@@ -12,8 +12,9 @@ import {edgeSelectSet} from '../bmesh/marking'
 import {normalsUpdate} from './bevel-bmquery'
 import {SelectMode} from '../constants'
 import {
-    bmoSubdivideEdgering, edgeSplitN, subdFalloffCalc, subdivideEdgeringSelection,
+    bmoSubdivideEdgering, edgeSplitN, subdivideEdgeringSelection,
 } from './subdivideEdgering'
+import {subdFalloffCalc} from './subdivide'
 import {bmoFlagLayerIndex} from './bmo'
 import {axisAngleToQuat, bisectV3V3V3, curveForwardDiffBezier} from '../math/geom'
 import {closestToLineV3} from './bevel-math'
@@ -132,12 +133,12 @@ describe('helpers', () => {
     })
 
     it('subdFalloffCalc (bmesh_subd_falloff_calc) at 0.5', () => {
-        expect(subdFalloffCalc('SMOOTH', 0.5)).toBe(0.5)
-        expect(subdFalloffCalc('SPHERE', 0.5)).toBe(Math.sqrt(0.75))
-        expect(subdFalloffCalc('ROOT', 0.5)).toBe(Math.sqrt(0.5))
-        expect(subdFalloffCalc('SHARP', 0.5)).toBe(0.25)
-        expect(subdFalloffCalc('LINEAR', 0.5)).toBe(0.5)
-        expect(subdFalloffCalc('INVERSE_SQUARE', 0.5)).toBe(0.75)
+        expect(subdFalloffCalc('smooth', 0.5)).toBe(0.5)
+        expect(subdFalloffCalc('sphere', 0.5)).toBe(Math.sqrt(0.75))
+        expect(subdFalloffCalc('root', 0.5)).toBe(Math.sqrt(0.5))
+        expect(subdFalloffCalc('sharp', 0.5)).toBe(0.25)
+        expect(subdFalloffCalc('linear', 0.5)).toBe(0.5)
+        expect(subdFalloffCalc('inverseSquare', 0.5)).toBe(0.75)
     })
 
     it('bmoFlagLayerIndex (BMO_push/pop) numbers verts, edges and faces in mesh order', () => {

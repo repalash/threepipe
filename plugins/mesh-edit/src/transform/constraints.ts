@@ -202,7 +202,7 @@ function planeProjection(t: TransInfo, planeNo: Vec3, input: Vec3): Vec3 {
 }
 
 /** `transform_constraint_snap_axis_to_edge` (`transform_constraints.cc:290`). */
-function constraintSnapAxisToEdge(t: TransInfo, axis: Vec3, fallback: Vec3): Vec3 {
+export function constraintSnapAxisToEdge(t: TransInfo, axis: Vec3, fallback: Vec3): Vec3 {
     const edgeSnapPoint = t.tsnap.snapTarget
     const edgeDir = t.tsnap.snapNormal
     const isAligned = Math.abs(dotV3(axis, edgeDir)) > 1 - CONSTRAIN_EPSILON
@@ -214,7 +214,7 @@ function constraintSnapAxisToEdge(t: TransInfo, axis: Vec3, fallback: Vec3): Vec
 }
 
 /** `transform_constraint_snap_axis_to_face` (`transform_constraints.cc:305`). */
-function constraintSnapAxisToFace(t: TransInfo, axis: Vec3, fallback: Vec3): Vec3 {
+export function constraintSnapAxisToFace(t: TransInfo, axis: Vec3, fallback: Vec3): Vec3 {
     const faceSnapPoint = t.tsnap.snapTarget
     const faceNormal = t.tsnap.snapNormal
     const isAligned = Math.abs(dotV3(axis, faceNormal)) < CONSTRAIN_EPSILON

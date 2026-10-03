@@ -11,7 +11,7 @@
 export type TransformModalItem =
     | 'confirm' | 'cancel'
     | 'axisX' | 'axisY' | 'axisZ' | 'planeX' | 'planeY' | 'planeZ' | 'consOff'
-    | 'translate' | 'rotate' | 'resize'
+    | 'translate' | 'rotate' | 'resize' | 'vertEdgeSlide'
     | 'snapInvOn' | 'snapInvOff' | 'snapToggle'
     | 'propsizeUp' | 'propsizeDown'
     | 'precisionOn' | 'precisionOff'
@@ -30,9 +30,14 @@ export interface ModalKeyEvent {
     repeat?: boolean
 }
 
-export type TransformKeymap = (event: ModalKeyEvent) => TransformModalItem | null
+/**
+ * A key's modal items. Several items can share a key, as in Blender (`G` is both `TRANSLATE` and
+ * `VERT_EDGE_SLIDE`): the transform takes the first whose poll passes (`transform_modal_item_poll`,
+ * `transform.cc:627`), and a key with none passes through as a plain key event.
+ */
+export type TransformKeymap = (event: ModalKeyEvent) => TransformModalItem | TransformModalItem[] | null
 
-/** Blender's default transform modal map. */
+/** Blender's default transform modal map (`km_transform_modal_map`, `blender_default.py:6150`). */
 export const blenderTransformKeymap: TransformKeymap = e => {
     if (e.press) {
         switch (e.code) {
@@ -51,7 +56,7 @@ export const blenderTransformKeymap: TransformKeymap = e => {
             if (e.alt) return 'propConnectedToggle'
             return 'consOff'
         case 'KeyG':
-            return 'translate'
+            return ['translate', 'vertEdgeSlide']
         case 'KeyR':
             return 'rotate'
         case 'KeyS':

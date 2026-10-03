@@ -335,13 +335,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.
         // `mesh.fill` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
-        {
-            id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
-            description: 'Cut each selected edge and the faces between them.',
-            flags: {undo: true, register: true},
-            poll: () => 'Not available yet: the kernel has Blender\'s `bmo_subdivide_edges` only for the icosphere (`tri_3edge`); the quad patterns are in the P3 backlog',
-            exec: () => ({ok: false, error: 'Subdivide is not implemented yet'}),
-        },
+        // `mesh.subdivide` (`bmo_subdivide_edges`, all patterns) is registered by loopOps.ts.
         // --- topology: document commands ------------------------------------------------------
         {
             id: 'mesh.inset', label: 'Inset Faces', icon: 'inner-join', category: 'Mesh', modes: ['edit'],
@@ -417,6 +411,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
 
     // A modal transform that just ended tells the redo panel what it did (Blender's `saveTransform`).
     const onCommitted = (e: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null, saved: TransformSavedProps}) => {
+        // Edge and vertex slide (`G G`) and Loop Cut and Slide are reported by `loopOps.ts`.
+        if (!e.chained && e.saved.slide || (e.chained as string) === 'loopcut') return
         const props = savedToProps(e.saved)
         if (e.chained) engine.completeModal(`mesh.${e.chained}`, props)
         else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate' : 'mesh.scale', props)

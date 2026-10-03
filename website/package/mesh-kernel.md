@@ -58,8 +58,11 @@ const {data} = bakeGeometry(bmToMesh(bm), {includeNormals: true})
 `bevelVerts`, `solidify`, `pokeFaces`, `wireframe`,
 `duplicateGeometry`, `splitSelection`, `deleteSelection`, `mergeVerts`, `weldVerts`, `removeDoubles`, `joinMeshes`,
 `separateLooseParts`, `separateFaces`, `dissolveFaces`, `dissolveEdges`, `dissolveVerts`, `dissolveLimit`,
-`subdivideEdges`, `edgeloopFill`, `edgenetFill`, `edgenetPrepare`, `contextualCreate`, `gridFill`, `connectVerts`,
-`connectVertPair`, plus the four Euler
+`subdivideEdges` (all of `bmo_subdivide.cc`; with `meshEsubdivide` / `editMeshSubdivide`, Blender's edit-mode
+Subdivide), `bmoSubdivideEdgering` / `subdivideEdgeringSelection` (`bmo_subdivide_edgering.cc`, also behind
+Bridge Edge Loops' Number of Cuts), `editMeshLoopCut` and `edgeringPreviewFromEdge` (Loop Cut's cut and hover
+preview, `editmesh_loopcut.cc`), the edge loop store (`edgeloopsFind`, ..., `bmesh_edgeloop.cc`), `edgeloopFill`,
+`edgenetFill`, `edgenetPrepare`, `contextualCreate`, `gridFill`, `connectVerts`, `connectVertPair`, plus the four Euler
 operators (`splitEdgeMakeVert`, `splitFaceMakeEdge`, `joinFaceKillEdge`, `joinEdgeKillVert`),
 selection marking and flushing, and the topology walkers (vertex shell, edge loop, edge ring, face
 loop, boundary).

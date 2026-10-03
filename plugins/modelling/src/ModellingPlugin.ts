@@ -39,6 +39,7 @@ import {referenceCommands, ReferencePlaneState} from './commands/reference'
 import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
+import {loopCommands} from './commands/loop'
 
 export interface CaptureResult {
     dataUrl: string
@@ -123,6 +124,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...referenceCommands,
             ...modifierCommands,
             ...shapeCommands,
+            ...loopCommands,
         ])
     }
 

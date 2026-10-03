@@ -9,9 +9,9 @@ back into the object's geometry.
 
 ## Status
 
-Element selection, overlays, picking, mode switching and the modal transforms (move, rotate, scale
+Element selection, overlays, picking, mode switching, the modal transforms (move, rotate, scale
 with Blender's constraints, pivots, orientations, snapping, proportional editing, numeric input and
-the combined gizmo) work. The modelling operators (inset, bevel, loop cut) are next. See
+the combined gizmo), edge and vertex slide (`G G`) and Loop Cut and Slide work. See
 `issues/open/modelling-tools/` in the repo.
 
 ## Naming
@@ -118,6 +118,45 @@ the rotation rings, scale boxes inside, a screen-space centre circle, a white vi
 the uniform-scale annulus just inside it; X red, Y green, Z blue, full alpha on hover, handles pointing
 at the view fade out. A drag on a handle runs `startTransform` with that handle's constraint and
 confirms on release; typing a number during the drag sets it exactly.
+
+## Loop tools: edge slide, vertex slide, loop cut and slide
+
+Edge slide and vertex slide are transform modes of the same `TransInfo`, ported from Blender's
+`transform_mode_edge_slide.cc`, `transform_mode_vert_slide.cc` and the slide data of
+`transform_convert_mesh.cc`, so numeric input, snapping, precision and the redo path work as for
+move. During a move, `G` again switches to edge slide when the selection is one or more edge loops,
+else to vertex slide (Blender's `VERT_EDGE_SLIDE` modal key); `G` once more goes back to move.
+
+| During a slide | |
+| --- | --- |
+| mouse | slide along the loop's neighbouring faces (vertex slide: along the edge the mouse moves towards) |
+| digits | exact factor: `1` reaches the neighbouring loop on one side, `-1` the other |
+| `E` | even: keep the shape of the neighbouring loop |
+| `F` | with even, follow the other neighbouring loop |
+| `C`, or `Alt` held | unclamped: slide past the neighbouring edges |
+| `Ctrl` | snap; with a vertex/edge/face target the slide follows it |
+
+Loop Cut and Slide is Blender's `MESH_OT_loopcut_slide` (`editmesh_loopcut.cc`, then an edge slide):
+hovering an edge previews the ring it would cut (`EDBM_preselect_edgering_update_from_edge`); the wheel,
+`PageUp`/`PageDown` or typed digits set the number of cuts, `Alt` with them the smoothness; a click cuts
+and slides the new loops, a second click places them, a right click leaves them centred. `Esc` or a
+right click before the cut cancels. The cut and the slide are one undo step.
+
+```ts
+meshEdit.startTransform('edgeSlide')                 // or 'vertSlide'; {slide: {useEven, flipped, useClamp}}
+meshEdit.activeTransform!.status                     // 'Edge Slide: 0.2500 '
+meshEdit.startLoopCut()                              // Ctrl+R; {releaseConfirm: true} is the Loop Cut tool
+meshEdit.activeLoopCut!.preview                      // {edges: [[a, b], ...], verts}, object space
+meshEdit.loopCutBy({cuts: 2, smoothness: 0, falloff: 'inverseSquare', edgeIndex: 4}, null) // the redo path
+```
+
+A finished slide reports its properties through `transformCommitted` (`saved.slide`), a loop cut through
+`loopCutDone`, which is what the editor's redo panel re-runs. Two deliberate deviations from Blender, so
+that a redo reproduces what was on screen: the `E`/`F`/`C` toggles are saved (Blender's `saveTransform`
+drops them), and the cursor the slide started from is kept and reused (Blender's exec runs with the
+cursor at the region's corner, which picks the reference vertex and, with several loops, which way
+each loop slides). Not ported: `correct_uv`, which re-interpolates UVs as vertices slide
+(`issues/open/modelling-tools/transform-slide-correct-uv.md`).
 
 ## Entering edit mode is lossy for imported meshes
 

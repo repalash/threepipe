@@ -59,6 +59,8 @@ import {
     mergeSelectedVerts,
     DeleteContext,
     bmToMesh,
+    editMeshLoopCut,
+    SubdFalloff,
 } from '@threepipe/mesh-kernel'
 import {Matrix4, Quaternion} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
@@ -102,7 +104,8 @@ import {meshHide, meshReveal} from './select/hide'
 import {LinkedDelimit, linkedDelimitDefault, selectLinkedAll, selectLinkedPick} from './select/linked'
 import {TransformView} from './transform/view'
 import {ObjectTransformTarget, ProportionalSettings, SnapSettings, TransInfo} from './transform/TransInfo'
-import {CON_AXIS2, OrientationType, PivotType} from './transform/types'
+import type {SlideProps} from './transform/slide'
+import {CON_AXIS2, OrientationType, PivotType, T_RELEASE_CONFIRM} from './transform/types'
 import type {Mat3, Mat4, Vec3} from './transform/math'
 import {calcOrientationFromType} from './transform/orientation'
 import {objectsPivotWorld, selectionPivotWorld} from './transform/pivot'
@@ -111,6 +114,8 @@ import {snapTargetFromBMesh, snapTargetFromGeometry} from './snap/targets'
 import {GizmoHandle, TransformGizmo} from './gizmo/TransformGizmo'
 import {TransformOverlay} from './gizmo/TransformOverlay'
 import type {ModalKeyEvent} from './transform/keymap'
+import {LoopCutModal} from './loopcut'
+import {LoopCutPreview} from './gizmo/LoopCutPreview'
 
 /** Options for {@link MeshEditPlugin.startTransform}. */
 export interface StartTransformOptions {
@@ -127,7 +132,9 @@ export interface StartTransformOptions {
     /** Where the drag starts, in canvas CSS pixels; defaults to the last pointer position. */
     mouse?: {x: number, y: number}
     /** The topology operator this transform completes, for the undo label and the redo panel. */
-    chained?: 'extrude' | 'duplicate'
+    chained?: 'extrude' | 'duplicate' | 'loopcut'
+    /** Edge and vertex slide: the slide operator's properties (even, flipped, clamp). */
+    slide?: SlideProps
 }
 
 /** The transform settings a header exposes: pivot, orientation, snapping, proportional editing. */
@@ -155,7 +162,14 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
      * `chained` names the topology change the move followed (`extrude`, `duplicate`), if any.
      * Dispatched before `transformChanged: null`, while `transform` still holds its final state.
      */
-    transformCommitted: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null, saved: TransformSavedProps}
+    transformCommitted: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | 'loopcut' | null, saved: TransformSavedProps}
+    /** The loop cut modal started, previewed another ring or cut count, or ended (null). */
+    loopCutChanged: {loopCut: LoopCutModal | null}
+    /**
+     * A Loop Cut and Slide finished: the cut's properties and, when the slide that followed was
+     * confirmed, the slide's (`null` when it was cancelled or could not start; the cut stays).
+     */
+    loopCutDone: {cut: LoopCutCutProps, slide: TransformSavedProps | null}
     /** The element under the cursor changed: what a click would select. Null when nothing is. */
     preselectChanged: {element: BMVert | BMEdge | BMFace | null}
     /** Something the user tried could not be done. Show it; it used to go to the console only. */
@@ -196,8 +210,28 @@ const SUSPENDED_PLUGINS = ['Picking', 'TransformControlsPlugin', 'PivotControlsP
 const DISABLE_KEY = 'meshEdit'
 
 /** Undo-step labels, as Blender names the operators in its Undo History. */
-const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale'}
-const CHAIN_LABELS = {extrude: 'Extrude', duplicate: 'Duplicate'} as const
+const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale', edgeSlide: 'Edge Slide', vertSlide: 'Vertex Slide'}
+/** What to select when a transform has nothing to work on. */
+const TRANSFORM_EMPTY: Record<TransformMode, string> = {
+    translate: 'Select something to move first.',
+    rotate: 'Select something to rotate first.',
+    resize: 'Select something to scale first.',
+    // `transform_mesh_edge_slide_data_create` returns nothing for anything but edge loops.
+    edgeSlide: 'Select one or more edge loops to slide: each selected vertex needs one or two selected edges, each edge at most two faces.',
+    vertSlide: 'Select vertices to slide first.',
+}
+const CHAIN_LABELS = {extrude: 'Extrude', duplicate: 'Duplicate', loopcut: 'Loop Cut and Slide'} as const
+
+/**
+ * What a loop cut ran with, for its redo: `MESH_OT_loopcut`'s `number_cuts`, `smoothness` and `falloff`,
+ * and the hidden `edge_index` (`editmesh_loopcut.cc:767`), the edge's index in mesh order.
+ */
+export interface LoopCutCutProps {
+    cuts: number
+    smoothness: number
+    falloff: SubdFalloff
+    edgeIndex: number
+}
 const DELETE_LABELS: Partial<Record<DeleteContext, string>> = {
     verts: 'Delete Vertices', edges: 'Delete Edges', faces: 'Delete Faces',
     onlyFaces: 'Delete Only Faces', edgesFaces: 'Delete Edges & Faces',
@@ -403,7 +437,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** The mesh as it was before the running operation, for its undo step. */
     private _undoBefore: MeshData | null = null
     /** The running transform follows a topology change (extrude, duplicate) that must stay undoable. */
-    private _chained: 'extrude' | 'duplicate' | null = null
+    private _chained: 'extrude' | 'duplicate' | 'loopcut' | null = null
+    private _loopCut: LoopCutModal | null = null
+    /** The cut whose slide is running, reported by `loopCutDone` when the slide ends. */
+    private _loopCutPending: LoopCutCutProps | null = null
+    private _loopCutReleaseConfirm = false
 
     // region transform settings
 
@@ -425,6 +463,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     readonly gizmo = new TransformGizmo()
     /** Constraint lines, helpline, proportional circle and snap glyph while a transform runs. */
     readonly overlay = new TransformOverlay()
+    /** The ring a loop cut would make, while hovering. */
+    readonly loopCutPreview = new LoopCutPreview()
     /**
      * Show the gizmo on the edit-mode selection. Off by default, as in Blender, where the gizmo
      * belongs to the Move/Rotate/Scale/Transform tools: a handle takes the click, so with a gizmo
@@ -503,6 +543,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         ;(viewer.renderManager.renderer as any).localClippingEnabled = true
         viewer.scene.addObject(this.gizmo as never, {addToRoot: true})
         viewer.scene.addObject(this.overlay as never, {addToRoot: true})
+        viewer.scene.addObject(this.loopCutPreview as never, {addToRoot: true})
         viewer.forPlugin<any>('Picking', (picking: any) => {
             picking.addEventListener('selectedObjectChanged', this._onObjectSelectionChanged)
         }, (picking: any) => {
@@ -525,8 +566,10 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (this._objectTransform) this.cancelObjectTransform()
         viewer.scene.remove(this.gizmo as never)
         viewer.scene.remove(this.overlay as never)
+        viewer.scene.remove(this.loopCutPreview as never)
         this.gizmo.dispose()
         this.overlay.dispose()
+        this.loopCutPreview.dispose()
         super.onRemove(viewer)
     }
 
@@ -1531,7 +1574,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!state) return false
         const before = this._snapshot()
         if (!this._runTransform(saved)) {
-            this._notice('Select something to ' + (saved.mode === 'translate' ? 'move' : saved.mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
+            this._notice(TRANSFORM_EMPTY[saved.mode])
             return false
         }
         this._commitTopologyChange(before, TRANSFORM_LABELS[saved.mode])
@@ -1548,7 +1591,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const t = new ModalTransform({
             mode: saved.mode,
             view: this._transformView(),
-            mval: [0, 0],
+            // Deliberate deviation for the slides (`SlideSavedProps`): Blender's exec uses (0, 0); the
+            // first run's cursor makes a redo pick the same reference vertex and loop sides.
+            mval: saved.slide ? saved.slide.mval : [0, 0],
             around: this.pivot,
             cursor: this.cursor,
             orientation: this.orientation,
@@ -1561,10 +1606,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             modal: false,
             proportional: saved.proportional,
             snap: {...this.snapping, enabled: false},
+            slide: saved.slide ?? null,
+            xray: this.xray,
             bm: state.bm,
             objectMatrix,
         })
-        if (t.isEmpty) return false
+        // Empty, or a slide that cannot run on this selection (`TRANS_CANCEL` from its init).
+        if (t.isEmpty || t.isDone) return false
         t.confirm()
         return true
     }
@@ -1789,13 +1837,17 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             snapContext: this._snapContext(state.bm, objectMatrix),
             constraint: opts.constraint,
             releaseConfirm: opts.releaseConfirm,
+            slide: opts.slide ?? null,
+            xray: this.xray,
             bm: state.bm,
             objectMatrix,
             onChange: t => this._onTransformChange(t),
         })
 
-        if (transform.isEmpty) {
-            this._notice('Select something to ' + (mode === 'translate' ? 'move' : mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
+        // Empty, or a slide that cannot run on this selection (`TRANS_CANCEL` from its init).
+        if (transform.isEmpty || transform.isDone) {
+            // A loop cut of a lone edge leaves no edges to slide; Blender's macro just ends there.
+            if (opts.chained !== 'loopcut') this._notice(TRANSFORM_EMPTY[mode])
             // An extrude or duplicate that chained into this still happened; keep its undo step.
             if (opts.undoBefore) this._recordUndo(opts.undoBefore, CHAIN_LABELS[opts.chained ?? 'extrude'])
             return false
@@ -1868,8 +1920,10 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._undoBefore = null
         this._chained = null
         if (before) this._recordUndo(before, chained ? CHAIN_LABELS[chained] : TRANSFORM_LABELS[transform.mode])
-        this.dispatchEvent({type: 'transformCommitted', transform, chained, saved: transform.saved()})
+        const saved = transform.saved()
+        this.dispatchEvent({type: 'transformCommitted', transform, chained, saved})
         this.dispatchEvent({type: 'transformChanged', transform: null})
+        if (chained === 'loopcut') this._loopCutDone(saved)
     }
 
     /**
@@ -1894,6 +1948,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._chained = null
         // A plain move that was cancelled changed nothing; an extrude or duplicate underneath it did.
         if (before && chained) this._recordUndo(before, CHAIN_LABELS[chained])
+        if (chained === 'loopcut') this._loopCutDone(null)
     }
 
     /** Give the pointer back to the camera and the gizmo its handles. */
@@ -1902,6 +1957,130 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.gizmo.active = null
         this._viewer?.scene.mainCamera.setInteractions(true, MeshEditPlugin.PluginType)
         this._viewer?.setDirty()
+    }
+
+    // endregion
+
+    // region loop cut and slide
+
+    /** The loop cut modal while it previews rings, before the click that cuts. */
+    get activeLoopCut(): LoopCutModal | null {
+        return this._loopCut
+    }
+
+    /**
+     * Begin Loop Cut and Slide: Blender's `MESH_OT_loopcut_slide` (`mesh_ops.cc:221`), the loop cut modal
+     * (`editmesh_loopcut.cc`) followed by an edge slide. Hovering an edge previews the ring it would cut;
+     * the wheel, PageUp/PageDown or a typed number set the cuts (Alt: the smoothness); a click cuts and
+     * starts sliding the new loops, a second click places them (right-click leaves them centred). Esc or a
+     * right-click before the cut cancels. `releaseConfirm` ends the slide on the button's release, as the
+     * Loop Cut tool does (Blender's tool keymap sets it on the slide).
+     */
+    startLoopCut(opts: {mouse?: {x: number, y: number}, cuts?: number, smoothness?: number, falloff?: SubdFalloff, releaseConfirm?: boolean} = {}): boolean {
+        const viewer = this._viewer
+        if (!viewer || !this.state) return false
+        if (this._transform) this.cancelTransform()
+        if (this._loopCut) this.cancelLoopCut()
+        const mouse = opts.mouse ?? {x: this._pointerX, y: this._pointerY}
+        this._loopCut = new LoopCutModal({
+            pickEdge: (x, y) => this.pickEdgeAt(x, y),
+            cuts: opts.cuts,
+            smoothness: opts.smoothness,
+            falloff: opts.falloff,
+        }, mouse.x, mouse.y)
+        this._loopCutReleaseConfirm = !!opts.releaseConfirm
+        this._setPreselect(null)
+        // The modal owns the pointer and the wheel: no orbiting or zooming underneath it.
+        viewer.scene.mainCamera.setInteractions(false, MeshEditPlugin.PluginType)
+        this.dispatchEvent({type: 'loopCutChanged', loopCut: this._loopCut})
+        viewer.setDirty()
+        return true
+    }
+
+    /** Abandon the loop cut before it cut anything (`ringcut_cancel`). */
+    cancelLoopCut(): void {
+        if (!this._loopCut) return
+        this._loopCut = null
+        this._viewer?.scene.mainCamera.setInteractions(true, MeshEditPlugin.PluginType)
+        this.dispatchEvent({type: 'loopCutChanged', loopCut: null})
+        this._viewer?.setDirty()
+    }
+
+    /** After an event the modal handled: cut, cancel, or show the new preview. */
+    private _loopCutInput(): void {
+        const lc = this._loopCut
+        if (!lc) return
+        if (lc.state === 'confirm') this._finishLoopCut()
+        else if (lc.state === 'cancel') this.cancelLoopCut()
+        else {
+            this.dispatchEvent({type: 'loopCutChanged', loopCut: lc})
+            this._viewer?.setDirty()
+        }
+    }
+
+    /**
+     * `loopcut_finish` (`editmesh_loopcut.cc:527`): cut the previewed ring (`ringsel_finish`), then, as
+     * the macro's second operator, slide the new loops. One undo step, `Loop Cut and Slide`, recorded
+     * when the slide ends; cancelling the slide keeps the cut, centred.
+     */
+    private _finishLoopCut(): void {
+        const lc = this._loopCut
+        const state = this.state
+        if (!lc || !state) return
+        if (!lc.edge) {
+            this.cancelLoopCut()
+            return
+        }
+        this._loopCut = null
+        const bm = state.bm
+        // `set for redo`: the edge's index in mesh order.
+        const cut: LoopCutCutProps = {cuts: lc.numberCuts, smoothness: lc.smoothness, falloff: lc.falloff, edgeIndex: [...bm.edges].indexOf(lc.edge)}
+        const before = this._snapshot()
+        editMeshLoopCut(bm, lc.edge, {numberCuts: cut.cuts, smoothness: cut.smoothness, falloff: cut.falloff, isMacro: true})
+        state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state})
+        this._afterSelectionChange()
+        this._loopCutPending = cut
+        const sliding = this.startTransform('edgeSlide', {undoBefore: before, chained: 'loopcut', releaseConfirm: this._loopCutReleaseConfirm})
+        if (sliding) {
+            // Announced once the slide runs, so listeners see the hand-over rather than a cancel.
+            this.dispatchEvent({type: 'loopCutChanged', loopCut: null})
+            return
+        }
+        // Nothing to slide (a lone edge was cut); the cut is recorded as the step.
+        this._viewer?.scene.mainCamera.setInteractions(true, MeshEditPlugin.PluginType)
+        this._loopCutDone(null)
+        // A sticky tool may have started the next loop cut already.
+        if (!this._loopCut) this.dispatchEvent({type: 'loopCutChanged', loopCut: null})
+    }
+
+    private _loopCutDone(slide: TransformSavedProps | null): void {
+        const cut = this._loopCutPending
+        this._loopCutPending = null
+        if (cut) this.dispatchEvent({type: 'loopCutDone', cut, slide})
+    }
+
+    /**
+     * Loop Cut and Slide as the redo panel re-runs it: the cut through the edge at `cut.edgeIndex`, then
+     * the slide with its saved properties (Blender repeats the macro's two operators with theirs). One
+     * undo step. False when the edge is gone.
+     */
+    loopCutBy(cut: LoopCutCutProps, slide: TransformSavedProps | null): boolean {
+        const state = this.state
+        if (!state) return false
+        const edge = [...state.bm.edges][cut.edgeIndex]
+        if (!edge) {
+            this._notice('The edge this loop cut was made from no longer exists.')
+            return false
+        }
+        const before = this._snapshot()
+        editMeshLoopCut(state.bm, edge, {numberCuts: cut.cuts, smoothness: cut.smoothness, falloff: cut.falloff, isMacro: true})
+        if (slide) this._runTransform(slide)
+        this._commitTopologyChange(before, CHAIN_LABELS.loopcut)
+        this._afterSelectionChange()
+        return true
     }
 
     // endregion
@@ -2100,6 +2279,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!viewer || this.isDisabled()) {
             this.gizmo.visible = false
             this.overlay.visible = false
+            this.loopCutPreview.visible = false
             return
         }
         const camera = viewer.scene.mainCamera as any
@@ -2154,6 +2334,19 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             mouseWorld = [m.x, m.y, m.z]
         }
         this.overlay.update(running, camera, mouseWorld, pixelSize)
+
+        // `EDBM_preselect_edgering_draw`: the ring the loop cut would make; points the size of a vertex.
+        const lc = this._loopCut
+        const object = this.editObject
+        if (lc && object && (lc.preview.edges.length || lc.preview.verts.length)) {
+            object.updateWorldMatrix(true, false)
+            const p = lc.preview.edges[0]?.[0] ?? lc.preview.verts[0]
+            const world = new Vector3(p[0], p[1], p[2]).applyMatrix4(object.matrixWorld as never)
+            const size = this._transformView().pixelSize([world.x, world.y, world.z]) * 3
+            this.loopCutPreview.update(lc.preview, object.matrixWorld as never, camera, size)
+        } else {
+            this.loopCutPreview.update(null, null, camera, 0)
+        }
     }
 
     // endregion
@@ -2305,6 +2498,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const {x, y} = this._canvasPos(event)
         this._pointerX = x
         this._pointerY = y
+        if (this._loopCut) {
+            this._loopCut.mouseMove(x, y)
+            this._loopCutInput()
+            return
+        }
         const running = this._running()
         if (running) {
             const rect = this._viewer!.canvas.getBoundingClientRect()
@@ -2425,6 +2623,17 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     private _onPointerDown = (event: PointerEvent): void => {
         if (this.isDisabled()) return
+        if (this._loopCut) {
+            const {x, y} = this._canvasPos(event)
+            this._pointerX = x
+            this._pointerY = y
+            this._loopCut.pointerDown(event.button)
+            // The modal took the press: nothing else on the canvas (the shell's right-click menu) acts on it.
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            this._loopCutInput()
+            return
+        }
         // A press confirms or cancels a running transform rather than changing the selection; the
         // middle button picks the axis the mouse moves along (Blender's MMB), with Shift a plane.
         const running = this._running()
@@ -2433,9 +2642,12 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
                 if (this._gizmoDrag) return
                 if (this._transform) this.confirmTransform()
                 else this.confirmObjectTransform()
+                event.stopImmediatePropagation()
             } else if (event.button === 2) {
                 if (this._transform) this.cancelTransform()
                 else this.cancelObjectTransform()
+                // The cancel is the press's whole meaning: no right-click menu from the shell as well.
+                event.stopImmediatePropagation()
             } else if (event.button === 1) {
                 running.handleEvent({type: 'modal', item: event.shiftKey ? 'autoConstraintPlane' : 'autoConstraint'})
                 event.preventDefault()
@@ -2478,8 +2690,10 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     }
 
     private _onPointerUp = (event: PointerEvent): void => {
-        if (this._gizmoDrag && event.button === 0) {
-            // A gizmo drag confirms on release (Blender's `release_confirm`).
+        const releaseConfirm = !!(this._running() && this._running()!.flag & T_RELEASE_CONFIRM)
+        if ((this._gizmoDrag || releaseConfirm) && event.button === 0) {
+            // A gizmo drag, or a transform started with `release_confirm` (the Loop Cut tool's slide),
+            // confirms on release.
             if (this._transform) this.confirmTransform()
             else if (this._objectTransform) this.confirmObjectTransform()
             return
@@ -2543,6 +2757,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      */
     private _onWheel = (event: WheelEvent): void => {
         if (this.isDisabled()) return
+        if (this._loopCut) {
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            this._loopCut.wheel(event.deltaY < 0, event.altKey)
+            this._loopCutInput()
+            return
+        }
         const running = this._running()
         if (running) {
             event.preventDefault()
@@ -2559,7 +2780,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** The right button ends circle select rather than opening the browser's menu. */
     private _onContextMenu = (event: MouseEvent): void => {
-        if (this._circle) event.preventDefault()
+        // The right button cancels a loop cut or a transform, not a menu.
+        if (this._circle || this._loopCut || this._running()) event.preventDefault()
     }
 
     /** Keys typed into a form control belong to it, not to the viewport. */
@@ -2577,6 +2799,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** A running transform owns the keyboard, exactly as in Blender. Returns true when it took the key. */
     private _transformKey(event: KeyboardEvent, press: boolean): boolean {
+        if (this._loopCut) {
+            // Every key is the loop cut modal's (`loopcut_modal` returns `RUNNING_MODAL`).
+            this._loopCut.key(this._modalKey(event, press))
+            event.preventDefault()
+            this._loopCutInput()
+            return true
+        }
         const running = this._running()
         if (!running) return false
         const consumed = running.handleEvent({type: 'key', event: this._modalKey(event, press)})
@@ -2609,7 +2838,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      * as when this plugin listens itself. Returns true when a transform is running and took the key.
      */
     handleModalKey(event: KeyboardEvent, press = true): boolean {
-        if (!this._running()) return false
+        if (!this._running() && !this._loopCut) return false
         return this._transformKey(event, press)
     }
 

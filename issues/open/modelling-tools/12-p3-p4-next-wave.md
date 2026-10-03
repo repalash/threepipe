@@ -48,6 +48,28 @@ way: object-gizmo drags also box-selected (deselect after every move, `MeshEditP
 download (File System Access API not used); the `modelling-workspace` example's import map
 (`../example-modelling-workspace-importmap.md`).
 
+## Merge status (2026-10-03)
+
+- **F (`p3-fill`):** merged.
+- **L (`p3-loop`):** merged. Both tracks had ported `bmo_subdivide_edgering.cc`, in files whose names differ
+  only by case (`subdivideEdgering.ts` / `subdivideEdgeRing.ts`), which a macOS checkout cannot hold. F's
+  port is kept: it passes L's 43 Blender fixtures and serves Bridge's Number of Cuts. L's parity test
+  now runs against it, and `mesh.subdivide_edgering` is registered once, in `fillOps.ts`.
+- **Follow-ups filed:** [mesh-edit-normals-current](./mesh-edit-normals-current.md),
+  [kernel-enum-naming](./kernel-enum-naming.md).
+
+## Next: menus
+
+The header builds one flat menu per operator `category`. With the P3 operators, the Mesh menu is
+taller than the window. It now scrolls inside itself; before, it scrolled the page and left it there.
+
+Blender's edit-mode header instead has Select / Add / Mesh / Vertex / Edge / Face / UV, and Mesh
+has submenus: Transform, Mirror, Snap, Split, Separate, Clean Up, Delete.
+
+The fix is to port that structure (`VIEW3D_MT_edit_mesh*` in `space_view3d.py`) as menu
+definitions in the engine, with the same ids the Ctrl+V/E/F menus already use, and to keep
+`category` only for the command palette.
+
 ## Rules for every track
 
 Same as P1: port from Blender source and cite file:line; each user-facing behaviour gets a real-input

@@ -6,7 +6,9 @@
  * - `spring` / `springFlip`: the ratio of the cursor's distance to the pivot against the distance
  *   at the start (scale), flipped when the cursor crosses the pivot;
  * - `angle`: the angle swept about the pivot's screen position, accumulated per move so it is
- *   continuous past 180 degrees (rotate).
+ *   continuous past 180 degrees (rotate);
+ * - `customRatio` / `customRatioFlip`: the cursor's progress along a screen segment the mode sets with
+ *   {@link setCustomPoints} (edge slide, vertex slide).
  *
  * Precision (Shift) works through a "virtual" cursor that advances at a tenth of the real one
  * (`applyMouseInput`), so letting go of Shift never jumps.
@@ -14,7 +16,7 @@
 
 import {angleNormalizedV2V2, crossV2, normalizeV2, Vec2, Vec3} from './math'
 
-export type MouseInputMode = 'none' | 'vector' | 'spring' | 'springFlip' | 'springDelta' | 'angle'
+export type MouseInputMode = 'none' | 'vector' | 'spring' | 'springFlip' | 'springDelta' | 'angle' | 'customRatio' | 'customRatioFlip'
 
 /** What the input needs from the transform: Blender's `convertViewVec`. */
 export interface MouseInputContext {
@@ -37,6 +39,8 @@ export class MouseInput {
     /** `InputAngle_Data`. */
     angle = 0
     mvalPrev: Vec2 = [0, 0]
+    /** `mi->data` of the custom-ratio modes: integer start and end points, `[x0, y0, x1, y1]`. */
+    custom: [number, number, number, number] | null = null
     post: ((values: Vec3) => void) | null = null
 }
 
@@ -85,6 +89,37 @@ function inputAngle(mi: MouseInput, mval: Vec2): Vec3 {
     return [mi.angle, 0, 0]
 }
 
+/**
+ * `InputCustomRatioFlip` (`transform_input.cc:140`): the cursor's offset from the end point, projected
+ * on the segment and divided by its length. Blender keeps the points and the offset as `int`s.
+ */
+function inputCustomRatioFlip(mi: MouseInput, mval: Vec2): Vec3 {
+    const data = mi.custom
+    const out: Vec3 = [0, 0, 0]
+    if (data) {
+        const dx = data[2] - data[0]
+        const dy = data[3] - data[1]
+        const length = Math.hypot(dx, dy)
+        const mdx = Math.trunc(mval[0] - data[2])
+        const mdy = Math.trunc(mval[1] - data[3])
+        const distance = length !== 0 ? (mdx * dx + mdy * dy) / length : 0
+        out[0] = length !== 0 ? distance / length : 0
+    }
+    return out
+}
+
+/** `InputCustomRatio` (`transform_input.cc:167`). */
+function inputCustomRatio(mi: MouseInput, mval: Vec2): Vec3 {
+    const out = inputCustomRatioFlip(mi, mval)
+    out[0] = -out[0]
+    return out
+}
+
+/** `setCustomPoints` (`transform_input.cc:223`): the segment the custom-ratio modes measure along. */
+export function setCustomPoints(mi: MouseInput, mvalStart: Vec2, mvalEnd: Vec2): void {
+    mi.custom = [Math.trunc(mvalStart[0]), Math.trunc(mvalStart[1]), Math.trunc(mvalEnd[0]), Math.trunc(mvalEnd[1])]
+}
+
 /** `transform_input_reset` (`transform_input.cc:257`). */
 export function transformInputReset(mi: MouseInput, mval: Vec2): void {
     mi.imval = [mval[0], mval[1]]
@@ -128,6 +163,10 @@ export function initMouseInputMode(mi: MouseInput, mode: MouseInputMode): void {
         mi.mvalPrev = [mi.imval[0], mi.imval[1]]
         mi.angle = 0
         break
+    case 'customRatio':
+    case 'customRatioFlip':
+        // The points come from the mode, set before (`setCustomPoints`).
+        break
     default:
         break
     }
@@ -166,6 +205,12 @@ export function applyMouseInput(ctx: MouseInputContext, mi: MouseInput, mval: Ve
         break
     case 'angle':
         output = inputAngle(mi, mvalDb)
+        break
+    case 'customRatio':
+        output = inputCustomRatio(mi, mvalDb)
+        break
+    case 'customRatioFlip':
+        output = inputCustomRatioFlip(mi, mvalDb)
         break
     default:
         break

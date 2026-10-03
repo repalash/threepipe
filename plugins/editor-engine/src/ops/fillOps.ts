@@ -27,6 +27,7 @@ import {
     gridFillSelection,
     mergeByDistanceSelection,
     MERGE_BY_DISTANCE_DEFAULTS,
+    meshNormalsUpdate,
     subdivideEdgeringSelection,
     vertConnectPathSelection,
     vertConnectSelection,
@@ -69,6 +70,10 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
             const before = me.snapshot()
             if (!before || !me.state) return {ok: false, error: onlyInEditMessage(engine)}
             const props = withDefaults(schema, p)
+            // Blender's edit mesh has current normals on entry to every operator (`EDBM_update` after
+            // each one); Grid Fill, Bridge and Edge-Ring's surface blend read them. The session does not
+            // keep them up to date (issues/open/modelling-tools/mesh-edit-normals-current.md).
+            meshNormalsUpdate(me.state.bm)
             const r = run(props, ctx)
             if (!r.ok) {
                 me.revert(before)
@@ -183,6 +188,7 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.subdivide_edgering', label: 'Subdivide Edge-Ring', icon: 'layout-linear', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge'],
             description: 'Cut the faces between selected edge rings, with a smooth or shaped profile (Blender\'s Edge > Subdivide Edge-Ring).',
             flags: {undo: true, register: true},
             props: subdivideEdgeringProps,

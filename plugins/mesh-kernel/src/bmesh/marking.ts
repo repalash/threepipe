@@ -447,11 +447,17 @@ export function selectAll(bm: BMesh): void {
     selectFlush(bm)
 }
 
-/** Deselect everything, including the history. */
+/**
+ * Deselect everything, including the history: the fast path of `BM_mesh_elem_hflag_disable_test`
+ * for `BM_ELEM_SELECT` on all three domains (`bmesh_marking.cc:1379`), which clears the bits and sets
+ * the totals to zero outright. Setting them, rather than counting down, keeps them right after an
+ * operator set select bits raw (`BM_edge_split` copies an edge's header flags).
+ */
 export function selectNone(bm: BMesh): void {
-    for (const v of bm.verts) if (rawSelectSet(v, false)) bm.totvertsel--
-    for (const e of bm.edges) if (rawSelectSet(e, false)) bm.totedgesel--
-    for (const f of bm.faces) if (rawSelectSet(f, false)) bm.totfacesel--
+    for (const v of bm.verts) rawSelectSet(v, false)
+    for (const e of bm.edges) rawSelectSet(e, false)
+    for (const f of bm.faces) rawSelectSet(f, false)
+    bm.totvertsel = bm.totedgesel = bm.totfacesel = 0
     bm.selectHistory = []
 }
 
