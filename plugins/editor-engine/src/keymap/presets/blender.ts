@@ -2,8 +2,8 @@
  * The Blender preset, ported from Blender's default keymap
  * (`scripts/presets/keyconfig/keymap_data/blender_default.py`, Blender main e4e6c79a, 2026-06).
  * Line numbers below are into that file. Only the keys that have an operator here are bound; keys
- * for things that do not exist yet (knife, loop cut, proportional editing) are left out rather than
- * bound to nothing.
+ * for things that do not exist yet (loop cut, proportional editing) are left out rather than bound to
+ * nothing.
  *
  * Deviations, on purpose:
  * - `A` selects all and `Alt+A` deselects (`_template_items_select_actions`, :420, the 2.8 default),
@@ -85,6 +85,8 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'e', id: 'mesh.extrude', mode: 'edit'},                   // view3d.edit_mesh_extrude_move_normal :5600
         {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset :5547
         {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel :5550
+        {keys: 'k', id: 'mesh.knife', mode: 'edit'},                     // mesh.knife_tool :5639
+        {keys: 'shift+k', id: 'mesh.knife', mode: 'edit', props: {onlySelected: true, cutThrough: true}}, // :5642
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},                     // VIEW3D_MT_edit_mesh_merge :5618
         {keys: 'y', id: 'mesh.split', mode: 'edit'},                     // mesh.split :5624
         {keys: 'p', id: 'mesh.separate', mode: 'edit'},                  // mesh.separate :5623

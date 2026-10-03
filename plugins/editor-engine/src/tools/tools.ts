@@ -136,12 +136,6 @@ export function registerTools(engine: EditorEnginePlugin): void {
             poll: () => 'Loop cut arrives with P3 (modelling depth)',
             activate: () => {}, deactivate: () => {},
         },
-        {
-            id: 'mesh.knife', label: 'Knife', icon: 'cut', group: 'modelling', modes: ['edit'],
-            description: 'Cut new edges by drawing on the surface. Arrives with P3.',
-            poll: () => 'Knife arrives with P3 (modelling depth)',
-            activate: () => {}, deactivate: () => {},
-        },
     ]
     for (const t of tools) engine.tools.register(t)
 

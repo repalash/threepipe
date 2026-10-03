@@ -50,7 +50,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
     const modelling = engine.modelling
     const editing = () => me.isEditing || 'Only in edit mode'
-    const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first'
+    const notModal = () => !me.activeTransform && !engine.propDrag && !me.activeKnife && !me.isLineGesture || 'Finish the current operation first'
     const hasSelection = (_ctx: EditorContext) => {
         if (!me.state) return 'Only in edit mode'
         return me.state.bm.totvertsel > 0 || 'Select some vertices, edges or faces first'
