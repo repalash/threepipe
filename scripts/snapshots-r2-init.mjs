@@ -1,35 +1,38 @@
 #!/usr/bin/env node
-// R2 bucket + bucket-scoped S3 key for the e2e snapshot baselines.
+// R2 bucket + public domain + bucket-scoped S3 key for the e2e snapshot baselines.
 //
 //   node scripts/snapshots-r2-init.mjs            check, change nothing   [default]
 //   node scripts/snapshots-r2-init.mjs --apply    create what is missing
 //
 // Idempotent: probes first, creates only what is absent.
 //   1. bucket `threepipe-test-snapshots`
-//   2. public read on the bucket (r2.dev managed domain, so CI/contributors fetch baselines with no credentials)
+//   2. public read at https://snapshots.threepipe.org (R2 custom domain on the threepipe.org zone), so CI and
+//      contributors fetch baselines with no credentials
 //   3. an API token scoped to this bucket only (Object Read & Write). That token IS an S3 credential:
 //      Access Key ID = token id, Secret Access Key = sha256(token value)
 //      (developers.cloudflare.com/r2/api/tokens — "Get S3 API credentials from an API token")
 //   4. a signed ListObjects with the new key, to prove endpoint + bucket + key + secret
 //
-// Needs a short-lived setup token in CLOUDFLARE_API_TOKEN (or R2_INIT_TOKEN in ../.env.threepipe) with
-//   Account > Workers R2 Storage > Edit   and   Account > Account API Tokens > Edit
+// Needs a short-lived setup token (CLOUDFLARE_API_TOKEN, or R2_INIT_TOKEN in ../.env.threepipe) with
+//   Account > Workers R2 Storage > Edit,  Account > Account API Tokens > Edit,
+//   Zone > Zone > Read,  Zone > DNS > Edit   (zone resources: threepipe.org)
 // and the account id in CLOUDFLARE_ACCOUNT_ID (or in the same .env file).
 //
-// The S3 secret is written once to a 0600 file (--out, default ~/.threepipe/snapshots-r2.env), never printed.
-// Lose the file: delete the token in the dashboard and run --apply again.
+// The S3 secret is written once to a 0600 file (--out, default <repo>/.env.snapshots-r2, gitignored) and never
+// printed. Lose the file: delete the token in the dashboard and run --apply again.
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
 const BUCKET = 'threepipe-test-snapshots'
+const DOMAIN = 'snapshots.threepipe.org'
+const ZONE = 'threepipe.org'
 const TOKEN_NAME = `snapshots-r2-${BUCKET}`
 const PERM_GROUP = 'Workers R2 Storage Bucket Item Write' // = Object Read & Write, per bucket
 
 const args = process.argv.slice(2)
 const apply = args.includes('--apply')
-const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(os.homedir(), '.threepipe', 'snapshots-r2.env')
+const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(import.meta.dirname, '..', '.env.snapshots-r2')
 
 const envFile = readEnv(path.join(import.meta.dirname, '..', '.env.threepipe'))
 const token = process.env.CLOUDFLARE_API_TOKEN || envFile.R2_INIT_TOKEN
@@ -72,15 +75,18 @@ console.log(`2. bucket ${BUCKET}`)
     }
 }
 
-console.log('3. public read (r2.dev managed domain)')
+console.log(`3. public read at https://${DOMAIN}`)
 {
-    const r = await cf('GET', `/accounts/${account}/r2/buckets/${BUCKET}/domains/managed`)
-    if (r.result?.enabled) ok(`enabled: https://${r.result.domain}`)
-    else if (r.status === 404) bad('bucket missing')
-    else if (!apply) bad('not enabled — run with --apply')
+    const r = await cf('GET', `/accounts/${account}/r2/buckets/${BUCKET}/domains/custom/${DOMAIN}`)
+    if (r.status === 200) ok(`attached (${r.result?.status?.ownership || 'status unknown'}, ssl ${r.result?.status?.ssl || '?'})`)
+    else if (r.status !== 404) bad(`cannot read custom domain (${errText(r)})`)
+    else if (!apply) bad('not attached — run with --apply')
     else {
-        const c = await cf('PUT', `/accounts/${account}/r2/buckets/${BUCKET}/domains/managed`, {enabled: true})
-        c.result?.enabled ? ok(`enabled: https://${c.result.domain}`) : bad(`enable failed (${errText(c)})`)
+        const zones = await cf('GET', `/zones?name=${ZONE}`)
+        const zone = (zones.result || [])[0]
+        if (!zone) fail(`zone ${ZONE} not visible to this token (${errText(zones)}) — token needs Zone: Read on ${ZONE}`)
+        const c = await cf('POST', `/accounts/${account}/r2/buckets/${BUCKET}/domains/custom`, {domain: DOMAIN, zoneId: zone.id, enabled: true, minTLS: '1.2'})
+        c.status === 200 ? ok(`attached, DNS record created (${c.result?.status?.ownership || 'pending'}) — token needs DNS: Edit on ${ZONE} for this`) : bad(`attach failed (${errText(c)})`)
     }
 }
 
