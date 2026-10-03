@@ -46,7 +46,7 @@ export class Navigation {
     /** kokraf's gesture lock: a two-finger gesture keeps its meaning for this long after the last event. */
     gestureLockMs = 150
 
-    constructor(private _viewer: ThreeViewer, private _dragSelectTarget: () => {dragSelect?: boolean} | undefined) {
+    constructor(private _viewer: ThreeViewer, private _dragSelectTarget: () => {dragSelect?: 'box' | 'lasso' | 'none', objectDragSelect?: boolean} | undefined) {
         const canvas = _viewer.canvas
         canvas.addEventListener('pointerdown', this._onPointerDown, true)
         canvas.addEventListener('wheel', this._onWheel, {capture: true, passive: false})
@@ -75,10 +75,13 @@ export class Navigation {
             buttons.MIDDLE = this._actionFor('middle')
             buttons.RIGHT = this._actionFor('right')
         }
-        // Edit mode: a left drag on empty space box-selects (track S), as in Blender; the controls are
-        // told the left button is free. The flag only exists once S has landed.
+        // A left drag box-selects, as in Blender, in edit mode and object mode alike; the controls are
+        // told the left button is free. `MeshEditPlugin.dragSelect` is `'box' | 'lasso' | 'none'`: a
+        // boolean here used to read as "not none", so turning drag-select off did nothing.
         const target = this._dragSelectTarget()
-        if (target && 'dragSelect' in target) target.dragSelect = spec.leftDrag === 'select'
+        if (target && 'dragSelect' in target) target.dragSelect = spec.leftDrag === 'select' ? 'box' : 'none'
+        // Object mode as well: the left button no longer orbits there either, so a drag selects objects.
+        if (target && 'objectDragSelect' in target) target.objectDragSelect = spec.leftDrag === 'select'
     }
 
     setSpace(down: boolean): void {

@@ -148,7 +148,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         this.history = new EditorHistory(this.undoPlugin, () => this._historyChanged())
         this._disposers.push(() => this.history.dispose())
 
-        this.navigation = new Navigation(viewer, () => this.meshEdit as unknown as {dragSelect?: boolean})
+        this.navigation = new Navigation(viewer, () => this.meshEdit)
         this._disposers.push(() => this.navigation.dispose())
 
         this.input = new InputRouter({

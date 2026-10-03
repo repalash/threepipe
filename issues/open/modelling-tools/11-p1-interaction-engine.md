@@ -81,9 +81,8 @@ edge overlay rebuilt with a fresh geometry (three.js caches `_maxInstanceCount`)
 X/Y/Z toggles.
 
 Open:
-- [ ] Engine tools drive track T's gizmo: Move/Rotate/Scale tools should show it (it is off by default);
-      today they start one-shot modals.
-- [ ] Object-mode box select (left drag in object mode does nothing under `leftDrag: 'select'`).
+- [x] Engine tools drive track T's gizmo: Move/Rotate/Scale/Transform are sticky gizmo tools (`2e7e432`).
+- [x] Object-mode box select (`do_object_box_select` port, `GPU_SELECT_ALL` coverage on the CPU).
 - [ ] Navigation per preset on a real trackpad (two-finger orbit/pan, pinch) - not yet checked on device.
 - [ ] `ts-browser-helpers` `JSUndoManager` change event + labels ([undo-manager-change-event](../undo-manager-change-event.md)) - maintainer decision; contained wrapper meanwhile.
 - [ ] Redo panel opens collapsed; consider open-by-default for the first operations (discoverability).

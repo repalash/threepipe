@@ -4117,4 +4117,31 @@ test('modelling-editor-engine', async({page}) => {
     await page.locator('[data-tool="mesh.rotate"]').click()
     g = await gizmoState()
     expect(g.show).toEqual({translate: false, rotate: true, scale: false})
+
+    // 8. Object mode box select (Blender's do_object_box_select): with the left button freed from
+    // orbiting by the preset, a drag over everything selects every object, and a drag over empty space
+    // selects none.
+    await page.locator('[data-tool="select"]').click()
+    await page.keyboard.press('Digit4')
+    await expect.poll(async() => (await state()).mode).toBe('object')
+    const box = (await page.locator('canvas').first().boundingBox())!
+    const meshCount = () => page.evaluate(() => (window as any).viewer.scene.modelRoot.children
+        .filter((c: any) => c.isMesh && c.assetType !== 'widget').length)
+    const meshesBefore = await meshCount()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.keyboard.press('Shift+KeyA')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: /UV Sphere/}).click()
+    await expect.poll(meshCount).toBe(meshesBefore + 1)
+    const selected = () => page.evaluate(() => ((window as any).viewer.getPlugin('Picking').picker.selectedObjects ?? []).length)
+    await page.mouse.move(box.x + 12, box.y + 12)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width - 12, box.y + box.height - 12, {steps: 10})
+    await page.mouse.up()
+    await expect.poll(selected).toBe(meshesBefore + 1)
+    await page.mouse.move(box.x + 12, box.y + 12)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 60, box.y + 60, {steps: 6})
+    await page.mouse.up()
+    await expect.poll(selected).toBe(0)
 })

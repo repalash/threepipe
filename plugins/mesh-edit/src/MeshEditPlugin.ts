@@ -30,6 +30,7 @@ import {
     UnlitMaterial,
     Vector2,
     Vector3,
+    Vector4,
 } from 'threepipe'
 import {
     BMEdge,
@@ -88,7 +89,8 @@ import {
 } from './overlayMaterials'
 import {SelectBuffer} from './select/SelectBuffer'
 import {SELECT_DIST_PX, SelectDomain, unifiedFindNearest} from './select/findNearest'
-import {SelectOp, selectOpFromModifiers} from './select/selectOp'
+import {SelectOp, selectOpAction, selectOpFromModifiers, selectOpUsePreDeselect} from './select/selectOp'
+import {CanvasRect, meshTouchesRect} from './select/objectRegion'
 import {LassoPoint, lassoBoundBox, ScreenRect} from './select/lasso'
 import {regionSelect, RegionShape, RegionVisibility} from './select/regionSelect'
 import {RegionOverlay} from './select/regionOverlay'
@@ -292,6 +294,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     }
 
     private _dragSelect: DragSelectTool = 'box'
+
+    /**
+     * In object mode too, a left drag box-selects objects ({@link boxSelectObjects}), as Blender's Select
+     * Box tool does. Off by default: without an app that frees the left button from orbiting (the editor
+     * engine's keymap presets do), a left drag would orbit and select at once.
+     */
+    objectDragSelect = false
 
     /**
      * Override the camera mouse buttons used during edit mode. Null (the default) is Blender's
@@ -1318,13 +1327,70 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._region = null
         this._regionOverlay?.clear()
         if (apply) {
-            if (r.kind === 'box') this.boxSelect({x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1}, r.op)
+            if (!this.isEditing) this.boxSelectObjects({x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1}, r.op)
+            else if (r.kind === 'box') this.boxSelect({x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1}, r.op)
             else this.lassoSelect(r.points, r.op)
         }
         this.dispatchEvent({type: 'regionChanged', region: null})
     }
 
     // endregion
+
+    /**
+     * Box-select objects, as Blender's `do_object_box_select`: every selectable object with any triangle
+     * inside the rectangle, occluded or not (`GPU_SELECT_ALL`), combined with the current selection by
+     * `op` (`ED_select_op_action_deselected`). The selection goes through the viewer's picking plugin, so
+     * it is the same selection a click makes, with its undo step.
+     */
+    boxSelectObjects(rect: CanvasRect, op: SelectOp = 'set'): IObject3D[] {
+        const viewer = this._viewer
+        const picking = viewer?.getPlugin<any>('Picking')
+        const picker = picking?.picker
+        if (!viewer || !picker) return []
+        const camera = viewer.scene.mainCamera
+        camera.updateMatrixWorld()
+        const viewProj = new Matrix4().multiplyMatrices((camera as any).projectionMatrix, (camera as any).matrixWorldInverse)
+        const canvas = viewer.canvas.getBoundingClientRect()
+        const v = new Vector4()
+
+        const candidates: IObject3D[] = []
+        viewer.scene.modelRoot.traverseVisible((o: IObject3D) => {
+            if (!(o as any).isMesh || !o.geometry) return
+            if ((o as any).assetType === 'widget' || o.userData?.isWidgetRoot) return
+            if (picker.selectionCondition && !picker.selectionCondition(o)) return
+            candidates.push(o)
+        })
+
+        const inside = new Set<IObject3D>()
+        for (const o of candidates) {
+            const geometry = o.geometry as unknown as BufferGeometry2
+            const position = geometry.getAttribute('position')
+            if (!position) continue
+            o.updateWorldMatrix(true, false)
+            const m = new Matrix4().multiplyMatrices(viewProj, o.matrixWorld as never)
+            const project = (x: number, y: number, z: number): [number, number] | null => {
+                v.set(x, y, z, 1).applyMatrix4(m)
+                if (v.w <= 0) return null
+                return [(v.x / v.w * 0.5 + 0.5) * canvas.width, (-v.y / v.w * 0.5 + 0.5) * canvas.height]
+            }
+            const index = geometry.getIndex()
+            if (meshTouchesRect(position.array as ArrayLike<number>, index ? index.array as ArrayLike<number> : null, project, rect)) inside.add(o)
+        }
+
+        const current = new Set<IObject3D>((picker.selectedObjects ?? []) as IObject3D[])
+        // `SEL_OP_USE_PRE_DESELECT` deselects everything first, so each object is then judged unselected.
+        const preDeselect = selectOpUsePreDeselect(op)
+        const next = new Set<IObject3D>(preDeselect ? [] : current)
+        for (const o of candidates) {
+            const action = selectOpAction(op, !preDeselect && current.has(o), inside.has(o))
+            if (action === 1) next.add(o)
+            else if (action === 0) next.delete(o)
+        }
+        const result = [...next]
+        picker.setSelected(result.length === 0 ? null : result.length === 1 ? result[0] : result, true)
+        viewer.setDirty()
+        return result
+    }
 
     // region hide and reveal
 
@@ -2270,7 +2336,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** A box or lasso drag carries on outside the canvas; follow it from the window. */
     private _onWindowPointerMove = (event: PointerEvent): void => {
         const press = this._press
-        if (!press || !this.isEditing || this.isDisabled() || this._transform || this._circle) return
+        if (!press || this.isDisabled() || this._running() || this._circle) return
+        if (!this.isEditing && !this.objectDragSelect) return
         if (!(event.buttons & 1)) return
         const {x, y} = this._canvasPos(event)
         if (!this._region) {
@@ -2278,7 +2345,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             if (Math.abs(x - press.x) <= this.dragThreshold && Math.abs(y - press.y) <= this.dragThreshold) return
             // The modifiers at the press decide the mode, as Blender's gesture reads them at its start.
             const op = selectOpFromModifiers(press.shift, press.ctrl)
-            this._region = this._dragSelect === 'lasso'
+            // Objects are box-selected only; lasso is an edit-mode gesture here.
+            this._region = this._dragSelect === 'lasso' && this.isEditing
                 ? {kind: 'lasso', op, x0: press.x, y0: press.y, x1: x, y1: y, points: [[Math.round(press.x), Math.round(press.y)]]}
                 : {kind: 'box', op, x0: press.x, y0: press.y, x1: x, y1: y, points: []}
             this._setPreselect(null)
@@ -2377,7 +2445,14 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
                 return
             }
         }
-        if (!this.isEditing) return
+        if (!this.isEditing) {
+            // Object mode: remember the press, so a drag can become an object box select.
+            if (this.objectDragSelect && this._dragSelect !== 'none') {
+                const p = this._canvasPos(event)
+                this._press = {x: p.x, y: p.y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey}
+            }
+            return
+        }
         // Selection waits for the release: a press that turns into a drag is a box select, or an orbit.
         const {x, y} = this._canvasPos(event)
         this._press = {x, y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey}
@@ -2396,6 +2471,12 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         }
         const press = this._press
         this._press = null
+        if (!this.isEditing && this._region && !this.isDisabled()) {
+            // Object mode box select. This runs after the object picker's own click handling on the
+            // canvas, so its result is what stays.
+            if (event.button === 0) this._endRegion(true)
+            return
+        }
         if (!this.isEditing || this.isDisabled()) return
         if (this._circle) {
             this._circle.painting = false
