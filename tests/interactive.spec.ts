@@ -2450,6 +2450,22 @@ test('modelling-api', async({page}) => {
     })
     expect(sweep.ok).toBe(true)
 
+    // A tapered sweep: the section scales by the curve radius at each path point.
+    const horn = await run({
+        op: 'sweep', name: 'horn', radius: 0.5, steps: 12,
+        path: [[5, 0, 0], [5, 1, 0], [5, 2, 0]], radii: [1, 0.5, 0.1],
+    })
+    expect(horn.ok).toBe(true)
+    // Widest at the base ring (radius 0.5 x 1), so the horn is a unit across, not more.
+    expect((horn.data as any).bounds.size[0]).toBeCloseTo(1, 3)
+    const hornDetail = await run({op: 'inspect', object: 'horn', detail: true})
+    const topRing = (hornDetail.data as any).vertices.filter((v: number[]) => v[1] > 1.99)
+    for (const v of topRing) expect(Math.hypot(v[0] - 5, v[2])).toBeCloseTo(0.05, 4)
+    const badRadii = await run({op: 'sweep', name: 'bad', path: [[0, 0, 0], [0, 1, 0]], radii: [1]})
+    expect(badRadii.ok).toBe(false)
+    expect(badRadii.error).toContain('one radius per path point')
+    await run({op: 'delete', object: 'horn'})
+
     // Every mesh the generators produced must be valid topology that bakes.
     const health = await run({op: 'selftest'})
     expect((health.data as any).failed).toBe(0)
