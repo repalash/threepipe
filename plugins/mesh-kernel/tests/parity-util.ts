@@ -14,7 +14,7 @@ import {fileURLToPath} from 'node:url'
 import {BMesh} from '../src/bmesh/BMesh'
 import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
 import {ElemFlag} from '../src/constants'
-import {edgeSelectSet, faceSelectSet, selectFlush, vertSelectSet} from '../src/bmesh/marking'
+import {edgeSelectSet, faceSelectSet, selectCountsRecalc, selectFlush, vertSelectSet} from '../src/bmesh/marking'
 import {diskEdgeExists} from '../src/bmesh/structure'
 
 export interface FixtureMesh {
@@ -58,6 +58,25 @@ export function buildInput(input: FixtureInput): {bm: BMesh, verts: BMVert[], fa
         for (const i of input.select.faces ?? []) faceSelectSet(bm, faces[i], true)
     }
     return {bm, verts, faces, edge}
+}
+
+/**
+ * Set the selection flags to exactly `sel` (indices as in the fixture input, edges as vertex pairs),
+ * without any propagation, and recount. For fixtures that record the selection edit mode held after
+ * entering (`entered`), so the port starts from Blender's own converted and flushed state.
+ */
+export function setRawSelection(bm: BMesh, verts: BMVert[], faces: BMFace[], sel: {verts: number[], edges: number[][], faces: number[]}): void {
+    for (const v of bm.verts) v.hflag &= ~ElemFlag.Select
+    for (const e of bm.edges) e.hflag &= ~ElemFlag.Select
+    for (const f of bm.faces) f.hflag &= ~ElemFlag.Select
+    for (const i of sel.verts) verts[i].hflag |= ElemFlag.Select
+    for (const [a, b] of sel.edges) {
+        const e = diskEdgeExists(verts[a], verts[b])
+        if (!e) throw new Error(`fixture: no edge ${a}-${b}`)
+        e.hflag |= ElemFlag.Select
+    }
+    for (const i of sel.faces) faces[i].hflag |= ElemFlag.Select
+    selectCountsRecalc(bm)
 }
 
 /** Re-export so suites that need Blender's select flush can call it on the built mesh. */
