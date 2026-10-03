@@ -87,6 +87,14 @@ export class LegacyEditorEngine extends EventDispatcher<EditorEngineEventMap> im
         this.transformControls = viewer.getPlugin(TransformControlsPlugin)
         this.viewport = viewer.getPlugin(EditorViewportPlugin)
 
+        // Clicking the selected object keeps it selected (cycling through objects behind it), as in
+        // Blender, instead of clearing the selection.
+        if (this.picking.picker) this.picking.picker.cycleWrap = true
+        // Edit mode reports what it could not do; show it rather than leave it in the console.
+        const onNotice = (e: {message: string, level: 'info' | 'warning'}) => this.message(e.level, e.message)
+        this.meshEdit.addEventListener('notice', onNotice as never)
+        this._disposers.push(() => this.meshEdit.removeEventListener('notice', onNotice as never))
+
         this._listen()
         this._bridgeUndoManager()
         this._bridgeModellingHistory()
