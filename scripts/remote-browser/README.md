@@ -5,9 +5,8 @@ hit the screenshot timeouts, and its pixels are not comparable with x64 CI or a 
 Playwright browser server on his Mac (`chromium.launchServer`, port 3145, Metal via ANGLE on the M4 Pro);
 the container drives it and the renders happen on the GPU.
 
-First used 2026-10-02 for the r163 → r168 A/B comparison of all examples
-(`.repos/threepipe-three-upgrade/tmp/ab/mac-ab.cjs`): 195 examples × 3 renders in ~35 minutes, repeat
-renders pixel-identical.
+First used 2026-10-02 for the r163 → r168 A/B comparison of all examples (now `ab-compare.mjs` here):
+195 examples × 3 renders in ~35 minutes, repeat renders pixel-identical for 169 of them.
 
 ## Use
 
@@ -36,8 +35,11 @@ renders pixel-identical.
   context — call `browser.close()` once at the end, then wait ~6 s before reconnecting. Retry on
   "Browser closed": other sessions share the server and knock each other out.
 - Because of the above, the stock Playwright test runner (`npm run test:e2e`) cannot use the server: it
-  closes a context after every test. Write a driver (per example: load, wait for `body._testFinish`, the
-  same pre-screenshot steps as `tests/helpers.ts`, screenshot) as `mac-ab.cjs` does.
+  closes a context after every test. `ab-compare.mjs` is the driver for visual comparisons instead:
+  `npm run test:e2e:ab -- <baseUrlA> <baseUrlB> <outDir> [--filter <regex>]` renders every example's initial
+  state from two served checkouts (A twice for the noise floor, B once), diffs the pixels and writes
+  `index.html` with side-by-side images and console differences. Serve both trees from the container on
+  `0.0.0.0` and pass `http://<port>.$AIBOX_URL_BASE` urls. Resumable; one browser connection per 5 examples.
 - `navigator.gpu` was absent in the headless shell build; WebGL2 works.
 - Screenshots are taken by the driver and land in the container; save them under the project
   (`tmp/browser-check/` or the worktree's `tmp/`) so the user can open them.
