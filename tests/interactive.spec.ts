@@ -5147,3 +5147,192 @@ test('modelling-loop-tools', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 })
+
+test('modelling-editor-cut', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Cut')
+    await page.waitForFunction(() => (window as any).engine?.operators.get('mesh.knife'))
+
+    // ── Real input only: keys and mouse. State is read back afterwards. ──
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            knife: !!e.meshEdit.activeKnife,
+            tool: (e.activeTool?.id ?? null) as string | null,
+            modal: (e.status?.modal ?? null) as string | null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+            shortcut: e.operators.get('mesh.knife').shortcut as string,
+        }
+    })
+    /**
+     * The face most turned towards the camera, and two points on its opposite edges (at 35% and 60%
+     * along, so neither is a midpoint), in client pixels. Recomputed after view changes.
+     */
+    const frontFace = () => page.evaluate(() => {
+        const w = window as any
+        const me = w.engine.meshEdit
+        const cam = w.viewer.scene.mainCamera
+        cam.updateMatrixWorld()
+        const m = me.editObject.matrixWorld
+        const V = cam.position.constructor
+        const r = w.viewer.canvas.getBoundingClientRect()
+        const world = (v: any) => new V(v.x, v.y, v.z).applyMatrix4(m)
+        const screen = (p: any) => {
+            const q = p.clone().project(cam)
+            return {x: r.left + (q.x * 0.5 + 0.5) * r.width, y: r.top + (-q.y * 0.5 + 0.5) * r.height}
+        }
+        let best: any = null
+        let bestDot = -Infinity
+        for (const f of me.state.bm.faces) {
+            const vs = f.verts().map(world)
+            const c = vs.reduce((a: any, b: any) => a.add(b), new V()).multiplyScalar(1 / vs.length)
+            const n = vs[1].clone().sub(vs[0]).cross(vs[2].clone().sub(vs[1])).normalize()
+            const d = n.dot(cam.position.clone().sub(c).normalize())
+            if (d > bestDot) { bestDot = d; best = vs }
+        }
+        const lerp = (a: any, b: any, t: number) => a.clone().lerp(b, t)
+        return {
+            a: screen(lerp(best[0], best[1], 0.35)),
+            b: screen(lerp(best[2], best[3], 0.6)),
+            c: screen(lerp(best[1], best[2], 0.5)),
+            centre: screen(new V(0, 0, 0).applyMatrix4(m)),
+        }
+    })
+    const click = async(p: {x: number, y: number}) => {
+        await page.mouse.move(p.x, p.y, {steps: 4})
+        await page.mouse.click(p.x, p.y)
+    }
+
+    let s = await state()
+    expect(s.shortcut).toBe('K')
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    expect((await state()).counts).toEqual([8, 12, 6])
+    let f = await frontFace()
+
+    // 1. K, two clicks on opposite edges of the front face (they snap onto the edges), Enter: the face
+    // is split in two by one new edge - one undo step called Knife.
+    await page.mouse.move(f.a.x, f.a.y)
+    await page.keyboard.press('KeyK')
+    await expect.poll(async() => (await state()).knife).toBe(true)
+    expect((await state()).modal).toContain('Knife')
+    await expect(page.locator('[data-status-bar] [data-modal]')).toContainText('Knife')
+    await click(f.a)
+    await click(f.b)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).knife).toBe(false)
+    s = await state()
+    expect(s.counts).toEqual([10, 15, 7])
+    expect(s.history.at(-1)).toBe('Knife')
+    // The cut is selected, as Blender selects it (`knife_make_cuts`, select_result).
+    expect(s.sel![1]).toBeGreaterThanOrEqual(1)
+
+    // 2. Ctrl+Z takes the whole cut back in one step.
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // 3. Backspace mid-cut: three points, Backspace drops the last segment, Enter keeps the first one.
+    await page.mouse.move(f.a.x, f.a.y)
+    await page.keyboard.press('KeyK')
+    await click(f.a)
+    await click(f.b)
+    await click(f.c)
+    await page.keyboard.press('Backspace')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).knife).toBe(false)
+    expect((await state()).counts).toEqual([10, 15, 7])
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // 4. Cut-through (C): the same two clicks also cut the faces behind the front face.
+    await page.mouse.move(f.a.x, f.a.y)
+    await page.keyboard.press('KeyK')
+    await page.keyboard.press('KeyC')
+    await expect.poll(async() => (await state()).modal).toContain('Cut Through')
+    await click(f.a)
+    await click(f.b)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).knife).toBe(false)
+    s = await state()
+    expect(s.counts![2]).toBeGreaterThan(7)
+    expect(s.counts![0]).toBeGreaterThan(10)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // 5. The knife owns the keyboard: Tab (edit mode's toggle) does nothing mid-cut. Esc cancels without
+    // touching the mesh or the history.
+    const historyLength = (await state()).history.length
+    await page.keyboard.press('KeyK')
+    await click(f.a)
+    await click(f.b)
+    await page.keyboard.press('Tab')
+    s = await state()
+    expect(s.mode).toBe('edit')
+    expect(s.knife).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(async() => (await state()).knife).toBe(false)
+    expect((await state()).counts).toEqual([8, 12, 6])
+    expect((await state()).history.length).toBe(historyLength)
+
+    // 6. The Knife tool on the shelf: the first click already cuts, Enter applies, the tool stays.
+    await page.locator('[data-tool="mesh.knife"]').click()
+    await expect.poll(async() => (await state()).tool).toBe('mesh.knife')
+    await click(f.a)
+    await expect.poll(async() => (await state()).knife).toBe(true)
+    await click(f.b)
+    await page.keyboard.press('Space')
+    await expect.poll(async() => (await state()).counts).toEqual([10, 15, 7])
+    expect((await state()).tool).toBe('mesh.knife')
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // 7. Bisect: select all, front view, drag a horizontal line through the cube's centre with the
+    // Bisect tool - a plane through the middle cuts the four sides.
+    await page.locator('[data-tool="select"]').click()
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('Numpad1')
+    await page.waitForTimeout(500)
+    f = await frontFace()
+    await page.locator('[data-tool="mesh.bisect"]').click()
+    await expect.poll(async() => (await state()).tool).toBe('mesh.bisect')
+    await page.mouse.move(f.centre.x - 260, f.centre.y)
+    await page.mouse.down()
+    await page.mouse.move(f.centre.x + 260, f.centre.y, {steps: 12})
+    // The cut previews while dragging.
+    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 10])
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.bisect')
+    s = await state()
+    expect(s.counts).toEqual([12, 20, 10])
+    // The cut loop is selected: its 4 vertices and 4 edges.
+    expect(s.sel).toEqual([4, 4, 0])
+    expect(s.history.at(-1)).toMatch(/^Bisect/)
+    const plane = s.lastProps as {planeNo: number[], planeCo: number[]}
+    // A horizontal line through the centre in the front view: a horizontal plane through the centre.
+    expect(Math.abs(plane.planeNo[1])).toBeGreaterThan(0.99)
+
+    // 8. The redo panel: Clear Outer and Fill re-run the bisect - half the cube, closed by a face.
+    await page.locator('[data-operator-panel="mesh.bisect"] .me-operator-title').click()
+    await page.locator('label.bp5-checkbox:has(#me-prop-clearOuter)').click()
+    // Clear Outer alone: the top half goes, the cut loop stays open (bottom + four half sides).
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 5])
+    await page.locator('label.bp5-checkbox:has(#me-prop-fill)').click()
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+    s = await state()
+    expect(s.lastProps?.fill).toBe(true)
+    expect(s.lastProps?.clearOuter).toBe(true)
+    expect(s.history.filter(h => h.startsWith('Bisect')).length).toBe(1)
+
+    // 9. Undo takes the bisect back in one step.
+    await page.mouse.click(vp.x + 30, vp.y + vp.height - 40)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+})

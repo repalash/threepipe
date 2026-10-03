@@ -71,6 +71,7 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `extrude` | push faces out along their own normal, with an optional taper |
 | `inset` | a smaller copy of a face ringed by new side faces — panel lines, hatch rims |
 | `bevel` | round or chamfer edges, or a vertex corner |
+| `bisect` | cut along a plane, optionally removing one side and filling the cut — Blender's Bisect |
 | `solidify` | give a surface thickness, with a rim closing it — plates and panels |
 | `poke` | split faces into triangle fans around a centre vertex — on a quad, both diagonals |
 | `wireframe` | turn every edge into a strut — lattices and trusses; `live` for a modifier |

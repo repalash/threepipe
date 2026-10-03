@@ -60,6 +60,8 @@ import {registerFillOperators} from './ops/fillOps'
 import {registerLoopOperators} from './ops/loopOps'
 import {registerModellingOperators} from './ops/modellingOps'
 import {registerTools} from './tools/tools'
+import {registerCutOperators} from './ops/cutOps'
+import {registerCutTools} from './tools/cutTools'
 import type {PropDragModal} from './tools/PropDragModal'
 
 const SELECT_MASKS: Record<SelectModeName, number> = {
@@ -83,7 +85,7 @@ export interface EditorEngineOptions {
 type EngineEvents = EditorEngineEventMap & AViewerPluginEventMap
 
 /** Tools that stay active (gizmo tools) rather than running once. */
-const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform', 'mesh.loop_cut'])
+const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform', 'mesh.loop_cut', 'mesh.knife', 'mesh.bisect'])
 
 export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implements EditorEngine {
     public static readonly PluginType = 'EditorEnginePlugin'
@@ -191,6 +193,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             registerLoopOperators(this)
             registerModellingOperators(this)
             registerTools(this)
+            registerCutTools(this, registerCutOperators(this))
         }
 
         const stored = this._storedPreset()
@@ -254,6 +257,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         })
         this._on(this.meshEdit, 'loopCutChanged', () => this._statusChanged())
         this._on(this.meshEdit, 'meshChanged', () => this.dispatchEvent({type: 'sceneChanged'}))
+        this._on(this.meshEdit, 'knifeChanged', () => this._statusChanged())
         // Edit mode reports what it could not do; show it rather than leave it in the console.
         this._on(this.meshEdit, 'notice', (e: {message: string, level: 'info' | 'warning'}) => this.message(e.level, e.message))
         this._on(this.picking, 'selectedObjectChanged', (e: {object?: IObject3D | IObject3D[] | null}) => {
@@ -400,7 +404,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
 
     private _handleModalKey(event: KeyboardEvent): boolean {
         if (this.propDrag) return this.propDrag.handleKey(event)
-        if (this.meshEdit.activeTransform || this.meshEdit.activeLoopCut) return this.meshEdit.handleModalKey(event)
+        if (this.meshEdit.activeTransform || this.meshEdit.activeLoopCut || this.meshEdit.activeKnife || this.meshEdit.isLineGesture) return this.meshEdit.handleModalKey(event)
         return false
     }
 
@@ -439,7 +443,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         }
         this.propDrag?.cancel()
         if (this.meshEdit.activeTransform) this.meshEdit.cancelTransform()
-        this.meshEdit.cancelLoopCut()
+        // exit() also ends a loop cut, knife or line gesture that is still running.
         this.meshEdit.exit(true)
         return true
     }
@@ -635,6 +639,15 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
 
     get status(): StatusHints | null {
         if (this.propDrag) return this.propDrag.hints()
+        const knife = this.meshEdit.activeKnife
+        if (knife) {
+            // `knife_update_header` (`editmesh_knife.cc:1061`), with the editor's E / Backspace additions.
+            const h = knife.hints()
+            return {modal: h.modal, lmb: h.lmb, mmb: h.mmb, rmb: h.rmb, keys: h.keys}
+        }
+        if (this.meshEdit.isLineGesture) {
+            return {modal: 'Bisect: drag a line across the mesh', lmb: 'Draw Cut Line', rmb: 'Cancel', keys: [{key: 'Esc', label: 'Cancel'}]}
+        }
         const lc = this.meshEdit.activeLoopCut
         if (lc) {
             // `loopcut_init`'s workspace status (`editmesh_loopcut.cc:481`).

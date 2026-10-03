@@ -34,7 +34,7 @@ import {
 } from '@threepipe/mesh-kernel'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, MenuRequestItem, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
-import {onlyInEditMessage} from './messages'
+import {onlyInEditMessage, notModalMessage} from './messages'
 
 /** A session operator's kernel call: change `bm` in place, say what happened. */
 type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
@@ -42,7 +42,7 @@ type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
 
 export function registerFillOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
-    const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first'
+    const notModal = () => notModalMessage(engine)
     const editing = () => me.isEditing || onlyInEditMessage(engine)
     const ready = (poll: (ctx: EditorContext) => boolean | string) => (ctx: EditorContext) => {
         const p = poll(ctx)

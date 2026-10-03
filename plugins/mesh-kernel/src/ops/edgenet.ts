@@ -17,7 +17,7 @@ import {BMesh} from '../bmesh/BMesh'
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {ElemFlag, ElemType} from '../constants'
 import {diskEdgeExists, diskEdges, edgeIsManifold} from '../bmesh/structure'
-import {copyElemAttrs, faceAttrsCopy} from '../bmesh/customdata'
+import {copyElemAttrs} from '../bmesh/customdata'
 import {faceNormalFlip} from '../bmesh/flip'
 import {faceNormalUpdate} from '../bmesh/polygon'
 import {edgesSortWinding} from '../bmesh/ngon'
@@ -32,6 +32,7 @@ import {
     maddV3V3Fl,
     normalizeV3Len,
 } from '../math/geom'
+import {faceAttributeFill} from './faceAttributeFill'
 
 const FLT_EPSILON = 1.1920928955078125e-7
 const FLT_MAX = 3.4028234663852886e38
@@ -750,90 +751,6 @@ export function recalcFaceNormals(bm: BMesh, faces: readonly BMFace[]): void {
     }
 }
 
-/**
- * `bmo_face_attribute_fill_exec` (`bmo_fill_attribute.cc:138`) with `bmesh_face_attribute_fill`
- * (`:77`) and `bm_face_copy_shared_all` (`:46`): flood outwards from the faces next to untouched
- * geometry, giving each of `faces` the face attributes (header flags incl. smooth and hidden, material,
- * custom data) and corner data of an adjacent face, and (`useNormals`) its winding. Returns
- * `faces_fail.out`: the faces no flood reached, in mesh order.
- */
-export function faceAttributeFill(bm: BMesh, faces: readonly BMFace[], useNormals: boolean, useData: boolean): BMFace[] {
-    const tag = new Set(faces) // BM_ELEM_TAG
-
-    // bm_loop_is_all_radial_tag (`:22`)
-    const loopIsAllRadialTag = (l: BMLoop): boolean => {
-        let lIter = l.radialNext!
-        do {
-            if (!tag.has(lIter.f)) return false
-        } while ((lIter = lIter.radialNext!) !== l)
-        return true
-    }
-
-    // bm_face_copy_shared_all (`:46`)
-    const faceCopySharedAll = (l: BMLoop): void => {
-        let lOther = l.radialNext!
-        const f = l.f
-        while (tag.has(lOther.f)) lOther = lOther.radialNext!
-        const fOther = lOther.f
-        if (useData) {
-            // copy face-attrs
-            faceAttrsCopy(bm, fOther, f)
-            // copy loop-attrs (bm_loop_is_face_untag)
-            faceCopyShared(bm, f, lSrc => !tag.has(lSrc.f))
-        }
-        if (useNormals) {
-            // copy winding (flipping)
-            if (l.v === lOther.v) faceNormalFlip(f)
-        }
-    }
-
-    let loopQueuePrev: BMLoop[] = []
-    let loopQueueNext: BMLoop[] = []
-    let faceTot = 0
-
-    for (const f of bm.faces) {
-        if (tag.has(f)) {
-            let lIter = f.lFirst
-            do {
-                if (!loopIsAllRadialTag(lIter)) loopQueuePrev.push(lIter)
-            } while ((lIter = lIter.next) !== f.lFirst)
-        }
-    }
-
-    while (loopQueuePrev.length) {
-        let l: BMLoop | undefined
-        while ((l = loopQueuePrev.pop())) {
-            // check we're still un-assigned
-            if (tag.has(l.f)) {
-                tag.delete(l.f)
-                let lIter = l.next
-                do {
-                    let lRadialIter = lIter.radialNext!
-                    if (lRadialIter !== lIter) {
-                        do {
-                            if (tag.has(lRadialIter.f)) loopQueueNext.push(lRadialIter)
-                        } while ((lRadialIter = lRadialIter.radialNext!) !== lIter)
-                    }
-                } while ((lIter = lIter.next) !== l)
-
-                // do last because of face flipping
-                faceCopySharedAll(l)
-                faceTot += 1
-            }
-        }
-        const swap = loopQueuePrev
-        loopQueuePrev = loopQueueNext
-        loopQueueNext = swap
-    }
-
-    if (faceTot !== faces.length) {
-        // any remaining tags will be skipped (BMO_slot_buffer_from_enabled_hflag, respecting hide)
-        return [...bm.faces].filter(f => tag.has(f) && !(f.hflag & ElemFlag.Hidden))
-    }
-    return []
-}
-
-
 // endregion
 
 // region bmesh_edgenet.cc
@@ -1157,7 +1074,7 @@ export function edgenetFill(bm: BMesh, edges: readonly BMEdge[], options: Edgene
     }
 
     // --- Attribute Fill ---
-    const facesFail = faceAttributeFill(bm, facesOut, true, true)
+    const {facesFail} = faceAttributeFill(bm, facesOut, {useNormals: true, useData: true})
     // check if some faces couldn't be touched
     if (facesFail.length) recalcFaceNormals(bm, facesFail)
 

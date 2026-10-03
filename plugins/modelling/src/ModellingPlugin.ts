@@ -40,6 +40,7 @@ import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {loopCommands} from './commands/loop'
+import {cutCommands} from './commands/cut'
 
 export interface CaptureResult {
     dataUrl: string
@@ -125,6 +126,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...modifierCommands,
             ...shapeCommands,
             ...loopCommands,
+            ...cutCommands,
         ])
     }
 

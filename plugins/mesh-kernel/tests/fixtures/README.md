@@ -149,3 +149,65 @@ Blender's input edge order and direction too, which the kernel's `faceCreate` do
 ```sh
 blender --background --factory-startup --python plugins/mesh-kernel/tests/fixtures/gen-bmesh-ops-subdivide-fixtures.py
 ```
+
+## Knife and bisect fixtures written by Blender itself
+
+[`../knife-bisect-parity.test.ts`](../knife-bisect-parity.test.ts) checks the knife
+(`src/ops/knife/`) and bisect (`src/ops/bisectPlane.ts`) ports against Blender 3.4.1 driving its own
+operators through a real 3D view. Blender needs a window for these, so the generators run under Xvfb:
+
+```sh
+# Knife Project (EDBM_mesh_knife) and bisect with a given plane -> knife-bisect/
+xvfb-run -a -s "-screen 0 1280x1024x24" blender --factory-startup \
+    --python plugins/mesh-kernel/tests/fixtures/gen-knife-bisect-fixtures.py
+
+# The interactive knife and bisect's line gesture, fed simulated input -> knife-interactive/
+xvfb-run -a -s "-screen 0 1280x1024x24" blender --factory-startup --enable-event-simulate \
+    --python plugins/mesh-kernel/tests/fixtures/gen-knife-interactive-fixtures.py
+```
+
+- `knife-bisect/knife-*.json` (10): `bpy.ops.mesh.knife_project` from curve polylines, in orthographic
+  and perspective views, with and without cut-through - the line hits, cuts and edge-net split, with
+  snapping off. Each carries the view's matrices, region size and the screen polylines.
+- `knife-bisect/bisect-*.json` (10): `bpy.ops.mesh.bisect` with a plane: crossing edges, through
+  vertices, tilted planes, clear inner/outer, fill (an n-gon cross-section and a cylinder).
+- `knife-interactive/iknife-*.json` (16): `mesh.knife_tool` invoked with a context override and fed
+  `Window.event_simulate` mouse moves, clicks and modal keys - vertex and edge snapping, midpoints
+  (Shift), ignore snap (Ctrl), cut-through (C), segment undo (Ctrl+Z), new cut (RMB), X lock, angle
+  snapping (A), a drag cut, a closed loop, points inside a face, a perspective cut over two faces, a
+  grid. Each records every event in region pixels and the preference scale the snap distances use.
+  The test replays them through Blender's modal keymap into `KnifeTool.modal`; mesh-edit's
+  `tests/knife.test.ts` replays them again as DOM input through `KnifeModal`.
+- `knife-interactive/ibisect-*.json` (4): `mesh.bisect` invoked without a plane and drawn with the
+  straight-line gesture; the plane Blender computed is compared, then the cut.
+
+Two things to know when reading or regenerating them:
+
+- **Blender's vertex order is not stable** between its own runs (it splits edges from pointer-keyed
+  maps), so the comparison is order-free: vertices paired by position (1e-4), faces as cyclic
+  sequences (winding included), edges as vertex pairs. A regeneration that only reorders vertices
+  is noise; keep the committed file.
+- **Perspective views use `clip_start = 0.5`**, not Blender's default 0.01. At 0.01 Blender's float32
+  pick ray (`ED_view3d_win_to_vector` unprojects NDC z = -0.5, which then lies 0.013 units from the eye)
+  carries enough rounding to put a cut point ~5e-4 units (0.03 px) off the cursor ray; the port runs in
+  doubles and lands on the ray. Changing only the near plane made that difference disappear, so the
+  fixtures avoid comparing against Blender's rounding.
+
+When the cursor ray misses every face, Blender's interactive knife falls back to the GPU selection
+buffer (`EDBM_face_find_nearest`). The test stands in for that buffer with ray casts at pixel centres,
+searched with mesh-edit's port of Blender's square spiral; several snap cases depend on it.
+
+What these do not cover: measurements (S cycles the mode; nothing is drawn yet), multi-object editing, the camera view, box clipping,
+X-ray's projected face fallback, and non-planar n-gons (the port tessellates them with the kernel's ear
+clipping instead of `BLI_polyfill`). `issues/open/modelling-tools/kernel-knife-port-gaps.md` lists them.
+
+## Triangle fill
+
+`triangle-fill.json` (34 cases), written by [`gen-triangle-fill-fixtures.py`](./gen-triangle-fill-fixtures.py)
+with `bmesh.ops.triangle_fill` and `bmesh.ops.face_attribute_fill` (plain `--background`), checks
+`src/ops/scanfill.ts`, `triangleFill.ts` and `faceAttributeFill.ts` in
+[`../triangle-fill-parity.test.ts`](../triangle-fill-parity.test.ts): convex and concave loops, holes,
+islands, given and computed normals, winding votes from neighbouring faces, dissolve on and off, and
+attribute fill flipping a wrongly wound face. 27 cases are compared exactly - face order, first loop,
+winding, attributes, `geom.out` order; the dissolve cases and one two-island case order-free, because
+Blender reuses freed face slots and 3.4.1 fills islands in a different order from main.

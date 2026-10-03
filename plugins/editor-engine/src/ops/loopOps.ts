@@ -11,6 +11,7 @@ import type {SubdFalloff, SubdQuadCornerType} from '@threepipe/mesh-kernel'
 import type {LoopCutCutProps, ModalTransform, SlideSavedProps, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {OperatorDescriptor, PropSchema} from '../registry'
+import {notModalMessage, onlyInEditMessage} from './messages'
 
 /** `rna_enum_proportional_falloff_curve_only_items`, the profile shapes. */
 const PROFILE_SHAPES: SubdFalloff[] = ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear']
@@ -70,10 +71,10 @@ function propsToSlide(mode: SlideMode, p: Record<string, unknown>): TransformSav
 
 export function registerLoopOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
-    const notModal = () => !me.activeTransform && !me.activeLoopCut && !engine.propDrag || 'Finish the current operation first'
+    const notModal = () => notModalMessage(engine)
     /** `edbm_subdivide_exec` skips an object with neither a selected edge nor a selected face. */
     const hasEdges = () => {
-        if (!me.state) return 'Only in edit mode'
+        if (!me.state) return onlyInEditMessage(engine)
         const bm = me.state.bm
         if (!(bm.totedgesel || bm.totfacesel)) return 'Select some edges or faces first'
         return notModal()
@@ -96,7 +97,7 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
             exec: (_ctx, p) => {
                 const state = me.state
                 const before = me.snapshot()
-                if (!state || !before) return {ok: false, error: 'Only in edit mode'}
+                if (!state || !before) return {ok: false, error: onlyInEditMessage(engine)}
                 const cuts = Math.max(1, Math.min(100, Math.trunc(Number(p?.cuts ?? 1)) || 1))
                 const smoothness = Math.max(0, Number(p?.smoothness ?? 0) || 0)
                 const ngon = p?.ngon === undefined ? true : !!p.ngon
@@ -127,11 +128,11 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
                 falloff: {type: 'string', enum: PROFILE_SHAPES, default: 'inverseSquare', description: 'How the smoothing fades towards the ring\'s ends.'},
                 ...slideSchema('edgeSlide').properties,
             }},
-            poll: () => me.state ? notModal() : 'Only in edit mode',
+            poll: () => me.state ? notModal() : onlyInEditMessage(engine),
             exec: (_ctx, p) => {
                 // No props: the interactive modal (Ctrl+R). With props: the redo panel's exact re-run.
-                if (!p) return me.startLoopCut() ? {ok: true, modal: true} : {ok: false, error: 'Only in edit mode'}
-                if (!me.state) return {ok: false, error: 'Only in edit mode'}
+                if (!p) return me.startLoopCut() ? {ok: true, modal: true} : {ok: false, error: onlyInEditMessage(engine)}
+                if (!me.state) return {ok: false, error: onlyInEditMessage(engine)}
                 const hidden = (p._saved ?? {}) as Partial<{edgeIndex: number}>
                 const cut: LoopCutCutProps = {
                     cuts: Math.max(1, Math.min(1000, Math.trunc(Number(p.cuts ?? 1)) || 1)),
@@ -151,14 +152,14 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
             flags: {undo: true, register: true},
             props: slideSchema(mode),
             poll: () => {
-                if (!me.state) return 'Only in edit mode'
+                if (!me.state) return onlyInEditMessage(engine)
                 if (!me.state.bm.totvertsel) return mode === 'edgeSlide' ? 'Select an edge loop first' : 'Select some vertices first'
                 return notModal()
             },
             exec: (_ctx, p) => {
                 // No props: the interactive modal. With props: the redo panel's exact re-run.
                 if (!p) return me.startTransform(mode) ? {ok: true, modal: true} : {ok: false, error: `Nothing to slide: ${label} needs ${mode === 'edgeSlide' ? 'edge loops' : 'vertices'} selected`}
-                if (!me.state) return {ok: false, error: 'Only in edit mode'}
+                if (!me.state) return {ok: false, error: onlyInEditMessage(engine)}
                 return me.applyTransformValues(propsToSlide(mode, p)) ? {ok: true, props: p} : {ok: false, error: `${label} cannot run on this selection`}
             },
         })),

@@ -112,6 +112,7 @@ file cites the line of each binding).
 | E | Extrude along the normal |
 | I | Inset faces |
 | Ctrl+B | Bevel |
+| K / Shift+K | Knife (Shift: cut through, selected faces only) - see [Cutting](#cutting) |
 | M | Merge menu (At Center / First / Last, By Distance) |
 | Y | Split |
 | P | Separate selection |
@@ -162,6 +163,7 @@ Alt+drag orbits.
 | Ctrl+E | Extrude |
 | I | Inset faces |
 | Ctrl+B | Bevel |
+| K | Knife tool (IC's `builtin.knife`) - see [Cutting](#cutting) |
 | M | Merge menu (incl. By Distance) |
 | Ctrl+D | Duplicate |
 | P | Make Edge/Face (Modo's Make Polygon key; P parents only in object mode) |
@@ -209,7 +211,7 @@ tricky-extend selection), `mesh.fill_grid` (span calculated from the loop on the
 `mesh.bridge_edge_loops` (twist, merge, cuts with the edge-ring interpolation), `mesh.vert_connect_path` (J),
 `mesh.vert_connect`, `mesh.remove_doubles` (Merge by Distance), `mesh.vertices_menu/edges_menu/faces_menu`
 (Ctrl+V/E/F), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
-`mesh.separate`, `mesh.toggle_xray`, and the loop tools: `mesh.subdivide` (all of `bmo_subdivide.cc`: cuts,
+`mesh.separate`, `mesh.knife` and `mesh.bisect` (see [Cutting](#cutting)), `mesh.toggle_xray`, and the loop tools: `mesh.subdivide` (all of `bmo_subdivide.cc`: cuts,
 smoothness, n-gons, quad corner type; fractal is not ported), `mesh.subdivide_edgering`
 (`bmo_subdivide_edgering.cc`: linear, blend path, blend surface, profile shape), `mesh.loopcut_slide` (modal
 with Ctrl+R; with props the cut through `_saved.edgeIndex` and then the slide, as the redo panel re-runs it),
@@ -229,7 +231,44 @@ gizmo replaces this); `mesh.inset` and `mesh.bevel` (interactive: run with defau
 thickness/width, the wheel changes bevel segments, click confirms, Esc cancels - each change is the redo-last
 path, so the drag and the panel cannot disagree); `mesh.loop_cut` (Blender's Loop Cut tool: hover previews the
 ring, press and drag cuts and slides, release places, and the tool stays for the next cut; Esc hands the shelf
-back to Select); `mesh.knife` is registered disabled until P3.
+back to Select); `mesh.knife` and `mesh.bisect` (sticky, as Blender's: see
+[Cutting](#cutting)).
+
+## Cutting
+
+**Knife** - `mesh.knife` (K), the shelf's Knife tool. A port of Blender's knife (`editmesh_knife.cc`, in the
+kernel's `src/ops/knife/`), checked against Blender's own modal knife on recorded input. Click points on the
+surface; each click snaps to a vertex or an edge near the cursor, or lands on the face, and the line from the last
+point previews where it will cut. Enter or Space applies the whole cut as one undo step; Esc throws it away.
+
+| While cutting (Blender preset) | |
+|---|---|
+| LMB click / drag | add a point / cut freehand while dragging |
+| Double-click | close the loop back to the first point |
+| RMB, E | end this cut, start another (E is an addition; Blender has RMB only) |
+| Ctrl+Z, Backspace | take back the last segment (Backspace is an addition) |
+| Shift (hold) | snap to edge midpoints |
+| Ctrl (hold) | no snapping |
+| C | cut through to the faces behind |
+| X / Y / Z | lock the cut to an axis (again: the object's axis; again: off) |
+| A | angle snapping: screen, then relative to an edge, then off; type a number for the step |
+| R | relative angle snapping: the next reference edge |
+| S | measurements (the mode cycles; not drawn yet) |
+| V | X-ray the preview |
+| MMB | orbit without leaving the knife |
+
+Shift+K starts it with cut-through on and only selected faces cut (Blender's Shift+K). With the Knife tool
+active, the first click is already the first point (`wait_for_input=False`) and the tool stays active. The Design
+preset uses Blender's Industry Compatible knife map instead: Ctrl snaps to midpoints, Shift turns snapping off,
+Alt+drag orbits, D measures, and Space does not confirm.
+
+**Bisect** - `mesh.bisect`, the shelf's Bisect tool. A port of Blender's `bmo_bisect_plane` /
+`BM_mesh_bisect_plane` and `mesh_bisect_exec`. Select what to cut, then drag a line across it: the plane is the
+one you see edge-on along that line (`mesh_bisect_interactive_calc`), and the cut previews while you drag. The
+release runs the modelling document's `bisect` command once (one undo step) and selects the cut; the panel then
+edits the plane point and normal, **Fill** (close the cut with a face), **Clear Inner** / **Clear Outer**
+(remove one side) and the threshold. A click with the Bisect tool, without a drag, selects as usual. With a plane
+given - `engine.run('mesh.bisect', {planeCo, planeNo, fill, clearOuter})` - it runs directly.
 
 ## Status hints
 
@@ -243,4 +282,5 @@ else the mouse mapping of the preset plus the keys that matter most in the mode,
 across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`; the loop tools (edge
 slide by `G G` with a typed factor, vertex slide, Subdivide from the Mesh menu, Subdivide Edge-Ring, Loop Cut and
 Slide with one and three cuts, the Loop Cut tool, the redo panel and undo after each) under
-`modelling-loop-tools`.
+`modelling-loop-tools`; the knife and bisect
+ones under `modelling-editor-cut`.

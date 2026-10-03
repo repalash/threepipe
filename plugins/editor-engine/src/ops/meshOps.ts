@@ -30,7 +30,7 @@ import {
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 import {visibleSchema} from './modellingOps'
-import {onlyInEditMessage} from './messages'
+import {onlyInEditMessage, notModalMessage} from './messages'
 
 type Vec3 = [number, number, number]
 
@@ -49,7 +49,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     // Reasons say what to do next, with the live key from the active preset.
     const onlyInEdit = () => onlyInEditMessage(engine)
     const editing = () => me.isEditing || onlyInEdit()
-    const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first: click or Enter confirms it, Esc cancels'
+    const notModal = () => notModalMessage(engine)
     const hasSelection = (_ctx: EditorContext) => {
         if (!me.state) return onlyInEdit()
         return me.state.bm.totvertsel > 0 || `Select some vertices, edges or faces first: click one, drag a box around some, or press ${engine.keymap.shortcutFor('mesh.select_all', 'edit') ?? 'Select > All'} for everything`

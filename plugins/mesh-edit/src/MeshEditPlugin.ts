@@ -116,6 +116,19 @@ import {TransformOverlay} from './gizmo/TransformOverlay'
 import type {ModalKeyEvent} from './transform/keymap'
 import {LoopCutModal} from './loopcut'
 import {LoopCutPreview} from './gizmo/LoopCutPreview'
+import {KnifeModal, KnifeOptions} from './knife/KnifeModal'
+import {KnifeOverlay} from './knife/KnifeOverlay'
+import {KMAXDIST, KnifeView} from '@threepipe/mesh-kernel'
+
+/** Options for {@link MeshEditPlugin.startLineGesture}. Points are canvas pixels, top-left origin. */
+export interface LineGestureOptions {
+    mouse?: {x: number, y: number}
+    /** Start already begun at `mouse` (a press-and-drag that has started). */
+    active?: boolean
+    onChange?(start: {x: number, y: number}, end: {x: number, y: number}): void
+    onEnd(start: {x: number, y: number}, end: {x: number, y: number}): void
+    onCancel?(): void
+}
 
 /** Options for {@link MeshEditPlugin.startTransform}. */
 export interface StartTransformOptions {
@@ -182,6 +195,8 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     regionChanged: {region: RegionShape | null}
     /** X-ray was toggled. */
     xrayChanged: {xray: boolean}
+    /** The knife started, changed (a cut point, a toggle) or ended (`knife` is null then). */
+    knifeChanged: {knife: KnifeModal | null}
 }
 
 /** How a left-drag on the canvas behaves in edit mode. */
@@ -394,6 +409,12 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     pathOptions: Pick<PathSelectParams, 'useTopologyDistance' | 'useStepFace' | 'edgeMode'> = {}
 
     /**
+     * The active tool's left-press handler in edit mode (the knife and bisect tools), or null. Called
+     * with the press in canvas pixels; returning true takes the press away from selection.
+     */
+    toolPress: ((press: {x: number, y: number, shift: boolean, ctrl: boolean, alt: boolean}) => boolean) | null = null
+
+    /**
      * Pixels the pointer may move between press and release and still count as a click. Blender's
      * `drag_threshold_mouse` default. Anything further is a drag - an orbit - and leaves the selection
      * alone.
@@ -428,6 +449,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     private _orbitSaved: {controls: any, mouseButtons: any} | null = null
     private _cycle = new PickCycleState()
     private _transform: ModalTransform | null = null
+    private _knife: {modal: KnifeModal, overlay: KnifeOverlay, before: MeshData, viewKey: string} | null = null
+    private _lineGesture: (LineGestureOptions & {active: boolean, x0: number, y0: number, x1: number, y1: number, overlay: RegionOverlay}) | null = null
+    private _previewBase: MeshData | null = null
     private _select: SelectBuffer | null = null
     private _selectDirty = true
     private _preselect: BMVert | BMEdge | BMFace | null = null
@@ -492,6 +516,24 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** The running modal transform, if any. While this is set, input belongs to it. */
     get activeTransform(): ModalTransform | null {
         return this._transform
+    }
+
+    /** True while a straight-line gesture ({@link startLineGesture}) runs. */
+    get isLineGesture(): boolean {
+        return this._lineGesture !== null
+    }
+
+    /** The running knife, if any. While this is set, input belongs to it. */
+    get activeKnife(): KnifeModal | null {
+        return this._knife?.modal ?? null
+    }
+
+    /**
+     * True while any modal operation owns the input: a transform (edit or object mode), the loop cut
+     * preview, the knife or a line gesture. Other operators wait for it to be confirmed or cancelled.
+     */
+    get isModal(): boolean {
+        return !!(this._transform || this._objectTransform || this._loopCut || this._knife || this._lineGesture)
     }
 
     /** The running object-mode transform, if any. */
@@ -648,6 +690,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             if (commit) this.confirmTransform()
             else this.cancelTransform()
         }
+        this.cancelLoopCut()
+        if (this._knife) this.cancelKnife()
+        if (this._lineGesture) this._lineGestureEnd(false)
         this._endRegion(false)
         this.endCircleSelect()
         // Outside edit mode every face is drawn, hidden or not, as Blender's object mode does.
@@ -1075,7 +1120,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const saved = this._orbitSaved
         if (!saved) return
         const mb = saved.controls.mouseButtons
-        if (this._circle) {
+        if (this._knife || this._lineGesture) {
+            // The knife owns the left button (cut, drag-cut) and the right (new cut); the middle
+            // button still orbits, as Blender's knife passes MIDDLEMOUSE through (PANNING).
+            mb.LEFT = null
+            mb.MIDDLE = saved.mouseButtons.MIDDLE ?? MeshEditPlugin.MOUSE_ROTATE
+            mb.RIGHT = null
+        } else if (this._circle) {
             // Circle select paints with the left and middle buttons; neither may orbit meanwhile.
             mb.LEFT = null
             mb.MIDDLE = null
@@ -1778,6 +1829,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     private _restore(object: IObject3D, mesh: MeshData): void {
         if (this.editObject === object && this.state) {
             if (this._transform) this.cancelTransform()
+            if (this._knife) this.cancelKnife()
             this.state = EditMeshState.fromMeshData(mesh.clone())
             this._preselect = null
             this.applyToObject()
@@ -2285,6 +2337,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const camera = viewer.scene.mainCamera as any
         const rect = viewer.canvas.getBoundingClientRect()
         const running = this._running()
+        if (this._knife) this._knifeViewChanged()
 
         let pivot: Vec3 | null = null
         let orientation: Mat3 | null = null
@@ -2362,6 +2415,275 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._viewer?.setDirty()
         })
     }
+
+    // region straight-line gesture and preview
+
+    /**
+     * A straight-line gesture over the viewport: Blender's `WM_gesture_straightline_invoke` /
+     * `_modal` (`windowmanager/intern/wm_gesture_ops.cc:1001`, `:1074`), which bisect draws its plane
+     * with. Before the press the line's start follows the cursor; a left press begins it
+     * (`GESTURE_MODAL_BEGIN`), moves stretch it (`onChange`), the release ends it
+     * (`GESTURE_MODAL_SELECT`: `onEnd`, unless the line has no length), Esc or right click cancels.
+     * With `active`, the line starts already begun at `mouse` - the tool's press-and-drag.
+     * Points are canvas pixels (top-left origin). Not yet: the modal's snap, move and flip keys.
+     */
+    startLineGesture(options: LineGestureOptions): boolean {
+        if (!this._viewer || !this.isEditing) return false
+        if (this._transform) this.cancelTransform()
+        if (this._knife) this.cancelKnife()
+        if (this._lineGesture) this._lineGestureEnd(false)
+        const m = options.mouse ?? {x: this._pointerX, y: this._pointerY}
+        this._lineGesture = {
+            ...options, active: !!options.active, x0: m.x, y0: m.y, x1: m.x, y1: m.y,
+            overlay: new RegionOverlay(this._viewer.canvas),
+        }
+        this._setPreselect(null)
+        this._applyOrbitButtons()
+        this.dispatchEvent({type: 'regionChanged', region: null})
+        return true
+    }
+
+    private _lineGestureMove(x: number, y: number): void {
+        const g = this._lineGesture
+        if (!g) return
+        this._pointerX = x
+        this._pointerY = y
+        if (!g.active) {
+            g.x0 = g.x1 = x
+            g.y0 = g.y1 = y
+            return
+        }
+        g.x1 = x
+        g.y1 = y
+        g.overlay.line(g.x0, g.y0, g.x1, g.y1)
+        // `gesture_straightline_apply` on every move: the operator previews the cut.
+        if (g.x0 !== g.x1 || g.y0 !== g.y1) g.onChange?.({x: g.x0, y: g.y0}, {x: g.x1, y: g.y1})
+    }
+
+    private _lineGestureKey(event: KeyboardEvent, press: boolean): boolean {
+        if (!press) return false
+        if (event.code === 'Escape') {
+            this._lineGestureEnd(false)
+            event.preventDefault()
+            return true
+        }
+        // The gesture owns the keyboard while it runs.
+        return true
+    }
+
+    private _lineGestureEnd(apply: boolean): void {
+        const g = this._lineGesture
+        if (!g) return
+        this._lineGesture = null
+        g.overlay.dispose()
+        this._applyOrbitButtons()
+        const hasLength = g.x0 !== g.x1 || g.y0 !== g.y1
+        if (apply && hasLength) g.onEnd({x: g.x0, y: g.y0}, {x: g.x1, y: g.y1})
+        else g.onCancel?.()
+        this._viewer?.setDirty()
+    }
+
+    /**
+     * Show the result of an edit without committing it: the first call remembers the session's mesh,
+     * every call starts again from that and applies `edit`, and {@link endPreview} puts it back. The
+     * redo-in-place an interactive operator does while its gesture runs (bisect re-executing from
+     * `EDBM_redo_state_restore`, `editmesh_bisect.cc:305`), with no undo step.
+     */
+    previewEdit(edit: (bm: BMesh) => void): void {
+        if (!this.state || !this.editObject) return
+        const mode = this.state.selectMode
+        if (!this._previewBase) this._previewBase = this._snapshot()
+        else this.state = EditMeshState.fromMeshData(this._previewBase.clone())
+        selectModeSet(this.state.bm, mode)
+        edit(this.state.bm)
+        this.state.syncFromBMesh()
+        this._bakeIntoObject(this.editObject, this.state, true)
+        this._selectDirty = true
+        this.refreshOverlays()
+        this._viewer?.setDirty()
+    }
+
+    /** Undo {@link previewEdit}: back to the mesh it started from. */
+    endPreview(): void {
+        const base = this._previewBase
+        if (!base || !this.state || !this.editObject) return
+        this._previewBase = null
+        const mode = this.state.selectMode
+        this.state = EditMeshState.fromMeshData(base.clone())
+        selectModeSet(this.state.bm, mode)
+        this._bakeIntoObject(this.editObject, this.state, true)
+        this._selectDirty = true
+        this.refreshOverlays()
+        this._viewer?.setDirty()
+    }
+
+    // endregion
+
+    // region knife
+
+    /**
+     * Start the knife (Blender's `MESH_OT_knife_tool`, K): click points on the surface to cut new edges,
+     * Enter or Space to apply, Esc to cancel. The cut snaps to vertices and edges (Shift: midpoints,
+     * Ctrl: no snapping); C cuts through to the back, X/Y/Z lock an axis, A snaps the angle, Ctrl+Z or
+     * Backspace undoes the last segment, right click or E starts a new cut. The cut is one undo step.
+     * See `knife/KnifeModal.ts` and the kernel's `ops/knife/knife.ts`.
+     *
+     * `mouse` is the cursor in canvas pixels (default: the last pointer position). With
+     * `waitForInput: false` that position is already the first cut point (the shelf tool).
+     */
+    startKnife(options: KnifeOptions & {mouse?: {x: number, y: number}} = {}): boolean {
+        const viewer = this._viewer
+        const state = this.state
+        const object = this.editObject
+        if (!viewer || !state || !object) return false
+        if (this._transform) this.cancelTransform()
+        if (this._knife) this.cancelKnife()
+        if (options.onlySelected && state.bm.totfacesel === 0) {
+            // `knifetool_invoke` (`editmesh_knife.cc:4607`).
+            this._notice('Selected faces required: Shift+K only cuts selected faces.', 'info')
+            return false
+        }
+        if (options.mouse) {
+            this._pointerX = options.mouse.x
+            this._pointerY = options.mouse.y
+        }
+        const before = this._snapshot()
+        object.updateWorldMatrix(true, false)
+        const modal = new KnifeModal({
+            ...options,
+            bm: state.bm,
+            view: this._knifeView(),
+            objectMatrix: Array.from(object.matrixWorld.elements),
+            findNearestFace: mval => this._knifeFindNearestFace(mval),
+            faceSelectMode: state.selectMode === SelectMode.Face,
+            mval: this._regionMval(this._pointerX, this._pointerY),
+        })
+        const overlay = new KnifeOverlay()
+        viewer.scene.addObject(overlay as never, {addToRoot: true})
+        this._knife = {modal, overlay, before, viewKey: this._knifeViewKey()}
+        this._setPreselect(null)
+        this._applyOrbitButtons()
+        this._knifeUpdate()
+        return true
+    }
+
+    /** Apply the cut and end the knife, as Enter does. */
+    confirmKnife(): void {
+        const k = this._knife
+        if (!k) return
+        k.modal.key({code: 'Enter', press: true, ctrl: false, shift: false, alt: false, meta: false})
+        this._knifeUpdate()
+    }
+
+    /** End the knife without changing the mesh, as Esc does. */
+    cancelKnife(): void {
+        const k = this._knife
+        if (!k) return
+        k.modal.status = 'cancelled'
+        this._knifeEnd()
+    }
+
+    /** After every knife event: end it if it finished, else redraw its preview. */
+    private _knifeUpdate(): void {
+        const k = this._knife
+        if (!k) return
+        if (k.modal.done) {
+            this._knifeEnd()
+            return
+        }
+        k.overlay.update(k.modal.tool.drawData(), this._pixelRatio())
+        this.dispatchEvent({type: 'knifeChanged', knife: k.modal})
+        this._viewer?.setDirty()
+    }
+
+    private _knifeEnd(): void {
+        const k = this._knife
+        if (!k) return
+        this._knife = null
+        k.overlay.dispose()
+        this._applyOrbitButtons()
+        if (k.modal.status === 'finished' && this.state) {
+            // `OPTYPE_UNDO`: the whole knife session is one step, as in Blender.
+            this._selectDirty = true
+            this._commitTopologyChange(k.before, 'Knife')
+            this._afterSelectionChange()
+        }
+        this.dispatchEvent({type: 'knifeChanged', knife: null})
+        this._viewer?.setDirty()
+    }
+
+    /** Canvas pixels (top-left origin) to Blender region pixels (bottom-left origin). */
+    private _regionMval(x: number, y: number): [number, number] {
+        const rect = this._viewer!.canvas.getBoundingClientRect()
+        return [x, rect.height - y]
+    }
+
+    private _knifeButton(event: PointerEvent, press: boolean) {
+        return {
+            button: event.button, press, clicks: press ? event.detail : 0,
+            ctrl: event.ctrlKey, shift: event.shiftKey, alt: event.altKey, meta: event.metaKey,
+        }
+    }
+
+    /** A key for the running knife. Returns true when the knife took it. */
+    private _knifeKey(event: KeyboardEvent, press: boolean): boolean {
+        const k = this._knife
+        if (!k) return false
+        const used = k.modal.key({code: event.code, press, ctrl: event.ctrlKey, shift: event.shiftKey, alt: event.altKey, meta: event.metaKey, repeat: event.repeat})
+        if (used) event.preventDefault()
+        this._knifeUpdate()
+        // The knife owns the keyboard while it runs, as Blender's modal returns RUNNING_MODAL for every
+        // event it does not pass through: a plain key it does not bind (Tab, a number-pad view) does
+        // nothing rather than reaching the editor's keymap. Browser shortcuts (Ctrl/Cmd/Alt, F-keys) pass.
+        const plain = press && !event.ctrlKey && !event.metaKey && !event.altKey && !/^F\d+$/.test(event.code)
+        if (plain && !used) event.preventDefault()
+        return used || plain
+    }
+
+    /** The view the knife cuts in: the camera, region-sized in canvas pixels. */
+    private _knifeView(): KnifeView {
+        const viewer = this._viewer!
+        const camera = viewer.scene.mainCamera as any
+        camera.updateMatrixWorld(true)
+        camera.matrixWorldInverse.copy(camera.matrixWorld).invert()
+        const rect = viewer.canvas.getBoundingClientRect()
+        return KnifeView.fromCamera(camera, rect.width, rect.height)
+    }
+
+    private _knifeViewKey(): string {
+        const viewer = this._viewer!
+        const camera = viewer.scene.mainCamera as any
+        const rect = viewer.canvas.getBoundingClientRect()
+        return [...camera.matrixWorld.elements, ...camera.projectionMatrix.elements, rect.width, rect.height].join(',')
+    }
+
+    /** The camera orbited, panned or zoomed mid-cut: re-project the knife (Blender re-reads the view each event). */
+    private _knifeViewChanged(): void {
+        const k = this._knife
+        if (!k) return
+        const key = this._knifeViewKey()
+        if (key === k.viewKey) return
+        k.viewKey = key
+        k.modal.setView(this._knifeView())
+        k.overlay.update(k.modal.tool.drawData(), this._pixelRatio())
+    }
+
+    /**
+     * `EDBM_face_find_nearest(&vc, &dist)` with `dist = KMAXDIST`, the knife's fallback when the cursor
+     * ray misses the mesh (`knife_find_closest_face`, `editmesh_knife.cc:3097`): the selection buffer's
+     * nearest face within that Manhattan distance (`EDBM_face_find_nearest_ex`, `editmesh_select.cc:881`).
+     * With X-ray there is no buffer and no fallback.
+     */
+    private _knifeFindNearestFace(mval: [number, number]): BMFace | null {
+        const select = this.xray ? null : this._prepareSelect()
+        if (!select) return null
+        const rect = this._viewer!.canvas.getBoundingClientRect()
+        const hit = select.findNearest('face', mval[0], rect.height - mval[1], KMAXDIST)
+        if (!hit || !(hit.dist < KMAXDIST)) return null
+        return select.elements.faces[hit.index] ?? null
+    }
+
+    // endregion
 
     // region input
 
@@ -2498,6 +2820,15 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const {x, y} = this._canvasPos(event)
         this._pointerX = x
         this._pointerY = y
+        if (this._knife) {
+            this._knife.modal.move(this._regionMval(x, y))
+            this._knifeUpdate()
+            return
+        }
+        if (this._lineGesture) {
+            this._lineGestureMove(x, y)
+            return
+        }
         if (this._loopCut) {
             this._loopCut.mouseMove(x, y)
             this._loopCutInput()
@@ -2541,6 +2872,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** A box or lasso drag carries on outside the canvas; follow it from the window. */
     private _onWindowPointerMove = (event: PointerEvent): void => {
+        if (this._lineGesture?.active && event.target !== this._viewer?.canvas) {
+            const {x, y} = this._canvasPos(event)
+            this._lineGestureMove(x, y)
+            return
+        }
         const press = this._press
         if (!press || this.isDisabled() || this._running() || this._circle) return
         if (!this.isEditing && !this.objectDragSelect) return
@@ -2623,6 +2959,33 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     private _onPointerDown = (event: PointerEvent): void => {
         if (this.isDisabled()) return
+        if (this._knife) {
+            const {x, y} = this._canvasPos(event)
+            const knife = this._knife.modal
+            // Blender sees the cursor move before the press; the press itself does not re-snap.
+            if (x !== this._pointerX || y !== this._pointerY) knife.move(this._regionMval(x, y))
+            this._pointerX = x
+            this._pointerY = y
+            if (knife.button(this._knifeButton(event, true), this._regionMval(x, y))) event.preventDefault()
+            this._knifeUpdate()
+            return
+        }
+        if (this._lineGesture) {
+            const g = this._lineGesture
+            const {x, y} = this._canvasPos(event)
+            if (event.button === 0) {
+                // GESTURE_MODAL_BEGIN
+                if (!g.active) {
+                    g.active = true
+                    g.x0 = g.x1 = x
+                    g.y0 = g.y1 = y
+                }
+                event.preventDefault()
+            } else if (event.button === 2) {
+                this._lineGestureEnd(false) // GESTURE_MODAL_CANCEL
+            }
+            return
+        }
         if (this._loopCut) {
             const {x, y} = this._canvasPos(event)
             this._pointerX = x
@@ -2684,12 +3047,36 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             }
             return
         }
+        // An active tool that acts on a press (the knife, bisect) takes it before selection does, as
+        // Blender's tool keymaps come before the select keymap. Alt+left still orbits.
+        if (this.toolPress && !event.altKey && !this._running()) {
+            const p = this._canvasPos(event)
+            if (this.toolPress({x: p.x, y: p.y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey})) {
+                event.preventDefault()
+                return
+            }
+        }
         // Selection waits for the release: a press that turns into a drag is a box select, or an orbit.
         const {x, y} = this._canvasPos(event)
         this._press = {x, y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey}
     }
 
     private _onPointerUp = (event: PointerEvent): void => {
+        if (this._knife) {
+            const {x, y} = this._canvasPos(event)
+            this._knife.modal.button(this._knifeButton(event, false), this._regionMval(x, y))
+            this._knifeUpdate()
+            return
+        }
+        if (this._lineGesture) {
+            // GESTURE_MODAL_SELECT on the left button's release.
+            if (event.button === 0 && this._lineGesture.active) {
+                const {x, y} = this._canvasPos(event)
+                this._lineGestureMove(x, y)
+                this._lineGestureEnd(true)
+            }
+            return
+        }
         const releaseConfirm = !!(this._running() && this._running()!.flag & T_RELEASE_CONFIRM)
         if ((this._gizmoDrag || releaseConfirm) && event.button === 0) {
             // A gizmo drag, or a transform started with `release_confirm` (the Loop Cut tool's slide),
@@ -2746,6 +3133,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** Double-click a mesh to edit it, the way a Figma user drills into a group. */
     private _onDoubleClick = (event: MouseEvent): void => {
+        if (this._knife) return
         if (this.isDisabled() || this.isEditing || event.button !== 0) return
         const picked = this._selectedMesh()
         if (picked) this.enter(picked)
@@ -2780,8 +3168,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     /** The right button ends circle select rather than opening the browser's menu. */
     private _onContextMenu = (event: MouseEvent): void => {
-        // The right button cancels a loop cut or a transform, not a menu.
-        if (this._circle || this._loopCut || this._running()) event.preventDefault()
+        // The right button cancels a loop cut, a knife, a line gesture or a transform, not a menu.
+        if (this._circle || this._loopCut || this._knife || this._lineGesture || this._running()) event.preventDefault()
     }
 
     /** Keys typed into a form control belong to it, not to the viewport. */
@@ -2829,6 +3217,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._applyOrbitButtons()
         }
         if (this.isDisabled() || this._isTypingTarget(event.target)) return
+        if (this._knifeKey(event, false)) return
         this._transformKey(event, false)
     }
 
@@ -2838,6 +3227,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      * as when this plugin listens itself. Returns true when a transform is running and took the key.
      */
     handleModalKey(event: KeyboardEvent, press = true): boolean {
+        if (this._knife) return this._knifeKey(event, press)
+        if (this._lineGesture) return this._lineGestureKey(event, press)
         if (!this._running() && !this._loopCut) return false
         return this._transformKey(event, press)
     }
@@ -2852,6 +3243,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._altHeld = true
             this._applyOrbitButtons()
         }
+        if (this._knifeKey(event, true)) return
+        if (this._lineGesture && this._lineGestureKey(event, true)) return
         if (this._transformKey(event, true)) return
 
         // Tab toggles edit mode whether or not we are in it. Only when focus is not on a control, so
@@ -2947,6 +3340,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             break
         case 'KeyE':
             this.extrude()
+            break
+        case 'KeyK':
+            // Blender's K / Shift+K (`blender_default.py:5639`): the knife; Shift cuts through, selected faces only.
+            if (event.repeat) return
+            this.startKnife(event.shiftKey ? {onlySelected: true, cutThrough: true} : {})
             break
         case 'KeyD':
             if (event.shiftKey) this.duplicate()
