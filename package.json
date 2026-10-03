@@ -54,6 +54,7 @@
     "test:e2e:interactive": "npx playwright test tests/interactive.spec.ts",
     "test:e2e:smoke": "npx playwright test tests/extras.spec.ts",
     "test:e2e:update": "npx playwright test --update-snapshots",
+    "test:e2e:ab": "node scripts/remote-browser/ab-compare.mjs",
     "test:e2e:list": "npx playwright test --list",
     "check-test-coverage": "node scripts/check-test-coverage.mjs",
     "test": "npm run test:unit && npm run test:e2e",

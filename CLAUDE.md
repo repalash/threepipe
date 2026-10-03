@@ -1,69 +1,132 @@
-# Claude Guidelines
+# CLAUDE.md — threepipe
 
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Do not fucking use `git stash` in this folder.
-- Understand when some task is complex and needs a subplan, make that and link in parent if and when required 
-- Use only Opus agents
-- Make sure no hacks, find the source of the problem and everything is tracked in plans or subplans
-- Ask for approval before making any structural or architectural changes in the core
-- Be smart, plan properly, dont go in circles 
-- Do NOT guess that the issue is fixed without proper verification, you might be asked for proof of any claim made 
-- Recognise when hallucinating or going around in circles without reason, and take a step back to see the context, understand the broader goals and plan next steps before proceeding 
-- Before implementing a feature related to threepipe, three.js, start with research both yourself and using explore agents/subagents to learn about all patterns, flows we use in the framework and anything relevant to the task
-- Do not spam build or run calls to get output, write to a file to grep for later if required
-- threepipe can be used in node.js with polyfill, don't try to hack around it
-- Always go through references like blender source code, three.js source code, shader libraries, github repos etc. Clone them as an when required in ./.repos/ to go through. Port exising implementation of maths functions instead of dessigning them on the fly or trying to reverse engineer. (when already available as open source)
-- Keep the broader goal in mind as well when implementing subtasks, don't lose context
-- Understand the intent behind user requests before diving into making implementation changes. Ask back ASAP when in any doubt. No question is stupid but some questions can be trivial/non-sense, always research first
-- Brainstorm with the user instead of trying to one-shot the implementations, continue when everything is clear 
-- Verify and think about everything the user says as well, sometimes the user is sharing ideas for brainstorm instead or instruction for implementation  
-- Use subagents but always verify the work, subagents have a tendency to take the lazy path and lie about it or try to hack the parent agent to get away with partial work
-- Subagent communication: When spawning a subagent for a long task, create a shared comm folder (e.g. `./tmp/agent-comm/<agent-name>/`). Put two files: `parent.md` (parent writes instructions, corrections, feedback) and `agent.md` (subagent writes progress updates, questions, blockers). The parent should tail `agent.md` every ~1 minute to monitor progress and write to `parent.md` if course correction is needed. The subagent should tail `parent.md` every ~1 minute to check for new instructions. Include this protocol in the subagent's launch prompt so it knows to use it
-- Blender porting: ALWAYS port from Blender C++ source code. NEVER claim an algorithm "can't be reproduced in TS." If the source exists, port it exactly. Never pre-bake/hardcode output data as a shortcut — graphs must be reactive (changing inputs must change outputs)
-- BufferGeometry and all three.js types are Node.js-safe with polyfill. The `/graph` subpath can export anything using three.js types. Only actual browser APIs (document, canvas, WebGL) are not Node-safe. Do NOT tell agents that three.js types can't be used in Node.js
-- When spawning agents for Blender ports: reference skill.md, do NOT override its rules in the prompt. The skill says "port from Blender source" — follow it. Do NOT give agents permission to skip or approximate nodes — if something isn't ported, the agent must flag it as a blocker
-- When reviewing agent work: verify ALL node trees are accounted for, not just instance counts. "0 instances in GT" means the tree produces geometry, not that it's optional
-- If any issue is found in threepipe or its plugins, flag it in issues/open instead of handwaving it away
-- Don't ignore or workaround any threepipe/three.js issue unless explicitly asked
-- Repeat goals and tasks in message history when context is getting deep to reiterate and reflect on them
-- Use sleep 60 as a background task and stop, when waiting for other background agents
-- Always pick the "Correct" option, not the "Easy" one
-- Never use `git stash` in this folder.
-- tsx doesnt produce output with inline script, write to a file and execute that
-- Assume subagent reports might be incorrect and inaccurate, verify them manually and redo if inaccuracies are found
-- Do NOT remove any test, to test something, comment it temporarily and uncomment asap 
-- three.js-modded source code is at ./three.js-modded/ - its a separate repository(not submodule)
-- Always use the commands defined in package.json scripts (npm run ...), never ad-hoc equivalents (e.g. no raw `npx vite build` or `npx tsc` with guessed configs - they can pick the wrong tsconfig/mode). If a script needs a custom param (like running a specific test), still go through the script and pass the param, e.g. `npm run test:e2e -- --grep "example-name"`. If no script exists for something genuinely needed, add one instead of running ad-hoc commands
+threepipe is a 3D viewer framework on a modded three.js fork (`three` → `three-modded`, `@types/three` →
+`three-types-modded`, wired through npm aliases). Core in `src/`, plugin packages in `plugins/*`, ~240 examples
+in `examples/`, docs site in `website/`. See [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
+> **HARD RULE — no git state changes in any checkout.** Never run `git stash`, `git checkout`, `git switch`,
+> `git reset`, `git restore` or `git clean` in this folder, in `three.js-modded/`, `three-ts-types/`,
+> `experiments/*`, `tests/snapshots/` or any worktree under `.repos/`. Other sessions work in the same
+> checkouts and share the stash stack. Revert a change by editing the file back. Set work aside with a
+> temporary commit on your own branch, never with a stash.
+>
+> **HARD RULE — never push to `master`.** Changes land through a branch and a pull request into `dev`.
+> `master` is release-only; a push to `master` publishes to npm (`.github/workflows/publish.yml`).
+
+> **Model gate.** Subagents run on Claude Fable (complex, multi-step work) or Claude Opus (simpler, bounded
+> work). Never Sonnet, Haiku or smaller.
+
+## Workflow — a worktree per task, a PR per change
+
+- The main checkout (`/Users/palash/Projects/threepipe`) may be in use by another session. Do your work in a
+  worktree under `.repos/` (`git worktree add -b <branch> .repos/<name> origin/dev`), one per task.
+- Finish with a PR into `dev` (draft when the user says so). Push related follow-ups to the same PR instead
+  of opening new ones. Give PRs as full URLs.
+- GitHub access from the container: fine-grained PAT `GITHUB_TOKEN_THREEPIPE` in `.env.threepipe` (covers
+  `repalash/threepipe` and `repalash/threepipe-webgi`). Pass it per command — `GH_TOKEN=… gh …` and
+  `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …` — never persist it, never
+  put it in argv of a command that is logged. Commits in repos without a local identity: `git -c user.name=…
+  -c user.email=…` with the values from this repo's config.
+- Worktrees need their own `node_modules`; a symlink to another worktree's install works for `node_modules`
+  only when both are on the same commit range. Plugin builds (`npm run build-plugins`) `npm ci` inside each
+  plugin. `examples/.env` (gitignored, has `TP_EX_*` keys) must be copied into a worktree before
+  `build-examples`, or the two Cesium examples fail to type-check.
+
+## Commands — only `package.json` scripts
+
+Always use the scripts (`npm run …`), never ad-hoc equivalents such as a raw `npx vite build` or `npx tsc`
+with a guessed config; they pick the wrong tsconfig or mode. Pass parameters through the script
+(`npm run test:e2e -- --grep "example-name"`). If a script is missing for something needed, add one.
+
+- `npm ci` runs `prepare` = `build` + `build-plugins` + `build-examples` (20–30 min). `npm run build` alone
+  rebuilds `lib/` and `dist/` (~5 min). Examples import the built `dist/`; `npm run vite` serves examples
+  from source with aliases to plugin sources (no plugin build needed).
+- `npm run serve` serves the built tree statically on 9229. Dev servers in the container must listen on
+  `0.0.0.0` and are opened on the host as `http://<port>.$AIBOX_URL_BASE`.
+- Long commands: write output to a file under `tmp/` and grep it; do not re-run builds to read their output.
+  Background commands are stopped after 2 hours; start long servers detached (`nohup … &`).
+- `tsx` prints nothing for inline scripts; write the script to a file and run that.
 
 ## Testing
 
-- Unit tests: `npm run test:unit` (Vitest, runs in Node.js)
-- E2E tests: `npm run test:e2e` (Playwright, requires Chromium)
-- Interactive tests only: `npm run test:e2e:interactive`
-- Update snapshots: `npm run test:e2e:update`
-- Check coverage: `npm run check-test-coverage`
-- **Test logs location**: Console logs for each example are at `tests/snapshots/<platform>/<example-name>/console.log` (platform is `chromium-darwin` on macOS, `chromium-linux` on Linux, etc.). Always check these when tests fail.
-- To test a single example, run with a filter and small timeout instead of the full suite.
-- Never hack around non-deterministic test failures. If an export or render produces different output across runs, that's a real bug to investigate and fix — not something to skip or weaken the assertion for. File it in issues/open
+- Unit: `npm run test:unit` (Vitest, Node). E2E: `npm run test:e2e` (Playwright + Chromium);
+  `test:e2e:interactive`, `test:e2e:smoke`, `test:e2e:update` (regenerate baselines), `check-test-coverage`
+  (every example has a test). The test skill: [`tests/SKILL.md`](tests/SKILL.md).
+- `TEST_PORT=<port>` runs the suite against its own static server, so several checkouts can test side by
+  side without reusing another checkout's server on 9229.
+- Per-example console output is written to `tests/snapshots/<project>-<platform>/<example>/console.log`;
+  read it when a test fails.
+- Never hack around a non-deterministic failure: a render or export that differs across runs is a bug to
+  find and fix (file it in `issues/open/`), not an assertion to weaken or a test to skip. To test something
+  else temporarily, comment a test out and uncomment it right away; never delete a test.
+- In this container Chromium renders WebGL on SwiftShader (software, arm64): slow, and heavy examples hit
+  the screenshot timeouts even on an idle machine. Baselines generated here are not comparable with x64 CI.
+  Use the host GPU browser (below) for visual checks, and A/B comparisons (build both refs, same machine,
+  same browser) when judging a change.
 
-### Playwright on Alpine Linux (ARM64)
+## Host GPU browser (Palash's Mac) for WebGL runs
 
-`npx playwright install chromium` downloads a glibc-linked binary that cannot run on musl. Use system Chromium + Mesa instead:
+A Playwright browser server on the Mac renders on the real GPU (ANGLE Metal, Apple M4 Pro). Use it for
+visual checks and A/B diffs instead of SwiftShader: `scripts/remote-browser/connect.mjs` connects, retries
+while the server is down, and prints the renderer when run directly. Read
+[`scripts/remote-browser/README.md`](scripts/remote-browser/README.md) first — the server has quirks
+(a scratch Playwright client of exactly the server's version, a required `Host` header, a path that changes
+per start, and **closing any page ends the browser for every client**). Ask the user to start it if
+`/json` does not answer.
 
-```bash
-sudo apk add chromium mesa-gl mesa-egl mesa-gles
-```
+## Working with three.js and the fork
 
-The `playwright.config.ts` auto-detects Alpine and switches flags:
-- Alpine: `--enable-webgl --ignore-gpu-blocklist --use-gl=angle --use-angle=gl-egl` (ANGLE → Mesa EGL → llvmpipe)
-- Standard: `--use-angle=swiftshader --enable-unsafe-swiftshader` (bundled SwiftShader)
+- `three.js-modded/` and `three-ts-types/` are separate repositories (not submodules) with the fork
+  patches; `.repos/three.js` is stock upstream. Upstream tags `rNNN` are fetched into `three.js-modded`.
+  Read them with read-only git; never touch their working trees.
+- Before implementing anything in threepipe or three.js, research first: the existing patterns and flows in
+  the framework (yourself and with explore subagents), then upstream three.js, Blender, shader libraries
+  and reference repos — clone them under `.repos/` as needed. Port existing open-source implementations
+  (maths, algorithms) instead of designing them on the fly or reverse-engineering.
+- Blender ports: ALWAYS port from the Blender C++ source. Never claim an algorithm "can't be reproduced in
+  TS"; if the source exists, port it exactly. Never pre-bake or hardcode output data — graphs stay reactive.
+  When spawning agents for Blender ports, point them at the skill file and do not loosen its rules; what is
+  not ported must be flagged as a blocker, not approximated. When reviewing, account for every node tree,
+  not instance counts ("0 instances in GT" means the tree produces geometry, not that it is optional).
+- threepipe runs in Node.js with the polyfill: `BufferGeometry` and all three.js types are Node-safe; only
+  browser APIs (document, canvas, WebGL) are not. The `/graph` subpath may export anything using three.js
+  types. Do not tell agents otherwise, and do not hack around Node support.
+- webgi plugin sources for compatibility checks: `experiments/threepipe-webgi` (current, repo
+  `repalash/threepipe-webgi`) and `experiments/webgi-legacy-src` (legacy webgi, must keep working with
+  the fork).
 
-System Chromium is auto-detected at `/usr/bin/chromium-browser`. Override with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` env var if needed
+## How to work
+
+- Understand the intent before changing code; the user often shares ideas to brainstorm rather than
+  instructions to implement. Ask early when in doubt — after researching, so the question is not trivial.
+  Brainstorm, then implement when everything is clear. Verify what the user says too.
+- Plan properly: a complex task gets a plan (or a subplan linked from the parent) in `issues/open/`, and
+  every finding is tracked there. Keep the broader goal in view while doing subtasks; when the context is
+  deep, restate goals and status.
+- No hacks: find the source of a problem. Pick the correct option, not the easy one. Ask for approval
+  before structural or architectural changes in the core.
+- Do not guess that something is fixed. Verify, and keep the proof (command output, screenshots, diffs) —
+  you may be asked for it. When you notice you are going in circles or hallucinating, stop, re-read the
+  goals, and re-plan.
+- Any issue found in threepipe or a plugin is filed in `issues/open/` instead of being worked around or
+  waved away. Do not ignore or work around a threepipe/three.js issue unless told to.
+- Decide, recommend, act: when a decision is the user's, give the context first, then ask with the question
+  tool, one decision at a time.
+
+## Subagents
+
+- Verify every report: subagents take the lazy path, report partial work as done, and misstate what they
+  verified. Re-check claims against files, commands and the browser; redo work that is wrong.
+- Long tasks use a comm folder `./tmp/agent-comm/<agent-name>/` with `parent.md` (parent writes
+  instructions and corrections) and `agent.md` (agent writes progress, questions, blockers). Both sides
+  re-read the other file about every minute of work. Put this protocol in the launch prompt. The harness
+  may refuse a subagent writing a `report.md`; have it return the report as text and save it yourself.
+- While waiting for background agents, run `sleep 60` as a background task and stop; do not poll.
+
+## Tracking and notes
+
+- `issues/open/` (gitignored, local) holds plans, subplans, research and issue notes; `issues/working/`,
+  `issues/verify/`, `issues/resolved/` follow the state. Name files `<topic>-<kind>.md`.
+- `tmp/` is gitignored scratch (logs, A/B output, agent comm). `.env.threepipe` and `.env.snapshots-r2`
+  hold credentials (0600) and are never committed or printed.
+- Changelog entries go in the same PR as the change (`CHANGELOG.md` at the root, or the plugin's).
