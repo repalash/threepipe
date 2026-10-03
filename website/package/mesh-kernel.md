@@ -62,6 +62,26 @@ operators (`splitEdgeMakeVert`, `splitFaceMakeEdge`, `joinFaceKillEdge`, `joinEd
 selection marking and flushing, and the topology walkers (vertex shell, edge loop, edge ring, face
 loop, boundary).
 
+### Cutting
+
+- **Knife** - `KnifeTool` is Blender's knife (`editmesh_knife.cc`) without its drawing: feed it the
+  `Knife Tool Modal Map` items and mouse moves (`modal(event)`) over a `KnifeView` (a camera as Blender's
+  `RegionView3D`: `KnifeView.fromCamera(camera, width, height)`), read `drawData()` for the preview, and
+  it applies the cut on `CONFIRM`. Snapping to vertices, edges and midpoints, cut-through, angle and axis
+  locks, freehand drag cuts and per-segment undo are all Blender's. `knifeProject(bm, view, polylines)`
+  is the non-interactive `EDBM_mesh_knife` (Knife Project). Under them, `faceSplitEdgenet` and
+  `faceSplitEdgenetConnectIslands` (`bmesh_polygon_edgenet.cc`) split a face along a net of edges.
+- **Bisect** - `bisectPlane` (`bmo_bisect_plane`: `geom.out`, `geom_cut.out`, clear inner/outer),
+  `bisectSelection` (edit mode's `mesh_bisect_exec`, with Fill), `bisectPlaneFromScreenLine`
+  (`mesh_bisect_interactive_calc`) and `bisectPlaneToLocal`.
+- **Fill** - `triangleFill` (`bmo_triangle_fill_exec` on a port of Blender's scan-fill, `scanfill.ts`)
+  and `faceAttributeFill` (`bmo_face_attribute_fill_exec`).
+
+All of these are checked against Blender 3.4.1's own results: `tests/knife-bisect-parity.test.ts`
+(Knife Project, 16 recorded sessions of the interactive knife, 4 of bisect's line gesture, 10 bisects)
+and `tests/triangle-fill-parity.test.ts` (34 fills). The generators that ask Blender for them are in
+`tests/fixtures/`; see its README.
+
 ## Rendering
 
 The kernel imports no renderer. `bakeGeometry` emits plain typed arrays, and the caller supplies the

@@ -13,7 +13,9 @@ which a fixture exercises:
    hits with any triangulation; a non-planar n-gon's hit point can move by the bend. Porting
    `polyfill_2d.cc` (and using it in `bake.ts` too) closes this.
 3. **`EDBM_face_find_nearest` fallback** (`knife_find_closest_face`, when the cursor ray misses every
-   face) is a callback; mesh-edit supplies it from its selection buffer.
+   face) is a callback; mesh-edit supplies it from its selection buffer. With X-ray on there is no
+   buffer and mesh-edit passes no fallback; Blender's X-ray branch of `EDBM_face_find_nearest_ex`
+   (nearest projected face centre) is not ported.
 4. **Not drawn yet:** distance/angle measurements (`knifetool_draw_dist_angle`, the S key cycles the
    mode but nothing is drawn) and the angle-snapping/axis guide lines.
 5. **Precision.** The port runs in doubles; Blender in float32. With Blender's default `clip_start`

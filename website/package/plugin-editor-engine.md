@@ -109,6 +109,7 @@ file cites the line of each binding).
 | E | Extrude along the normal |
 | I | Inset faces |
 | Ctrl+B | Bevel |
+| K / Shift+K | Knife (Shift: cut through, selected faces only) - see [Cutting](#cutting) |
 | M | Merge menu |
 | Y | Split |
 | P | Separate selection |
@@ -157,6 +158,7 @@ Alt+drag orbits.
 | Ctrl+E | Extrude |
 | I | Inset faces |
 | Ctrl+B | Bevel |
+| K | Knife tool (IC's `builtin.knife`) - see [Cutting](#cutting) |
 | M | Merge menu |
 | Ctrl+D | Duplicate |
 | Delete, Backspace | Delete (by select mode, no menu) |
@@ -198,7 +200,8 @@ Edit mode: `mesh.exit_edit`, `mesh.exit_discard`, `mesh.apply`, `mesh.select_mod
 `mesh.dissolve` (vertices, edges or faces by select mode - `bmo_dissolve.cc` ports in the kernel), `mesh.fill`
 (`F`: an edge from two vertices, a face from a closed edge loop, or a region dissolve - `bmo_contextual_create`
 without the edge-net fill), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
-`mesh.separate`, `mesh.toggle_xray`. `mesh.subdivide` is registered disabled: the kernel's `bmo_subdivide`
+`mesh.separate`, `mesh.knife` and `mesh.bisect` (see [Cutting](#cutting)), `mesh.toggle_xray`.
+`mesh.subdivide` is registered disabled: the kernel's `bmo_subdivide`
 port covers the icosphere's `tri_3edge` pattern only (P3 backlog).
 
 The shell adds `view.*` (frame, axis views, projection, grid, shading), `ui.command_palette` and `help.*`
@@ -210,8 +213,44 @@ through `engine.operators.register`.
 `mesh.extrude` (one-shot: they start the modal and the shelf returns to Select when it ends - track T's element
 gizmo replaces this); `mesh.inset` and `mesh.bevel` (interactive: run with defaults, drag sets the
 thickness/width, the wheel changes bevel segments, click confirms, Esc cancels - each change is the redo-last
-path, so the drag and the panel cannot disagree); `mesh.loop_cut` and `mesh.knife` are registered disabled
-until P3.
+path, so the drag and the panel cannot disagree); `mesh.knife` and `mesh.bisect` (sticky, as Blender's: see
+[Cutting](#cutting)); `mesh.loop_cut` is registered disabled until track L lands.
+
+## Cutting
+
+**Knife** - `mesh.knife` (K), the shelf's Knife tool. A port of Blender's knife (`editmesh_knife.cc`, in the
+kernel's `src/ops/knife/`), checked against Blender's own modal knife on recorded input. Click points on the
+surface; each click snaps to a vertex or an edge near the cursor, or lands on the face, and the line from the last
+point previews where it will cut. Enter or Space applies the whole cut as one undo step; Esc throws it away.
+
+| While cutting (Blender preset) | |
+|---|---|
+| LMB click / drag | add a point / cut freehand while dragging |
+| Double-click | close the loop back to the first point |
+| RMB, E | end this cut, start another (E is an addition; Blender has RMB only) |
+| Ctrl+Z, Backspace | take back the last segment (Backspace is an addition) |
+| Shift (hold) | snap to edge midpoints |
+| Ctrl (hold) | no snapping |
+| C | cut through to the faces behind |
+| X / Y / Z | lock the cut to an axis (again: the object's axis; again: off) |
+| A | angle snapping: screen, then relative to an edge, then off; type a number for the step |
+| R | relative angle snapping: the next reference edge |
+| S | measurements (the mode cycles; not drawn yet) |
+| V | X-ray the preview |
+| MMB | orbit without leaving the knife |
+
+Shift+K starts it with cut-through on and only selected faces cut (Blender's Shift+K). With the Knife tool
+active, the first click is already the first point (`wait_for_input=False`) and the tool stays active. The Design
+preset uses Blender's Industry Compatible knife map instead: Ctrl snaps to midpoints, Shift turns snapping off,
+Alt+drag orbits, D measures, and Space does not confirm.
+
+**Bisect** - `mesh.bisect`, the shelf's Bisect tool. A port of Blender's `bmo_bisect_plane` /
+`BM_mesh_bisect_plane` and `mesh_bisect_exec`. Select what to cut, then drag a line across it: the plane is the
+one you see edge-on along that line (`mesh_bisect_interactive_calc`), and the cut previews while you drag. The
+release runs the modelling document's `bisect` command once (one undo step) and selects the cut; the panel then
+edits the plane point and normal, **Fill** (close the cut with a face), **Clear Inner** / **Clear Outer**
+(remove one side) and the threshold. A click with the Bisect tool, without a drag, selects as usual. With a plane
+given - `engine.run('mesh.bisect', {planeCo, planeNo, fill, clearOuter})` - it runs directly.
 
 ## Status hints
 
@@ -222,4 +261,5 @@ else the mouse mapping of the preset plus the keys that matter most in the mode,
 
 `npm run test:unit:editor-engine` - keymap parsing and presets, the router's dispatch rules, the history and
 `undoTo`. The real-input tests (keys and mouse through Playwright: presets, menus, palette, redo-last, undo
-across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`.
+across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`; the knife and bisect
+ones under `modelling-editor-cut`.

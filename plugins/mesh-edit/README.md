@@ -9,9 +9,10 @@ back into the object's geometry.
 
 ## Status
 
-Element selection, overlays, picking, mode switching and the modal transforms (move, rotate, scale
+Element selection, overlays, picking, mode switching, the modal transforms (move, rotate, scale
 with Blender's constraints, pivots, orientations, snapping, proportional editing, numeric input and
-the combined gizmo) work. The modelling operators (inset, bevel, loop cut) are next. See
+the combined gizmo) and the knife (`startKnife`, Blender's knife with its snapping, cut-through,
+angle and axis locks and per-segment undo) work. Loop cut is next. See
 `issues/open/modelling-tools/` in the repo.
 
 ## Naming
@@ -55,6 +56,7 @@ surface is also the surface an agent drives, so a tool that only works from a gi
 | <kbd>Ctrl+I</kbd> | invert selection |
 | <kbd>H</kbd> / <kbd>Shift+H</kbd> / <kbd>Alt+H</kbd> | hide selected / hide unselected / reveal |
 | <kbd>Alt+Z</kbd> | X-ray: see and select through the surface |
+| <kbd>K</kbd> / <kbd>Shift+K</kbd> | knife: click points, <kbd>Enter</kbd> applies (Shift: cut through, selected faces only) |
 | <kbd>Esc</kbd> | cancel a drag or modal; never leaves edit mode |
 
 The selection tools are Blender's, ported from `editors/mesh/editmesh_select.cc`, `editmesh_path.cc`,

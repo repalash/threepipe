@@ -20,6 +20,20 @@ Kernel ports and interactive tools:
 midpoint snapping, Enter to confirm, undo of individual segments while cutting, and a preview overlay.
 Bisect (`bmo_bisect_plane.cc`, `mesh.bisect`) as a related plane cut.
 
+Status (2026-10-03, branch `p3-knife`, for review):
+- Kernel: knife (`src/ops/knife/`: `KnifeTool`, `knifeProject`, `BM_face_split_edgenet` + connect
+  islands, `KnifeView`), bisect (`bisectPlane`, `bisectSelection`, `bisectPlaneFromScreenLine`), scan-fill,
+  `triangleFill`, `faceAttributeFill`. Checked against Blender 3.4.1: Knife Project (10), the interactive
+  knife fed simulated input (16 recordings), bisect's line gesture (4), bisect with planes (10),
+  triangle fill (34).
+- Keys follow current Blender, not 2.9x: C is cut-through, A angle snapping, X/Y/Z axis locks; E and
+  Backspace added (new cut, undo segment). The Design preset uses the Industry Compatible knife map.
+- mesh-edit `startKnife` (modal, preview, one undo step), `startLineGesture`, `previewEdit`; modelling
+  `bisect` command; engine `mesh.knife` (K / Shift+K), `mesh.bisect` (drag with live preview, redo
+  panel), Knife and Bisect shelf tools; e2e `modelling-editor-cut`.
+- Not yet: knife measurements drawing, bisect's after-the-fact gizmo (`MESH_GGT_bisect`) and the
+  gesture's snap/flip keys, X-ray face fallback; see `kernel-knife-port-gaps.md`.
+
 ### F — fill and connect (`p3-fill`)
 - bridge edge loops (`bmo_bridge.cc`);
 - fill (`F`, `bmo_contextual_create_exec` including edge-net fill, `bmo_edgenet.cc`);
