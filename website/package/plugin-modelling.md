@@ -77,6 +77,7 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `array` | repeat in a line, around a pivot, or along a path — baked, or `live` |
 | `modifier` | the live stack (array, mirror, wireframe): add, update, reorder, remove, apply |
 | `duplicate`, `mirror`, `join`, `separate`, `weld`, `delete` | the rest of object assembly |
+| `deleteElements` | delete vertices, edges or faces — Blender's `mesh.delete` types |
 | `rename`, `material`, `select` | naming, surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
 | `camera` | named views, fit-to-objects, saved views |

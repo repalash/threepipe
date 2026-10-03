@@ -77,6 +77,7 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `separate` | split by loose parts, or by a list of faces |
 | `weld` | merge coincident vertices — merge by distance, optionally connected-only |
 | `delete` | remove objects |
+| `deleteElements` | delete vertices, edges or faces — Blender's `mesh.delete` types |
 | `rename`, `material`, `select` | naming, colour and surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
 | `camera` | named views, fit-to-objects, saved views |

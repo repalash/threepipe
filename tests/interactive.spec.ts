@@ -2765,6 +2765,44 @@ test('modelling-api', async({page}) => {
     expect((wireHealth.data as any).failed).toBe(0)
     await run({op: 'delete', object: '*'})
 
+    // --- deleting parts of a mesh -------------------------------------------------------------------
+
+    // The top and bottom of a cube, found by their centres.
+    const capsOf = async(name: string) => {
+        const d = (await run({op: 'inspect', object: name, detail: true})).data as any
+        return d.faceVerts
+            .map((verts: number[], i: number) =>
+                ({i, y: verts.reduce((a: number, v: number) => a + d.vertices[v][1], 0) / verts.length}))
+            .filter((f: any) => Math.abs(f.y) > 0.4)
+            .map((f: any) => f.i)
+    }
+    await run({op: 'primitive', type: 'cube', name: 'tube', size: 1})
+    // ONLY_FACE opens the ends and keeps every vertex and edge: an open square tube.
+    const opened = await run({op: 'deleteElements', object: 'tube', faces: await capsOf('tube'),
+        type: 'ONLY_FACE'})
+    expect(opened.ok).toBe(true)
+    expect((opened.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+    expect((opened.data as any).faces).toBe(4)
+
+    // FACE also takes edges and vertices that only those faces used - none, for a cube's caps.
+    await run({op: 'primitive', type: 'cube', name: 'box', size: 1, position: [3, 0, 0]})
+    const capsGone = await run({op: 'deleteElements', object: 'box', faces: await capsOf('box')})
+    expect((capsGone.data as any).type).toBe('FACE')
+    expect((capsGone.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+
+    // VERT takes everything using the vertex.
+    await run({op: 'primitive', type: 'cube', name: 'corner', size: 1, position: [6, 0, 0]})
+    const cut = await run({op: 'deleteElements', object: 'corner', verts: [0]})
+    expect((cut.data as any).removed).toEqual({verts: 1, edges: 3, faces: 3})
+
+    // Asking a type to read a list it ignores is an error, not a silent no-op.
+    const wrong = await run({op: 'deleteElements', object: 'corner', verts: [0], type: 'FACE'})
+    expect(wrong.ok).toBe(false)
+    expect(wrong.error).toContain('give a non-empty `faces` list')
+    const deleteHealth = await run({op: 'selftest'})
+    expect((deleteHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
     // --- join and separate ------------------------------------------------------------------------
 
     await run({op: 'delete', object: '*'})
