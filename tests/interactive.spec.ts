@@ -4332,4 +4332,95 @@ test('modelling-loop-tools', async({page}) => {
     await page.mouse.click(empty.x, empty.y)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Loop Cut and Slide (Ctrl+R): hover previews the ring, click cuts and slides, a typed factor ──
+    const loopCut = () => page.evaluate(() => {
+        const lc = (window as any).engine.meshEdit.activeLoopCut
+        return lc ? {cuts: lc.numberCuts, lines: lc.preview.edges.length, status: lc.status, edge: !!lc.edge} : null
+    })
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    // The editor's state comes along so a failure says what the key did instead.
+    await expect.poll(async() => ({loopCut: await loopCut(), state: await state(), focus: await page.evaluate(() => document.activeElement?.tagName)}))
+        .toMatchObject({loopCut: {cuts: 1, edge: true, lines: 4}})
+    // The ring of a cube edge is the four edges parallel to it: one loop of four segments.
+    await page.mouse.move(edgeMid.x + 1, edgeMid.y + 1)
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    expect(await loopCut()).toBeNull()
+    expect((await state()).counts).toEqual([12, 20, 10])
+    for (const k of ['Digit0', 'Period', 'Digit5']) await page.keyboard.press(k)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    s = await state()
+    expect(s.lastOp).toBe('mesh.loopcut_slide')
+    expect(s.lastProps).toMatchObject({cuts: 1, value: 0.5})
+    expect(s.history.at(-1)).toBe('Loop Cut and Slide')
+    // The new loop slid halfway to one side: its four vertices sit a quarter of the edge from a face.
+    const sliding = (await verts()).filter(v => v.sel).map(v => v.co)
+    expect(sliding.length).toBe(4)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Three cuts: the wheel adds them, the preview follows; a right click centres the slide ──
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    await expect.poll(loopCut).toMatchObject({cuts: 1, edge: true})
+    await page.mouse.wheel(0, -100)
+    await expect.poll(loopCut).toMatchObject({cuts: 2, lines: 8})
+    await page.mouse.wheel(0, -100)
+    await expect.poll(loopCut).toMatchObject({cuts: 3, lines: 12, status: 'Cuts: 3, Smoothness: 0.00'})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    await page.mouse.click(edgeMid.x + 40, edgeMid.y, {button: 'right'})
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    // Three loops of four around the cube, left evenly spaced.
+    expect((await state()).counts).toEqual([20, 36, 18])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.loopcut_slide')
+    expect(s.lastProps).toMatchObject({cuts: 3, value: 0})
+    expect(s.history.at(-1)).toBe('Loop Cut and Slide')
+    // No context menu from that right click.
+    await expect(page.locator('.me-context-menu')).toHaveCount(0)
+    // The redo panel re-cuts with two.
+    await page.locator('[data-operator-panel="mesh.loopcut_slide"] .me-operator-title').click()
+    const lcCuts = page.locator('[data-operator-panel="mesh.loopcut_slide"] #me-prop-cuts')
+    await expect(lcCuts).toBeVisible()
+    await lcCuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    expect((await state()).history.filter(h => h.startsWith('Loop Cut')).length).toBe(1)
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Esc while previewing cancels without cutting ──
+    await page.mouse.move(edgeMid.x, edgeMid.y)
+    await page.keyboard.press('Control+KeyR')
+    await expect.poll(loopCut).not.toBeNull()
+    await page.keyboard.press('Escape')
+    await expect.poll(loopCut).toBeNull()
+    expect((await state()).counts).toEqual([8, 12, 6])
+
+    // ── The Loop Cut tool: press, drag to slide, release to place; the tool stays for the next cut ──
+    const tool = () => page.evaluate(() => (window as any).engine.activeTool?.id as string)
+    await page.locator('[data-tool="mesh.loop_cut"]').click()
+    await expect.poll(tool).toBe('mesh.loop_cut')
+    await page.mouse.move(edgeMid.x, edgeMid.y, {steps: 4})
+    await expect.poll(loopCut).toMatchObject({edge: true, lines: 4})
+    await page.mouse.down()
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    await page.mouse.move(edgeMid.x + 30, edgeMid.y + 20, {steps: 5})
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    expect((await state()).counts).toEqual([12, 20, 10])
+    expect((await state()).history.at(-1)).toBe('Loop Cut and Slide')
+    // Previewing again for the next cut.
+    await expect.poll(loopCut).not.toBeNull()
+    expect(await tool()).toBe('mesh.loop_cut')
+    await page.keyboard.press('Escape')
+    await expect.poll(tool).toBe('select')
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 })

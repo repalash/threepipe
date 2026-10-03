@@ -441,8 +441,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
 
     // A modal transform that just ended tells the redo panel what it did (Blender's `saveTransform`).
     const onCommitted = (e: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null, saved: TransformSavedProps}) => {
-        // Edge and vertex slide (`G G`) are reported by `loopOps.ts`.
-        if (!e.chained && e.saved.slide) return
+        // Edge and vertex slide (`G G`) and Loop Cut and Slide are reported by `loopOps.ts`.
+        if (!e.chained && e.saved.slide || (e.chained as string) === 'loopcut') return
         const props = savedToProps(e.saved)
         if (e.chained) engine.completeModal(`mesh.${e.chained}`, props)
         else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate' : 'mesh.scale', props)

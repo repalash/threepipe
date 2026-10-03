@@ -97,5 +97,6 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'alt+click', id: 'mesh.select_loop', mode: 'edit'},       // mesh.loop_select :5561 (click bindings are informative; S wires the pointer)
         {keys: 'ctrl+alt+click', id: 'mesh.select_ring', mode: 'edit'},  // mesh.edgering_select :5567
         {keys: 'shift+v', id: 'mesh.vert_slide', mode: 'edit'},          // transform.vert_slide :5628
+        {keys: 'ctrl+r', id: 'mesh.loopcut_slide', mode: 'edit'},        // mesh.loopcut_slide :5539
     ],
 }

@@ -78,7 +78,7 @@ export interface EditorEngineOptions {
 type EngineEvents = EditorEngineEventMap & AViewerPluginEventMap
 
 /** Tools that stay active (gizmo tools) rather than running once. */
-const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform'])
+const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform', 'mesh.loop_cut'])
 
 export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implements EditorEngine {
     public static readonly PluginType = 'EditorEnginePlugin'
@@ -233,6 +233,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             // Gizmo tools stay active across drags, as Blender's do.
             if (!e.transform && this._activeTool?.id.startsWith('mesh.') && !STICKY_TOOLS.has(this._activeTool.id)) this.setActiveTool('select')
         })
+        this._on(this.meshEdit, 'loopCutChanged', () => this._statusChanged())
         this._on(this.meshEdit, 'meshChanged', () => this.dispatchEvent({type: 'sceneChanged'}))
         // Edit mode reports what it could not do; show it rather than leave it in the console.
         this._on(this.meshEdit, 'notice', (e: {message: string, level: 'info' | 'warning'}) => this.message(e.level, e.message))
@@ -354,7 +355,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
 
     private _handleModalKey(event: KeyboardEvent): boolean {
         if (this.propDrag) return this.propDrag.handleKey(event)
-        if (this.meshEdit.activeTransform) return this.meshEdit.handleModalKey(event)
+        if (this.meshEdit.activeTransform || this.meshEdit.activeLoopCut) return this.meshEdit.handleModalKey(event)
         return false
     }
 
@@ -391,6 +392,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         }
         this.propDrag?.cancel()
         if (this.meshEdit.activeTransform) this.meshEdit.cancelTransform()
+        this.meshEdit.cancelLoopCut()
         this.meshEdit.exit(true)
         return true
     }
@@ -580,7 +582,38 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
 
     get status(): StatusHints | null {
         if (this.propDrag) return this.propDrag.hints()
+        const lc = this.meshEdit.activeLoopCut
+        if (lc) {
+            // `loopcut_init`'s workspace status (`editmesh_loopcut.cc:481`).
+            return {
+                modal: lc.status,
+                lmb: 'Confirm',
+                rmb: 'Cancel',
+                keys: [
+                    {key: 'Move', label: 'Select ring'},
+                    {key: 'Wheel / PageUp / PageDown', label: 'Number of cuts'},
+                    {key: 'Alt+Wheel', label: 'Smoothness'},
+                    {key: '0-9', label: 'Type the cuts'},
+                ],
+            }
+        }
         const t = this.meshEdit.activeTransform
+        if (t && (t.mode === 'edgeSlide' || t.mode === 'vertSlide')) {
+            // `applyEdgeSlide` / `applyVertSlide`'s workspace status (`transform_mode_edge_slide.cc:831`).
+            return {
+                modal: t.status,
+                lmb: 'Confirm',
+                rmb: 'Cancel',
+                keys: [
+                    {key: 'E', label: 'Even'},
+                    {key: 'F', label: 'Flipped'},
+                    {key: 'C / Alt', label: 'Clamp'},
+                    {key: '0-9', label: 'Type a factor'},
+                    {key: 'Shift', label: 'Precision'},
+                    {key: 'G', label: 'Move'},
+                ],
+            }
+        }
         if (t) {
             return {
                 modal: t.status,

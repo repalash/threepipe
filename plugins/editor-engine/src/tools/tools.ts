@@ -131,10 +131,14 @@ export function registerTools(engine: EditorEnginePlugin): void {
             deactivate: () => {},
         },
         {
+            // Blender's Loop Cut tool (`builtin.loop_cut`): `mesh.loopcut_slide` with the slide confirming
+            // on release (`blender_default.py:7868`). Sticky; see `loopCutTool` below.
             id: 'mesh.loop_cut', label: 'Loop Cut', icon: 'horizontal-distribution', group: 'modelling', modes: ['edit'],
-            description: 'Cut a loop of edges around the mesh. Arrives with P3.',
-            poll: () => 'Loop cut arrives with P3 (modelling depth)',
-            activate: () => {}, deactivate: () => {},
+            description: 'Hover an edge to preview a new loop across its ring; press and drag to cut and slide it, release to place. Wheel for more cuts.',
+            poll: ctx => ctx.editObject ? true : 'Only in edit mode',
+            activate: () => { engine.meshEdit.startLoopCut({releaseConfirm: true}) },
+            deactivate: () => engine.meshEdit.cancelLoopCut(),
+            hints: {lmb: 'Cut and slide', rmb: 'Cancel', keys: [{key: 'Wheel', label: 'Number of cuts'}]},
         },
         {
             id: 'mesh.knife', label: 'Knife', icon: 'cut', group: 'modelling', modes: ['edit'],
@@ -144,6 +148,16 @@ export function registerTools(engine: EditorEnginePlugin): void {
         },
     ]
     for (const t of tools) engine.tools.register(t)
+
+    // The Loop Cut tool stays: after each cut and slide it previews again; Esc or a right click while
+    // previewing hands the shelf back to Select.
+    const loopCutTool = () => engine.activeTool?.id === 'mesh.loop_cut'
+    engine.meshEdit.addEventListener('loopCutDone', () => {
+        if (loopCutTool()) engine.meshEdit.startLoopCut({releaseConfirm: true})
+    })
+    engine.meshEdit.addEventListener('loopCutChanged', (e: {loopCut: unknown}) => {
+        if (!e.loopCut && loopCutTool() && !engine.meshEdit.activeTransform && !engine.meshEdit.activeLoopCut) engine.setActiveTool('select')
+    })
 
     // A prop-drag modal that ended hands the shelf back to Select, like the transform modals.
     engine.addEventListener('toolChanged', () => {
