@@ -1,0 +1,49 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "allowJs": true,
+        "checkJs": false,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "isolatedModules": true,
+        "module": "es2020",
+        "noImplicitAny": true,
+        "declaration": true,
+        "declarationMap": true,
+        "outDir": "dist",
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "moduleResolution": "node",
+        "emitDecoratorMetadata": false,
+        "sourceMap": true,
+        "target": "ES2021",
+        "strictNullChecks": true,
+        "allowImportingTsExtensions": true,
+        "lib": [
+            "es2020",
+            "esnext",
+            "dom"
+        ],
+        "paths": {
+            "threepipe": [
+                "../../dist/index.d.ts"
+            ],
+            "@threepipe/mesh-kernel": [
+                "../mesh-kernel/dist/index.d.ts"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "dist"
+    ]
+}

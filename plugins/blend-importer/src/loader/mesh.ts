@@ -2,11 +2,12 @@ import {DoubleSide} from 'threepipe'
 import {createBufferGeometry} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
-import {subdivideCage} from './catmull'
+import {cageFromMeshData, subdivideCage} from './catmull'
 import {mirrorGeometry} from './mirror'
 import {arrayGeometry} from './array'
 import {solidifyGeometry} from './solidify'
 import {Ctx} from './ctx'
+import {MESH_DATA_KEY, MESH_TOPOLOGY_USERDATA} from './meshData'
 
 function listToArray(lb: any): any[] {
     const out: any[] = []
@@ -17,10 +18,11 @@ function listToArray(lb: any): any[] {
 }
 // DNA_modifier_types.h — ModifierType / eModifierMode.
 const eModifierType_Subsurf = 1, eModifierType_Mirror = 5, eModifierType_Array = 12, eModifierType_Solidify = 33
-const eModifierMode_Render = 1 << 1
+const eModifierMode_Realtime = 1 << 0, eModifierMode_Render = 1 << 1
 // Names for the "unsupported modifier" warning (so missing geometry isn't silent). Values per
 // DNA_modifier_types.h `eModifierType_*`.
 const MODIFIER_NAMES: Record<number, string> = {
+    1: 'Subsurf', 5: 'Mirror',
     2: 'Lattice', 3: 'Curve', 4: 'Build', 6: 'Decimate', 7: 'Wave', 8: 'Armature', 9: 'Hook',
     10: 'Softbody', 11: 'Boolean', 12: 'Array', 13: 'EdgeSplit', 14: 'Displace', 15: 'UVProject',
     16: 'Smooth', 17: 'Cast', 18: 'MeshDeform', 19: 'ParticleSystem', 20: 'ParticleInstance', 21: 'Explode',
@@ -42,51 +44,77 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     // per-object below. (Caching the *modified* result per datablock was wrong for objects that share a
     // datablock but have different modifier stacks — Alt+D linked duplicates.)
     let geometry = loaded.get(object.data)
+    const firstUse = !geometry
     if (!geometry) {
         geometry = createBufferGeometry(object.data, ctx)
         loaded.set(object.data, geometry)
     }
+    const baseGeometry = geometry
 
     // Evaluate the modifier stack in order. Each step returns a NEW geometry (the cached base is never
-    // mutated). Render-disabled modifiers (eModifierMode_Render unset) are skipped to match Blender's
-    // rendered output; unsupported ones are flagged loudly. Subsurf smooths + tessellates (so a
-    // displacement map has geometry to move); Mirror duplicates/reflects across the object's axes.
+    // mutated). Which modifiers run depends on the evaluation mode, as in Blender's
+    // `BKE_modifier_is_enabled`: the viewport runs those with eModifierMode_Realtime, the renderer
+    // those with eModifierMode_Render - see `BlendEvaluationMode`. Unsupported ones are flagged loudly.
+    // Subsurf smooths + tessellates (so a displacement map has geometry to move); Mirror
+    // duplicates/reflects across the object's axes.
+    const render = ctx.evaluationMode === 'render'
+    const requiredMode = render ? eModifierMode_Render : eModifierMode_Realtime
     const unsupported: string[] = []
+    const failed: string[] = []
     for (const m of listToArray(object.modifiers)) {
         const hdr = m.modifier
         if (!hdr) continue
-        if (typeof hdr.mode === 'number' && !(hdr.mode & eModifierMode_Render)) continue
-        if (hdr.type === eModifierType_Subsurf) {
-            const levels = Math.max(0, Math.min(5, (m.renderLevels ?? m.levels ?? 0) as number))
-            // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
-            if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
-                const cage = geometry.userData && geometry.userData.__cage
-                if (m.subdivType !== 1 && cage) {
-                    // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
-                    // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
-                    // approximation if the cage subdivider throws.
-                    try {
-                        const sub = subdivideCage(cage, ctx, levels)
-                        sub.name = geometry.name
-                        geometry = sub
-                    } catch (e) {
-                        console.warn(`BlendLoader - "${object.aname}": Catmull-Clark failed, falling back to Loop subdivision:`, e)
-                        geometry = subdivideGeometry(geometry, ctx, levels, undefined, false)
+        if (typeof hdr.mode === 'number' && !(hdr.mode & requiredMode)) continue
+        // One modifier failing must not fail the whole file. Blender evaluates the rest of the stack on
+        // the input to a modifier that errors, and shows the error in that modifier's panel; here the
+        // geometry from before the failing step is kept and the failure is reported. Without this, a
+        // single bad mesh made `AssetImporter` reject the entire `.blend`, and because the importer
+        // reports that as a resolved-but-empty load, it looked like a hang rather than an error.
+        const before = geometry
+        try {
+            if (hdr.type === eModifierType_Subsurf) {
+                // `MOD_subsurf.cc:86`: `levels = use_render_params ? renderLevels : levels`.
+                const requested = render ? (m.renderLevels ?? m.levels) : (m.levels ?? m.renderLevels)
+                const levels = Math.max(0, Math.min(5, (requested ?? 0) as number))
+                // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
+                if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
+                    // Catmull-Clark needs the polygon topology; the baked triangles no longer have it. It
+                    // comes from the editable n-gon mesh the importer attached, or - when that could not be
+                    // built and the legacy triangulators ran instead - from the cage they record.
+                    const ngons = geometry.userData && geometry.userData[MESH_DATA_KEY]
+                    const cage = ngons ? cageFromMeshData(ngons) : geometry.userData && geometry.userData.__cage
+                    if (m.subdivType !== 1 && cage) {
+                        // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
+                        // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
+                        // approximation if the cage subdivider throws.
+                        try {
+                            const sub = subdivideCage(cage, ctx, levels)
+                            sub.name = geometry.name
+                            geometry = sub
+                        } catch (e) {
+                            console.warn(`BlendLoader - "${object.aname}": Catmull-Clark failed, falling back to Loop subdivision:`, e)
+                            geometry = subdivideGeometry(geometry, ctx, levels, undefined, false)
+                        }
+                    } else {
+                        geometry = subdivideGeometry(geometry, ctx, levels, undefined, m.subdivType === 1)
                     }
-                } else {
-                    geometry = subdivideGeometry(geometry, ctx, levels, undefined, m.subdivType === 1)
                 }
+            } else if (hdr.type === eModifierType_Mirror) {
+                geometry = mirrorGeometry(geometry, m, ctx)
+            } else if (hdr.type === eModifierType_Array) {
+                geometry = arrayGeometry(geometry, m, ctx)
+            } else if (hdr.type === eModifierType_Solidify) {
+                geometry = solidifyGeometry(geometry, m, ctx)
+            } else {
+                unsupported.push(MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`)
             }
-        } else if (hdr.type === eModifierType_Mirror) {
-            geometry = mirrorGeometry(geometry, m, ctx)
-        } else if (hdr.type === eModifierType_Array) {
-            geometry = arrayGeometry(geometry, m, ctx)
-        } else if (hdr.type === eModifierType_Solidify) {
-            geometry = solidifyGeometry(geometry, m, ctx)
-        } else {
-            unsupported.push(MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`)
+        } catch (e) {
+            geometry = before
+            failed.push(`${MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`}: ${(e as Error)?.message ?? e}`)
         }
     }
+    if (failed.length)
+        console.error(`BlendLoader - "${object.aname}": modifier(s) failed and were skipped:`, failed.join('; '))
     if (unsupported.length)
         console.warn(`BlendLoader - "${object.aname}": unsupported modifier(s), geometry may be incomplete:`, unsupported.join(', '))
 
@@ -120,6 +148,20 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     }
 
     const mesh = new ctx.Mesh(geometry, material)
+
+    // Hand the editable n-gon topology to the object, but only when the geometry it carries really is
+    // the bake of that mesh. Every modifier above returns a NEW geometry, so `geometry === baseGeometry`
+    // is exactly the "nothing evaluated on top" test. Attaching it after a Subsurf or an Array would be
+    // a lie: whoever adopted it would re-bake the un-modified master and quietly drop the modifier
+    // result, because Blender's Subsurf and Solidify have no equivalent in the modelling plugin's
+    // modifier stack yet (it has array and mirror only).
+    const ngons = baseGeometry.userData && baseGeometry.userData[MESH_DATA_KEY]
+    if (ngons && geometry === baseGeometry) {
+        // Linked duplicates (Alt+D) share one datablock and so one geometry. They must not share one
+        // mutable `MeshData`, or editing either object would silently change the other, so every user
+        // after the first gets its own copy.
+        mesh.userData[MESH_TOPOLOGY_USERDATA] = firstUse ? ngons : ngons.clone()
+    }
 
     mesh.castShadow = true
     mesh.receiveShadow = true

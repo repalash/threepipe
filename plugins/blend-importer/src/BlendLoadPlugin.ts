@@ -9,7 +9,7 @@ import {
     FileLoader,
     IAssetImporter,
     ILoader,
-    Importer, Mesh,
+    Importer, IObject3D, Mesh,
     Mesh2,
     Object3D,
     Object3D2,
@@ -22,11 +22,15 @@ import {
     SpotLight2,
     SRGBColorSpace,
     Texture,
+    ThreeViewer,
     UnlitMaterial,
 } from 'threepipe'
+import type {MeshData} from '@threepipe/mesh-kernel'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
+import {MESH_TOPOLOGY_USERDATA} from './loader/meshData'
 import {decompressBlend} from './decompress'
+import type {BlendEvaluationMode} from './loader/ctx'
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
 
@@ -201,13 +205,78 @@ export interface BlendLoadOptions {
  */
 export class BlendLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'BlendLoadPlugin'
+
+    /**
+     * Evaluate modifier stacks the way Blender's viewport does (`'viewport'`, the default, and what
+     * Blender's own exporters do) or the way its renderer does (`'render'`). The mode decides which
+     * modifiers run and which Subsurf level is used; the render level is usually higher, and every
+     * extra level quadruples the triangles. See {@link BlendEvaluationMode}.
+     */
+    evaluationMode: BlendEvaluationMode = 'viewport'
+
     constructor() {
         super()
+    }
+
+    /**
+     * `ModellingPlugin`, when one is installed. Held by plugin-type string only, so this package gains
+     * no dependency on `@threepipe/plugin-modelling` and a `.blend` still loads with neither the
+     * modelling nor the edit-mode plugin present.
+     */
+    private _modelling: any = null
+
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        viewer.forPlugin('ModellingPlugin',
+            (plugin: any) => this._modelling = plugin,
+            () => this._modelling = null)
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        this._modelling = null
+        super.onRemove(viewer)
+    }
+
+    /**
+     * Hand every imported object's n-gon topology to whoever owns topology.
+     *
+     * The loader leaves the editable {@link MeshData} on `object.userData[MESH_TOPOLOGY_USERDATA]`.
+     * If `ModellingPlugin` is installed, `document.adopt` takes the object over - keeping its uuid,
+     * material and place in the hierarchy - and the key is cleared so there is exactly one owner. If
+     * it is not, the key stays, so nothing is dropped and a plugin added later can still pick it up.
+     *
+     * `adopt` re-bakes the object's geometry from the mesh it is given. That is the same
+     * `bakeGeometry` + `geometryDataToBufferGeometry` pair the loader itself used, on the same mesh,
+     * so the geometry it installs is identical to the one it replaces.
+     */
+    private _adoptTopology(root: Object3D): void {
+        const document = this._modelling && this._modelling.document
+        if (!document || typeof document.adopt !== 'function') return
+        const pending: IObject3D[] = []
+        root.traverse((o: Object3D) => {
+            if ((o as IObject3D).userData?.[MESH_TOPOLOGY_USERDATA]) pending.push(o as IObject3D)
+        })
+        if (!pending.length) return
+        for (const object of pending) {
+            const mesh = object.userData[MESH_TOPOLOGY_USERDATA] as MeshData
+            try {
+                document.beginRecording()
+                document.adopt(object, mesh)
+                document.endRecording()
+                delete object.userData[MESH_TOPOLOGY_USERDATA]
+            } catch (e) {
+                document.endRecording?.()
+                console.warn(`BlendLoadPlugin - "${object.name}": could not hand topology to ModellingPlugin:`, e)
+            }
+        }
+        this._modelling.dispatchEvent?.({type: 'documentChanged', document})
     }
     protected _importer = new Importer(class extends FileLoader implements ILoader {
         // The AssetImporter that constructed this loader (injected via the Importer onCtor below). Used to
         // load external textures through the full pipeline (correct loader per format + cache).
         assetImporter?: IAssetImporter
+        // The plugin that registered this loader, for its import settings. Injected below like the importer.
+        plugin?: BlendLoadPlugin
         async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
             this.setResponseType('arraybuffer')
             let res: ArrayBuffer | null = (await super.loadAsync(url, onProgress)) as ArrayBuffer
@@ -235,6 +304,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 AmbientLight: AmbientLight2,
                 BufferGeometry: BufferGeometry2,
                 BufferAttribute: BufferAttribute,
+                evaluationMode: this.plugin?.evaluationMode,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
                         const req = resolveExternalTexture(p, srgb, importer, url)
@@ -251,15 +321,25 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             return blend
         }
 
+        /** Injected below, bound to the owning plugin. See {@link BlendLoadPlugin._adoptTopology}. */
+        adoptTopology?: (root: Object3D) => void
+
         transform(res: BlendFile, options: AnyOptions & BlendLoadOptions): Scene {
             if (typeof options.onBlendLoad === 'function') {
                 options.onBlendLoad(res)
             }
+            // After the callback, so `onBlendLoad` still sees the scene exactly as it was parsed.
+            this.adoptTopology?.(res.scene)
             return res.scene as unknown as Scene
         }
     }, ['blend'], ['application/x-blender'], true, (loader, assetImporter) => {
         // Inject the AssetImporter so the loader can import external textures through the full pipeline.
-        if (loader) (loader as any).assetImporter = assetImporter
+        if (loader) {
+            (loader as any).assetImporter = assetImporter
+            ;(loader as any).plugin = this
+            // ...and a bound hook, so an imported mesh's topology can be handed to ModellingPlugin.
+            ;(loader as any).adoptTopology = (root: Object3D) => this._adoptTopology(root)
+        }
         return loader
     })
 }

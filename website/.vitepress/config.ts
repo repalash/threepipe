@@ -40,6 +40,7 @@ export default defineConfig({
           {text: 'UI Configuration', link: 'guide/ui-config'},
           {text: 'Serialization', link: 'guide/serialization'},
           {text: 'Plugin System', link: 'guide/plugin-system'},
+          {text: 'Modelling', link: 'guide/modelling'},
           {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
         ]
@@ -226,6 +227,9 @@ export default defineConfig({
           {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
           {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
           {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
+          {text: 'Mesh Kernel', link: 'package/mesh-kernel'},
+          {text: 'Modelling Command API', link: 'package/plugin-modelling'},
+          {text: 'Mesh Edit Plugin', link: 'package/plugin-mesh-edit'},
         ]
       },
     ],

@@ -2358,3 +2358,768 @@ test('hdr-to-exr', async({page}, testInfo) => {
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
 })
 
+
+test('modelling-api', async({page}) => {
+    await expect(page).toHaveTitle('Modelling command API')
+
+    /** Run a command through the plugin, exactly as the console and a script do. */
+    const run = async(command: Record<string, unknown>) =>
+        page.evaluate(c => (window as any).modelling.run(c), command)
+
+    const state = async() => page.evaluate(() => {
+        const m = (window as any).modelling
+        return {
+            objects: m.document.entries.map((e: any) => ({
+                name: e.name,
+                verts: e.mesh.vertsNum,
+                faces: e.mesh.facesNum,
+                evaluatedVerts: e.evaluated.vertsNum,
+                modifiers: e.modifiers.length,
+            })),
+            canUndo: m.history.canUndo,
+        }
+    })
+
+    // The page builds its starting cube through the API, so the document is not empty.
+    expect((await state()).objects.map(o => o.name)).toEqual(['hull'])
+
+    // --- the table an agent reads ------------------------------------------------------------
+
+    const described = await page.evaluate(() => (window as any).modelling.describeCommands())
+    const ops = described.map((d: any) => d.name)
+    for (const op of ['primitive', 'lathe', 'sweep', 'vertices', 'transform', 'array', 'duplicate',
+        'mirror', 'modifier', 'reference', 'capture', 'inspect', 'measure', 'undo', 'selftest']) {
+        expect(ops).toContain(op)
+    }
+    // Every command must carry a usable schema; an agent cannot call what it cannot see.
+    for (const d of described) {
+        expect(d.description.length).toBeGreaterThan(10)
+        expect(d.inputSchema.type).toBe('object')
+    }
+
+    // --- errors say what went wrong -----------------------------------------------------------
+
+    const unknownOp = await run({op: 'primitiv', type: 'cube'})
+    expect(unknownOp.ok).toBe(false)
+    expect(unknownOp.error).toContain('did you mean "primitive"')
+
+    const unknownParam = await run({op: 'primitive', type: 'cube', raduis: 2})
+    expect(unknownParam.ok).toBe(false)
+    expect(unknownParam.error).toContain('did you mean "radius"')
+
+    const missingObject = await run({op: 'transform', object: 'nope', move: [1, 0, 0]})
+    expect(missingObject.ok).toBe(false)
+    expect(missingObject.error).toContain('no object "nope"')
+
+    // A failed command must leave nothing behind.
+    expect((await state()).objects.length).toBe(1)
+
+    // --- sizes mean what they say ----------------------------------------------------------------
+
+    // Blender's own primitives disagree about whether `size` is a radius or an edge length - the
+    // grid's is a half-extent, the cube's is not. The command layer promises finished extents for
+    // all of them, and this is the assertion that keeps that true.
+    await run({op: 'delete', object: '*'})
+    for (const [type, extra, expected] of [
+        ['cube', {width: 2, height: 3, depth: 4}, [2, 3, 4]],
+        ['plane', {width: 2, depth: 4}, [2, 0, 4]],
+        ['grid', {width: 3, depth: 1.5, xSegments: 3, ySegments: 2}, [3, 0, 1.5]],
+        ['cylinder', {radius: 1.5, height: 4}, [3, 4, 3]],
+        ['sphere', {radius: 2}, [4, 4, 4]],
+    ] as [string, Record<string, unknown>, number[]][]) {
+        const made = await run({op: 'primitive', type, name: `sized-${type}`, ...extra})
+        expect(made.ok).toBe(true)
+        const size = (made.data as any).bounds.size as number[]
+        for (let i = 0; i < 3; i++) expect(size[i]).toBeCloseTo(expected[i], 4)
+    }
+    await run({op: 'delete', object: 'sized-*'})
+
+    // --- creation -----------------------------------------------------------------------------
+
+    const wheel = await run({
+        op: 'lathe', name: 'wheel', axis: 'x', segments: 16,
+        profile: [[0, -0.05], [0.3, -0.05], [0.3, 0.05], [0, 0.05]],
+        position: [-1, 0.35, -2],
+    })
+    expect(wheel.ok).toBe(true)
+    expect((wheel.data as any).faces).toBeGreaterThan(0)
+
+    const sweep = await run({
+        op: 'sweep', name: 'rail', radius: 0.03, steps: 6,
+        path: [[-1, 1.2, -2], [-1, 1.4, -1], [-1, 1.4, 1], [-1, 1.2, 2]],
+    })
+    expect(sweep.ok).toBe(true)
+
+    // A tapered sweep: the section scales by the curve radius at each path point.
+    const horn = await run({
+        op: 'sweep', name: 'horn', radius: 0.5, steps: 12,
+        path: [[5, 0, 0], [5, 1, 0], [5, 2, 0]], radii: [1, 0.5, 0.1],
+    })
+    expect(horn.ok).toBe(true)
+    // Widest at the base ring (radius 0.5 x 1), so the horn is a unit across, not more.
+    expect((horn.data as any).bounds.size[0]).toBeCloseTo(1, 3)
+    const hornDetail = await run({op: 'inspect', object: 'horn', detail: true})
+    const topRing = (hornDetail.data as any).vertices.filter((v: number[]) => v[1] > 1.99)
+    for (const v of topRing) expect(Math.hypot(v[0] - 5, v[2])).toBeCloseTo(0.05, 4)
+    const badRadii = await run({op: 'sweep', name: 'bad', path: [[0, 0, 0], [0, 1, 0]], radii: [1]})
+    expect(badRadii.ok).toBe(false)
+    expect(badRadii.error).toContain('one radius per path point')
+    await run({op: 'delete', object: 'horn'})
+
+    // Every mesh the generators produced must be valid topology that bakes.
+    const health = await run({op: 'selftest'})
+    expect((health.data as any).failed).toBe(0)
+
+    // --- live modifiers, the point of the exercise --------------------------------------------
+
+    const arrayed = await run({op: 'array', object: 'wheel', count: 6, step: [0, 0, 0.8], live: true})
+    expect(arrayed.ok).toBe(true)
+
+    const before = (await state()).objects.find(o => o.name === 'wheel')!
+    expect(before.modifiers).toBe(1)
+    // The master stays small; only the evaluated mesh grows.
+    expect(before.evaluatedVerts).toBeGreaterThan(before.verts * 5)
+
+    // Edit one vertex of the master and every copy must follow.
+    const detail = await run({op: 'inspect', object: 'wheel', detail: true})
+    const firstVert = (detail.data as any).vertices[0]
+    const moved = await run({op: 'vertices', object: 'wheel',
+        verts: [[0, firstVert[0], firstVert[1] + 0.5, firstVert[2]]]})
+    expect(moved.ok).toBe(true)
+
+    const after = (await state()).objects.find(o => o.name === 'wheel')!
+    expect(after.verts).toBe(before.verts)          // the master did not grow
+    expect(after.evaluatedVerts).toBe(before.evaluatedVerts) // nor did the evaluation
+    // and the bounds moved, proving the copies were rebuilt rather than left stale
+    const bounds = await run({op: 'inspect', object: 'wheel'})
+    expect((bounds.data as any).bounds.max[1]).toBeGreaterThan(0.4)
+
+    // Changing the modifier count re-evaluates without touching the master.
+    const recount = await run({op: 'modifier', object: 'wheel', index: 0, update: {count: 3}})
+    expect(recount.ok).toBe(true)
+    expect((recount.data as any).evaluatedVerts).toBeLessThan(after.evaluatedVerts)
+
+    // --- history ------------------------------------------------------------------------------
+
+    await run({op: 'checkpoint', name: 'running gear'})
+    await run({op: 'primitive', type: 'cylinder', name: 'scrap', radius: 0.4, height: 1})
+    expect((await state()).objects.map(o => o.name)).toContain('scrap')
+
+    const rewound = await run({op: 'undo', to: 'running gear'})
+    expect(rewound.ok).toBe(true)
+    expect((await state()).objects.map(o => o.name)).not.toContain('scrap')
+
+    await run({op: 'redo'})
+    expect((await state()).objects.map(o => o.name)).toContain('scrap')
+    await run({op: 'delete', object: 'scrap'})
+
+    // --- clearance ----------------------------------------------------------------------------
+
+    await run({op: 'primitive', type: 'cube', name: 'a', size: 1, position: [10, 0, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'b', size: 1, position: [10.5, 0, 0]})
+    const overlaps = await run({op: 'measure', object: ['a', 'b'], mode: 'overlaps'})
+    expect((overlaps.data as any).pairs).toBe(1)
+    await run({op: 'transform', object: 'b', move: [5, 0, 0]})
+    const clear = await run({op: 'measure', object: ['a', 'b'], mode: 'overlaps'})
+    expect((clear.data as any).pairs).toBe(0)
+    await run({op: 'delete', object: ['a', 'b']})
+
+    // --- capture and export -------------------------------------------------------------------
+
+    await run({op: 'camera', view: 'iso', fit: '*'})
+    const shot = await run({op: 'capture'})
+    expect(shot.ok).toBe(true)
+    expect((shot.data as any).dataUrl.startsWith('data:image/png')).toBe(true)
+
+    const exported = await run({op: 'export', format: 'glb'})
+    expect(exported.ok).toBe(true)
+    expect((exported.data as any).bytes).toBeGreaterThan(1000)
+
+    // --- editable topology survives a glTF round trip ---------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    // A cylinder has n-gon caps, which is exactly what a triangle buffer cannot give back.
+    await run({op: 'primitive', type: 'cylinder', name: 'drum', radius: 0.5, height: 1,
+        segments: 12})
+    await run({op: 'array', object: 'drum', count: 3, step: [1.2, 0, 0], live: true})
+    const beforeTrip = await run({op: 'inspect', object: 'drum'})
+
+    const roundTrip = await page.evaluate(async() => {
+        const m = (window as any).modelling
+        const v = (window as any).viewer
+
+        const exported = await m.run({op: 'export', format: 'glb', includeData: true})
+        if (!exported.ok) return {error: exported.error}
+        const bytes = Uint8Array.from(atob(exported.data.base64), c => c.charCodeAt(0))
+        // A File, not a blob URL: the importer picks its loader from the name, and a blob URL has no
+        // extension to pick from.
+        const file = new File([bytes], 'topology.glb', {type: 'model/gltf-binary'})
+
+        await m.run({op: 'delete', object: '*'})
+        const before = m.document.size
+        await v.load(file, {autoScale: false, autoCenter: false})
+
+        return {
+            bytes: exported.data.bytes,
+            emptiedTo: before,
+            entries: m.document.entries.map((e: any) => ({
+                verts: e.mesh.vertsNum,
+                edges: e.mesh.edgesNum,
+                faces: e.mesh.facesNum,
+                modifiers: e.modifiers.length,
+                evaluatedFaces: e.evaluated.facesNum,
+                problems: e.mesh.validate(),
+            })),
+        }
+    })
+
+    expect(roundTrip.error).toBeUndefined()
+    expect(roundTrip.emptiedTo).toBe(0)
+    // The reloaded object is editable again, with the master topology it was exported with - not the
+    // triangles, and not the evaluated copy the array produced.
+    expect(roundTrip.entries!.length).toBe(1)
+    const restored = roundTrip.entries![0]
+    expect(restored.verts).toBe((beforeTrip.data as any).verts)
+    expect(restored.edges).toBe((beforeTrip.data as any).edges)
+    expect(restored.faces).toBe((beforeTrip.data as any).faces)
+    expect(restored.problems).toEqual([])
+    // ...and the live modifier stack came back with it, so the render still shows three drums.
+    expect(restored.modifiers).toBe(1)
+    expect(restored.evaluatedFaces).toBeGreaterThan(restored.faces * 2)
+
+    await run({op: 'delete', object: '*'})
+
+    // --- reference calibration ------------------------------------------------------------------
+
+    // A 100x50 pixel image standing in for a photograph; the calibration is what is under test.
+    const png = await page.evaluate(() => {
+        const c = document.createElement('canvas')
+        c.width = 100
+        c.height = 50
+        const ctx = c.getContext('2d')!
+        ctx.fillStyle = '#446688'
+        ctx.fillRect(0, 0, 100, 50)
+        return c.toDataURL('image/png')
+    })
+    const ref = await run({
+        op: 'reference', name: 'side', plane: 'right', image: png,
+        calibrate: {from: [0.2, 0.5], to: [0.7, 0.5], distance: 5},
+    })
+    expect(ref.ok).toBe(true)
+    // 0.5 of the image width spans 5 units, so the whole image spans 10.
+    expect((ref.data as any).width).toBeCloseTo(10, 5)
+    // ...and a 100x50 image is twice as wide as it is tall, so it is 5 units high.
+    expect((ref.data as any).height).toBeCloseTo(5, 5)
+    expect((ref.data as any).savedView).toBe('ref:side')
+
+    // The registered view must be replayable.
+    const replay = await run({op: 'camera', view: 'ref:side'})
+    expect(replay.ok).toBe(true)
+    // `source` says how the framing was arrived at - a reference view is recomputed from its plane
+    // for the current lens - and `saved` only ever names where one was stored.
+    expect((replay.data as any).source).toBe('reference')
+    expect((replay.data as any).saved).toBe(null)
+    // Perspective: the 5-unit-high plane exactly fills the frame, so the eye sits at
+    // (h / 2) / tan(fov / 2) from it along the plane normal (+X for the right plane).
+    const fov = (replay.data as any).fov as number
+    expect((replay.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(fov * Math.PI / 360), 3)
+
+    // A long lens and an orthographic camera both stay registered to the plane.
+    const longLens = await run({op: 'camera', view: 'ref:side', fov: 10})
+    expect((longLens.data as any).fov).toBe(10)
+    expect((longLens.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(5 * Math.PI / 180), 3)
+    const orthoRef = await run({op: 'camera', view: 'ref:side', projection: 'orthographic'})
+    expect(orthoRef.ok).toBe(true)
+    expect((orthoRef.data as any).projection).toBe('orthographic')
+    expect((orthoRef.data as any).frustumSize).toBeCloseTo(5, 5)
+    // `fov` means nothing to a parallel projection, and says so.
+    const orthoFov = await run({op: 'camera', fov: 30})
+    expect(orthoFov.ok).toBe(false)
+    expect(orthoFov.error).toContain('perspective setting')
+    // Orthographic framing of a box: the frame is the box's projected height plus a 10% margin.
+    await run({op: 'primitive', type: 'cube', name: 'tall', width: 1, height: 4, depth: 1,
+        position: [0, 2, 0]})
+    const orthoFit = await run({op: 'camera', view: 'front', fit: 'tall'})
+    expect((orthoFit.data as any).frustumSize).toBeCloseTo(4.4, 3)
+    const orthoShot = await run({op: 'capture'})
+    expect(orthoShot.ok).toBe(true)
+    // ...and the export does not pick up the orthographic camera.
+    const exportedObjects = await page.evaluate(() =>
+        (window as any).viewer.scene.getObjectByName('modelling:orthographic')?.userData.excludeFromExport)
+    expect(exportedObjects).toBe(true)
+    const backToPerspective = await run({op: 'camera', projection: 'perspective', fov: 45})
+    expect((backToPerspective.data as any).projection).toBe('perspective')
+
+    // A camera further from the model than threepipe's default far-plane limit (1000) must not clip
+    // it away: the far plane is raised to reach the model's far side, and the command says so.
+    const distant = await run({op: 'camera', position: [0, 2, 1500], target: [0, 2, 0]})
+    expect(distant.ok).toBe(true)
+    expect((distant.warnings ?? []).join(' ')).toContain('far plane')
+    const far = await page.evaluate(() => (window as any).viewer.scene.mainCamera.far)
+    expect(far).toBeGreaterThan(1502)
+    await run({op: 'delete', object: 'tall'})
+
+    const computed = await run({op: 'camera', view: 'top', fit: '*', save: 'overhead'})
+    expect((computed.data as any).source).toBe('computed')
+    expect((computed.data as any).saved).toBe('overhead')
+
+    // --- inset and solidify -------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'plate', width: 2, height: 0.2, depth: 2})
+
+    // The top face of a 2 x 0.2 x 2 plate, found by its centre rather than assumed.
+    const plate = await run({op: 'inspect', object: 'plate', detail: true})
+    const plateData = plate.data as any
+    const topFaces: number[] = plateData.faceVerts
+        .map((verts: number[], i: number) =>
+            ({i, y: verts.reduce((a: number, v: number) => a + plateData.vertices[v][1], 0) / verts.length}))
+        .filter((f: any) => f.y > 0.05)
+        .map((f: any) => f.i)
+    expect(topFaces.length).toBe(1)
+
+    const inset = await run({op: 'inset', object: 'plate', faces: topFaces, thickness: 0.3})
+    expect(inset.ok).toBe(true)
+    // A single-quad region inset adds four vertices and four rim faces; the face passed in survives
+    // with the same identity, which is why `insetFaces` and `rimFaces` are reported separately.
+    expect((inset.data as any).verts).toBe(12)
+    expect((inset.data as any).rimFaces.length).toBe(4)
+    expect((inset.data as any).insetFaces).toEqual(topFaces)
+
+    // The inset distance is a real distance: the inner ring sits 0.3 inside a 2-wide face.
+    const insetShape = await run({op: 'inspect', object: 'plate', detail: true})
+    const innerXs = (insetShape.data as any).vertices
+        .filter((v: number[]) => v[1] > 0.05)
+        .map((v: number[]) => Math.abs(v[0]))
+    expect(Math.min(...innerXs)).toBeCloseTo(0.7, 4)
+    expect(Math.max(...innerXs)).toBeCloseTo(1.0, 4)
+
+    // Chaining on `insetFaces` is what makes a rim: a second inset, pushed up.
+    const raised = await run({op: 'inset', object: 'plate', faces: (inset.data as any).insetFaces,
+        thickness: 0.15, depth: 0.1})
+    expect(raised.ok).toBe(true)
+    const raisedShape = await run({op: 'inspect', object: 'plate'})
+    expect((raisedShape.data as any).bounds.max[1]).toBeCloseTo(0.2, 4)
+
+    // Solidify a flat grid: the two surfaces end up exactly `thickness` apart.
+    await run({op: 'primitive', type: 'grid', name: 'sheet', xSegments: 2, ySegments: 2, width: 2,
+        depth: 2, position: [0, 5, 0]})
+    const solid = await run({op: 'solidify', object: 'sheet', thickness: 0.25, offset: -1})
+    expect(solid.ok).toBe(true)
+    expect((solid.data as any).rimFaces).toBeGreaterThan(0)
+    const sheet = await run({op: 'inspect', object: 'sheet'})
+    expect((sheet.data as any).bounds.size[1]).toBeCloseTo(0.25, 4)
+    // ...and it is closed, so it survives a validate and has no holes.
+    const solidHealth = await run({op: 'selftest'})
+    expect((solidHealth.data as any).failed).toBe(0)
+
+    await run({op: 'delete', object: '*'})
+
+    // --- bevel -------------------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'chamfer', size: 2})
+    const chamfer = await run({op: 'bevel', object: 'chamfer', offset: 0.2})
+    expect(chamfer.ok).toBe(true)
+    // All twelve edges at one segment: each original corner becomes a triangle, each edge a quad.
+    expect((chamfer.data as any).verts).toBe(24)
+    expect((chamfer.data as any).edges).toBe(48)
+    expect((chamfer.data as any).faces).toBe(26)
+
+    // At `profile: 0.5` the intermediate points lie on a circular arc, so a rounded cube's corner
+    // vertices all sit the same distance from the corner they replaced.
+    await run({op: 'primitive', type: 'cube', name: 'rounded', size: 2, position: [5, 0, 0]})
+    const rounded = await run({op: 'bevel', object: 'rounded', offset: 0.3, segments: 5,
+        profile: 0.5})
+    expect(rounded.ok).toBe(true)
+    expect((rounded.data as any).faces).toBeGreaterThan(200)
+    const roundedShape = await run({op: 'inspect', object: 'rounded', detail: true, limit: 2000})
+    const corner = [0.7, 0.7, 0.7]   // the inset corner for a size-2 cube beveled by 0.3
+    const nearCorner = (roundedShape.data as any).vertices
+        .filter((v: number[]) => v[0] > 0.6 && v[1] > 0.6 && v[2] > 0.6)
+        .map((v: number[]) => Math.hypot(v[0] - corner[0], v[1] - corner[1], v[2] - corner[2]))
+    expect(nearCorner.length).toBeGreaterThan(5)
+    for (const d of nearCorner) expect(d).toBeCloseTo(0.3, 3)
+
+    // Boundary edges are declined rather than corrupted. A single quad has nothing but boundary
+    // edges, so the whole operation is a no-op - where a 2x2 grid would still bevel its four
+    // interior edges, which is the behaviour and not a get-out.
+    await run({op: 'primitive', type: 'plane', name: 'sheet', width: 2, depth: 2,
+        position: [-5, 0, 0]})
+    const sheetBefore = await run({op: 'inspect', object: 'sheet'})
+    const declined = await run({op: 'bevel', object: 'sheet', offset: 0.1})
+    expect(declined.ok).toBe(true)
+    const sheetAfter = await run({op: 'inspect', object: 'sheet'})
+    expect((sheetAfter.data as any).faces).toBe((sheetBefore.data as any).faces)
+
+    const bevelHealth = await run({op: 'selftest'})
+    expect((bevelHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
+    // --- poke and wireframe: lattice bracing ------------------------------------------------------
+
+    await run({op: 'primitive', type: 'cube', name: 'cage', size: 2})
+    const poked = await run({op: 'poke', object: 'cage'})
+    expect(poked.ok).toBe(true)
+    // Six quads become six fans of four triangles around six new centre vertices.
+    expect((poked.data as any).faces.length).toBe(24)
+    expect((poked.data as any).verts.length).toBe(6)
+    expect((poked.data as any).vertsTotal).toBe(14)
+    // The centres are where they should be: the middle of each face, on the surface (offset 0).
+    const pokedShape = await run({op: 'inspect', object: 'cage', detail: true})
+    for (const i of (poked.data as any).verts) {
+        const c = (pokedShape.data as any).vertices[i] as number[]
+        expect(c.map(Math.abs).sort()).toEqual([0, 0, 1])
+    }
+
+    // A live wireframe keeps the 14-vertex cage as the master and draws the struts.
+    await run({op: 'duplicate', object: 'cage', name: 'cage-live', move: [4, 0, 0]})
+    const liveWire = await run({op: 'wireframe', object: 'cage-live', thickness: 0.1, live: true})
+    expect(liveWire.ok).toBe(true)
+    expect((liveWire.data as any).masterVerts).toBe(14)
+
+    const wire = await run({op: 'wireframe', object: 'cage', thickness: 0.1})
+    expect(wire.ok).toBe(true)
+    // Every corner of every triangle gets an inset vertex (24 x 3) and every vertex a copy each side
+    // of the surface (14 x 2); the originals go. Each corner then makes two quads.
+    expect((wire.data as any).verts).toBe(72 + 28)
+    expect((wire.data as any).faces).toBe(144)
+    // Struts sit astride the surface (offset ~0), so the frame overhangs the 2-unit cube by about
+    // half the thickness on each side, no more.
+    const wireBounds = await run({op: 'inspect', object: 'cage'})
+    for (const s of (wireBounds.data as any).bounds.size) {
+        expect(s).toBeGreaterThan(2.04)
+        expect(s).toBeLessThan(2.12)
+    }
+    // The live one evaluates to exactly the same frame - the command resolves its defaults once, so
+    // the modifier does not quietly pick up the Wireframe modifier's different ones.
+    expect((liveWire.data as any).evaluatedFaces).toBe((wire.data as any).faces)
+    expect((liveWire.data as any).evaluatedVerts).toBe((wire.data as any).verts)
+    // ...and it follows the cage: pull one corner out and the struts go with it.
+    const liveCage = await run({op: 'inspect', object: 'cage-live', detail: true})
+    const top = (liveCage.data as any).vertices.findIndex((v: number[]) => v[0] > 0.9 && v[1] > 0.9 && v[2] > 0.9)
+    const evaluatedTop = async() => page.evaluate(() => {
+        const e = (window as any).modelling.document.find('cage-live')
+        const pos = e.evaluated.positions
+        let top = -Infinity
+        for (let i = 1; i < pos.length; i += 3) top = Math.max(top, pos[i])
+        return {top, verts: e.evaluated.vertsNum}
+    })
+    const liveBefore = await evaluatedTop()
+    expect(liveBefore.top).toBeLessThan(1.1)
+    await run({op: 'vertices', object: 'cage-live', relative: true, verts: [[top, 0, 1, 0]]})
+    const liveAfter = await evaluatedTop()
+    expect(liveAfter.top).toBeGreaterThan(1.9)
+    expect(liveAfter.verts).toBe(liveBefore.verts)
+
+    // A live wireframe has no face selection, and says so rather than ignoring the list.
+    const liveFaces = await run({op: 'wireframe', object: 'cage-live', faces: [0], live: true})
+    expect(liveFaces.ok).toBe(false)
+    expect(liveFaces.error).toContain('takes no `faces`')
+
+    const wireHealth = await run({op: 'selftest'})
+    expect((wireHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
+    // --- deleting parts of a mesh -------------------------------------------------------------------
+
+    // The top and bottom of a cube, found by their centres.
+    const capsOf = async(name: string) => {
+        const d = (await run({op: 'inspect', object: name, detail: true})).data as any
+        return d.faceVerts
+            .map((verts: number[], i: number) =>
+                ({i, y: verts.reduce((a: number, v: number) => a + d.vertices[v][1], 0) / verts.length}))
+            .filter((f: any) => Math.abs(f.y) > 0.4)
+            .map((f: any) => f.i)
+    }
+    await run({op: 'primitive', type: 'cube', name: 'tube', size: 1})
+    // ONLY_FACE opens the ends and keeps every vertex and edge: an open square tube.
+    const opened = await run({op: 'deleteElements', object: 'tube', faces: await capsOf('tube'),
+        type: 'ONLY_FACE'})
+    expect(opened.ok).toBe(true)
+    expect((opened.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+    expect((opened.data as any).faces).toBe(4)
+
+    // FACE also takes edges and vertices that only those faces used - none, for a cube's caps.
+    await run({op: 'primitive', type: 'cube', name: 'box', size: 1, position: [3, 0, 0]})
+    const capsGone = await run({op: 'deleteElements', object: 'box', faces: await capsOf('box')})
+    expect((capsGone.data as any).type).toBe('FACE')
+    expect((capsGone.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+
+    // VERT takes everything using the vertex.
+    await run({op: 'primitive', type: 'cube', name: 'corner', size: 1, position: [6, 0, 0]})
+    const cut = await run({op: 'deleteElements', object: 'corner', verts: [0]})
+    expect((cut.data as any).removed).toEqual({verts: 1, edges: 3, faces: 3})
+
+    // Asking a type to read a list it ignores is an error, not a silent no-op.
+    const wrong = await run({op: 'deleteElements', object: 'corner', verts: [0], type: 'FACE'})
+    expect(wrong.ok).toBe(false)
+    expect(wrong.error).toContain('give a non-empty `faces` list')
+    const deleteHealth = await run({op: 'selftest'})
+    expect((deleteHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
+    // --- join and separate ------------------------------------------------------------------------
+
+    await run({op: 'delete', object: '*'})
+    await run({op: 'primitive', type: 'cube', name: 'left', size: 1, position: [-3, 0, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'right', size: 1, position: [3, 0, 0]})
+    const joined = await run({op: 'join', object: ['left', 'right'], name: 'pair'})
+    expect(joined.ok).toBe(true)
+    // Nothing is welded, so the counts are exactly the sum.
+    expect((joined.data as any).verts).toBe(16)
+    expect((joined.data as any).faces).toBe(12)
+    expect((await state()).objects.map(o => o.name)).toEqual(['pair'])
+
+    // The parts kept their relative placement: the joined mesh spans both original positions.
+    const pairBounds = await run({op: 'inspect', object: 'pair'})
+    expect((pairBounds.data as any).bounds.size[0]).toBeCloseTo(7, 1)
+
+    // `join` deliberately does not weld, so `weld` is what closes the seam afterwards.
+    await run({op: 'primitive', type: 'cube', name: 'a', size: 1, position: [0, 20, 0]})
+    await run({op: 'primitive', type: 'cube', name: 'b', size: 1, position: [1, 20, 0]})
+    const touching = await run({op: 'join', object: ['a', 'b'], name: 'touching'})
+    expect((touching.data as any).verts).toBe(16)
+
+    // Connected finds nothing: the two cubes are separate shells that merely touch.
+    const connected = await run({op: 'weld', object: 'touching', distance: 0.001, connected: true})
+    expect((connected.data as any).merged).toBe(0)
+    // The plain search merges the shared face's four corners.
+    const welded = await run({op: 'weld', object: 'touching', distance: 0.001})
+    expect((welded.data as any).merged).toBe(4)
+    expect((welded.data as any).verts).toBe(12)
+    const weldHealth = await run({op: 'selftest'})
+    expect((weldHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: 'touching'})
+
+    const split = await run({op: 'separate', object: 'pair', mode: 'loose'})
+    expect((split.data as any).created).toBe(1)
+    expect((await state()).objects.length).toBe(2)
+    for (const o of (await state()).objects) expect(o.faces).toBe(6)
+
+    await run({op: 'delete', object: '*'})
+
+    // --- edit mode shares the document, rather than re-deriving it ------------------------------
+
+    await run({op: 'delete', object: '*'})
+    const cyl = await run({op: 'primitive', type: 'cylinder', name: 'drum', radius: 0.5,
+        height: 1, segments: 16})
+    const cylFaces = (cyl.data as any).faces
+    const cylVerts = (cyl.data as any).verts
+
+    const entered = await page.evaluate(() => {
+        const m = (window as any).modelling
+        const edit = (window as any).viewer.getPlugin('MeshEditPlugin')
+        const entry = m.document.entries[0]
+        const ok = edit.enter(entry.object)
+        return ok ? {verts: edit.state.bm.totvert, faces: edit.state.bm.totface} : null
+    })
+    // Exact, not welded: a 16-segment cylinder keeps its two n-gon caps and its 16 quad sides.
+    // Recovering this from triangles would renumber vertices and guess at the caps.
+    expect(entered).toEqual({verts: cylVerts, faces: cylFaces})
+
+    // An edit made by hand must come back to the document, or the next command would re-bake over it.
+    const committed = await page.evaluate(() => {
+        const m = (window as any).modelling
+        const edit = (window as any).viewer.getPlugin('MeshEditPlugin')
+        const v = [...edit.state.bm.verts][0]
+        v.setCo(v.x, v.y + 5, v.z)
+        edit.exit(true)
+        const entry = m.document.entries[0]
+        let highest = -Infinity
+        const pos = entry.mesh.positions
+        for (let i = 1; i < entry.mesh.vertsNum * 3; i += 3) highest = Math.max(highest, pos[i])
+        return {highest, verts: entry.mesh.vertsNum, faces: entry.mesh.facesNum}
+    })
+    expect(committed.highest).toBeGreaterThan(4)
+    expect(committed.faces).toBe(cylFaces)
+
+    // ...and it is undoable like any other change.
+    const undone = await run({op: 'undo'})
+    expect((undone.data as any).undone).toBe(1)
+    const back = await run({op: 'inspect', object: 'drum'})
+    expect((back.data as any).bounds.max[1]).toBeLessThan(1)
+
+    const final = await run({op: 'selftest'})
+    expect((final.data as any).failed).toBe(0)
+})
+
+test('mesh-kernel-playground', async({page}) => {
+    await expect(page).toHaveTitle('Mesh Kernel Playground')
+
+    const stats = async() => page.evaluate(() => {
+        const m = (window as any).kernel.mesh
+        return {verts: m.vertsNum, edges: m.edgesNum, faces: m.facesNum, problems: m.validate()}
+    })
+
+    // A cube is 8/12/6 and Euler-valid. If the kernel ever starts triangulating on the way in or
+    // out, this is the first thing that changes.
+    const cube = await stats()
+    expect(cube).toEqual({verts: 8, edges: 12, faces: 6, problems: []})
+    expect(cube.verts - cube.edges + cube.faces).toBe(2)
+
+    const op = async(name: string) => {
+        await page.locator(`[data-op="${name}"]`).click()
+        await page.waitForTimeout(120)
+        return stats()
+    }
+
+    // SEMV on every edge: one new vertex per edge, faces unchanged, still closed.
+    const split = await op('subdivide')
+    expect(split.verts).toBe(cube.verts + cube.edges)
+    expect(split.edges).toBe(cube.edges * 2)
+    expect(split.faces).toBe(cube.faces)
+    expect(split.verts - split.edges + split.faces).toBe(2)
+    expect(split.problems).toEqual([])
+
+    // SFME once per face: each quad becomes two triangles, no new vertices.
+    await op('reset')
+    const triangulated = await op('triangulate')
+    expect(triangulated.verts).toBe(cube.verts)
+    expect(triangulated.faces).toBe(cube.faces * 2)
+    expect(triangulated.edges).toBe(cube.edges + cube.faces)
+    expect(triangulated.problems).toEqual([])
+
+    // JFKE on one manifold edge: two quads become one n-gon.
+    await op('reset')
+    const dissolved = await op('dissolve')
+    expect(dissolved.verts).toBe(cube.verts)
+    expect(dissolved.faces).toBe(cube.faces - 1)
+    expect(dissolved.edges).toBe(cube.edges - 1)
+    expect(dissolved.problems).toEqual([])
+
+    // The fan is built from repeated SFME, so like `triangulate` it adds no vertices - it cuts each
+    // quad down to triangles rather than adding a centre vertex.
+    await op('reset')
+    const poked = await op('poke')
+    expect(poked.verts).toBe(cube.verts)
+    expect(poked.faces).toBeGreaterThan(cube.faces)
+    expect(poked.problems).toEqual([])
+
+    // The array form and the linked form must agree in both directions.
+    await op('reset')
+    const roundTripped = await op('roundtrip')
+    expect(roundTripped).toEqual(cube)
+
+    const ngon = await op('ngon')
+    expect(ngon.faces).toBe(1)
+    expect(ngon.verts).toBe(12)
+    expect(ngon.problems).toEqual([])
+
+    const grid = await op('grid')
+    expect(grid.faces).toBe(16)
+    expect(grid.problems).toEqual([])
+})
+
+test('mesh-edit-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Mesh Edit Plugin')
+
+    const state = async() => page.evaluate(() => {
+        const e = (window as any).meshEdit
+        if (!e.state) return null
+        const bm = e.state.bm
+        return {
+            verts: bm.totvert, edges: bm.totedge, faces: bm.totface,
+            selected: [bm.totvertsel, bm.totedgesel, bm.totfacesel],
+            problems: bm.validate(),
+            welded: e.state.weldedCount,
+        }
+    })
+
+    await page.locator('[data-op="cube"]').click()
+    await page.waitForTimeout(250)
+    expect(await state()).toBe(null)
+
+    const raw = await page.evaluate(() => {
+        const picking = (window as any).picking
+        const object = picking.getSelectedObject()
+        return object?.geometry?.getAttribute('position')?.count ?? 0
+    })
+
+    await page.evaluate(() => (window as any).meshEdit.enter())
+    await page.waitForTimeout(200)
+
+    // The example's cube is a 2x2x2 BoxGeometry: 24 quads, so 48 triangles and 26 distinct corners.
+    // Edit mode recovers topology by welding those triangles, which is the lossy path - the
+    // interesting assertion is that the weld actually happened and the result is valid, not that it
+    // guessed the quads back.
+    const entered = await state()
+    expect(entered!.faces).toBe(48)
+    expect(entered!.verts).toBe(26)
+    expect(entered!.verts).toBeLessThan(raw)
+    expect(entered!.verts - entered!.edges + entered!.faces).toBe(2)
+    expect(entered!.problems).toEqual([])
+
+    await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        e.setSelectMode(4)
+        e.selectAllElements()
+    })
+    await page.waitForTimeout(120)
+    expect((await state())!.selected[2]).toBe(48)
+
+    // Extrude every face of a closed mesh: nothing borders the region, so Blender keeps the
+    // originals and reverses them, giving a shell inside a shell.
+    await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        e.extrude()
+        for (const key of ['0', '.', '3']) e.activeTransform?.handleNumericKey(key)
+        e.confirmTransform()
+    })
+    await page.waitForTimeout(250)
+    const extruded = await state()
+    expect(extruded!.faces).toBeGreaterThan(48)
+    expect(extruded!.problems).toEqual([])
+
+    // Leaving edit mode must bake a valid geometry back onto the object.
+    const baked = await page.evaluate(() => {
+        const e = (window as any).meshEdit
+        const object = e.editObject
+        e.exit(true)
+        const position = object.geometry.getAttribute('position')
+        const index = object.geometry.getIndex()
+        return {editing: e.isEditing, positions: position?.count ?? 0, indices: index?.count ?? 0}
+    })
+    expect(baked.editing).toBe(false)
+    expect(baked.positions).toBeGreaterThan(0)
+    expect(baked.indices % 3).toBe(0)
+})
+
+test('modelling-workspace', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Workspace')
+
+    const count = async() => page.evaluate(() =>
+        (window as any).viewer.scene.modelRoot.children.filter((c: any) => c.assetType !== 'widget').length)
+
+    await page.locator('#clear').click()
+    await page.waitForTimeout(150)
+    expect(await count()).toBe(0)
+
+    // Every entry in the Add bar must produce exactly one object with usable geometry.
+    for (const primitive of ['box', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
+        await page.locator(`[data-add="${primitive}"]`).click()
+        await page.waitForTimeout(160)
+    }
+    expect(await count()).toBe(7)
+
+    const geometries = await page.evaluate(() =>
+        (window as any).viewer.scene.modelRoot.children
+            .filter((c: any) => c.assetType !== 'widget')
+            .map((c: any) => ({
+                name: c.name,
+                verts: c.geometry?.getAttribute('position')?.count ?? 0,
+            })))
+    for (const g of geometries) expect(g.verts).toBeGreaterThan(2)
+
+    // The mode indicator has to track edit mode, since it is the only thing telling you which
+    // keymap is live.
+    const mode = await page.evaluate(async() => {
+        const e = (window as any).meshEdit
+        e.enter()
+        const inEdit = document.getElementById('mode')!.textContent
+        e.exit(false)
+        return {inEdit, after: document.getElementById('mode')!.textContent}
+    })
+    expect(mode.inEdit).toBe('EDIT MODE')
+    expect(mode.after).toBe('OBJECT MODE')
+})

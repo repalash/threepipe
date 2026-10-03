@@ -91,3 +91,7 @@ compose.dev.yaml
 tests/snapshots/
 tests/download-file-hashes.json.lock
 
+
+# crash dumps (eslint OOMs on this repo and drops a multi-GB core here)
+core
+core.*
