@@ -2059,13 +2059,12 @@ export class KnifeTool {
                 }
                 break
             case 'PANNING':
-                if (!event.release) {
-                    if (this.mode !== 'panning') {
-                        this.prevmode = this.mode
-                        this.mode = 'panning'
-                    }
-                } else {
-                    this.mode = this.prevmode
+                // Blender tests `event->val != KM_RELEASE` here, but `val` is the modal item, never
+                // KM_RELEASE: a release enters panning too, and the next event restores the mode
+                // (the check at the top of this function). Ported as it behaves.
+                if (this.mode !== 'panning') {
+                    this.prevmode = this.mode
+                    this.mode = 'panning'
                 }
                 return 'passThrough'
             case 'X_AXIS':

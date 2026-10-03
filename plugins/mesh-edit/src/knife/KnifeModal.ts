@@ -13,7 +13,7 @@
  */
 
 import {BMesh, BMFace, KnifeAngleSnap, KnifeEvent, KnifeStatus, KnifeTool, KnifeView, KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT} from '@threepipe/mesh-kernel'
-import {KNIFE_STATUS_KEYS, KNIFE_STATUS_MOUSE, KnifeButtonInput, knifeButtonToModal, KnifeKeyInput, knifeKeyToModal} from './keymap'
+import {KNIFE_MODAL_MAPS, KNIFE_STATUS_MOUSE, KnifeButtonInput, knifeButtonToModal, KnifeKeyInput, KnifeKeymapItem, KnifeKeymapName, knifeKeyToModal, knifeStatusKeys} from './keymap'
 
 /** Options of a knife run: `MESH_OT_knife_tool`'s properties (`:4686`). */
 export interface KnifeOptions {
@@ -29,6 +29,11 @@ export interface KnifeOptions {
     waitForInput?: boolean
     /** `angle_snapping_increment`, degrees. Default 30. */
     angleSnappingIncrement?: number
+    /**
+     * Which `Knife Tool Modal Map`: Blender's default (`'blender'`) or the Industry Compatible one
+     * (`'industry'`, Ctrl = midpoints, Shift = no snapping, Alt+drag orbits). Default `'blender'`.
+     */
+    keymap?: KnifeKeymapName
 }
 
 export interface KnifeModalSetup extends KnifeOptions {
@@ -60,9 +65,11 @@ export class KnifeModal {
     private readonly _angleIncrementDefault: number
     /** Blender's `kcd->num` string for the angle increment. */
     private _num = ''
+    private readonly _map: KnifeKeymapItem[]
 
     constructor(s: KnifeModalSetup) {
         this._angleIncrementDefault = s.angleSnappingIncrement ?? KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT
+        this._map = KNIFE_MODAL_MAPS[s.keymap ?? 'blender']
         this.tool = new KnifeTool(s.bm, {
             view: s.view,
             objectMatrix: s.objectMatrix,
@@ -101,7 +108,7 @@ export class KnifeModal {
     /** A mouse button press or release. Returns whether the knife used it. */
     button(input: KnifeButtonInput, mval: [number, number]): boolean {
         this._mval = mval
-        const m = knifeButtonToModal(input)
+        const m = knifeButtonToModal(input, this._map)
         if (!m) return false
         const status = this._run({type: 'modal', item: m.item, release: m.release, mval})
         // PANNING passes through to the view navigation.
@@ -128,7 +135,7 @@ export class KnifeModal {
                 return true
             }
         }
-        const m = knifeKeyToModal(input)
+        const m = knifeKeyToModal(input, this._map)
         if (!m) return false
         if (m.item === 'ANGLE_SNAP_TOGGLE') this._num = ''
         this._run({type: 'modal', item: m.item, release: m.release, mval: this._mval})
@@ -158,7 +165,7 @@ export class KnifeModal {
         return {
             modal: `Knife${state.length ? ' - ' + state.join(', ') : ''}. ${angle}`,
             ...KNIFE_STATUS_MOUSE,
-            keys: KNIFE_STATUS_KEYS.map(k => ({key: k.key, label: k.item === 'ANGLE_SNAP_TOGGLE' ? angle : k.label})),
+            keys: knifeStatusKeys(this._map).map(k => ({key: k.key, label: k.item === 'ANGLE_SNAP_TOGGLE' ? angle : k.label})),
         }
     }
 }

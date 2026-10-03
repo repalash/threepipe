@@ -12,7 +12,7 @@
 
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, ToolDescriptor} from '../registry'
-import type {CutActions} from '../ops/cutOps'
+import {CutActions, knifeKeymap} from '../ops/cutOps'
 
 export function registerCutTools(engine: EditorEnginePlugin, cut: CutActions): void {
     const me = engine.meshEdit
@@ -23,7 +23,7 @@ export function registerCutTools(engine: EditorEnginePlugin, cut: CutActions): v
             description: 'Click points on the surface to cut new edges; Enter applies. Snaps to vertices and edges (Shift: midpoints, Ctrl: off), C cuts through, X/Y/Z lock an axis, A snaps the angle.',
             poll: inEdit,
             activate: () => {
-                me.toolPress = press => me.startKnife({waitForInput: false, mouse: {x: press.x, y: press.y}})
+                me.toolPress = press => me.startKnife({waitForInput: false, mouse: {x: press.x, y: press.y}, keymap: knifeKeymap(engine)})
             },
             deactivate: () => {
                 me.toolPress = null

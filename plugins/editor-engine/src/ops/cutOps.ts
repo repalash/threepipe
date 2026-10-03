@@ -18,6 +18,11 @@ import {visibleSchema} from './modellingOps'
 
 type Vec3 = [number, number, number]
 
+/** The Knife Tool Modal Map for the active preset: the Design preset is built on Industry Compatible. */
+export function knifeKeymap(engine: EditorEnginePlugin): 'blender' | 'industry' {
+    return engine.keymap.activePreset.id === 'design' ? 'industry' : 'blender'
+}
+
 /** The props Blender remembers between bisects (`plane_co`/`plane_no` are `PROP_SKIP_SAVE`). */
 const remembered = {fill: false, clearInner: false, clearOuter: false, threshold: 0.0001}
 
@@ -124,7 +129,7 @@ export function registerCutOperators(engine: EditorEnginePlugin): CutActions {
                 cutThrough: {type: 'boolean', description: 'Cut through to the faces behind (C toggles it while cutting).'},
             }},
             poll: (_ctx: EditorContext) => editing(),
-            exec: (_ctx, p): OperatorResult => me.startKnife({onlySelected: !!p?.onlySelected, cutThrough: !!p?.cutThrough})
+            exec: (_ctx, p): OperatorResult => me.startKnife({onlySelected: !!p?.onlySelected, cutThrough: !!p?.cutThrough, keymap: knifeKeymap(engine)})
                 ? {ok: true}
                 : {ok: false, error: p?.onlySelected ? 'Selected faces required' : 'The knife could not start'},
         },

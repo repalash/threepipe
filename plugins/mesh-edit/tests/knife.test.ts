@@ -10,7 +10,7 @@
 
 import {describe, expect, it} from 'vitest'
 import {KMAXDIST, selectAll} from '@threepipe/mesh-kernel'
-import {knifeButtonToModal, knifeKeyToModal, KnifeKeyInput} from '../src/knife/keymap'
+import {KNIFE_MODAL_MAP_INDUSTRY, knifeButtonToModal, knifeKeyToModal, KnifeKeyInput, knifeStatusKeys} from '../src/knife/keymap'
 import {KnifeModal} from '../src/knife/KnifeModal'
 import {
     buildFromBlender, compareMeshes, dumpMesh, faceFindNearestCpu, fixtureView, interactiveFixtures, RecordedEvent,
@@ -52,6 +52,26 @@ describe('knife modal keymap (blender_default.py km_knife_tool_modal_map)', () =
         expect(knifeKeyToModal(key('KeyE'))?.item).toBe('NEW_CUT')
         expect(knifeKeyToModal(key('Backspace'))?.item).toBe('UNDO')
         expect(knifeKeyToModal(key('KeyE', true, {shift: true}))).toBeNull()
+    })
+
+    it('ports the Industry Compatible map for the Design preset (industry_compatible_data.py:3515)', () => {
+        const ic = KNIFE_MODAL_MAP_INDUSTRY
+        expect(knifeKeyToModal(key('ControlLeft'), ic)?.item).toBe('SNAP_MIDPOINTS_ON')
+        expect(knifeKeyToModal(key('ControlLeft', false), ic)?.item).toBe('SNAP_MIDPOINTS_OFF')
+        // Not "any": Ctrl with Shift already held does not match (wm_eventmatch), Shift's own flag is ignored.
+        expect(knifeKeyToModal(key('ControlLeft', true, {shift: true}), ic)).toBeNull()
+        expect(knifeKeyToModal(key('ShiftLeft', true, {shift: true}), ic)?.item).toBe('IGNORE_SNAP_ON')
+        expect(knifeKeyToModal(key('KeyD'), ic)?.item).toBe('SHOW_DISTANCE_ANGLE_TOGGLE')
+        expect(knifeKeyToModal(key('KeyS'), ic)).toBeNull()
+        expect(knifeKeyToModal(key('Space'), ic)).toBeNull()
+        const b = (button: number, press: boolean, mods = {}) => ({button, press, clicks: 1, ctrl: false, shift: false, alt: false, meta: false, ...mods})
+        expect(knifeButtonToModal(b(0, true, {alt: true}), ic)?.item).toBe('PANNING')
+        expect(knifeButtonToModal(b(0, true), ic)?.item).toBe('ADD_CUT')
+        expect(knifeButtonToModal(b(2, true, {alt: true}), ic)?.item).toBe('PANNING')
+        expect(knifeStatusKeys(ic).find(k => k.item === 'SNAP_MIDPOINTS_ON')?.key).toBe('Ctrl')
+        expect(knifeStatusKeys().find(k => k.item === 'SNAP_MIDPOINTS_ON')?.key).toBe('Shift')
+        expect(knifeStatusKeys().find(k => k.item === 'NEW_CUT')?.key).toBe('E')
+        expect(knifeStatusKeys().find(k => k.item === 'UNDO')?.key).toBe('Ctrl+Z / Backspace')
     })
 
     it('maps buttons as Blender does', () => {
