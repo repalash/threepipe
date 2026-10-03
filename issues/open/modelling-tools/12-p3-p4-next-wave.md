@@ -69,8 +69,21 @@ download (File System Access API not used); the `modelling-workspace` example's 
   only by case (`subdivideEdgering.ts` / `subdivideEdgeRing.ts`), which a macOS checkout cannot hold. F's
   port is kept: it passes L's 43 Blender fixtures and serves Bridge's Number of Cuts. L's parity test
   now runs against it, and `mesh.subdivide_edgering` is registered once, in `fillOps.ts`.
-- **Follow-ups filed:** [mesh-edit-normals-current](./mesh-edit-normals-current.md),
-  [kernel-enum-naming](./kernel-enum-naming.md).
+- **K (`p3-knife`):** merged. `faceAttributeFill` was ported twice (inline in F's `edgenet.ts` and as K's
+  module). K's module is kept, with F's hide handling. One `MeshEditPlugin.isModal` and one
+  `notModalMessage` now replace four partial "not while modal" checks.
+- **Verified:** after the three merges, the 11 modelling e2e tests pass twice in SwiftShader. A walkthrough
+  on the Mac GPU (M4 Pro, Metal) checked:
+  - the knife: preview, cut, one undo step;
+  - Ctrl+R loop cut: ring preview, cut, edge slide, one step;
+  - the first-run welcome.
+
+  Screenshots are in `tmp/browser-check/p3/`. Not yet checked on a GPU: the fill tools and bisect.
+- **Follow-ups filed:**
+  - [mesh-edit-normals-current](./mesh-edit-normals-current.md)
+  - [kernel-enum-naming](./kernel-enum-naming.md)
+  - K's [kernel-knife-port-gaps](./kernel-knife-port-gaps.md) and
+    [kernel-blender-math-duplicated](./kernel-blender-math-duplicated.md)
 
 ## Next: menus
 
