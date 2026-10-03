@@ -61,11 +61,11 @@ async function init() {
 
     async function setObject(object: Mesh2) {
         if (meshEdit.isEditing) meshEdit.exit(false)
-        for (const child of [...viewer.scene.modelRoot.children]) {
-            if ((child as IObject3D).assetType === 'widget') continue
-            child.removeFromParent()
-        }
+        // Add before removing: an empty scene, even for a moment, brings up the loading screen
+        // (`LoadingScreenPlugin.showOnSceneEmpty`), which then takes a second to fade out.
+        const old = viewer.scene.modelRoot.children.filter(c => (c as IObject3D).assetType !== 'widget')
         viewer.scene.addObject(object)
+        for (const child of old) child.removeFromParent()
         picking.setSelectedObject(object)
         // A fixed, slightly elevated view, so screen positions are reproducible for the tests.
         const camera = viewer.scene.mainCamera

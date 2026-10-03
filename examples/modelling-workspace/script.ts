@@ -28,6 +28,9 @@ async function init() {
         plugins: [LoadingScreenPlugin, PickingPlugin, TransformControlsPlugin, UndoManagerPlugin],
     })
 
+    // An editor's scene can be empty (Clear): that is not a load, so no loading screen for it.
+    viewer.getPlugin(LoadingScreenPlugin)!.isEditor = true
+
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const picking = viewer.getPlugin(PickingPlugin)!

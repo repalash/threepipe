@@ -18,6 +18,7 @@ async function init() {
         title: 'threepipe',
         viewer: {plugins: [LoadingScreenPlugin]},
         engine: {keymap: 'blender', storageKey: null},
+        onboarding: false,
     })
     const {viewer, engine} = editor
 
