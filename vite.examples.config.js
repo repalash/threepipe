@@ -179,6 +179,11 @@ export default defineConfig(async ()=>{
             //     return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
             // },
             sourcemapIgnoreList: false,
+            watch: {
+                // The e2e suite writes screenshots and traces here while it runs; watching them made the
+                // dev server reload every open example mid-test when the suite pointed at it.
+                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**'],
+            },
         },
         build: {
             sourcemap: false,
