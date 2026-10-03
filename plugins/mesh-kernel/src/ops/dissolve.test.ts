@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest'
 import {BMesh} from '../bmesh/BMesh'
 import {BMFace, BMVert} from '../bmesh/types'
 import {diskEdgeExists, edgeIsWire} from '../bmesh/structure'
-import {dissolveFaces, facesJoin, vertIsManifoldInRegion} from './dissolve'
+import {dissolveFaces, facesJoin, joinEdgeKillVertEx, vertIsManifoldInRegion} from './dissolve'
 
 /** An `n` by `n` grid of quads, `n + 1` vertices a side. */
 function grid(bm: BMesh, n: number, x0 = 0) {
@@ -229,5 +229,42 @@ describe('facesJoin keeps the winding of what it replaced', () => {
         expect(order).toEqual(order.map((_, i) => (start + i) % 6))
         // And every consecutive pair really is joined by an edge.
         for (const l of joined.eachLoop()) expect(diskEdgeExists(l.v, l.next.v)).toBe(l.e)
+    })
+})
+
+describe('joinEdgeKillVertEx (bmesh_kernel_join_edge_kill_vert)', () => {
+    function triangle() {
+        const bm = new BMesh()
+        const a = bm.vertCreate(0, 0, 0), b = bm.vertCreate(1, 0, 0), c = bm.vertCreate(0, 1, 0)
+        bm.faceCreate([a, b, c])
+        return {bm, a, b, c, eAB: diskEdgeExists(a, b)!}
+    }
+
+    it('kills a face left with two sides when kill_degenerate_faces is on', () => {
+        // Collapsing corner b of the triangle into a: the face drops to two corners and is killed;
+        // the two edges a-c and (the old b-c, now a-c) are spliced (`check_edge_exists`).
+        const {bm, a, b, c, eAB} = triangle()
+        const eOld = joinEdgeKillVertEx(bm, eAB, b, true, true, true, false)
+        expect(eOld).not.toBeNull()
+        expect(bm.validate()).toEqual([])
+        expect([bm.totvert, bm.totedge, bm.totface]).toEqual([2, 1, 0])
+        expect(bm.verts.has(b)).toBe(false)
+        expect(diskEdgeExists(a, c)).not.toBeNull()
+    })
+
+    it('without it the two-sided face is left for the caller', () => {
+        const {bm, b, eAB} = triangle()
+        joinEdgeKillVertEx(bm, eAB, b, true, true, false, false)
+        expect(bm.totface).toBe(1)
+        expect([...bm.faces][0].len).toBe(2)
+    })
+
+    it('refuses a vertex that is not between exactly two edges, changing nothing', () => {
+        const bm = new BMesh()
+        const vs = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0.5, 0.5, 0]].map(c => bm.vertCreate(c[0], c[1], c[2]))
+        for (const [i, j, k] of [[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]]) bm.faceCreate([vs[i], vs[j], vs[k]])
+        const e = diskEdgeExists(vs[0], vs[4])!
+        expect(joinEdgeKillVertEx(bm, e, vs[4], true, true, true, true)).toBeNull()
+        expect([bm.totvert, bm.totedge, bm.totface]).toEqual([5, 8, 4])
     })
 })
