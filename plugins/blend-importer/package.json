@@ -45,6 +45,8 @@
         "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "dev": "NODE_ENV=development vite build --watch",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
