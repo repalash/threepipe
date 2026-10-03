@@ -47,7 +47,7 @@ export class RegionOverlay {
     }
 
     /** Two strokes, black under white dashes, so the outline shows on any colour. */
-    private _dashed(tag: 'rect' | 'polygon' | 'circle', attrs: Record<string, string>, fill: boolean): SVGElement[] {
+    private _dashed(tag: 'rect' | 'polygon' | 'circle' | 'line', attrs: Record<string, string>, fill: boolean): SVGElement[] {
         const make = (stroke: string, dash: string | null) => {
             const el = document.createElementNS(NS, tag)
             for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
@@ -76,6 +76,11 @@ export class RegionOverlay {
 
     circle(cx: number, cy: number, radius: number): void {
         this._set(this._dashed('circle', {cx: String(cx), cy: String(cy), r: String(radius)}, false))
+    }
+
+    /** A straight line, Blender's straight-line gesture (`wm_gesture_draw_line`). */
+    line(x0: number, y0: number, x1: number, y1: number): void {
+        this._set(this._dashed('line', {x1: String(x0 + 0.5), y1: String(y0 + 0.5), x2: String(x1 + 0.5), y2: String(y1 + 0.5)}, false))
     }
 
     clear(): void {
