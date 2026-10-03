@@ -26,7 +26,8 @@ import {KMAXDIST, KnifeEvent, knifeProject, KnifeTool} from '../src/ops/knife/kn
 import {bisectSelection} from '../src/ops/bisectPlane'
 import {triangleFill} from '../src/ops/triangleFill'
 import {faceAttributeFill} from '../src/ops/faceAttributeFill'
-import {buildFromBlender, compareMeshes, dumpMesh, Fixture, fixtures, fixtureView, interactiveFixtures, RecordedEvent, faceFindNearestCpu} from './knifeBisectFixtures'
+import {buildFromBlender, compareMeshes, dumpMesh, Fixture, fixtures, fixtureView, interactiveFixtures, RecordedEvent, faceFindNearestCpu, bisectGestureFixtures} from './knifeBisectFixtures'
+import {bisectPlaneFromScreenLine} from '../src/ops/bisectPlane'
 
 function runKnife(fx: Fixture): BMesh {
     const bm = buildFromBlender(fx.input)
@@ -114,6 +115,32 @@ describe('interactive knife matches Blender', () => {
     for (const fx of interactiveFixtures) {
         it(`${fx.name} (Blender ${fx.blender})`, () => {
             const bm = runKnifeInteractive(fx)
+            expect(bm.validate()).toEqual([])
+            expect(compareMeshes(dumpMesh(bm), fx.output)).toEqual([])
+        })
+    }
+})
+
+describe('bisect\'s line gesture matches Blender', () => {
+    it('has the fixtures', () => {
+        expect(bisectGestureFixtures.length).toBeGreaterThanOrEqual(4)
+    })
+    for (const fx of bisectGestureFixtures) {
+        it(`${fx.name} (Blender ${fx.blender})`, () => {
+            const p = fx.props!
+            // `rv3d->ofs` is the negated pivot.
+            const ofs = fx.view_location!.map(x => -x) as [number, number, number]
+            const plane = bisectPlaneFromScreenLine(fixtureView(fx), [p.xstart, p.ystart], [p.xend, p.yend], ofs, p.flip)
+            for (let i = 0; i < 3; i++) {
+                expect(plane.planeNo[i]).toBeCloseTo(p.plane_no[i], 5)
+                expect(plane.planeCo[i]).toBeCloseTo(p.plane_co[i], 4)
+            }
+            const bm = buildFromBlender(fx.input)
+            selectAll(bm)
+            bisectSelection(bm, {
+                planeCo: plane.planeCo, planeNo: plane.planeNo, useFill: p.use_fill,
+                clearInner: p.clear_inner, clearOuter: p.clear_outer, threshold: p.threshold,
+            }, bisectFill)
             expect(bm.validate()).toEqual([])
             expect(compareMeshes(dumpMesh(bm), fx.output)).toEqual([])
         })

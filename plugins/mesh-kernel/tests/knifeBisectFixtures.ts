@@ -33,7 +33,7 @@ export interface RecordedEvent {
 
 export interface Fixture {
     name: string
-    kind: 'knife' | 'bisect' | 'knife-interactive'
+    kind: 'knife' | 'bisect' | 'knife-interactive' | 'bisect-interactive'
     blender: string
     input: MeshDump
     output: MeshDump
@@ -45,6 +45,10 @@ export interface Fixture {
     // knife-interactive
     events?: RecordedEvent[]
     ui_scale_fac?: number
+    // bisect-interactive
+    view_location?: number[]
+    props?: {xstart: number, ystart: number, xend: number, yend: number, flip: boolean, plane_co: number[], plane_no: number[],
+        threshold: number, use_fill: boolean, clear_inner: boolean, clear_outer: boolean}
     // bisect
     plane_co?: number[]
     plane_no?: number[]
@@ -60,7 +64,9 @@ const load = (dir: string): Fixture[] => readdirSync(dir).filter(f => f.endsWith
 /** `knife_project` and bisect cases. */
 export const fixtures: Fixture[] = load(DIR)
 /** Interactive knife cases: Blender's modal knife fed simulated input. */
-export const interactiveFixtures: Fixture[] = load(DIR_INTERACTIVE)
+export const interactiveFixtures: Fixture[] = load(DIR_INTERACTIVE).filter(f => f.kind === 'knife-interactive')
+/** Bisect drawn with the line gesture: the plane Blender derived from the drag, and the result. */
+export const bisectGestureFixtures: Fixture[] = load(DIR_INTERACTIVE).filter(f => f.kind === 'bisect-interactive')
 
 export const TOL = 1e-4
 

@@ -1,5 +1,7 @@
 # Ground truth for the *interactive* knife (`src/ops/knife/knife.ts`, `KnifeTool.modal`), written by
-# Blender's own modal knife (`MESH_OT_knife_tool`, editmesh_knife.cc) driven by simulated input.
+# Blender's own modal knife (`MESH_OT_knife_tool`, editmesh_knife.cc) driven by simulated input - and
+# for bisect's line gesture (`MESH_OT_bisect` invoked without a plane: `mesh_bisect_interactive_calc`,
+# `bisectPlaneFromScreenLine` in the port), recorded the same way.
 #
 #   xvfb-run -a -s "-screen 0 1280x1024x24" blender --factory-startup --enable-event-simulate \
 #       --python plugins/mesh-kernel/tests/fixtures/gen-knife-interactive-fixtures.py
@@ -82,6 +84,16 @@ CASES = [
     ('iknife-cube-along-edge', 'cube', VIEW_TOP, [
         ('click', (1.0, 1.0, 1.0), (0, 0)), ('click', (1.0, -1.0, 1.0), (0, 0)),
         ('click', (-1.0, -1.0, 1.0), (0, 0)), ('tap', 'RET')]),
+]
+
+
+# Bisect drags (`MESH_OT_bisect` invoked without a plane: the straight-line gesture, then
+# `mesh_bisect_interactive_calc`). name, mesh, view, view_location, drag start, drag end (world points).
+BISECT_CASES = [
+    ('ibisect-cube-top-ortho', 'cube', VIEW_TOP, (0.0, 0.0, 0.0), (-1.6, -0.9, 1.0), (1.4, 1.1, 1.0)),
+    ('ibisect-cube-iso-persp', 'cube', VIEW_ISO, (0.0, 0.0, 0.0), (-1.8, 0.4, 0.3), (1.6, -0.6, 0.1)),
+    ('ibisect-cube-iso-offset-pivot', 'cube', VIEW_ISO, (0.4, -0.3, 0.2), (-1.5, 1.2, 0.6), (1.2, -1.5, -0.4)),
+    ('ibisect-grid-top-ortho', 'grid', VIEW_TOP, (0.0, 0.0, 0.0), (-1.3, 0.35, 0.0), (1.2, -0.45, 0.0)),
 ]
 
 
@@ -207,8 +219,73 @@ def run_case(case, results):
     results.append(fx)
 
 
+def run_bisect_case(case, results):
+    name, mesh, view, location, a, b = case
+    ob = make_mesh(mesh)
+    win, area, region, space = find_view()
+    r3d = space.region_3d
+    r3d.view_perspective = view['persp']
+    r3d.view_rotation = view['rot']
+    r3d.view_location = location
+    r3d.view_distance = view['dist']
+    space.clip_start = 0.5 if view['persp'] == 'PERSP' else 0.01
+    space.clip_end = 1000.0
+    fx = {'name': name, 'kind': 'bisect-interactive', 'blender': bpy.app.version_string, 'mesh': mesh}
+    fx['input'] = dump_mesh(ob)
+    with bpy.context.temp_override(window=win, area=area, region=region):
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+    fx['view'] = view_json(space, region, r3d)
+    # `rv3d->ofs` is the negated `view_location`.
+    fx['view_location'] = list(r3d.view_location)
+
+    def px(p):
+        s = location_3d_to_region_2d(region, r3d, Vector(p))
+        return int(round(s.x)), int(round(s.y))
+
+    pa, pb = px(a), px(b)
+    yield dict(type='MOUSEMOVE', value='NOTHING', x=pa[0] + region.x, y=pa[1] + region.y)
+    with bpy.context.temp_override(window=win, area=area, region=region, screen=win.screen):
+        r = bpy.ops.mesh.bisect('INVOKE_DEFAULT')
+    if r != {'RUNNING_MODAL'}:
+        raise RuntimeError('bisect did not start: %r' % (r,))
+    yield dict(type='MOUSEMOVE', value='NOTHING', x=pa[0] + region.x, y=pa[1] + region.y)
+    yield dict(type='LEFTMOUSE', value='PRESS', x=pa[0] + region.x, y=pa[1] + region.y)
+    for i in range(1, 7):
+        q = (round(pa[0] + (pb[0] - pa[0]) * i / 6), round(pa[1] + (pb[1] - pa[1]) * i / 6))
+        yield dict(type='MOUSEMOVE', value='NOTHING', x=q[0] + region.x, y=q[1] + region.y)
+    yield dict(type='LEFTMOUSE', value='RELEASE', x=pb[0] + region.x, y=pb[1] + region.y)
+    yield dict(type='MOUSEMOVE', value='NOTHING', x=pb[0] + region.x, y=pb[1] + region.y)
+    op = bpy.context.window_manager.operators[-1]
+    if op.bl_idname != 'MESH_OT_bisect':
+        raise RuntimeError('last operator is %s' % op.bl_idname)
+    p = op.properties
+    fx['props'] = {
+        'xstart': p.xstart, 'ystart': p.ystart, 'xend': p.xend, 'yend': p.yend, 'flip': p.flip,
+        'plane_co': list(p.plane_co), 'plane_no': list(p.plane_no), 'threshold': p.threshold,
+        'use_fill': p.use_fill, 'clear_inner': p.clear_inner, 'clear_outer': p.clear_outer,
+    }
+    with bpy.context.temp_override(window=win, area=area, region=region):
+        bpy.ops.object.mode_set(mode='OBJECT')
+    fx['output'] = dump_mesh(ob)
+    results.append(fx)
+
+
 def main_iter(report):
     os.makedirs(OUT, exist_ok=True)
+    for case in BISECT_CASES:
+        results = []
+        try:
+            yield from run_bisect_case(case, results)
+            fx = results[0]
+            with open(os.path.join(OUT, case[0] + '.json'), 'w') as f:
+                json.dump(fx, f, indent=1)
+            report.append('ok %s faces=%d' % (case[0], len(fx['output']['faces'])))
+        except Exception:
+            report.append('FAIL %s\n%s' % (case[0], traceback.format_exc()))
+            yield dict(type='ESC', value='PRESS', x=10, y=10)
+            yield dict(type='ESC', value='RELEASE', x=10, y=10)
     for case in CASES:
         results = []
         try:
