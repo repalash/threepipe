@@ -128,6 +128,23 @@ export function elemSelectSet(bm: BMesh, elem: BMElemAny, select: boolean): void
     // Loops carry no selection of their own; they follow their vertex and face.
 }
 
+/**
+ * Set an edge's flag without touching its vertices. Port of `BM_edge_select_set_noflush`
+ * (`bmesh_marking.cc`), used by the downward face flush where the vertices are handled separately.
+ */
+export function edgeSelectSetNoflush(bm: BMesh, e: BMEdge, select: boolean): void {
+    if (e.hflag & ElemFlag.Hidden) return
+    if (select) {
+        if (!(e.hflag & ElemFlag.Select)) {
+            e.hflag |= ElemFlag.Select
+            bm.totedgesel++
+        }
+    } else if (e.hflag & ElemFlag.Select) {
+        e.hflag &= ~ElemFlag.Select
+        bm.totedgesel--
+    }
+}
+
 /** Set the flag without touching neighbours or counters' consistency rules. Use inside flush only. */
 function rawSelectSet(elem: BMVert | BMEdge | BMFace, select: boolean): boolean {
     const was = (elem.hflag & ElemFlag.Select) !== 0
@@ -164,51 +181,260 @@ export function selectFlush(bm: BMesh): void {
     }
 }
 
+// region mode flush - `bm_mesh_select_mode_flush_*` (bmesh_marking.cc:330-500)
+
+/** `bm_mesh_select_mode_flush_vert_to_edge`: an edge is selected exactly when both vertices are. */
+function flushVertToEdge(bm: BMesh): void {
+    for (const e of bm.edges) {
+        const ok = !(e.hflag & ElemFlag.Hidden)
+            && (e.v1.hflag & ElemFlag.Select) !== 0
+            && (e.v2.hflag & ElemFlag.Select) !== 0
+        if (rawSelectSet(e, ok)) bm.totedgesel += ok ? 1 : -1
+    }
+}
+
+/** `bm_mesh_select_mode_flush_edge_to_face`: a face is selected exactly when all its edges are. */
+function flushEdgeToFace(bm: BMesh): void {
+    for (const f of bm.faces) {
+        let ok = !(f.hflag & ElemFlag.Hidden)
+        if (ok) {
+            for (const l of f.eachLoop()) {
+                if (!l.e || !(l.e.hflag & ElemFlag.Select)) {
+                    ok = false
+                    break
+                }
+            }
+        }
+        if (rawSelectSet(f, ok)) bm.totfacesel += ok ? 1 : -1
+    }
+}
+
+/** `bm_mesh_select_mode_flush_edge_to_vert`: flush down from edges to vertices. */
+function flushEdgeToVert(bm: BMesh): void {
+    let anySelect = false
+    for (const e of bm.edges) {
+        if (e.hflag & ElemFlag.Hidden) continue
+        if (e.hflag & ElemFlag.Select) {
+            anySelect = true
+        } else {
+            vertSelectSet(bm, e.v1, false)
+            vertSelectSet(bm, e.v2, false)
+        }
+    }
+    if (anySelect) {
+        for (const e of bm.edges) {
+            if (e.hflag & ElemFlag.Hidden) continue
+            if (e.hflag & ElemFlag.Select) {
+                vertSelectSet(bm, e.v1, true)
+                vertSelectSet(bm, e.v2, true)
+            }
+        }
+    }
+}
+
+/** `bm_mesh_select_mode_flush_face_to_vert_and_edge`: flush down from faces to vertices and edges. */
+function flushFaceToVertAndEdge(bm: BMesh): void {
+    let anySelect = false
+    for (const f of bm.faces) {
+        if (f.hflag & ElemFlag.Hidden) continue
+        if (f.hflag & ElemFlag.Select) {
+            anySelect = true
+        } else {
+            for (const l of f.eachLoop()) {
+                vertSelectSet(bm, l.v, false)
+                if (l.e) edgeSelectSetNoflush(bm, l.e, false)
+            }
+        }
+    }
+    if (anySelect) {
+        for (const f of bm.faces) {
+            if (f.hflag & ElemFlag.Hidden) continue
+            if (f.hflag & ElemFlag.Select) {
+                for (const l of f.eachLoop()) {
+                    vertSelectSet(bm, l.v, true)
+                    if (l.e) edgeSelectSetNoflush(bm, l.e, true)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Flush the selection upward according to the mode: in vertex mode vertices decide edges and edges
+ * decide faces; in edge mode edges decide faces; in face mode nothing flushes.
+ *
+ * Port of `BM_mesh_select_mode_flush` (`bmesh_marking.cc:502`, `BMSelectFlushFlag_Default`), which is
+ * what Blender's `EDBM_selectmode_flush` runs after every selection operator. Differs from
+ * {@link selectFlush} in that it respects the mode: two opposite edges of a quad selected in edge mode
+ * do not drag the other two along just because all four corners are selected.
+ */
+export function selectModeFlush(bm: BMesh): void {
+    selectModeFlushEx(bm, bm.selectMode, false)
+}
+
+/**
+ * Port of `BM_mesh_select_mode_flush_ex` (`bmesh_marking.cc:502`): an optional downward flush from the
+ * mode's domain, then always the upward one.
+ */
+export function selectModeFlushEx(bm: BMesh, mode: SelectModeMask, flushDown: boolean): void {
+    if (flushDown) {
+        if (mode & SelectMode.Vertex) {
+            // Pass.
+        } else if (mode & SelectMode.Edge) {
+            flushEdgeToVert(bm)
+        } else if (mode & SelectMode.Face) {
+            flushFaceToVertAndEdge(bm)
+        }
+    }
+    // Always flush up.
+    if (mode & SelectMode.Vertex) flushVertToEdge(bm)
+    if (mode & (SelectMode.Vertex | SelectMode.Edge)) flushEdgeToFace(bm)
+    // Remove any deselected elements from the history.
+    selectHistoryValidate(bm)
+}
+
 /**
  * Flush downward from the mode's domain, then upward.
  *
- * Port of `BM_mesh_select_mode_flush_ex` with `BMSelectFlushFlag::Down`. In edge mode every selected
- * edge selects its vertices; in face mode every selected face selects its edges and vertices. Used on
- * a mode change, where the authoritative domain has just changed.
+ * `BM_mesh_select_mode_flush_ex` with `BMSelectFlushFlag::Down`. In edge mode every selected edge
+ * selects its vertices; in face mode every selected face selects its edges and vertices.
  */
 export function selectFlushMode(bm: BMesh): void {
-    if (bm.selectMode & SelectMode.Face) {
-        for (const v of bm.verts) if (rawSelectSet(v, false)) bm.totvertsel--
-        for (const e of bm.edges) if (rawSelectSet(e, false)) bm.totedgesel--
-        for (const f of bm.faces) {
-            if (!(f.hflag & ElemFlag.Select)) continue
-            for (const l of f.eachLoop()) {
-                if (rawSelectSet(l.v, true)) bm.totvertsel++
-                if (l.e && rawSelectSet(l.e, true)) bm.totedgesel++
+    selectModeFlushEx(bm, bm.selectMode, true)
+}
+
+/**
+ * Select edges and faces whose vertices are all selected (`select`), or deselect edges and faces that
+ * have a deselected vertex (`!select`). Only ever changes flags in that one direction.
+ *
+ * Port of `BM_mesh_select_flush_from_verts` (`bmesh_marking.cc:550`).
+ */
+export function selectFlushFromVerts(bm: BMesh, select: boolean): void {
+    if (select) {
+        for (const e of bm.edges) {
+            if ((e.v1.hflag & ElemFlag.Select) && (e.v2.hflag & ElemFlag.Select) && !(e.hflag & ElemFlag.Hidden)) {
+                if (rawSelectSet(e, true)) bm.totedgesel++
             }
         }
-    } else if (bm.selectMode & SelectMode.Edge) {
-        for (const v of bm.verts) if (rawSelectSet(v, false)) bm.totvertsel--
+        for (const f of bm.faces) {
+            let ok = !(f.hflag & ElemFlag.Hidden)
+            if (ok) {
+                for (const l of f.eachLoop()) {
+                    if (!(l.v.hflag & ElemFlag.Select)) {
+                        ok = false
+                        break
+                    }
+                }
+            }
+            if (ok && rawSelectSet(f, true)) bm.totfacesel++
+        }
+    } else {
         for (const e of bm.edges) {
+            if (e.hflag & ElemFlag.Hidden) continue
             if (!(e.hflag & ElemFlag.Select)) continue
-            if (rawSelectSet(e.v1, true)) bm.totvertsel++
-            if (rawSelectSet(e.v2, true)) bm.totvertsel++
+            if (!(e.v1.hflag & ElemFlag.Select) || !(e.v2.hflag & ElemFlag.Select)) {
+                if (rawSelectSet(e, false)) bm.totedgesel--
+            }
+        }
+        for (const f of bm.faces) {
+            if (f.hflag & ElemFlag.Hidden) continue
+            if (!(f.hflag & ElemFlag.Select)) continue
+            for (const l of f.eachLoop()) {
+                if (!(l.v.hflag & ElemFlag.Select)) {
+                    if (rawSelectSet(f, false)) bm.totfacesel--
+                    break
+                }
+            }
         }
     }
-    selectFlush(bm)
-    selectHistoryValidate(bm)
 }
+
+/**
+ * Remove isolated elements the mode cannot represent, after a "select less" has contracted the
+ * selection: in edge mode re-derive the vertices from the edges, in face mode re-derive the edges and
+ * vertices from the faces.
+ *
+ * Port of `BM_mesh_select_mode_clean_ex` (`bmesh_marking.cc:256`).
+ */
+export function selectModeClean(bm: BMesh): void {
+    const mode = bm.selectMode
+    if (mode & SelectMode.Vertex) {
+        // Pass.
+    } else if (mode & SelectMode.Edge) {
+        if (bm.totvertsel) {
+            for (const v of bm.verts) v.hflag &= ~ElemFlag.Select
+            bm.totvertsel = 0
+        }
+        if (bm.totedgesel) {
+            for (const e of bm.edges) {
+                if (e.hflag & ElemFlag.Select) {
+                    vertSelectSet(bm, e.v1, true)
+                    vertSelectSet(bm, e.v2, true)
+                }
+            }
+        }
+    } else if (mode & SelectMode.Face) {
+        if (bm.totvertsel) {
+            for (const v of bm.verts) v.hflag &= ~ElemFlag.Select
+            bm.totvertsel = 0
+        }
+        if (bm.totedgesel) {
+            for (const e of bm.edges) e.hflag &= ~ElemFlag.Select
+            bm.totedgesel = 0
+        }
+        if (bm.totfacesel) {
+            for (const f of bm.faces) {
+                if (f.hflag & ElemFlag.Select) {
+                    for (const l of f.eachLoop()) if (l.e) edgeSelectSet(bm, l.e, true)
+                }
+            }
+        }
+    }
+}
+
+// endregion
 
 /**
  * Change the select mode, converting the existing selection to it.
  *
  * Port of `EDBM_selectmode_set` (`editors/mesh/editmesh_select.cc:2985`). History entries whose type
- * the new mode cannot represent are dropped, as Blender's `edbm_strip_selections` does.
+ * the new mode cannot represent are dropped, as Blender's `edbm_strip_selections` does. Then:
+ * - vertex mode: edges and faces whose vertices are all selected become selected;
+ * - edge mode: vertices are re-derived from the selected edges, faces from the edges;
+ * - face mode: edges (and so vertices) are re-derived from the selected faces only.
+ *
+ * Converting *between* single modes with Blender's "expand" rules is `selectModeConvert` in the
+ * mesh-edit plugin; this is the plain switch.
  */
 export function selectModeSet(bm: BMesh, mode: SelectModeMask): void {
     if (mode === 0) throw new Error('mesh-kernel: select mode must include at least one domain')
     bm.selectMode = mode
+    // Strip stored selection that is not relevant to the new mode.
     bm.selectHistory = bm.selectHistory.filter(h => {
         if (h.elem instanceof BMVert) return (mode & SelectMode.Vertex) !== 0
         if (h.elem instanceof BMEdge) return (mode & SelectMode.Edge) !== 0
         return (mode & SelectMode.Face) !== 0
     })
-    selectFlushMode(bm)
+
+    if (bm.totvertsel === 0 && bm.totedgesel === 0 && bm.totfacesel === 0) return
+
+    if (mode & SelectMode.Vertex) {
+        if (bm.totvertsel) selectFlushFromVerts(bm, true)
+    } else if (mode & SelectMode.Edge) {
+        // Deselect vertices, and select again based on edge select.
+        for (const v of bm.verts) vertSelectSet(bm, v, false)
+        if (bm.totedgesel) {
+            for (const e of bm.edges) if (e.hflag & ElemFlag.Select) edgeSelectSet(bm, e, true)
+            // Selects faces based on edge status.
+            selectModeFlush(bm)
+        }
+    } else if (mode & SelectMode.Face) {
+        // Deselect edges, and select again based on face select.
+        for (const e of bm.edges) edgeSelectSet(bm, e, false)
+        if (bm.totfacesel) {
+            for (const f of bm.faces) if (f.hflag & ElemFlag.Select) faceSelectSet(bm, f, true)
+        }
+    }
 }
 
 /** Select every visible element. Port of the `SELECT` branch of `MESH_OT_select_all`. */
@@ -284,34 +510,96 @@ export function selectHistoryActive(bm: BMesh): BMVert | BMEdge | BMFace | null 
 
 // region hiding
 
-/** Hide a vertex and everything using it. Port of `BM_vert_hide_set`. */
+/*
+ * Ports of `BM_vert_hide_set`, `BM_edge_hide_set` and `BM_face_hide_set` (`bmesh_marking.cc:1506`),
+ * wrapped the way `_bm_elem_hide_set` wraps them: an element is deselected before it is hidden.
+ *
+ * Blender only deselects the element itself and lets the following `EDBM_selectmode_flush` deselect
+ * the edges and faces it dragged into hiding. Here every element that becomes hidden is deselected
+ * on the spot, through the propagating setters, so a hidden element is never selected even between
+ * the hide and the flush; the end state after the flush is the same.
+ */
+
+function setHidden(bm: BMesh, elem: BMVert | BMEdge | BMFace, hide: boolean): void {
+    if (hide) {
+        if (elem instanceof BMVert) vertSelectSet(bm, elem, false)
+        else if (elem instanceof BMEdge) edgeSelectSet(bm, elem, false)
+        else faceSelectSet(bm, elem, false)
+        elem.hflag |= ElemFlag.Hidden
+    } else {
+        elem.hflag &= ~ElemFlag.Hidden
+    }
+}
+
+/** `bm_vert_is_edge_visible_any`. */
+function vertIsEdgeVisibleAny(v: BMVert): boolean {
+    for (const e of diskEdges(v)) if (!(e.hflag & ElemFlag.Hidden)) return true
+    return false
+}
+
+/** `bm_edge_is_face_visible_any`. */
+function edgeIsFaceVisibleAny(e: BMEdge): boolean {
+    for (const l of radialLoops(e)) if (!(l.f.hflag & ElemFlag.Hidden)) return true
+    return false
+}
+
+/** `vert_flush_hide_set`: hide the vertex unless one of its edges is still visible. */
+function vertFlushHideSet(bm: BMesh, v: BMVert): void {
+    setHidden(bm, v, !vertIsEdgeVisibleAny(v))
+}
+
+/** `edge_flush_hide_set`: hide the edge unless one of its faces is still visible. */
+function edgeFlushHideSet(bm: BMesh, e: BMEdge): void {
+    setHidden(bm, e, !edgeIsFaceVisibleAny(e))
+}
+
+/** Hide (or show) a vertex, its edges and their faces. Port of `BM_vert_hide_set`. */
 export function vertHideSet(bm: BMesh, v: BMVert, hide: boolean): void {
-    if (hide) {
-        vertSelectSet(bm, v, false)
-        v.hflag |= ElemFlag.Hidden
-        for (const e of diskEdges(v)) edgeHideSet(bm, e, true)
-    } else {
-        v.hflag &= ~ElemFlag.Hidden
+    setHidden(bm, v, hide)
+    for (const e of diskEdges(v)) {
+        setHidden(bm, e, hide)
+        for (const l of radialLoops(e)) setHidden(bm, l.f, hide)
     }
 }
 
+/**
+ * Hide (or show) an edge and the faces around it. Hiding also hides either vertex that has no visible
+ * edge left; showing shows both. Port of `BM_edge_hide_set`.
+ */
 export function edgeHideSet(bm: BMesh, e: BMEdge, hide: boolean): void {
+    for (const l of radialLoops(e)) setHidden(bm, l.f, hide)
+    setHidden(bm, e, hide)
     if (hide) {
-        edgeSelectSet(bm, e, false)
-        e.hflag |= ElemFlag.Hidden
-        for (const l of radialLoops(e)) faceHideSet(bm, l.f, true)
+        vertFlushHideSet(bm, e.v1)
+        vertFlushHideSet(bm, e.v2)
     } else {
-        e.hflag &= ~ElemFlag.Hidden
+        setHidden(bm, e.v1, false)
+        setHidden(bm, e.v2, false)
     }
 }
 
+/**
+ * Hide (or show) a face. Hiding also hides its edges that have no visible face left and its vertices
+ * that have no visible edge left; showing shows its edges and vertices. Port of `BM_face_hide_set`.
+ */
 export function faceHideSet(bm: BMesh, f: BMFace, hide: boolean): void {
+    setHidden(bm, f, hide)
     if (hide) {
-        faceSelectSet(bm, f, false)
-        f.hflag |= ElemFlag.Hidden
+        for (const l of f.eachLoop()) if (l.e) edgeFlushHideSet(bm, l.e)
+        for (const l of f.eachLoop()) vertFlushHideSet(bm, l.v)
     } else {
-        f.hflag &= ~ElemFlag.Hidden
+        for (const l of f.eachLoop()) {
+            if (l.e) setHidden(bm, l.e, false)
+            setHidden(bm, l.v, false)
+        }
     }
+}
+
+/** Dispatch on element type. Port of `BM_elem_hide_set`. */
+export function elemHideSet(bm: BMesh, elem: BMVert | BMEdge | BMFace, hide: boolean): void {
+    if (elem instanceof BMVert) vertHideSet(bm, elem, hide)
+    else if (elem instanceof BMEdge) edgeHideSet(bm, elem, hide)
+    else faceHideSet(bm, elem, hide)
 }
 
 /** Unhide everything and, like Blender's reveal, select what was revealed. */

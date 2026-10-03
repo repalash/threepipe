@@ -12,6 +12,8 @@
  * | {@link walkFaceLoop} | `BMW_FACELOOP` | the quads a face loop passes through |
  * | {@link walkEdgeBoundary} | `BMW_EDGEBOUNDARY` | the boundary edges connected to a boundary edge |
  * | {@link walkLoopShell} | `BMW_LOOP_SHELL` | every loop of the shell a seed belongs to |
+ * | {@link walkLoopShellWire} | `BMW_LOOP_SHELL_WIRE` | the same, crossing wire edges too (select linked with delimiters) |
+ * | {@link walkEdgeLoopNonManifold} | `BMW_EDGELOOP_NONMANIFOLD` | the edge loop through an edge with more than two faces |
  * | {@link walkIsland} | `BMW_ISLAND` / `BMW_ISLAND_MANIFOLD` | the face region connected across shared edges |
  *
  * **Walkers never mutate the mesh.** Blender's own header says it in capitals: do not modify topology
@@ -33,10 +35,11 @@
  *
  * ## Walker masks
  *
- * Blender's walkers filter by *operator* flags (`BMO_elem_flag_test`), which this kernel does not have
- * yet (step 10 of the M1 subplan). The only mask that is ported is `BMW_FLAG_TEST_HIDDEN`, as
- * {@link WalkOptions.testHidden}; with it off - the default - `bmw_mask_check_*` is always true, which
- * is exactly what Blender does with an empty mask.
+ * Blender's walkers filter by *operator* flags (`BMO_elem_flag_test`), which this kernel does not have.
+ * `BMW_FLAG_TEST_HIDDEN` is {@link WalkOptions.testHidden}, and the three operator-flag masks are the
+ * predicates {@link WalkOptions.maskVert} / {@link WalkOptions.maskEdge} / {@link WalkOptions.maskFace};
+ * with none set - the default - `bmw_mask_check_*` is always true, which is exactly what Blender does
+ * with an empty mask.
  *
  * ## Delimiters
  *
@@ -49,6 +52,7 @@ import {BMEdge, BMFace, BMLoop, BMVert} from './types'
 import {
     diskEdgeExists,
     diskEdges,
+    edgeFaceCount,
     edgeIsBoundary,
     edgeIsManifold,
     edgeIsWire,
@@ -82,6 +86,15 @@ export interface WalkOptions {
     delimitInnerCorners?: boolean
     /** `BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS`. Boundary loops only. */
     delimitOuterCorners?: boolean
+    /**
+     * Blender's `mask_vert` / `mask_edge` / `mask_face` operator-flag masks, as predicates: an element
+     * for which the predicate is false is treated as absent (`bmw_mask_check_*`,
+     * `bmesh_walkers_impl.cc:34`). Select-linked's delimiters tag the edges that may be walked and pass
+     * that tag as `maskEdge`.
+     */
+    maskVert?: (v: BMVert) => boolean
+    maskEdge?: (e: BMEdge) => boolean
+    maskFace?: (f: BMFace) => boolean
 }
 
 /** A UV seam. Blender's `BM_elem_flag_test(e, BM_ELEM_SEAM)`. */
@@ -193,18 +206,38 @@ abstract class Walker<S extends WalkState, T extends object> {
 
     protected constructor(protected readonly opts: WalkOptions) {}
 
-    // region mask checks - `bmw_mask_check_*`, minus the operator flag layer this kernel lacks
+    // region mask checks - `bmw_mask_check_*` (`bmesh_walkers_impl.cc:34`), with the operator-flag
+    // masks as predicates
 
     protected maskCheckVert(v: BMVert): boolean {
-        return !(this.opts.testHidden && v.hidden)
+        if (this.opts.testHidden && v.hidden) return false
+        if (this.opts.maskVert && !this.opts.maskVert(v)) return false
+        return true
     }
 
     protected maskCheckEdge(e: BMEdge): boolean {
-        return !(this.opts.testHidden && e.hidden)
+        if (this.opts.testHidden && e.hidden) return false
+        if (this.opts.maskEdge && !this.opts.maskEdge(e)) return false
+        return true
     }
 
     protected maskCheckFace(f: BMFace): boolean {
-        return !(this.opts.testHidden && f.hidden)
+        if (this.opts.testHidden && f.hidden) return false
+        if (this.opts.maskFace && !this.opts.maskFace(f)) return false
+        return true
+    }
+
+    /**
+     * `bmw_edge_is_wire` (`bmesh_walkers_impl.cc:76`): a wire edge, or - when hidden elements are
+     * being skipped - an edge whose faces are all hidden.
+     */
+    protected edgeIsWire(e: BMEdge): boolean {
+        if (this.opts.testHidden) {
+            if (edgeIsWire(e)) return true
+            for (const l of radialLoops(e)) if (!l.f.hidden) return false
+            return true
+        }
+        return edgeIsWire(e)
     }
 
     // endregion
@@ -1055,8 +1088,8 @@ interface LoopShellState extends WalkState {
 /**
  * Port of `bmw_LoopShellWalker_*` (`bmesh_walkers_impl.cc:225`). Breadth-first, yields loops.
  *
- * Blender's note: this is mainly useful to loop over a shell delimited by edges. The wire variant
- * (`BMW_LOOP_SHELL_WIRE`) is not ported.
+ * Blender's note: this is mainly useful to loop over a shell delimited by edges. The wire variant is
+ * {@link walkLoopShellWire}.
  */
 class LoopShellWalker extends Walker<LoopShellState, BMLoop> {
     protected readonly order: WalkOrder = 'breadthFirst'
@@ -1129,6 +1162,254 @@ export function walkLoopShellIter(start: BMVert | BMEdge | BMFace | BMLoop, opts
 /** {@link walkLoopShellIter} collected into an array, in walk order, each loop once. */
 export function walkLoopShell(start: BMVert | BMEdge | BMFace | BMLoop, opts: WalkOptions = {}): BMLoop[] {
     return collect(walkLoopShellIter(start, opts))
+}
+
+// endregion
+
+// region loop shell wire walker - BMW_LOOP_SHELL_WIRE
+
+interface LoopShellWireState extends WalkState {
+    curelem: BMLoop | BMEdge
+}
+
+/**
+ * Port of `bmw_LoopShellWireWalker_*` (`bmesh_walkers_impl.cc:361`). The loop-shell walk that also
+ * crosses wire edges, yielding loops for faces and edges for wires. Breadth-first.
+ *
+ * `visit_set` holds loops, `visit_set_alt` holds wire edges and the vertices already fanned around, as
+ * in Blender.
+ */
+class LoopShellWireWalker extends Walker<LoopShellWireState, BMLoop | BMEdge> {
+    protected readonly order: WalkOrder = 'breadthFirst'
+
+    constructor(start: BMVert | BMEdge | BMFace | BMLoop, opts: WalkOptions) {
+        super(opts)
+        this.begin(start)
+    }
+
+    /** `bmw_LoopShellWalker_visitLoop`. */
+    private visitLoop(l: BMLoop): void {
+        if (this.visitSet.has(l)) return
+        if (!this.maskCheckFace(l.f)) return
+        this.stateAdd({curelem: l})
+        this.visitSet.add(l)
+    }
+
+    /** `bmw_LoopShellWalker_visitEdgeWire`. */
+    private visitEdgeWire(e: BMEdge): void {
+        if (this.visitSetAlt.has(e)) return
+        if (!this.maskCheckEdge(e)) return
+        this.stateAdd({curelem: e})
+        this.visitSetAlt.add(e)
+    }
+
+    /** `bmw_LoopShellWireWalker_visitVert`. */
+    private visitVert(v: BMVert, eFrom: BMEdge | null): void {
+        if (this.visitSetAlt.has(v)) return
+        if (!this.maskCheckVert(v)) return
+        for (const e of diskEdges(v)) {
+            if (this.edgeIsWire(e) && e !== eFrom) {
+                this.visitEdgeWire(e)
+                // Check if we step onto a non-wire vertex.
+                const vOther = e.otherVert(v)
+                for (const e2 of diskEdges(vOther)) {
+                    for (const l of radialLoops(e2)) if (l.v === vOther) this.visitLoop(l)
+                }
+            }
+        }
+        this.visitSetAlt.add(v)
+    }
+
+    /** `bmw_LoopShellWalker_begin` followed by the wire walker's own seeding. */
+    private begin(start: BMVert | BMEdge | BMFace | BMLoop): void {
+        if (start instanceof BMLoop) {
+            this.visitLoop(start)
+        } else if (start instanceof BMVert) {
+            for (const e of diskEdges(start)) {
+                for (const l of radialLoops(e)) if (l.v === start) this.visitLoop(l)
+            }
+        } else if (start instanceof BMEdge) {
+            for (const l of radialLoops(start)) this.visitLoop(l)
+        } else if (start.lFirst) {
+            this.visitLoop(start.lFirst)
+        }
+
+        if (start instanceof BMLoop) {
+            this.visitVert(start.v, null)
+        } else if (start instanceof BMVert) {
+            if (start.e) this.visitVert(start, null)
+        } else if (start instanceof BMEdge) {
+            if (this.maskCheckEdge(start)) {
+                this.visitVert(start.v1, null)
+                this.visitVert(start.v2, null)
+            } else if (start.l) {
+                for (const lIter of radialLoops(start)) {
+                    this.visitLoop(lIter)
+                    this.visitLoop(lIter.next)
+                }
+            }
+        }
+        // A face: wire vertices will be walked over.
+    }
+
+    /** `bmw_LoopShellWalker_step_impl`. */
+    private stepLoop(l: BMLoop): void {
+        this.visitLoop(l.next)
+        this.visitLoop(l.prev)
+        const edgePair = [l.e, l.prev.e]
+        for (const e of edgePair) {
+            if (!e) continue
+            if (!this.maskCheckEdge(e)) continue
+            for (const lIter of radialLoops(e)) {
+                const lRadial = lIter.v === l.v ? lIter : lIter.next
+                if (l !== lRadial) this.visitLoop(lRadial)
+            }
+        }
+    }
+
+    protected step(): BMLoop | BMEdge {
+        const owalk = this.stateRemoveR()
+        const cur = owalk.curelem
+        if (cur instanceof BMLoop) {
+            this.stepLoop(cur)
+            this.visitVert(cur.v, null)
+            return cur
+        }
+        this.visitVert(cur.v1, cur)
+        this.visitVert(cur.v2, cur)
+        return cur
+    }
+
+    run(): Generator<BMLoop | BMEdge> {
+        return this.iterate()
+    }
+}
+
+/**
+ * The loop shell `start` belongs to, including wire edges - Blender's `BMW_LOOP_SHELL_WIRE`, used by
+ * select-linked with delimiters. Yields loops for faces and edges for wires; breadth-first, each once.
+ *
+ * Honours {@link WalkOptions.testHidden} and the `mask*` predicates; supports no delimiters.
+ */
+export function walkLoopShellWireIter(start: BMVert | BMEdge | BMFace | BMLoop, opts: WalkOptions = {}): Generator<BMLoop | BMEdge> {
+    return new LoopShellWireWalker(start, opts).run()
+}
+
+/** {@link walkLoopShellWireIter} collected into an array, in walk order, each element once. */
+export function walkLoopShellWire(start: BMVert | BMEdge | BMFace | BMLoop, opts: WalkOptions = {}): (BMLoop | BMEdge)[] {
+    return collect(walkLoopShellWireIter(start, opts))
+}
+
+// endregion
+
+// region non-manifold edge loop walker - BMW_EDGELOOP_NONMANIFOLD
+
+interface NonManifoldEdgeState extends WalkState {
+    start: BMEdge
+    cur: BMEdge
+    startv: BMVert
+    lastv: BMVert
+    /** Face count around the edge. */
+    faceCount: number
+}
+
+/** `BM_loop_is_manifold` (`bmesh_query_inline.hh:134`). */
+function loopIsManifold(l: BMLoop): boolean {
+    return l !== l.radialNext && l === l.radialNext!.radialNext
+}
+
+/**
+ * Port of `bmw_NonManifoldedgeWalker_*` (`bmesh_walkers_impl.cc:1780`): the loop of edges that share
+ * the starting edge's face count, walked through the manifold fans around each vertex. Depth-first,
+ * yields edges.
+ */
+class NonManifoldEdgeWalker extends Walker<NonManifoldEdgeState, BMEdge> {
+    constructor(e: BMEdge, opts: WalkOptions) {
+        super(opts)
+        this.begin(e)
+    }
+
+    private begin(e: BMEdge): void {
+        if (this.visitSet.has(e)) return
+        this.stateAdd({start: e, cur: e, startv: e.v1, lastv: e.v1, faceCount: edgeFaceCount(e)})
+        this.visitSet.add(e)
+    }
+
+    /**
+     * `bmw_NonManifoldLoop_find_next_around_vertex`: walk over manifold loops around `v` until a loop
+     * edge is found with `faceCount` users, or null if not found.
+     */
+    private findNextAroundVertex(l: BMLoop, v: BMVert, faceCount: number): BMLoop | null {
+        for (;;) {
+            l = loopOtherEdgeLoop(l, v)
+            if (loopIsManifold(l)) {
+                l = l.radialNext!
+            } else if (edgeFaceCount(l.e!) === faceCount) {
+                return l
+            } else {
+                break
+            }
+        }
+        return null
+    }
+
+    protected step(): BMEdge {
+        const owalk = this.stateRemoveR()
+        const faceCount = owalk.faceCount
+        let lCur: BMLoop | null = null
+        let v: BMVert = owalk.lastv
+
+        // The second pass is unlikely, only needed to walk back in the opposite direction.
+        for (let pass = 0; pass < 2; pass++) {
+            let e = owalk.cur
+            v = e.otherVert(owalk.lastv)
+            // If `lastv` cannot be walked along, start walking in the opposite direction on the
+            // initial edge; at most once during this walk operation.
+            if (pass === 1) {
+                e = owalk.start
+                v = owalk.startv
+            }
+            if (!e.l) break
+            for (const l of radialLoops(e)) {
+                const lNext = this.findNextAroundVertex(l, v, faceCount)
+                if (lNext !== null && !this.visitSet.has(lNext.e!)) {
+                    if (lCur === null) {
+                        lCur = lNext
+                    } else if (lCur.e !== lNext.e) {
+                        // More than one possible edge to step onto: a junction, stop walking.
+                        lCur = null
+                        break
+                    }
+                }
+            }
+            if (lCur !== null) break
+        }
+
+        if (lCur !== null) {
+            this.stateAdd({start: owalk.start, startv: owalk.startv, lastv: v, cur: lCur.e!, faceCount})
+            this.visitSet.add(lCur.e!)
+        }
+        return owalk.cur
+    }
+
+    run(): Generator<BMEdge> {
+        return this.iterate()
+    }
+}
+
+/**
+ * The non-manifold edge loop through `e` - Blender's `BMW_EDGELOOP_NONMANIFOLD`, which loop select
+ * uses when the clicked edge has more than two faces. Depth-first, each edge once.
+ *
+ * Supports neither hidden-testing masks nor delimiters, as in Blender (`valid_mask = 0`).
+ */
+export function walkEdgeLoopNonManifoldIter(e: BMEdge, opts: WalkOptions = {}): Generator<BMEdge> {
+    return new NonManifoldEdgeWalker(e, opts).run()
+}
+
+/** {@link walkEdgeLoopNonManifoldIter} collected into an array, in walk order, each edge once. */
+export function walkEdgeLoopNonManifold(e: BMEdge, opts: WalkOptions = {}): BMEdge[] {
+    return collect(walkEdgeLoopNonManifoldIter(e, opts))
 }
 
 // endregion
