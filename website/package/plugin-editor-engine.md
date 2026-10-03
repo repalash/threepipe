@@ -106,6 +106,9 @@ file cites the line of each binding).
 | A, Alt+A, Ctrl+I | Select all / none / invert |
 | L, Ctrl+L | Select linked |
 | G / R / S | Move / rotate / scale (modal; X/Y/Z lock an axis, numbers type a value, Shift precision) |
+| G G | Edge slide (vertex slide when the selection is not edge loops) |
+| Shift+V | Vertex slide |
+| Ctrl+R | Loop cut and slide |
 | E | Extrude along the normal |
 | I | Inset faces |
 | Ctrl+B | Bevel |
@@ -198,8 +201,14 @@ Edit mode: `mesh.exit_edit`, `mesh.exit_discard`, `mesh.apply`, `mesh.select_mod
 `mesh.dissolve` (vertices, edges or faces by select mode - `bmo_dissolve.cc` ports in the kernel), `mesh.fill`
 (`F`: an edge from two vertices, a face from a closed edge loop, or a region dissolve - `bmo_contextual_create`
 without the edge-net fill), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
-`mesh.separate`, `mesh.toggle_xray`. `mesh.subdivide` is registered disabled: the kernel's `bmo_subdivide`
-port covers the icosphere's `tri_3edge` pattern only (P3 backlog).
+`mesh.separate`, `mesh.toggle_xray`, and the loop tools: `mesh.subdivide` (all of `bmo_subdivide.cc`: cuts,
+smoothness, n-gons, quad corner type; fractal is not ported), `mesh.subdivide_edgering`
+(`bmo_subdivide_edgering.cc`: linear, blend path, blend surface, profile shape), `mesh.loopcut_slide` (modal
+with Ctrl+R; with props the cut through `_saved.edgeIndex` and then the slide, as the redo panel re-runs it),
+`mesh.edge_slide` and `mesh.vert_slide` (modal, or exact with `{value, even, flipped, clamp}`). A slide reached
+with `G G` from Move becomes the redo panel's operation as Edge Slide or Vertex Slide, as Blender switches the
+operator's type; the panel keeps the first run's cursor and the E/F/C toggles so a redo matches what was on
+screen (two deliberate deviations, see `@threepipe/plugin-mesh-edit`).
 
 The shell adds `view.*` (frame, axis views, projection, grid, shading), `ui.command_palette` and `help.*`
 through `engine.operators.register`.
@@ -210,8 +219,9 @@ through `engine.operators.register`.
 `mesh.extrude` (one-shot: they start the modal and the shelf returns to Select when it ends - track T's element
 gizmo replaces this); `mesh.inset` and `mesh.bevel` (interactive: run with defaults, drag sets the
 thickness/width, the wheel changes bevel segments, click confirms, Esc cancels - each change is the redo-last
-path, so the drag and the panel cannot disagree); `mesh.loop_cut` and `mesh.knife` are registered disabled
-until P3.
+path, so the drag and the panel cannot disagree); `mesh.loop_cut` (Blender's Loop Cut tool: hover previews the
+ring, press and drag cuts and slides, release places, and the tool stays for the next cut; Esc hands the shelf
+back to Select); `mesh.knife` is registered disabled until P3.
 
 ## Status hints
 
@@ -222,4 +232,7 @@ else the mouse mapping of the preset plus the keys that matter most in the mode,
 
 `npm run test:unit:editor-engine` - keymap parsing and presets, the router's dispatch rules, the history and
 `undoTo`. The real-input tests (keys and mouse through Playwright: presets, menus, palette, redo-last, undo
-across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`.
+across modes, context menus) are in `tests/interactive.spec.ts` under `modelling-editor`; the loop tools (edge
+slide by `G G` with a typed factor, vertex slide, Subdivide from the Mesh menu, Subdivide Edge-Ring, Loop Cut and
+Slide with one and three cuts, the Loop Cut tool, the redo panel and undo after each) under
+`modelling-loop-tools`.

@@ -57,7 +57,11 @@ const {data} = bakeGeometry(bmToMesh(bm), {includeNormals: true})
 `extrudeFaceRegion`, `extrudeEdgeOnly`, `insetRegion`, `insetIndividual`, `bevelEdges`,
 `bevelVerts`, `solidify`, `pokeFaces`, `wireframe`,
 `duplicateGeometry`, `splitSelection`, `deleteSelection`, `mergeVerts`, `weldVerts`, `removeDoubles`, `joinMeshes`,
-`separateLooseParts`, `separateFaces`, `dissolveFaces`, `subdivideEdges`, plus the four Euler
+`separateLooseParts`, `separateFaces`, `dissolveFaces`, `subdivideEdges` (all of `bmo_subdivide.cc`; with
+`meshEsubdivide` / `editMeshSubdivide`, Blender's edit-mode Subdivide), `subdivideEdgeRing` /
+`editMeshSubdivideEdgeRing` (`bmo_subdivide_edgering.cc`), `editMeshLoopCut` and `edgeringPreviewFromEdge`
+(Loop Cut's cut and hover preview, `editmesh_loopcut.cc`), the edge loop store (`edgeloopsFind`, ...,
+`bmesh_edgeloop.cc`), plus the four Euler
 operators (`splitEdgeMakeVert`, `splitFaceMakeEdge`, `joinFaceKillEdge`, `joinEdgeKillVert`),
 selection marking and flushing, and the topology walkers (vertex shell, edge loop, edge ring, face
 loop, boundary).
