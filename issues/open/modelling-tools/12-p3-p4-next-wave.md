@@ -40,6 +40,14 @@ For the user who has followed one Blender tutorial, or knows Figma:
 - File > New / Open / Save (glb with the topology extension) / Export (glb, obj, stl);
 - toasts and errors that say what to do next.
 
+Status (2026-10-03, branch `p4-onboarding`, `ead20ea`..`8edc1c6`): all of the above done, with
+real-input e2e (`modelling-editor`, new `modelling-editor-files`) and engine unit tests. Fixed on the
+way: object-gizmo drags also box-selected (deselect after every move, `MeshEditPlugin`), threepipe
+`Dropzone` ignored script-built drops, outliner lagging scene bursts (uiconfig-blueprint, see
+`../uiconfig-blueprint-refresh-drops-calls.md`). Open: a real trackpad check on the Mac; Save writes a
+download (File System Access API not used); the `modelling-workspace` example's import map
+(`../example-modelling-workspace-importmap.md`).
+
 ## Rules for every track
 
 Same as P1: port from Blender source and cite file:line; each user-facing behaviour gets a real-input
