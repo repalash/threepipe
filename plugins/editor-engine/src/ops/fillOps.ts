@@ -15,13 +15,13 @@
  * the operators that exist in the engine, in Blender's order.
  */
 
-import {mergeByDistanceSelection, MERGE_BY_DISTANCE_DEFAULTS} from '@threepipe/mesh-kernel'
+import {gridFillSelection, mergeByDistanceSelection, MERGE_BY_DISTANCE_DEFAULTS} from '@threepipe/mesh-kernel'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, MenuRequestItem, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 
 /** A session operator's kernel call: change `bm` in place, say what happened. */
 type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
-    {ok: true, label?: string, message?: string} | {ok: false, error: string}
+    {ok: true, label?: string, message?: string, props?: Record<string, unknown>} | {ok: false, error: string}
 
 export function registerFillOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
@@ -60,7 +60,8 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
             }
             me.commit(before, r.label ?? label)
             if (r.message) engine.message('info', r.message)
-            return {ok: true, props}
+            // Props the operator worked out itself (Grid Fill's span) are what the panel shows and redo reuses.
+            return {ok: true, props: {...props, ...r.props}}
         }
 
     const menu = (title: string, items: (MenuRequestItem | false)[]) => {
@@ -80,7 +81,32 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
             description: 'Sharp Edges: calculate sharp edges using custom normal data (when available).'},
     }}
 
+    // --- Grid Fill (`MESH_OT_fill_grid`, editmesh_tools.cc:5162) ----------------------------------
+    // `span` has no default: unset, `edbm_fill_grid_prepare` calculates it from the selection, and the
+    // calculated value is stored back into the props (`RNA_property_int_set`, :5124) for the panel.
+    const gridFillProps: PropSchema = {type: 'object', properties: {
+        span: {type: 'integer', minimum: 1, maximum: 1000, description: 'Span: number of grid columns.'},
+        offset: {type: 'integer', minimum: -1000, maximum: 1000, default: 0, description: 'Offset: vertex that is the corner of the grid.'},
+        useInterpSimple: {type: 'boolean', default: false, description: 'Simple Blending: use simple interpolation of grid vertices.'},
+    }}
+
     const ops: OperatorDescriptor[] = [
+        {
+            id: 'mesh.fill_grid', label: 'Grid Fill', icon: 'grid-view', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge'],
+            description: 'Fill a closed loop of edges, or the gap between two edge loops, with a grid of quads (Blender\'s Face > Grid Fill). Adjust span and offset in the panel.',
+            flags: {undo: true, register: true},
+            props: gridFillProps,
+            poll: ready(() => !me.state ? 'Only in edit mode' : me.state.bm.totedgesel > 0 || 'Select a closed edge loop, or two edge loops, first'),
+            exec: runSession('Grid Fill', gridFillProps, p => {
+                const r = gridFillSelection(me.state!.bm, {
+                    span: p.span === undefined ? undefined : Number(p.span),
+                    offset: Number(p.offset ?? 0),
+                    useInterpSimple: !!p.useInterpSimple,
+                })
+                return r.ok ? {ok: true, props: {span: r.span}} : {ok: false, error: r.error}
+            }),
+        },
         {
             id: 'mesh.remove_doubles', label: 'Merge by Distance', icon: 'group-objects', category: 'Mesh', modes: ['edit'],
             description: 'Merge selected vertices that are closer together than the merge distance (Blender\'s M > By Distance). Adjust the distance in the panel.',

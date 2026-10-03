@@ -15,6 +15,7 @@ import {
     ElemFlag,
     edgeSelectSet,
     faceSelectSet,
+    gridFillSelection,
     mergeByDistanceSelection,
     MERGE_BY_DISTANCE_DEFAULTS,
     MeshData,
@@ -142,6 +143,37 @@ export const mergeByDistanceCommand: CommandDefinition = {
     },
 }
 
+export const gridFillCommand: CommandDefinition = {
+    op: 'gridFill',
+    summary: 'Fill a closed edge loop, or the gap between two edge loops, with a grid of quads - Blender\'s Grid Fill.',
+    description:
+        'List the loop\'s `edges` (one closed loop with an even number of edges, or two open loops with '
+        + 'matching ends). For a single loop, `span` edges at each end become the rails; leave it out and it '
+        + 'is calculated from the loop\'s corners, as Blender does - the result reports the span used. '
+        + '`offset` moves the grid\'s corner round the loop. Listing `faces` fills over those faces instead, '
+        + 'taking their UVs. The new faces are selected (`selected` in the result).',
+    mutates: true,
+    schema: schema({
+        ...selectionSchema,
+        span: S.integer('Number of grid columns. Default: calculated from the selection.', {minimum: 1, maximum: 1000}),
+        offset: S.integer('Vertex that is the corner of the grid. Default 0.', {minimum: -1000, maximum: 1000}),
+        useInterpSimple: S.boolean('Simple Blending: use simple interpolation of grid vertices. Default false.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const {mesh, result, selected} = runOnSelection(entry.mesh, readSelection(p), bm => gridFillSelection(bm, {
+            span: p.span as number | undefined,
+            offset: (p.offset as number) ?? 0,
+            useInterpSimple: (p.useInterpSimple as boolean) ?? false,
+        }))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {span: result.span, newFaces: result.faces.length, selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
 export const fillCommands: CommandDefinition[] = [
     mergeByDistanceCommand,
+    gridFillCommand,
 ]

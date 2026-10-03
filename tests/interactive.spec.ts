@@ -4213,4 +4213,75 @@ test('modelling-editor-fill', async({page}) => {
     await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
+
+    // Helpers for the sections below. `reset` reloads the page (a fresh cube, object mode); `project`
+    // reads where mesh-local points land on screen, so the mouse can be aimed at them.
+    const reset = async() => {
+        await page.reload()
+        await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0 && (window as any).engine.stats().objects === 1)
+    }
+    const project = (pts: number[][]) => page.evaluate(points => {
+        const me = (window as any).engine.meshEdit
+        const r = (window as any).viewer.canvas.getBoundingClientRect()
+        const fn = me._projectFn()
+        return points.map(([x, y, z]: number[]) => { const p = fn(x, y, z); return {x: r.left + p.x, y: r.top + p.y} })
+    }, pts)
+    const verts = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts].map((v: any) => [v.x, v.y, v.z]))
+    const selectedPositions = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts]
+        .filter((v: any) => v.hflag & 1).map((v: any) => [v.x, v.y, v.z].map((n: number) => Math.round(n * 1e4) / 1e4)))
+
+    // ── 2. Grid Fill: cut a hole in a grid, Alt+click its rim, Ctrl+F > Grid Fill, change the offset. ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyX')                       // object mode X: delete the start cube
+    await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(0)
+    await page.keyboard.press('Shift+KeyA')
+    await popup.getByRole('menuitem', {name: 'Grid'}).click()
+    await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(1)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+    await page.keyboard.press('Numpad7')                    // top view, looking down on the grid
+    await page.keyboard.press('Digit3')
+    // The grid spans -1..1 in 10 steps; a box inside -0.4..0.4 touches the 4 x 4 faces there (the
+    // selection buffer picks every face the box overlaps).
+    const all = await verts()
+    const flatAxis = [0, 1, 2].find(a => all.every(v => Math.abs(v[a]) < 1e-9))!
+    const at = (u: number, w: number) => { const p = [0, 0, 0]; const [a, b] = [0, 1, 2].filter(x => x !== flatAxis); p[a] = u; p[b] = w; return p }
+    const [c1, c2] = await project([at(-0.38, -0.38), at(0.38, 0.38)])
+    await page.mouse.move(c1.x, c1.y)
+    await page.mouse.down()
+    await page.mouse.move(c2.x, c2.y, {steps: 8})
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).sel?.[2]).toBe(16)
+    await page.keyboard.press('KeyX')
+    await popup.getByRole('menuitem', {name: 'Faces', exact: true}).click()
+    await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
+    // Edge mode, Alt+click the middle of the hole's left rim edge: loop select walks the whole rim.
+    await page.keyboard.press('Digit2')
+    const [rim] = await project([at(-0.4, 0.1)])
+    await page.keyboard.down('Alt')
+    await page.mouse.click(rim.x, rim.y)
+    await page.keyboard.up('Alt')
+    await expect.poll(async() => (await state()).sel).toEqual([16, 16, 0])
+    await page.keyboard.press('Control+KeyF')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'Grid Fill'}).click()
+    await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.fill_grid')
+    // The span Blender's edbm_fill_grid_prepare works out for a square hole: 4 columns, no offset.
+    expect(s.lastProps).toEqual({span: 4, offset: 0, useInterpSimple: false})
+    expect(s.sel?.[2]).toBe(16)
+    const filled = await selectedPositions()
+    await openPanel('mesh.fill_grid')
+    const offset = panel('mesh.fill_grid').locator('#me-prop-offset')
+    await offset.fill('1')
+    await offset.press('Tab')
+    await expect.poll(async() => (await state()).lastProps?.offset).toBe(1)
+    // Same counts, but the grid's corner moved one vertex round the rim: the inner vertices move.
+    expect((await state()).counts).toEqual([121, 220, 100])
+    expect(JSON.stringify(await selectedPositions())).not.toBe(JSON.stringify(filled))
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
 })
