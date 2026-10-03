@@ -415,15 +415,21 @@ function describeCommand(command: Command): string {
     return parts.join(' ')
 }
 
+/** Ops whose name is not already a verb a user would read in a history list. */
+const UNDO_VERBS: Record<string, string> = {
+    deleteElements: 'Delete', applyTransform: 'Apply Transform', vertices: 'Move Vertices',
+}
+
 /** The label a user sees in an undo history: `Add Cube`, `Inset hull`, `Delete 2 objects`. */
 function labelForUndo(command: Command): string {
     const c = command as Record<string, unknown>
     const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
     if (command.op === 'primitive' && typeof c.type === 'string') return `Add ${cap(c.type)}`
+    const verb = UNDO_VERBS[command.op] ?? cap(command.op)
     const target = c.object ?? c.objects
     const name = typeof target === 'string' ? target
         : Array.isArray(target) ? target.length === 1 ? String(target[0]) : `${target.length} objects` : undefined
-    return name ? `${cap(command.op)} ${name}` : cap(command.op)
+    return name ? `${verb} ${name}` : verb
 }
 
 function remove<T>(list: T[] | undefined, item: T): void {

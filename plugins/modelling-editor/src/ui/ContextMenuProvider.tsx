@@ -79,6 +79,9 @@ export function ContextMenuProvider({children}: {children: React.ReactNode}) {
         </Menu>)
     }, [engine, show])
 
+    const isOpenRef = React.useRef(false)
+    isOpenRef.current = isOpen
+
     const showItems = useCallback<Store['showItems']>((event, items, title) => {
         const ctx = engine.context()
         const rc = items.map((item, i) => {
@@ -95,11 +98,20 @@ export function ContextMenuProvider({children}: {children: React.ReactNode}) {
             />
         }).filter(x => !!x)
         if (!rc.length) return
-        show(event, <Menu className="me-context-menu me-popup-menu">
+        const menu = <Menu className="me-context-menu me-popup-menu">
             {title ? <MenuDivider title={title} className="context-menu-divider" /> : null}
             {rc}
-        </Menu>)
-    }, [engine, show])
+        </Menu>
+        // Requested from an item of an open menu (context menu > Delete > the delete-type menu): that
+        // item's click also closes its popover through `onClose`, after this runs. Let it close, then
+        // open the new one, so the close cannot swallow it.
+        if (isOpenRef.current) {
+            hide()
+            requestAnimationFrame(() => show(event, menu))
+        } else {
+            show(event, menu)
+        }
+    }, [engine, show, hide])
 
     // Blueprint's ContextMenuPopover only closes from its backdrop; Escape should close it too.
     // The engine's keymap stands down while a menu is open, so its keys go to the menu.

@@ -75,11 +75,28 @@ export class EditorHistory implements HistoryApi {
 
     private _beforeRecord(cmd: AnyCommand): void {
         if (!cmd || typeof cmd !== 'object') return
-        if (typeof cmd.label !== 'string' && this.pendingLabel) cmd.label = this.pendingLabel
+        if (typeof cmd.label !== 'string') {
+            const label = this.pendingLabel ?? this._eventLabel
+            if (label) cmd.label = label
+        }
+        this._eventLabel = null
         this._lastRecorded = cmd
         // Only the event that follows a record synchronously may name it.
         this._unlabelled = typeof cmd.label === 'string' ? null : cmd
         queueMicrotask(() => { if (this._unlabelled === cmd) this._unlabelled = null })
+    }
+
+    private _eventLabel: string | null = null
+
+    /**
+     * Name the step that an event is about to cause. `ObjectPicker.setSelected` dispatches
+     * `selectedObjectChanged` *and then* records its undo command, so the engine notes the label from
+     * the event and the record that follows in the same tick picks it up. Cleared on the next tick, so
+     * an unrelated later record is never named after a stale event.
+     */
+    noteEvent(label: string): void {
+        this._eventLabel = label
+        queueMicrotask(() => { if (this._eventLabel === label) this._eventLabel = null })
     }
 
     /** The most recently pushed command, whoever pushed it. */

@@ -32,22 +32,14 @@ editor.engine.tools.list()                   // what the tool shelf shows
 
 ## Registries
 
-`src/registry.ts` defines what the shell renders from:
-
-- `OperatorDescriptor` - `id`, `label`, `description`, `icon`, `shortcut` (display only; the engine
-  owns the keymap), `category` (menu), `modes`, `contextMenu`, `props` (JSON schema, rendered as a
-  form in the last-operation panel), `flags` (`undo`, `register`), `poll(ctx)` (false or a reason
-  string disables with a tooltip) and `exec(ctx, props)`.
-- `ToolDescriptor` - sticky tools for the tool shelf: `activate` / `deactivate`, `hints` for the
-  status bar.
-- `EditorEngine` - the object the shell talks to: the two registries, `mode`, `selectMode`,
-  `activeTool`, `lastOperation`, `history`, `status`, `stats()`, `run(id, props)` and events
-  (`modeChanged`, `selectionChanged`, `registryChanged`, `lastOperationChanged`, `message`, ...).
-
-`LegacyEditorEngine` implements it over `MeshEditPlugin`, `ModellingPlugin` (every command from
-`describeCommands()` becomes a `modelling.<op>` operator with its schema), `PickingPlugin`,
-`TransformControlsPlugin` and `UndoManagerPlugin`. Pass `createEngine` to `createModellingEditor`
-to use another engine.
+The shell renders from the registries and events of `@threepipe/plugin-editor-engine` (`EditorEnginePlugin`,
+added to the viewer by `createModellingEditor`): `OperatorDescriptor`, `ToolDescriptor` and `EditorEngine`
+are documented there. The shell adds its own `view.*` (frame, axis views, projection, grid, shading),
+`ui.command_palette` and `help.*` operators through `engine.operators.register`, draws the popup menus the
+engine asks for (`uiRequest: menu` - the X delete menu, Shift+A add, M merge, Ctrl+A apply, the keymap
+chooser), and suspends the engine's input router while a dialog, the palette or a menu is open. It has no
+keyboard handling of its own: every key, including the palette's, is a keymap binding. Pass `createEngine`
+to `createModellingEditor` to render another engine.
 
 ## Layout
 

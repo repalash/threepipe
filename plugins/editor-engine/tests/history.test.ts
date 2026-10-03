@@ -79,3 +79,14 @@ describe('EditorHistory', () => {
         expect(changes()).toBe(0)
     })
 })
+
+describe('EditorHistory.noteEvent', () => {
+    it('names the record that follows an event in the same tick, and nothing later', async() => {
+        const {um, history} = make()
+        history.noteEvent('Select cube')
+        um.record({undo() {}, redo() {}})
+        await Promise.resolve()
+        um.record({undo() {}, redo() {}})
+        expect(history.entries().map(e => e.label)).toEqual(['Select cube', 'Action'])
+    })
+})

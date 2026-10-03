@@ -231,10 +231,12 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         // Edit mode reports what it could not do; show it rather than leave it in the console.
         this._on(this.meshEdit, 'notice', (e: {message: string, level: 'info' | 'warning'}) => this.message(e.level, e.message))
         this._on(this.picking, 'selectedObjectChanged', (e: {object?: IObject3D | IObject3D[] | null}) => {
-            // The picker records a selection step (Blender's object-mode selection is an undo step too);
-            // name it after the object, since the picker does not.
+            // The picker records a selection step (Blender's object-mode selection is an undo step too)
+            // right after this event; name it after the object, since the picker does not.
             const obj = Array.isArray(e.object) ? e.object[e.object.length - 1] : e.object
-            this.history.labelLastRecorded(obj ? `Select ${obj.name || 'object'}` : 'Deselect')
+            const label = obj ? `Select ${obj.name || 'object'}` : 'Deselect'
+            this.history.noteEvent(label)
+            this.history.labelLastRecorded(label)
             this.dispatchEvent({type: 'selectionChanged'})
         })
         this._on(viewer.scene, 'sceneUpdate', (e: {hierarchyChanged?: boolean}) => {
