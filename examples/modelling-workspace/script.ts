@@ -142,6 +142,11 @@ async function init() {
         meshEdit.xray = !meshEdit.xray
         refresh()
     })
+    const gizmoButton = document.getElementById('gizmo') as HTMLButtonElement
+    gizmoButton.addEventListener('click', () => {
+        meshEdit.showGizmo(!meshEdit.gizmoVisible)
+        gizmoButton.classList.toggle('active', meshEdit.gizmoVisible)
+    })
     const undo = viewer.getPlugin(UndoManagerPlugin)!
     document.getElementById('undo')?.addEventListener('click', () => {
         undo.undo()

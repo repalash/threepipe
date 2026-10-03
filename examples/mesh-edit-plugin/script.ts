@@ -104,6 +104,60 @@ async function init() {
     meshEdit.addEventListener('transformChanged', refreshStats)
     picking.addEventListener('selectedObjectChanged', refreshStats)
 
+    // --- transform settings: Blender's header widgets for pivot, orientation, snapping, proportional ---
+
+    const transformStatus = document.getElementById('transform-status')!
+    meshEdit.addEventListener('transformChanged', e => {
+        transformStatus.textContent = e.transform ? e.transform.status : ''
+    })
+
+    const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+    // Controls hand the keyboard back to the viewport after a change, so G/R/S keep working.
+    const settle = (el: HTMLElement) => el.blur()
+
+    byId<HTMLSelectElement>('pivot').addEventListener('change', e => {
+        meshEdit.setPivot((e.target as HTMLSelectElement).value as never)
+        settle(e.target as HTMLElement)
+    })
+    byId<HTMLSelectElement>('orientation').addEventListener('change', e => {
+        meshEdit.setOrientation((e.target as HTMLSelectElement).value as never)
+        settle(e.target as HTMLElement)
+    })
+    const applySnap = () => meshEdit.setSnapping({
+        enabled: byId<HTMLInputElement>('snap').checked,
+        targets: [byId<HTMLSelectElement>('snap-target').value as never],
+    })
+    byId('snap').addEventListener('change', e => {
+        applySnap()
+        settle(e.target as HTMLElement)
+    })
+    byId('snap-target').addEventListener('change', e => {
+        applySnap()
+        settle(e.target as HTMLElement)
+    })
+    const applyProportional = () => meshEdit.setProportional({
+        enabled: byId<HTMLInputElement>('proportional').checked,
+        falloff: byId<HTMLSelectElement>('prop-falloff').value as never,
+        connected: byId<HTMLInputElement>('prop-connected').checked,
+    })
+    for (const id of ['proportional', 'prop-falloff', 'prop-connected']) {
+        byId(id).addEventListener('change', e => {
+            applyProportional()
+            settle(e.target as HTMLElement)
+        })
+    }
+    byId('gizmo').addEventListener('change', e => {
+        meshEdit.showGizmo((e.target as HTMLInputElement).checked)
+        settle(e.target as HTMLElement)
+    })
+    // This example is about the transform tools, so the gizmo is on; an app with a toolbar shows it
+    // with the Move/Rotate/Scale tools, as Blender does.
+    meshEdit.showGizmo(byId<HTMLInputElement>('gizmo').checked)
+    byId('xray').addEventListener('change', e => {
+        meshEdit.xray = (e.target as HTMLInputElement).checked
+        settle(e.target as HTMLElement)
+    })
+
     for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('#panel button'))) {
         button.addEventListener('click', async () => {
             const op = button.dataset.op as keyof typeof load
@@ -112,6 +166,12 @@ async function init() {
         })
     }
 
+    // A three-quarter view, as Blender's default scene: straight on, a cube reads as a flat square and
+    // the gizmo's Z handles point at the camera.
+    const camera = viewer.scene.mainCamera
+    camera.position.set(4, 3, 5)
+    camera.target.set(0, 0, 0)
+    camera.setDirty()
     await load.cube()
     refreshStats()
 

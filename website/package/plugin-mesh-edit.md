@@ -41,13 +41,42 @@ Edit mode owns these while it is active, and gives them back on exit:
 | `1` `2` `3` | vertex / edge / face select |
 | `A`, `Alt+A`, `Ctrl+I` | all, none, invert |
 | `L` | select linked under the cursor |
-| `G` `R` `S` | move, rotate, scale — then `X`/`Y`/`Z` to constrain, digits for an exact amount |
-| `E` | extrude, constrained to the region's averaged normal |
+| `G` `R` `S` | move, rotate, scale — or drag the gizmo |
+| `E` | extrude, constrained to the region's normal (`orient_type NORMAL`, Z) |
 | `Shift+D`, `X`, `M`, `Y` | duplicate, delete, merge, split |
 | `Esc` | cancel the running transform, restoring the snapshot |
 
+During a transform, as in Blender: `X`/`Y`/`Z` constrain to an axis (again for local, again to
+clear), `Shift+X/Y/Z` to a plane, `MMB` picks the axis under the drag, digits type an exact amount
+(`Tab` moves to the next axis, `-` negates, `/` inverts, `=` opens an expression such as `2*pi/3`),
+`Ctrl` inverts snapping (increments unless a target is set), `Shift` is precision, the wheel or
+`PageUp`/`PageDown` resize the proportional circle, `Shift+O` cycles the falloff, `G`/`R`/`S` switch
+mode, click or `Enter` confirm, right-click or `Esc` cancel. The header text Blender shows is
+`meshEdit.activeTransform.status`.
+
 Object-mode plugins — transform gizmos, pivot controls, widgets — are disabled by key while edit
 mode is active, so their shortcuts do not fight with these, and restored afterwards.
+
+## Transforms, pivot, orientation, snapping, proportional editing
+
+The transform is a port of Blender's `editors/transform/` and runs without a renderer, so the
+same code drives edit-mode elements and whole objects (`startObjectTransform`, with undo on
+`UndoManagerPlugin`).
+
+```typescript
+meshEdit.setPivot('individual')      // median | active | individual | bounds | cursor
+meshEdit.setOrientation('normal')    // global | local | normal | view | cursor
+meshEdit.setSnapping({enabled: true, targets: ['vertex', 'edge', 'edgeMidpoint', 'face', 'grid', 'increment']})
+meshEdit.setProportional({enabled: true, falloff: 'smooth', size: 1, connected: false})
+meshEdit.setCursor(0, 1, 0)          // the 3D cursor
+meshEdit.showGizmo(true)             // off by default: it belongs to the Move/Rotate/Scale tools
+meshEdit.startTransform('rotate', {constraint: CON_AXIS2, releaseConfirm: true})
+```
+
+The gizmo is Blender's combined one — arrows and plane squares, rotation rings, scale boxes, a
+screen-space centre circle, a view-rotation ring and the uniform-scale annulus, X red, Y green,
+Z blue — and follows the pivot and orientation. Dragging a handle starts the same transform with that
+handle's constraint and confirms on release; typing a number during the drag sets it exactly.
 
 ## Reference images
 
