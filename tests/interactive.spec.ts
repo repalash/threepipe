@@ -3332,12 +3332,14 @@ test('modelling-editor', async({page}) => {
     await expect(page.locator('[data-operator-panel="add.sphere"] #me-prop-radius')).toBeVisible()
     await expect(page.locator('.me-outliner .bp5-tree-node')).toHaveCount(2)
 
-    // Edit menu: the undo history dialog lists both the document commands and reverses them.
+    // Edit menu: the undo history dialog lists the document commands by name and reverses them. Mode
+    // switches and the selections they imply are not steps, so the list is exactly the two adds.
     await page.locator('[data-menu="Edit"]').click()
     await page.getByRole('menuitem', {name: 'Undo History…'}).click()
     const history = page.locator('[data-history]')
     await expect(history).toBeVisible()
-    await expect(history).toContainText('primitive type=sphere')
+    await expect(history).toContainText('Add Sphere')
+    await expect(history.locator('li')).toHaveText(['Add Cube', 'Add Sphere'])
     await page.getByRole('button', {name: 'Undo'}).click()
     await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
     // the dialog header's X is also named Close; take the footer button

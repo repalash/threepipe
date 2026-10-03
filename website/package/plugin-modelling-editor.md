@@ -1,7 +1,7 @@
 ---
 prev:
-    text: '@threepipe/plugin-mesh-edit'
-    link: './plugin-mesh-edit'
+    text: '@threepipe/plugin-editor-engine'
+    link: './plugin-editor-engine'
 
 aside: false
 ---

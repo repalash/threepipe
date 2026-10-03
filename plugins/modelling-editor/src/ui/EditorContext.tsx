@@ -5,7 +5,7 @@
 
 import React, {createContext, useContext, useEffect, useReducer} from 'react'
 import type {ThreeViewer} from 'threepipe'
-import type {EditorEngine, EditorEngineEventMap} from '../registry'
+import type {EditorEngine, EditorEngineEventMap} from '@threepipe/plugin-editor-engine'
 import type {EditorUiPlugin} from './EditorUiPlugin'
 
 export interface EditorContextValue {
