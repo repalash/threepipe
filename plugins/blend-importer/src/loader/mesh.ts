@@ -17,7 +17,7 @@ function listToArray(lb: any): any[] {
 }
 // DNA_modifier_types.h — ModifierType / eModifierMode.
 const eModifierType_Subsurf = 1, eModifierType_Mirror = 5, eModifierType_Array = 12, eModifierType_Solidify = 33
-const eModifierMode_Render = 1 << 1
+const eModifierMode_Realtime = 1 << 0, eModifierMode_Render = 1 << 1
 // Names for the "unsupported modifier" warning (so missing geometry isn't silent). Values per
 // DNA_modifier_types.h `eModifierType_*`.
 const MODIFIER_NAMES: Record<number, string> = {
@@ -49,15 +49,18 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     }
 
     // Evaluate the modifier stack in order. Each step returns a NEW geometry (the cached base is never
-    // mutated). Render-disabled modifiers (eModifierMode_Render unset) are skipped to match Blender's
-    // rendered output; unsupported ones are flagged loudly. Subsurf smooths + tessellates (so a
+    // mutated). Which modifiers run depends on the evaluation mode, as in Blender's
+    // `BKE_modifier_is_enabled`: the viewport runs those with eModifierMode_Realtime, the renderer
+    // those with eModifierMode_Render - see `BlendEvaluationMode`. Unsupported ones are flagged loudly. Subsurf smooths + tessellates (so a
     // displacement map has geometry to move); Mirror duplicates/reflects across the object's axes.
+    const render = ctx.evaluationMode === 'render'
+    const requiredMode = render ? eModifierMode_Render : eModifierMode_Realtime
     const unsupported: string[] = []
     const failed: string[] = []
     for (const m of listToArray(object.modifiers)) {
         const hdr = m.modifier
         if (!hdr) continue
-        if (typeof hdr.mode === 'number' && !(hdr.mode & eModifierMode_Render)) continue
+        if (typeof hdr.mode === 'number' && !(hdr.mode & requiredMode)) continue
         // One modifier failing must not fail the whole file. Blender evaluates the rest of the stack on
         // the input to a modifier that errors, and shows the error in that modifier's panel; here the
         // geometry from before the failing step is kept and the failure is reported. Without this, a
@@ -66,7 +69,9 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
         const before = geometry
         try {
             if (hdr.type === eModifierType_Subsurf) {
-                const levels = Math.max(0, Math.min(5, (m.renderLevels ?? m.levels ?? 0) as number))
+                // `MOD_subsurf.cc:86`: `levels = use_render_params ? renderLevels : levels`.
+                const requested = render ? (m.renderLevels ?? m.levels) : (m.levels ?? m.renderLevels)
+                const levels = Math.max(0, Math.min(5, (requested ?? 0) as number))
                 // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
                 if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
                     const cage = geometry.userData && geometry.userData.__cage

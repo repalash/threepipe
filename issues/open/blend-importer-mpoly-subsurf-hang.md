@@ -15,7 +15,8 @@ Measured on the Mac GPU browser and reproduced in Node with each branch's own lo
 | --- | --- | --- | --- |
 | 0.5.1 | 3.7 s | 5,694,639 | loads, with holes |
 | dev + modifiers | ~80 s | — | import fails, `load()` resolves empty |
-| fix, Node | 27.6 s | 12,336,074 | all 446 objects, 0 modifier errors |
+| fix, Node, render mode | 27.6 s | 12,336,074 | all 446 objects, 0 modifier errors |
+| fix, Mac GPU browser, viewport mode | 9.0 s | 10,178,156 | loads, 446 meshes |
 
 Four defects stacked:
 
@@ -45,13 +46,28 @@ Four defects stacked:
 Regression tests in `plugins/blend-importer/tests/mpoly-triangulation.test.ts`, each checked to fail
 against the code it guards.
 
-## Still open: which subdivision level to evaluate
+## Follow-up: viewport or render evaluation
 
-Subsurf is evaluated at `renderLevels`. bugatti's 173 Subsurf modifiers are all `levels: 0`,
-`renderLevels: 2` — the author chose no subdivision for interactive display — so the import does
-4x the work 0.5.1 did and produces 12.3M triangles where Blender's own viewport shows 6.1M.
+**Done**, as a separate commit: `BlendLoadPlugin.evaluationMode`, `'viewport'` by default.
 
-Blender picks per evaluation mode, `levels = use_render_params ? renderLevels : levels`
-(`MOD_subsurf.cc:86`), and its exporters default to the viewport (`IO_wavefront_obj.hh:53`,
-`export_eval_mode = DAG_EVAL_VIEWPORT`). A real-time viewer is the viewport case. Proposed as a
-separate change.
+The importer ran modifiers by their render flag at their render Subsurf level. Blender evaluates in one
+mode, which decides both which modifiers run - `required_mode = use_render ? eModifierMode_Render :
+eModifierMode_Realtime` (`mesh_data_update.cc:303`) - and which Subsurf level is used -
+`levels = use_render_params ? renderLevels : levels` (`MOD_subsurf.cc:86`). Its exporters default to
+the viewport (`IO_wavefront_obj.hh:53`, `export_eval_mode = DAG_EVAL_VIEWPORT`), and a real-time viewer
+is the viewport case.
+
+bugatti's 173 Subsurf modifiers, all Catmull-Clark:
+
+| viewport / render | objects | base faces |
+| --- | --- | --- |
+| 0 / 2 | 27 | 350,021 |
+| 2 / 2 | 101 | 102,815 |
+| 3 / 3 | 16 | 27,806 |
+| 1 / 2 | 20 | 4,178 |
+| 3 / 2 | 9 | 522 |
+
+The 0 / 2 group is few objects but most of the geometry. Viewport evaluation takes bugatti from
+12,336,074 triangles to 10,178,156 (-17%), and loads it in 9.0 s on the Mac GPU browser (0.5.1: 3.7-5.1 s
+with holes). That is the size of the effect - the load works because of the fixes above, not because
+of this.
