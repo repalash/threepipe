@@ -4265,4 +4265,71 @@ test('modelling-loop-tools', async({page}) => {
     expect(Math.abs(moved[changed[0]])).toBeLessThan(Math.abs(picked[changed[0]]) + 1e-6)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
+
+    // ── Subdivide from the Mesh menu, the redo panel changing the cuts, undo ──
+    await page.keyboard.press('2')
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
+    await page.locator('[role="menubar"]').getByRole('button', {name: 'Mesh'}).click()
+    // The edit-mode entry; the object-mode Subdivide is listed too, disabled here.
+    await page.getByRole('menuitem', {name: /^Subdivide$/}).and(page.locator(':not([aria-disabled="true"])')).click()
+    // One cut: a vertex per edge and per face, four quads per face (`bmo_subdivide.cc`, quad_4edge).
+    await expect.poll(async() => (await state()).counts).toEqual([26, 48, 24])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.subdivide')
+    expect(s.history.at(-1)).toBe('Subdivide')
+    await page.locator('[data-operator-panel="mesh.subdivide"] .me-operator-title').click()
+    const cuts = page.locator('[data-operator-panel="mesh.subdivide"] #me-prop-cuts')
+    await expect(cuts).toBeVisible()
+    await cuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([56, 108, 54])
+    expect((await state()).lastProps?.cuts).toBe(2)
+    expect((await state()).history.filter(h => h.startsWith('Subdivide')).length).toBe(1)
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── Subdivide Edge-Ring: Ctrl+Alt+click picks the ring around an edge, the palette runs it ──
+    const edgeMid = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).engine.meshEdit
+        const cam = v.scene.mainCamera
+        const r = v.canvas.getBoundingClientRect()
+        const m = me.editObject.matrixWorld
+        let best: any = null
+        for (const e of me.state.bm.edges) {
+            const p = new cam.position.constructor((e.v1.x + e.v2.x) / 2, (e.v1.y + e.v2.y) / 2, (e.v1.z + e.v2.z) / 2).applyMatrix4(m).project(cam)
+            const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height
+            const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2))
+            if (!best || d < best.d) best = {x, y, d}
+        }
+        return best
+    })
+    await page.keyboard.down('Control')
+    await page.keyboard.down('Alt')
+    await page.mouse.click(edgeMid.x, edgeMid.y)
+    await page.keyboard.up('Alt')
+    await page.keyboard.up('Control')
+    // A cube edge's ring is its four parallel edges.
+    await expect.poll(async() => (await state()).sel![1]).toBe(4)
+    await page.keyboard.press('F3')
+    const palette = page.locator('.me-palette input')
+    await expect(palette).toBeVisible()
+    await palette.fill('edge-ring')
+    await expect(page.locator('.me-palette .bp5-menu-item').first()).toContainText('Subdivide Edge-Ring')
+    await page.keyboard.press('Enter')
+    // Blender's defaults: 10 cuts along a blended path; the four side faces become 11 each.
+    await expect.poll(async() => (await state()).counts).toEqual([48, 92, 46])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.subdivide_edgering')
+    expect(s.history.at(-1)).toBe('Subdivide Edge-Ring')
+    await page.locator('[data-operator-panel="mesh.subdivide_edgering"] .me-operator-title').click()
+    const ringCuts = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-cuts')
+    await expect(ringCuts).toBeVisible()
+    await ringCuts.fill('2')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 })

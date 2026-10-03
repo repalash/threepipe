@@ -6,11 +6,16 @@
  * is registered, so the redo-last panel re-runs it with edited props (Blender's F9 panel).
  */
 
-import {editMeshSubdivide, meshNormalsUpdate} from '@threepipe/mesh-kernel'
-import type {SubdQuadCornerType} from '@threepipe/mesh-kernel'
+import {editMeshSubdivide, editMeshSubdivideEdgeRing, meshNormalsUpdate} from '@threepipe/mesh-kernel'
+import type {EdgeRingInterp, SubdFalloff, SubdQuadCornerType} from '@threepipe/mesh-kernel'
 import type {ModalTransform, SlideSavedProps, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {OperatorDescriptor, PropSchema} from '../registry'
+
+/** `prop_subd_edgering_types` (`editmesh_tools.cc:242`). */
+const EDGERING_INTERP: EdgeRingInterp[] = ['linear', 'path', 'surface']
+/** `rna_enum_proportional_falloff_curve_only_items`, the profile shapes. */
+const PROFILE_SHAPES: SubdFalloff[] = ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear']
 
 /** `prop_mesh_cornervert_types` (`editmesh_tools.cc:139`), in Blender's menu order. */
 const QUAD_CORNERS: SubdQuadCornerType[] = ['innerVert', 'path', 'straightCut', 'fan']
@@ -108,6 +113,43 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
                 if (!done) return {ok: false, error: 'Select some edges or faces first'}
                 me.commit(before, 'Subdivide')
                 return {ok: true, props: {cuts, smoothness, ngon, quadCorner}}
+            },
+        },
+        {
+            // `MESH_OT_subdivide_edgering` (`editmesh_tools.cc:336`), props from `mesh_operator_edgering_props` (`:237`).
+            id: 'mesh.subdivide_edgering', label: 'Subdivide Edge-Ring', icon: 'layout-grid', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge'],
+            description: 'Cut the edges that run across a selected ring of edges, with the new loops following a line, a blended path or the surrounding surface.',
+            flags: {undo: true, register: true},
+            props: {type: 'object', properties: {
+                cuts: {type: 'integer', minimum: 0, maximum: 1000, default: 10, description: 'New loops between each pair of rims.'},
+                interpolation: {type: 'string', enum: EDGERING_INTERP, default: 'path', description: 'Linear: straight between the rims. Path: a curve between the rims\' centres. Surface: curves that follow the faces around the rims.'},
+                smoothness: {type: 'number', minimum: 0, maximum: 1000, default: 1, description: 'How far the curves bulge (path and surface).'},
+                profileShapeFactor: {type: 'number', minimum: -1000, maximum: 1000, default: 0, description: 'Shrink (negative) or grow the new loops towards the middle.'},
+                profileShape: {type: 'string', enum: PROFILE_SHAPES, default: 'smooth', description: 'The shape of that profile.'},
+            }},
+            poll: () => {
+                if (!me.state) return 'Only in edit mode'
+                if (!me.state.bm.totedgesel) return 'Select a ring of edges first'
+                return notModal()
+            },
+            exec: (_ctx, p) => {
+                const state = me.state
+                const before = me.snapshot()
+                if (!state || !before) return {ok: false, error: 'Only in edit mode'}
+                const cuts = Math.max(0, Math.min(1000, Math.trunc(Number(p?.cuts ?? 10)) || 0))
+                const interpolation = (EDGERING_INTERP.includes(p?.interpolation as EdgeRingInterp) ? p!.interpolation : 'path') as EdgeRingInterp
+                const smoothness = Math.max(0, Number(p?.smoothness ?? 1) || 0)
+                const profileShapeFactor = Number(p?.profileShapeFactor ?? 0) || 0
+                const profileShape = (PROFILE_SHAPES.includes(p?.profileShape as SubdFalloff) ? p!.profileShape : 'smooth') as SubdFalloff
+                // Edit mode keeps normals current (`EDBM_update`); the surface blend reads the face normals.
+                meshNormalsUpdate(state.bm)
+                const res = editMeshSubdivideEdgeRing(state.bm, {numberCuts: cuts, interpolation, smoothness, profileShape, profileShapeFactor})
+                if (!res) return {ok: false, error: 'Select a ring of edges first'}
+                // The operator's report (`BMO_error_raise`), nothing changed.
+                if (!res.ok) return {ok: false, error: `${res.error}: select edges across a strip of quads, each joining two loops`}
+                me.commit(before, 'Subdivide Edge-Ring')
+                return {ok: true, props: {cuts, interpolation, smoothness, profileShapeFactor, profileShape}}
             },
         },
         ...([
