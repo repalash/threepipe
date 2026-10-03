@@ -16,6 +16,7 @@
  */
 
 import {
+    bridgeEdgeLoopsSelection,
     DissolveDelimit,
     dissolveEdgesSelection,
     dissolveFacesSelection,
@@ -26,6 +27,7 @@ import {
     gridFillSelection,
     mergeByDistanceSelection,
     MERGE_BY_DISTANCE_DEFAULTS,
+    subdivideEdgeringSelection,
     vertConnectPathSelection,
     vertConnectSelection,
 } from '@threepipe/mesh-kernel'
@@ -139,7 +141,56 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
     const anySelected = () => !me.state ? 'Only in edit mode'
         : me.state.bm.totvertsel + me.state.bm.totedgesel + me.state.bm.totfacesel > 0 || 'Select some vertices, edges or faces first'
 
+    // --- Bridge Edge Loops (`MESH_OT_bridge_edge_loops`, editmesh_tools.cc:7572) and the edge-ring
+    // props it shares with Subdivide Edge-Ring (`mesh_operator_edgering_props`, :237) ---------------
+    const PROFILE_SHAPES = ['SMOOTH', 'SPHERE', 'ROOT', 'INVERSE_SQUARE', 'SHARP', 'LINEAR']
+    const edgeringProps = (cutsDefault: number) => ({
+        numberCuts: {type: 'integer' as const, minimum: 0, maximum: 1000, default: cutsDefault, description: 'Number of Cuts.'},
+        interpolation: {type: 'string' as const, enum: ['LINEAR', 'PATH', 'SURFACE'], default: 'PATH', description: 'Interpolation method: Linear, Blend Path or Blend Surface.'},
+        smoothness: {type: 'number' as const, minimum: 0, maximum: 1000, default: 1, description: 'Smoothness factor.'},
+        profileShapeFactor: {type: 'number' as const, minimum: -1000, maximum: 1000, default: 0, description: 'Profile Factor: how much intermediary new edges are shrunk/expanded.'},
+        profileShape: {type: 'string' as const, enum: PROFILE_SHAPES, default: 'SMOOTH', description: 'Profile Shape: shape of the profile.'},
+    })
+    const bridgeProps: PropSchema = {type: 'object', properties: {
+        type: {type: 'string', enum: ['SINGLE', 'CLOSED', 'PAIRS'], default: 'SINGLE', description: 'Connect Loops: method of bridging multiple loops - Open Loop, Closed Loop or Loop Pairs.'},
+        useMerge: {type: 'boolean', default: false, description: 'Merge: merge rather than creating faces.'},
+        mergeFactor: {type: 'number', minimum: 0, maximum: 1, default: 0.5, description: 'Merge Factor.'},
+        twistOffset: {type: 'integer', minimum: -1000, maximum: 1000, default: 0, description: 'Twist: twist offset for closed loops.'},
+        ...edgeringProps(0),
+    }}
+    const subdivideEdgeringProps: PropSchema = {type: 'object', properties: edgeringProps(10)}
+    const ringOptions = (p: Record<string, unknown>) => ({
+        numberCuts: Number(p.numberCuts), interpolation: p.interpolation as never, smoothness: Number(p.smoothness),
+        profileShapeFactor: Number(p.profileShapeFactor), profileShape: p.profileShape as never,
+    })
+
     const ops: OperatorDescriptor[] = [
+        {
+            id: 'mesh.bridge_edge_loops', label: 'Bridge Edge Loops', icon: 'link', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge', 'face'],
+            description: 'Join two or more selected edge loops (or the rims of selected faces) with a band of faces - tubes, handles, holes through a box. Twist, cuts and merge in the panel.',
+            flags: {undo: true, register: true},
+            props: bridgeProps,
+            poll: ready(() => !me.state ? 'Only in edit mode' : me.state.bm.totedgesel > 1 || 'Select two edge loops (or two faces) to bridge'),
+            exec: runSession('Bridge Edge Loops', bridgeProps, p => {
+                const r = bridgeEdgeLoopsSelection(me.state!.bm, {
+                    type: p.type as never, useMerge: !!p.useMerge, mergeFactor: Number(p.mergeFactor), twistOffset: Number(p.twistOffset),
+                    ...ringOptions(p),
+                })
+                return r.ok ? {ok: true} : {ok: false, error: r.error}
+            }),
+        },
+        {
+            id: 'mesh.subdivide_edgering', label: 'Subdivide Edge-Ring', icon: 'layout-linear', category: 'Mesh', modes: ['edit'],
+            description: 'Cut the faces between selected edge rings, with a smooth or shaped profile (Blender\'s Edge > Subdivide Edge-Ring).',
+            flags: {undo: true, register: true},
+            props: subdivideEdgeringProps,
+            poll: ready(() => !me.state ? 'Only in edit mode' : me.state.bm.totedgesel > 1 || 'Select an edge ring (two or more edges across faces) first'),
+            exec: runSession('Subdivide Edge-Ring', subdivideEdgeringProps, p => {
+                const r = subdivideEdgeringSelection(me.state!.bm, ringOptions(p))
+                return r.ok ? {ok: true} : {ok: false, error: r.error}
+            }),
+        },
         {
             id: 'mesh.dissolve', label: 'Dissolve Selection', icon: 'eraser', category: 'Mesh', modes: ['edit'],
             description: 'Remove the selected vertices, edges or faces (by select mode), merging the faces around them into one (Blender\'s Ctrl+X).',

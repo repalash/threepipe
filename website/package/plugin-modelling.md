@@ -78,6 +78,11 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `modifier` | the live stack (array, mirror, wireframe): add, update, reorder, remove, apply |
 | `duplicate`, `mirror`, `join`, `separate`, `weld`, `delete` | the rest of object assembly |
 | `deleteElements` | delete vertices, edges or faces — Blender's `mesh.delete` types |
+| `makeEdgeFace` | Blender's F: an edge from two vertices, a face from a loop or an edge net, a lone border vertex extended round its corner |
+| `gridFill` | fill a closed loop, or the gap between two loops, with a grid of quads (span / offset as Blender) |
+| `connectVertices` | Blender's J: cut faces between vertices in the order listed; `pairs` for Connect Vertex Pairs |
+| `dissolveElements`, `dissolveLimited` | dissolve by select mode with Blender's options; Limited Dissolve by angle and delimit |
+| `mergeByDistance` | edit-mode Merge by Distance on listed vertices (`useUnselected`, `useCentroid`) |
 | `rename`, `material`, `select` | naming, surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
 | `camera` | named views, fit-to-objects, saved views; orthographic or perspective with a chosen `fov` |

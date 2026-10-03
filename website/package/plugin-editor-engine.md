@@ -109,13 +109,15 @@ file cites the line of each binding).
 | E | Extrude along the normal |
 | I | Inset faces |
 | Ctrl+B | Bevel |
-| M | Merge menu |
+| M | Merge menu (At Center / First / Last, By Distance) |
 | Y | Split |
 | P | Separate selection |
-| F | Fill (make face / edge) |
+| F | Make Edge/Face (edge-net fill; press again to keep extending) |
+| J | Connect Vertex Path |
 | Shift+D | Duplicate |
-| X, Delete | Delete menu |
-| Ctrl+X, Ctrl+Delete | Dissolve |
+| X, Delete | Delete menu (delete types, Dissolve Vertices / Edges / Faces, Limited Dissolve) |
+| Ctrl+X, Ctrl+Delete | Dissolve by select mode |
+| Ctrl+V / Ctrl+E / Ctrl+F | Vertex / Edge / Face menus (Connect, Bridge Edge Loops, Grid Fill, ...) |
 | Shift+A | Add menu |
 | Ctrl+J | Join |
 | Ctrl+P, Alt+P | Parent to active / clear parent |
@@ -157,9 +159,12 @@ Alt+drag orbits.
 | Ctrl+E | Extrude |
 | I | Inset faces |
 | Ctrl+B | Bevel |
-| M | Merge menu |
+| M | Merge menu (incl. By Distance) |
 | Ctrl+D | Duplicate |
+| P | Make Edge/Face (Modo's Make Polygon key; P parents only in object mode) |
+| J | Connect Vertex Path |
 | Delete, Backspace | Delete (by select mode, no menu) |
+| right click | context menu: Bridge Edge Loops, Grid Fill, Connect, the dissolve family, ... by select mode |
 | Ctrl+Backspace, Ctrl+Delete | Dissolve |
 | Ctrl+J, Ctrl+Shift+J | Join / separate |
 | P, Shift+P | Parent to active / clear parent |
@@ -195,9 +200,12 @@ repeat_last/repeat/rename/escape/keymap`.
 Edit mode: `mesh.exit_edit`, `mesh.exit_discard`, `mesh.apply`, `mesh.select_mode_vertex/edge/face`,
 `mesh.select_all/none/invert/linked/loop/ring`, `mesh.move/rotate/scale` (modal, or exact with props),
 `mesh.extrude` (modal along the normal, or `{offset}`), `mesh.duplicate`, `mesh.split`, `mesh.merge`,
-`mesh.dissolve` (vertices, edges or faces by select mode - `bmo_dissolve.cc` ports in the kernel), `mesh.fill`
-(`F`: an edge from two vertices, a face from a closed edge loop, or a region dissolve - `bmo_contextual_create`
-without the edge-net fill), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
+`mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`), `mesh.dissolve_verts/edges/faces` and `mesh.dissolve_limited`
+with Blender's options, `mesh.fill` (F, `mesh.edge_face_add`: contextual create with edge-net fill and the
+tricky-extend selection), `mesh.fill_grid` (span calculated from the loop on the first run, then adjustable),
+`mesh.bridge_edge_loops` (twist, merge, cuts with the edge-ring interpolation), `mesh.vert_connect_path` (J),
+`mesh.vert_connect`, `mesh.remove_doubles` (Merge by Distance), `mesh.vertices_menu/edges_menu/faces_menu`
+(Ctrl+V/E/F), `mesh.inset`, `mesh.bevel`, `mesh.delete` (Blender's five delete types),
 `mesh.separate`, `mesh.toggle_xray`. `mesh.subdivide` is registered disabled: the kernel's `bmo_subdivide`
 port covers the icosphere's `tri_3edge` pattern only (P3 backlog).
 

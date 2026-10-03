@@ -4399,4 +4399,45 @@ test('modelling-editor-fill', async({page}) => {
     expect(s.lastProps).toMatchObject({angleLimit: 5, useDissolveBoundaries: false, delimitNormal: true})
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+
+    // ── 7. Bridge Edge Loops: the cube's front face, then (Ctrl+Numpad1, back view) its back face,
+    // I to inset both, Ctrl+E > Bridge Edge Loops: a square tunnel through the cube. Then 2 cuts in
+    // the panel. (Bridging the two faces without the inset only deletes them: every bridge face
+    // already exists as a side of the cube, and Blender's bridge reuses existing faces.) ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Digit3')
+    await page.keyboard.press('Numpad1')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    await page.keyboard.press('Control+Numpad1')
+    await page.keyboard.down('Shift')
+    await page.mouse.click(cx, cy)
+    await page.keyboard.up('Shift')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 8, 2])
+    await page.keyboard.press('KeyI')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    expect((await state()).sel?.[2]).toBe(2)                 // the two inset faces
+    await page.keyboard.press('Control+KeyE')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'Bridge Edge Loops'}).click()
+    // The two inset faces go and 4 faces line the tunnel between their rims.
+    await expect.poll(async() => (await state()).counts).toEqual([16, 32, 16])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.bridge_edge_loops')
+    expect(s.history.at(-1)).toBe('Bridge Edge Loops')
+    expect(s.sel?.[2]).toBe(4)                               // the tunnel faces
+    expect(s.lastProps).toMatchObject({type: 'SINGLE', numberCuts: 0, twistOffset: 0, interpolation: 'PATH'})
+    await openPanel('mesh.bridge_edge_loops')
+    const cuts = panel('mesh.bridge_edge_loops').locator('#me-prop-numberCuts')
+    await cuts.fill('2')
+    await cuts.press('Tab')
+    // Two rings of 4 vertices along the tunnel; each tunnel face becomes 3.
+    await expect.poll(async() => (await state()).counts).toEqual([24, 48, 24])
+    expect((await state()).lastProps?.numberCuts).toBe(2)
+    expect((await state()).history.at(-1)).toBe('Bridge Edge Loops')
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
 })

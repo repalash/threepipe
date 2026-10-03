@@ -10,6 +10,7 @@
 
 import {
     BMesh,
+    bridgeEdgeLoopsSelection,
     bmFromMesh,
     bmToMesh,
     DissolveDelimit,
@@ -299,7 +300,46 @@ export const connectVerticesCommand: CommandDefinition = {
     },
 }
 
+export const bridgeEdgeLoopsCommand: CommandDefinition = {
+    op: 'bridgeEdgeLoops',
+    summary: 'Join edge loops with a band of faces - Blender\'s Bridge Edge Loops.',
+    description:
+        'List the `edges` of two or more loops (or `faces`: their selection is removed and its rims are '
+        + 'bridged, which is how you make a hole through a box or join two tubes). `type` CLOSED joins the '
+        + 'last loop back to the first, PAIRS bridges loops two by two. `twistOffset` rotates closed loops '
+        + 'against each other; `useMerge` welds the loops instead of making faces. `numberCuts` adds edge '
+        + 'loops along the bridge, shaped by `interpolation`, `smoothness` and the profile. The new faces are '
+        + 'selected (`selected` in the result).',
+    mutates: true,
+    schema: schema({
+        ...selectionSchema,
+        type: S.enum('Connect Loops: SINGLE (open), CLOSED or PAIRS. Default SINGLE.', ['SINGLE', 'CLOSED', 'PAIRS']),
+        useMerge: S.boolean('Merge rather than creating faces. Default false.'),
+        mergeFactor: S.number('Merge Factor, 0..1. Default 0.5.', {minimum: 0, maximum: 1}),
+        twistOffset: S.integer('Twist offset for closed loops. Default 0.', {minimum: -1000, maximum: 1000}),
+        numberCuts: S.integer('Number of Cuts. Default 0.', {minimum: 0, maximum: 1000}),
+        interpolation: S.enum('Interpolation of the cuts. Default PATH.', ['LINEAR', 'PATH', 'SURFACE']),
+        smoothness: S.number('Smoothness factor. Default 1.', {minimum: 0, maximum: 1000}),
+        profileShapeFactor: S.number('How much intermediary new edges are shrunk/expanded. Default 0.', {minimum: -1000, maximum: 1000}),
+        profileShape: S.enum('Shape of the profile. Default SMOOTH.', ['SMOOTH', 'SPHERE', 'ROOT', 'INVERSE_SQUARE', 'SHARP', 'LINEAR']),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const {mesh, result, selected} = runOnSelection(entry.mesh, readSelection(p), bm => bridgeEdgeLoopsSelection(bm, {
+            type: p.type as never, useMerge: p.useMerge as boolean | undefined, mergeFactor: p.mergeFactor as number | undefined,
+            twistOffset: p.twistOffset as number | undefined, numberCuts: p.numberCuts as number | undefined,
+            interpolation: p.interpolation as never, smoothness: p.smoothness as number | undefined,
+            profileShapeFactor: p.profileShapeFactor as number | undefined, profileShape: p.profileShape as never,
+        }))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {newFaces: result.faces.length + result.cutFaces.length, selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
 export const fillCommands: CommandDefinition[] = [
+    bridgeEdgeLoopsCommand,
     dissolveElementsCommand,
     dissolveLimitedCommand,
     connectVerticesCommand,
