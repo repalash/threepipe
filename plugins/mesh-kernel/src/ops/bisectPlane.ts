@@ -26,6 +26,10 @@ import {faceVertShareLoop} from '../bmesh/walkers'
 import {faceNormalUpdate} from '../bmesh/polygon'
 import {edgeSelectSet, faceSelectSet, selectFlush, selectNone, vertSelectSet} from '../bmesh/marking'
 import {Vec3} from '../math'
+import {KnifeView} from './knife/view'
+import {invertM4} from './knife/geom'
+import {triangleFill} from './triangleFill'
+import {faceAttributeFill} from './faceAttributeFill'
 
 /** A plane as `[a, b, c, d]`: points `p` with `a*x + b*y + c*z + d = 0`. Blender's `float plane[4]`. */
 export type Plane4 = [number, number, number, number]
@@ -476,4 +480,62 @@ export function bisectSelection(bm: BMesh, opts: BisectSelectionOptions, fill?: 
     }
     selectFlush(bm)
     return result
+}
+
+/**
+ * The plane a screen-space line defines: `mesh_bisect_interactive_calc` (`editmesh_bisect.cc:69`).
+ *
+ * The plane contains the view ray through `start` and the line's direction, so it is the plane the user
+ * sees edge-on along the drawn line. `start`/`end` are region pixels (bottom-left origin). `coRef` is
+ * Blender's `rv3d->ofs` - the *negated* orbit centre - used only to pick the depth at which `planeCo` is
+ * placed along the ray; any depth gives the same plane. `flip` negates the normal (which side is
+ * "outer" for clear outer/inner).
+ */
+export function bisectPlaneFromScreenLine(view: KnifeView, start: [number, number], end: [number, number], coRef: Vec3, flip = false): {planeCo: Vec3, planeNo: Vec3} {
+    const zfac = view.calcZfac(coRef)
+    // view vector
+    const coA = view.winToVector(start)
+    // view delta
+    const coB = view.winToDelta([start[0] - end[0], start[1] - end[1]], zfac)
+    // cross both to get a normal
+    let no: Vec3 = [
+        coA[1] * coB[2] - coA[2] * coB[1],
+        coA[2] * coB[0] - coA[0] * coB[2],
+        coA[0] * coB[1] - coA[1] * coB[0],
+    ]
+    const l = Math.hypot(no[0], no[1], no[2])
+    // not needed but nicer for user
+    if (l > 1e-35) no = [no[0] / l, no[1] / l, no[2] / l]
+    if (flip) no = [-no[0], -no[1], -no[2]]
+    // point on plane, can use either start or endpoint
+    const co = view.winTo3d(coRef, start)
+    return {planeCo: [co[0], co[1], co[2]], planeNo: no}
+}
+
+/**
+ * `mesh_bisect_exec`'s per-object step (`editmesh_bisect.cc:320-327`): a world-space plane in the
+ * mesh's own space - the point through the inverse matrix, the normal through the *transposed*
+ * matrix (`mul_transposed_mat3_m4_v3(obmat, no)`), as Blender does.
+ */
+export function bisectPlaneToLocal(planeCo: Vec3, planeNo: Vec3, objectMatrix: number[]): {planeCo: Vec3, planeNo: Vec3} {
+    const m = objectMatrix
+    const inv = invertM4(m)
+    const co: Vec3 = [
+        inv[0] * planeCo[0] + inv[4] * planeCo[1] + inv[8] * planeCo[2] + inv[12],
+        inv[1] * planeCo[0] + inv[5] * planeCo[1] + inv[9] * planeCo[2] + inv[13],
+        inv[2] * planeCo[0] + inv[6] * planeCo[1] + inv[10] * planeCo[2] + inv[14],
+    ]
+    const no: Vec3 = [
+        m[0] * planeNo[0] + m[1] * planeNo[1] + m[2] * planeNo[2],
+        m[4] * planeNo[0] + m[5] * planeNo[1] + m[6] * planeNo[2],
+        m[8] * planeNo[0] + m[9] * planeNo[1] + m[10] * planeNo[2],
+    ]
+    return {planeCo: co, planeNo: no}
+}
+
+/** The fill `mesh_bisect_exec` runs with `use_fill` (`:345-374`), as a {@link BisectFillFn}. */
+export const bisectFillDefault: BisectFillFn = (bm, edges, normal) => {
+    const filled = triangleFill(bm, edges, {normal, useDissolve: true})
+    faceAttributeFill(bm, filled.faces, {useNormals: true, useData: true})
+    return filled.faces
 }
