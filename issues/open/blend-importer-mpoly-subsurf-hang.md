@@ -46,6 +46,14 @@ Four defects stacked:
 Regression tests in `plugins/blend-importer/tests/mpoly-triangulation.test.ts`, each checked to fail
 against the code it guards.
 
+## Visual check
+
+Mac GPU browser, framed on the car (`tmp/browser-check/bugatti-{fix,old}-*.png`): the car body matches
+0.5.1; the transporter behind it, mostly Subsurf'd n-gons, is complete and smooth on the fix and white,
+faceted and partly missing on 0.5.1. Both show overlapping copies and a helper box around the car —
+the importer loads all ten scenes of the file, a separate pre-existing issue:
+[blend-importer-imports-all-scenes](./blend-importer-imports-all-scenes.md).
+
 ## Follow-up: viewport or render evaluation
 
 **Done**, as a separate commit: `BlendLoadPlugin.evaluationMode`, `'viewport'` by default.
