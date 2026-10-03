@@ -22,7 +22,8 @@
 
 import {BMEdge, BMElemAny, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {splitEdgeMakeVert, splitFaceMakeEdge} from '../bmesh/euler'
+import {splitFaceMakeEdge} from '../bmesh/euler'
+import {edgeSplit} from '../bmesh/mods'
 import {edgeSelectSet, elemSelectSet, selectFlushFromVerts, selectNone} from '../bmesh/marking'
 import {AttrName, ElemFlag} from '../constants'
 import {Vec3, v3add, v3cross, v3dot, v3lerp, v3mul, v3normalize, v3sub} from '../math'
@@ -341,7 +342,9 @@ function subdivideEdgeAddvert(
     bm: BMesh, edge: BMEdge, params: SubDParams, factorEdgeSplit: number, factorSubd: number,
     vA: VertSnapshot, vB: VertSnapshot,
 ): {v: BMVert, e: BMEdge} {
-    const {vNew, eNew} = splitEdgeMakeVert(bm, edge, edge.v1, factorEdgeSplit)
+    // `BM_edge_split` (`bmesh_mods.cc:478`): the new half takes the edge's header flags raw,
+    // selection included (`:518`).
+    const {vNew, eNew} = edgeSplit(bm, edge, edge.v1, factorEdgeSplit)
 
     flagEnable(params, vNew, ELE_INNER)
 

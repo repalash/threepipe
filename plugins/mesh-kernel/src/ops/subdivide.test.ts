@@ -3,6 +3,8 @@ import {BMesh} from '../bmesh/BMesh'
 import {BMVert} from '../bmesh/types'
 import {editMeshSubdivide, subdivideEdges, subdivideTrisOnSphere, vertPairShareFaceByLen} from './subdivide'
 import {getComponent, setComponent} from '../bmesh/customdata'
+import {edgeSelectSet, selectModeFlush, selectNone} from '../bmesh/marking'
+import {ElemFlag, SelectMode} from '../constants'
 
 function triangle(bm: BMesh, a: [number, number, number], b: [number, number, number], c: [number, number, number]) {
     const v = [bm.vertCreate(...a), bm.vertCreate(...b), bm.vertCreate(...c)]
@@ -190,5 +192,38 @@ describe('editMeshSubdivide', () => {
         quad(bm)
         expect(editMeshSubdivide(bm, {numberCuts: 2})).toBeNull()
         expect(bm.totvert).toBe(4)
+    })
+})
+
+describe('BM_edge_split in the subdivide (bmesh_mods.cc:518) and the selection totals', () => {
+    /** One quad, its bottom edge selected. */
+    function quadWithSelectedEdge() {
+        const bm = new BMesh()
+        const v = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]].map(c => bm.vertCreate(c[0], c[1], c[2]))
+        bm.faceCreate(v)
+        bm.selectMode = SelectMode.Edge
+        const e = [...bm.edges].find(x => x.joins(v[0], v[1]))!
+        edgeSelectSet(bm, e, true)
+        return {bm, e}
+    }
+
+    it('both halves of a cut selected edge keep its selection, and the flush recounts them', () => {
+        const {bm, e} = quadWithSelectedEdge()
+        subdivideEdges(bm, [e], {cuts: 2})
+        // The edge became three; every piece took the header flags raw, as `BM_edge_split` does.
+        const pieces = [...bm.edges].filter(x => x.v1.y === 0 && x.v2.y === 0)
+        expect(pieces.length).toBe(3)
+        for (const p of pieces) expect(p.hflag & ElemFlag.Select).toBeTruthy()
+        // Like Blender, the raw copy leaves the totals to the next flush (`bmesh_marking.cc:531`).
+        selectModeFlush(bm)
+        expect(bm.totedgesel).toBe(3)
+    })
+
+    it('deselect all zeroes the totals even after raw copies (bmesh_marking.cc:1379)', () => {
+        const {bm, e} = quadWithSelectedEdge()
+        subdivideEdges(bm, [e], {cuts: 2})
+        selectNone(bm)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([0, 0, 0])
+        expect([...bm.edges].some(x => x.hflag & ElemFlag.Select)).toBe(false)
     })
 })
