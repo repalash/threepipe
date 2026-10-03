@@ -50,7 +50,10 @@ export default defineConfig({
     },
     plugins: [
         // entryRoot: the tsconfig paths reach into sibling packages, which would otherwise shift the output root
-        isProd ? dts({tsconfigPath: './tsconfig.json', entryRoot: 'src'}) : null,
+        // Keep `threepipe` and `@threepipe/*` imports as package names in the emitted types: the tsconfig
+        // `paths` point at sibling folders for development, and turned into relative paths they break once
+        // published.
+        isProd ? dts({tsconfigPath: './tsconfig.json', entryRoot: 'src', aliasesExclude: [/^threepipe$/, /^@threepipe\//]}) : null,
         ...globalsReplacePlugin(globals, isProd),
         ...commonPlugins(packageJson, __dirname, isProd),
     ],
