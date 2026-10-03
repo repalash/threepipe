@@ -5,8 +5,8 @@
 //   node scripts/snapshots-r2-init.mjs --apply    create what is missing
 //
 // Idempotent: probes first, creates only what is absent.
-//   1. bucket `threepipe-test-snapshots`
-//   2. public read at https://snapshots.threepipe.org (R2 custom domain on the threepipe.org zone), so CI and
+//   1. bucket `threepipe-e2e-snapshots`
+//   2. public read at https://e2e-snapshots.threepipe.org (R2 custom domain on the threepipe.org zone), so CI and
 //      contributors fetch baselines with no credentials
 //   3. an API token scoped to this bucket only (Object Read & Write). That token IS an S3 credential:
 //      Access Key ID = token id, Secret Access Key = sha256(token value)
@@ -24,8 +24,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
-const BUCKET = 'threepipe-test-snapshots'
-const DOMAIN = 'snapshots.threepipe.org'
+const BUCKET = 'threepipe-e2e-snapshots'
+const DOMAIN = 'e2e-snapshots.threepipe.org'
 const ZONE = 'threepipe.org'
 const TOKEN_NAME = `snapshots-r2-${BUCKET}`
 const PERM_GROUP = 'Workers R2 Storage Bucket Item Write' // = Object Read & Write, per bucket
@@ -35,8 +35,9 @@ const apply = args.includes('--apply')
 const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(import.meta.dirname, '..', '.env.snapshots-r2')
 
 const envFile = readEnv(path.join(import.meta.dirname, '..', '.env.threepipe'))
-const token = process.env.CLOUDFLARE_API_TOKEN || envFile.R2_INIT_TOKEN
-const account = process.env.CLOUDFLARE_ACCOUNT_ID || envFile.CLOUDFLARE_ACCOUNT_ID
+const unset = (v) => !v || /^(REPLACE_ME|<.*>)$/.test(v) // placeholders from .env.threepipe count as missing
+const token = [process.env.CLOUDFLARE_API_TOKEN, envFile.R2_INIT_TOKEN].find(v => !unset(v))
+const account = [process.env.CLOUDFLARE_ACCOUNT_ID, envFile.CLOUDFLARE_ACCOUNT_ID].find(v => !unset(v))
 if (!token) fail('no setup token: set CLOUDFLARE_API_TOKEN or R2_INIT_TOKEN in .env.threepipe')
 if (!account) fail('no account id: set CLOUDFLARE_ACCOUNT_ID (env or .env.threepipe)')
 
