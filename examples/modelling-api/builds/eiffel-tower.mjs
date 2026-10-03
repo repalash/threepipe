@@ -183,6 +183,8 @@ export default async ({run, capture, log, page}) => {
      * Curved brackets: a quarter-ellipse from `inner` (vertical there) to `outer` (horizontal there),
      * in the plane through `along`, swept with a rectangular section.
      */
+    /** Brackets are deepest where they leave the structure and taper to their tip: a curve radius per point. */
+    const taper = (from, to, steps = 10) => range(0, steps + 1).map(i => from + (to - from) * i / steps)
     const bracketPath = (from, to, steps = 10) => range(0, steps + 1).map(i => {
         const t = (Math.PI / 2) * i / steps
         const k = 1 - Math.cos(t)
@@ -379,7 +381,7 @@ export default async ({run, capture, log, page}) => {
         await must({op: 'poke', object: name})
         await must({op: 'wireframe', object: name, thickness: 0.35, offset: 0, live: true})
     }
-    await band('fascia-2', 12, [flat(113.2, PLATFORM.second), flat(FLOOR.second + 0.3, PLATFORM.second)])
+    await band('fascia-2', 12, [flat(111.5, PLATFORM.second), flat(FLOOR.second + 0.3, PLATFORM.second)])
     await must({op: 'inset', object: 'fascia-2', individual: true, thickness: 0.25, depth: -0.15})
     await must({op: 'solidify', object: 'fascia-2', thickness: 0.5, offset: -1})
     // Unlike the first floor, the second is floored right across (the view from below shows it).
@@ -390,8 +392,8 @@ export default async ({run, capture, log, page}) => {
     await must({op: 'material', object: 'pavilions-2', roughness: 0.12, metalness: 0.6})
     // Brackets from the shaft face under the fascia, eleven to a side.
     await must({op: 'sweep', name: 'brackets-2', color: IRON_DARK,
-        path: bracketPath([-17, 110.8, O(110.8) + 0.4], [-17, 113.2, PLATFORM.second / 2 - 0.5]),
-        profile: [[-0.15, -0.3], [0.15, -0.3], [0.15, 0.3], [-0.15, 0.3]]})
+        path: bracketPath([-17, 110.0, O(110.0) + 0.4], [-17, FLOOR.second - 0.5, PLATFORM.second / 2 - 0.5]),
+        profile: [[-0.15, -0.3], [0.15, -0.3], [0.15, 0.3], [-0.15, 0.3]], radii: taper(1.4, 0.7)})
     await must({op: 'array', object: 'brackets-2', count: 11, step: [3.4, 0, 0], merge: false, live: true})
     await must({op: 'array', object: 'brackets-2', count: 4, angle: Math.PI * 2, axis: 'y', pivot: [0, 0, 0],
         merge: false, live: true})
@@ -409,10 +411,10 @@ export default async ({run, capture, log, page}) => {
     const cabin = PLATFORM.third
     await must({op: 'sweep', name: 'consoles-mid', color: IRON_DARK,
         path: bracketPath([0, 266.0, 5.0], [0, FLOOR.third - 0.2, cabin / 2 - 0.4]),
-        profile: [[-0.15, -0.8], [0.15, -0.8], [0.15, 0.8], [-0.15, 0.8]]})
+        profile: [[-0.15, -0.8], [0.15, -0.8], [0.15, 0.8], [-0.15, 0.8]], radii: taper(1.3, 0.6)})
     await must({op: 'sweep', name: 'consoles-corner', color: IRON_DARK,
         path: bracketPath([5.0, 266.0, 5.0], [cabin / 2 - 0.4, FLOOR.third - 0.2, cabin / 2 - 0.4]),
-        profile: [[-0.18, -1.0], [0.18, -1.0], [0.18, 1.0], [-0.18, 1.0]]})
+        profile: [[-0.18, -1.0], [0.18, -1.0], [0.18, 1.0], [-0.18, 1.0]], radii: taper(1.3, 0.6)})
     for (const name of ['consoles-mid', 'consoles-corner']) {
         await must({op: 'array', object: name, count: 4, angle: Math.PI * 2, axis: 'y', pivot: [0, 0, 0],
             merge: false, live: true})
@@ -549,7 +551,7 @@ export default async ({run, capture, log, page}) => {
     await capture('from below, through the centre')
     await must({op: 'camera', fov: 50, position: [0, 22, 150], target: [0, 42, 0]})
     await capture('first floor and arch')
-    await must({op: 'camera', fov: 45, position: [60, 120, 70], target: [0, 112, 0]})
+    await must({op: 'camera', fov: 35, position: [75, 88, 100], target: [0, 112, 0]})
     await capture('second floor')
     await must({op: 'camera', fov: 30, position: [55, 255, 70], target: [0, 280, 0]})
     await capture('summit')
