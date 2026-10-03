@@ -282,8 +282,18 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
                 this.dispatchEvent({type: 'sceneChanged'})
             })
         }
-        if (this.transformControls?.transformControls) {
-            this._on(this.transformControls.transformControls as any, 'mode-changed', () => this.dispatchEvent({type: 'toolChanged', tool: this._activeTool}))
+        const tc = this.transformControls?.transformControls
+        if (tc) {
+            this._on(tc as any, 'mode-changed', () => this.dispatchEvent({type: 'toolChanged', tool: this._activeTool}))
+            // `TransformControlsPlugin` records the drag as an unlabelled step on its `mouseUp`; its
+            // listener was added before this one, so a label noted on `mouseDown` names that step
+            // ("Move cube") and is cleared once the release has been handled.
+            const verb = () => ({translate: 'Move', rotate: 'Rotate', scale: 'Scale'} as Record<string, string>)[tc.getMode()] ?? 'Transform'
+            this._on(tc as any, 'mouseDown', () => {
+                const name = (tc.object as IObject3D | undefined)?.name || 'object'
+                this.history.pendingLabel = `${verb()} ${name}`
+            })
+            this._on(tc as any, 'mouseUp', () => { this.history.pendingLabel = null })
         }
     }
 
