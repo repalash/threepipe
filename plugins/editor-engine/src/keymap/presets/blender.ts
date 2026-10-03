@@ -89,6 +89,7 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'y', id: 'mesh.split', mode: 'edit'},                     // mesh.split :5624
         {keys: 'p', id: 'mesh.separate', mode: 'edit'},                  // mesh.separate :5623
         {keys: 'f', id: 'mesh.fill', mode: 'edit', repeat: true},        // mesh.edge_face_add :5620
+        {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},         // mesh.vert_connect_path :5625
         {keys: 'shift+d', id: 'mesh.duplicate', mode: 'edit'},           // mesh.duplicate_move :5621
         {keys: 'x', id: 'mesh.delete', mode: 'edit'},                    // VIEW3D_MT_edit_mesh_delete :5634
         {keys: 'delete', id: 'mesh.delete', mode: 'edit'},               // :5635

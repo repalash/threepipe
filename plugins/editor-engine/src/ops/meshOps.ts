@@ -19,13 +19,9 @@ import {
     BMEdge,
     BMFace,
     BMVert,
-    dissolveFaces,
-    dissolveEdges,
-    dissolveVerts,
     edgeSelectSet,
     ElemFlag,
     faceSelectSet,
-    fillSelection,
     selectHistoryActive,
     walkEdgeLoop,
     walkEdgeRing,
@@ -334,45 +330,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 return me.merge(mode) ? {ok: true, props: {mode}} : {ok: false, error: 'Select at least two vertices to merge'}
             },
         },
-        {
-            id: 'mesh.dissolve', label: 'Dissolve', icon: 'eraser', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
-            description: 'Remove the selected vertices, edges or faces, merging the faces around them into one (Blender\'s Ctrl+X).',
-            flags: {undo: true, register: true},
-            poll: ready(hasSelection),
-            exec: ctx => {
-                const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: 'Only in edit mode'}
-                const bm = me.state.bm
-                let n = 0
-                if (ctx.selectMode === 'face') {
-                    const faces = [...bm.faces].filter(f => f.hflag & ElemFlag.Select)
-                    n = dissolveFaces(bm, faces).length ? faces.length : 0
-                } else if (ctx.selectMode === 'edge') {
-                    n = dissolveEdges(bm, [...bm.edges].filter(e => e.hflag & ElemFlag.Select))
-                } else {
-                    n = dissolveVerts(bm, [...bm.verts].filter(v => v.hflag & ElemFlag.Select))
-                }
-                if (!n) return {ok: false, error: 'Nothing could be dissolved: the selection has no faces around it to merge'}
-                me.commit(before, `Dissolve ${ctx.selectMode === 'face' ? 'Faces' : ctx.selectMode === 'edge' ? 'Edges' : 'Vertices'}`)
-                return {ok: true}
-            },
-        },
-        {
-            id: 'mesh.fill', label: 'Fill', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge'],
-            description: 'Make a face from the selected vertices or edges, or an edge from two vertices (Blender\'s F).',
-            flags: {undo: true, register: true},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices' : p }),
-            exec: () => {
-                const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: 'Only in edit mode'}
-                const made = fillSelection(me.state.bm)
-                if (!made) return {ok: false, error: 'Could not make a face from this selection: a face there already exists, or the vertices do not form a loop'}
-                me.commit(before, made.face ? 'Make Face' : 'Make Edge')
-                return {ok: true}
-            },
-        },
+        // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.
+        // `mesh.fill` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
         {
             id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
             description: 'Cut each selected edge and the faces between them.',

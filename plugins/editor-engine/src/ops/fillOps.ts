@@ -15,7 +15,20 @@
  * the operators that exist in the engine, in Blender's order.
  */
 
-import {gridFillSelection, mergeByDistanceSelection, MERGE_BY_DISTANCE_DEFAULTS} from '@threepipe/mesh-kernel'
+import {
+    DissolveDelimit,
+    dissolveEdgesSelection,
+    dissolveFacesSelection,
+    dissolveLimitedSelection,
+    dissolveModeSelection,
+    dissolveVertsSelection,
+    edgeFaceAddSelection,
+    gridFillSelection,
+    mergeByDistanceSelection,
+    MERGE_BY_DISTANCE_DEFAULTS,
+    vertConnectPathSelection,
+    vertConnectSelection,
+} from '@threepipe/mesh-kernel'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, MenuRequestItem, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 
@@ -90,7 +103,146 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         useInterpSimple: {type: 'boolean', default: false, description: 'Simple Blending: use simple interpolation of grid vertices.'},
     }}
 
+    // --- Dissolve (`editmesh_tools.cc:5970`-`:6450`) -------------------------------------------
+    // Blender shows angles in degrees and stores radians; the panel does the same conversion.
+    const DEG = Math.PI / 180
+    const P = {
+        useVerts: (def: boolean | undefined) => ({type: 'boolean' as const, ...def === undefined ? {} : {default: def},
+            description: 'Dissolve Vertices: dissolve remaining vertices which connect to only two edges.'}),
+        useFaceSplit: {type: 'boolean' as const, default: false, description: 'Face Split: split off face corners to maintain surrounding geometry.'},
+        useBoundaryTear: {type: 'boolean' as const, default: false, description: 'Tear Boundary: split off face corners instead of merging faces.'},
+        angleThreshold: {type: 'number' as const, minimum: 0, maximum: 180, default: 180,
+            description: 'Angle Threshold (degrees): remaining vertices which separate edge pairs are preserved if their edge angle exceeds this threshold.'},
+        usePreserveQuads: {type: 'boolean' as const, default: true, description: 'Preserve Quads: when dissolving the edge between two triangles, don\'t dissolve vertices.'},
+    }
+    const dissolveModeProps: PropSchema = {type: 'object', properties: {
+        // No default: unset, it is on unless face select mode is (`edbm_dissolve_mode_exec`, :6256).
+        useVerts: P.useVerts(undefined), angleThreshold: P.angleThreshold, usePreserveQuads: P.usePreserveQuads,
+        useFaceSplit: P.useFaceSplit, useBoundaryTear: P.useBoundaryTear,
+    }}
+    const dissolveVertsProps: PropSchema = {type: 'object', properties: {useFaceSplit: P.useFaceSplit, useBoundaryTear: P.useBoundaryTear}}
+    const dissolveEdgesProps: PropSchema = {type: 'object', properties: {
+        useVerts: P.useVerts(true), angleThreshold: P.angleThreshold, useFaceSplit: P.useFaceSplit, usePreserveQuads: P.usePreserveQuads,
+    }}
+    const dissolveFacesProps: PropSchema = {type: 'object', properties: {useVerts: P.useVerts(false)}}
+    // `delimit` is an enum-flag set in Blender ({'NORMAL'} by default); here one toggle per flag.
+    const DELIMITS = [['delimitNormal', 'Normal', 'Normal: delimit by face directions.', true], ['delimitMaterial', 'Material', 'Material: delimit by face material.', false],
+        ['delimitSeam', 'Seam', 'Seam: delimit by edge seams.', false], ['delimitSharp', 'Sharp', 'Sharp: delimit by sharp edges.', false],
+        ['delimitUv', 'UV', 'UVs: delimit by UV coordinates.', false]] as const
+    const dissolveLimitedProps: PropSchema = {type: 'object', properties: {
+        angleLimit: {type: 'number', minimum: 0, maximum: 180, default: 5, description: 'Max Angle (degrees): angle limit.'},
+        useDissolveBoundaries: {type: 'boolean', default: false, description: 'All Boundaries: dissolve all vertices in between face boundaries.'},
+        ...Object.fromEntries(DELIMITS.map(([k, , d, def]) => [k, {type: 'boolean' as const, default: def, description: `Delimit ${d}`}])),
+    }}
+    const deg = (v: unknown, fallback: number) => (v === undefined ? fallback : Number(v)) * DEG
+    const dissolved = (r: {ok: true} | {ok: false, error: string}) => r.ok ? {ok: true as const} : {ok: false as const, error: r.error}
+    const anySelected = () => !me.state ? 'Only in edit mode'
+        : me.state.bm.totvertsel + me.state.bm.totedgesel + me.state.bm.totfacesel > 0 || 'Select some vertices, edges or faces first'
+
     const ops: OperatorDescriptor[] = [
+        {
+            id: 'mesh.dissolve', label: 'Dissolve Selection', icon: 'eraser', category: 'Mesh', modes: ['edit'],
+            description: 'Remove the selected vertices, edges or faces (by select mode), merging the faces around them into one (Blender\'s Ctrl+X).',
+            flags: {undo: true, register: true},
+            props: dissolveModeProps,
+            poll: ready(anySelected),
+            exec: runSession('Dissolve', dissolveModeProps, (p, ctx) => {
+                const bm = me.state!.bm
+                const useVerts = p.useVerts === undefined ? ctx.selectMode !== 'face' : !!p.useVerts
+                const r = dissolveModeSelection(bm, bm.selectMode, {
+                    useVerts, angleThreshold: deg(p.angleThreshold, 180), usePreserveQuads: !!p.usePreserveQuads,
+                    useFaceSplit: !!p.useFaceSplit, useBoundaryTear: !!p.useBoundaryTear,
+                })
+                if (!r.ok) return {ok: false, error: r.error}
+                const what = ctx.selectMode === 'face' ? 'Faces' : ctx.selectMode === 'edge' ? 'Edges' : 'Vertices'
+                return {ok: true, label: `Dissolve ${what}`, props: {useVerts}}
+            }),
+        },
+        {
+            id: 'mesh.dissolve_verts', label: 'Dissolve Vertices', icon: 'eraser', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex'],
+            description: 'Dissolve the selected vertices, merging the faces around each into one.',
+            flags: {undo: true, register: true},
+            props: dissolveVertsProps,
+            poll: ready(hasVerts(1, 'Select the vertices to dissolve first')),
+            exec: runSession('Dissolve Vertices', dissolveVertsProps, p => dissolved(dissolveVertsSelection(me.state!.bm, {
+                useFaceSplit: !!p.useFaceSplit, useBoundaryTear: !!p.useBoundaryTear,
+            }))),
+        },
+        {
+            id: 'mesh.dissolve_edges', label: 'Dissolve Edges', icon: 'eraser', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge'],
+            description: 'Dissolve the selected edges, merging the faces on either side, and the vertices left with two edges.',
+            flags: {undo: true, register: true},
+            props: dissolveEdgesProps,
+            poll: ready(() => !me.state ? 'Only in edit mode' : me.state.bm.totedgesel > 0 || 'Select the edges to dissolve first'),
+            exec: runSession('Dissolve Edges', dissolveEdgesProps, p => dissolved(dissolveEdgesSelection(me.state!.bm, {
+                useVerts: !!p.useVerts, angleThreshold: deg(p.angleThreshold, 180), useFaceSplit: !!p.useFaceSplit, usePreserveQuads: !!p.usePreserveQuads,
+            }))),
+        },
+        {
+            id: 'mesh.dissolve_faces', label: 'Dissolve Faces', icon: 'eraser', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['face'],
+            description: 'Merge each connected group of selected faces into one face.',
+            flags: {undo: true, register: true},
+            props: dissolveFacesProps,
+            poll: ready(() => !me.state ? 'Only in edit mode' : me.state.bm.totfacesel > 0 || 'Select the faces to dissolve first'),
+            exec: runSession('Dissolve Faces', dissolveFacesProps, p => dissolved(dissolveFacesSelection(me.state!.bm, {useVerts: !!p.useVerts}))),
+        },
+        {
+            id: 'mesh.dissolve_limited', label: 'Limited Dissolve', icon: 'clean', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
+            description: 'Dissolve selected edges and vertices that lie flatter than the Max Angle - removes needless detail from flat areas and straight runs.',
+            flags: {undo: true, register: true},
+            props: dissolveLimitedProps,
+            poll: ready(anySelected),
+            exec: runSession('Limited Dissolve', dissolveLimitedProps, p => {
+                let delimit = 0
+                const flags = [DissolveDelimit.Normal, DissolveDelimit.Material, DissolveDelimit.Seam, DissolveDelimit.Sharp, DissolveDelimit.UV]
+                DELIMITS.forEach(([k], i) => { if (p[k]) delimit |= flags[i] })
+                return dissolved(dissolveLimitedSelection(me.state!.bm, {
+                    angleLimit: deg(p.angleLimit, 5), useDissolveBoundaries: !!p.useDissolveBoundaries, delimit,
+                }))
+            }),
+        },
+        // --- Connect (`MESH_OT_vert_connect_path` :1695, `MESH_OT_vert_connect` :1321; no props) ----
+        {
+            id: 'mesh.vert_connect_path', label: 'Connect Vertex Path', icon: 'git-commit', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex'],
+            description: 'Cut through the faces between the selected vertices, in the order they were clicked, making new edges (Blender\'s J). With exactly two vertices, the shortest cut across faces.',
+            flags: {undo: true, register: true},
+            poll: ready(hasVerts(2, 'Click two or more vertices, in the order to connect them')),
+            exec: runSession('Connect Vertex Path', undefined, () => {
+                const r = vertConnectPathSelection(me.state!.bm)
+                return r.ok ? {ok: true} : {ok: false, error: r.error}
+            }),
+        },
+        {
+            id: 'mesh.vert_connect', label: 'Connect Vertex Pairs', icon: 'git-merge', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex'],
+            description: 'Split the faces between selected vertices that share a face, joining each such pair with an edge.',
+            flags: {undo: true, register: true},
+            poll: ready(hasVerts(2, 'Select two or more vertices on the same face')),
+            exec: runSession('Connect Vertices', undefined, () => {
+                const r = vertConnectSelection(me.state!.bm)
+                return r.ok ? {ok: true} : {ok: false, error: r.error}
+            }),
+        },
+        {
+            // `MESH_OT_edge_face_add` (editmesh_tools.cc:1016): no props, so nothing to adjust afterwards.
+            id: 'mesh.fill', label: 'Make Edge/Face', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge'],
+            description: 'Make an edge between two vertices, or a face from the selected vertices or edges - closed loops and edge nets fill, a lone vertex or edge on a border extends round the corner (Blender\'s F; press again to keep going).',
+            flags: {undo: true, register: true},
+            poll: ready(() => !me.state ? 'Only in edit mode' : (me.state.bm.totvertsel > 0) || 'Select vertices or edges to make an edge or face from'),
+            exec: runSession('Make Edge/Face', undefined, () => {
+                const bm = me.state!.bm
+                const faces = bm.totface
+                const r = edgeFaceAddSelection(bm)
+                if (!r.ok) return {ok: false, error: r.error}
+                return {ok: true, label: bm.totface !== faces ? 'Make Face' : 'Make Edge'}
+            }),
+        },
         {
             id: 'mesh.fill_grid', label: 'Grid Fill', icon: 'grid-view', category: 'Mesh', modes: ['edit'],
             contextMenu: ['edge'],

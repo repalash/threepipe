@@ -12,6 +12,10 @@ import {
     BMesh,
     bmFromMesh,
     bmToMesh,
+    DissolveDelimit,
+    dissolveLimitedSelection,
+    dissolveModeSelection,
+    edgeFaceAddSelection,
     ElemFlag,
     edgeSelectSet,
     faceSelectSet,
@@ -23,6 +27,8 @@ import {
     selectModeFlush,
     SelectMode,
     selectNone,
+    vertConnectPathSelection,
+    vertConnectSelection,
     vertSelectSet,
 } from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
@@ -173,7 +179,131 @@ export const gridFillCommand: CommandDefinition = {
     },
 }
 
+export const makeEdgeFaceCommand: CommandDefinition = {
+    op: 'makeEdgeFace',
+    summary: 'Make an edge or a face from the listed vertices/edges - Blender\'s F in edit mode.',
+    description:
+        'Blender\'s `mesh.edge_face_add` (contextual create): two vertices make an edge; a closed loop of '
+        + 'edges makes a face; an edge net fills every hole it closes; listed faces dissolve into one; '
+        + 'a single vertex or edge on a border is extended round its corner first. The new geometry is '
+        + 'selected (`selected` in the result). Fails, changing nothing, when there is nothing to make.',
+    mutates: true,
+    schema: schema({...selectionSchema}),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const {mesh, result, selected} = runOnSelection(entry.mesh, readSelection(p), bm => edgeFaceAddSelection(bm))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {newFaces: result.faces.length, newEdges: result.edges.length, selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
+export const dissolveElementsCommand: CommandDefinition = {
+    op: 'dissolveElements',
+    summary: 'Dissolve vertices, edges or faces, merging the faces around them - Blender\'s Ctrl+X in edit mode.',
+    description:
+        'Blender\'s `mesh.dissolve_mode`: what dissolves follows the select mode (`selectMode`, or the '
+        + 'domain of the list given). Vertices: each vertex goes and its faces merge (`useFaceSplit` keeps '
+        + 'the surrounding corners, `useBoundaryTear` splits instead of merging at a border). Edges: the '
+        + 'faces on both sides merge, and with `useVerts` (default in vertex and edge mode) vertices left '
+        + 'with two edges go too, unless their angle exceeds `angleThreshold`. Faces: each connected group '
+        + 'becomes one face. Unlike deleting, no hole is left. The result lists what is selected.',
+    mutates: true,
+    schema: schema({
+        ...selectionSchema,
+        useVerts: S.boolean('Dissolve remaining vertices which connect to only two edges. Default: on unless dissolving faces.'),
+        angleThreshold: S.number('Edges: keep vertices whose edge angle exceeds this many degrees. Default 180.', {minimum: 0, maximum: 180}),
+        usePreserveQuads: S.boolean('Edges: when dissolving the edge between two triangles, keep its vertices. Default true.'),
+        useFaceSplit: S.boolean('Split off face corners to maintain surrounding geometry. Default false.'),
+        useBoundaryTear: S.boolean('Vertices: split off face corners instead of merging faces. Default false.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const sel = readSelection(p)
+        const {mesh, result, selected} = runOnSelection(entry.mesh, sel, bm => dissolveModeSelection(bm, bm.selectMode, {
+            useVerts: p.useVerts as boolean | undefined,
+            angleThreshold: ((p.angleThreshold as number) ?? 180) * Math.PI / 180,
+            usePreserveQuads: (p.usePreserveQuads as boolean) ?? true,
+            useFaceSplit: (p.useFaceSplit as boolean) ?? false,
+            useBoundaryTear: (p.useBoundaryTear as boolean) ?? false,
+        }))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
+const DELIMIT_NAMES = {NORMAL: DissolveDelimit.Normal, MATERIAL: DissolveDelimit.Material, SEAM: DissolveDelimit.Seam, SHARP: DissolveDelimit.Sharp, UV: DissolveDelimit.UV}
+
+export const dissolveLimitedCommand: CommandDefinition = {
+    op: 'dissolveLimited',
+    summary: 'Limited Dissolve: remove the listed vertices and edges that lie flatter than an angle.',
+    description:
+        'Blender\'s `mesh.dissolve_limited`: cleans needless detail out of flat areas and straight runs. '
+        + 'Edges between faces meeting at less than `angleLimit` degrees dissolve, and vertices between '
+        + 'edges that run straighter than it; `delimit` keeps boundaries of the listed kinds. List faces '
+        + '(face mode) to dissolve only inside that region.',
+    mutates: true,
+    schema: schema({
+        ...selectionSchema,
+        angleLimit: S.number('Max Angle in degrees. Default 5.', {minimum: 0, maximum: 180}),
+        useDissolveBoundaries: S.boolean('Dissolve all vertices in between face boundaries. Default false.'),
+        delimit: S.array('Keep these boundaries: NORMAL, MATERIAL, SEAM, SHARP, UV. Default [NORMAL].', {type: 'string', enum: Object.keys(DELIMIT_NAMES)}),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        let delimit = DissolveDelimit.Normal as number
+        if (Array.isArray(p.delimit)) {
+            delimit = 0
+            for (const d of p.delimit as string[]) {
+                const f = DELIMIT_NAMES[d as keyof typeof DELIMIT_NAMES]
+                if (f === undefined) throw new Error(`unknown delimit "${d}" - use NORMAL, MATERIAL, SEAM, SHARP or UV`)
+                delimit |= f
+            }
+        }
+        const {mesh, result, selected} = runOnSelection(entry.mesh, readSelection(p), bm => dissolveLimitedSelection(bm, {
+            angleLimit: ((p.angleLimit as number) ?? 5) * Math.PI / 180,
+            useDissolveBoundaries: (p.useDissolveBoundaries as boolean) ?? false,
+            delimit,
+        }))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
+export const connectVerticesCommand: CommandDefinition = {
+    op: 'connectVertices',
+    summary: 'Cut faces between vertices - Blender\'s J (Connect Vertex Path), or Connect Vertex Pairs with `pairs`.',
+    description:
+        'List `verts` in the order to connect them: each consecutive pair is joined by cutting across '
+        + 'the faces between them (with exactly two, the shortest such cut), or by a new edge where a '
+        + 'vertex is loose. With `pairs: true` (Connect Vertex Pairs), every two listed vertices that '
+        + 'share a face are joined by splitting that face, order ignored. The new edges are selected.',
+    mutates: true,
+    schema: schema({
+        ...selectionSchema,
+        pairs: S.boolean('Connect Vertex Pairs (`mesh.vert_connect`) instead of the path. Default false.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const {mesh, result, selected} = runOnSelection(entry.mesh, readSelection(p),
+            bm => p.pairs ? vertConnectSelection(bm) : vertConnectPathSelection(bm))
+        if (!result.ok) throw new Error(result.error)
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {newEdges: result.edges.length, selected, verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum}}
+    },
+}
+
 export const fillCommands: CommandDefinition[] = [
+    dissolveElementsCommand,
+    dissolveLimitedCommand,
+    connectVerticesCommand,
     mergeByDistanceCommand,
+    makeEdgeFaceCommand,
     gridFillCommand,
 ]
