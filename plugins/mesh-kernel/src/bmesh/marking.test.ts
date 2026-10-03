@@ -4,6 +4,7 @@ import {BMVert} from './types'
 import {diskEdgeExists} from './structure'
 import {ElemFlag, SelectMode} from '../constants'
 import {
+    edgeHideSet,
     edgeSelectSet,
     faceHideSet,
     faceSelectSet,
@@ -12,11 +13,14 @@ import {
     selectCountsRecalc,
     selectedElements,
     selectFlush,
+    selectFlushFromVerts,
     selectFlushMode,
     selectHistoryActive,
     selectHistoryStore,
     selectHistoryValidate,
     selectInvert,
+    selectModeClean,
+    selectModeFlush,
     selectModeSet,
     selectNone,
     vertHideSet,
@@ -331,5 +335,156 @@ describe('selection survives mesh validity', () => {
         expect(bm.validate()).toEqual([])
         faceSelectSet(bm, faces[0], false)
         expect(bm.validate()).toEqual([])
+    })
+})
+
+describe('mode flush (BM_mesh_select_mode_flush)', () => {
+    it('in edge mode, four selected corners do not select the other two edges of a quad', () => {
+        const {bm, at} = grid2x2()
+        bm.selectMode = SelectMode.Edge
+        // Two opposite edges of the top-left quad: all four of its vertices end up selected.
+        edgeSelectSet(bm, diskEdgeExists(at(0, 0), at(1, 0))!, true)
+        edgeSelectSet(bm, diskEdgeExists(at(0, 1), at(1, 1))!, true)
+        selectModeFlush(bm)
+        expect(bm.totedgesel).toBe(2)
+        expect(bm.totfacesel).toBe(0)
+        expectCountsConsistent(bm)
+    })
+
+    it('in vertex mode flushes vertices to edges and edges to faces', () => {
+        const {bm, faces} = grid2x2()
+        bm.selectMode = SelectMode.Vertex
+        for (const l of faces[0].eachLoop()) vertSelectSet(bm, l.v, true)
+        selectModeFlush(bm)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([4, 4, 1])
+        expectCountsConsistent(bm)
+    })
+
+    it('in face mode flushes nothing, and drops deselected history entries', () => {
+        const {bm, at, faces} = grid2x2()
+        bm.selectMode = SelectMode.Face
+        for (const l of faces[0].eachLoop()) {
+            vertSelectSet(bm, l.v, true)
+            if (l.e) edgeSelectSet(bm, l.e, true)
+        }
+        selectHistoryStore(bm, at(0, 0))
+        faces[0].hflag |= ElemFlag.Select
+        selectCountsRecalc(bm)
+        vertSelectSet(bm, at(0, 0), false)
+        selectModeFlush(bm)
+        expect(bm.totfacesel).toBe(1)
+        expect(bm.selectHistory.length).toBe(0)
+        expectCountsConsistent(bm)
+    })
+})
+
+describe('selectModeSet is EDBM_selectmode_set', () => {
+    it('switching to edge mode keeps two opposite edges and nothing more', () => {
+        const {bm, at} = grid2x2()
+        bm.selectMode = SelectMode.Vertex
+        edgeSelectSet(bm, diskEdgeExists(at(0, 0), at(1, 0))!, true)
+        edgeSelectSet(bm, diskEdgeExists(at(0, 1), at(1, 1))!, true)
+        selectModeSet(bm, SelectMode.Edge)
+        // A down-then-up flush from the vertices would take all four edges and the face.
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([4, 2, 0])
+        expectCountsConsistent(bm)
+    })
+
+    it('switching to face mode keeps only the selected faces\' edges and vertices', () => {
+        const {bm, at, faces} = grid2x2()
+        bm.selectMode = SelectMode.Vertex
+        faceSelectSet(bm, faces[0], true)
+        // A stray edge: selected in vertex mode, not part of a selected face.
+        edgeSelectSet(bm, diskEdgeExists(at(2, 1), at(2, 2))!, true)
+        selectModeSet(bm, SelectMode.Face)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([4, 4, 1])
+        expectCountsConsistent(bm)
+    })
+
+    it('switching to vertex mode only ever adds edges and faces', () => {
+        const {bm, at} = grid2x2()
+        bm.selectMode = SelectMode.Edge
+        for (const l of [...bm.faces][0].eachLoop()) vertSelectSet(bm, l.v, true)
+        vertSelectSet(bm, at(2, 2), true)
+        selectModeSet(bm, SelectMode.Vertex)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([5, 4, 1])
+        expectCountsConsistent(bm)
+    })
+})
+
+describe('selectFlushFromVerts and selectModeClean', () => {
+    it('flush-from-verts with select only enables, with deselect only disables', () => {
+        const {bm, at} = grid2x2()
+        for (const l of [...bm.faces][0].eachLoop()) vertSelectSet(bm, l.v, true)
+        selectFlushFromVerts(bm, true)
+        expect([bm.totedgesel, bm.totfacesel]).toEqual([4, 1])
+        vertSelectSet(bm, at(0, 0), false)
+        // Deselecting a vertex alone changes nothing until the deselect flush.
+        expect([bm.totedgesel, bm.totfacesel]).toEqual([4, 1])
+        selectFlushFromVerts(bm, false)
+        expect([bm.totedgesel, bm.totfacesel]).toEqual([2, 0])
+        expectCountsConsistent(bm)
+    })
+
+    it('mode clean in face mode re-derives edges and vertices from the faces', () => {
+        const {bm, at, faces} = grid2x2()
+        bm.selectMode = SelectMode.Face
+        faceSelectSet(bm, faces[0], true)
+        // An isolated vertex and edge that no selected face explains.
+        vertSelectSet(bm, at(2, 2), true)
+        edgeSelectSet(bm, diskEdgeExists(at(2, 1), at(2, 2))!, true)
+        selectModeClean(bm)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([4, 4, 1])
+        expectCountsConsistent(bm)
+    })
+
+    it('mode clean in edge mode re-derives the vertices from the edges', () => {
+        const {bm, at} = grid2x2()
+        bm.selectMode = SelectMode.Edge
+        edgeSelectSet(bm, diskEdgeExists(at(0, 0), at(1, 0))!, true)
+        vertSelectSet(bm, at(2, 2), true)
+        selectModeClean(bm)
+        expect([bm.totvertsel, bm.totedgesel]).toEqual([2, 1])
+        expectCountsConsistent(bm)
+    })
+})
+
+describe('hiding is BM_*_hide_set', () => {
+    it('hiding a face hides its edges with no visible face and its vertices with no visible edge', () => {
+        const {bm, at, faces} = grid2x2()
+        faceHideSet(bm, faces[0], true)
+        // The corner face: two boundary edges and the corner vertex have nothing else visible.
+        expect(diskEdgeExists(at(0, 0), at(1, 0))!.hflag & ElemFlag.Hidden).toBeTruthy()
+        expect(diskEdgeExists(at(0, 0), at(0, 1))!.hflag & ElemFlag.Hidden).toBeTruthy()
+        expect(at(0, 0).hflag & ElemFlag.Hidden).toBeTruthy()
+        // The edges shared with the other faces stay visible, and so do their vertices.
+        expect(diskEdgeExists(at(1, 0), at(1, 1))!.hflag & ElemFlag.Hidden).toBeFalsy()
+        expect(at(1, 1).hflag & ElemFlag.Hidden).toBeFalsy()
+        expectCountsConsistent(bm)
+    })
+
+    it('hiding an edge hides its faces, and a vertex left with no visible edge', () => {
+        const {bm, at} = grid2x2()
+        // Hide the corner vertex's other edge first, then this one: the corner goes with it.
+        faceHideSet(bm, [...bm.faces][0], true)
+        expect(at(0, 0).hflag & ElemFlag.Hidden).toBeTruthy()
+        edgeHideSet(bm, diskEdgeExists(at(1, 0), at(2, 0))!, true)
+        expect([...bm.faces][1].hflag & ElemFlag.Hidden).toBeTruthy()
+        // (1, 0) still has a visible edge up to (1, 1); (2, 0) has one to (2, 1).
+        expect(at(1, 0).hflag & ElemFlag.Hidden).toBeFalsy()
+        expect(at(2, 0).hflag & ElemFlag.Hidden).toBeFalsy()
+        expectCountsConsistent(bm)
+    })
+
+    it('showing a face shows its edges and vertices; showing an edge its vertices', () => {
+        const {bm, at, faces} = grid2x2()
+        faceHideSet(bm, faces[0], true)
+        faceHideSet(bm, faces[0], false)
+        expect(at(0, 0).hflag & ElemFlag.Hidden).toBeFalsy()
+        expect(diskEdgeExists(at(0, 0), at(1, 0))!.hflag & ElemFlag.Hidden).toBeFalsy()
+        vertHideSet(bm, at(0, 0), true)
+        edgeHideSet(bm, diskEdgeExists(at(0, 0), at(1, 0))!, false)
+        expect(at(0, 0).hflag & ElemFlag.Hidden).toBeFalsy()
+        expectCountsConsistent(bm)
     })
 })
