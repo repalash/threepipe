@@ -4072,4 +4072,49 @@ test('modelling-editor-engine', async({page}) => {
     await expect.poll(async() => (await state()).mode).toBe('object')
     await page.keyboard.press('Enter')
     await expect.poll(async() => (await state()).mode).toBe('edit')
+
+    // 7. The Move tool is a sticky gizmo tool, as in Blender: it shows only the move handles, a drag on
+    // an axis arrow moves the selection along that axis alone, and the tool stays active afterwards.
+    await page.keyboard.press('Control+KeyA')
+    await page.locator('[data-tool="mesh.move"]').click()
+    const gizmoState = () => page.evaluate(() => {
+        const me = (window as any).engine.meshEdit
+        const sel = [...me.state.bm.verts].filter((v: any) => v.hflag & 1)
+        const c = [0, 1, 2].map(i => sel.reduce((a: number, v: any) => a + [v.x, v.y, v.z][i], 0) / Math.max(1, sel.length))
+        return {tool: (window as any).engine.activeTool?.id, visible: me.gizmoVisible, show: {...me.gizmo.show}, centre: c}
+    })
+    let g = await gizmoState()
+    expect(g.visible).toBe(true)
+    expect(g.show).toEqual({translate: true, rotate: false, scale: false})
+    // Whichever axis arrow is showing: an arrow pointing at the camera is hidden, as in Blender, and an
+    // earlier step left the view looking down Y.
+    const arrow = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).engine.meshEdit
+        const r = v.canvas.getBoundingClientRect()
+        for (const [handle, axis] of [['TRANS_X', 0], ['TRANS_Y', 1], ['TRANS_Z', 2]] as const) {
+            for (let y = 0; y < r.height; y += 3) {
+                for (let x = 0; x < r.width; x += 3) {
+                    // The plugin's own pick brings the gizmo up to date with the selection first.
+                    if (me._pickGizmo(x, y) === handle) return {x: r.left + x, y: r.top + y, axis}
+                }
+            }
+        }
+        return null
+    })
+    expect(arrow).not.toBeNull()
+    const before = g.centre
+    await page.mouse.move(arrow!.x, arrow!.y)
+    await page.mouse.down()
+    await page.mouse.move(arrow!.x + 60, arrow!.y - 60, {steps: 8})
+    await page.mouse.up()
+    const axis = arrow!.axis
+    await expect.poll(async() => Math.abs((await gizmoState()).centre[axis] - before[axis])).toBeGreaterThan(0.05)
+    g = await gizmoState()
+    for (const other of [0, 1, 2].filter(a => a !== axis)) expect(g.centre[other]).toBeCloseTo(before[other], 5)
+    expect(g.tool).toBe('mesh.move')
+    expect((await state()).history.at(-1)).toBe('Move')
+    await page.locator('[data-tool="mesh.rotate"]').click()
+    g = await gizmoState()
+    expect(g.show).toEqual({translate: false, rotate: true, scale: false})
 })

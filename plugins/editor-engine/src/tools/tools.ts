@@ -2,8 +2,9 @@
  * Active tools for the tool shelf.
  *
  * Object mode: select / move / rotate / scale drive `TransformControlsPlugin`'s gizmo mode. Edit
- * mode: until track T's element gizmo lands, the move/rotate/scale tools start `MeshEditPlugin`'s
- * modal (one-shot; the shelf falls back to Select when the modal ends), and extrude does the same.
+ * mode: Move, Rotate, Scale and Transform are sticky tools that show `MeshEditPlugin`'s gizmo with
+ * just their handles, as Blender's tools do (`VIEW3D_GGT_xform_gizmo` with the tool's
+ * `drag_action`); `G`/`R`/`S` stay one-shot modal operators in the keymap. Extrude is one-shot.
  * Inset and bevel are interactive through {@link PropDragModal}: run with defaults, drag to set the
  * thickness/width, wheel for segments, click to confirm.
  */
@@ -29,6 +30,17 @@ export function registerTools(engine: EditorEnginePlugin): void {
     })
     const hasElements = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totvertsel > 0) ? true : 'Select some elements first'
     const hasFaces = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totfacesel > 0) ? true : 'Select some faces first'
+    /** Show the edit-mode gizmo with only the given handles; null hides it. */
+    const elementGizmo = (handles: {translate: boolean, rotate: boolean, scale: boolean} | null) => {
+        const me = engine.meshEdit
+        if (handles) Object.assign(me.gizmo.show, handles)
+        me.showGizmo(!!handles)
+        engine.viewer.setDirty()
+    }
+    const elementGizmoHints = (verb: string): StatusHints => ({
+        lmb: `Drag a handle to ${verb}; click to select; drag empty space to box select`,
+        keys: [{key: 'Ctrl', label: 'Snap'}, {key: 'Shift', label: 'Precision'}, {key: 'type', label: 'Exact value'}],
+    })
     const oneShot = (run: () => void) => () => {
         // Back to Select once the modal ends; the transformChanged/toolChanged listeners do the rest.
         run()
@@ -65,24 +77,31 @@ export function registerTools(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.move', label: 'Move', icon: 'move', group: 'transform', modes: ['edit'],
-            description: 'Move the selected elements with the mouse. Click or Enter confirms, Esc cancels.',
-            poll: hasElements,
-            activate: oneShot(() => { void engine.run('mesh.move') }),
-            deactivate: () => {},
+            description: 'Drag the arrows to move the selection along an axis, the squares along a plane, the centre freely. G moves without the tool.',
+            activate: () => elementGizmo({translate: true, rotate: false, scale: false}),
+            deactivate: () => elementGizmo(null),
+            hints: elementGizmoHints('move'),
         },
         {
             id: 'mesh.rotate', label: 'Rotate', icon: 'refresh', group: 'transform', modes: ['edit'],
-            description: 'Rotate the selected elements with the mouse. Click or Enter confirms, Esc cancels.',
-            poll: hasElements,
-            activate: oneShot(() => { void engine.run('mesh.rotate') }),
-            deactivate: () => {},
+            description: 'Drag a ring to rotate the selection about that axis. R rotates without the tool.',
+            activate: () => elementGizmo({translate: false, rotate: true, scale: false}),
+            deactivate: () => elementGizmo(null),
+            hints: elementGizmoHints('rotate'),
         },
         {
             id: 'mesh.scale', label: 'Scale', icon: 'maximize', group: 'transform', modes: ['edit'],
-            description: 'Scale the selected elements with the mouse. Click or Enter confirms, Esc cancels.',
-            poll: hasElements,
-            activate: oneShot(() => { void engine.run('mesh.scale') }),
-            deactivate: () => {},
+            description: 'Drag a handle to scale the selection along that axis, the centre to scale evenly. S scales without the tool.',
+            activate: () => elementGizmo({translate: false, rotate: false, scale: true}),
+            deactivate: () => elementGizmo(null),
+            hints: elementGizmoHints('scale'),
+        },
+        {
+            id: 'mesh.transform', label: 'Transform', icon: 'move', group: 'transform', modes: ['edit'],
+            description: 'Move, rotate and scale handles together.',
+            activate: () => elementGizmo({translate: true, rotate: true, scale: true}),
+            deactivate: () => elementGizmo(null),
+            hints: elementGizmoHints('transform'),
         },
         {
             id: 'mesh.extrude', label: 'Extrude', icon: 'arrow-up', group: 'modelling', modes: ['edit'],

@@ -76,6 +76,9 @@ export interface EditorEngineOptions {
 
 type EngineEvents = EditorEngineEventMap & AViewerPluginEventMap
 
+/** Tools that stay active (gizmo tools) rather than running once. */
+const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform'])
+
 export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implements EditorEngine {
     public static readonly PluginType = 'EditorEnginePlugin'
     enabled = true
@@ -225,7 +228,8 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         this._on(this.meshEdit, 'transformChanged', (e: {transform: unknown}) => {
             this._statusChanged()
             // A one-shot edit-mode tool (move/rotate/scale/extrude) hands the toolbar back when its modal ends.
-            if (!e.transform && this._activeTool?.id.startsWith('mesh.')) this.setActiveTool('select')
+            // Gizmo tools stay active across drags, as Blender's do.
+            if (!e.transform && this._activeTool?.id.startsWith('mesh.') && !STICKY_TOOLS.has(this._activeTool.id)) this.setActiveTool('select')
         })
         this._on(this.meshEdit, 'meshChanged', () => this.dispatchEvent({type: 'sceneChanged'}))
         // Edit mode reports what it could not do; show it rather than leave it in the console.
@@ -418,8 +422,8 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         const next = id ? this.tools.get(id) ?? null : null
         const ctx = this.context()
         if (next === this._activeTool) {
-            // Re-activating a one-shot tool (edit-mode move/rotate/scale/extrude) runs it again.
-            if (next && next.id.startsWith('mesh.')) next.activate(ctx)
+            // Re-activating a one-shot tool (extrude, inset, bevel) runs it again; sticky ones stay as they are.
+            if (next && next.id.startsWith('mesh.') && !STICKY_TOOLS.has(next.id)) next.activate(ctx)
             return
         }
         if (next?.poll) {
