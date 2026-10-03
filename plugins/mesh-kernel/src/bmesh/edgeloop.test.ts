@@ -13,7 +13,9 @@ import {
     edgeloopsFindPath,
 } from './edgeloop'
 import {foreachSparseRange} from '../math/geom'
-import {faceSplit} from './mods'
+import {edgeSplit, faceSplit} from './mods'
+import {ElemFlag, SelectMode} from '../constants'
+import {edgeSelectSet, selectModeFlush} from './marking'
 
 /** An `n` x `m` grid of quads in the XY plane; vertex (x, y) is `verts[y * (n + 1) + x]`. */
 function grid(bm: BMesh, n: number, m: number): BMVert[] {
@@ -205,6 +207,31 @@ describe('BM_face_split', () => {
         expect(r.lNew.v).toBe(vs[0])
         expect(r.lNew.next.v).toBe(vs[2])
         expect(r.lNew.radialNext.f).toBe(f)
+        expect(bm.validate()).toEqual([])
+    })
+})
+
+describe('BM_edge_split', () => {
+    it('gives the new half the split edge\'s header flags raw, select included; the flush recounts', () => {
+        const bm = new BMesh()
+        bm.selectMode = SelectMode.Edge
+        const vs = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => bm.vertCreate(x, y, 0))
+        const f = bm.faceCreate(vs)
+        const l = [...f.eachLoop()]
+        const e = l[0].e!
+        edgeSelectSet(bm, e, true)
+        e.hflag |= ElemFlag.Seam
+        const {vNew, eNew} = edgeSplit(bm, e, vs[0], 0.25)
+        expect(vNew.x).toBeCloseTo(0.25, 12)
+        expect(eNew.hflag & ElemFlag.Select).toBe(ElemFlag.Select)
+        expect(eNew.hflag & ElemFlag.Seam).toBe(ElemFlag.Seam)
+        // `bmesh_marking.cc:531`: the default flush recounts what the raw copy did not. The new
+        // vertex is not selected (SEMV's `BM_vert_create` example copy skips the select bit) and an
+        // edge-mode flush only goes up, so it stays that way - as in Blender, where the caller
+        // (subdivide, bridge's cuts) selects what it wants afterwards.
+        expect(bm.totedgesel).toBe(1)
+        selectModeFlush(bm)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([2, 2, 0])
         expect(bm.validate()).toEqual([])
     })
 })

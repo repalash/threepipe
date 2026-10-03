@@ -14,11 +14,17 @@ import {SplitEdgeResult, SplitFaceResult, splitEdgeMakeVert, splitFaceMakeEdge} 
 /**
  * `BM_edge_split` (`bmesh_mods.cc:478`): insert a vertex into `e` at `fac` of the way from `v` to
  * the other end. The new edge `eNew` runs from `v` to the new vertex (`v_new == e_new->v2`) and `e`
- * keeps the far end; corner and vertex data are interpolated at `fac` (`:521`-`:522`), and the new
- * edge copies `e`'s flags and attributes (`:518`-`:519`, done by `edgeCreate`'s example).
+ * keeps the far end; corner and vertex data are interpolated at `fac` (`:521`-`:522`).
+ *
+ * The new edge takes `e`'s header flags *raw*, select bit included (`e_new->head.hflag =
+ * e->head.hflag;`, `:518`; the `BM_elem_attrs_copy` after it keeps the destination's select bit,
+ * which is by then `e`'s), so both halves of a selected edge stay selected. Like Blender this does
+ * not touch the selection counts; the caller's select flush recounts them.
  */
 export function edgeSplit(bm: BMesh, e: BMEdge, v: BMVert, fac: number): SplitEdgeResult {
-    return splitEdgeMakeVert(bm, e, v, fac)
+    const r = splitEdgeMakeVert(bm, e, v, fac)
+    r.eNew.hflag = e.hflag
+    return r
 }
 
 /** `BM_loop_is_adjacent` (`bmesh_query.cc`): `l_b` follows or precedes `l_a` in their face. */
