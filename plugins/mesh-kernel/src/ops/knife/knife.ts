@@ -276,6 +276,11 @@ export interface KnifeToolOptions {
     orientationMatrix?: (mode: KnifeAxisMode) => [V3, V3, V3]
     /** Blender's `em->selectmode`, used for `select_result` (`:3958`). Default: not face-only. */
     selectModeIsFaceOnly?: boolean
+    /**
+     * `UI_SCALE_FAC`: scales the snapping distances (`KMAXDIST = 10 * UI_SCALE_FAC`, `:77`). Default 1.
+     * Pass the device pixel ratio when region pixels are device pixels.
+     */
+    uiScale?: number
 }
 
 /** A triangle of the tessellation, with what the BVH callbacks read from it. */
@@ -534,6 +539,9 @@ export class KnifeTool {
         this.angleSnapping = this.angleSnappingMode !== KnifeAngleSnap.None
         this.angleSnappingIncrement = opts.angleSnappingIncrement ?? KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT
         this._findNearestFace = opts.findNearestFace
+        const uiScale = opts.uiScale ?? 1
+        this.vthresh = KMAXDIST * uiScale - 1
+        this.ethresh = KMAXDIST * uiScale
         this._orientationMatrix = opts.orientationMatrix ?? (mode => this._defaultOrientation(mode))
 
         // Edit mode keeps face normals current; the knife reads them throughout.
@@ -1810,7 +1818,9 @@ export class KnifeTool {
             // Update ray and `mval_constrain`.
             if (this.isOrtho) {
                 const l1 = sub3(this.curr.cage, rayDir)
-                const o = isectLinePlaneV3(rayOrig, l1, this.curr.cage, rayDir)
+                // `isect_line_plane_v3(ray_orig, l1, curr.cage, ray_orig, ray_dir)`: the line l1 ->
+                // curr.cage against the plane through the old ray origin, written into `ray_orig`.
+                const o = isectLinePlaneV3(l1, this.curr.cage, rayOrig, rayDir)
                 // Should never fail!
                 rayOrig = o ?? l1
             } else {

@@ -8,16 +8,32 @@ import {readdirSync, readFileSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {BMesh} from '../src/bmesh/BMesh'
-import {BMEdge, BMVert} from '../src/bmesh/types'
+import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
+import {ElemFlag} from '../src/constants'
+import {tessellatePolygon} from '../src/bake'
+import {isectRayTriWatertightPrecalc, isectRayTriWatertightV3} from '../src/ops/knife/geom'
+// mesh-edit's port of Blender's square spiral (`_bli_array_iter_spiral_square`); dependency-free.
+import {findNearestId} from '../../mesh-edit/src/select/spiral'
 import {diskEdgeExists} from '../src/bmesh/structure'
 import {KnifeView} from '../src/ops/knife/view'
 
 const DIR = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'knife-bisect')
+const DIR_INTERACTIVE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'knife-interactive')
 
 export interface MeshDump {verts: number[][], faces: number[][], edges: number[][]}
+/** One input event as Blender's modal knife received it (`gen-knife-interactive-fixtures.py`). */
+export interface RecordedEvent {
+    type: string
+    value: 'PRESS' | 'RELEASE' | 'NOTHING'
+    /** Region pixels, bottom-left origin. */
+    mval: [number, number]
+    shift?: boolean
+    ctrl?: boolean
+}
+
 export interface Fixture {
     name: string
-    kind: 'knife' | 'bisect'
+    kind: 'knife' | 'bisect' | 'knife-interactive'
     blender: string
     input: MeshDump
     output: MeshDump
@@ -26,6 +42,9 @@ export interface Fixture {
     view?: {persp: string, is_persp: boolean, winx: number, winy: number, clip_start: number, clip_end: number,
         persmat: number[][], viewmat: number[][], winmat: number[][]}
     polys?: number[][][]
+    // knife-interactive
+    events?: RecordedEvent[]
+    ui_scale_fac?: number
     // bisect
     plane_co?: number[]
     plane_no?: number[]
@@ -35,8 +54,13 @@ export interface Fixture {
     threshold?: number
 }
 
-export const fixtures: Fixture[] = readdirSync(DIR).filter(f => f.endsWith('.json')).sort()
-    .map(f => JSON.parse(readFileSync(resolve(DIR, f), 'utf8')))
+const load = (dir: string): Fixture[] => readdirSync(dir).filter(f => f.endsWith('.json')).sort()
+    .map(f => JSON.parse(readFileSync(resolve(dir, f), 'utf8')))
+
+/** `knife_project` and bisect cases. */
+export const fixtures: Fixture[] = load(DIR)
+/** Interactive knife cases: Blender's modal knife fed simulated input. */
+export const interactiveFixtures: Fixture[] = load(DIR_INTERACTIVE)
 
 export const TOL = 1e-4
 
@@ -117,4 +141,55 @@ export function fixtureView(fx: Fixture): KnifeView {
         viewmat: colMajor(v.viewmat), winmat: colMajor(v.winmat), winx: v.winx, winy: v.winy,
         clipStart: v.clip_start, clipEnd: v.clip_end,
     })
+}
+
+/**
+ * A CPU stand-in for Blender's face selection buffer, as the interactive knife reads it through
+ * `EDBM_face_find_nearest(vc, &dist)` (`editmesh_select.cc:881`) when the cursor ray misses every face
+ * (`knife_find_closest_face`, `editmesh_knife.cc:3097`): a `(2r+1)^2` square of face ids around the
+ * cursor (`ED_view3d_backbuf_sample_size_clamp`: `r = ceil(dist)`), each pixel the front-most face
+ * whose triangles cover its centre - what the depth-tested ID render holds - searched with Blender's
+ * square spiral (`DRW_select_buffer_find_nearest_to_point`), and accepted when the Manhattan distance
+ * of the hit is below `dist`. The spiral is mesh-edit's port of `_bli_array_iter_spiral_square`.
+ */
+export function faceFindNearestCpu(bm: BMesh, view: KnifeView, distPx: number): (mval: [number, number]) => BMFace | null {
+    const tris: {f: BMFace, cos: [number, number, number][]}[] = []
+    for (const f of bm.faces) {
+        if (f.hflag & ElemFlag.Hidden) continue
+        const loops = f.loops()
+        const pts: number[] = []
+        for (const l of loops) pts.push(l.v.x, l.v.y, l.v.z)
+        const idx: number[] = []
+        tessellatePolygon(pts, idx)
+        for (let i = 0; i < idx.length; i += 3) {
+            tris.push({f, cos: [0, 1, 2].map(k => [loops[idx[i + k]].v.x, loops[idx[i + k]].v.y, loops[idx[i + k]].v.z]) as [number, number, number][]})
+        }
+    }
+    const faces = [...bm.faces]
+    const faceAt = (x: number, y: number): number => {
+        const ray = view.winToRayClipped([x + 0.5, y + 0.5])
+        const pre = isectRayTriWatertightPrecalc(ray.dir)
+        let best = Infinity
+        let face: BMFace | null = null
+        for (const t of tris) {
+            const r = isectRayTriWatertightV3(ray.start, pre, t.cos[0], t.cos[1], t.cos[2])
+            if (r && r[0] < best) {
+                best = r[0]
+                face = t.f
+            }
+        }
+        return face ? faces.indexOf(face) + 1 : 0
+    }
+    return (mval) => {
+        const r = Math.min(Math.ceil(distPx), Math.max(view.winx, view.winy))
+        const size = 2 * r + 1
+        // GL order, row 0 at the bottom, as Blender reads its buffer.
+        const ids = new Array<number>(size * size)
+        for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) ids[row * size + col] = faceAt(mval[0] - r + col, mval[1] - r + row)
+        }
+        const hit = findNearestId(ids, size)
+        if (!hit || !(hit.dist < distPx)) return null
+        return faces[hit.id - 1]
+    }
 }
