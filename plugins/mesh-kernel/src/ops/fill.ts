@@ -292,7 +292,7 @@ export function contextualCreateExec(bm: BMesh, geom: readonly (BMVert | BMEdge 
 // region editmesh_tools.cc
 
 /** `edbm_add_edge_face__smooth_get` (`editmesh_tools.cc:741`): do most selected edges' faces vote smooth? */
-function edbmAddEdgeFaceSmoothGet(bm: BMesh): boolean {
+export function edbmAddEdgeFaceSmoothGet(bm: BMesh): boolean {
     const voteOnSmooth = [0, 0]
     for (const e of bm.edges) {
         if ((e.hflag & ElemFlag.Select) && e.l) {

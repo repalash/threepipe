@@ -36,7 +36,8 @@ import {
     edgeloopsFind,
     edgeloopsFindPath,
 } from '../bmesh/edgeloop'
-import {copyElemAttrs, copyElemHeader, interpElemAttrs} from '../bmesh/customdata'
+import {copyElemAttrs, copyElemHeader, faceAttrsCopy, interpElemAttrs} from '../bmesh/customdata'
+import {edbmAddEdgeFaceSmoothGet} from './fill'
 import {edgeCollapse} from '../bmesh/collapse'
 import {faceNormalFlip} from '../bmesh/flip'
 import {selectCountsRecalc, selectModeFlush} from '../bmesh/marking'
@@ -179,16 +180,6 @@ function barycentricWeightsV2GridCache(xtot: number, ytot: number): number[][] {
         }
     }
     return table
-}
-
-/**
- * `BM_elem_attrs_copy` for faces (`bmesh_construct.cc:380`): custom data, header flags except the
- * selection, the cached normal and the material.
- */
-export function faceAttrsCopy(bm: BMesh, src: BMFace, dst: BMFace): void {
-    copyElemAttrs(src, dst, bm.pdata)
-    copyElemHeader(src, dst, 'face')
-    dst.matNr = src.matNr
 }
 
 /** `CustomData_has_interp` (`customdata.cc`): does any layer of the domain interpolate? */
@@ -802,20 +793,6 @@ export type GridFillSelectionResult =
     | {ok: false, error: string, span: number}
 
 const clampSpan = (span: number) => Math.min(1000, Math.max(1, span))
-
-/**
- * `edbm_add_edge_face__smooth_get` (`editmesh_tools.cc:741`): new faces are smooth when most of the
- * selected edges' first faces are.
- */
-export function edbmAddEdgeFaceSmoothGet(bm: BMesh): boolean {
-    const voteOnSmooth = [0, 0]
-    for (const e of bm.edges) {
-        if ((e.hflag & ElemFlag.Select) && e.l) {
-            voteOnSmooth[(e.l.f.hflag & ElemFlag.Smooth) ? 1 : 0]++
-        }
-    }
-    return voteOnSmooth[0] < voteOnSmooth[1]
-}
 
 /**
  * `edbm_fill_grid_vert_tag_angle` (`editmesh_tools.cc:4771`): how far from straight the two tagged

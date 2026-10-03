@@ -17,7 +17,7 @@ import {BMesh} from '../bmesh/BMesh'
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {ElemFlag, ElemType} from '../constants'
 import {diskEdgeExists, diskEdges, edgeIsManifold} from '../bmesh/structure'
-import {copyElemAttrs, copyElemHeader} from '../bmesh/customdata'
+import {copyElemAttrs, faceAttrsCopy} from '../bmesh/customdata'
 import {faceNormalFlip} from '../bmesh/flip'
 import {faceNormalUpdate} from '../bmesh/polygon'
 import {edgesSortWinding} from '../bmesh/ngon'
@@ -215,16 +215,6 @@ export function faceExistsOverlapSubset(varr: readonly BMVert[]): boolean {
         }
     }
     return isOverlap
-}
-
-/**
- * The face half of `BM_elem_attrs_copy` (`bmesh_construct.cc:380`): custom data, every header flag
- * but the selection ones, the cached normal and the material index.
- */
-export function faceAttrsCopy(bm: BMesh, src: BMFace, dst: BMFace): void {
-    copyElemAttrs(src, dst, bm.pdata)
-    copyElemHeader(src, dst, 'face')
-    dst.matNr = src.matNr
 }
 
 /**
