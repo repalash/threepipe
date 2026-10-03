@@ -2375,6 +2375,16 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         }
     }
 
+    /**
+     * Is threepipe's `TransformControlsPlugin` gizmo under the pointer or being dragged? Its own
+     * pointerdown listener runs first and sets `axis` for a handle hit. Blender's order: a gizmo under
+     * the cursor takes the press before the active tool's drag (`wm_gizmomap_highlight_find`, T66304).
+     */
+    private _objectGizmoActive(): boolean {
+        const tc = (this._viewer?.getPlugin('TransformControlsPlugin' as never) as {transformControls?: {axis?: string | null, dragging?: boolean, object?: unknown, enabled?: boolean}} | undefined)?.transformControls
+        return !!tc && !!tc.object && tc.enabled !== false && (!!tc.dragging || !!tc.axis)
+    }
+
     /** The gizmo handle under a canvas position, or null. */
     private _pickGizmo(x: number, y: number): GizmoHandle | null {
         const viewer = this._viewer
@@ -2446,8 +2456,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             }
         }
         if (!this.isEditing) {
-            // Object mode: remember the press, so a drag can become an object box select.
-            if (this.objectDragSelect && this._dragSelect !== 'none') {
+            // Object mode: remember the press, so a drag can become an object box select - unless it
+            // is on threepipe's object gizmo, which owns that drag (gizmo before tool, as above).
+            if (this.objectDragSelect && this._dragSelect !== 'none' && !this._objectGizmoActive()) {
                 const p = this._canvasPos(event)
                 this._press = {x: p.x, y: p.y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey}
             }
