@@ -6,7 +6,7 @@
 
 import React from 'react'
 import {Checkbox, HTMLSelect, InputGroup, NumericInput, Tooltip} from '@blueprintjs/core'
-import type {PropDef, PropSchema} from '../registry'
+import type {PropDef, PropSchema} from '@threepipe/plugin-editor-engine'
 
 export interface PropsFormProps {
     schema: PropSchema

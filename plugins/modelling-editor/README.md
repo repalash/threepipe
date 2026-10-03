@@ -5,10 +5,10 @@ registry-driven menus, Object/Edit mode switch and select-mode buttons, left too
 outliner, properties tabs, last-operation panel, status bar, command palette, context menus,
 toasts, view gizmo, grid) rendered from operator and tool registries.
 
-Status: phase P2 of `issues/open/modelling-tools/10-editor-plan.md`. The interaction engine is being
-rebuilt in parallel; `LegacyEditorEngine` adapts today's `MeshEditPlugin`, `ModellingPlugin`,
-`PickingPlugin`, `TransformControlsPlugin` and `UndoManagerPlugin` to the shell's interfaces so the UI
-needs no change when the real engine lands (`createModellingEditor({createEngine})`).
+Status: phase P2 of `issues/open/modelling-tools/10-editor-plan.md`, on the P1 interaction engine. The shell
+renders `@threepipe/plugin-editor-engine` (`EditorEnginePlugin`): operator and tool registries, keymap presets
+(Blender, Design), one labelled undo history with redo-last, status hints. Pass `createEngine` to
+`createModellingEditor` to render another `EditorEngine`.
 
 ```bash
 npm i @threepipe/plugin-modelling-editor
@@ -22,8 +22,8 @@ await editor.engine.run('add.cube')
 editor.engine.operators.list().map(op => op.id) // everything the menus, palette and toolbar show
 ```
 
-See `examples/modelling-editor` and `src/registry.ts` for the interfaces (`OperatorDescriptor`,
-`ToolDescriptor`, `EditorEngine`).
+See `examples/modelling-editor`, `examples/modelling-editor-engine` and the engine package's `src/registry.ts`
+for the interfaces (`OperatorDescriptor`, `ToolDescriptor`, `EditorEngine`).
 
 ## Development
 

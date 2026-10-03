@@ -11,7 +11,7 @@ import React from 'react'
 import {Button, ButtonGroup, Menu, MenuDivider, MenuItem, Popover, Tooltip} from '@blueprintjs/core'
 import {useEditor, useEngineVersion, formatShortcut} from './EditorContext'
 import {IconButton, TooltipContent} from './IconButton'
-import type {EditorContext, OperatorDescriptor, SelectModeName} from '../registry'
+import type {EditorContext, OperatorDescriptor, SelectModeName} from '@threepipe/plugin-editor-engine'
 import type {EditorViewportPlugin} from '../EditorViewportPlugin'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
 
@@ -19,10 +19,10 @@ const MENU_ORDER = ['File', 'Edit', 'Add', 'Object', 'Mesh', 'Select', 'View', '
 
 function MenuForCategory({category, ops, ctx}: {category: string, ops: OperatorDescriptor[], ctx: EditorContext}) {
     const {engine} = useEditor()
-    const polled = (op: OperatorDescriptor) => (engine as any).poll?.(op, ctx) as {enabled: boolean, reason?: string} ?? {enabled: true}
+    const polled = (op: OperatorDescriptor) => engine.poll(op, ctx)
     const mode = ctx.mode
-    const inMode = ops.filter(op => !op.modes || op.modes.includes(mode))
-    const other = ops.filter(op => op.modes && !op.modes.includes(mode))
+    const inMode = ops.filter(op => (!op.modes || op.modes.includes(mode)) && !op.hidden)
+    const other = ops.filter(op => op.modes && !op.modes.includes(mode) && !op.hidden)
     const item = (op: OperatorDescriptor) => {
         const p = polled(op)
         return <MenuItem
@@ -40,12 +40,13 @@ function MenuForCategory({category, ops, ctx}: {category: string, ops: OperatorD
         {other.length ? <MenuDivider title={`${other[0].modes![0] === 'edit' ? 'Edit' : 'Object'} mode`} /> : null}
         {other.map(item)}
         {category === 'Help' ? <><MenuDivider /><MenuItem text="Version" disabled label="shell 0.1.0" /></> : null}
+        {category === 'Edit' ? <><MenuDivider /><MenuItem text="Keymap" disabled label={engine.keymap.activePreset.label} /></> : null}
     </Menu>
 }
 
 export function AppMenu() {
     const {engine} = useEditor()
-    useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged')
+    useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged', 'keymapChanged')
     const ctx = engine.context()
     const byCategory = new Map<string, OperatorDescriptor[]>()
     for (const op of engine.operators.list()) {

@@ -1,6 +1,7 @@
 /**
- * The application: providers, layout, overlays and the shell's own keys (palette only - everything
- * else belongs to the engine's keymap).
+ * The application: providers, layout and overlays. The shell has no keys of its own: the palette,
+ * F9 and everything else are bindings in the engine's keymap, and the engine asks for the shell's
+ * surfaces through `uiRequest`.
  *
  * Provider stack follows `experiments/threepipe-blueprint-editor/src/App.tsx`: Blueprint →
  * VisualStyle (dark/light) → Dialog → ContextMenu, with the toaster overlay last.
@@ -10,7 +11,7 @@ import React, {useEffect, useState} from 'react'
 import {BlueprintProvider} from '@blueprintjs/core'
 import {AppToaster, AppToasterOverlay, DialogComponent, DialogProvider, UiConfigRendererContext, VisualStyleProvider, useVisualStyle} from 'uiconfig-blueprint/lib/esm/lib'
 import {EditorContextValue, EditorProvider, useEditor, useEngineEvent} from './EditorContext'
-import {ContextMenuProvider} from './ContextMenuProvider'
+import {ContextMenuProvider, useContextMenu} from './ContextMenuProvider'
 import {WindowPanesLayout} from './WindowPanesLayout'
 import {Header} from './Header'
 import {Toolbar} from './Toolbar'
@@ -41,14 +42,9 @@ class PaneErrorBoundary extends React.Component<{name: string, children: React.R
     }
 }
 
-function isTypingTarget(target: EventTarget | null): boolean {
-    const el = target as HTMLElement | null
-    if (!el || !el.tagName) return false
-    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable
-}
-
 function Shell({title}: {title?: string}) {
     const {engine, ui} = useEditor()
+    const contextMenu = useContextMenu()
     const [palette, setPalette] = useState(false)
     const [dialog, setDialog] = useState<'history' | 'shortcuts' | 'about' | null>(null)
     const visual = useVisualStyle()
@@ -69,27 +65,23 @@ function Shell({title}: {title?: string}) {
         })
     })
     useEngineEvent('uiRequest', e => {
-        if (e.request === 'palette') setPalette(true)
+        if (e.request === 'palette') setPalette(p => !p)
         else if (e.request === 'history' || e.request === 'shortcuts' || e.request === 'about') setDialog(e.request)
+        else if (e.request === 'menu') {
+            // Where the engine last saw the pointer; a keyboard-opened menu with no pointer yet lands mid-viewport.
+            const fallback = engine.viewer.canvas.getBoundingClientRect()
+            const clientX = e.clientX || fallback.left + fallback.width / 2
+            const clientY = e.clientY || fallback.top + fallback.height / 2
+            contextMenu.showItems({clientX, clientY}, e.items, e.title)
+        }
     })
 
+    // A dialog or the palette owns the keyboard while it is open; the engine's keymap stands down.
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const mod = e.ctrlKey || e.metaKey
-            if ((mod && e.code === 'KeyK') || e.code === 'F3') {
-                if (isTypingTarget(e.target) && !mod) return
-                e.preventDefault()
-                e.stopPropagation()
-                setPalette(p => !p)
-            } else if (e.code === 'F9' && !isTypingTarget(e.target)) {
-                e.preventDefault()
-                engine.run('edit.repeat_last')
-            }
-        }
-        // capture phase: the palette must open even while the engine's own window listeners are live
-        window.addEventListener('keydown', onKey, true)
-        return () => window.removeEventListener('keydown', onKey, true)
-    }, [engine])
+        if (!dialog && !palette) return
+        engine.input.suspend('me-overlay')
+        return () => engine.input.resume('me-overlay')
+    }, [engine, dialog, palette])
 
     // uiconfig-blueprint components (outliner tree, property folders) read the renderer from this context
     return <UiConfigRendererContext.Provider value={ui as never}><div className="me-root" data-editor-root>

@@ -32,7 +32,6 @@ import {
     diskVertReplace,
     edgeIsManifold,
     radialLoopAppend,
-    radialLoopRemove,
     radialLoops,
 } from './structure'
 import {copyElemAttrs} from './customdata'
@@ -191,65 +190,62 @@ export function splitEdgeMakeVert(bm: BMesh, e: BMEdge, tv: BMVert, factor?: num
  * precondition fails, rather than corrupting the mesh: `vKill` must have exactly two edges, and the
  * two edges must not already share their far endpoints.
  *
- * Port of `bmesh_kernel_join_edge_kill_vert` (`bmesh_core.cc:1799`), simplified to the case the
- * operator layer needs. Blender's version additionally handles killing the *other* edge and faces of
- * length 3 collapsing; those paths are added when an operator needs them.
+ * Port of `bmesh_kernel_join_edge_kill_vert` (`bmesh_core.cc:1799`) for the two-edge vertex case.
+ * The loop that goes is always the one *on `eKill`*, whichever side of `vKill` it starts; the loop on
+ * the surviving edge stays in that edge's radial cycle and only has its vertex pointer moved when it
+ * started at `vKill` (`l_kill->next->v = v_target`). An earlier version here dropped "the loop at
+ * `vKill`" instead, which half the time was the surviving edge's loop - leaving the kept loop in the
+ * dead edge's radial cycle, which a second collapse on the same face then tripped over.
+ *
+ * Not ported: `kill_degenerate_faces` (a triangle losing a corner is refused here instead),
+ * `kill_duplicate_faces`, and `check_edge_exists` splicing (an edge that already joins the two far
+ * ends is refused). Those paths are added when an operator needs them.
  */
 export function joinEdgeKillVert(bm: BMesh, eKill: BMEdge, vKill: BMVert): BMEdge | null {
     if (!eKill.uses(vKill)) return null
 
-    // vKill must be used by exactly two edges for the join to be well defined.
+    // `bmesh_disk_count_at_most(v_kill, 3) == 2`: the join is only defined at a two-edge vertex.
     let valence = 0
-    let eOther: BMEdge | null = null
+    let eOld: BMEdge | null = null
     for (const e of diskEdges(vKill)) {
         valence++
-        if (e !== eKill) eOther = e
+        if (e !== eKill) eOld = e
     }
-    if (valence !== 2 || !eOther) return null
+    if (valence !== 2 || !eOld) return null
 
     const vTarget = eKill.otherVert(vKill)
-    const vFar = eOther.otherVert(vKill)
-    if (vTarget === vFar) return null // would collapse to a degenerate edge
+    const vOld = eOld.otherVert(vKill)
+    // `BM_verts_in_edge(v_kill, v_target, e_old)`: the two edges already share both ends.
+    if (vTarget === vOld) return null
 
-    // Dissolving the vertex removes one corner from each adjacent face, so a triangle would
-    // collapse to a degenerate two-corner face.
+    // Dissolving the vertex removes one corner from each adjacent face; a triangle would collapse.
     for (const l of radialLoops(eKill)) {
         if (l.f.len <= 3) return null
     }
 
-    // Drop one loop per adjacent face: the one sitting at vKill.
-    for (const l of [...radialLoops(eKill)]) {
-        const f = l.f
-        // A loop spans (l.v, l.next.v). The radial loops of eKill span vKill and vTarget, so the
-        // loop positioned *at* vKill is either this one or the next.
-        const lDrop = l.v === vKill ? l : l.next
-        const lPrev = lDrop.prev
-        const lNext = lDrop.next
+    // `bmesh_disk_vert_replace(e_old, v_target, v_kill)` then `bmesh_disk_edge_remove(e_kill, v_target)`.
+    diskVertReplace(eOld, vTarget, vKill)
+    diskEdgeRemove(eKill, vTarget)
 
-        lPrev.next = lNext
-        lNext.prev = lPrev
-        if (f.lFirst === lDrop) f.lFirst = lNext
+    // Fix the neighbouring loops of every loop in e_kill's radial cycle, then kill that loop.
+    for (const lKill of [...radialLoops(eKill)]) {
+        const f = lKill.f
+        if (lKill.next.v === vKill) lKill.next.v = vTarget
+        lKill.next.prev = lKill.prev
+        lKill.prev.next = lKill.next
+        if (f.lFirst === lKill) f.lFirst = lKill.next
         f.len--
-
-        // radialLoopRemove, not radialLoopUnlink: the dropped loop may be the one its edge's `l`
-        // points at, and unlink leaves that pointer dangling. This was a real bug, caught only by
-        // the exhaustive split-then-rejoin test - the common configurations happen to be safe.
-        if (lDrop.e) radialLoopRemove(lDrop.e, lDrop)
-        bm.loops.delete(lDrop)
-
-        // Whichever edge the surviving loop referenced, it now spans the merged edge.
-        lPrev.e = eOther
+        // `bm_kill_only_loop`: the radial cycle goes with the edge, so no unlink is needed.
+        bm.loops.delete(lKill)
     }
 
-    // Detach eKill entirely, then move eOther onto the target vertex.
-    diskEdgeRemove(eKill, eKill.v1)
-    diskEdgeRemove(eKill, eKill.v2)
+    // `bm_kill_only_edge(e_kill)`, `bm_kill_only_vert(v_kill)` (do_del).
+    eKill.l = null
     bm.edges.delete(eKill)
-
-    diskVertReplace(eOther, vTarget, vKill)
+    vKill.e = null
     bm.verts.delete(vKill)
 
-    return eOther
+    return eOld
 }
 
 export interface SplitFaceResult {

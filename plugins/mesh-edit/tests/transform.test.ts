@@ -818,3 +818,76 @@ describe('ElemFlag sanity', () => {
         expect([...bm.verts].every(v => v.hflag & ElemFlag.Select)).toBe(true)
     })
 })
+
+describe('redo: saveTransform then initTransInfo with T_INPUT_IS_VALUES_FINAL (transform.cc:1744, transform_generics.cc:364)', () => {
+    /** Run interactively, save, put the mesh back, run again non-modally from the saved props. */
+    function roundTrip(prepare: (bm: BMesh) => void, drive: (t: ModalTransform) => void, mode: 'translate' | 'rotate' | 'resize', extra: Partial<ModalTransformOptions> = {}) {
+        const bm = cube()
+        prepare(bm)
+        const original = verts(bm)
+        const t = start(bm, mode, extra, perspView())
+        drive(t)
+        t.confirm()
+        const interactive = verts(bm)
+        const saved = t.saved()
+
+        // Back to the start, then the redo panel's re-run.
+        ;[...bm.verts].forEach((v, i) => v.setCo(original[i][0], original[i][1], original[i][2]))
+        const repeat = new ModalTransform({
+            mode, view: perspView(), mval: [0, 0], around: 'median', orientation: 'global', bm, objectMatrix: IDENTITY,
+            random: () => 0.5, modal: false, value: saved.value, orientType: saved.orientType,
+            orientMatrix: saved.orientMatrix, orientMatrixType: saved.orientMatrixType, orientAxis: saved.orientAxis,
+            constraintAxis: saved.constraintAxis, proportional: saved.proportional, ...extra,
+        })
+        repeat.confirm()
+        return {interactive, repeated: verts(bm), saved}
+    }
+
+    it('a constrained typed move repeats exactly', () => {
+        const {interactive, repeated, saved} = roundTrip(selectAll, t => {
+            t.setAxis(0)
+            for (const k of '1.5') t.handleNumericKey(k)
+        }, 'translate')
+        expect(saved.constraintAxis).toEqual([true, false, false])
+        for (let i = 0; i < interactive.length; i++) expectV(repeated[i], interactive[i])
+        expect(interactive[0][0] - (-1)).not.toBe(0)
+    })
+
+    it('a free mouse move repeats exactly, in perspective', () => {
+        const {interactive, repeated} = roundTrip(selectAll, t => t.setMousePosition(640, 420), 'translate')
+        for (let i = 0; i < interactive.length; i++) expectV(repeated[i], interactive[i])
+    })
+
+    it('a view-axis rotation repeats about the same axis, from the stored orientation', () => {
+        const {interactive, repeated, saved} = roundTrip(selectAll, t => {
+            for (const k of '30') t.handleNumericKey(k)
+        }, 'rotate')
+        expect(saved.value[0]).toBeCloseTo(30 * Math.PI / 180, 6)
+        expect(saved.orientMatrix).not.toBeNull()
+        for (let i = 0; i < interactive.length; i++) expectV(repeated[i], interactive[i])
+    })
+
+    it('a scale constrained to Z in normal orientation repeats exactly', () => {
+        const {interactive, repeated} = roundTrip(bm => {
+            selectNone(bm)
+            const top = [...bm.faces].find(f => [...f.eachLoop()].every(l => Math.abs(l.v.z - 1) < 1e-6))!
+            faceSelectSet(bm, top, true)
+        }, t => {
+            t.setAxis(2)
+            for (const k of '2') t.handleNumericKey(k)
+        }, 'resize', {orientationSet: 'normal'})
+        for (let i = 0; i < interactive.length; i++) expectV(repeated[i], interactive[i])
+    })
+
+    it('a proportional move repeats with the same falloff', () => {
+        const {interactive, repeated, saved} = roundTrip(bm => {
+            selectNone(bm)
+            vertSelectSet(bm, vertAt(bm, 1, 1, 1), true)
+        }, t => {
+            t.setAxis(2)
+            for (const k of '1') t.handleNumericKey(k)
+        }, 'translate', {proportional: {enabled: true, size: 2.5, falloff: 'smooth'}})
+        expect(saved.proportional.enabled).toBe(true)
+        for (let i = 0; i < interactive.length; i++) expectV(repeated[i], interactive[i])
+    })
+})

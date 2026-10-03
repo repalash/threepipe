@@ -42,6 +42,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+# Also when it is a symlink (worktrees share an install), which the trailing-slash pattern does not match.
+node_modules
 jspm_packages/
 
 # TypeScript v1 declaration files

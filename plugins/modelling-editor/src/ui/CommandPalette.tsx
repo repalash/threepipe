@@ -9,7 +9,7 @@ import {useMemo} from 'react'
 import {MenuItem, Tag} from '@blueprintjs/core'
 import {ItemRenderer, Omnibar} from '@blueprintjs/select'
 import {useEditor, useEngineVersion, formatShortcut} from './EditorContext'
-import type {OperatorDescriptor} from '../registry'
+import type {OperatorDescriptor} from '@threepipe/plugin-editor-engine'
 
 interface PaletteItem {
     op: OperatorDescriptor
@@ -67,9 +67,9 @@ export function CommandPalette({isOpen, onClose}: {isOpen: boolean, onClose: () 
     const v = useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged')
     const items = useMemo<PaletteItem[]>(() => {
         const ctx = engine.context()
-        return engine.operators.list()
+        return engine.operators.list(op => !op.hidden)
             .map(op => {
-                const p = (engine as any).poll?.(op, ctx) as {enabled: boolean, reason?: string} ?? {enabled: true}
+                const p = engine.poll(op, ctx)
                 return {
                     op, enabled: p.enabled, reason: p.reason,
                     search: `${op.label} ${op.id} ${op.category ?? ''} ${op.description ?? ''} ${op.shortcut ?? ''}`.toLowerCase(),
@@ -86,8 +86,8 @@ export function CommandPalette({isOpen, onClose}: {isOpen: boolean, onClose: () 
         itemRenderer={renderItem}
         onItemSelect={item => {
             onClose()
-            if (item.enabled) engine.run(item.op.id)
-            else (engine as any).message?.('info', item.reason ?? `${item.op.label} is not available right now`)
+            if (item.enabled) void engine.run(item.op.id)
+            else engine.message('info', item.reason ?? `${item.op.label} is not available right now`)
         }}
         resetOnSelect
         noResults={<MenuItem disabled text="No matching command" />}

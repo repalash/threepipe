@@ -1,11 +1,9 @@
 /**
- * The interfaces the editor shell renders from.
+ * The interfaces the editor shell renders from, and the engine implements.
  *
  * Everything visible in the shell - toolbar, menus, command palette, context menus, the redo-last
  * panel, the status strip - is a view onto these registries. Nothing in the components hard-codes an
- * action. The interaction engine (`@threepipe/plugin-mesh-edit`, being rebuilt) is expected to
- * implement {@link EditorEngine}; until it lands, `engine/legacyEngine.ts` adapts the existing
- * `MeshEditPlugin` / `ModellingPlugin` / `PickingPlugin` APIs to the same shape.
+ * action. {@link EditorEnginePlugin} (`EditorEnginePlugin.ts`) implements {@link EditorEngine}.
  *
  * Kept deliberately small. Blender's `wmOperatorType` is the model: id, label, description, a property
  * schema, `poll`, `exec`, flags. Tools are the modal counterpart (Blender's `bToolRef`).
@@ -44,6 +42,17 @@ export interface OperatorResult {
     error?: string
     warnings?: string[]
     data?: unknown
+    /**
+     * The props the operation actually used, when they differ from what was passed - an operator that
+     * filled in defaults, or a modal that ended (extrude's offset, a transform's value). The engine
+     * stores these as the redo-last props.
+     */
+    props?: Record<string, unknown>
+    /**
+     * The operator started a modal interaction and will finish later. The engine defers the redo-last
+     * bookkeeping until the modal commits (see `EditorEnginePlugin.completeModal`).
+     */
+    modal?: boolean
 }
 
 /**
@@ -58,7 +67,10 @@ export interface OperatorDescriptor {
     description?: string
     /** A Blueprint icon name. */
     icon?: string
-    /** Display string only - the engine owns the keymap. `Ctrl+Z`, `Shift+D`, `Tab`. */
+    /**
+     * Display string, `Ctrl+Z`, `Shift+D`, `Tab`. **Filled in by the engine from the active keymap**;
+     * a value given at registration is overwritten, so operators never hard-code a key.
+     */
     shortcut?: string
     /** Menu / palette grouping: `File`, `Edit`, `Add`, `Object`, `Mesh`, `Select`, `View`, `Help`. */
     category?: string
@@ -70,6 +82,8 @@ export interface OperatorDescriptor {
     props?: PropSchema
     /** Blender flags. `undo` - records an undo step; `register` - appears in the redo-last panel. */
     flags?: {undo?: boolean, register?: boolean}
+    /** Reachable by key and `run`, but not listed in menus or the palette (a key that opens a menu). */
+    hidden?: boolean
     /**
      * Whether it can run now. `false` disables; a string disables and explains why (tooltip).
      * Undefined means always available.
@@ -93,6 +107,7 @@ export interface ToolDescriptor {
     id: string
     label: string
     icon?: string
+    /** Display string. Filled in by the engine from the active keymap, like {@link OperatorDescriptor.shortcut}. */
     shortcut?: string
     description?: string
     modes?: EditorMode[]
@@ -126,6 +141,13 @@ export interface HistoryApi {
     entries(): HistoryEntry[]
 }
 
+/** A step recorded on the one undo stack. `label` is what the history list shows. */
+export interface LabelledUndoCommand {
+    label: string
+    undo: () => void
+    redo: () => void
+}
+
 export interface SceneStats {
     objects: number
     verts: number
@@ -146,21 +168,108 @@ export interface EditorContext {
     editObject: IObject3D | null
 }
 
+/** One entry of a popup menu the engine asks the shell to open (Blender's `wm.call_menu`). */
+export interface MenuRequestItem {
+    /** Operator id to run when chosen. */
+    id: string
+    /** Overrides the operator's label (e.g. the delete menu's `Only Faces`). */
+    label?: string
+    /** Props passed to `run`. */
+    props?: Record<string, unknown>
+}
+
+export type UiRequest =
+    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel'}
+    | {
+        request: 'menu'
+        title?: string
+        items: MenuRequestItem[]
+        /** Where to open it; the engine's last known pointer position on the canvas. */
+        clientX?: number
+        clientY?: number
+    }
+
 export interface EditorEngineEventMap {
     modeChanged: {mode: EditorMode}
     selectModeChanged: {selectMode: SelectModeName}
     toolChanged: {tool: ToolDescriptor | null}
     selectionChanged: {}
-    /** A registry gained or lost entries. */
+    /** A registry gained or lost entries, or shortcuts changed (keymap preset switch). */
     registryChanged: {}
     lastOperationChanged: {operation: LastOperation | null}
     historyChanged: {}
     statusChanged: {hints: StatusHints | null}
     sceneChanged: {}
+    /** The active keymap preset changed. */
+    keymapChanged: {preset: string}
     /** Something to tell the user. The shell shows a toast. */
     message: {level: 'info' | 'warning' | 'error', text: string}
-    /** An operator asks the shell to open one of its own surfaces. */
-    uiRequest: {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel'}
+    /** An operator asks the shell to open one of its own surfaces, or a popup menu at the cursor. */
+    uiRequest: UiRequest
+}
+
+/** One key binding of a keymap preset. */
+export interface KeyBinding {
+    /**
+     * Key combo, lower-case, modifiers first: `ctrl+z`, `shift+d`, `alt+a`, `tab`, `numpad1`, `delete`,
+     * `f9`. `ctrl` also matches the Command key on a Mac. Keys are `KeyboardEvent.code` based, so `z`
+     * is the physical Z key on any layout.
+     */
+    keys: string
+    /** Operator id to run, or a tool id (with `tool: true`). */
+    id: string
+    /** Props passed to the operator. */
+    props?: Record<string, unknown>
+    /** The binding switches the active tool instead of running an operator. */
+    tool?: boolean
+    /** Only in this mode. Undefined means both. */
+    mode?: EditorMode
+    /** Let the key repeat while held (Blender's `repeat`). Default false. */
+    repeat?: boolean
+}
+
+export interface KeymapPreset {
+    id: string
+    label: string
+    description: string
+    bindings: KeyBinding[]
+    /**
+     * How the mouse navigates the viewport, applied to the camera controls. `orbit`/`pan`/`zoom` name a
+     * button (a ROTATE button with Shift held pans, as in Blender); `leftDrag` says whether a plain
+     * left drag orbits or belongs to selection (box select); `spacePan` makes Space+left-drag pan
+     * (Figma); `altOrbit` makes Alt+left-drag orbit (Blender's "emulate 3 button mouse", every DCC);
+     * `trackpad` is what a two-finger scroll does (Shift does the other one; pinch always zooms).
+     */
+    navigation: {
+        orbit: 'left' | 'middle' | 'right'
+        pan: 'left' | 'middle' | 'right'
+        zoom: 'left' | 'middle' | 'right' | 'wheel'
+        leftDrag: 'orbit' | 'select'
+        spacePan?: boolean
+        altOrbit?: boolean
+        trackpad?: 'orbit' | 'pan' | null
+    }
+}
+
+export interface KeymapApi {
+    readonly presets: KeymapPreset[]
+    readonly activePreset: KeymapPreset
+    setPreset(id: string): void
+    /** The display string for an operator or tool id in the active preset, if bound. */
+    shortcutFor(id: string, mode?: EditorMode): string | undefined
+    /** Every binding for an id in the active preset. */
+    bindingsFor(id: string): KeyBinding[]
+}
+
+export interface InputApi {
+    /** Stop handling viewport keys (a modal dialog is open). Keyed, so several callers can overlap. */
+    suspend(key: unknown): void
+    resume(key: unknown): void
+    readonly suspended: boolean
+    /** Extra veto: return false to let the event through untouched. The shell adds its dialog rule here. */
+    filter: ((event: KeyboardEvent) => boolean) | null
+    /** Last pointer position over the canvas, in client coordinates. Where popup menus open. */
+    readonly pointer: {clientX: number, clientY: number}
 }
 
 /**
@@ -174,6 +283,8 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly operators: Registry<OperatorDescriptor>
     readonly tools: Registry<ToolDescriptor>
     readonly history: HistoryApi
+    readonly keymap: KeymapApi
+    readonly input: InputApi
 
     readonly mode: EditorMode
     setMode(mode: EditorMode): boolean
@@ -186,8 +297,14 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
 
     context(): EditorContext
     stats(): SceneStats
+    /** Poll result as a boolean plus reason, with the `modes` check folded in. */
+    poll(op: OperatorDescriptor, ctx?: EditorContext): {enabled: boolean, reason?: string}
     /** Run an operator by id through the registry (poll, exec, last-operation bookkeeping, toasts). */
     run(id: string, props?: Record<string, unknown>): Promise<OperatorResult>
+    /** Record an already-performed action on the one undo stack so `Ctrl+Z` can reverse it. */
+    record(cmd: LabelledUndoCommand): void
+    /** Tell the user something. The shell shows a toast. */
+    message(level: 'info' | 'warning' | 'error', text: string): void
     dispose(): void
 }
 
@@ -201,11 +318,11 @@ export interface Registry<T extends {id: string}> {
 /** A small Map-backed registry. */
 export class SimpleRegistry<T extends {id: string}> implements Registry<T> {
     private _items = new Map<string, T>()
-    constructor(private _onChange?: () => void) {}
+    constructor(private _onChange?: (item?: T) => void) {}
 
     register(item: T): () => void {
         this._items.set(item.id, item)
-        this._onChange?.()
+        this._onChange?.(item)
         return () => this.unregister(item.id)
     }
 

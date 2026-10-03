@@ -1,40 +1,48 @@
 /**
- * `ModellingPlugin.describeCommands()` as operators.
+ * `ModellingPlugin.describeCommands()` as object-mode operators.
  *
- * Every command already has a JSON schema, validation, undo snapshots and a one-line summary, so it
+ * Every command already has a JSON schema, validation, an undo step and a one-line summary, so it
  * maps straight onto an {@link OperatorDescriptor}: `modelling.<op>` with the schema as `props`. The
  * `object` / `objects` parameter is filled from the current selection and hidden from the form.
- * Redo-last pops the command's history entry and runs it again with the edited props, which is
- * exactly Blender's `ED_undo_operator_repeat`.
+ * Redo-last is the engine's generic pop-undo + re-run; nothing here implements it.
  *
  * Commands that make no sense as a button (session, capture, help, undo/redo - those have their own
- * operators) are skipped.
+ * operators) are skipped, as are the ones the object-mode pack covers with a richer operator
+ * (primitive, delete, duplicate, rename, join, separate, applyTransform) and the edit-mode ones
+ * (deleteElements).
  */
 
-import type {LegacyEditorEngine} from '../legacyEngine'
-import type {EditorContext, OperatorDescriptor, PropSchema} from '../../registry'
+import type {EditorEnginePlugin} from '../EditorEnginePlugin'
+import type {EditorContext, OperatorDescriptor, PropSchema} from '../registry'
 
-// delete/duplicate/rename have object-mode operators already (object.*) that also cover imported meshes
 const SKIP = new Set(['primitive', 'undo', 'redo', 'checkpoint', 'history', 'help', 'selftest', 'capture',
     'inspect', 'camera', 'export', 'select', 'display', 'measure', 'reference', 'lighting', 'modifier', 'vertices', 'transform',
-    'delete', 'duplicate', 'rename'])
+    'delete', 'duplicate', 'rename', 'join', 'separate', 'deleteElements', 'applyTransform'])
 
 /** Shape operators belong in the object context menu; material/light/lathe/sweep stay in the menus. */
-const IN_CONTEXT_MENU = new Set(['inset', 'bevel', 'solidify', 'mirror', 'array', 'extrude', 'weld', 'join', 'separate'])
+const IN_CONTEXT_MENU = new Set(['inset', 'bevel', 'solidify', 'mirror', 'array', 'extrude', 'weld'])
 
 const ICONS: Record<string, string> = {
     inset: 'inner-join', bevel: 'polygon-filter', solidify: 'layers', mirror: 'swap-horizontal', array: 'layout-grid',
-    extrude: 'arrow-up', join: 'merge-links', separate: 'split-columns', weld: 'group-objects', delete: 'trash',
-    duplicate: 'duplicate', rename: 'edit', material: 'tint', light: 'flash', lathe: 'refresh', sweep: 'flows',
+    extrude: 'arrow-up', weld: 'group-objects', material: 'tint', light: 'flash', lathe: 'refresh', sweep: 'flows',
+    poke: 'star-empty', wireframe: 'polygon-filter',
 }
 
 const CATEGORY: Record<string, string> = {
     inset: 'Mesh', bevel: 'Mesh', solidify: 'Mesh', mirror: 'Mesh', array: 'Mesh', extrude: 'Mesh', weld: 'Mesh',
-    join: 'Object', separate: 'Object', delete: 'Object', duplicate: 'Object', rename: 'Object', material: 'Object',
-    light: 'Add', lathe: 'Add', sweep: 'Add',
+    poke: 'Mesh', wireframe: 'Mesh', material: 'Object', light: 'Add', lathe: 'Add', sweep: 'Add',
 }
 
-export function registerModellingOperators(engine: LegacyEditorEngine): void {
+/** A command's schema without the object reference, which the selection supplies. */
+export function visibleSchema(schema: PropSchema): PropSchema {
+    return {
+        type: 'object',
+        properties: Object.fromEntries(Object.entries(schema.properties ?? {}).filter(([k]) => k !== 'object' && k !== 'objects')),
+        required: (schema.required ?? []).filter(k => k !== 'object' && k !== 'objects'),
+    }
+}
+
+export function registerModellingOperators(engine: EditorEnginePlugin): void {
     const modelling = engine.modelling
     if (!modelling) return
 
@@ -43,11 +51,7 @@ export function registerModellingOperators(engine: LegacyEditorEngine): void {
         const schema = def.inputSchema as PropSchema
         const takesObject = !!schema.properties?.object || !!schema.properties?.objects
         const needsObject = takesObject && !(schema.properties?.object as any)?.description?.includes('optional')
-        const visible: PropSchema = {
-            type: 'object',
-            properties: Object.fromEntries(Object.entries(schema.properties ?? {}).filter(([k]) => k !== 'object' && k !== 'objects')),
-            required: (schema.required ?? []).filter(k => k !== 'object' && k !== 'objects'),
-        }
+        const visible = visibleSchema(schema)
         const id = `modelling.${def.name}`
         const docObject = (ctx: EditorContext) => ctx.selectedObjects.map(o => modelling.document.find(o.uuid)).filter(e => !!e)
 
@@ -64,7 +68,7 @@ export function registerModellingOperators(engine: LegacyEditorEngine): void {
             poll: ctx => {
                 if (!needsObject) return true
                 if (!ctx.selectedObjects.length) return 'Select an object first'
-                if (!docObject(ctx).length) return 'Only objects created here (Add menu) can be modelled; imported meshes are not in the document yet'
+                if (!docObject(ctx).length) return 'Enter edit mode on this object once (Tab) to make it modellable'
                 return true
             },
             async exec(ctx, props) {
@@ -75,14 +79,6 @@ export function registerModellingOperators(engine: LegacyEditorEngine): void {
                 }
                 const result = await modelling.run(command as never)
                 if (!result.ok) return {ok: false, error: result.error}
-                engine.setLastOperation({
-                    operator: op,
-                    props: props ?? {},
-                    redo: async newProps => {
-                        if (engine.canPopLastModellingEntry()) engine.history.undo()
-                        return engine.run(id, newProps)
-                    },
-                })
                 return {ok: true, warnings: result.warnings, data: result.data}
             },
         }

@@ -535,19 +535,46 @@ export const measureCommand: CommandDefinition = {
 export const undoCommand: CommandDefinition = {
     op: 'undo',
     summary: 'Undo commands, or rewind to a named checkpoint.',
+    description:
+        'With the viewer\'s `UndoManagerPlugin` loaded this walks the one shared undo stack - the same '
+        + 'one the user\'s Ctrl+Z walks - so a step may be an edit-mode operation or an object delete as '
+        + 'well as a command. Without it, only commands are undone.',
     mutates: false, // it manages history itself; wrapping it in history would be circular
     schema: schema({
-        steps: S.integer('How many commands to undo. Default 1.', {minimum: 1}),
+        steps: S.integer('How many steps to undo. Default 1.', {minimum: 1}),
         to: S.string('Rewind until this checkpoint is the most recent applied command.'),
     }),
 
     run(p: Record<string, unknown>, ctx) {
-        const done = p.to !== undefined
-            ? ctx.plugin.history.undoTo(p.to as string)
-            : ctx.plugin.history.undo((p.steps as number) ?? 1)
+        const history = ctx.plugin.history
+        const um = ctx.plugin.undoManager
+        let done = 0
+        if (um) {
+            if (p.to !== undefined) {
+                const target = history.entries.find(e => e.checkpoint === p.to)
+                if (!target) {
+                    const names = history.entries.filter(e => e.checkpoint).map(e => e.checkpoint).join(', ')
+                    throw new Error(`no checkpoint "${p.to}"` + (names ? ` - have: ${names}` : ' - none have been made'))
+                }
+                // Undo until the checkpoint's step is the most recent one still applied.
+                const index = um.stack.indexOf(target.command as never)
+                while (um.canUndo() && um.sp > index) {
+                    um.undo()
+                    done++
+                }
+            } else {
+                const steps = (p.steps as number) ?? 1
+                while (done < steps && um.canUndo()) {
+                    um.undo()
+                    done++
+                }
+            }
+        } else {
+            done = p.to !== undefined ? history.undoTo(p.to as string) : history.undo((p.steps as number) ?? 1)
+        }
         if (!done) ctx.warn('nothing left to undo')
         ctx.viewer.setDirty()
-        return {data: {undone: done, canUndo: ctx.plugin.history.canUndo}}
+        return {data: {undone: done, canUndo: um ? um.canUndo() : history.canUndo}}
     },
 }
 
@@ -558,10 +585,20 @@ export const redoCommand: CommandDefinition = {
     schema: schema({steps: S.integer('How many to redo. Default 1.', {minimum: 1})}),
 
     run(p: Record<string, unknown>, ctx) {
-        const done = ctx.plugin.history.redo((p.steps as number) ?? 1)
+        const um = ctx.plugin.undoManager
+        const steps = (p.steps as number) ?? 1
+        let done = 0
+        if (um) {
+            while (done < steps && um.canRedo()) {
+                um.redo()
+                done++
+            }
+        } else {
+            done = ctx.plugin.history.redo(steps)
+        }
         if (!done) ctx.warn('nothing to redo')
         ctx.viewer.setDirty()
-        return {data: {redone: done, canRedo: ctx.plugin.history.canRedo}}
+        return {data: {redone: done, canRedo: um ? um.canRedo() : ctx.plugin.history.canRedo}}
     },
 }
 

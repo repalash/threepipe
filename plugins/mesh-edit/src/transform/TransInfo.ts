@@ -60,6 +60,7 @@ import {
     conApplyRot,
     conApplySize,
     conApplyVec,
+    constraintModeToIndex,
     constraintNumInput,
     initSelectConstraint,
     newTransCon,
@@ -204,6 +205,25 @@ export interface TransInfoOptions {
     /** Object mode: the objects to move. */
     objects?: ObjectTransformTarget[]
     activeObjectCenter?: Vec3 | null
+    /**
+     * Run as a repeat of a finished transform rather than interactively: the operator's saved
+     * properties, as Blender's redo panel passes them (`initTransInfo`, `transform_generics.cc:364-505`).
+     * With `modal: false` and a `value`, the transform applies `value` directly
+     * (`T_INPUT_IS_VALUES_FINAL`) and reads no mouse input.
+     */
+    modal?: boolean
+    /** The operator's `value`: the translation, the per-axis scale, or `[angle]` in radians. */
+    value?: number[] | null
+    /** The operator's `constraint_axis`. */
+    constraintAxis?: [boolean, boolean, boolean] | null
+    /** The operator's `orient_type`. */
+    orientType?: OrientationType | null
+    /** The operator's `orient_matrix`: the orientation computed on the first run, reused on repeat. */
+    orientMatrix?: Mat3 | null
+    /** The operator's `orient_matrix_type`: which orientation `orientMatrix` was. */
+    orientMatrixType?: OrientationType | null
+    /** The operator's `orient_axis` (rotation): which column of the orientation is the axis. */
+    orientAxis?: number
     /** Called after every apply, once the results are flushed. */
     onChange?: (t: TransInfo) => void
     /** Blender seeds its random falloff from the clock; tests pass a fixed source. */
@@ -211,6 +231,26 @@ export interface TransInfoOptions {
 }
 
 export type TransState = 'starting' | 'running' | 'confirm' | 'cancel'
+
+/**
+ * What a finished transform records on its operator so the redo panel can run it again:
+ * `saveTransform` (`transform.cc:1744`). Passed back as {@link TransInfoOptions} with `modal: false`.
+ */
+export interface TransformSavedProps {
+    mode: TransformMode
+    /** `values_final`: the translation or per-axis scale in the orientation's space, or `[angle]`. */
+    value: number[]
+    orientType: OrientationType
+    orientMatrixType: OrientationType
+    /** The orientation the first run used; null when the redo should compute it afresh. */
+    orientMatrix: Mat3 | null
+    /** Set when a constraint was applied, else null (`RNA_property_unset`). */
+    constraintAxis: [boolean, boolean, boolean] | null
+    /** Rotation only: the axis index within the orientation. */
+    orientAxis: number
+    proportional: {enabled: boolean, connected: boolean, projected: boolean, falloff: PropFalloff, size: number}
+    snap: boolean
+}
 
 /** `TransModeInfo` (`transform_mode.hh`). */
 export interface TransformModeInfo {
@@ -299,8 +339,9 @@ export class TransInfo implements MouseInputContext {
         this.rng = opts.random ?? Math.random
         this.keymap = opts.keymap ?? blenderTransformKeymap
         this._onChange = opts.onChange ?? null
-        this.flag = T_MODAL
+        this.flag = opts.modal === false ? 0 : T_MODAL
         if (opts.releaseConfirm) this.flag |= T_RELEASE_CONFIRM
+        if (opts.orientAxis !== undefined) this.orientAxis = opts.orientAxis
 
         const objectMatrix = opts.objectMatrix ?? [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
         this._orientationCtx = {objectMatrix, cursorMatrix: opts.cursorMatrix, customMatrix: opts.customMatrix, objectMode: !opts.bm}
@@ -343,10 +384,43 @@ export class TransInfo implements MouseInputContext {
         this.incrementPrecision = 0.1
         this.transformSnapResetFromMode()
 
-        // A constraint set by the caller (`initTransInfo`, `constraint_axis`).
+        // A constraint set by the caller (a gizmo handle).
         if (opts.constraint) this.con.mode = CON_APPLY | opts.constraint & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2)
 
-        this._initOrientations(opts.orientation, opts.orientationSet ?? null)
+        // The operator's `value` (`transform_generics.cc:362-384`).
+        let valuesSetIsArray = false
+        if (opts.value && opts.value.length) {
+            const values: Vec3 = [opts.value[0] ?? 0, opts.value[1] ?? 0, opts.value[2] ?? 0]
+            valuesSetIsArray = opts.value.length > 1
+            if (this.flag & T_MODAL) {
+                // Run before init functions so `values_modal_offset` can be applied on mouse input.
+                this.valuesModalOffset = values
+            } else {
+                this.values = values
+                this.flag |= T_INPUT_IS_VALUES_FINAL
+            }
+        }
+
+        // `constraint_axis` (`transform_generics.cc:386-409`).
+        {
+            let axis: [boolean, boolean, boolean] = [false, false, false]
+            if (valuesSetIsArray && this.flag & T_INPUT_IS_VALUES_FINAL) {
+                // For operators whose `t->values` is array (as Move and Scale), set constraint so that
+                // the orientation is more intuitive in the Redo Panel.
+                axis = [true, true, true]
+            } else if (opts.constraintAxis) {
+                axis = [...opts.constraintAxis] as [boolean, boolean, boolean]
+            }
+            if (axis[0] || axis[1] || axis[2]) {
+                this.con.mode |= CON_APPLY
+                if (axis[0]) this.con.mode |= CON_AXIS0
+                if (axis[1]) this.con.mode |= CON_AXIS1
+                if (axis[2]) this.con.mode |= CON_AXIS2
+            }
+        }
+
+        this._initOrientations(opts.orientation, opts.orientType ?? opts.orientationSet ?? null,
+            opts.orientMatrix ?? null, opts.orientMatrixType ?? null)
 
         this.calculateCenter()
 
@@ -361,8 +435,10 @@ export class TransInfo implements MouseInputContext {
         if (this.flag & T_PROP_EDIT) calculatePropRatio(this)
         else for (const tc of this.containers) for (const td of tc.data) td.factor = 1
 
-        // The first apply, with the cursor where it is, so the header and the gizmo are right.
-        this.values = applyMouseInput(this, this.mouse, this.mval)
+        // The first apply, with the cursor where it is, so the header and the gizmo are right. Not when
+        // repeating: the values are the operator's (`transform.cc` initTransform: "Don't write into the
+        // values when non-modal because they are already set from operator redo values").
+        if (this.flag & T_MODAL) this.values = applyMouseInput(this, this.mouse, this.mval)
         this.apply()
     }
 
@@ -403,10 +479,20 @@ export class TransInfo implements MouseInputContext {
      * The orientation slots (`initTransInfo`, `transform_generics.cc:412-520`): the scene's
      * orientation, the operator's (if any) and the alternative an axis key cycles to.
      */
-    private _initOrientations(scene: OrientationType, set: OrientationType | null): void {
+    private _initOrientations(scene: OrientationType, set: OrientationType | null,
+        orientMatrix: Mat3 | null = null, orientMatrixType: OrientationType | null = null): void {
         let orientTypeApply = O_DEFAULT
         let orientTypeDefault: OrientationType = scene
         let orientTypeSet: OrientationType | null = set
+        let orientTypeMatrixSet: OrientationType | null = null
+
+        // `orient_matrix` / `orient_matrix_type`: the orientation calculated in the first operator call,
+        // reused so a redo cannot drift (e.g. with `view`) (`transform_generics.cc:448-468`).
+        if (orientMatrix) {
+            this._orientationCtx.customMatrix = orientMatrix
+            if (orientMatrixType) orientTypeMatrixSet = orientMatrixType
+            else if (orientTypeSet === null) orientTypeSet = 'custom'
+        }
 
         if (orientTypeSet !== null) {
             if (!(this.con.mode & CON_APPLY)) {
@@ -414,6 +500,16 @@ export class TransInfo implements MouseInputContext {
                 orientTypeDefault = orientTypeSet
                 this.isOrientDefaultOverwrite = true
             }
+        } else if (orientTypeMatrixSet !== null) {
+            orientTypeSet = orientTypeMatrixSet
+            if (!(this.con.mode & CON_APPLY)) {
+                orientTypeDefault = orientTypeSet
+                this.isOrientDefaultOverwrite = true
+            }
+        }
+        if (orientTypeMatrixSet !== null && orientTypeMatrixSet === orientTypeSet) {
+            // Constraints are forced to use the custom matrix when redoing.
+            orientTypeSet = 'custom'
         }
         if (orientTypeSet === null) {
             orientTypeSet = scene === 'global' ? 'local' : 'global'
@@ -699,6 +795,40 @@ export class TransInfo implements MouseInputContext {
             return false
         default:
             return false
+        }
+    }
+
+    /**
+     * The properties a redo needs, as `saveTransform` (`transform.cc:1744-1950`) writes them: the final
+     * values, the orientation the transform used (type and matrix), the constraint axes, the rotation
+     * axis, and the proportional and snap settings.
+     */
+    saveProps(): TransformSavedProps {
+        const constraintAxis: [boolean, boolean, boolean] | null = this.con.mode & CON_APPLY
+            ? [!!(this.con.mode & CON_AXIS0), !!(this.con.mode & CON_AXIS1), !!(this.con.mode & CON_AXIS2)]
+            : null
+        let orientAxis = this.orientAxis
+        if (this.flag & T_MODAL && this.con.mode & CON_APPLY) {
+            const index = constraintModeToIndex(this)
+            if (index !== -1) orientAxis = index
+        }
+        const type = this.orient[this.orientCurr].type
+        return {
+            mode: this.mode,
+            value: this.mode === 'rotate' ? [this.valuesFinal[0]] : [...this.valuesFinal],
+            orientType: type,
+            orientMatrixType: type,
+            orientMatrix: copyM3(this.spacemtx),
+            constraintAxis,
+            orientAxis,
+            proportional: {
+                enabled: !!(this.flag & T_PROP_EDIT),
+                connected: !!(this.flag & T_PROP_CONNECTED),
+                projected: !!(this.flag & T_PROP_PROJECTED),
+                falloff: this.propMode,
+                size: this.propSize,
+            },
+            snap: !!(this.modifiers & MOD_SNAP),
         }
     }
 

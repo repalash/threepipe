@@ -1,10 +1,11 @@
-export * from './registry'
-export {LegacyEditorEngine} from './engine/legacyEngine'
-export type {LabelledUndoCommand} from './engine/legacyEngine'
+// The registry interfaces and the engine live in `@threepipe/plugin-editor-engine`; re-exported so an
+// app that only installs the shell sees the same names it did before the engine became its own package.
+export * from '@threepipe/plugin-editor-engine'
 export {EditorViewportPlugin} from './EditorViewportPlugin'
 export type {ViewportShading, AxisView, EditorViewportPluginEventMap} from './EditorViewportPlugin'
 export {createModellingEditor} from './createModellingEditor'
 export type {ModellingEditor, ModellingEditorOptions} from './createModellingEditor'
+export {registerViewOperators} from './ops/viewOps'
 export {ModellingEditorApp} from './ui/ModellingEditorApp'
 export type {ModellingEditorAppProps} from './ui/ModellingEditorApp'
 export {EditorUiPlugin, UiConfigRendererHeadless} from './ui/EditorUiPlugin'

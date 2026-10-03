@@ -17,7 +17,7 @@ import {BPTreeComponent} from './tree/BPTreeComponent'
 import type {TreeNodeInfo} from './tree/treeTypes'
 import {useEditor, useEngineVersion} from './EditorContext'
 import {useContextMenu} from './ContextMenuProvider'
-import type {EditorEngine} from '../registry'
+import type {EditorEngine} from '@threepipe/plugin-editor-engine'
 import {IconButton} from './IconButton'
 
 export class VisibilityToggle extends React.Component<{obj: IObject3D, engine: EditorEngine}> {
@@ -32,7 +32,7 @@ export class VisibilityToggle extends React.Component<{obj: IObject3D, engine: E
                 const next = !obj.visible
                 const apply = (v: boolean) => { obj.visible = v; obj.setDirty?.({change: 'visible'} as never) }
                 apply(next)
-                ;(this.props.engine as any).record?.({label: `${next ? 'Show' : 'Hide'} ${obj.name || 'object'}`, undo: () => apply(!next), redo: () => apply(next)})
+                this.props.engine.record({label: `${next ? 'Show' : 'Hide'} ${obj.name || 'object'}`, undo: () => apply(!next), redo: () => apply(next)})
                 this.forceUpdate()
             }}
         />
@@ -169,7 +169,7 @@ export class HierarchyTree<T extends IObject3D = IObject3D> extends BPTreeCompon
         }
         const newIndex = index !== undefined ? index - (oldParent === newParent && oldIndex < index ? 1 : 0) : undefined
         move(newParent, newIndex)
-        ;(this.props.engine as any).record?.({
+        this.props.engine.record({
             label: `Move ${source.name || 'object'}`,
             undo: () => move(oldParent, oldIndex),
             redo: () => move(newParent, newIndex),

@@ -22,12 +22,12 @@
  */
 
 import {BMesh, BMVert, ElemFlag, SelectMode} from '@threepipe/mesh-kernel'
-import {TransInfo, TransInfoOptions} from './transform/TransInfo'
+import {TransInfo, TransInfoOptions, TransformSavedProps} from './transform/TransInfo'
 import type {Vec3} from './transform/math'
 import type {ModalKeyEvent, TransformModalItem} from './transform/keymap'
 import type {TransformMode} from './transform/types'
 
-export type {TransformMode}
+export type {TransformMode, TransformSavedProps}
 
 /** Options for {@link ModalTransform}; the same as {@link TransInfoOptions}. */
 export type ModalTransformOptions = TransInfoOptions
@@ -120,6 +120,14 @@ export class ModalTransform {
     /** Resize the proportional editing circle (wheel, PageUp/PageDown). */
     proportionalSize(up: boolean): void {
         this.handleModal(up ? 'propsizeUp' : 'propsizeDown')
+    }
+
+    /**
+     * What the redo panel needs to run this transform again exactly (Blender's `saveTransform`): pass it
+     * back through {@link MeshEditPlugin.applyTransformValues}.
+     */
+    saved(): TransformSavedProps {
+        return this.t.saveProps()
     }
 
     /** Keep the current positions. */

@@ -19,6 +19,7 @@ const globals = {
     '@threepipe/mesh-kernel': '@threepipe/mesh-kernel',
     '@threepipe/plugin-mesh-edit': '@threepipe/plugin-mesh-edit',
     '@threepipe/plugin-modelling': '@threepipe/plugin-modelling',
+    '@threepipe/plugin-editor-engine': '@threepipe/plugin-editor-engine',
 }
 
 export default defineConfig({

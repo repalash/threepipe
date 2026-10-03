@@ -9,7 +9,7 @@
  * session.
  */
 
-import {Matrix4, Vector3} from 'threepipe'
+import {Matrix4, Quaternion, Vector3} from 'threepipe'
 import {
     arrayCurve,
     arrayLinear,
@@ -797,7 +797,61 @@ export const deleteElementsCommand: CommandDefinition = {
     },
 }
 
+export const applyTransformCommand: CommandDefinition = {
+    op: 'applyTransform',
+    summary: 'Bake an object\'s location, rotation and/or scale into its mesh and reset them.',
+    description:
+        'Blender\'s Object > Apply (Ctrl+A). The chosen components of the object transform are '
+        + 'multiplied into every vertex and then reset to identity, so the object looks the same but its '
+        + 'origin, axes and unit scale are back to the defaults - which is what a modifier, an array step '
+        + 'or an export wants. Vertex indices are untouched.\n\n'
+        + 'All three components apply by default. A negative scale (a mirror) flips the winding of every '
+        + 'face; Blender flips the faces back, which is reported as a warning here rather than done.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('Objects to apply. A name, a list, `prefix*` or `*`.'),
+        objects: S.objectRef('Alias for `object`.'),
+        location: S.boolean('Bake the location. Default true.'),
+        rotation: S.boolean('Bake the rotation. Default true.'),
+        scale: S.boolean('Bake the scale. Default true.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const targets = readTargets(p, ctx.doc)
+        const which = {
+            location: p.location === undefined ? true : p.location as boolean,
+            rotation: p.rotation === undefined ? true : p.rotation as boolean,
+            scale: p.scale === undefined ? true : p.scale as boolean,
+        }
+        const changed: string[] = []
+        for (const entry of targets) {
+            const o = entry.object
+            const matrix = new Matrix4().compose(
+                which.location ? o.position.clone() : new Vector3(),
+                which.rotation ? o.quaternion.clone() : new Quaternion(),
+                which.scale ? o.scale.clone() : new Vector3(1, 1, 1),
+            )
+            if (matrix.determinant() < 0) {
+                ctx.warn(`"${entry.name}" has a negative scale: applying it mirrors the mesh and turns its faces inside out`)
+            }
+            ctx.doc.record(entry)
+            const mesh = entry.mesh.clone()
+            transformMeshVerts(mesh, matrix, null)
+            ctx.doc.setMesh(entry, mesh)
+            if (which.location) o.position.set(0, 0, 0)
+            if (which.rotation) o.quaternion.identity()
+            if (which.scale) o.scale.set(1, 1, 1)
+            o.updateMatrix()
+            o.setDirty?.()
+            changed.push(entry.name)
+        }
+        if (!changed.length) ctx.warn('the command matched no objects')
+        return {objects: changed, data: {applied: which, count: changed.length}}
+    },
+}
+
 export const editCommands = [
     verticesCommand, transformCommand, extrudeCommand, arrayCommand, duplicateCommand,
     mirrorCommand, joinCommand, separateCommand, weldCommand, deleteCommand, deleteElementsCommand,
+    applyTransformCommand,
 ]

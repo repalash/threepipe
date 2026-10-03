@@ -9,34 +9,30 @@
 import {downloadBlob, IObject3D, uploadFile} from 'threepipe'
 import {OBJExporter} from 'three/examples/jsm/exporters/OBJExporter.js'
 import {STLExporter} from 'three/examples/jsm/exporters/STLExporter.js'
-import type {LegacyEditorEngine} from '../legacyEngine'
-import type {OperatorDescriptor} from '../../registry'
+import type {EditorEnginePlugin} from '../EditorEnginePlugin'
+import type {OperatorDescriptor} from '../registry'
 
-function modelObjects(engine: LegacyEditorEngine): IObject3D[] {
-    return engine.viewer.scene.modelRoot.children.filter(c => !(c as any).isWidget && (c as IObject3D).assetType !== 'widget') as IObject3D[]
-}
-
-export function registerFileOperators(engine: LegacyEditorEngine): void {
+export function registerFileOperators(engine: EditorEnginePlugin): void {
     const viewer = engine.viewer
+    const hasObjects = () => engine.modelObjects().length > 0 || 'Nothing to export'
     const ops: OperatorDescriptor[] = [
         {
             id: 'file.new',
             label: 'New',
             description: 'Clear the scene and start again.',
             icon: 'document',
-            shortcut: 'Ctrl+N',
             category: 'File',
             async exec() {
-                if (modelObjects(engine).length) {
+                if (engine.modelObjects().length) {
                     const ok = await viewer.dialog.confirm('Start a new scene? Unsaved changes are lost.')
                     if (!ok) return {ok: true}
                 }
                 if (engine.mode === 'edit') engine.meshEdit.exit(false)
                 engine.picking.clearSelection()
-                for (const child of modelObjects(engine)) child.dispose ? child.dispose(true) : child.removeFromParent()
+                for (const child of engine.modelObjects()) child.dispose ? child.dispose(true) : child.removeFromParent()
                 engine.modelling?.document.clear()
                 engine.modelling?.history.clear()
-                engine.undo.undoManager?.reset()
+                engine.history.manager?.reset()
                 engine.setLastOperation(null)
                 viewer.setDirty()
                 return {ok: true}
@@ -47,7 +43,6 @@ export function registerFileOperators(engine: LegacyEditorEngine): void {
             label: 'Open…',
             description: 'Import a glTF/GLB, OBJ, FBX or other model file into the scene.',
             icon: 'folder-open',
-            shortcut: 'Ctrl+O',
             category: 'File',
             async exec() {
                 const files = await uploadFile(true, false, '.glb,.gltf,.obj,.fbx,.stl,.ply,.drc,.3dm,.usdz,.zip')
@@ -67,7 +62,6 @@ export function registerFileOperators(engine: LegacyEditorEngine): void {
             label: 'Save',
             description: 'Download the scene as a .glb with the viewer settings embedded.',
             icon: 'floppy-disk',
-            shortcut: 'Ctrl+S',
             category: 'File',
             async exec() {
                 if (engine.mode === 'edit') engine.meshEdit.applyToObject()
@@ -83,6 +77,7 @@ export function registerFileOperators(engine: LegacyEditorEngine): void {
             description: 'Download the model as a plain .glb, without viewer settings.',
             icon: 'export',
             category: 'File',
+            poll: hasObjects,
             async exec() {
                 if (engine.mode === 'edit') engine.meshEdit.applyToObject()
                 const blob = await viewer.exportScene({binary: true, viewerConfig: false})
@@ -97,7 +92,7 @@ export function registerFileOperators(engine: LegacyEditorEngine): void {
             description: 'Download the model as Wavefront .obj.',
             icon: 'export',
             category: 'File',
-            poll: () => modelObjects(engine).length > 0 || 'Nothing to export',
+            poll: hasObjects,
             async exec() {
                 if (engine.mode === 'edit') engine.meshEdit.applyToObject()
                 const text = new OBJExporter().parse(viewer.scene.modelRoot as never)
@@ -111,7 +106,7 @@ export function registerFileOperators(engine: LegacyEditorEngine): void {
             description: 'Download the model as binary .stl, for 3D printing.',
             icon: 'export',
             category: 'File',
-            poll: () => modelObjects(engine).length > 0 || 'Nothing to export',
+            poll: hasObjects,
             async exec() {
                 if (engine.mode === 'edit') engine.meshEdit.applyToObject()
                 const data = new STLExporter().parse(viewer.scene.modelRoot as never, {binary: true}) as DataView

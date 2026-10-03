@@ -1,6 +1,7 @@
 /**
  * `createModellingEditor` - one call that builds the viewer with the plugins the editor needs,
- * wires the engine adapter and mounts the React shell into a container.
+ * adds the interaction engine (`@threepipe/plugin-editor-engine`) and mounts the React shell into
+ * a container.
  */
 
 import {createRoot, Root} from 'react-dom/client'
@@ -15,11 +16,11 @@ import {
 } from 'threepipe'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
 import {ModellingPlugin} from '@threepipe/plugin-modelling'
+import {EditorEngine, EditorEngineOptions, EditorEnginePlugin} from '@threepipe/plugin-editor-engine'
 import {EditorViewportPlugin} from './EditorViewportPlugin'
-import {LegacyEditorEngine} from './engine/legacyEngine'
 import {EditorUiPlugin} from './ui/EditorUiPlugin'
 import {ModellingEditorApp} from './ui/ModellingEditorApp'
-import type {EditorEngine} from './registry'
+import {registerViewOperators} from './ops/viewOps'
 import editorCss from './styles/editor.scss?inline'
 
 export interface ModellingEditorOptions {
@@ -29,7 +30,9 @@ export interface ModellingEditorOptions {
     viewer?: Omit<ThreeViewerOptions, 'container' | 'canvas'>
     /** Extra plugins added before the engine is created. */
     plugins?: IViewerPlugin[]
-    /** Supply an engine instead of the legacy adapter (the rebuilt engine plugs in here). */
+    /** Options for the engine: the keymap preset to start with, persistence. */
+    engine?: EditorEngineOptions
+    /** Supply an engine of your own instead of `EditorEnginePlugin`. */
     createEngine?: (viewer: ThreeViewer) => EditorEngine
     /** Name shown in the header. */
     title?: string
@@ -81,7 +84,8 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
     for (const p of options.plugins ?? []) viewer.addPluginSync(p)
 
     const ui = viewer.addPluginSync(new EditorUiPlugin())
-    const engine = options.createEngine ? options.createEngine(viewer) : new LegacyEditorEngine(viewer)
+    const engine = options.createEngine ? options.createEngine(viewer) : viewer.addPluginSync(new EditorEnginePlugin(options.engine))
+    const unregisterViewOps = registerViewOperators(engine, viewer.getPlugin(EditorViewportPlugin))
     const picking = viewer.getPlugin(PickingPlugin)!
     picking.widgetEnabled = true
     // The gizmo is driven by the toolbar's tool; start with it hidden (Select tool).
@@ -89,7 +93,7 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
 
     if (options.environment !== null) {
         viewer.setEnvironmentMap(options.environment ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
-            .catch(e => (engine as any).message?.('warning', 'Environment map failed to load: ' + (e?.message ?? e)))
+            .catch(e => engine.message('warning', 'Environment map failed to load: ' + (e?.message ?? e)))
     }
     viewer.scene.setBackgroundColor('#2b2b30')
     // A three-quarter view to start, as Blender's default scene, rather than straight down an axis.
@@ -106,6 +110,7 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
         viewer, engine, ui, root,
         dispose() {
             root.unmount()
+            unregisterViewOps()
             engine.dispose()
             viewer.dispose()
         },

@@ -27,13 +27,15 @@
         "threepipe": "file:./../../src/",
         "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/",
         "@threepipe/plugin-mesh-edit": "file:./../mesh-edit/src/",
-        "@threepipe/plugin-modelling": "file:./../modelling/src/"
+        "@threepipe/plugin-modelling": "file:./../modelling/src/",
+        "@threepipe/plugin-editor-engine": "file:./../editor-engine/src/"
     },
     "peerDependencies": {
         "threepipe": ">=0.5.0",
         "@threepipe/mesh-kernel": ">=0.1.0",
         "@threepipe/plugin-mesh-edit": ">=0.1.0",
-        "@threepipe/plugin-modelling": ">=0.1.0"
+        "@threepipe/plugin-modelling": ">=0.1.0",
+        "@threepipe/plugin-editor-engine": ">=0.1.0"
     },
     "overrides": {
         "ts-browser-helpers": "$ts-browser-helpers",

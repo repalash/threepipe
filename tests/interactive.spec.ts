@@ -3595,12 +3595,14 @@ test('modelling-editor', async({page}) => {
     await expect(page.locator('[data-operator-panel="add.sphere"] #me-prop-radius')).toBeVisible()
     await expect(page.locator('.me-outliner .bp5-tree-node')).toHaveCount(2)
 
-    // Edit menu: the undo history dialog lists both the document commands and reverses them.
+    // Edit menu: the undo history dialog lists the document commands by name and reverses them. Mode
+    // switches and the selections they imply are not steps, so the list is exactly the two adds.
     await page.locator('[data-menu="Edit"]').click()
     await page.getByRole('menuitem', {name: 'Undo History…'}).click()
     const history = page.locator('[data-history]')
     await expect(history).toBeVisible()
-    await expect(history).toContainText('primitive type=sphere')
+    await expect(history).toContainText('Add Sphere')
+    await expect(history.locator('li')).toHaveText(['Add Cube', 'Add Sphere'])
     await page.getByRole('button', {name: 'Undo'}).click()
     await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
     // the dialog header's X is also named Close; take the footer button
@@ -3622,4 +3624,176 @@ test('modelling-editor', async({page}) => {
     const del = page.getByRole('menuitem', {name: 'Delete'})
     await expect(del).toHaveAttribute('aria-disabled', 'true')
     await page.keyboard.press('Escape')
+})
+
+test('modelling-editor-engine', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Engine')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+
+    // ── Real input: every step below is a key press or a mouse click, routed by the engine's keymap. ──
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        const cube = (window as any).modelling.document.find('cube')
+        return {
+            mode: e.mode as string,
+            selectMode: e.selectMode as string,
+            preset: e.keymap.activePreset.id as string,
+            objects: e.stats().objects as number,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            cubeFaces: cube ? cube.mesh.facesNum as number : null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+            shortcuts: {
+                extrude: e.operators.get('mesh.extrude').shortcut as string,
+                palette: e.operators.get('ui.command_palette').shortcut as string,
+                undo: e.operators.get('edit.undo').shortcut as string,
+            },
+        }
+    })
+    // The inset face's vertices, to see a re-run with another thickness change the result.
+    const selectedVerts = () => page.evaluate(() => {
+        const bm = (window as any).engine.meshEdit.state.bm
+        return [...bm.verts].filter((v: any) => v.hflag & 1).map((v: any) => [v.x, v.y, v.z].map((n: number) => Math.round(n * 1e4) / 1e4))
+    })
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+
+    // 1. Keymap: the Blender preset is active and every shortcut shown comes from it.
+    let s = await state()
+    expect(s.preset).toBe('blender')
+    expect(s.shortcuts).toEqual({extrude: 'E', palette: 'F3', undo: 'Ctrl+Z'})
+    expect(s.history).toEqual(['Add Cube'])
+
+    // Tab enters edit mode on the selected cube (keys go to the window: no focus needed); 3 picks face
+    // mode; a click on the cube selects one face.
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('3')
+    await expect.poll(async() => (await state()).selectMode).toBe('face')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+
+    // 2. An operator from the palette (F3 is the Blender key): Inset Faces runs with its defaults.
+    await page.keyboard.press('F3')
+    const palette = page.locator('.me-palette input')
+    await expect(palette).toBeVisible()
+    await palette.fill('inset')
+    await expect(page.locator('.me-palette .bp5-menu-item').first()).toContainText('Inset Faces')
+    await page.keyboard.press('Enter')
+    await expect(palette).toHaveCount(0)
+    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 10])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.inset')
+    expect(s.history).toEqual(['Add Cube', 'Inset cube'])
+    // The command's result selects the inset face, so a follow-up extrude would address it.
+    expect(s.sel).toEqual([4, 4, 1])
+    const thin = await selectedVerts()
+
+    // 3. Redo-last: change the thickness in the panel - the result changes - and Ctrl+Z goes back to
+    // before the inset, in one step, as Blender's F9 panel does.
+    await page.locator('[data-operator-panel="mesh.inset"] .me-operator-title').click()
+    const thickness = page.locator('[data-operator-panel="mesh.inset"] #me-prop-thickness')
+    await expect(thickness).toBeVisible()
+    await thickness.fill('0.3')
+    await expect.poll(async() => JSON.stringify(await selectedVerts())).not.toBe(JSON.stringify(thin))
+    s = await state()
+    expect(s.counts).toEqual([12, 20, 10])
+    expect(s.lastProps?.thickness).toBe(0.3)
+    expect(s.history).toEqual(['Add Cube', 'Inset cube'])
+    // Leave the text field (a click on empty space deselects, which is not an undo step) and undo.
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+    expect((await state()).lastOp).toBeNull()
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 10])
+
+    // 4. One history across modes: Tab out, Shift+A opens the Add menu at the cursor, UV Sphere.
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('object')
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Shift+KeyA')
+    const popup = page.locator('.me-popup-menu')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await expect.poll(async() => (await state()).objects).toBe(2)
+    s = await state()
+    expect(s.history).toEqual(['Add Cube', 'Inset cube', 'Add Sphere'])
+    expect(s.cubeFaces).toBe(10)
+    // Ctrl+Z walks back through the object step, then the edit-mode step, then the first add.
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).objects).toBe(1)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).cubeFaces).toBe(6)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).objects).toBe(0)
+    expect((await state()).history).toEqual(['Add Cube *', 'Inset cube *', 'Add Sphere *'])
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Control+Shift+KeyZ')
+    await expect.poll(async() => (await state()).objects).toBe(2)
+    expect((await state()).cubeFaces).toBe(10)
+
+    // 5. Context menus: object mode lists object operators; edit mode lists the select-mode ones, and
+    // Delete opens Blender's delete-type menu. The X key opens the same menu at the cursor.
+    await page.mouse.click(cx, cy, {button: 'right'})
+    // The popup menus the engine asks for share the context menu's styling; tell them apart here.
+    const context = page.locator('.me-context-menu:not(.me-popup-menu)')
+    await expect(context).toBeVisible()
+    await expect(context).toContainText('Duplicate')
+    await expect(context).toContainText('Apply Transform')
+    await page.keyboard.press('Escape')
+    await expect(context).toHaveCount(0)
+    // The sphere sits inside the cube: a click on the already-selected cube cycles to the object behind
+    // it (Blender's Alt+click), and an outliner click on a selected node toggles it off, so the
+    // precondition - the cube selected - is set through the API; the rest is keys and clicks.
+    await page.evaluate(() => {
+        const w = window as any
+        w.engine.picking.setSelectedObject(w.modelling.document.find('cube').object, false, false)
+    })
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    expect((await state()).counts).toEqual([12, 20, 10])
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel[2]).toBe(1)
+    await page.keyboard.press('KeyX')
+    await expect(popup).toBeVisible()
+    await expect(popup).toContainText('Only Faces')
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await page.mouse.click(cx, cy, {button: 'right'})
+    await expect(context).toBeVisible()
+    await expect(context).toContainText('Inset Faces')
+    // A menu item's accessible name carries its shortcut label too ("Delete X").
+    await context.getByRole('menuitem', {name: /^Delete\b/}).click()
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'Faces', exact: true}).click()
+    await expect.poll(async() => (await state()).counts![2]).toBe(9)
+    expect((await state()).history.at(-1)).toBe('Delete cube')
+
+    // 6. Switching to the Design preset re-derives every shortcut and changes what the keys do:
+    // Ctrl+K opens the palette, Esc backs out one level, Enter enters edit mode.
+    await page.keyboard.press('F3')
+    await palette.fill('keymap')
+    await page.keyboard.press('Enter')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: /Design/}).click()
+    await expect.poll(async() => (await state()).preset).toBe('design')
+    s = await state()
+    expect(s.shortcuts).toEqual({extrude: 'Ctrl+E', palette: 'Ctrl+K', undo: 'Ctrl+Z'})
+    await expect(page.locator('[data-tool="mesh.extrude"]')).toBeVisible()
+    await page.keyboard.press('F3')
+    await expect(palette).toHaveCount(0)
+    await page.keyboard.press('Control+KeyK')
+    await expect(palette).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(palette).toHaveCount(0)
+    await page.keyboard.press('Escape') // edit mode with nothing selected: back out to object mode
+    await expect.poll(async() => (await state()).mode).toBe('object')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
 })
