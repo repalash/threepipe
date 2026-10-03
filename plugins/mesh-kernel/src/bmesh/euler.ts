@@ -253,6 +253,11 @@ export interface SplitFaceResult {
     fNew: BMFace
     /** The edge created between the two loops. */
     eNew: BMEdge
+    /**
+     * Blender's `r_l`: the loop of {@link fNew} along {@link eNew}, running from `lv1.v` to `lv2.v`.
+     * Its `radialNext` is the original face's loop along the same edge, running the other way.
+     */
+    lNew: BMLoop
 }
 
 /**
@@ -261,9 +266,12 @@ export interface SplitFaceResult {
  * Both loops must belong to `f` and must not be adjacent, or the "split" would produce a degenerate
  * face. The original face keeps the part containing `lv1`'s side; a new face is returned for the rest.
  *
- * Port of `bmesh_kernel_split_face_make_edge` (`bmesh_core.cc:1507`).
+ * Port of `bmesh_kernel_split_face_make_edge` (`bmesh_core.cc:1507`). `example` is Blender's
+ * `e_example`, copied onto the new edge; `noDouble` is `BM_CREATE_NO_DOUBLE`, reusing an edge that
+ * already joins the two vertices (a connect across a face whose corners are already joined by a
+ * wire edge, or a second face across the same cut).
  */
-export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop): SplitFaceResult {
+export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop, example?: BMEdge, noDouble = false): SplitFaceResult {
     if (lv1.f !== f || lv2.f !== f) {
         throw new Error(`mesh-kernel: both loops must belong to face ${f.id}`)
     }
@@ -274,7 +282,7 @@ export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop
 
     const v1 = lv1.v
     const v2 = lv2.v
-    const eNew = bm.edgeCreate(v1, v2)
+    const eNew = bm.edgeCreate(v1, v2, example, {noDouble})
 
     const fNew = new BMFace(bm.nextId())
     fNew.hflag = f.hflag
@@ -352,7 +360,8 @@ export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop
     f.len = f1len
 
     bm.faces.add(fNew)
-    return {fNew, eNew}
+    // `if (r_l) *r_l = l_f2;` (`bmesh_core.cc:1622`).
+    return {fNew, eNew, lNew: lF2}
 }
 
 /**
