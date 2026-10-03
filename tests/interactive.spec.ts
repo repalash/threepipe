@@ -2649,6 +2649,14 @@ test('modelling-api', async({page}) => {
     expect(exportedObjects).toBe(true)
     const backToPerspective = await run({op: 'camera', projection: 'perspective', fov: 45})
     expect((backToPerspective.data as any).projection).toBe('perspective')
+
+    // A camera further from the model than threepipe's default far-plane limit (1000) must not clip
+    // it away: the far plane is raised to reach the model's far side, and the command says so.
+    const distant = await run({op: 'camera', position: [0, 2, 1500], target: [0, 2, 0]})
+    expect(distant.ok).toBe(true)
+    expect((distant.warnings ?? []).join(' ')).toContain('far plane')
+    const far = await page.evaluate(() => (window as any).viewer.scene.mainCamera.far)
+    expect(far).toBeGreaterThan(1502)
     await run({op: 'delete', object: 'tall'})
 
     const computed = await run({op: 'camera', view: 'top', fit: '*', save: 'overhead'})

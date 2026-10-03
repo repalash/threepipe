@@ -7,7 +7,10 @@
  * repeatable views, no clearance checks. Those are commands, not algorithms, and they live here.
  */
 
-import {Box3, Box3B, getFittingDistance, ICamera, OrthographicCamera2, PerspectiveCamera2, ThreeViewer, Vector3} from 'threepipe'
+import {
+    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
+    Vector3,
+} from 'threepipe'
 import {bakeGeometry} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
@@ -24,15 +27,46 @@ import {ModellingEntry} from '../document'
  */
 export function applyCamera(
     viewer: ThreeViewer, position: Vector3 | null, target: Vector3,
-): void {
+): number | null {
     const camera = viewer.scene.mainCamera
     if (position) camera.position.copy(position)
     camera.target.copy(target)
     camera.lookAt(target)
     camera.updateMatrixWorld(true)
+    const raised = ensureFarPlane(viewer)
     camera.setDirty?.()
     viewer.scene.refreshActiveCameraNearFar()
     viewer.setDirty()
+    return raised
+}
+
+/**
+ * Make sure the far plane reaches the far side of the model from where the camera now is.
+ *
+ * threepipe derives near and far from the scene bounds, but clamps far at the camera's `maxFarPlane`
+ * (`iCameraCommons.defaultMaxFar`, 1000 units, when unset) - `RootScene.refreshActiveCameraNearFar`.
+ * Put the camera more than that from a model, as a view of anything tall from a realistic distance
+ * does, and every fragment is clipped: the capture comes back blank, with no error. When the model's
+ * farthest corner is beyond the limit this raises the camera's own `maxFarPlane` - threepipe's knob
+ * for exactly this - to reach it, and returns the new value; otherwise it returns null.
+ */
+function ensureFarPlane(viewer: ThreeViewer): number | null {
+    const camera = viewer.scene.mainCamera as ICamera & {maxFarPlane?: number}
+    const box = new Box3B().expandByObject(viewer.scene.modelRoot as never, false, true)
+    if (box.isEmpty()) return null
+    const eye = camera.getWorldPosition(new Vector3())
+    let farthest = 0
+    for (let i = 0; i < 8; i++) {
+        const c = new Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y,
+            i & 4 ? box.max.z : box.min.z)
+        farthest = Math.max(farthest, c.distanceTo(eye))
+    }
+    const limit = camera.maxFarPlane ?? iCameraCommons.defaultMaxFar
+    if (farthest <= limit) return null
+    // Rounded up, so a camera that moves a little further does not raise it again every time.
+    const raised = Math.ceil(farthest * 1.25 / 100) * 100
+    camera.maxFarPlane = raised
+    return raised
 }
 
 /** Named orientations, as unit directions from the target towards the camera. */
@@ -265,7 +299,10 @@ export const cameraCommand: CommandDefinition = {
         if (p.target !== undefined) target = new Vector3(...readVec3(p.target, [0, 0, 0], 'target'))
 
         if (position || p.target !== undefined || framing) {
-            applyCamera(viewer, position, target)
+            const raised = applyCamera(viewer, position, target)
+            if (raised !== null) {
+                ctx.warn(`raised the camera's far plane (maxFarPlane) to ${raised} so the model is not clipped`)
+            }
         }
         if (ortho) {
             const ocam = camera as OrthographicCamera2
