@@ -617,7 +617,12 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
 
     if (!faces) return geometry
 
-    const size = faces.reduce((acc, face) => acc + Math.floor(face.totloop * 3.0 / 2), 0)
+    // A face with n corners is n - 2 triangles, exactly. The previous sizing, `floor(totloop * 3 / 2)`,
+    // over-allocated every odd-sided face (a triangle reserved 4 slots and used 3) and never trimmed,
+    // so the index buffer ended in unused zero entries and its length was usually not a multiple of 3.
+    let triCount = 0
+    for (const face of faces) if (face.totloop >= 3) triCount += face.totloop - 2
+    const size = triCount * 3
     const indices = new Uint32Array(size)
     const uvs = new Float32Array(size * 2)
     const normals = new Float32Array(size * 3)
@@ -632,51 +637,51 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
     const useGroups = (mesh.totcol || 0) > 1
     const groupRuns: GroupRun[] = []
 
+    const emitCorner = (loopIndex: number) => {
+        const loop = loops[loopIndex]
+        const {co, no} = (loop && vertices[loop.v]) || {}
+        indices[currentIndex] = currentIndex
+
+        if (co) {
+            positions[currentIndex * 3 + 0] = co[0]
+            positions[currentIndex * 3 + 1] = co[2]
+            positions[currentIndex * 3 + 2] = -co[1]
+        }
+
+        if (no) {
+            normals[currentIndex * 3 + 0] = no[0]
+            normals[currentIndex * 3 + 1] = no[2]
+            normals[currentIndex * 3 + 2] = -no[1]
+        } else {
+            computeNormals = true
+        }
+
+        if (uv) {
+            const uv1 = uv[loopIndex].uv
+            uvs[currentIndex * 2 + 0] = uv1[0]
+            uvs[currentIndex * 2 + 1] = uv1[1]
+        }
+
+        currentIndex++
+    }
+
     for (const face of faces) {
         const len = face.totloop
         const start = face.loopstart
         const faceStartIndex = currentIndex
-        let indexi = 1
 
-        while (indexi < len) {
-
-            let index = 0
-
-            for (let l = 0; l < 3; l++) {
-                // Per Vertex
-
-                index = start
-                if (indexi - 1 + l < len)
-                    index += indexi - 1 + l
-
-                const loop = loops[index]
-                const {co, no} = vertices[loop.v] || {}
-                indices[currentIndex] = currentIndex
-
-                if (co) {
-                    positions[currentIndex * 3 + 0] = co[0]
-                    positions[currentIndex * 3 + 1] = co[2]
-                    positions[currentIndex * 3 + 2] = -co[1]
-                }
-
-                if (no) {
-                    normals[currentIndex * 3 + 0] = no[0]
-                    normals[currentIndex * 3 + 1] = no[2]
-                    normals[currentIndex * 3 + 2] = -no[1]
-                } else {
-                    computeNormals = true
-                }
-
-                if (uv) {
-                    const uv1 = uv[index].uv
-                    uvs[currentIndex * 2 + 0] = uv1[0]
-                    uvs[currentIndex * 2 + 1] = uv1[1]
-                }
-
-                currentIndex++
-            }
-
-            indexi += 2
+        // Fan from the first corner: (0, k, k + 1). The previous step-2 strip emitted (0,1,2), (2,3,4),
+        // (4,5,6)... and wrapped the last corner back to 0, which covers a triangle and a quad but drops
+        // every triangle that does not touch the strip once a face has five or more corners - a
+        // pentagon lost its middle triangle and a 12-gon lost half its area. Triangles and quads come
+        // out exactly as before; the quad's second triangle is the same (0,2,3) up to rotation.
+        //
+        // A fan is exact for convex faces. Concave n-gons need ear clipping, which is the same open item
+        // as the fan in `createBufferGeometryFromAttributes`.
+        for (let k = 1; k + 1 < len; k++) {
+            emitCorner(start)
+            emitCorner(start + k)
+            emitCorner(start + k + 1)
         }
 
         if (useGroups) mergeGroupRun(groupRuns, faceStartIndex, currentIndex - faceStartIndex, face.mat_nr || 0)
@@ -694,6 +699,46 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
 
     if (computeNormals) {
         geometry.computeVertexNormals()
+    }
+
+    // The Catmull-Clark cage, in the same shape `createBufferGeometryFromAttributes` builds for 3.6-4.x
+    // files: shared positions, the faces as vertex lists, per-corner UVs, per-face material slots.
+    //
+    // Without it, a Subsurf on a pre-3.6 file fell through to Loop subdivision of the buffer above -
+    // which has one vertex per *corner*, so every triangle is disconnected from its neighbours. Loop
+    // cannot smooth anything it cannot see across, so the result was four times the triangles with no
+    // smoothing at all; and every vertex of that soup is a boundary vertex, which made the subdivider's
+    // boundary pass quadratic. A 171 MB Blender 2.7x car took minutes to produce nothing visible.
+    // `MPoly`/`MLoop` already describe the n-gons exactly; this hands them to the subdivider that
+    // matches Blender's (`OSD_SCHEME_CATMARK`).
+    const vertArray: any[] = Array.isArray(vertices) ? vertices : vertices ? [vertices] : []
+    const loopArray: any[] = Array.isArray(loops) ? loops : loops ? [loops] : []
+    const uvArray: any[] | null = uv ? (Array.isArray(uv) ? uv : [uv]) : null
+    const cagePositions: number[][] = vertArray.map(v => v && v.co ? [v.co[0], v.co[2], -v.co[1]] : [0, 0, 0])
+    const cageFaces: number[][] = []
+    const cageUVs: number[][][] | null = uvArray ? [] : null
+    const cageMats: number[] | null = useGroups ? [] : null
+    for (const face of faces) {
+        const corners: number[] = []
+        const cornerUVs: number[][] = []
+        for (let k = 0; k < face.totloop; k++) {
+            const loop = loopArray[face.loopstart + k]
+            const v = loop ? loop.v : -1
+            if (!(v >= 0 && v < cagePositions.length)) continue
+            corners.push(v)
+            if (uvArray) {
+                const e = uvArray[face.loopstart + k]
+                cornerUVs.push(e && e.uv ? [e.uv[0], e.uv[1]] : [0, 0])
+            }
+        }
+        if (corners.length < 3) continue
+        cageFaces.push(corners)
+        if (cageUVs) cageUVs.push(cornerUVs)
+        if (cageMats) cageMats.push(face.mat_nr || 0)
+    }
+    if (cageFaces.length) {
+        geometry.userData = geometry.userData || {}
+        geometry.userData.__cage = {positions: cagePositions, faces: cageFaces, uvs: cageUVs, materialIndices: cageMats}
     }
 
     return geometry

@@ -4,3 +4,4 @@ export {createMeshData, MESH_DATA_KEY, MESH_TOPOLOGY_USERDATA} from './loader/me
 export type {MeshDataSkipReporter} from './loader/meshData'
 export {cageFromMeshData} from './loader/catmull'
 export type {Cage} from './loader/catmull'
+export type {BlendEvaluationMode} from './loader/ctx'

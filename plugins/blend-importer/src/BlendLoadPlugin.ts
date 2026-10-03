@@ -30,6 +30,7 @@ import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 import {MESH_TOPOLOGY_USERDATA} from './loader/meshData'
 import {decompressBlend} from './decompress'
+import type {BlendEvaluationMode} from './loader/ctx'
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
 
@@ -204,6 +205,15 @@ export interface BlendLoadOptions {
  */
 export class BlendLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'BlendLoadPlugin'
+
+    /**
+     * Evaluate modifier stacks the way Blender's viewport does (`'viewport'`, the default, and what
+     * Blender's own exporters do) or the way its renderer does (`'render'`). The mode decides which
+     * modifiers run and which Subsurf level is used; the render level is usually higher, and every
+     * extra level quadruples the triangles. See {@link BlendEvaluationMode}.
+     */
+    evaluationMode: BlendEvaluationMode = 'viewport'
+
     constructor() {
         super()
     }
@@ -265,6 +275,8 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
         // The AssetImporter that constructed this loader (injected via the Importer onCtor below). Used to
         // load external textures through the full pipeline (correct loader per format + cache).
         assetImporter?: IAssetImporter
+        // The plugin that registered this loader, for its import settings. Injected below like the importer.
+        plugin?: BlendLoadPlugin
         async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
             this.setResponseType('arraybuffer')
             let res: ArrayBuffer | null = (await super.loadAsync(url, onProgress)) as ArrayBuffer
@@ -292,6 +304,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 AmbientLight: AmbientLight2,
                 BufferGeometry: BufferGeometry2,
                 BufferAttribute: BufferAttribute,
+                evaluationMode: this.plugin?.evaluationMode,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
                         const req = resolveExternalTexture(p, srgb, importer, url)
@@ -321,9 +334,12 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
         }
     }, ['blend'], ['application/x-blender'], true, (loader, assetImporter) => {
         // Inject the AssetImporter so the loader can import external textures through the full pipeline.
-        if (loader) (loader as any).assetImporter = assetImporter
-        // ...and a bound hook, so an imported mesh's topology can be handed to ModellingPlugin.
-        if (loader) (loader as any).adoptTopology = (root: Object3D) => this._adoptTopology(root)
+        if (loader) {
+            (loader as any).assetImporter = assetImporter
+            ;(loader as any).plugin = this
+            // ...and a bound hook, so an imported mesh's topology can be handed to ModellingPlugin.
+            ;(loader as any).adoptTopology = (root: Object3D) => this._adoptTopology(root)
+        }
         return loader
     })
 }
