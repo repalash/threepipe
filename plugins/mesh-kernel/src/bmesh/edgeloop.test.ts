@@ -15,7 +15,7 @@ import {
 import {foreachSparseRange} from '../math/geom'
 import {edgeSplit, faceSplit} from './mods'
 import {ElemFlag, SelectMode} from '../constants'
-import {edgeSelectSet, selectModeFlush} from './marking'
+import {edgeSelectSet, faceSelectSet, selectModeFlush} from './marking'
 
 /** An `n` x `m` grid of quads in the XY plane; vertex (x, y) is `verts[y * (n + 1) + x]`. */
 function grid(bm: BMesh, n: number, m: number): BMVert[] {
@@ -208,6 +208,20 @@ describe('BM_face_split', () => {
         expect(r.lNew.next.v).toBe(vs[2])
         expect(r.lNew.radialNext.f).toBe(f)
         expect(bm.validate()).toEqual([])
+    })
+
+    it('starts the new face unselected, keeping the other header flags (bm_face_create__sfme)', () => {
+        const bm = new BMesh()
+        bm.selectMode = SelectMode.Face
+        const vs = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => bm.vertCreate(x, y, 0))
+        const f = bm.faceCreate(vs)
+        f.hflag |= ElemFlag.Smooth
+        faceSelectSet(bm, f, true)
+        const l = [...f.eachLoop()]
+        const {fNew} = faceSplit(bm, f, l[0], l[2])!
+        expect(fNew.hflag & ElemFlag.Select).toBe(0)
+        expect(fNew.hflag & ElemFlag.Smooth).toBe(ElemFlag.Smooth)
+        expect(bm.totfacesel).toBe(1)
     })
 })
 
