@@ -35,7 +35,7 @@ import {Vec3, v3add, v3cross, v3dot, v3sub} from '../math'
 import {lenV3V3, normalizeV3Len, orthoV3V3, projectPlaneNormalizedV3V3V3} from '../math/geom'
 import {ConnectVertsResult, EDIT_END_FLAGS, connectVertsExec, loopsOfEdge} from './connect'
 import {loopsOfVert} from './dissolve'
-import {bmeshEditEnd} from './edgenet'
+import {bmeshEditEnd} from './bmo'
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]
 

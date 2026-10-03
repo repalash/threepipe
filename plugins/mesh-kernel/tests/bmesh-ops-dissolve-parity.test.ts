@@ -23,7 +23,8 @@ import {vertHideSet} from '../src/bmesh/marking'
 import {normalsUpdate} from '../src/ops/bevel-bmquery'
 import {dissolveFaces, dissolveFacesSelection, DissolveSelectionResult} from '../src/ops/dissolve'
 import {dissolveEdges, dissolveEdgesSelection, dissolveModeSelection, dissolveVerts, dissolveVertsSelection} from '../src/ops/dissolveEdges'
-import {BLIHeap, dissolveLimit, DissolveDelimit, dissolveLimitedSelection} from '../src/ops/dissolveLimit'
+import {dissolveLimit, DissolveDelimit, dissolveLimitedSelection} from '../src/ops/dissolveLimit'
+import {Heap as BLIHeap} from '../src/math/heap'
 
 interface Extras {
     seams?: number[][]

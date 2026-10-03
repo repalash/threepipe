@@ -23,7 +23,7 @@ import {
 } from '../bmesh/edgeloop'
 import {edgeSplit, faceSplit} from '../bmesh/mods'
 import {elemHflagDisableAll} from '../bmesh/hflag'
-import {BmeshEditEndFlags, bmeshEditEnd} from './edgenet'
+import {BmeshEditEndFlags, bmoOpExec} from './bmo'
 import {closestToLineV3} from './bevel-math'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3, v3cross, v3dot, v3sub} from '../math'
@@ -37,32 +37,6 @@ const FLT_EPSILON = 1.1920928955078125e-7
 
 // region helpers (generic - exported for reuse)
 
-/**
- * What `BMO_push` / `BMO_pop` (`bmesh_operators.cc:62`, `:77`) leave behind on the elements:
- * `bmo_flag_layer_alloc` / `_clear` / `_free` (`:1183`, `:1305`, `:1245`) walk every vertex, edge
- * and face to (re)allocate the operator flag layer and, "since we are looping over all data anyway",
- * set each one's `head.index` to its position in mesh order and clear the dirty bits. So every
- * operator - nested ones too - starts and ends with valid vertex/edge/face indices. Operators that
- * read `BM_elem_index_get` without an explicit ensure (beautify's rotation states,
- * `bmesh_beautify.cc:112`) depend on it.
- */
-export function bmoFlagLayerIndex(bm: BMesh): void {
-    bm.elemIndexEnsure(ElemType.Vert | ElemType.Edge | ElemType.Face)
-}
-
-/**
- * `BMO_op_exec` (`bmesh_operators.cc:168`): `BMO_push`, the operator, `bmesh_edit_end` with the
- * operator's `type_flag` when it is the outermost operator (`toolflag_index == 1`; `bmesh_edit_begin`
- * does nothing without multires), then `BMO_pop`. `typeFlag` is null for an operator run from inside
- * another one, which gets no `bmesh_edit_end`.
- */
-export function bmoOpExec<T>(bm: BMesh, typeFlag: BmeshEditEndFlags | null, exec: () => T): T {
-    bmoFlagLayerIndex(bm) // BMO_push
-    const result = exec()
-    if (typeFlag) bmeshEditEnd(bm, typeFlag)
-    bmoFlagLayerIndex(bm) // BMO_pop
-    return result
-}
 
 /**
  * `BM_edge_split_n` (`bmesh_mods.cc:584`): split `e` into `numcuts + 1` equal parts, always at its

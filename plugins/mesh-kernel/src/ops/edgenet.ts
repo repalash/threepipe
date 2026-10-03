@@ -22,10 +22,8 @@ import {faceNormalFlip} from '../bmesh/flip'
 import {faceNormalUpdate} from '../bmesh/polygon'
 import {edgesSortWinding} from '../bmesh/ngon'
 import {edgeInFace} from '../bmesh/euler'
-import {selectModeFlush} from '../bmesh/marking'
 import {faceExists} from './weld'
 import {faceCalcCenterMedianWeighted} from './poke'
-import {normalsUpdate} from './bevel-bmquery'
 import {Vec3} from '../math'
 import {
     addNewellCrossV3V3V3,
@@ -835,28 +833,6 @@ export function faceAttributeFill(bm: BMesh, faces: readonly BMFace[], useNormal
     return []
 }
 
-/** `BMO_OPTYPE_FLAG_*` bits that `bmesh_edit_end` acts on. */
-export interface BmeshEditEndFlags {
-    normalsCalc?: boolean
-    selectFlush?: boolean
-    selectValidate?: boolean
-}
-
-/**
- * `bmesh_edit_end` (`bmesh_mesh.cc:298`): what `BMO_op_exec` does after a top-level operator (not
- * one called from inside another): recompute normals, flush the selection by the mesh's select mode,
- * and (without `selectValidate`) keep the select history untouched across that flush.
- */
-export function bmeshEditEnd(bm: BMesh, flags: BmeshEditEndFlags): void {
-    if (flags.normalsCalc) normalsUpdate(bm)
-    let selectHistory = null
-    if (!flags.selectValidate) {
-        selectHistory = bm.selectHistory
-        bm.selectHistory = []
-    }
-    if (flags.selectFlush) selectModeFlush(bm)
-    if (!flags.selectValidate) bm.selectHistory = selectHistory!
-}
 
 // endregion
 

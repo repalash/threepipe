@@ -37,8 +37,7 @@ import {edgeSelectSetNoflush, selectCountsRecalc} from '../bmesh/marking'
 import {elemsHflagEnable} from '../bmesh/hflag'
 import {walkIsland} from '../bmesh/walkers'
 import {ElemFlag, ElemType} from '../constants'
-import {bmeshEditEnd, BmeshEditEndFlags} from './edgenet'
-import {bmoDeleteFacesContext} from './gridFill'
+import {bmeshEditEnd, BmeshEditEndFlags, bmoMeshDeleteFacesContext} from './bmo'
 
 // region helpers
 //
@@ -658,7 +657,7 @@ export function dissolveFaces(bm: BMesh, faces: readonly BMFace[], options: Diss
         // `%ff` collects the faces carrying FACE_ORIG now; the nested operator has fresh flags.
         const geom = new Set<BMFace>()
         for (const f of bm.faces) if (faceOrig.has(f)) geom.add(f)
-        bmoDeleteFacesContext(bm, new Set(), new Set(), geom)
+        bmoMeshDeleteFacesContext(bm, new Set(), new Set(), geom)
     }
 
     if (useVerts) {

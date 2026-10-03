@@ -22,8 +22,8 @@ import {faceEdgeShareLoop} from '../bmesh/euler'
 import {faceVertShareLoop} from '../bmesh/walkers'
 import {faceExists} from './weld'
 import {dissolveFaces} from './dissolve'
+import {bmeshEditEnd} from './bmo'
 import {
-    bmeshEditEnd,
     edgenetFill,
     edgenetPrepare,
     edgeShareFaceCheck,

@@ -29,7 +29,7 @@ import {angleOnAxisV3V3V3V3, angleV3V3V3} from '../math/geom'
 import {v3dot, Vec3} from '../math'
 import {ElemFlag, SelectMode, SelectModeMask} from '../constants'
 import {normalsUpdate} from './bevel-bmquery'
-import {bmeshEditEnd} from './edgenet'
+import {bmeshEditEnd} from './bmo'
 import {
     DISSOLVE_EDIT_END,
     dissolveFacesSelection,

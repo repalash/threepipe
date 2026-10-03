@@ -32,8 +32,7 @@ import {
     normalizeV3Len, subV2V2,
 } from '../math/geom'
 import {Heap, HeapNode} from '../math/heap'
-import {BmeshEditEndFlags} from './edgenet'
-import {bmoOpExec} from './subdivideEdgering'
+import {BmeshEditEndFlags, bmoOpExec} from './bmo'
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]
 

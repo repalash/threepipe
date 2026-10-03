@@ -15,9 +15,8 @@
  * that the rail test reads alongside the real hidden flag, which is the same test without touching
  * the elements.
  *
- * The bmesh operator's `BMO_OPTYPE_FLAG_SELECT_FLUSH` (`bmesh_opdefines.cc:904`) is honoured (see
- * {@link bmoEditEnd}); `BMO_OPTYPE_FLAG_NORMALS_CALC` is not, because the kernel has no
- * `BM_mesh_normals_update` - normals are recomputed when the BMesh is converted back.
+ * The bmesh operator's `type_flag` (`BMO_OPTYPE_FLAG_NORMALS_CALC | SELECT_FLUSH`,
+ * `bmesh_opdefines.cc:904`) is applied by `bmoOpExec` (`bmo.ts`) in {@link gridFillSelection}.
  *
  * Not ported, because the kernel has no such data: the multires (`CD_MDISPS`) flip of
  * `reverse_faces flip_multires=true` and `flip_custom_normals` in the split-join path (no custom
@@ -26,7 +25,7 @@
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {diskEdgeExists, diskEdges, edgeIsBoundary, edgeIsWire, radialLoops} from '../bmesh/structure'
+import {diskEdgeExists, diskEdges, edgeIsBoundary, edgeIsWire} from '../bmesh/structure'
 import {
     BMEdgeLoopStore,
     edgeloopEdgesGet,
@@ -36,16 +35,17 @@ import {
     edgeloopsFind,
     edgeloopsFindPath,
 } from '../bmesh/edgeloop'
-import {copyElemAttrs, copyElemHeader, faceAttrsCopy, interpElemAttrs} from '../bmesh/customdata'
+import {faceAttrsCopy, interpElemAttrs} from '../bmesh/customdata'
 import {edbmAddEdgeFaceSmoothGet} from './fill'
 import {edgeCollapse} from '../bmesh/collapse'
 import {faceNormalFlip} from '../bmesh/flip'
-import {selectCountsRecalc, selectModeFlush} from '../bmesh/marking'
+import {selectCountsRecalc} from '../bmesh/marking'
 import {elemsHflagEnable} from '../bmesh/hflag'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3} from '../math'
 import {angleV3V3V3, barycentricWeightsV2Quad, lenV3V3, modI, normalizeV3Len, transformPointByTriV3} from '../math/geom'
 import {weldVerts} from './weld'
+import {bmoMeshDeleteFacesContext, bmoOpExec, bmoSplitExec} from './bmo'
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]
 
@@ -529,243 +529,6 @@ export function gridFill(bm: BMesh, edges: Iterable<BMEdge>, options: GridFillOp
 
 // endregion
 
-// region helpers - bmo_dupe.cc / bmesh_delete.cc / bmesh_operators.cc pieces the kernel lacks
-
-/**
- * The end of `BMO_op_exec` (`bmesh_operators.cc:181`, `bmesh_edit_end`, `bmesh_mesh.cc:300`) for an
- * operator with `BMO_OPTYPE_FLAG_SELECT_FLUSH`: flush the selection by the select mode. Without
- * `BMO_OPTYPE_FLAG_SELECT_VALIDATE` the select history is saved before and restored after, so the
- * flush cannot prune it. (`NORMALS_CALC` is not ported, see the module comment.)
- */
-export function bmoEditEnd(bm: BMesh, selectValidate: boolean): void {
-    const history = selectValidate ? null : [...bm.selectHistory]
-    // `selectModeFlush` recounts the totals at the end, as `BM_mesh_select_mode_flush_ex` does
-    // (`bmesh_marking.cc:529-538`), so kills and raw flag edits before this leave no stale counters.
-    selectModeFlush(bm)
-    if (history) bm.selectHistory = history
-}
-
-/** Elements by type, a `BMO` element buffer split in three. */
-export interface BMOGeom {
-    verts: BMVert[]
-    edges: BMEdge[]
-    faces: BMFace[]
-}
-
-export interface BMODuplicateResult {
-    /** `geom.out`: the new elements, in mesh order (verts, edges, faces). */
-    geomOut: BMOGeom
-    /** `boundary_map.out`: source edge -> new edge, for every copied edge with fewer than two input faces. */
-    boundaryMap: Map<BMEdge, BMEdge>
-    /** `vert_map.out` / `edge_map.out` / `face_map.out` in the source -> copy direction. */
-    vertMap: Map<BMVert, BMVert>
-    edgeMap: Map<BMEdge, BMEdge>
-    faceMap: Map<BMFace, BMFace>
-}
-
-/**
- * `bmo_duplicate_exec` (`bmo_dupe.cc:370`) with `bmo_mesh_copy` (`:209`) and its element copies
- * (`bmo_vert_copy` :35, `bmo_edge_copy` :71, `bmo_face_copy` :147), within one mesh, with
- * `use_select_history` and `use_edge_flip_from_face` off (the defaults) and without `isovert_map.out`.
- *
- * Unlike `duplicateGeometry` in `duplicate.ts` this keeps Blender's order (input vertices, then input
- * edges, then input faces with whatever they still need), creates edges without the no-double
- * check, and records `boundary_map.out`, which the split-join of Grid Fill needs.
- */
-export function bmoDuplicate(bm: BMesh, geom: BMOGeom): BMODuplicateResult {
-    // DUPE_INPUT / DUPE_DONE / DUPE_NEW
-    const inV = new Set(geom.verts), inE = new Set(geom.edges), inF = new Set(geom.faces)
-    const doneV = new Set<BMVert>(), doneE = new Set<BMEdge>()
-    const newElems = new Set<BMVert | BMEdge | BMFace>()
-    const vhash = new Map<BMVert, BMVert>()
-    const ehash = new Map<BMEdge, BMEdge>()
-    const faceMap = new Map<BMFace, BMFace>()
-    const boundaryMap = new Map<BMEdge, BMEdge>()
-
-    /** `bmo_vert_copy`: `BM_vert_create(.., BM_CREATE_SKIP_CD)` + `BM_elem_attrs_copy`. */
-    const vertCopy = (vSrc: BMVert): BMVert => {
-        const vDst = bm.vertCreate(vSrc.x, vSrc.y, vSrc.z, vSrc)
-        vhash.set(vSrc, vDst)
-        newElems.add(vDst)
-        return vDst
-    }
-
-    /** `bmo_edge_copy`. */
-    const edgeCopy = (eSrc: BMEdge): BMEdge => {
-        // "see if any of the neighboring faces are not being duplicated. in that case, add it to the
-        // new/old map."
-        let rlen = 0
-        for (const l of radialLoops(eSrc)) if (inF.has(l.f)) rlen++
-        const eDst = bm.edgeCreate(vhash.get(eSrc.v1)!, vhash.get(eSrc.v2)!, eSrc)
-        if (rlen < 2) boundaryMap.set(eSrc, eDst)
-        ehash.set(eSrc, eDst)
-        newElems.add(eDst)
-        return eDst
-    }
-
-    /** `bmo_face_copy`. */
-    const faceCopy = (fSrc: BMFace): BMFace => {
-        const lSrc = fSrc.loops()
-        const fDst = bm.faceCreateWithEdges(lSrc.map(l => vhash.get(l.v)!), lSrc.map(l => ehash.get(l.e!)!), fSrc)
-        faceMap.set(fSrc, fDst)
-        // copy per-loop custom data
-        const lDst = fDst.loops()
-        for (let i = 0; i < lSrc.length; i++) {
-            copyElemAttrs(lSrc[i], lDst[i], bm.ldata)
-            copyElemHeader(lSrc[i], lDst[i], 'loop')
-        }
-        newElems.add(fDst)
-        return fDst
-    }
-
-    // duplicate flagged vertices
-    for (const v of [...bm.verts]) {
-        if (inV.has(v) && !doneV.has(v)) {
-            vertCopy(v)
-            doneV.add(v)
-        }
-    }
-    // now we dupe all the edges
-    for (const e of [...bm.edges]) {
-        if (inE.has(e) && !doneE.has(e)) {
-            // make sure that verts are copied
-            if (!doneV.has(e.v1)) {
-                vertCopy(e.v1)
-                doneV.add(e.v1)
-            }
-            if (!doneV.has(e.v2)) {
-                vertCopy(e.v2)
-                doneV.add(e.v2)
-            }
-            edgeCopy(e)
-            doneE.add(e)
-        }
-    }
-    // first we dupe all flagged faces and their elements from source
-    for (const f of [...bm.faces]) {
-        if (!inF.has(f)) continue
-        for (const l of f.loops()) {
-            if (!doneV.has(l.v)) {
-                vertCopy(l.v)
-                doneV.add(l.v)
-            }
-        }
-        for (const l of f.loops()) {
-            if (!doneE.has(l.e!)) {
-                edgeCopy(l.e!)
-                doneE.add(l.e!)
-            }
-        }
-        faceCopy(f)
-    }
-
-    const result: BMODuplicateResult = {
-        geomOut: {
-            verts: [...bm.verts].filter(v => newElems.has(v)),
-            edges: [...bm.edges].filter(e => newElems.has(e)),
-            faces: [...bm.faces].filter(f => newElems.has(f)),
-        },
-        boundaryMap, vertMap: vhash, edgeMap: ehash, faceMap,
-    }
-    // `bmo_duplicate_def`: NORMALS_CALC | SELECT_FLUSH.
-    bmoEditEnd(bm, false)
-    return result
-}
-
-/**
- * `BMO_mesh_delete_oflag_context` (`bmesh_delete.cc:86`) for `DEL_FACES`: the flagged faces go,
- * with every edge and vertex of theirs that no unflagged face (or, for vertices, unflagged edge)
- * still uses. The sets are the operator flag and are updated in place, as Blender's flags are;
- * `prepareFn` runs after the marking and before the removal, as Blender's does.
- */
-export function bmoDeleteFacesContext(
-    bm: BMesh, flagV: Set<BMVert>, flagE: Set<BMEdge>, flagF: Set<BMFace>, prepareFn?: () => void,
-): void {
-    // go through and mark all edges and all verts of all faces for delete
-    for (const f of bm.faces) {
-        if (!flagF.has(f)) continue
-        for (const l of f.eachLoop()) {
-            flagV.add(l.v)
-            flagE.add(l.e!)
-        }
-    }
-    // now go through and mark all remaining faces all edges for keeping
-    for (const f of bm.faces) {
-        if (flagF.has(f)) continue
-        for (const l of f.eachLoop()) {
-            flagV.delete(l.v)
-            flagE.delete(l.e!)
-        }
-    }
-    // also mark all the vertices of remaining edges for keeping
-    for (const e of bm.edges) {
-        if (!flagE.has(e)) {
-            flagV.delete(e.v1)
-            flagV.delete(e.v2)
-        }
-    }
-    if (prepareFn) prepareFn()
-
-    // `bmo_remove_tagged_faces` / `_edges` / `_verts` (`bmesh_delete.cc:19-53`)
-    for (const f of [...bm.faces]) if (flagF.has(f)) bm.faceKill(f)
-    for (const e of [...bm.edges]) if (flagE.has(e)) bm.edgeKill(e)
-    for (const v of [...bm.verts]) if (flagV.has(v)) bm.vertKill(v)
-}
-
-/**
- * `bmo_split_exec` (`bmo_dupe.cc:433`): duplicate `geom`, then delete the originals in the
- * `DEL_FACES` context (keeping whatever unselected faces still use). Returns the duplicate's
- * `geom.out` and the split's `boundary_map.out`, whose key is the destination itself when the source
- * edge was deleted ("Use the 'destination' as the key and the value since it avoids adding freed
- * geometry into the map", #142633).
- */
-export function bmoSplit(bm: BMesh, geom: BMOGeom, useOnlyFaces = false): {geomOut: BMOGeom, boundaryMap: Map<BMEdge, BMEdge>} {
-    const dupe = bmoDuplicate(bm, geom)
-
-    const newActFace = bm.actFace ? dupe.faceMap.get(bm.actFace) : undefined
-    if (newActFace) bm.actFace = newActFace
-
-    // SPLIT_INPUT
-    const flagV = new Set(geom.verts), flagE = new Set(geom.edges), flagF = new Set(geom.faces)
-
-    if (useOnlyFaces) {
-        // make sure to remove edges and verts we don't need
-        for (const e of bm.edges) {
-            let found = false
-            for (const l of radialLoops(e)) {
-                if (!flagF.has(l.f)) {
-                    found = true
-                    break
-                }
-            }
-            if (!found) flagE.add(e)
-        }
-        for (const v of bm.verts) {
-            let found = false
-            for (const e of diskEdges(v)) {
-                if (!flagE.has(e)) {
-                    found = true
-                    break
-                }
-            }
-            if (!found) flagV.add(v)
-        }
-    }
-
-    const boundaryMap = new Map<BMEdge, BMEdge>()
-    bmoDeleteFacesContext(bm, flagV, flagE, flagF, () => {
-        // "Call before deletion so deleted geometry isn't copied."
-        for (const [key, val] of dupe.boundaryMap) {
-            boundaryMap.set(flagE.has(key) ? val : key, val)
-        }
-    })
-
-    // `bmo_split_def`: NORMALS_CALC | SELECT_FLUSH.
-    bmoEditEnd(bm, false)
-    return {geomOut: dupe.geomOut, boundaryMap}
-}
-
-// endregion
 
 // region editmesh_tools.cc - MESH_OT_fill_grid
 
@@ -937,11 +700,12 @@ interface FillGridSplitJoin {
 function fillGridSplitJoinInit(bm: BMesh): FillGridSplitJoin {
     // Split the selection into an island (`split` with no operator flags: hidden elements count).
     const sel = (x: {hflag: number}) => (x.hflag & ElemFlag.Select) !== 0
-    const {geomOut, boundaryMap} = bmoSplit(bm, {
+    // `bmo_split_def`: NORMALS_CALC | SELECT_FLUSH.
+    const {geomOut, boundaryMap} = bmoOpExec(bm, {normalsCalc: true, selectFlush: true}, () => bmoSplitExec(bm, {
         verts: [...bm.verts].filter(sel),
         edges: [...bm.edges].filter(sel),
         faces: [...bm.faces].filter(sel),
-    })
+    }))
 
     // "Switch the selection to the corresponding edges on the island instead of the edges around the
     // hole, so fill_grid will interpolate using the face and loop data from the island."
@@ -987,8 +751,8 @@ function fillGridSplitJoinFinish(bm: BMesh, splitJoin: FillGridSplitJoin, change
     if (changed) {
         // `delete context=DEL_FACES` (`bmo_delete_exec`, `bmo_dupe.cc:527`); `bmo_delete_def` is
         // NORMALS_CALC | SELECT_FLUSH | SELECT_VALIDATE.
-        bmoDeleteFacesContext(bm, new Set(), new Set(), new Set(splitJoin.deleteFaces))
-        bmoEditEnd(bm, true)
+        bmoOpExec(bm, {normalsCalc: true, selectFlush: true, selectValidate: true},
+            () => bmoMeshDeleteFacesContext(bm, new Set(), new Set(), new Set(splitJoin.deleteFaces)))
     } else {
         elemsHflagEnable(bm, splitJoin.deleteFaces, ElemType.Vert | ElemType.Edge | ElemType.Face, ElemFlag.Select, true)
     }
@@ -1004,8 +768,7 @@ function fillGridSplitJoinFinish(bm: BMesh, splitJoin: FillGridSplitJoin, change
     }
 
     // Put the mesh back together (`weld_verts`: NORMALS_CALC | SELECT_FLUSH | SELECT_VALIDATE).
-    weldVerts(bm, splitJoin.weldTargetmap)
-    bmoEditEnd(bm, true)
+    bmoOpExec(bm, {normalsCalc: true, selectFlush: true, selectValidate: true}, () => weldVerts(bm, splitJoin.weldTargetmap))
 }
 
 /**
@@ -1066,9 +829,8 @@ export function gridFillSelection(bm: BMesh, options: GridFillSelectionOptions =
     // `grid_fill edges=%he` with `BMO_FLAG_DEFAULTS` (`BMO_FLAG_RESPECT_HIDE`): mesh order, not hidden.
     const edges = [...bm.edges].filter(e => !(e.hflag & ElemFlag.Hidden)
         && (usePrepare ? tagged.has(e) : (e.hflag & ElemFlag.Select) !== 0))
-    const r = gridFill(bm, edges, {matNr, useSmooth, useInterpSimple})
-    // `bmo_grid_fill_def`: NORMALS_CALC | SELECT_FLUSH (runs whether or not the operator failed).
-    bmoEditEnd(bm, false)
+    // `bmo_grid_fill_def`: NORMALS_CALC | SELECT_FLUSH (the edit end runs whether or not the operator failed).
+    const r = bmoOpExec(bm, {normalsCalc: true, selectFlush: true}, () => gridFill(bm, edges, {matNr, useSmooth, useInterpSimple}))
     // `EDBM_op_call_and_selectf(em, op, "faces.out", true, ..)`: add the new faces, flushing.
     if (r.ok) elemsHflagEnable(bm, r.faces, ElemType.Face, ElemFlag.Select, true)
     const changed = r.ok

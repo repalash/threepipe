@@ -12,8 +12,9 @@ import {edgeSelectSet} from '../bmesh/marking'
 import {normalsUpdate} from './bevel-bmquery'
 import {SelectMode} from '../constants'
 import {
-    bmoFlagLayerIndex, bmoSubdivideEdgering, edgeSplitN, subdFalloffCalc, subdivideEdgeringSelection,
+    bmoSubdivideEdgering, edgeSplitN, subdFalloffCalc, subdivideEdgeringSelection,
 } from './subdivideEdgering'
+import {bmoFlagLayerIndex} from './bmo'
 import {axisAngleToQuat, bisectV3V3V3, curveForwardDiffBezier} from '../math/geom'
 import {closestToLineV3} from './bevel-math'
 import {Vec3} from '../math'

@@ -31,7 +31,7 @@ import {elemsHflagEnable} from '../bmesh/hflag'
 import {faceEdgeShareLoop} from '../bmesh/euler'
 import {normalsUpdate} from './bevel-bmquery'
 import {loopsOfVert} from './dissolve'
-import {bmeshEditEnd} from './edgenet'
+import {bmeshEditEnd} from './bmo'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3, v3dot, v3sub} from '../math'
 import {

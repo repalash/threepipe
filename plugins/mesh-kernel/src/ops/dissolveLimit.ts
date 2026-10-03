@@ -32,7 +32,8 @@ import {angleNormalizedV3V3, angleV3V3V3, axisDominantV3ToM3, crossTriV2, Mat3Ro
 import {v3normalize, v3sub, Vec3} from '../math'
 import {ElemFlag, ElemType, SelectMode, SelectModeMask} from '../constants'
 import {normalsUpdate} from './bevel-bmquery'
-import {bmeshEditEnd} from './edgenet'
+import {bmeshEditEnd} from './bmo'
+import {Heap, HeapNode} from '../math/heap'
 import {
     DISSOLVE_EDIT_END,
     DissolveSelectionResult,
@@ -109,120 +110,6 @@ export function edgeCalcFaceAngleEx(e: BMEdge, fallback: number): number {
     }
     return fallback
 }
-
-/** A `HeapNode` (`BLI_heap.cc`). */
-export interface HeapNode<T> {
-    value: number
-    index: number
-    ptr: T
-}
-
-/**
- * `Heap` (`blenlib/intern/BLI_heap.cc`): Blender's binary min-heap, ported operation for operation so
- * equal values come out in Blender's order. Values are stored as float32, like `HeapNode::value`.
- */
-export class BLIHeap<T> {
-    private tree: HeapNode<T>[] = []
-
-    /** `heap_swap` */
-    private swap(i: number, j: number): void {
-        const tree = this.tree
-        const pi = tree[i], pj = tree[j]
-        pi.index = j
-        tree[j] = pi
-        pj.index = i
-        tree[i] = pj
-    }
-
-    /** `heap_down` */
-    private down(i: number): void {
-        const tree = this.tree
-        const size = tree.length
-        while (true) {
-            const l = (i << 1) + 1
-            const r = (i << 1) + 2
-            let smallest = i
-            if (l < size && tree[l].value < tree[smallest].value) smallest = l
-            if (r < size && tree[r].value < tree[smallest].value) smallest = r
-            if (smallest === i) break
-            this.swap(i, smallest)
-            i = smallest
-        }
-    }
-
-    /** `heap_up` */
-    private up(i: number): void {
-        const tree = this.tree
-        while (i > 0) {
-            const p = (i - 1) >> 1
-            if (tree[p].value < tree[i].value) break
-            this.swap(p, i)
-            i = p
-        }
-    }
-
-    /** `BLI_heap_insert` */
-    insert(value: number, ptr: T): HeapNode<T> {
-        const node: HeapNode<T> = {value: Math.fround(value), index: this.tree.length, ptr}
-        this.tree.push(node)
-        this.up(node.index)
-        return node
-    }
-
-    /** `BLI_heap_is_empty` */
-    isEmpty(): boolean {
-        return this.tree.length === 0
-    }
-
-    /** `BLI_heap_len` */
-    get length(): number {
-        return this.tree.length
-    }
-
-    /** `BLI_heap_top` */
-    top(): HeapNode<T> {
-        return this.tree[0]
-    }
-
-    /** `BLI_heap_pop_min` */
-    popMin(): T {
-        const ptr = this.tree[0].ptr
-        const size = this.tree.length - 1
-        if (size) {
-            this.swap(0, size)
-            this.tree.pop()
-            this.down(0)
-        } else {
-            this.tree.pop()
-        }
-        return ptr
-    }
-
-    /** `BLI_heap_remove` */
-    remove(node: HeapNode<T>): void {
-        let i = node.index
-        while (i > 0) {
-            const p = (i - 1) >> 1
-            this.swap(p, i)
-            i = p
-        }
-        this.popMin()
-    }
-
-    /** `BLI_heap_node_value_update` */
-    nodeValueUpdate(node: HeapNode<T>, value: number): void {
-        value = Math.fround(value)
-        if (value < node.value) {
-            node.value = value
-            this.up(node.index)
-        } else if (value > node.value) {
-            node.value = value
-            this.down(node.index)
-        }
-    }
-}
-
-// endregion
 
 /** `BMO_Delimit` (`bmesh_operator_api.hh:545`), the `delimit` flag set. */
 export const DissolveDelimit = {
@@ -463,7 +350,7 @@ export function meshDecimateDissolveEx(
     // --- first edges ---
     {
         const eheapTable: (HeapNode<BMEdge> | null)[] = new Array(einput.length).fill(null)
-        const eheap = new BLIHeap<BMEdge>()
+        const eheap = new Heap<BMEdge>()
         const edgeIndex = new Map<BMEdge, number>()
 
         // wire -> tag
@@ -552,7 +439,7 @@ export function meshDecimateDissolveEx(
         }
     } else {
         const vheapTable: (HeapNode<BMVert> | null)[] = new Array(vinputArr.length).fill(null)
-        const vheap = new BLIHeap<BMVert>()
+        const vheap = new Heap<BMVert>()
         const vertIndex = new Map<BMVert, number>()
 
         for (let i = 0; i < vinputArr.length; i++) {

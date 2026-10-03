@@ -39,14 +39,14 @@ import {faceNormalUpdate} from '../bmesh/polygon'
 import {dataInterpFromVerts} from '../bmesh/interp'
 import {FLT_MAX, bmoBeautifyFillExec} from './beautify'
 import {bmoTriangulateExec, faceCreateVerts, loopAttrsCopy} from './triangulate'
-import {BmeshEditEndFlags} from './edgenet'
+import {BmeshEditEndFlags, bmoOpExec} from './bmo'
 import {edbmFlagDisableAll, elemHflagDisableAll, elemsHflagEnable} from '../bmesh/hflag'
 import {normalsUpdate} from './bevel-bmquery'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3, v3cross, v3dot, v3sub} from '../math'
 import {isZeroV3, lenV3V3, modI, normalizeV3Len} from '../math/geom'
 import {
-    SubdivideEdgeringOptions, SubdivProfileShape, SubdivRingInterp, bmoOpExec, bmoSubdivideEdgering,
+    SubdivideEdgeringOptions, SubdivProfileShape, SubdivRingInterp, bmoSubdivideEdgering,
 } from './subdivideEdgering'
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]

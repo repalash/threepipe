@@ -8,7 +8,8 @@
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {diskEdges, edgeIsBoundary, radialLoops} from '../bmesh/structure'
+import {bmoMeshDeleteFacesContext} from './bmo'
+import {diskEdges, radialLoops} from '../bmesh/structure'
 import {copyElemAttrs} from '../bmesh/customdata'
 import {ElemFlag} from '../constants'
 import {edgeSelectSet, faceSelectSet, selectNone, vertSelectSet} from '../bmesh/marking'
@@ -159,46 +160,7 @@ export type DeleteContext =
  * order (`bmo_remove_tagged_faces/edges/verts`).
  */
 export function deleteFacesOflagContext(bm: BMesh, faces: Iterable<BMFace>, keepBoundary: boolean): void {
-    const oflagF = new Set<BMFace>(faces)
-    const oflagE = new Set<BMEdge>()
-    const oflagV = new Set<BMVert>()
-
-    // go through and mark all edges and all verts of all faces for delete
-    for (const f of bm.faces) {
-        if (oflagF.has(f)) {
-            for (const l of f.eachLoop()) {
-                oflagV.add(l.v)
-                oflagE.add(l.e!)
-            }
-        }
-    }
-    // now go through and mark all remaining faces all edges for keeping
-    for (const f of bm.faces) {
-        if (!oflagF.has(f)) {
-            for (const l of f.eachLoop()) {
-                oflagV.delete(l.v)
-                oflagE.delete(l.e!)
-            }
-        }
-    }
-    // also mark all the vertices of remaining edges for keeping
-    for (const e of bm.edges) {
-        // Only exception to normal 'DEL_FACES' logic.
-        if (keepBoundary) {
-            if (edgeIsBoundary(e)) oflagE.delete(e)
-        }
-        if (!oflagE.has(e)) {
-            oflagV.delete(e.v1)
-            oflagV.delete(e.v2)
-        }
-    }
-
-    // now delete marked face
-    for (const f of [...bm.faces]) if (oflagF.has(f)) bm.faceKill(f)
-    // delete marked edge
-    for (const e of [...bm.edges]) if (oflagE.has(e)) bm.edgeKill(e)
-    // remove loose vertices
-    for (const v of [...bm.verts]) if (oflagV.has(v)) bm.vertKill(v)
+    bmoMeshDeleteFacesContext(bm, new Set(), new Set(), new Set(faces), keepBoundary)
 }
 
 /**

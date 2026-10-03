@@ -25,8 +25,7 @@ import {ElemFlag, ElemType} from '../constants'
 import {Vec3} from '../math'
 import {isQuadFlipV3, lenSquaredV3V3} from '../math/geom'
 import {vertsCalcRotateBeauty} from './beautify'
-import {BmeshEditEndFlags} from './edgenet'
-import {bmoOpExec} from './subdivideEdgering'
+import {BmeshEditEndFlags, bmoOpExec} from './bmo'
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]
 
