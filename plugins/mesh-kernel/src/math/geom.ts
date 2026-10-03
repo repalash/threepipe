@@ -36,22 +36,9 @@ export const crossV2V2 = (a: Vec2, b: Vec2): number => a[0] * b[1] - a[1] * b[0]
 export const subV2V2 = (a: Vec2, b: Vec2): Vec2 => [a[0] - b[0], a[1] - b[1]]
 export const equalsV2V2 = (a: Vec2, b: Vec2): boolean => a[0] === b[0] && a[1] === b[1]
 export const isZeroV3 = (v: Vec3): boolean => v[0] === 0 && v[1] === 0 && v[2] === 0
-export const isFiniteV3 = (v: Vec3): boolean => isFinite(v[0]) && isFinite(v[1]) && isFinite(v[2])
 export const lenSquaredV3V3 = (a: Vec3, b: Vec3): number => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
 export const lenV3V3 = (a: Vec3, b: Vec3): number => Math.sqrt(lenSquaredV3V3(a, b))
 export const negateV3 = (v: Vec3): Vec3 => [-v[0], -v[1], -v[2]]
-
-/** `normalize_v2` returning the length, as Blender's does. */
-export function normalizeV2(v: Vec2): number {
-    const d = lenV2(v)
-    if (d > 1.0e-35) {
-        v[0] /= d
-        v[1] /= d
-    } else {
-        v[0] = v[1] = 0
-    }
-    return d
-}
 
 /**
  * `normalize_v3` in place, returning the length (`normalize_v3_v3_length`,
@@ -115,12 +102,6 @@ export function angleV3V3V3(a: Vec3, b: Vec3, c: Vec3): number {
 /** `angle_v3v3` (`math_vector.cc:275`). */
 export function angleV3V3(a: Vec3, b: Vec3): number {
     return angleNormalizedV3V3(v3normalize(a), v3normalize(b))
-}
-
-/** `project_plane_v3_v3v3` (`math_vector.cc:521`): `p` with its component along `vPlane` removed. */
-export function projectPlaneV3V3V3(p: Vec3, vPlane: Vec3): Vec3 {
-    const mul = v3dot(p, vPlane) / v3dot(vPlane, vPlane)
-    return [p[0] - mul * vPlane[0], p[1] - mul * vPlane[1], p[2] - mul * vPlane[2]]
 }
 
 /** `project_plane_normalized_v3_v3v3` (`math_vector.cc:529`); `vPlane` must be unit length. */
@@ -194,13 +175,6 @@ export function orthoV3V3(v: Vec3): Vec3 {
 export function axisDominantV3ToM3(normal: Vec3): Mat3Rows {
     const [n1, n2] = orthoBasisV3V3V3(normal)
     return [n1, n2, [normal[0], normal[1], normal[2]]]
-}
-
-/** `axis_dominant_v3_to_m3_negate` (`math_geom.cc:3663`): the same with the normal negated. */
-export function axisDominantV3ToM3Negate(normal: Vec3): Mat3Rows {
-    const neg = negateV3(normal)
-    const [n1, n2] = orthoBasisV3V3V3(neg)
-    return [n1, n2, neg]
 }
 
 /** `mul_v3_m3v3` for a {@link Mat3Rows}. */
@@ -352,22 +326,6 @@ export function isQuadFlipV3(v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3): number {
     if (v3dot(v3cross(d12, d23), v3cross(d34, d41)) < 0) ret |= 1 << 0
     if (v3dot(v3cross(d23, d34), v3cross(d41, d12)) < 0) ret |= 1 << 1
     return ret
-}
-
-/** `is_quad_convex_v3` (`math_geom.cc:5488`): projected onto the plane of its diagonals. */
-export function isQuadConvexV3(v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3): boolean {
-    // non-unit length normal, used as a projection plane
-    const plane = v3cross(v3sub(v1, v3), v3sub(v2, v4))
-    const epsSq = 1e-8 * 1e-8
-    if (v3dot(plane, plane) < epsSq) return false
-
-    const quadProj = [v1, v2, v3, v4].map(q => projectPlaneV3V3V3(q, plane))
-    const quadDirs: Vec3[] = []
-    for (let i = 0, j = 3; i < 4; j = i++) quadDirs[i] = v3sub(quadProj[i], quadProj[j])
-
-    const crossSign = (a: Vec3, b: Vec3) => v3dot(plane, v3cross(a, b)) > 0
-    return crossSign(quadDirs[0], quadDirs[1]) && crossSign(quadDirs[1], quadDirs[2])
-        && crossSign(quadDirs[2], quadDirs[3]) && crossSign(quadDirs[3], quadDirs[0])
 }
 
 /** `is_poly_convex_v2` (`math_geom.cc:5551`): every turn has the same sign. */
