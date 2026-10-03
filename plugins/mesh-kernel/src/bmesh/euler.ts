@@ -363,7 +363,6 @@ export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop
     f.len = f1len
 
     bm.faces.add(fNew)
-    // `if (r_l) *r_l = l_f2;` (`bmesh_core.cc:1622`).
     return {fNew, eNew, lNew: lF2}
 }
 

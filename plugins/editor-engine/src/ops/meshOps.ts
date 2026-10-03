@@ -325,6 +325,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                         {id: 'mesh.merge', label: 'At Center', props: {mode: 'center'}},
                         {id: 'mesh.merge', label: 'At First', props: {mode: 'first'}},
                         {id: 'mesh.merge', label: 'At Last', props: {mode: 'last'}},
+                        // VIEW3D_MT_edit_mesh_merge: `layout.operator("mesh.remove_doubles", text="By Distance")`.
+                        ...engine.operators.get('mesh.remove_doubles') ? [{id: 'mesh.remove_doubles', label: 'By Distance'}] : [],
                     ])
                     return {ok: true}
                 }
@@ -414,7 +416,12 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             exec: (ctx, p) => {
                 let type = p?.type as string | undefined
                 if (!type) {
-                    engine.requestMenu('Delete', DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})))
+                    engine.requestMenu('Delete', [
+                        ...DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})),
+                        // VIEW3D_MT_edit_mesh_delete: the dissolve operators follow the delete types.
+                        ...['mesh.dissolve_verts', 'mesh.dissolve_edges', 'mesh.dissolve_faces', 'mesh.dissolve_limited']
+                            .filter(id => engine.operators.get(id)).map(id => ({id})),
+                    ])
                     return {ok: true}
                 }
                 // `auto` is the Design preset's Delete key: by select mode, no menu.

@@ -4145,3 +4145,72 @@ test('modelling-editor-engine', async({page}) => {
     await page.mouse.up()
     await expect.poll(selected).toBe(0)
 })
+
+test('modelling-editor-fill', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Fill')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+
+    // Real input throughout: every step is a key press, a menu click or a click/drag in the viewport;
+    // `page.evaluate` only reads state (and sets up a scene where a section says so).
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().filter((x: any) => !x.undone).map((x: any) => x.label) as string[],
+        }
+    })
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    const popup = page.locator('.me-popup-menu')
+    const panel = (id: string) => page.locator(`[data-operator-panel="${id}"]`)
+    const openPanel = async(id: string) => {
+        await expect(panel(id)).toBeVisible()
+        if (!await panel(id).locator('.me-operator-body').isVisible()) await panel(id).locator('.me-operator-title').click()
+    }
+
+    // ── 1. Merge by Distance: M > By Distance, then the redo panel's Unselected and Merge Distance. ──
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
+    // Shift+D copies the cube and starts moving the copy: X locks the axis, 0.01 is typed, Enter confirms.
+    await page.keyboard.press('Shift+KeyD')
+    await page.keyboard.press('KeyX')
+    await page.keyboard.type('0.01')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
+    expect((await state()).sel).toEqual([8, 12, 6]) // the copy
+    await page.keyboard.press('KeyM')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'By Distance'}).click()
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.remove_doubles')
+    let s = await state()
+    // 0.01 apart is further than the default 0.0001, and only the copy is selected: nothing merges.
+    expect(s.counts).toEqual([16, 24, 12])
+    expect(s.lastProps).toEqual({threshold: 0.0001, useCentroid: true, useUnselected: false, useSharpEdgeFromNormals: false})
+    expect(s.history.at(-1)).toBe('Merge by Distance')
+    await openPanel('mesh.remove_doubles')
+    // Blueprint draws the checkbox as an indicator over a hidden input: click what the user sees.
+    await panel('mesh.remove_doubles').locator('label:has(#me-prop-useUnselected) .bp5-control-indicator').click()
+    await expect.poll(async() => (await state()).lastProps?.useUnselected).toBe(true)
+    expect((await state()).counts).toEqual([16, 24, 12])
+    const threshold = panel('mesh.remove_doubles').locator('#me-prop-threshold')
+    await threshold.fill('0.05')
+    await threshold.press('Tab')
+    // Merged into the unselected original: the cube again, the coincident faces gone.
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+    s = await state()
+    expect(s.lastProps?.threshold).toBe(0.05)
+    expect(s.history.slice(-2)).toEqual(['Duplicate', 'Merge by Distance'])
+    // One Ctrl+Z takes back the merge, whatever the panel did to it.
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
+})

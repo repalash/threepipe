@@ -1632,6 +1632,14 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     }
 
     /**
+     * Put the session back to a {@link snapshot} without recording a step: for an operator that
+     * failed after it had already changed `state.bm` (Blender's `EDBM_op_finish(.., false)`).
+     */
+    revert(before: MeshData): void {
+        if (this.editObject && this.state) this._restore(this.editObject, before)
+    }
+
+    /**
      * Rebuild the session from the mesh provider (the modelling document), keeping the select mode.
      *
      * For when the document changed underneath the session: a document command ran on the edited
