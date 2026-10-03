@@ -19,13 +19,9 @@ import {
     BMEdge,
     BMFace,
     BMVert,
-    dissolveFaces,
-    dissolveEdges,
-    dissolveVerts,
     edgeSelectSet,
     ElemFlag,
     faceSelectSet,
-    fillSelection,
     selectHistoryActive,
     walkEdgeLoop,
     walkEdgeRing,
@@ -34,6 +30,7 @@ import {
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 import {visibleSchema} from './modellingOps'
+import {onlyInEditMessage} from './messages'
 
 type Vec3 = [number, number, number]
 
@@ -50,7 +47,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
     const modelling = engine.modelling
     // Reasons say what to do next, with the live key from the active preset.
-    const onlyInEdit = () => `Only in Edit mode: select a mesh and press ${engine.keymap.shortcutFor('object.enter_edit', 'object') ?? 'the Edit button'}, or double-click it`
+    const onlyInEdit = () => onlyInEditMessage(engine)
     const editing = () => me.isEditing || onlyInEdit()
     const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first: click or Enter confirms it, Esc cancels'
     const hasSelection = (_ctx: EditorContext) => {
@@ -327,6 +324,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                         {id: 'mesh.merge', label: 'At Center', props: {mode: 'center'}},
                         {id: 'mesh.merge', label: 'At First', props: {mode: 'first'}},
                         {id: 'mesh.merge', label: 'At Last', props: {mode: 'last'}},
+                        // VIEW3D_MT_edit_mesh_merge: `layout.operator("mesh.remove_doubles", text="By Distance")`.
+                        ...engine.operators.get('mesh.remove_doubles') ? [{id: 'mesh.remove_doubles', label: 'By Distance'}] : [],
                     ])
                     return {ok: true}
                 }
@@ -334,45 +333,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 return me.merge(mode) ? {ok: true, props: {mode}} : {ok: false, error: 'Select at least two vertices to merge'}
             },
         },
-        {
-            id: 'mesh.dissolve', label: 'Dissolve', icon: 'eraser', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
-            description: 'Remove the selected vertices, edges or faces, merging the faces around them into one (Blender\'s Ctrl+X).',
-            flags: {undo: true, register: true},
-            poll: ready(hasSelection),
-            exec: ctx => {
-                const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: onlyInEdit()}
-                const bm = me.state.bm
-                let n = 0
-                if (ctx.selectMode === 'face') {
-                    const faces = [...bm.faces].filter(f => f.hflag & ElemFlag.Select)
-                    n = dissolveFaces(bm, faces).length ? faces.length : 0
-                } else if (ctx.selectMode === 'edge') {
-                    n = dissolveEdges(bm, [...bm.edges].filter(e => e.hflag & ElemFlag.Select))
-                } else {
-                    n = dissolveVerts(bm, [...bm.verts].filter(v => v.hflag & ElemFlag.Select))
-                }
-                if (!n) return {ok: false, error: 'Nothing could be dissolved: the selection has no faces around it to merge'}
-                me.commit(before, `Dissolve ${ctx.selectMode === 'face' ? 'Faces' : ctx.selectMode === 'edge' ? 'Edges' : 'Vertices'}`)
-                return {ok: true}
-            },
-        },
-        {
-            id: 'mesh.fill', label: 'Fill', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge'],
-            description: 'Make a face from the selected vertices or edges, or an edge from two vertices (Blender\'s F).',
-            flags: {undo: true, register: true},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices: Shift+click adds to the selection' : p }),
-            exec: () => {
-                const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: onlyInEdit()}
-                const made = fillSelection(me.state.bm)
-                if (!made) return {ok: false, error: 'Could not make a face from this selection: a face there already exists, or the vertices do not form a loop'}
-                me.commit(before, made.face ? 'Make Face' : 'Make Edge')
-                return {ok: true}
-            },
-        },
+        // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.
+        // `mesh.fill` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
         {
             id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
             description: 'Cut each selected edge and the faces between them.',
@@ -416,7 +378,12 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             exec: (ctx, p) => {
                 let type = p?.type as string | undefined
                 if (!type) {
-                    engine.requestMenu('Delete', DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})))
+                    engine.requestMenu('Delete', [
+                        ...DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})),
+                        // VIEW3D_MT_edit_mesh_delete: the dissolve operators follow the delete types.
+                        ...['mesh.dissolve_verts', 'mesh.dissolve_edges', 'mesh.dissolve_faces', 'mesh.dissolve_limited']
+                            .filter(id => engine.operators.get(id)).map(id => ({id})),
+                    ])
                     return {ok: true}
                 }
                 // `auto` is the Design preset's Delete key: by select mode, no menu.

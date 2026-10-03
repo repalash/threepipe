@@ -91,11 +91,15 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'y', id: 'mesh.split', mode: 'edit'},                     // mesh.split :5624
         {keys: 'p', id: 'mesh.separate', mode: 'edit'},                  // mesh.separate :5623
         {keys: 'f', id: 'mesh.fill', mode: 'edit', repeat: true},        // mesh.edge_face_add :5620
+        {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},         // mesh.vert_connect_path :5625
         {keys: 'shift+d', id: 'mesh.duplicate', mode: 'edit'},           // mesh.duplicate_move :5621
         {keys: 'x', id: 'mesh.delete', mode: 'edit'},                    // VIEW3D_MT_edit_mesh_delete :5634
         {keys: 'delete', id: 'mesh.delete', mode: 'edit'},               // :5635
         {keys: 'ctrl+x', id: 'mesh.dissolve', mode: 'edit'},             // mesh.dissolve_mode :5636
         {keys: 'ctrl+delete', id: 'mesh.dissolve', mode: 'edit'},        // :5637
+        {keys: 'ctrl+f', id: 'mesh.faces_menu', mode: 'edit'},           // VIEW3D_MT_edit_mesh_faces :5646
+        {keys: 'ctrl+e', id: 'mesh.edges_menu', mode: 'edit'},           // VIEW3D_MT_edit_mesh_edges :5647
+        {keys: 'ctrl+v', id: 'mesh.vertices_menu', mode: 'edit'},        // VIEW3D_MT_edit_mesh_vertices :5648
         {keys: 'alt+click', id: 'mesh.select_loop', mode: 'edit'},       // mesh.loop_select :5561 (click bindings are informative; S wires the pointer)
         {keys: 'ctrl+alt+click', id: 'mesh.select_ring', mode: 'edit'},  // mesh.edgering_select :5567
     ],

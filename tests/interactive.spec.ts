@@ -4572,3 +4572,299 @@ test('modelling-editor-files', async({page}) => {
     await expect.poll(() => page.evaluate(() => (window as any).engine.navigation.device)).toBe('mouse')
     await expect(page.locator('[data-status-bar]')).toContainText('MMB')
 })
+
+test('modelling-editor-fill', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Fill')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+
+    // Real input throughout: every step is a key press, a menu click or a click/drag in the viewport;
+    // `page.evaluate` only reads state (and sets up a scene where a section says so).
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().filter((x: any) => !x.undone).map((x: any) => x.label) as string[],
+        }
+    })
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    const popup = page.locator('.me-popup-menu')
+    const panel = (id: string) => page.locator(`[data-operator-panel="${id}"]`)
+    const openPanel = async(id: string) => {
+        await expect(panel(id)).toBeVisible()
+        if (!await panel(id).locator('.me-operator-body').isVisible()) await panel(id).locator('.me-operator-title').click()
+    }
+
+    // ── 1. Merge by Distance: M > By Distance, then the redo panel's Unselected and Merge Distance. ──
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
+    // Shift+D copies the cube and starts moving the copy: X locks the axis, 0.01 is typed, Enter confirms.
+    await page.keyboard.press('Shift+KeyD')
+    await page.keyboard.press('KeyX')
+    await page.keyboard.type('0.01')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
+    expect((await state()).sel).toEqual([8, 12, 6]) // the copy
+    await page.keyboard.press('KeyM')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'By Distance'}).click()
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.remove_doubles')
+    let s = await state()
+    // 0.01 apart is further than the default 0.0001, and only the copy is selected: nothing merges.
+    expect(s.counts).toEqual([16, 24, 12])
+    expect(s.lastProps).toEqual({threshold: 0.0001, useCentroid: true, useUnselected: false, useSharpEdgeFromNormals: false})
+    expect(s.history.at(-1)).toBe('Merge by Distance')
+    await openPanel('mesh.remove_doubles')
+    // Blueprint draws the checkbox as an indicator over a hidden input: click what the user sees.
+    await panel('mesh.remove_doubles').locator('label:has(#me-prop-useUnselected) .bp5-control-indicator').click()
+    await expect.poll(async() => (await state()).lastProps?.useUnselected).toBe(true)
+    expect((await state()).counts).toEqual([16, 24, 12])
+    const threshold = panel('mesh.remove_doubles').locator('#me-prop-threshold')
+    await threshold.fill('0.05')
+    await threshold.press('Tab')
+    // Merged into the unselected original: the cube again, the coincident faces gone.
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+    s = await state()
+    expect(s.lastProps?.threshold).toBe(0.05)
+    expect(s.history.slice(-2)).toEqual(['Duplicate', 'Merge by Distance'])
+    // One Ctrl+Z takes back the merge, whatever the panel did to it.
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
+
+    // Helpers for the sections below. `reset` reloads the page (a fresh cube, object mode); `project`
+    // reads where mesh-local points land on screen, so the mouse can be aimed at them.
+    const reset = async() => {
+        await page.reload()
+        await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0 && (window as any).engine.stats().objects === 1)
+    }
+    const project = (pts: number[][]) => page.evaluate(points => {
+        const me = (window as any).engine.meshEdit
+        const r = (window as any).viewer.canvas.getBoundingClientRect()
+        const fn = me._projectFn()
+        return points.map(([x, y, z]: number[]) => { const p = fn(x, y, z); return {x: r.left + p.x, y: r.top + p.y} })
+    }, pts)
+    const verts = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts].map((v: any) => [v.x, v.y, v.z]))
+    const selectedPositions = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts]
+        .filter((v: any) => v.hflag & 1).map((v: any) => [v.x, v.y, v.z].map((n: number) => Math.round(n * 1e4) / 1e4)))
+
+    // ── 2. Grid Fill: cut a hole in a grid, Alt+click its rim, Ctrl+F > Grid Fill, change the offset. ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyX')                       // object mode X: delete the start cube
+    await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(0)
+    await page.keyboard.press('Shift+KeyA')
+    await popup.getByRole('menuitem', {name: 'Grid'}).click()
+    await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(1)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+    await page.keyboard.press('Numpad7')                    // top view, looking down on the grid
+    await page.keyboard.press('Digit3')
+    // The grid spans -1..1 in 10 steps; a box inside -0.4..0.4 touches the 4 x 4 faces there (the
+    // selection buffer picks every face the box overlaps).
+    const all = await verts()
+    const flatAxis = [0, 1, 2].find(a => all.every(v => Math.abs(v[a]) < 1e-9))!
+    const at = (u: number, w: number) => { const p = [0, 0, 0]; const [a, b] = [0, 1, 2].filter(x => x !== flatAxis); p[a] = u; p[b] = w; return p }
+    const [c1, c2] = await project([at(-0.38, -0.38), at(0.38, 0.38)])
+    await page.mouse.move(c1.x, c1.y)
+    await page.mouse.down()
+    await page.mouse.move(c2.x, c2.y, {steps: 8})
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).sel?.[2]).toBe(16)
+    await page.keyboard.press('KeyX')
+    await popup.getByRole('menuitem', {name: 'Faces', exact: true}).click()
+    await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
+    // Edge mode, Alt+click the middle of the hole's left rim edge: loop select walks the whole rim.
+    await page.keyboard.press('Digit2')
+    const [rim] = await project([at(-0.4, 0.1)])
+    await page.keyboard.down('Alt')
+    await page.mouse.click(rim.x, rim.y)
+    await page.keyboard.up('Alt')
+    await expect.poll(async() => (await state()).sel).toEqual([16, 16, 0])
+    await page.keyboard.press('Control+KeyF')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'Grid Fill'}).click()
+    await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.fill_grid')
+    // The span Blender's edbm_fill_grid_prepare works out for a square hole: 4 columns, no offset.
+    expect(s.lastProps).toEqual({span: 4, offset: 0, useInterpSimple: false})
+    expect(s.sel?.[2]).toBe(16)
+    const filled = await selectedPositions()
+    await openPanel('mesh.fill_grid')
+    const offset = panel('mesh.fill_grid').locator('#me-prop-offset')
+    await offset.fill('1')
+    await offset.press('Tab')
+    await expect.poll(async() => (await state()).lastProps?.offset).toBe(1)
+    // Same counts, but the grid's corner moved one vertex round the rim: the inner vertices move.
+    expect((await state()).counts).toEqual([121, 220, 100])
+    expect(JSON.stringify(await selectedPositions())).not.toBe(JSON.stringify(filled))
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
+
+    // ── 3. Make Edge/Face (F): open a hole in the cube, Alt+click its rim, F closes it; two clicked
+    // vertices and F make an edge. ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Digit3')
+    await page.mouse.click(cx, cy)                          // the face facing the camera
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    const hole = await selectedPositions()
+    await page.keyboard.press('KeyX')
+    await popup.getByRole('menuitem', {name: 'Only Faces'}).click()
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 5])
+    await page.keyboard.press('Digit2')
+    const rimMid = [0, 1, 2].map(i => (hole[0][i] + hole[1][i]) / 2)
+    const sharesTwo = hole.filter(v => v.filter((x, i) => x === hole[0][i]).length >= 2)
+    expect(sharesTwo.length).toBeGreaterThan(1)
+    const [rimEdge] = await project([[0, 1, 2].map(i => (hole[0][i] + sharesTwo.find(v => v !== hole[0])![i]) / 2)])
+    expect(rimMid.length).toBe(3)
+    await page.keyboard.down('Alt')
+    await page.mouse.click(rimEdge.x, rimEdge.y)
+    await page.keyboard.up('Alt')
+    await expect.poll(async() => (await state()).sel?.slice(0, 2)).toEqual([4, 4])
+    await page.keyboard.press('KeyF')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.fill')
+    expect(s.history.at(-1)).toBe('Make Face')
+    expect(s.sel).toEqual([4, 4, 1])                         // the new face is selected
+    // Nothing more to make: F says so and changes nothing.
+    await page.keyboard.press('KeyF')
+    await expect(page.locator('.bp5-toast').filter({hasText: 'Nothing could be made'})).toBeVisible()
+    expect((await state()).counts).toEqual([8, 12, 6])
+    // Two opposite corners of that face, clicked in vertex mode: F joins them with an edge.
+    await page.keyboard.press('Digit1')
+    const [p0, p2] = await project([hole[0], hole.find(v => v.filter((x, i) => x !== hole[0][i]).length === 2)!])
+    await page.mouse.click(p0.x, p0.y)
+    await page.keyboard.down('Shift')                       // Shift+click extends the selection
+    await page.mouse.click(p2.x, p2.y)
+    await page.keyboard.up('Shift')
+    await expect.poll(async() => (await state()).sel?.[0]).toBe(2)
+    await page.keyboard.press('KeyF')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 13, 6])
+    expect((await state()).history.at(-1)).toBe('Make Edge')
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── 4. Connect Vertex Path (J): two opposite corners of the front face, clicked in order. ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Digit3')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    const front = await selectedPositions()
+    await page.keyboard.press('Digit1')
+    const opposite = front.find(v => v.filter((x, i) => x !== front[0][i]).length === 2)!
+    const [a, b] = await project([front[0], opposite])
+    await page.mouse.click(a.x, a.y)
+    await page.keyboard.down('Shift')
+    await page.mouse.click(b.x, b.y)
+    await page.keyboard.up('Shift')
+    await expect.poll(async() => (await state()).sel?.[0]).toBe(2)
+    await page.keyboard.press('KeyJ')
+    // The face is cut along its diagonal: one more edge, one more face.
+    await expect.poll(async() => (await state()).counts).toEqual([8, 13, 7])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.vert_connect_path')
+    expect(s.history.at(-1)).toBe('Connect Vertex Path')
+    expect(s.sel?.slice(0, 2)).toEqual([2, 1])               // the new edge
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── 5. Dissolve (Ctrl+X) on an edge: the two faces merge and its corners go; untick Dissolve
+    // Vertices in the panel and they stay. ──
+    await page.keyboard.press('Digit2')
+    const edgeMid = [0, 1, 2].map(i => (front[0][i] + front.find(v => v.filter((x, j) => x !== front[0][j]).length === 1)![i]) / 2)
+    const [em] = await project([edgeMid])
+    await page.mouse.click(em.x, em.y)
+    await expect.poll(async() => (await state()).sel).toEqual([2, 1, 0])
+    await page.keyboard.press('Control+KeyX')
+    await expect.poll(async() => (await state()).counts).toEqual([6, 9, 5])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.dissolve')
+    expect(s.history.at(-1)).toBe('Dissolve Edges')
+    // Blender sets use_verts for edge mode when it was not given; the panel shows that.
+    expect(s.lastProps).toEqual({useVerts: true, angleThreshold: 180, usePreserveQuads: true, useFaceSplit: false, useBoundaryTear: false})
+    await openPanel('mesh.dissolve')
+    await panel('mesh.dissolve').locator('label:has(#me-prop-useVerts) .bp5-control-indicator').click()
+    await expect.poll(async() => (await state()).counts).toEqual([8, 11, 5])
+    expect((await state()).lastProps?.useVerts).toBe(false)
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+
+    // ── 6. Limited Dissolve from the X menu: a flat 10 x 10 grid, all selected, becomes one face. ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyX')
+    await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(0)
+    await page.keyboard.press('Shift+KeyA')
+    await popup.getByRole('menuitem', {name: 'Grid'}).click()
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([121, 220, 100])
+    await page.keyboard.press('KeyX')
+    await popup.getByRole('menuitem', {name: 'Limited Dissolve'}).click()
+    // Every inner edge is flat (0 degrees < 5) and every straight border vertex too; the four corners
+    // (90 degrees) stay: one quad.
+    await expect.poll(async() => (await state()).counts).toEqual([4, 4, 1])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.dissolve_limited')
+    expect(s.lastProps).toMatchObject({angleLimit: 5, useDissolveBoundaries: false, delimitNormal: true})
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
+
+    // ── 7. Bridge Edge Loops: the cube's front face, then (Ctrl+Numpad1, back view) its back face,
+    // I to inset both, Ctrl+E > Bridge Edge Loops: a square tunnel through the cube. Then 2 cuts in
+    // the panel. (Bridging the two faces without the inset only deletes them: every bridge face
+    // already exists as a side of the cube, and Blender's bridge reuses existing faces.) ──
+    await reset()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Digit3')
+    await page.keyboard.press('Numpad1')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    await page.keyboard.press('Control+Numpad1')
+    await page.keyboard.down('Shift')
+    await page.mouse.click(cx, cy)
+    await page.keyboard.up('Shift')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 8, 2])
+    await page.keyboard.press('KeyI')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+    expect((await state()).sel?.[2]).toBe(2)                 // the two inset faces
+    await page.keyboard.press('Control+KeyE')
+    await expect(popup).toBeVisible()
+    await popup.getByRole('menuitem', {name: 'Bridge Edge Loops'}).click()
+    // The two inset faces go and 4 faces line the tunnel between their rims.
+    await expect.poll(async() => (await state()).counts).toEqual([16, 32, 16])
+    s = await state()
+    expect(s.lastOp).toBe('mesh.bridge_edge_loops')
+    expect(s.history.at(-1)).toBe('Bridge Edge Loops')
+    expect(s.sel?.[2]).toBe(4)                               // the tunnel faces
+    expect(s.lastProps).toMatchObject({type: 'SINGLE', numberCuts: 0, twistOffset: 0, interpolation: 'PATH'})
+    await openPanel('mesh.bridge_edge_loops')
+    const cuts = panel('mesh.bridge_edge_loops').locator('#me-prop-numberCuts')
+    await cuts.fill('2')
+    await cuts.press('Tab')
+    // Two rings of 4 vertices along the tunnel; each tunnel face becomes 3.
+    await expect.poll(async() => (await state()).counts).toEqual([24, 48, 24])
+    expect((await state()).lastProps?.numberCuts).toBe(2)
+    expect((await state()).history.at(-1)).toBe('Bridge Edge Loops')
+    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
+})

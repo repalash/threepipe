@@ -89,6 +89,10 @@ export const designPreset: KeymapPreset = {
         {keys: 'ctrl+backspace', id: 'mesh.dissolve', mode: 'edit'},     // mesh.dissolve_mode :3109
         {keys: 'ctrl+delete', id: 'mesh.dissolve', mode: 'edit'},        // :3110
         {keys: 'ctrl+shift+j', id: 'mesh.separate', mode: 'edit'},
+        // The IC keymap binds no key for these (its right-click context menu carries them, as ours does);
+        // J is Blender's and free here, P is Modo's "Make Polygon" (free in edit mode: P parents in object mode).
+        {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},
+        {keys: 'p', id: 'mesh.fill', mode: 'edit', repeat: true},
         {keys: 'dblclick', id: 'mesh.select_loop', mode: 'edit'},        // mesh.loop_select DOUBLE_CLICK :3070 (informative; S wires the pointer)
         {keys: 'alt+dblclick', id: 'mesh.select_ring', mode: 'edit'},    // mesh.edgering_select :3077
     ],

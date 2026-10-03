@@ -8,6 +8,7 @@
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
+import {bmoMeshDeleteFacesContext} from './bmo'
 import {diskEdges, radialLoops} from '../bmesh/structure'
 import {copyElemAttrs} from '../bmesh/customdata'
 import {ElemFlag} from '../constants'
@@ -140,6 +141,27 @@ export type DeleteContext =
     | 'onlyFaces'
     /** Edges and faces, keeping the vertices. */
     | 'edgesFaces'
+    /**
+     * `DEL_FACES_KEEP_BOUNDARY`: as `DEL_FACES`, except that an edge which was a mesh boundary (one
+     * face) before the delete survives with its vertices. Bridge Edge Loops deletes the selected
+     * faces this way. See {@link deleteFacesOflagContext}.
+     */
+    | 'facesKeepBoundary'
+
+/**
+ * The `DEL_FACES` / `DEL_FACES_KEEP_BOUNDARY` branch of `BMO_mesh_delete_oflag_context`
+ * (`bmesh_delete.cc:139-193`) for the face input of `bmo_delete_exec` (`bmo_dupe.cc:527`,
+ * `delete geom=%hf`): `faces` plays the operator flag `DEL_INPUT`, which only faces carry on entry.
+ *
+ * Every vertex and edge of an input face is marked; every vertex and edge of a face that is not input
+ * is unmarked (it is still in use); with `keepBoundary`, an edge that is a boundary *before* the
+ * delete is unmarked too (`:172`, "Only exception to normal 'DEL_FACES' logic"); a vertex of any
+ * unmarked edge is unmarked. Then the marked faces, edges and vertices are killed, each in mesh
+ * order (`bmo_remove_tagged_faces/edges/verts`).
+ */
+export function deleteFacesOflagContext(bm: BMesh, faces: Iterable<BMFace>, keepBoundary: boolean): void {
+    bmoMeshDeleteFacesContext(bm, new Set(), new Set(), new Set(faces), keepBoundary)
+}
 
 /**
  * Delete the selection with the given context.
@@ -223,6 +245,13 @@ export function deleteSelection(bm: BMesh, context: DeleteContext = 'verts'): nu
             removed++
         }
         break
+
+    case 'facesKeepBoundary': {
+        const before = bm.totface
+        deleteFacesOflagContext(bm, selFaces, true)
+        removed = before - bm.totface
+        break
+    }
     }
 
     return removed

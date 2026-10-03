@@ -57,10 +57,22 @@ const {data} = bakeGeometry(bmToMesh(bm), {includeNormals: true})
 `extrudeFaceRegion`, `extrudeEdgeOnly`, `insetRegion`, `insetIndividual`, `bevelEdges`,
 `bevelVerts`, `solidify`, `pokeFaces`, `wireframe`,
 `duplicateGeometry`, `splitSelection`, `deleteSelection`, `mergeVerts`, `weldVerts`, `removeDoubles`, `joinMeshes`,
-`separateLooseParts`, `separateFaces`, `dissolveFaces`, `subdivideEdges`, plus the four Euler
+`separateLooseParts`, `separateFaces`, `dissolveFaces`, `dissolveEdges`, `dissolveVerts`, `dissolveLimit`,
+`subdivideEdges`, `edgeloopFill`, `edgenetFill`, `edgenetPrepare`, `contextualCreate`, `gridFill`, `connectVerts`,
+`connectVertPair`, plus the four Euler
 operators (`splitEdgeMakeVert`, `splitFaceMakeEdge`, `joinFaceKillEdge`, `joinEdgeKillVert`),
 selection marking and flushing, and the topology walkers (vertex shell, edge loop, edge ring, face
 loop, boundary).
+
+Edit-mode operators - ports of Blender's `edbm_*_exec`, reading the BMesh selection and leaving it as Blender
+does, so an editor or a script gets the result of pressing the key: `edgeFaceAddSelection` (F,
+`bmo_create.cc` + `bmo_edgenet.cc` + `bmesh_edgenet.cc`), `gridFillSelection` (`bmo_fill_grid.cc`, span and
+offset worked out from the loop), `vertConnectPathSelection` / `vertConnectSelection` (J, `bmo_connect_pair.cc`,
+`bmo_connect.cc`), `dissolveModeSelection` / `dissolveVertsSelection` / `dissolveEdgesSelection` /
+`dissolveFacesSelection` (`bmo_dissolve.cc` with every option), `dissolveLimitedSelection`
+(`bmesh_decimate_dissolve.cc`), `mergeByDistanceSelection` (`mesh.remove_doubles`). Edge loops as vertex chains
+(`bmesh_edgeloop.cc`) are in `edgeloop.ts`. Each is checked against fixtures Blender itself wrote
+(`tests/fixtures/gen-bmesh-ops-*.py`).
 
 ## Rendering
 

@@ -56,6 +56,7 @@ import {registerEditOperators} from './ops/editOps'
 import {registerFileOperators} from './ops/fileOps'
 import {registerObjectOperators} from './ops/objectOps'
 import {registerMeshOperators} from './ops/meshOps'
+import {registerFillOperators} from './ops/fillOps'
 import {registerModellingOperators} from './ops/modellingOps'
 import {registerTools} from './tools/tools'
 import type {PropDragModal} from './tools/PropDragModal'
@@ -185,6 +186,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             registerFileOperators(this)
             registerObjectOperators(this)
             registerMeshOperators(this)
+            registerFillOperators(this)
             registerModellingOperators(this)
             registerTools(this)
         }

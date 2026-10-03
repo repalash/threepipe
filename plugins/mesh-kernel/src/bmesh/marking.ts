@@ -291,6 +291,10 @@ export function selectModeFlushEx(bm: BMesh, mode: SelectModeMask, flushDown: bo
     if (mode & (SelectMode.Vertex | SelectMode.Edge)) flushEdgeToFace(bm)
     // Remove any deselected elements from the history.
     selectHistoryValidate(bm)
+    // `BMSelectFlushFlag_Default` recounts all three totals (`bmesh_marking.cc:531`-`:538`): an
+    // operator may have set select bits raw (`BM_edge_split` copies its edge's header flags), and
+    // the flush is where Blender makes the counts right again.
+    selectCountsRecalc(bm)
 }
 
 /**

@@ -12,7 +12,7 @@
  */
 
 import {ATTR_TYPE_INFO, AttrType, ElemFlag} from '../constants'
-import {BMElem} from './types'
+import type {BMElem, BMFace} from './types'
 
 /** Which of an element's two blocks a layer lives in. */
 export type BMLayerStorage = 'float' | 'int'
@@ -432,4 +432,14 @@ export function interpElemAttrsMidpoint(
     dst: BMElem, a: BMElem, b: BMElem, layout: BMCustomDataLayout, t = 0.5,
 ): void {
     interpElemAttrs(dst, [a, b], [1 - t, t], layout)
+}
+
+/**
+ * The face half of `BM_elem_attrs_copy` (`bmesh_construct.cc:380`): custom data, every header flag
+ * but the selection ones, the cached normal and the material index.
+ */
+export function faceAttrsCopy(bm: {pdata: BMCustomDataLayout}, src: BMFace, dst: BMFace): void {
+    copyElemAttrs(src, dst, bm.pdata)
+    copyElemHeader(src, dst, 'face')
+    dst.matNr = src.matNr
 }
