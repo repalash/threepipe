@@ -30,6 +30,7 @@ export const designPreset: KeymapPreset = {
         {keys: 'ctrl+alt+z', id: 'edit.history'},                        // ed.undo_history :256
         {keys: 'f9', id: 'edit.repeat_last'},                            // screen.redo_last (shared)
         {keys: 'ctrl+k', id: 'ui.command_palette'},                      // Figma ⌘/ quick actions; IC uses Tab
+        {keys: 'shift+/', id: 'help.shortcuts'},                         // `?`: the cheat sheet (Figma Ctrl+Shift+?, Penpot ?, Womp Shift+?); F1 is Front view here (IC :726)
         {keys: 'f2', id: 'edit.rename'},                                 // Figma: Ctrl+R; F2 is the desktop norm
         {keys: 'ctrl+n', id: 'file.new'},                                // wm.read_homefile :193
         {keys: 'ctrl+o', id: 'file.open'},                               // wm.open_mainfile :195
