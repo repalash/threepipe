@@ -176,6 +176,11 @@ export class EditorHistory implements HistoryApi {
         return um.stack.map((cmd, i) => ({label: labelOf(cmd as AnyCommand), undone: i > um.sp}))
     }
 
+    /** The command at a stack index, or null (also for -1, the original state). */
+    stepAt(index: number): AnyCommand | null {
+        return (this.manager?.stack[index] as AnyCommand | undefined) ?? null
+    }
+
     get position(): number {
         return this.manager?.sp ?? -1
     }

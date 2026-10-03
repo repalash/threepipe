@@ -38,6 +38,18 @@ describe('EditorFile dirty flag', () => {
         expect(file.dirty).toBe(true)
     })
 
+    it('undoing a later change back to the saved step is clean again', () => {
+        const {file, step, history} = make()
+        step('Add Cube')
+        file.markClean()
+        step('Add Sphere')
+        expect(file.dirty).toBe(true)
+        history.undo()
+        expect(file.dirty).toBe(false)
+        history.redo()
+        expect(file.dirty).toBe(true)
+    })
+
     it('undo then redo back to the saved step is clean again; undo then a new step is not', () => {
         const {file, step, history} = make()
         step('Add Cube')
@@ -52,6 +64,17 @@ describe('EditorFile dirty flag', () => {
         step('Inset')
         expect(history.position).toBe(1)
         expect(file.dirty).toBe(true)
+    })
+})
+
+describe('EditorFile markDirty', () => {
+    it('an import (no undo step) is unsaved until the next markClean', () => {
+        const {file} = make()
+        expect(file.dirty).toBe(false)
+        file.markDirty()
+        expect(file.dirty).toBe(true)
+        file.markClean()
+        expect(file.dirty).toBe(false)
     })
 })
 

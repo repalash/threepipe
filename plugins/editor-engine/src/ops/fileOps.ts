@@ -45,16 +45,27 @@ export function registerFileOperators(engine: EditorEnginePlugin): void {
         return viewer.dialog.confirm(`${what}? Unsaved changes are lost. Save first with File > Save${engine.keyHint('file.save')}.`)
     }
 
-    /** Load files into the scene; the last one loaded becomes the selection. */
+    /**
+     * Load files into the scene and select what arrived. What arrived is read off the scene, not the
+     * loader's return value: a threepipe .glb (viewer config embedded) hands back its glTF scene root
+     * after moving that root's children into the model root, so the returned object is not in the scene.
+     */
     const loadFiles = async(files: File[]): Promise<IObject3D[]> => {
-        const loaded: IObject3D[] = []
+        const before = new Set(engine.modelObjects())
         for (const f of files) {
-            const res = await viewer.load<IObject3D>(f, {autoCenter: false, autoScale: false})
-            if (res) loaded.push(res)
+            await viewer.load<IObject3D>(f, {autoCenter: false, autoScale: false})
             file.addRecent(f)
         }
+        const loaded = engine.modelObjects().filter(o => !before.has(o))
         if (loaded.length) engine.picking.setSelectedObject(loaded[loaded.length - 1], false, false)
         return loaded
+    }
+
+    /** Is an object in the scene (its parents reach the scene)? */
+    const inScene = (o: IObject3D) => {
+        let p: IObject3D | null = o
+        while (p && p !== viewer.scene) p = p.parent as IObject3D | null
+        return !!p
     }
 
     /** The scene as a .glb, with the modelling topology extension, viewer config optional. */
@@ -145,6 +156,7 @@ export function registerFileOperators(engine: EditorEnginePlugin): void {
                 if (!files.length) return {ok: true}
                 const loaded = await loadFiles(files)
                 if (!loaded.length) return {ok: false, error: `Nothing could be loaded from ${files.map(f => f.name).join(', ')}. Choose a .glb, .gltf, .obj, .fbx or .stl file.`}
+                file.markDirty()
                 engine.message('info', `Imported ${loaded.map(o => o.name).join(', ')}. Double-click a mesh${engine.keyHint('object.enter_edit', 'object').replace('(', '(or ')} to edit it.`)
                 return {ok: true, data: {objects: loaded.map(o => o.name)}}
             },
@@ -218,7 +230,11 @@ export function registerFileOperators(engine: EditorEnginePlugin): void {
         for (const f of e.files.values()) file.addRecent(f)
         const objects = (e.assets ?? []).filter((a): a is IObject3D => !!(a as IObject3D)?.isObject3D)
         if (objects.length) {
-            engine.picking.setSelectedObject(objects[objects.length - 1], false, false)
+            // A flattened glTF root is not in the scene itself; its objects were appended to the model root.
+            const last = objects[objects.length - 1]
+            const target = inScene(last) ? last : engine.modelObjects().at(-1)
+            if (target) engine.picking.setSelectedObject(target, false, false)
+            file.markDirty()
             engine.message('info', `Opened ${[...e.files.keys()].join(', ')}. Double-click a mesh${engine.keyHint('object.enter_edit', 'object').replace('(', '(or ')} to edit it.`)
         } else if (e.files.size) {
             engine.message('warning', `Nothing could be loaded from ${[...e.files.keys()].join(', ')}. Drop a .glb, .gltf, .obj, .fbx or .stl file.`)

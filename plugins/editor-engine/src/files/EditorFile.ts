@@ -1,9 +1,12 @@
 /**
  * The document as a browser sees it: a name, an unsaved-changes flag, and the names of files opened
  * before. A browser page cannot write back to the file it opened, so "Save" downloads `<name>.glb`
- * and "dirty" is measured against the undo history rather than a file on disk: the position and
- * record count at the last save/open/new are remembered, and the document is dirty whenever either
- * has moved (Blender's `wm->file_saved` is cleared on every undo push, the same idea).
+ * and "dirty" is measured against the undo history rather than a file on disk: the step that was
+ * current at the last save/open/new is remembered, and the document is clean exactly when that step
+ * is current again - after undoing a later change too. Blender only clears `wm->file_saved` on a push
+ * (`WM_file_tag_modified`, wm_files.cc:184) and never sets it back on undo; tracking the step itself
+ * also knows that undoing back to the saved state is saved, while an undo followed by a different
+ * change at the same depth is not.
  *
  * Recent files are metadata only (`name`, `size`, `lastModified`) in `localStorage`; nothing about
  * the file's contents leaves the page, and no handle is kept, so an entry can only re-open the
@@ -17,7 +20,9 @@ export const RECENT_FILES_MAX = 8
 
 export class EditorFile implements FileApi {
     private _name: string | null = null
-    private _clean = {position: -1, serial: 0}
+    private _clean: {position: number, step: unknown} = {position: -1, step: null}
+    /** A change that is not on the undo history (an import) made the document dirty. */
+    private _touched = false
     private _recent: RecentFile[] = []
 
     constructor(private _history: EditorHistory, private _storageKey: string | null, private _onChange: () => void) {
@@ -29,7 +34,9 @@ export class EditorFile implements FileApi {
     }
 
     get dirty(): boolean {
-        return this._history.position !== this._clean.position || this._history.serial !== this._clean.serial
+        if (this._touched) return true
+        const position = this._history.position
+        return position !== this._clean.position || this._history.stepAt(position) !== this._clean.step
     }
 
     get recent(): RecentFile[] {
@@ -46,7 +53,19 @@ export class EditorFile implements FileApi {
 
     /** The history as it is now is the saved state. */
     markClean(): void {
-        this._clean = {position: this._history.position, serial: this._history.serial}
+        const position = this._history.position
+        this._clean = {position, step: this._history.stepAt(position)}
+        this._touched = false
+        this._onChange()
+    }
+
+    /**
+     * The document changed in a way the undo history does not record (an import or a dropped file
+     * adds objects without a step): dirty until the next save, open or new.
+     */
+    markDirty(): void {
+        if (this._touched) return
+        this._touched = true
         this._onChange()
     }
 

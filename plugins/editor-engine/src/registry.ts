@@ -212,6 +212,8 @@ export interface FileApi {
     clearRecent(): void
     /** The scene as it is now counts as saved: an app's start scene, or after a save of its own. */
     markClean(): void
+    /** A change the undo history does not record (an import) leaves unsaved changes. */
+    markDirty(): void
 }
 
 /** A step recorded on the one undo stack. `label` is what the history list shows. */
