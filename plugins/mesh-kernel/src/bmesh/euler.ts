@@ -253,6 +253,11 @@ export interface SplitFaceResult {
     fNew: BMFace
     /** The edge created between the two loops. */
     eNew: BMEdge
+    /**
+     * Blender's `r_l`: the loop of {@link fNew} along {@link eNew}, running from `lv1.v` to `lv2.v`.
+     * Its `radialNext` is the original face's loop along the same edge, running the other way.
+     */
+    lNew: BMLoop
 }
 
 /**
@@ -352,7 +357,7 @@ export function splitFaceMakeEdge(bm: BMesh, f: BMFace, lv1: BMLoop, lv2: BMLoop
     f.len = f1len
 
     bm.faces.add(fNew)
-    return {fNew, eNew}
+    return {fNew, eNew, lNew: lF2}
 }
 
 /**

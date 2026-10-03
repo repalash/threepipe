@@ -134,3 +134,18 @@ It was generated with **Blender 3.4.1** (Debian's package). Neither `bmo_poke.cc
 (within 1e-4, Blender being float32) and every face as a cyclic vertex sequence, so winding is
 checked too. Element *order* is not compared: Blender's mempool reuses the slot of a face that poke
 kills mid-operator, so its order is not creation order.
+
+`bmesh-ops-subdivide.json` is the same kind of fixture for the subdivide port (`ops/subdivide.ts`,
+`bmo_subdivide.cc`). [`gen-bmesh-ops-subdivide-fixtures.py`](./gen-bmesh-ops-subdivide-fixtures.py)
+runs `bmesh.ops.subdivide_edges` over every fill pattern, corner type, falloff, smoothing, sphere,
+edge percents and only-quads, plus `bpy.ops.mesh.subdivide` in edit mode for `BM_mesh_esubdivide`'s
+selection result. Also Blender 3.4.1; the one later change, the vertex-crease reset (#154814), has its
+own unit test. Subdivide never kills an element, so here order *is* compared:
+[`../subdivide-parity.test.ts`](../subdivide-parity.test.ts) checks vertices, edges and faces index for
+index, and the `geom_inner` / `geom_split` outputs and the selection as index sets. The fixture records
+Blender's input edge order and direction too, which the kernel's `faceCreate` does not reproduce
+(`issues/open/mesh-kernel-face-create-edge-order.md`).
+
+```sh
+blender --background --factory-startup --python plugins/mesh-kernel/tests/fixtures/gen-bmesh-ops-subdivide-fixtures.py
+```

@@ -1,8 +1,8 @@
 import {describe, expect, it} from 'vitest'
 import {BMesh} from '../bmesh/BMesh'
-import {BMEdge, BMVert} from '../bmesh/types'
-import {splitEdgeMakeVert} from '../bmesh/euler'
-import {subdivideTrisOnSphere, triThreeEdgeSubdivide, vertPairShareFaceByLen} from './subdivide'
+import {BMVert} from '../bmesh/types'
+import {editMeshSubdivide, subdivideEdges, subdivideTrisOnSphere, vertPairShareFaceByLen} from './subdivide'
+import {getComponent, setComponent} from '../bmesh/customdata'
 
 function triangle(bm: BMesh, a: [number, number, number], b: [number, number, number], c: [number, number, number]) {
     const v = [bm.vertCreate(...a), bm.vertCreate(...b), bm.vertCreate(...c)]
@@ -15,14 +15,6 @@ function quad(bm: BMesh) {
         bm.vertCreate(1, 1, 0), bm.vertCreate(0, 1, 0),
     ]
     return {v, f: bm.faceCreate(v)}
-}
-
-/** The plain, un-projected version of the callback `subdivideTrisOnSphere` passes down. */
-function plainSubdivideEdgeNum(bm: BMesh) {
-    return (e: BMEdge, curPoint: number, totPoint: number) => {
-        const {vNew, eNew} = splitEdgeMakeVert(bm, e, e.v1, 1 / (totPoint + 1 - curPoint))
-        return {v: vNew, e: eNew}
-    }
 }
 
 const len = (v: BMVert) => Math.hypot(v.x, v.y, v.z)
@@ -68,15 +60,14 @@ describe('vertPairShareFaceByLen', () => {
     })
 })
 
-describe('triThreeEdgeSubdivide', () => {
+// `tri_3edge_subdivide` is private to the operator now that every pattern is ported; these drive it
+// the way Blender does, through `subdivide_edges` with `use_grid_fill` on a fully cut triangle.
+describe('tri_3edge (subdivideEdges with useGridFill)', () => {
     it('fills a triangle whose edges are cut once into four', () => {
         const bm = new BMesh()
-        const {v, f} = triangle(bm, [0, 0, 0], [1, 0, 0], [0, 1, 0])
-        const cut = plainSubdivideEdgeNum(bm)
-        const start = f.lFirst.v
-        for (const e of [...bm.edges]) cut(e, 0, 1)
+        const {v} = triangle(bm, [0, 0, 0], [1, 0, 0], [0, 1, 0])
 
-        triThreeEdgeSubdivide(bm, {face: f, start}, 1, cut)
+        subdivideEdges(bm, [...bm.edges], {cuts: 1, useGridFill: true})
 
         expect(bm.totface).toBe(4)
         expect(bm.totvert).toBe(6)
@@ -96,14 +87,9 @@ describe('triThreeEdgeSubdivide', () => {
     it('fills deeper cuts into (numCuts + 1) squared triangles', () => {
         for (const numCuts of [1, 2, 3, 7]) {
             const bm = new BMesh()
-            const {f} = triangle(bm, [0, 0, 0], [1, 0, 0], [0, 1, 0])
-            const cut = plainSubdivideEdgeNum(bm)
-            const start = f.lFirst.v
-            for (const e of [...bm.edges]) {
-                for (let i = 0; i < numCuts; i++) cut(e, i, numCuts)
-            }
+            triangle(bm, [0, 0, 0], [1, 0, 0], [0, 1, 0])
 
-            triThreeEdgeSubdivide(bm, {face: f, start}, numCuts, cut)
+            subdivideEdges(bm, [...bm.edges], {cuts: numCuts, useGridFill: true})
 
             expect(bm.totface).toBe((numCuts + 1) ** 2)
             expect(bm.totvert).toBe((numCuts + 2) * (numCuts + 3) / 2)
@@ -178,5 +164,31 @@ describe('subdivideTrisOnSphere', () => {
         subdivideTrisOnSphere(bm, [], 2, 1)
         expect(bm.totface).toBe(1)
         expect(f.len).toBe(3)
+    })
+})
+
+describe('subdivideEdges vertex creases (#154814)', () => {
+    it('resets the crease of the vertices it creates, and keeps the originals', () => {
+        // `bmo_subdivide.cc:1301`: new vertices would otherwise inherit (interpolate) the crease of
+        // the edge ends, turning a creased corner into a creased line of new vertices.
+        const bm = new BMesh()
+        const crease = bm.addLayer('vert', 'crease_vert', 'float')
+        const {v} = quad(bm)
+        for (const x of v) setComponent(x, bm.vdata, crease, 0, 1)
+
+        const res = subdivideEdges(bm, [...bm.edges], {cuts: 2, useGridFill: true})
+
+        expect(res.inner.verts.length).toBeGreaterThan(0)
+        for (const x of res.inner.verts) expect(getComponent(x, crease)).toBe(0)
+        for (const x of v) expect(getComponent(x, crease)).toBe(1)
+    })
+})
+
+describe('editMeshSubdivide', () => {
+    it('does nothing without a selection, as Blender skips the object', () => {
+        const bm = new BMesh()
+        quad(bm)
+        expect(editMeshSubdivide(bm, {numberCuts: 2})).toBeNull()
+        expect(bm.totvert).toBe(4)
     })
 })

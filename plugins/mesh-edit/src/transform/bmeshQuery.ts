@@ -14,13 +14,12 @@ import {
     ElemFlag,
     faceCalcCenterMedian,
     faceCalcTangentAuto,
-    faceNormalUpdate,
+    meshNormalsUpdate,
 } from '@threepipe/mesh-kernel'
 import {
     addV3,
     angleNormalizedV3V3,
     crossV3,
-    dotV3,
     lenSquaredV3,
     midV3,
     normalizeV3,
@@ -39,45 +38,7 @@ export function edgeCalcLengthSquared(e: BMEdge): number {
     return lenSquaredV3(subV3(vertCo(e.v1), vertCo(e.v2)))
 }
 
-/**
- * `BM_mesh_normals_update`: face normals from the polygon, vertex normals as the corner-angle
- * weighted sum of the adjacent face normals (`bm_vert_calc_normals_accum_loop`).
- */
-export function meshNormalsUpdate(bm: BMesh): void {
-    for (const f of bm.faces) faceNormalUpdate(f)
-    for (const v of bm.verts) {
-        const n: Vec3 = [0, 0, 0]
-        if (v.e) {
-            for (const e of diskEdges(v)) {
-                const lFirst = e.l
-                if (!lFirst) continue
-                const e2diff = normalizedV3(subV3(vertCo(e.v1), vertCo(e.v2)))
-                let l: BMLoop = lFirst
-                do {
-                    if (l.v === v) {
-                        const ePrev = l.prev.e!
-                        const e1diff = normalizedV3(subV3(vertCo(ePrev.v1), vertCo(ePrev.v2)))
-                        let dot = dotV3(e1diff, e2diff)
-                        if ((ePrev.v1 === l.prev.v) !== (l.e!.v1 === l.v)) dot = -dot
-                        const fac = Math.acos(Math.max(-1, Math.min(1, -dot)))
-                        n[0] += l.f.nx * fac
-                        n[1] += l.f.ny * fac
-                        n[2] += l.f.nz * fac
-                    }
-                    l = l.radialNext!
-                } while (l !== lFirst)
-            }
-        }
-        if (normalizeV3(n) === 0) {
-            // A loose vertex: Blender normalises its position as the normal (`bm_vert_calc_normals_impl`).
-            const p = vertCo(v)
-            if (normalizeV3(p) !== 0) n[0] = p[0], n[1] = p[1], n[2] = p[2]
-        }
-        v.nx = n[0]
-        v.ny = n[1]
-        v.nz = n[2]
-    }
-}
+export {meshNormalsUpdate}
 
 // region edit selection (`bmesh_marking.cc`)
 
