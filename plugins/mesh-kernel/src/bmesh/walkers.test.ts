@@ -26,12 +26,14 @@ import {ElemFlag} from '../constants'
 import {
     walkEdgeBoundary,
     walkEdgeLoop,
+    walkEdgeLoopNonManifold,
     walkEdgeRing,
     walkEdgeRingIter,
     walkFaceLoop,
     walkFaceLoopIter,
     walkIsland,
     walkLoopShell,
+    walkLoopShellWire,
     walkVertShell,
     walkVertShellEdges,
 } from './walkers'
@@ -738,5 +740,75 @@ describe('a real Blender mesh', () => {
         // A closed sphere has no boundary edge to seed a boundary walk with.
         expect([...bm.edges].filter(edgeIsBoundary)).toEqual([])
         expect(bm.validate()).toEqual([])
+    })
+})
+
+describe('walker masks (bmw_mask_check_*)', () => {
+    it('an edge mask stops the shell walk at the masked edges', () => {
+        const g = grid(4, 1)
+        // Block the vertical edge at i = 2: the shell from the left cannot reach the right half.
+        const blocked = g.w(2, 0)
+        const edges = walkVertShellEdges(g.v(0, 0), {maskEdge: e => e !== blocked})
+        expect(edges).not.toContain(blocked)
+        // Without the mask every edge is reachable; with it, the left side only reaches it via faces.
+        expect(edges.length).toBeLessThan(walkVertShellEdges(g.v(0, 0)).length)
+    })
+
+    it('a face mask keeps the island walk out of masked faces', () => {
+        const g = grid(3, 1)
+        const faces = walkIsland(g.f(0, 0), false, {maskFace: f => f !== g.f(1, 0)})
+        expect(ids(faces)).toEqual(ids([g.f(0, 0)]))
+    })
+})
+
+describe('walkLoopShellWire (BMW_LOOP_SHELL_WIRE)', () => {
+    it('walks the loops of a face shell and the wire edges hanging off it', () => {
+        const g = grid(2, 1)
+        // A wire edge from a grid corner to a loose vertex, and another from that vertex onwards.
+        const loose = g.bm.vertCreate(-1, 0, 0)
+        const loose2 = g.bm.vertCreate(-2, 0, 0)
+        const wire = g.bm.edgeCreate(g.v(0, 0), loose)
+        const wire2 = g.bm.edgeCreate(loose, loose2)
+        const result = walkLoopShellWire(g.v(1, 1))
+        const loops = result.filter(e => !(e instanceof BMEdge))
+        const wires = result.filter(e => e instanceof BMEdge)
+        expect(loops.length).toBe(8)
+        expect(ids(wires as BMEdge[])).toEqual(ids([wire, wire2]))
+        // The plain loop shell never leaves the faces.
+        expect(walkLoopShell(g.v(1, 1)).length).toBe(8)
+    })
+
+    it('started on a wire edge, reaches the faces at its end', () => {
+        const g = grid(2, 1)
+        const loose = g.bm.vertCreate(-1, 0, 0)
+        const wire = g.bm.edgeCreate(g.v(0, 0), loose)
+        const result = walkLoopShellWire(wire)
+        expect(result.filter(e => !(e instanceof BMEdge)).length).toBe(8)
+        expect(result).toContain(wire)
+    })
+})
+
+describe('walkEdgeLoopNonManifold (BMW_EDGELOOP_NONMANIFOLD)', () => {
+    it('follows the edges with the same face count around a non-manifold seam', () => {
+        // Two fans of three quads, end to end: the shared edges both have three faces.
+        const bm = new BMesh()
+        const spine = [bm.vertCreate(0, 0, 0), bm.vertCreate(1, 0, 0), bm.vertCreate(2, 0, 0)]
+        for (let k = 0; k < 3; k++) {
+            const ring = [bm.vertCreate(0, 1, k), bm.vertCreate(1, 1, k), bm.vertCreate(2, 1, k)]
+            bm.faceCreate([spine[0], spine[1], ring[1], ring[0]])
+            bm.faceCreate([spine[1], spine[2], ring[2], ring[1]])
+        }
+        const e0 = diskEdgeExists(spine[0], spine[1])!
+        const e1 = diskEdgeExists(spine[1], spine[2])!
+        expect(radialLength(e0)).toBe(3)
+        expect(ids(walkEdgeLoopNonManifold(e0))).toEqual(ids([e0, e1]))
+        expect(ids(walkEdgeLoopNonManifold(e1))).toEqual(ids([e0, e1]))
+    })
+
+    it('stops at a manifold vertex fan instead of looping around it', () => {
+        // Blender only runs this walker from an edge with more than two faces; a manifold start
+        // must still terminate here, yielding the edge alone.
+        const g = grid(3, 3)
+        expect(walkEdgeLoopNonManifold(g.h(1, 1))).toEqual([g.h(1, 1)])
     })
 })

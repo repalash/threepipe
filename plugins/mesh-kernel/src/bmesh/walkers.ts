@@ -1340,10 +1340,14 @@ class NonManifoldEdgeWalker extends Walker<NonManifoldEdgeState, BMEdge> {
      * edge is found with `faceCount` users, or null if not found.
      */
     private findNextAroundVertex(l: BMLoop, v: BMVert, faceCount: number): BMLoop | null {
+        // Blender asserts the starting loop is non-manifold, so the fan walk always ends at it or
+        // at another non-manifold edge. A manifold start would spin forever; stop at the first loop.
+        const lStart = l
         for (;;) {
             l = loopOtherEdgeLoop(l, v)
             if (loopIsManifold(l)) {
                 l = l.radialNext!
+                if (l === lStart) return null
             } else if (edgeFaceCount(l.e!) === faceCount) {
                 return l
             } else {
