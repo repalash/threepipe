@@ -3,6 +3,8 @@
 //
 //   node scripts/snapshots-r2-init.mjs            check, change nothing   [default]
 //   node scripts/snapshots-r2-init.mjs --apply    create what is missing
+//   --env <file>   where R2_INIT_TOKEN / CLOUDFLARE_ACCOUNT_ID live (default <repo>/.env.threepipe; a worktree has none)
+//   --out <file>   where the S3 key is written (default <repo>/.env.snapshots-r2)
 //
 // Idempotent: probes first, creates only what is absent.
 //   1. bucket `threepipe-e2e-snapshots`
@@ -34,11 +36,12 @@ const args = process.argv.slice(2)
 const apply = args.includes('--apply')
 const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : path.join(import.meta.dirname, '..', '.env.snapshots-r2')
 
-const envFile = readEnv(path.join(import.meta.dirname, '..', '.env.threepipe'))
+const envPath = args.includes('--env') ? args[args.indexOf('--env') + 1] : path.join(import.meta.dirname, '..', '.env.threepipe')
+const envFile = readEnv(envPath)
 const unset = (v) => !v || /^(REPLACE_ME|<.*>)$/.test(v) // placeholders from .env.threepipe count as missing
 const token = [process.env.CLOUDFLARE_API_TOKEN, envFile.R2_INIT_TOKEN].find(v => !unset(v))
 const account = [process.env.CLOUDFLARE_ACCOUNT_ID, envFile.CLOUDFLARE_ACCOUNT_ID].find(v => !unset(v))
-if (!token) fail('no setup token: set CLOUDFLARE_API_TOKEN or R2_INIT_TOKEN in .env.threepipe')
+if (!token) fail(`no setup token: set CLOUDFLARE_API_TOKEN or R2_INIT_TOKEN in ${envPath}`)
 if (!account) fail('no account id: set CLOUDFLARE_ACCOUNT_ID (env or .env.threepipe)')
 
 let problems = 0
@@ -59,8 +62,10 @@ const errText = (r) => `HTTP ${r.status}: ${r.errors.map(e => e.message).join(';
 
 console.log('1. setup token')
 {
-    const r = await cf('GET', `/accounts/${account}/tokens/verify`)
-    if (r.result?.status === 'active') ok(`active on account ${account}`)
+    // account-owned tokens verify under /accounts, user tokens (created on the profile page) under /user
+    let r = await cf('GET', `/accounts/${account}/tokens/verify`)
+    if (r.result?.status !== 'active') r = await cf('GET', '/user/tokens/verify')
+    if (r.result?.status === 'active') ok(`active (expires ${r.result.expires_on || 'never'})`)
     else fail(`setup token rejected (${errText(r)})`)
 }
 
