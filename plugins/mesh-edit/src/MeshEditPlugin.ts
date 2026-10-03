@@ -2420,10 +2420,14 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const k = this._knife
         if (!k) return false
         const used = k.modal.key({code: event.code, press, ctrl: event.ctrlKey, shift: event.shiftKey, alt: event.altKey, meta: event.metaKey, repeat: event.repeat})
-        // The knife owns the keyboard while it runs: nothing else acts on its keys.
-        if (used || event.code === 'Tab') event.preventDefault()
+        if (used) event.preventDefault()
         this._knifeUpdate()
-        return used
+        // The knife owns the keyboard while it runs, as Blender's modal returns RUNNING_MODAL for every
+        // event it does not pass through: a plain key it does not bind (Tab, a number-pad view) does
+        // nothing rather than reaching the editor's keymap. Browser shortcuts (Ctrl/Cmd/Alt, F-keys) pass.
+        const plain = press && !event.ctrlKey && !event.metaKey && !event.altKey && !/^F\d+$/.test(event.code)
+        if (plain && !used) event.preventDefault()
+        return used || plain
     }
 
     /** The view the knife cuts in: the camera, region-sized in canvas pixels. */

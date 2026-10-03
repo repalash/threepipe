@@ -4264,11 +4264,16 @@ test('modelling-editor-cut', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
-    // 5. Esc cancels without touching the mesh or the history.
+    // 5. The knife owns the keyboard: Tab (edit mode's toggle) does nothing mid-cut. Esc cancels without
+    // touching the mesh or the history.
     const historyLength = (await state()).history.length
     await page.keyboard.press('KeyK')
     await click(f.a)
     await click(f.b)
+    await page.keyboard.press('Tab')
+    s = await state()
+    expect(s.mode).toBe('edit')
+    expect(s.knife).toBe(true)
     await page.keyboard.press('Escape')
     await expect.poll(async() => (await state()).knife).toBe(false)
     expect((await state()).counts).toEqual([8, 12, 6])
