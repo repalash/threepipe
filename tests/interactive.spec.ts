@@ -4145,3 +4145,124 @@ test('modelling-editor-engine', async({page}) => {
     await page.mouse.up()
     await expect.poll(selected).toBe(0)
 })
+
+test('modelling-loop-tools', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Loop Tools')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+
+    // Every step is a key press or a mouse click routed by the engine; state is read back afterwards.
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            selectMode: e.selectMode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            transform: (e.meshEdit.activeTransform?.mode ?? null) as string | null,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+        }
+    })
+    const round = (n: number) => Math.round(n * 1e4) / 1e4 + 0
+    /** Every vertex, rounded, in mesh order; and the selected ones. */
+    const verts = () => page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts]
+        .map((v: any) => ({co: [v.x, v.y, v.z], sel: !!(v.hflag & 1)})))
+        .then(vs => vs.map(v => ({co: v.co.map(round), sel: v.sel})))
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+
+    // ── Edge slide with G G (`transform.cc:1117`), a typed factor, the redo panel, undo ──
+    // Tab into edit mode, face mode, click the face under the centre, then edge mode: its four edges
+    // are a closed loop (each vertex has two selected edges).
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('3')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    await page.keyboard.press('2')
+    await expect.poll(async() => (await state()).selectMode).toBe('edge')
+    const cube = await verts()
+    const loop = cube.filter(v => v.sel)
+    expect(loop.length).toBe(4)
+    // The face's normal axis: the coordinate the four vertices share.
+    const axis = [0, 1, 2].find(i => loop.every(v => v.co[i] === loop[0].co[i]))!
+    const side = loop[0].co[axis]
+    // A factor of 0.5 slides the loop either halfway down the cube's side edges, or halfway across the
+    // face to the opposite corner, which is the face's centre: the two neighbouring "loops".
+    const down = (f: number) => loop.map(v => v.co.map((c, i) => i === axis ? round(side - side * 2 * f) : c))
+    const across = (f: number) => loop.map(v => v.co.map((c, i) => i === axis ? c : round(c - c * 2 * f)))
+    const slid = async() => (await verts()).filter((_, i) => cube[i].sel).map(v => v.co)
+
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe('translate')
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe('edgeSlide')
+    for (const k of ['Digit0', 'Period', 'Digit5']) await page.keyboard.press(k)
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    let s = await state()
+    expect(s.lastOp).toBe('mesh.edge_slide')
+    expect(s.lastProps?.value).toBe(0.5)
+    expect(s.history.at(-1)).toBe('Edge Slide')
+    const first = await slid()
+    const wentDown = JSON.stringify(first) === JSON.stringify(down(0.5))
+    expect(wentDown || JSON.stringify(first) === JSON.stringify(across(0.5)), JSON.stringify(first)).toBe(true)
+
+    // The redo panel re-runs it with -0.5: the other side.
+    await page.locator('[data-operator-panel="mesh.edge_slide"] .me-operator-title').click()
+    const factor = page.locator('[data-operator-panel="mesh.edge_slide"] #me-prop-value')
+    await expect(factor).toBeVisible()
+    await factor.fill('-0.5')
+    await expect.poll(async() => JSON.stringify(await slid())).toBe(JSON.stringify(wentDown ? across(0.5) : down(0.5)))
+    s = await state()
+    expect(s.lastProps?.value).toBe(-0.5)
+    expect(s.history.filter(h => h.startsWith('Edge Slide')).length).toBe(1)
+    // Undo puts the cube back.
+    await page.mouse.click(empty.x, empty.y)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
+    expect((await state()).history.at(-1)).toBe('Edge Slide *')
+
+    // ── Vertex slide (Shift+V): a corner slides along the edge the mouse moves towards ──
+    await page.keyboard.press('1')
+    await expect.poll(async() => (await state()).selectMode).toBe('vertex')
+    // The corner nearest the view's centre, on screen.
+    const corner = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).engine.meshEdit
+        const cam = v.scene.mainCamera
+        const r = v.canvas.getBoundingClientRect()
+        const m = me.editObject.matrixWorld
+        let best: any = null
+        for (const vert of me.state.bm.verts) {
+            const p = new cam.position.constructor(vert.x, vert.y, vert.z).applyMatrix4(m).project(cam)
+            const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height
+            const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2))
+            if (!best || d < best.d) best = {x, y, d, co: [vert.x, vert.y, vert.z]}
+        }
+        return best
+    })
+    await page.mouse.click(corner.x, corner.y)
+    await expect.poll(async() => (await state()).sel![0]).toBe(1)
+    const picked = (await verts()).find(v => v.sel)!.co
+    await page.keyboard.press('Shift+KeyV')
+    await expect.poll(async() => (await state()).transform).toBe('vertSlide')
+    await page.mouse.move(corner.x + 30, corner.y + 20, {steps: 6})
+    await page.mouse.click(corner.x + 30, corner.y + 20)
+    await expect.poll(async() => (await state()).transform).toBeNull()
+    s = await state()
+    expect(s.lastOp).toBe('mesh.vert_slide')
+    expect(s.history.at(-1)).toBe('Vertex Slide')
+    // It moved along one of the cube's edges: exactly one coordinate changed, inside the edge.
+    const moved = (await verts()).find(v => v.sel)!.co
+    const changed = [0, 1, 2].filter(i => Math.abs(moved[i] - picked[i]) > 1e-4)
+    expect(changed.length, `${JSON.stringify(picked)} -> ${JSON.stringify(moved)}`).toBe(1)
+    expect(Math.abs(moved[changed[0]])).toBeLessThan(Math.abs(picked[changed[0]]) + 1e-6)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
+})
