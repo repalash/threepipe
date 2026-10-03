@@ -40,6 +40,14 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         pickingMode: PickingModeType = 'auto'
 
     /**
+     * Clicking an object that is already selected cycles to the next object behind it under the cursor.
+     * With `cycleWrap` the cycle wraps round to the front object instead of ending in an empty
+     * selection, so clicking the only object under the cursor keeps it selected - Blender's behaviour.
+     * Off by default: past the last object, the click clears the selection.
+     */
+    cycleWrap = false
+
+    /**
      * Time threshold for a pointer click event
      */
     static PointerClickMaxTime = 200
@@ -417,7 +425,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             } else {
                 for (let i = 0; i < intersects.length; i++) {
                     if (this.selectedObject && this.selectedObject.id === intersects[i].object.id) {
-                        const n = i + 1 // Use ( i + 1 ) % intersects.length for looping through objects
+                        const n = this.cycleWrap ? (i + 1) % intersects.length : i + 1
                         if (n < intersects.length) {
                             intersect = intersects[n]
                             selectedObject = intersect.object

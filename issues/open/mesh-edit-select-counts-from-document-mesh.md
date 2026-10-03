@@ -1,5 +1,9 @@
 # Edit mode on a document mesh: vertices carry the Select flag but `tot*sel` is 0, so Select All is a no-op
 
+**Status**: fixed in `2c1dce3` (`modelling-editor`): `bmFromMesh` now loads selection through
+`vertSelectSet`/`edgeSelectSet`/`faceSelectSet`, as Blender's `BM_mesh_bm_from_me` does, so the counts
+follow the flags. Regression test in `plugins/mesh-kernel/src/bmesh/convert.test.ts`.
+
 **Found**: 2026-10-03, while building the editor shell (`plugins/modelling-editor`), in the browser.
 
 ## Repro

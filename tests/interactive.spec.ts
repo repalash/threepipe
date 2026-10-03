@@ -2929,6 +2929,152 @@ test('mesh-edit-plugin', async({page}) => {
 test('modelling-workspace', async({page}) => {
     await expect(page).toHaveTitle('Modelling Workspace')
 
+    // ── Real input: mouse and keyboard, the path a person takes. ──
+    // Everything below used to fail for a newcomer (issues/open/modelling-tools/10-editor-plan.md):
+    // the first click deselected the cube, selected vertices drew black, orbiting cleared the
+    // selection, hidden vertices won the pick, and nothing could be undone.
+    const state = () => page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const picking = (window as any).picking
+        const bm = me.state?.bm
+        return {
+            editing: me.isEditing as boolean,
+            picked: (picking.getSelectedObject()?.name ?? null) as string | null,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] : null,
+        }
+    })
+    const selectedVertex = () => page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const v = [...me.state.bm.verts].find((x: any) => x.hflag & 1)
+        return v ? [v.x, v.y, v.z] : null
+    })
+    const canvas = (await page.locator('#mcanvas').boundingBox())!
+    const cx = canvas.x + canvas.width / 2
+    const cy = canvas.y + canvas.height / 2
+
+    // The cube starts selected; clicking it keeps it selected rather than cycling to nothing.
+    expect((await state()).picked).toBe('cube')
+    await page.mouse.click(cx, cy)
+    await page.waitForTimeout(300)
+    expect((await state()).picked).toBe('cube')
+
+    // Tab enters edit mode on it, with its real topology: six quads, all selected (a new primitive).
+    await page.keyboard.press('Tab')
+    await page.waitForTimeout(300)
+    let s = await state()
+    expect(s.editing).toBe(true)
+    expect(s.counts).toEqual([8, 12, 6])
+    expect(s.sel).toEqual([8, 12, 6])
+
+    // Selected vertices are visibly orange, not black.
+    const orange = async() => {
+        const png = await page.screenshot({clip: {x: canvas.x, y: canvas.y, width: canvas.width, height: canvas.height}})
+        return page.evaluate(async(b64) => {
+            const img = new Image()
+            img.src = 'data:image/png;base64,' + b64
+            await img.decode()
+            const c = document.createElement('canvas')
+            c.width = img.width
+            c.height = img.height
+            const ctx = c.getContext('2d')!
+            ctx.drawImage(img, 0, 0)
+            const d = ctx.getImageData(0, 0, c.width, c.height).data
+            let n = 0
+            // Blender's vertex-select #ff7a00, allowing for antialiasing.
+            for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i + 1] > 70 && d[i + 1] < 170 && d[i + 2] < 60) n++
+            return n
+        }, png.toString('base64'))
+    }
+    expect(await orange()).toBeGreaterThan(20)
+
+    // Click the front corner nearest the top-left: the visible one, never the hidden vertex behind it.
+    const target = await page.evaluate(() => {
+        const v = (window as any).viewer
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        const r = v.canvas.getBoundingClientRect()
+        const ps = [...me.state.bm.verts].map((vt: any) => ({p: project(vt.x, vt.y, vt.z), z: vt.z}))
+            .filter((o: any) => o.p)
+        ps.sort((a: any, b: any) => a.p.depth - b.p.depth)
+        const front = ps[0]
+        return {x: r.left + front.p.x, y: r.top + front.p.y}
+    })
+    await page.mouse.move(target.x + 3, target.y + 3)
+    await page.waitForTimeout(200)
+    await page.mouse.click(target.x + 3, target.y + 3)
+    await page.waitForTimeout(300)
+    expect((await state()).sel).toEqual([1, 0, 0])
+    const picked = await page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        const all = [...me.state.bm.verts].map((v: any) => project(v.x, v.y, v.z).depth)
+        const v = [...me.state.bm.verts].find((x: any) => x.hflag & 1) as any
+        return {depth: project(v.x, v.y, v.z).depth, nearest: Math.min(...all)}
+    })
+    expect(picked.depth).toBe(picked.nearest)
+
+    // Orbiting (a drag from empty space) leaves the selection alone.
+    await page.mouse.move(canvas.x + 120, canvas.y + canvas.height - 120)
+    await page.mouse.down()
+    await page.mouse.move(canvas.x + 260, canvas.y + canvas.height - 200, {steps: 8})
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    expect((await state()).sel).toEqual([1, 0, 0])
+
+    // G, move, click: the vertex moves. Ctrl+Z puts it back, Ctrl+Shift+Z redoes it.
+    const before = await selectedVertex()
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyG')
+    await page.mouse.move(cx + 100, cy - 50, {steps: 6})
+    await page.mouse.click(cx + 100, cy - 50)
+    await page.waitForTimeout(300)
+    const moved = await selectedVertex()
+    expect(moved).not.toEqual(before)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(300)
+    expect(await selectedVertex()).toEqual(before)
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await page.waitForTimeout(300)
+    for (const [i, x] of (await selectedVertex())!.entries()) expect(x).toBeCloseTo(moved![i], 5)
+
+    // Esc outside a transform does nothing; Delete removes the vertex, not the object; Ctrl+Z undoes it.
+    await page.keyboard.press('Escape')
+    expect((await state()).editing).toBe(true)
+    await page.keyboard.press('Delete')
+    await page.waitForTimeout(300)
+    s = await state()
+    expect(s.counts).toEqual([7, 9, 3])
+    expect(await page.evaluate(() => (window as any).viewer.scene.modelRoot.children
+        .filter((c: any) => c.assetType !== 'widget').length)).toBe(1)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(300)
+    expect((await state()).counts).toEqual([8, 12, 6])
+
+    // Tab out leaves the cube selected; double-click goes back in.
+    await page.keyboard.press('Tab')
+    await page.waitForTimeout(300)
+    s = await state()
+    expect(s.editing).toBe(false)
+    expect(s.picked).toBe('cube')
+    await page.mouse.dblclick(cx, cy)
+    await page.waitForTimeout(300)
+    expect((await state()).editing).toBe(true)
+
+    // Face mode: click a face, E, move, click - one face extruded into a box of 12 verts and 10 faces.
+    await page.locator('[data-select="4"]').click()
+    await page.mouse.click(cx, cy)
+    await page.waitForTimeout(300)
+    expect((await state()).sel).toEqual([4, 4, 1])
+    await page.keyboard.press('KeyE')
+    await page.mouse.move(cx, cy - 80, {steps: 6})
+    await page.mouse.click(cx, cy - 80)
+    await page.waitForTimeout(300)
+    expect((await state()).counts).toEqual([12, 20, 10])
+    await page.locator('[data-mode="object"]').click()
+    await page.waitForTimeout(200)
+    expect((await state()).editing).toBe(false)
+
     const count = async() => page.evaluate(() =>
         (window as any).viewer.scene.modelRoot.children.filter((c: any) => c.assetType !== 'widget').length)
 
@@ -2937,7 +3083,7 @@ test('modelling-workspace', async({page}) => {
     expect(await count()).toBe(0)
 
     // Every entry in the Add bar must produce exactly one object with usable geometry.
-    for (const primitive of ['box', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
+    for (const primitive of ['cube', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
         await page.locator(`[data-add="${primitive}"]`).click()
         await page.waitForTimeout(160)
     }

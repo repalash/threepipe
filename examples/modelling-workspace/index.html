@@ -25,9 +25,11 @@
         }
         body { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+        /* Stops short of the settings panel on the right and wraps, so no button ends up underneath it. */
         #topbar {
-            position: absolute; top: 0; left: 0; right: 0; height: 34px;
-            display: flex; align-items: center; gap: 10px; padding: 0 10px;
+            position: absolute; top: 0; left: 0; right: 320px; min-height: 34px;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 10px;
+            box-sizing: border-box; border-bottom-right-radius: 8px;
             background: rgba(18,18,22,0.9); color: #e6e6ea; backdrop-filter: blur(6px);
             z-index: 10;
         }
@@ -41,6 +43,15 @@
             background: #26262e; color: #e6e6ea; font: inherit; cursor: pointer;
         }
         #topbar button:hover { background: #33333d; }
+        #topbar button.active { background: #4a3a12; color: #ffcf6b; border-color: #8a6a20; }
+        #topbar button:disabled { opacity: .35; cursor: default; }
+        #notice {
+            position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px);
+            background: #2a2a33; color: #f2f2f5; border: 1px solid #44444f; border-radius: 6px;
+            padding: 8px 14px; font: 13px/1.4 system-ui, sans-serif; opacity: 0; pointer-events: none;
+            transition: opacity .15s, transform .15s; z-index: 20;
+        }
+        #notice.show { opacity: 1; transform: translate(-50%, 0); }
 
         #panel {
             position: absolute; top: 46px; left: 10px; width: 232px; padding: 11px;
@@ -63,9 +74,23 @@
 
 <div id="topbar">
     <span id="mode" class="object">OBJECT MODE</span>
+    <span class="group" title="Object mode moves whole objects; edit mode reshapes one (Tab or double-click)">
+        <button data-mode="object" title="Object mode (Tab)">Object</button>
+        <button data-mode="edit" title="Edit mode (Tab, or double-click a mesh)">Edit</button>
+    </span>
+    <span class="group" title="What a click selects in edit mode">
+        <button data-select="1" title="Select vertices (1)">Vertex</button>
+        <button data-select="2" title="Select edges (2)">Edge</button>
+        <button data-select="4" title="Select faces (3)">Face</button>
+        <button id="xray" title="See and select through the surface">X-ray</button>
+    </span>
+    <span class="group">
+        <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    </span>
     <span class="group">
         <span class="label">Add</span>
-        <button data-add="box">Cube</button>
+        <button data-add="cube">Cube</button>
         <button data-add="plane">Plane</button>
         <button data-add="circle">Circle</button>
         <button data-add="sphere">Sphere</button>
@@ -88,14 +113,16 @@
 
     <div class="sep">Edit mode</div>
     <div class="help">
-        <b>Tab</b> enter / leave<br>
+        <b>Tab</b> or <b>double-click</b> enter, <b>Tab</b> leave<br>
+        <b>click</b> select, <b>Shift+click</b> add, drag to orbit<br>
         <b>1 / 2 / 3</b> vertex / edge / face<br>
         <b>A</b> all, <b>Alt+A</b> none, <b>L</b> linked<br>
         <b>G / R / S</b> move / rotate / scale<br>
         <b>E</b> extrude, <b>Shift+D</b> duplicate<br>
         <b>X</b> delete, <b>M</b> merge, <b>Y</b> split<br>
         <b>X / Y / Z</b> lock axis, digits for exact<br>
-        <b>click</b> confirm, <b>Esc</b> cancel
+        <b>click</b> confirm, <b>Esc</b> or right-click cancel<br>
+        <b>Ctrl+Z</b> undo, <b>Ctrl+Shift+Z</b> redo
     </div>
 
     <div class="sep">Reference</div>
@@ -103,6 +130,8 @@
 
     <div id="stats">loading…</div>
 </div>
+
+<div id="notice" role="status" aria-live="polite"></div>
 
 </body>
 </html>

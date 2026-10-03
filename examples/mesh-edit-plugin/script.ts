@@ -10,6 +10,7 @@ import {
     ThreeViewer,
     BoxGeometry,
     iGeometryCommons,
+    UndoManagerPlugin,
 } from 'threepipe'
 import {MeshEditPlugin, ReferenceImagePlugin} from '@threepipe/plugin-mesh-edit'
 import {SelectMode} from '@threepipe/mesh-kernel'
@@ -26,12 +27,14 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
-        plugins: [LoadingScreenPlugin, PickingPlugin],
+        plugins: [LoadingScreenPlugin, PickingPlugin, UndoManagerPlugin],
     })
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const picking = viewer.getPlugin(PickingPlugin)!
+    // Clicking the selected mesh keeps it selected, as in Blender, rather than deselecting it.
+    if (picking.picker) picking.picker.cycleWrap = true
     const meshEdit = viewer.addPluginSync(MeshEditPlugin)
     // Modelling from reference: drop photos onto the viewport, then drag and resize them.
     const references = viewer.addPluginSync(ReferenceImagePlugin)
