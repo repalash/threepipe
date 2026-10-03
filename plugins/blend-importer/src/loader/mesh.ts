@@ -1,17 +1,7 @@
 import {DoubleSide} from 'threepipe'
 import {createBufferGeometry} from './geometry'
 import {createMaterial} from './material'
-import {subdivideGeometry} from './subdivide'
 import {Ctx} from './ctx'
-
-function listToArray(lb: any): any[] {
-    const out: any[] = []
-    if (!lb) return out
-    let n = lb.first, g = 0
-    while (n && g++ < 4096) { out.push(n); n = n.next }
-    return out
-}
-const eModifierType_Subsurf = 1 // DNA_modifier_types.h: eModifierType_Subsurf
 
 export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     if (!object.data) {
@@ -21,14 +11,7 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     let geometry = loaded.get(object.data)
     if (!geometry) {
         geometry = createBufferGeometry(object.data, ctx)
-        // Subdivision Surface modifier: subdivide the base cage so it smooths (matching Blender's rendered
-        // result) and has enough geometry for a displacement map to actually move. Uses the modifier's render
-        // level, capped (the subdivider also caps the triangle budget). Cached per mesh datablock.
-        const subsurf = listToArray(object.modifiers).find((m: any) => m.modifier && m.modifier.type === eModifierType_Subsurf)
-        if (subsurf) {
-            const levels = Math.max(0, Math.min(5, (subsurf.renderLevels ?? subsurf.levels ?? 0) as number))
-            if (levels > 0) geometry = subdivideGeometry(geometry, ctx, levels)
-        }
+        // Modifiers (subdivision surface, mirror, array, solidify) are evaluated on the `blend-importer-modifiers` branch, not here yet.
         loaded.set(object.data, geometry)
     }
 
