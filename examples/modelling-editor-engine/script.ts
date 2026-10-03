@@ -18,11 +18,14 @@ async function init() {
         title: 'threepipe',
         viewer: {plugins: [LoadingScreenPlugin]},
         engine: {keymap: 'blender', storageKey: null},
+        // No welcome or hints here: the test drives the engine from the first frame.
+        onboarding: false,
     })
     const {viewer, engine} = editor
 
     // A cube to start with, selected, as in the editor example.
     await engine.run('add.cube')
+    engine.file.markClean()
 
     Object.assign(window as never, {viewer, editor, engine, modelling: viewer.getPlugin(ModellingPlugin)})
     console.log('Try: engine.keymap.setPreset("design"); engine.operators.list().map(o => [o.id, o.shortcut])')

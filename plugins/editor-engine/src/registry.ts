@@ -254,7 +254,7 @@ export interface MenuRequestItem {
 }
 
 export type UiRequest =
-    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel'}
+    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints'}
     | {
         request: 'menu'
         title?: string
@@ -378,6 +378,8 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
 
     context(): EditorContext
     stats(): SceneStats
+    /** The user's top-level objects: the model root's children, without gizmos and helpers. */
+    modelObjects(): IObject3D[]
     /** Poll result as a boolean plus reason, with the `modes` check folded in. */
     poll(op: OperatorDescriptor, ctx?: EditorContext): {enabled: boolean, reason?: string}
     /** Run an operator by id through the registry (poll, exec, last-operation bookkeeping, toasts). */

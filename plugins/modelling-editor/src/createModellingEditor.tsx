@@ -8,6 +8,7 @@ import {createRoot, Root} from 'react-dom/client'
 import {
     EditorViewWidgetPlugin,
     IViewerPlugin,
+    LoadingScreenPlugin,
     PickingPlugin,
     ThreeViewer,
     ThreeViewerOptions,
@@ -21,6 +22,7 @@ import {EditorViewportPlugin} from './EditorViewportPlugin'
 import {EditorUiPlugin} from './ui/EditorUiPlugin'
 import {ModellingEditorApp} from './ui/ModellingEditorApp'
 import {registerViewOperators} from './ops/viewOps'
+import {OnboardingOptions, OnboardingStore} from './onboarding/OnboardingStore'
 import editorCss from './styles/editor.scss?inline'
 
 export interface ModellingEditorOptions {
@@ -38,12 +40,18 @@ export interface ModellingEditorOptions {
     title?: string
     /** Environment map URL, loaded after setup. */
     environment?: string | null
+    /**
+     * The first-run welcome and start hints, and the redo panel opening for the first operations.
+     * `false` for an app (or a test) that wants none of it. Default: on, remembered in localStorage.
+     */
+    onboarding?: boolean | OnboardingOptions
 }
 
 export interface ModellingEditor {
     viewer: ThreeViewer
     engine: EditorEngine
     ui: EditorUiPlugin
+    onboarding: OnboardingStore
     root: Root
     dispose(): void
 }
@@ -82,6 +90,9 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
         ],
     })
     for (const p of options.plugins ?? []) viewer.addPluginSync(p)
+    // The editor teaches its own empty scene ("Add a shape"); a loading screen must not cover it.
+    const loadingScreen = viewer.getPlugin(LoadingScreenPlugin)
+    if (loadingScreen) loadingScreen.isEditor = true
 
     const ui = viewer.addPluginSync(new EditorUiPlugin())
     const engine = options.createEngine ? options.createEngine(viewer) : viewer.addPluginSync(new EditorEnginePlugin(options.engine))
@@ -104,10 +115,11 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
 
     options.container.classList.add('me-host')
     const root = createRoot(options.container)
-    root.render(<ModellingEditorApp value={{viewer, engine, ui}} title={options.title} />)
+    const onboarding = new OnboardingStore(options.onboarding ?? true)
+    root.render(<ModellingEditorApp value={{viewer, engine, ui, onboarding}} title={options.title} />)
 
     return {
-        viewer, engine, ui, root,
+        viewer, engine, ui, onboarding, root,
         dispose() {
             root.unmount()
             unregisterViewOps()

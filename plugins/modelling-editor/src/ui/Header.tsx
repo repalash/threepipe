@@ -36,7 +36,7 @@ function MenuForCategory({category, ops, ctx}: {category: string, ops: OperatorD
         />
     }
     return <Menu className="me-menu">
-        {inMode.map(item)}
+        {inMode.flatMap(op => op.id === 'file.open' ? [item(op), <RecentFilesMenu key="recent" />] : [item(op)])}
         {other.length ? <MenuDivider title={`${other[0].modes![0] === 'edit' ? 'Edit' : 'Object'} mode`} /> : null}
         {other.map(item)}
         {category === 'Help' ? <><MenuDivider /><MenuItem text="Version" disabled label="shell 0.1.0" /></> : null}
@@ -44,9 +44,27 @@ function MenuForCategory({category, ops, ctx}: {category: string, ops: OperatorD
     </Menu>
 }
 
+/** File > Open Recent: names only (a page cannot re-open a file by itself, so an entry opens the picker). */
+function RecentFilesMenu() {
+    const {engine} = useEditor()
+    const recent = engine.file.recent
+    const when = (t: number) => {
+        const d = new Date(t)
+        return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : d.toLocaleDateString()
+    }
+    const size = (n: number) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`
+    return <MenuItem text="Open Recent" icon="history" disabled={!recent.length} data-recent-menu
+        title={recent.length ? 'Files opened here before. The browser asks you to pick the file again.' : 'No files opened yet: File > Open, or drop one onto the viewport.'}>
+        {recent.map(r => <MenuItem key={r.name} text={r.name} label={`${size(r.size)} · ${when(r.openedAt)}`} data-recent-file={r.name}
+            onClick={() => engine.run('file.open_recent', {name: r.name})} />)}
+        <MenuDivider />
+        <MenuItem text="Clear Recent List" icon="trash" onClick={() => engine.file.clearRecent()} />
+    </MenuItem>
+}
+
 export function AppMenu() {
     const {engine} = useEditor()
-    useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged', 'keymapChanged')
+    useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged', 'keymapChanged', 'fileChanged', 'navigationChanged')
     const ctx = engine.context()
     const byCategory = new Map<string, OperatorDescriptor[]>()
     for (const op of engine.operators.list()) {
@@ -71,14 +89,17 @@ export function ModeSwitch() {
     const {engine} = useEditor()
     useEngineVersion('modeChanged', 'selectionChanged')
     const mode = engine.mode
+    useEngineVersion('keymapChanged')
     const canEdit = engine.context().selectedObjects.some(o => !!o.geometry)
+    const toEdit = engine.keymap.shortcutFor('object.enter_edit', 'object')
+    const toObject = engine.keymap.shortcutFor('mesh.exit_edit', 'edit')
     return <ButtonGroup className="me-mode-switch" data-mode={mode}>
-        <Tooltip content={<TooltipContent label="Object Mode" shortcut="Tab" description="Place, move and arrange whole objects." />} compact hoverOpenDelay={350}>
+        <Tooltip content={<TooltipContent label="Object Mode" shortcut={toObject} description="Place, move and arrange whole objects." />} compact hoverOpenDelay={350}>
             <Button size="small" icon="cube" text="Object" active={mode === 'object'} data-mode-button="object"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => engine.setMode('object')} />
         </Tooltip>
-        <Tooltip content={<TooltipContent label="Edit Mode" shortcut="Tab" description="Edit the selected mesh's vertices, edges and faces." reason={mode === 'object' && !canEdit ? 'Select a mesh first' : undefined} />} compact hoverOpenDelay={350}>
+        <Tooltip content={<TooltipContent label="Edit Mode" shortcut={toEdit} description="Edit the selected mesh's vertices, edges and faces. Double-clicking a mesh does it too." reason={mode === 'object' && !canEdit ? 'Click a mesh in the viewport or the outliner to select it first' : undefined} />} compact hoverOpenDelay={350}>
             <Button size="small" icon="edit" text="Edit" active={mode === 'edit'} data-mode-button="edit"
                 disabled={mode === 'object' && !canEdit}
                 onMouseDown={e => e.preventDefault()}
@@ -87,15 +108,15 @@ export function ModeSwitch() {
     </ButtonGroup>
 }
 
-const SELECT_MODES: {id: SelectModeName, label: string, icon: string, shortcut: string, description: string}[] = [
-    {id: 'vertex', label: 'Vertex select', icon: 'dot', shortcut: '1', description: 'Click vertices.'},
-    {id: 'edge', label: 'Edge select', icon: 'minus', shortcut: '2', description: 'Click edges.'},
-    {id: 'face', label: 'Face select', icon: 'square', shortcut: '3', description: 'Click faces.'},
+const SELECT_MODES: {id: SelectModeName, label: string, icon: string, description: string}[] = [
+    {id: 'vertex', label: 'Vertex select', icon: 'dot', description: 'Click vertices.'},
+    {id: 'edge', label: 'Edge select', icon: 'minus', description: 'Click edges.'},
+    {id: 'face', label: 'Face select', icon: 'square', description: 'Click faces.'},
 ]
 
 export function SelectModeButtons() {
     const {engine} = useEditor()
-    useEngineVersion('modeChanged', 'selectModeChanged')
+    useEngineVersion('modeChanged', 'selectModeChanged', 'keymapChanged')
     if (engine.mode !== 'edit') return null
     const current = engine.selectMode
     return <ButtonGroup className="me-select-modes">
@@ -104,7 +125,7 @@ export function SelectModeButtons() {
             icon={m.icon as never}
             size="small"
             active={current === m.id}
-            label={m.label} shortcut={m.shortcut} description={m.description}
+            label={m.label} shortcut={engine.keymap.shortcutFor(`mesh.select_mode_${m.id}`, 'edit')} description={m.description}
             data-select-mode={m.id}
             onClick={() => engine.setSelectMode(m.id)}
         />)}
@@ -122,7 +143,7 @@ function SlotPopover({icon, label, description, children}: {icon: string, label:
 
 export function HeaderSlots() {
     const {engine} = useEditor()
-    useEngineVersion('modeChanged', 'statusChanged')
+    useEngineVersion('modeChanged', 'statusChanged', 'keymapChanged')
     const vp = engine.viewer.getPlugin('EditorViewportPlugin' as never) as EditorViewportPlugin | undefined
     const meshEdit = engine.viewer.getPlugin(MeshEditPlugin)
     const shading = vp?.shading ?? 'material'
@@ -141,19 +162,31 @@ export function HeaderSlots() {
                     data-shading={mode}
                     onClick={() => engine.run(`view.shading_${mode}`)} />)}
         </ButtonGroup>
-        <IconButton icon="eye-open" size="small" active={!!meshEdit?.xray} label="X-Ray" shortcut="Alt+Z"
+        <IconButton icon="eye-open" size="small" active={!!meshEdit?.xray} label="X-Ray" shortcut={engine.keymap.shortcutFor('mesh.toggle_xray', 'edit')}
             description="See and select through the mesh (edit mode)."
-            reason={engine.mode === 'edit' ? undefined : 'Only in edit mode'}
+            reason={engine.mode === 'edit' ? undefined : `Only in Edit mode: select a mesh and press ${engine.keymap.shortcutFor('object.enter_edit', 'object') ?? 'Edit'}`}
             data-xray
             onClick={() => engine.run('mesh.toggle_xray')} />
         <IconButton icon="grid" size="small" active={!!vp?.gridVisible} label="Grid" description="Show the ground grid and axes."
             reason={vp ? undefined : 'EditorViewportPlugin is not loaded'}
             data-grid
             onClick={() => engine.run('view.toggle_grid')} />
-        <IconButton icon="camera" size="small" active={!!vp?.isOrthographic} label="Orthographic" shortcut="Numpad 5" description="Toggle perspective / orthographic projection."
+        <IconButton icon="camera" size="small" active={!!vp?.isOrthographic} label="Orthographic" shortcut={engine.keymap.shortcutFor('view.toggle_projection')} description="Toggle perspective / orthographic projection."
             reason={vp ? undefined : 'EditorViewportPlugin is not loaded'}
             onClick={() => engine.run('view.toggle_projection')} />
     </div>
+}
+
+/** The document's name and an unsaved-changes dot, as a desktop app's title bar shows them. */
+export function DocumentName() {
+    const {engine} = useEditor()
+    useEngineVersion('fileChanged')
+    const {name, dirty} = engine.file
+    const saveKey = engine.keymap.shortcutFor('file.save')
+    return <span className="me-doc-name" data-file-name={name ?? ''} data-dirty={dirty}
+        title={dirty ? `Unsaved changes. File > Save${saveKey ? ` (${formatShortcut(saveKey)})` : ''} downloads a .glb that re-opens editable.` : 'Saved'}>
+        {name ?? 'Untitled'}{dirty ? <span className="me-doc-dirty" aria-label="unsaved changes"> •</span> : null}
+    </span>
 }
 
 export function Header({title}: {title?: string}) {
@@ -163,6 +196,8 @@ export function Header({title}: {title?: string}) {
             <span className="me-brand-text">{title ?? 'threepipe'}</span>
         </div>
         <AppMenu />
+        <span className="me-header-divider" />
+        <DocumentName />
         <span className="me-header-divider" />
         <ModeSwitch />
         <SelectModeButtons />

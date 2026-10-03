@@ -3820,11 +3820,182 @@ test('modelling-editor', async({page}) => {
 
     const engineState = async() => page.evaluate(() => {
         const e = (window as any).engine
-        return {mode: e.mode, selectMode: e.selectMode, tool: e.activeTool?.id ?? null, stats: e.stats(), lastOp: e.lastOperation?.operator.id ?? null}
+        return {
+            mode: e.mode, selectMode: e.selectMode, tool: e.activeTool?.id ?? null, stats: e.stats(), lastOp: e.lastOperation?.operator.id ?? null,
+            preset: e.keymap.activePreset.id as string, device: e.navigation.device as string,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+        }
+    })
+    const onboarding = () => page.evaluate(() => JSON.parse(localStorage.getItem('threepipe-editor-onboarding') ?? 'null'))
+    const hints = () => page.locator('[data-hint]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.hint))
+    const shot = (name: string) => page.screenshot({path: `tmp/onboarding/editor-${name}.png`})
+    const card = (action: string) => page.locator(`[data-gesture-card="${action}"] .me-gesture-card-text`)
+    // The cube's centre on screen, from the camera, so a click lands on it whatever the layout.
+    const cubeOnScreen = () => page.evaluate(() => {
+        const w = window as any
+        const o = w.engine.modelObjects()[0]
+        const v = o.getWorldPosition(o.position.clone()).project(w.viewer.scene.mainCamera)
+        const r = w.viewer.canvas.getBoundingClientRect()
+        return {x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height}
     })
 
-    // Starts in object mode with the cube selected; the status bar and outliner agree.
+    // ── 1. First run: a welcome asks "Have you used Blender?" and the answer picks the keymap. ──
+    const welcome = page.locator('.me-welcome')
+    await expect(welcome).toBeVisible()
+    await expect(page.locator('[data-welcome="1"]')).toBeVisible()
+    expect(await onboarding()).toBeNull()
+    await shot('01-welcome')
+    // The welcome owns the keyboard: Shift+A does not open the Add menu behind it.
+    await page.keyboard.press('Shift+KeyA')
+    await expect(page.locator('.me-popup-menu')).toHaveCount(0)
+    await page.locator('[data-preset-choice="design"]').click()
+    await expect(page.locator('[data-welcome="2"]')).toBeVisible()
+    expect((await engineState()).preset).toBe('design')
+    // Step 2: orbit / pan / zoom drawn and worded for the preset and the device.
+    const devices = page.locator('[data-device-choice]')
+    await devices.getByText('Mouse', {exact: true}).click()
+    await expect(card('orbit')).toHaveText('Right-drag')
+    await expect(card('pan')).toHaveText('Middle-drag')
+    await expect(card('zoom')).toHaveText('Scroll the wheel')
+    await expect(page.locator('[data-gesture-card="orbit"] [data-gesture="right-drag"]')).toHaveCount(1)
+    await devices.getByText('Trackpad', {exact: true}).click()
+    await expect(card('orbit')).toHaveText('Shift+two-finger scroll')
+    await expect(card('pan')).toHaveText('Two-finger scroll')
+    await expect(card('zoom')).toHaveText('Pinch')
+    await expect(page.locator('[data-gesture-card="zoom"] [data-gesture="pinch"]')).toHaveCount(1)
+    await shot('02-move-around-design-trackpad')
+    // Back, and Blender after all: the cards follow the preset.
+    await page.getByRole('button', {name: 'Back'}).click()
+    await page.locator('[data-preset-choice="blender"]').click()
+    expect((await engineState()).preset).toBe('blender')
+    await expect(card('orbit')).toHaveText('Two-finger scroll')
+    await expect(card('pan')).toHaveText('Shift+two-finger scroll')
+    await devices.getByText('Mouse', {exact: true}).click()
+    await expect(card('orbit')).toHaveText('Middle-drag')
+    await expect(card('pan')).toHaveText('Right-drag')
+    await expect(page.locator('[data-gesture-card="pan"] .me-gesture-card-alt')).toContainText('Shift+middle-drag')
+    await shot('03-move-around-blender-mouse')
+    await page.locator('[data-welcome-done]').click()
+    await expect(welcome).toHaveCount(0)
+    expect((await onboarding()).welcomeDone).toBe(true)
+    // The device the user chose is remembered by the engine.
+    expect(await page.evaluate(() => localStorage.getItem('threepipe-editor-keymap-device'))).toBe('mouse')
+
+    // ── 2. The start scene: a cube, not selected, on the grid, from a three-quarter view. ──
     let s = await engineState()
+    expect(s.mode).toBe('object')
+    expect(s.stats.objects).toBe(1)
+    expect(s.stats.selected[0]).toBe(0)
+    expect(await page.evaluate(() => {
+        const w = window as any
+        const p = w.viewer.scene.mainCamera.position
+        return [w.viewer.getPlugin('EditorViewportPlugin').gridVisible, Math.abs(p.x) > 1 && Math.abs(p.y) > 1 && Math.abs(p.z) > 1]
+    })).toEqual([true, true])
+    // Nothing selected: the status bar says what to do, with the live key.
+    await expect(page.locator('[data-status-tip]')).toContainText('click an object to select it, then Tab or double-click to edit it')
+
+    // ── 3. Hint 1, "Click to select", disappears once the cube is clicked. ──
+    await expect(page.locator('[data-hint="select"]')).toBeVisible()
+    await expect(page.locator('[data-hint="select"]')).toContainText('Click to select')
+    await shot('04-hint-select')
+    let cube = await cubeOnScreen()
+    await page.mouse.click(cube.x, cube.y)
+    await expect.poll(async() => (await engineState()).stats.selected[0]).toBe(1)
+    await expect(page.locator('[data-hint="select"]')).toHaveCount(0)
+    await expect(page.locator('.me-outliner .bp5-tree-node-selected')).toHaveCount(1)
+    await expect(page.locator('[data-status-tip]')).toHaveCount(0)
+
+    // ── 4. Hint 2, "Tab or double-click to edit", on the Edit button; gone after Tab. ──
+    await expect(page.locator('[data-hint="edit"]')).toBeVisible()
+    await expect(page.locator('[data-hint="edit"] .me-coach-title')).toHaveText('Tab or double-click to edit')
+    await shot('05-hint-edit')
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await engineState()).mode).toBe('edit')
+    await expect(page.locator('[data-hint="edit"]')).toHaveCount(0)
+    // Edit mode with nothing selected: the status bar suggests what to do.
+    await page.keyboard.press('Alt+KeyA')
+    await expect(page.locator('[data-status-tip]')).toContainText('Nothing selected: click a vertex or drag a box around some, A selects everything, Tab goes back to Object mode.')
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await engineState()).mode).toBe('object')
+
+    // ── 5. Hint 3, "Drag a handle to move", on the Move tool; gone after a gizmo drag. ──
+    const moveHint = page.locator('[data-hint="move"]')
+    await expect(moveHint).toBeVisible()
+    await expect(moveHint).toContainText('Pick the Move tool here or press G')
+    await shot('06-hint-move')
+    await page.locator('[data-tool="object.move"]').click()
+    await expect(moveHint).toContainText('Drag one of the gizmo\'s arrows')
+    // Find an arrow of the object gizmo with its own hover test, then drag it as a person would.
+    const arrow = await page.evaluate(() => {
+        const w = window as any
+        const tc = w.viewer.getPlugin('TransformControlsPlugin').transformControls
+        const r = w.viewer.canvas.getBoundingClientRect()
+        for (let y = 0; y < r.height; y += 4) {
+            for (let x = 0; x < r.width; x += 4) {
+                tc.pointerHover({x: x / r.width * 2 - 1, y: -(y / r.height * 2 - 1), button: -1})
+                if (['X', 'Y', 'Z'].includes(tc.axis)) {
+                    const axis = tc.axis
+                    tc.axis = null
+                    return {x: r.left + x, y: r.top + y, axis}
+                }
+            }
+        }
+        return null
+    })
+    expect(arrow).not.toBeNull()
+    const before = await page.evaluate(() => (window as any).engine.modelObjects()[0].position.toArray())
+    await page.mouse.move(arrow!.x, arrow!.y)
+    await page.mouse.down()
+    for (let i = 1; i <= 10; i++) {
+        await page.mouse.move(arrow!.x + 5 * i, arrow!.y - 4 * i)
+        await page.waitForTimeout(30)
+    }
+    await page.mouse.up()
+    await expect.poll(async() => (await engineState()).history.at(-1)).toBe('Move cube')
+    const after = await page.evaluate(() => (window as any).engine.modelObjects()[0].position.toArray())
+    expect(after).not.toEqual(before)
+    // The drag belonged to the gizmo: it did not also start an object box select that deselected the cube.
+    expect((await engineState()).stats.selected[0]).toBe(1)
+    await expect(page.locator('[data-hint]')).toHaveCount(0)
+    expect((await onboarding()).hints).toEqual({select: 'done', edit: 'done', move: 'done'})
+    await shot('07-hints-done')
+
+    // ── 6. Remembered: after a reload neither the welcome nor the hints come back. ──
+    await page.reload()
+    await page.waitForSelector('body._testFinish', {state: 'attached', timeout: 120000})
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+    await page.waitForTimeout(500)
+    await expect(welcome).toHaveCount(0)
+    expect(await hints()).toEqual([])
+    expect((await engineState()).preset).toBe('blender')
+    // Help > Welcome opens it again; Skip closes it.
+    await page.locator('[data-menu="Help"]').click()
+    await page.getByRole('menuitem', {name: 'Welcome…'}).click()
+    await expect(page.locator('[data-welcome="1"]')).toBeVisible()
+    await page.locator('[data-welcome-skip]').click()
+    await expect(welcome).toHaveCount(0)
+    // Help > Show Hints Again: the first hint is back; its X closes it, "Skip tips" closes the rest.
+    await page.locator('[data-menu="Help"]').click()
+    await page.getByRole('menuitem', {name: 'Show Hints Again'}).click()
+    await expect(page.locator('[data-hint="select"]')).toBeVisible()
+    await page.locator('[data-hint="select"] [data-hint-close]').click()
+    await expect(page.locator('[data-hint="edit"]')).toBeVisible()
+    await page.locator('[data-hint="edit"] [data-hint-skip]').click()
+    expect(await hints()).toEqual([])
+    expect((await onboarding()).hints).toEqual({select: 'dismissed', edit: 'dismissed', move: 'dismissed'})
+
+    // A "can't do that" says what to do next: Tab with nothing selected.
+    await page.mouse.move(cube.x, cube.y)
+    await page.keyboard.press('Tab')
+    await expect(page.locator('.bp5-toast').last()).toContainText('Click a mesh to select it first, or double-click it')
+
+    // From here the cube starts selected, as the shell checks below were written for; selecting it
+    // through the API keeps the selection out of the undo history they check.
+    await page.evaluate(() => {
+        const w = window as any
+        w.viewer.getPlugin('Picking').setSelectedObject(w.engine.modelObjects()[0], false, false)
+    })
+    s = await engineState()
     expect(s.mode).toBe('object')
     expect(s.stats.objects).toBe(1)
     await expect(page.locator('[data-status-bar] .me-stat-mode')).toHaveText('Object')
@@ -3860,14 +4031,14 @@ test('modelling-editor', async({page}) => {
     await expect(palette).toHaveCount(0)
     expect((await engineState()).mode).toBe('object')
 
-    // Menus render from the registry: Add > UV Sphere adds an object and fills the redo-last panel.
+    // Menus render from the registry: Add > UV Sphere adds an object and fills the redo-last panel,
+    // which is open by itself for the first operations.
     await page.locator('[data-menu="Add"]').click()
     await page.getByRole('menuitem', {name: 'UV Sphere'}).click()
     await expect.poll(async() => (await engineState()).stats.objects).toBe(2)
     s = await engineState()
     expect(s.lastOp).toBe('add.sphere')
     await expect(page.locator('[data-operator-panel="add.sphere"]')).toBeVisible()
-    await page.locator('[data-operator-panel="add.sphere"] .me-operator-title').click()
     await expect(page.locator('[data-operator-panel="add.sphere"] #me-prop-radius')).toBeVisible()
     await expect(page.locator('.me-outliner .bp5-tree-node')).toHaveCount(2)
 
@@ -3879,12 +4050,34 @@ test('modelling-editor', async({page}) => {
     await expect(history).toBeVisible()
     await expect(history).toContainText('Add Sphere')
     await expect(history.locator('li')).toHaveText(['Add Cube', 'Add Sphere'])
-    await page.getByRole('button', {name: 'Undo'}).click()
+    await page.locator('.me-dialog .bp5-dialog-footer').getByRole('button', {name: 'Undo'}).click()
     await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
+    // Click-to-jump in the dialog: the undone Add Sphere redoes, Original undoes everything.
+    await shot('08-history-dialog')
+    await history.locator('[data-history-index="1"]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(2)
+    await page.locator('.me-dialog [data-history-index="-1"]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(0)
+    await expect(history.locator('li.me-undone')).toHaveCount(2)
+    await history.locator('[data-history-index="0"]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
+    await expect(history.locator('li.me-current')).toHaveText('Add Cube')
     // the dialog header's X is also named Close; take the footer button
     await page.locator('.me-dialog .bp5-dialog-footer').getByRole('button', {name: 'Close'}).click()
     // the dialog's overlay keeps catching pointer events until its close transition ends
     await expect(page.locator('.me-dialog')).toHaveCount(0)
+
+    // The same list as a History tab beside the outliner.
+    await page.locator('[data-side-tab="history"]').click()
+    const panel = page.locator('[data-history-panel]')
+    await expect(panel).toBeVisible()
+    await expect(panel.locator('li')).toHaveText(['Add Cube', 'Add Sphere'])
+    await panel.locator('[data-history-index="1"]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(2)
+    await expect(panel.locator('li.me-current')).toHaveText('Add Sphere')
+    await shot('09-history-tab')
+    await page.locator('[data-side-tab="outliner"]').click()
+    await expect(page.locator('.me-outliner')).toBeVisible()
 
     // Viewport context menu: a right click that does not drag opens the operators for the selection.
     const vp = await page.locator('[data-viewport]').boundingBox()
@@ -3900,6 +4093,76 @@ test('modelling-editor', async({page}) => {
     const del = page.getByRole('menuitem', {name: 'Delete'})
     await expect(del).toHaveAttribute('aria-disabled', 'true')
     await page.keyboard.press('Escape')
+    // the menu button keeps its popover open after Escape; a click on it closes it
+    if (await del.isVisible()) await page.locator('[data-menu="Object"]').click()
+    await expect(del).toHaveCount(0)
+
+    // ── 7. The empty scene teaches: File > New (Ctrl+N), confirmed in the editor's own dialog. ──
+    await page.mouse.move(vp!.x + vp!.width / 2, vp!.y + vp!.height / 2)
+    await page.keyboard.press('Control+KeyN')
+    const confirm = page.locator('.bp5-dialog', {hasText: 'Unsaved changes are lost'})
+    await expect(confirm).toBeVisible()
+    await confirm.locator('[data-dialog-submit]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(0)
+    const empty = page.locator('[data-empty-state]')
+    await expect(empty).toBeVisible()
+    // The outliner empties too, not just the viewport.
+    await expect(page.locator('.me-outliner .bp5-tree-node')).toHaveCount(0)
+    await expect(empty).toContainText('Add a shape')
+    await expect(page.locator('[data-status-tip]')).toContainText('The scene is empty: add a shape from the Add menu (Shift+A)')
+    await shot('10-empty-state')
+    await empty.locator('[data-empty-add="add.cylinder"]').click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
+    await expect(empty).toHaveCount(0)
+    expect((await engineState()).history).toEqual(['Add Cylinder'])
+
+    // ── 8. The cheat sheet: ? opens it, generated from the active keymap, grouped and searchable. ──
+    await page.keyboard.press('Shift+Slash')
+    const sheet = page.locator('.me-cheatsheet')
+    await expect(sheet).toBeVisible()
+    await expect(sheet.locator('[data-shortcut-group]')).toHaveCount(4)
+    await expect(sheet.locator('[data-shortcut-group="edit"] [data-shortcut-row="mesh.extrude"] kbd')).toHaveText('E')
+    await expect(sheet.locator('[data-shortcut-group="all"] [data-shortcut-row="help.shortcuts"] kbd')).toHaveText(['?', 'F1'])
+    await shot('11-cheatsheet')
+    const search = sheet.locator('[data-cheatsheet-search]')
+    await search.fill('extrude')
+    await expect(sheet.locator('[data-shortcut-row]')).toHaveCount(1)
+    await expect(sheet.locator('[data-shortcut-row="mesh.extrude"]')).toBeVisible()
+    await search.fill('ctrl+z')
+    await expect(sheet.locator('[data-shortcut-row="edit.undo"]')).toBeVisible()
+    await expect(sheet.locator('[data-shortcut-row="mesh.extrude"]')).toHaveCount(0)
+    await search.fill('pinch')
+    await expect(sheet.locator('[data-shortcut-group="pointer"] [data-shortcut-row="pointer.trackpad.zoom"]')).toBeVisible()
+    await search.fill('extrude')
+    await shot('12-cheatsheet-search')
+    // Switching the preset from the sheet re-derives it.
+    await sheet.locator('[data-cheatsheet-switch]').click()
+    await expect(sheet.locator('[data-shortcut-row="mesh.extrude"] kbd')).toHaveText('Ctrl+E')
+    expect((await engineState()).preset).toBe('design')
+    await sheet.locator('[data-cheatsheet-switch]').click()
+    expect((await engineState()).preset).toBe('blender')
+    await page.keyboard.press('Escape')
+    await expect(sheet).toHaveCount(0)
+    // F1 opens it too in the Blender preset.
+    await page.keyboard.press('F1')
+    await expect(sheet).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(sheet).toHaveCount(0)
+
+    // ── 9. The redo panel opens by itself for the first operations only, then the user's choice rules. ──
+    const panelOpen = () => page.locator('.me-operator-panel').getAttribute('class').then(c => !!c?.includes('me-open'))
+    for (let i = 0; i < 6; i++) await page.evaluate(() => (window as any).engine.run('add.plane'))
+    expect((await onboarding()).operations).toBeGreaterThan(5)
+    await expect.poll(panelOpen).toBe(false)
+    await page.locator('.me-operator-title').click()
+    await expect.poll(panelOpen).toBe(true)
+    expect((await onboarding()).redoPanel).toBe('open')
+    await page.evaluate(() => (window as any).engine.run('add.cube'))
+    await expect(page.locator('[data-operator-panel="add.cube"]')).toBeVisible()
+    await expect.poll(panelOpen).toBe(true)
+    await page.locator('.me-operator-title').click()
+    await expect.poll(panelOpen).toBe(false)
+    expect((await onboarding()).redoPanel).toBe('closed')
 })
 
 test('modelling-editor-engine', async({page}) => {
@@ -4144,4 +4407,168 @@ test('modelling-editor-engine', async({page}) => {
     await page.mouse.move(box.x + 60, box.y + 60, {steps: 6})
     await page.mouse.up()
     await expect.poll(selected).toBe(0)
+})
+
+test('modelling-editor-files', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Files')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+    const state = () => page.evaluate(() => {
+        const w = window as any
+        const e = w.engine
+        return {
+            name: e.file.name as string | null,
+            dirty: e.file.dirty as boolean,
+            recent: e.file.recent.map((r: any) => r.name) as string[],
+            objects: e.modelObjects().map((o: any) => o.name) as string[],
+            selected: e.picking.getSelectedObjects().map((o: any) => o.name) as string[],
+            // Each document entry: its face count and its largest face, n-gons included.
+            doc: w.modelling.document.entries.map((en: any) => {
+                let max = 0
+                for (let f = 0; f < en.mesh.facesNum; f++) max = Math.max(max, en.mesh.faceSize(f))
+                return [en.name, en.mesh.facesNum, max, en.object.parent === w.viewer.scene.modelRoot]
+            }),
+        }
+    })
+    const docName = page.locator('[data-file-name]')
+    const shot = (name: string) => page.screenshot({path: `tmp/onboarding/files-${name}.png`})
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+
+    // 1. The start scene is the "home file": untitled and clean. A cylinder's caps are 32-gons.
+    let s = await state()
+    expect(s).toMatchObject({name: null, dirty: false, recent: [], objects: ['cylinder']})
+    expect(s.doc).toEqual([['cylinder', 34, 32, true]])
+    await expect(docName).toHaveText('Untitled')
+
+    // 2. Unsaved changes: any new step sets the dot; undoing back to the saved step clears it.
+    await page.keyboard.press('Shift+KeyA')
+    await page.locator('.me-popup-menu').getByRole('menuitem', {name: 'Cube'}).click()
+    await expect.poll(async() => (await state()).dirty).toBe(true)
+    await expect(docName).toHaveAttribute('data-dirty', 'true')
+    await expect(page.locator('.me-doc-dirty')).toBeVisible()
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).dirty).toBe(false)
+    await expect(page.locator('.me-doc-dirty')).toHaveCount(0)
+
+    // 3. Save (Ctrl+S): an untitled document asks for a name in the editor's own dialog, then downloads
+    // <name>.glb and is clean.
+    await page.evaluate(() => {
+        const w = window as any
+        w.viewer.getPlugin('Picking').setSelectedObject(w.engine.modelObjects()[0], false, false)
+    })
+    await page.keyboard.press('Control+KeyS')
+    const nameInput = page.locator('#dialog-prompt-text-input')
+    await expect(nameInput).toBeVisible()
+    await page.waitForTimeout(400) // the dialog's fade-in, for the screenshot
+    await shot('01-save-as')
+    await nameInput.fill('tube')
+    const saved = page.waitForEvent('download')
+    await page.locator('[data-dialog-submit]').click()
+    const download = await saved
+    expect(download.suggestedFilename()).toBe('tube.glb')
+    const glbPath = 'tmp/onboarding/files/tube.glb'
+    await download.saveAs(glbPath)
+    await expect.poll(async() => (await state()).name).toBe('tube')
+    expect((await state()).dirty).toBe(false)
+    await expect(docName).toHaveText('tube')
+    await expect(page.locator('.bp5-toast').last()).toContainText('Saved tube.glb to your downloads. It re-opens editable with File > Open (Ctrl+O).')
+
+    // 4. A change after the save, then Open (Ctrl+O) the saved file: the editor asks first, the scene
+    // is replaced by the file's, and the cylinder comes back with its 32-gon caps, editable.
+    await page.keyboard.press('Shift+KeyA')
+    await page.locator('.me-popup-menu').getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await expect.poll(async() => (await state()).objects.length).toBe(2)
+    await page.keyboard.press('Control+KeyO')
+    const confirm = page.locator('.bp5-dialog', {hasText: 'Unsaved changes are lost'})
+    await expect(confirm).toBeVisible()
+    const chooser = page.waitForEvent('filechooser')
+    await confirm.locator('[data-dialog-submit]').click()
+    await (await chooser).setFiles(glbPath)
+    await expect.poll(async() => (await state()).objects).toEqual(['cylinder'])
+    s = await state()
+    expect(s).toMatchObject({name: 'tube', dirty: false, recent: ['tube.glb'], selected: ['cylinder']})
+    expect(s.doc).toEqual([['cylinder', 34, 32, true]])
+    // Edit mode on the reopened mesh: 34 faces, two of them 32-sided - not the 124 triangles in the glb.
+    await page.keyboard.press('Tab')
+    await expect.poll(() => page.evaluate(() => (window as any).engine.mode)).toBe('edit')
+    expect(await page.evaluate(() => {
+        const bm = (window as any).engine.meshEdit.state.bm
+        return [bm.totface, [...bm.faces].filter((f: any) => f.len === 32).length]
+    })).toEqual([34, 2])
+    await shot('02-reopened-edit')
+    await page.keyboard.press('Tab')
+    await expect.poll(() => page.evaluate(() => (window as any).engine.mode)).toBe('object')
+
+    // 5. Exports are named after the document.
+    const exportVia = async(label: string) => {
+        await page.locator('[data-menu="File"]').click()
+        const dl = page.waitForEvent('download')
+        await page.getByRole('menuitem', {name: label}).click()
+        const d = await dl
+        const path = `tmp/onboarding/files/export-${d.suggestedFilename()}`
+        await d.saveAs(path)
+        return {name: d.suggestedFilename(), path}
+    }
+    expect((await exportVia('Export GLB')).name).toBe('tube.glb')
+    const obj = await exportVia('Export OBJ')
+    expect(obj.name).toBe('tube.obj')
+    expect((await exportVia('Export STL')).name).toBe('tube.stl')
+
+    // 6. Open Recent lists what was opened, by name only.
+    await page.locator('[data-menu="File"]').click()
+    await page.locator('[data-recent-menu]').hover()
+    await expect(page.locator('[data-recent-file="tube.glb"]')).toBeVisible()
+    await shot('03-open-recent')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('threepipe-editor-keymap-recent')!).map((r: any) => Object.keys(r).sort().join(',')))).toEqual(['lastModified,name,openedAt,size'])
+
+    // 7. Drag and drop: a file dropped on the viewport is imported, selected and remembered.
+    const {readFileSync} = await import('fs')
+    const objText = readFileSync(obj.path, 'utf8')
+    await page.evaluate(async([text, x, y]) => {
+        const canvas = (window as any).viewer.canvas as HTMLCanvasElement
+        const dt = new DataTransfer()
+        dt.items.add(new File([text], 'dropped.obj', {type: 'text/plain'}))
+        const opts = {bubbles: true, cancelable: true, dataTransfer: dt, clientX: x, clientY: y}
+        canvas.dispatchEvent(new DragEvent('dragover', opts))
+        canvas.dispatchEvent(new DragEvent('drop', opts))
+    }, [objText, vp.x + vp.width / 2, vp.y + vp.height / 2] as const)
+    await expect.poll(async() => (await state()).objects.length).toBe(2)
+    s = await state()
+    expect(s.recent).toEqual(['dropped.obj', 'tube.glb'])
+    // An import is not an undo step, but it is an unsaved change.
+    expect(s.dirty).toBe(true)
+    expect(s.selected.length).toBe(1)
+    expect(s.selected[0]).not.toBe('cylinder')
+    await expect(page.locator('.bp5-toast').last()).toContainText('Opened dropped.obj. Double-click a mesh (or Tab) to edit it.')
+
+    // 8. File > New, after confirming, empties the scene and the name.
+    await page.keyboard.press('Control+KeyN')
+    await expect(confirm).toBeVisible()
+    await confirm.locator('[data-dialog-submit]').click()
+    await expect.poll(async() => (await state()).objects).toEqual([])
+    expect((await state()).name).toBeNull()
+    await expect(docName).toHaveText('Untitled')
+    await expect(page.locator('[data-empty-state]')).toBeVisible()
+
+    // 9. Trackpad detection: a two-finger scroll (small fractional deltas on both axes) switches the
+    // hints to trackpad gestures and says so once.
+    expect(await page.evaluate(() => (window as any).engine.navigation.deviceSource)).not.toBe('chosen')
+    await page.evaluate(() => (window as any).engine.navigation.setDevice('mouse'))
+    await page.evaluate(() => (window as any).engine.navigation.setDevice('auto'))
+    // over the canvas, clear of the empty-state card in the middle
+    await page.mouse.move(vp.x + 60, vp.y + vp.height - 80)
+    await page.mouse.wheel(1.5, 2.5)
+    await expect.poll(() => page.evaluate(() => [(window as any).engine.navigation.device, (window as any).engine.navigation.deviceSource])).toEqual(['trackpad', 'detected'])
+    await expect(page.locator('.bp5-toast', {hasText: 'Trackpad detected'})).toHaveCount(1)
+    await expect(page.locator('[data-status-bar]')).toContainText('Two fingers')
+    await expect(page.locator('[data-status-bar]')).not.toContainText('MMB')
+    await page.mouse.wheel(0.5, 1.5)
+    await page.waitForTimeout(300)
+    await expect(page.locator('.bp5-toast', {hasText: 'Trackpad detected'})).toHaveCount(1)
+    // A mouse notch (100 px on one axis) switches back.
+    await page.mouse.wheel(0, 100)
+    await expect.poll(() => page.evaluate(() => (window as any).engine.navigation.device)).toBe('mouse')
+    await expect(page.locator('[data-status-bar]')).toContainText('MMB')
 })

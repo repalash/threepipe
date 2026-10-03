@@ -3,24 +3,28 @@
  * re-render from the engine's getters - no copy of the state lives in React.
  */
 
-import React, {createContext, useContext, useEffect, useReducer} from 'react'
+import React, {createContext, useContext, useEffect, useMemo, useReducer, useSyncExternalStore} from 'react'
 import type {ThreeViewer} from 'threepipe'
 import type {EditorEngine, EditorEngineEventMap} from '@threepipe/plugin-editor-engine'
 import type {EditorUiPlugin} from './EditorUiPlugin'
+import {OnboardingState, OnboardingStore} from '../onboarding/OnboardingStore'
 
 export interface EditorContextValue {
     viewer: ThreeViewer
     engine: EditorEngine
     ui: EditorUiPlugin
+    /** First-run state: welcome, hints, the redo panel's default. Absent: onboarding off, nothing remembered. */
+    onboarding?: OnboardingStore
 }
 
-const Ctx = createContext<EditorContextValue | undefined>(undefined)
+const Ctx = createContext<(EditorContextValue & {onboarding: OnboardingStore}) | undefined>(undefined)
 
 export function EditorProvider({value, children}: {value: EditorContextValue, children: React.ReactNode}) {
-    return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+    const full = useMemo(() => ({...value, onboarding: value.onboarding ?? new OnboardingStore({enabled: false, storageKey: null})}), [value])
+    return <Ctx.Provider value={full}>{children}</Ctx.Provider>
 }
 
-export function useEditor(): EditorContextValue {
+export function useEditor(): EditorContextValue & {onboarding: OnboardingStore} {
     const v = useContext(Ctx)
     if (!v) throw new Error('useEditor: no EditorProvider above this component')
     return v
@@ -55,6 +59,13 @@ export function useEngineVersion(...events: EventName[]): number {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [engine, events.join('|')])
     return version
+}
+
+/** The onboarding store and its current state; re-renders when it changes. */
+export function useOnboarding(): [OnboardingStore, OnboardingState] {
+    const store = useEditor().onboarding
+    const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
+    return [store, state]
 }
 
 /** Platform-aware shortcut text: `Ctrl+Z` shows as `⌘Z` on a Mac. */
