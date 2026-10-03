@@ -21,6 +21,7 @@ const eModifierMode_Render = 1 << 1
 // Names for the "unsupported modifier" warning (so missing geometry isn't silent). Values per
 // DNA_modifier_types.h `eModifierType_*`.
 const MODIFIER_NAMES: Record<number, string> = {
+    1: 'Subsurf', 5: 'Mirror',
     2: 'Lattice', 3: 'Curve', 4: 'Build', 6: 'Decimate', 7: 'Wave', 8: 'Armature', 9: 'Hook',
     10: 'Softbody', 11: 'Boolean', 12: 'Array', 13: 'EdgeSplit', 14: 'Displace', 15: 'UVProject',
     16: 'Smooth', 17: 'Cast', 18: 'MeshDeform', 19: 'ParticleSystem', 20: 'ParticleInstance', 21: 'Explode',
@@ -52,41 +53,55 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     // rendered output; unsupported ones are flagged loudly. Subsurf smooths + tessellates (so a
     // displacement map has geometry to move); Mirror duplicates/reflects across the object's axes.
     const unsupported: string[] = []
+    const failed: string[] = []
     for (const m of listToArray(object.modifiers)) {
         const hdr = m.modifier
         if (!hdr) continue
         if (typeof hdr.mode === 'number' && !(hdr.mode & eModifierMode_Render)) continue
-        if (hdr.type === eModifierType_Subsurf) {
-            const levels = Math.max(0, Math.min(5, (m.renderLevels ?? m.levels ?? 0) as number))
-            // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
-            if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
-                const cage = geometry.userData && geometry.userData.__cage
-                if (m.subdivType !== 1 && cage) {
-                    // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
-                    // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
-                    // approximation if the cage subdivider throws.
-                    try {
-                        const sub = subdivideCage(cage, ctx, levels)
-                        sub.name = geometry.name
-                        geometry = sub
-                    } catch (e) {
-                        console.warn(`BlendLoader - "${object.aname}": Catmull-Clark failed, falling back to Loop subdivision:`, e)
-                        geometry = subdivideGeometry(geometry, ctx, levels, undefined, false)
+        // One modifier failing must not fail the whole file. Blender evaluates the rest of the stack on
+        // the input to a modifier that errors, and shows the error in that modifier's panel; here the
+        // geometry from before the failing step is kept and the failure is reported. Without this, a
+        // single bad mesh made `AssetImporter` reject the entire `.blend`, and because the importer
+        // reports that as a resolved-but-empty load, it looked like a hang rather than an error.
+        const before = geometry
+        try {
+            if (hdr.type === eModifierType_Subsurf) {
+                const levels = Math.max(0, Math.min(5, (m.renderLevels ?? m.levels ?? 0) as number))
+                // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
+                if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
+                    const cage = geometry.userData && geometry.userData.__cage
+                    if (m.subdivType !== 1 && cage) {
+                        // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
+                        // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
+                        // approximation if the cage subdivider throws.
+                        try {
+                            const sub = subdivideCage(cage, ctx, levels)
+                            sub.name = geometry.name
+                            geometry = sub
+                        } catch (e) {
+                            console.warn(`BlendLoader - "${object.aname}": Catmull-Clark failed, falling back to Loop subdivision:`, e)
+                            geometry = subdivideGeometry(geometry, ctx, levels, undefined, false)
+                        }
+                    } else {
+                        geometry = subdivideGeometry(geometry, ctx, levels, undefined, m.subdivType === 1)
                     }
-                } else {
-                    geometry = subdivideGeometry(geometry, ctx, levels, undefined, m.subdivType === 1)
                 }
+            } else if (hdr.type === eModifierType_Mirror) {
+                geometry = mirrorGeometry(geometry, m, ctx)
+            } else if (hdr.type === eModifierType_Array) {
+                geometry = arrayGeometry(geometry, m, ctx)
+            } else if (hdr.type === eModifierType_Solidify) {
+                geometry = solidifyGeometry(geometry, m, ctx)
+            } else {
+                unsupported.push(MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`)
             }
-        } else if (hdr.type === eModifierType_Mirror) {
-            geometry = mirrorGeometry(geometry, m, ctx)
-        } else if (hdr.type === eModifierType_Array) {
-            geometry = arrayGeometry(geometry, m, ctx)
-        } else if (hdr.type === eModifierType_Solidify) {
-            geometry = solidifyGeometry(geometry, m, ctx)
-        } else {
-            unsupported.push(MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`)
+        } catch (e) {
+            geometry = before
+            failed.push(`${MODIFIER_NAMES[hdr.type] ?? `type ${hdr.type}`}: ${(e as Error)?.message ?? e}`)
         }
     }
+    if (failed.length)
+        console.error(`BlendLoader - "${object.aname}": modifier(s) failed and were skipped:`, failed.join('; '))
     if (unsupported.length)
         console.warn(`BlendLoader - "${object.aname}": unsupported modifier(s), geometry may be incomplete:`, unsupported.join(', '))
 

@@ -34,8 +34,19 @@ function subdivideOnce(pos: Float32Array, uv: Float32Array | null, index: Uint32
 
     // Reposition original vertices (Loop): interior vert with valence n uses beta; boundary verts (an edge
     // with only one adjacent face) use the 1/8,3/4,1/8 boundary mask.
+    // Boundary neighbours are gathered in this one pass. They used to be found per boundary vertex by
+    // scanning every edge, which is O(boundary verts x edges) - harmless on a closed mesh, ruinous on an
+    // open one, and every vertex of an unwelded triangle soup is a boundary vertex. Same edges, same
+    // insertion order, so each vertex gets the same neighbours in the same order as before.
     const isBoundaryVert = new Uint8Array(vCount)
-    for (const e of edges.values()) if (e.opp.length === 1) { isBoundaryVert[e.a] = 1; isBoundaryVert[e.b] = 1 }
+    const boundaryNeighbours: number[][] = []
+    for (const e of edges.values()) {
+        if (e.opp.length !== 1) continue
+        isBoundaryVert[e.a] = 1
+        isBoundaryVert[e.b] = 1
+        ;(boundaryNeighbours[e.a] ??= []).push(e.b)
+        ;(boundaryNeighbours[e.b] ??= []).push(e.a)
+    }
     for (let v = 0; v < vCount; v++) {
         const nb = neighbours[v]; const n = nb.size
         let x = 0, y = 0, z = 0, u = 0, w = 0
@@ -44,11 +55,8 @@ function subdivideOnce(pos: Float32Array, uv: Float32Array | null, index: Uint32
             x = pos[v * 3]; y = pos[v * 3 + 1]; z = pos[v * 3 + 2]
             if (uv) { u = uv[v * 2]; w = uv[v * 2 + 1] }
         } else if (isBoundaryVert[v]) {
-            // Collect this boundary vertex's boundary neighbours (the verts across its boundary edges).
-            const bn: number[] = []
-            for (const e of edges.values()) {
-                if (e.opp.length === 1 && (e.a === v || e.b === v)) bn.push(e.a === v ? e.b : e.a)
-            }
+            // This boundary vertex's boundary neighbours (the verts across its boundary edges).
+            const bn = boundaryNeighbours[v] ?? []
             // "Keep Corners" (Blender Subsurf default): a boundary vertex whose two boundary edges meet at a
             // sharp angle is a CORNER — keep it fixed so a flat plane stays a square (the smooth boundary
             // rule otherwise pulls every corner inward, rounding the plane into a shrunken disc). Only the
@@ -131,6 +139,12 @@ function subdivideOnce(pos: Float32Array, uv: Float32Array | null, index: Uint32
  */
 export function subdivideGeometry(geometry: any, ctx: Ctx, iterations: number, maxTriangles = 400000, simple = false): any {
     if (iterations <= 0 || !geometry.index || !geometry.attributes.position) return geometry
+    // Every step below walks the index three at a time and indexes per-vertex arrays with what it
+    // reads. A buffer that is not a whole number of triangles would read past its end into `undefined`
+    // and fail deep inside with "cannot read properties of undefined" - say what is actually wrong.
+    if (geometry.index.count % 3 !== 0) {
+        throw new Error(`subdivideGeometry: index has ${geometry.index.count} entries, not a whole number of triangles`)
+    }
     let pos = geometry.attributes.position.array as Float32Array
     let uv = geometry.attributes.uv ? geometry.attributes.uv.array as Float32Array : null
     let index = geometry.index.array as Uint32Array | Uint16Array
