@@ -1,0 +1,108 @@
+{
+    "name": "@threepipe/plugin-modelling-editor",
+    "description": "Modelling editor shell for threepipe: React 18 + Blueprint 5 layout (header, toolbar, outliner, properties, operator panel, status bar, command palette) rendered from operator and tool registries",
+    "version": "0.1.0",
+    "devDependencies": {
+        "@blueprintjs/core": "^5.19.1",
+        "@blueprintjs/icons": "^5.23.0",
+        "@blueprintjs/select": "^5.3.21",
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "@vitejs/plugin-react": "^5.2.0",
+        "blueprint-styler": "^5.0.2",
+        "classnames": "^2.5.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-resizable-panels": "^3.0.6",
+        "rimraf": "^5.0.10",
+        "sass": "^1.93.2",
+        "ts-browser-helpers": "file:./../../node_modules/ts-browser-helpers",
+        "typescript": "^5.8.3",
+        "uiconfig-blueprint": "0.1.0-dev.15",
+        "uiconfig.js": "file:./../../node_modules/uiconfig.js",
+        "vite": "^7.3.1",
+        "vite-plugin-dts": "^4.5.4"
+    },
+    "dependencies": {
+        "threepipe": "file:./../../src/",
+        "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/",
+        "@threepipe/plugin-mesh-edit": "file:./../mesh-edit/src/",
+        "@threepipe/plugin-modelling": "file:./../modelling/src/"
+    },
+    "peerDependencies": {
+        "threepipe": ">=0.5.0",
+        "@threepipe/mesh-kernel": ">=0.1.0",
+        "@threepipe/plugin-mesh-edit": ">=0.1.0",
+        "@threepipe/plugin-modelling": ">=0.1.0"
+    },
+    "overrides": {
+        "ts-browser-helpers": "$ts-browser-helpers",
+        "uiconfig.js": "$uiconfig.js",
+        "@blueprintjs/icons": "$@blueprintjs/icons"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "source": "src/index.ts",
+    "files": [
+        "dist",
+        "src",
+        "README.md",
+        "CHANGELOG.md",
+        "docs",
+        "tsconfig.json"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "prepare": "npm run build",
+        "build": "rimraf dist && vite build",
+        "build:dev": "NODE_ENV=development vite build",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "dev": "NODE_ENV=development vite build --watch",
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "three.js",
+        "threepipe",
+        "editor",
+        "modelling",
+        "blueprint",
+        "react"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://github.com/repalash/threepipe#readme",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/modelling-editor"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "overrides",
+            "//"
+        ],
+        "replace": {
+            "dependencies": {}
+        }
+    }
+}

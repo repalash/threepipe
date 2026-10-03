@@ -1,0 +1,98 @@
+// blueprint tree drag and drop styles
+
+// Make caret animation more snappy
+.bp5-tree-node-caret,
+.bp5-tree-node-caret-open,
+.bp5-tree-node-caret-closed {
+  transition: transform 0.1s ease-out !important;
+}
+
+//.bp5-tree-node-dragging{
+//    opacity: 0.5;
+//    background-color: green !important;
+//    box-shadow: none;
+//}
+//.bp5-tree-node-dragover{
+//    opacity: 0.5;
+//    background-color: red;
+//    box-shadow: none;
+//}
+.bp5-tree-node-dragover{
+  //opacity: 0.5;
+  //background-color: red;
+  //box-shadow: none;
+  outline: var(--pt-intent-primary) solid 2px;
+  outline-offset: -2px;
+}
+
+.bp5-tree-drop-spacer {
+  width: 100%;
+  height: 0;
+  overflow: visible;
+  font-size: 0;
+  background: none;
+  pointer-events: none;
+  position: relative;
+
+  div{
+    width: 100%;
+    min-height: 10px;
+    background: transparent;
+    position: absolute;
+    transform: translateY(-50%);
+    z-index: 100;
+  }
+  .bp5-tree-dragging-node &{
+    pointer-events: auto;
+  }
+}
+
+.bp5-tree-node-content{
+  //transition: background-color 0.2s ease-in-out;
+}
+
+@for $i from 1 through 10 {
+  .bp5-tree-node-content-#{$i} {
+    padding-left: calc(10px * $i);
+  }
+}
+
+.bp5-tree-node-caret{
+  padding: 7px 5px;
+}
+
+.bp5-tree-node-content:has(.bp5-icon) {
+  .bp5-tree-node-caret, .bp5-tree-node-caret-none {
+    min-width: 0px;
+  }
+
+  // because bp5-tree-node-icon is not applied on this icon
+  .bp5-icon:has(.bp5-tree-node-icon-svg), .bp5-tree-node-icon{
+    margin-right: 0px;
+    padding: 0 5px;
+    position: relative;
+  }
+  .bp5-tree-node-icon > svg{ // (this is only for built in bp icons)
+    padding: 1px; // to match the size of other svg icons
+  }
+}
+
+
+.bp5-tree-root{
+  width: max-content;
+  min-width: 100%;
+}
+.bp5-tree-node-secondary-label{
+  position: sticky;
+  right: 5px;
+  display: none;
+}
+.bp5-tree-node-content:hover{
+  .bp5-tree-node-secondary-label{
+    display: block;
+  }
+}
+.bp5-tree-node-label{
+  font-size: var(--me-font-size-small);
+  font-weight: 400;
+}
