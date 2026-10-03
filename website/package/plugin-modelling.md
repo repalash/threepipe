@@ -80,7 +80,7 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `deleteElements` | delete vertices, edges or faces — Blender's `mesh.delete` types |
 | `rename`, `material`, `select` | naming, surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
-| `camera` | named views, fit-to-objects, saved views |
+| `camera` | named views, fit-to-objects, saved views; orthographic or perspective with a chosen `fov` |
 | `reference` | a calibrated reference photograph on a world plane |
 | `capture` | render a frame and hand it back |
 | `inspect` | counts, bounds, transform, per-vertex detail |

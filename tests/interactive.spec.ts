@@ -2615,9 +2615,41 @@ test('modelling-api', async({page}) => {
     // The registered view must be replayable.
     const replay = await run({op: 'camera', view: 'ref:side'})
     expect(replay.ok).toBe(true)
-    // `source` says how the framing was arrived at; `saved` only ever names where one was stored.
-    expect((replay.data as any).source).toBe('saved')
+    // `source` says how the framing was arrived at - a reference view is recomputed from its plane
+    // for the current lens - and `saved` only ever names where one was stored.
+    expect((replay.data as any).source).toBe('reference')
     expect((replay.data as any).saved).toBe(null)
+    // Perspective: the 5-unit-high plane exactly fills the frame, so the eye sits at
+    // (h / 2) / tan(fov / 2) from it along the plane normal (+X for the right plane).
+    const fov = (replay.data as any).fov as number
+    expect((replay.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(fov * Math.PI / 360), 3)
+
+    // A long lens and an orthographic camera both stay registered to the plane.
+    const longLens = await run({op: 'camera', view: 'ref:side', fov: 10})
+    expect((longLens.data as any).fov).toBe(10)
+    expect((longLens.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(5 * Math.PI / 180), 3)
+    const orthoRef = await run({op: 'camera', view: 'ref:side', projection: 'orthographic'})
+    expect(orthoRef.ok).toBe(true)
+    expect((orthoRef.data as any).projection).toBe('orthographic')
+    expect((orthoRef.data as any).frustumSize).toBeCloseTo(5, 5)
+    // `fov` means nothing to a parallel projection, and says so.
+    const orthoFov = await run({op: 'camera', fov: 30})
+    expect(orthoFov.ok).toBe(false)
+    expect(orthoFov.error).toContain('perspective setting')
+    // Orthographic framing of a box: the frame is the box's projected height plus a 10% margin.
+    await run({op: 'primitive', type: 'cube', name: 'tall', width: 1, height: 4, depth: 1,
+        position: [0, 2, 0]})
+    const orthoFit = await run({op: 'camera', view: 'front', fit: 'tall'})
+    expect((orthoFit.data as any).frustumSize).toBeCloseTo(4.4, 3)
+    const orthoShot = await run({op: 'capture'})
+    expect(orthoShot.ok).toBe(true)
+    // ...and the export does not pick up the orthographic camera.
+    const exportedObjects = await page.evaluate(() =>
+        (window as any).viewer.scene.getObjectByName('modelling:orthographic')?.userData.excludeFromExport)
+    expect(exportedObjects).toBe(true)
+    const backToPerspective = await run({op: 'camera', projection: 'perspective', fov: 45})
+    expect((backToPerspective.data as any).projection).toBe('perspective')
+    await run({op: 'delete', object: 'tall'})
 
     const computed = await run({op: 'camera', view: 'top', fit: '*', save: 'overhead'})
     expect((computed.data as any).source).toBe('computed')
