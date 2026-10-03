@@ -53,6 +53,7 @@ import {
     mergeSelectedVerts,
     DeleteContext,
     bmToMesh,
+    translateVerts,
 } from '@threepipe/mesh-kernel'
 import {Matrix4} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
@@ -72,6 +73,13 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     meshChanged: {state: EditMeshState}
     /** A modal transform started, updated or finished. Null when it ended. */
     transformChanged: {transform: ModalTransform | null}
+    /**
+     * A modal transform was confirmed, with what it did - Blender's `saveTransform`, which writes the
+     * final value, constraint and orientation into the operator so the redo panel can re-run it.
+     * `chained` names the topology change the move followed (`extrude`, `duplicate`), if any.
+     * Dispatched before `transformChanged: null`, while `transform` still holds its final state.
+     */
+    transformCommitted: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null}
     /** The element under the cursor changed: what a click would select. Null when nothing is. */
     preselectChanged: {element: BMVert | BMEdge | BMFace | null}
     /** Something the user tried could not be done. Show it; it used to go to the console only. */
@@ -89,6 +97,14 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
 const SUSPENDED_PLUGINS = ['Picking', 'TransformControlsPlugin', 'PivotControlsPlugin', 'PivotEditPlugin', 'Object3DWidgetsPlugin']
 
 const DISABLE_KEY = 'meshEdit'
+
+/** Undo-step labels, as Blender names the operators in its Undo History. */
+const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale'}
+const CHAIN_LABELS = {extrude: 'Extrude', duplicate: 'Duplicate'} as const
+const DELETE_LABELS: Partial<Record<DeleteContext, string>> = {
+    verts: 'Delete Vertices', edges: 'Delete Edges', faces: 'Delete Faces',
+    onlyFaces: 'Delete Only Faces', edgesFaces: 'Delete Edges & Faces',
+}
 
 export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     public static readonly PluginType = 'MeshEditPlugin'
@@ -166,6 +182,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** Highlight the element under the cursor. Not a Blender default; it is what makes picking legible. */
     preselectHighlight = true
 
+    /**
+     * Handle the keyboard here. On by default so the plugin works on its own; an interaction engine
+     * that owns the viewport keymap (`@threepipe/plugin-editor-engine`) turns it off and forwards the
+     * modal keys through {@link handleModalKey}.
+     */
+    keyHandling = true
+
     private _root: Object3D2 | null = null
     private _vertPoints: Points | null = null
     private _edgeLines: LineSegments | null = null
@@ -182,7 +205,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** The mesh as it was before the running operation, for its undo step. */
     private _undoBefore: MeshData | null = null
     /** The running transform follows a topology change (extrude, duplicate) that must stay undoable. */
-    private _chained = false
+    private _chained: 'extrude' | 'duplicate' | null = null
 
     get isEditing(): boolean {
         return this.state !== null
@@ -297,8 +320,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.editObject = null
         this._cycle.reset()
 
-        // Suspending the picker cleared the object selection; leave the edited object selected.
-        viewer?.getPlugin<any>('Picking')?.setSelectedObject?.(object)
+        // Suspending the picker cleared the object selection; leave the edited object selected. Not
+        // an undo step: leaving edit mode is not a selection the user made.
+        viewer?.getPlugin<any>('Picking')?.setSelectedObject?.(object, false, false)
 
         this.dispatchEvent({type: 'editModeChanged', object: null})
         viewer?.setDirty()
@@ -616,8 +640,26 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         // Chain into a move constrained to the region's normal, which is what makes `E` push a face
         // straight out of the surface however it is oriented. An axis key overrides it. The undo step
         // covers both, and is recorded when the move ends - confirmed or cancelled, the extrusion stays.
-        this.startTransform('translate', before)
+        this.startTransform('translate', before, 'extrude')
         if (normal && this._transform) this._transform.setCustomAxis(normal)
+        return true
+    }
+
+    /**
+     * Extrude the selection by a fixed offset, no modal: what the redo panel re-runs after an
+     * interactive extrude, with the offset it ended on. One undo step, labelled `Extrude`.
+     */
+    extrudeBy(offset: [number, number, number]): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        const result = extrudeSelection(state.bm)
+        if (!result) {
+            this._notice('Select something to extrude first.')
+            return false
+        }
+        translateVerts(result.verts, offset[0], offset[1], offset[2])
+        this._commitTopologyChange(before, 'Extrude')
         return true
     }
 
@@ -638,7 +680,22 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.applyToObject()
         this.refreshOverlays()
         this.dispatchEvent({type: 'meshChanged', state})
-        this.startTransform('translate', before)
+        this.startTransform('translate', before, 'duplicate')
+        return true
+    }
+
+    /** Duplicate the selection and move the copy by a fixed offset, no modal (the redo-panel re-run). */
+    duplicateBy(offset: [number, number, number]): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        const result = duplicateSelection(state.bm)
+        if (!result) {
+            this._notice('Select something to duplicate first.')
+            return false
+        }
+        translateVerts(result.verts, offset[0], offset[1], offset[2])
+        this._commitTopologyChange(before, 'Duplicate')
         return true
     }
 
@@ -648,7 +705,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!state) return false
         const before = this._snapshot()
         if (!splitSelection(state.bm)) return false
-        this._commitTopologyChange(before)
+        this._commitTopologyChange(before, 'Split')
         return true
     }
 
@@ -662,7 +719,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._notice('Nothing selected to delete.', 'info')
             return false
         }
-        this._commitTopologyChange(before)
+        this._commitTopologyChange(before, DELETE_LABELS[context] ?? 'Delete')
         return true
     }
 
@@ -675,17 +732,81 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._notice('Select two or more vertices to merge.', 'info')
             return false
         }
-        this._commitTopologyChange(before)
+        this._commitTopologyChange(before, 'Merge')
         return true
     }
 
-    private _commitTopologyChange(before: MeshData): void {
+    private _commitTopologyChange(before: MeshData, label: string): void {
         const state = this.state!
         state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
         this.dispatchEvent({type: 'meshChanged', state})
-        this._recordUndo(before)
+        this._recordUndo(before, label)
+    }
+
+    /**
+     * The session mesh as it is now, for callers that change `state.bm` themselves and then
+     * {@link commit}. The pair is how an operator outside this plugin (the editor engine's loop
+     * select, dissolve, ...) gets the same bake, overlay refresh and labelled undo step as the
+     * built-in ones.
+     */
+    snapshot(): MeshData | null {
+        return this.state ? this._snapshot() : null
+    }
+
+    /** Bake a change made directly to `state.bm`, refresh overlays and record one undo step from `before`. */
+    commit(before: MeshData, label: string): void {
+        if (!this.state) return
+        this._commitTopologyChange(before, label)
+    }
+
+    /**
+     * Rebuild the session from the mesh provider (the modelling document), keeping the select mode.
+     *
+     * For when the document changed underneath the session: a document command ran on the edited
+     * object, or such a step was undone. Without this the session would keep editing a stale copy
+     * and bake it back over the newer one on the next commit.
+     */
+    reload(): boolean {
+        const object = this.editObject
+        const state = this.state
+        if (!object || !state) return false
+        const provided = this._providedMesh(object)
+        if (!provided) return false
+        if (this._transform) this.cancelTransform()
+        const mode = state.selectMode
+        this.state = EditMeshState.fromMeshData(provided.clone())
+        selectModeSet(this.state.bm, mode)
+        this._preselect = null
+        this._cycle.reset()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state: this.state})
+        this.dispatchEvent({type: 'elementSelectionChanged', state: this.state})
+        return true
+    }
+
+    /**
+     * Select elements by index - the numbering `bmToMesh` and the modelling commands use (set order).
+     * How a command's result (`insetFaces`, `capFaces`, ...) becomes the new selection.
+     */
+    selectElements(kind: 'vertex' | 'edge' | 'face', indices: number[], extend = false): void {
+        const state = this.state
+        if (!state) return
+        const bm = state.bm
+        if (!extend) selectNone(bm)
+        const pool = kind === 'vertex' ? [...bm.verts] : kind === 'edge' ? [...bm.edges] : [...bm.faces]
+        let last: BMVert | BMEdge | BMFace | undefined
+        for (const i of indices) {
+            const el = pool[i]
+            if (!el) continue
+            if (el instanceof BMVert) vertSelectSet(bm, el, true)
+            else if (el instanceof BMEdge) edgeSelectSet(bm, el, true)
+            else faceSelectSet(bm, el, true)
+            last = el
+        }
+        if (last) selectHistoryStore(bm, last)
+        this._afterSelectionChange()
     }
 
     // endregion
@@ -705,7 +826,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      * Record one undo step from `before` to the current mesh, on the viewer's `UndoManagerPlugin`, so
      * edit-mode steps share Ctrl+Z with everything else.
      */
-    private _recordUndo(before: MeshData): void {
+    private _recordUndo(before: MeshData, label: string): void {
         const object = this.editObject
         const state = this.state
         if (!object || !state) return
@@ -718,7 +839,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             }
             return
         }
+        // `label` is what a history list shows; `JSUndoManager` itself ignores it.
         undoManager.record({
+            label,
             undo: () => this._restore(object, before),
             redo: () => this._restore(object, after),
         })
@@ -759,7 +882,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      * Mirrors Blender: the transform owns the input until it is confirmed with a click or Enter, or
      * cancelled with Escape. Axis keys and typed numbers refine it while it runs.
      */
-    startTransform(mode: TransformMode, undoBefore?: MeshData): boolean {
+    startTransform(mode: TransformMode, undoBefore?: MeshData, chained: 'extrude' | 'duplicate' | null = null): boolean {
         const viewer = this._viewer
         const state = this.state
         if (!viewer || !state) return false
@@ -793,12 +916,12 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (transform.isEmpty) {
             this._notice('Select something to ' + (mode === 'translate' ? 'move' : mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
             // An extrude or duplicate that chained into this still happened; keep its undo step.
-            if (undoBefore) this._recordUndo(undoBefore)
+            if (undoBefore) this._recordUndo(undoBefore, CHAIN_LABELS[chained ?? 'extrude'])
             return false
         }
         this._transform = transform
         this._undoBefore = undoBefore ?? this._snapshot()
-        this._chained = !!undoBefore
+        this._chained = undoBefore ? chained ?? 'extrude' : null
         this._setPreselect(null)
         this.dispatchEvent({type: 'transformChanged', transform})
         return true
@@ -842,17 +965,20 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** Finish the running transform, keeping the result. */
     confirmTransform(): void {
         if (!this._transform || !this.state) return
-        this._transform.confirm()
+        const transform = this._transform
+        const chained = this._chained
+        transform.confirm()
         this._transform = null
         cancelAnimationFrame(this._liveFrame)
         this.state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
-        this.dispatchEvent({type: 'transformChanged', transform: null})
         const before = this._undoBefore
         this._undoBefore = null
-        this._chained = false
-        if (before) this._recordUndo(before)
+        this._chained = null
+        if (before) this._recordUndo(before, chained ? CHAIN_LABELS[chained] : TRANSFORM_LABELS[transform.mode])
+        this.dispatchEvent({type: 'transformCommitted', transform, chained})
+        this.dispatchEvent({type: 'transformChanged', transform: null})
     }
 
     /**
@@ -873,9 +999,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const before = this._undoBefore
         const chained = this._chained
         this._undoBefore = null
-        this._chained = false
+        this._chained = null
         // A plain move that was cancelled changed nothing; an extrude or duplicate underneath it did.
-        if (before && chained) this._recordUndo(before)
+        if (before && chained) this._recordUndo(before, CHAIN_LABELS[chained])
     }
 
     /** Re-bake the surface once per frame while a transform runs, so the shading follows the drag. */
@@ -1035,8 +1161,42 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable
     }
 
+    /**
+     * The keys a running transform owns, exactly as in Blender: Esc cancels, Enter confirms, X/Y/Z
+     * constrain (Shift for the plane), C clears, digits type a value, Shift is precision. Returns
+     * true when the key was consumed. Public so an input router outside this plugin can forward keys
+     * while it owns the keymap ({@link keyHandling} off).
+     */
+    handleModalKey(event: KeyboardEvent): boolean {
+        const t = this._transform
+        if (!t) return false
+        if (event.code === 'Escape') {
+            this.cancelTransform()
+        } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+            this.confirmTransform()
+        } else if (event.code === 'KeyX') {
+            t.setAxis(0, event.shiftKey)
+        } else if (event.code === 'KeyY') {
+            t.setAxis(1, event.shiftKey)
+        } else if (event.code === 'KeyZ') {
+            t.setAxis(2, event.shiftKey)
+        } else if (event.code === 'KeyC') {
+            t.clearConstraint()
+        } else if (t.handleNumericKey(event.key)) {
+            // consumed by the numeric buffer
+        } else {
+            return false
+        }
+        t.precision = event.shiftKey
+        if (this._transform) {
+            this.refreshOverlays()
+            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+        }
+        return true
+    }
+
     private _onKeyDown = (event: KeyboardEvent): void => {
-        if (this.isDisabled()) return
+        if (this.isDisabled() || !this.keyHandling) return
         if (this._isTypingTarget(event.target)) return
 
         // Tab toggles edit mode whether or not we are in it. Only when focus is not on a control, so
@@ -1051,28 +1211,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
         // A running transform owns the keyboard, exactly as in Blender.
         if (this._transform) {
-            const t = this._transform
-            if (event.code === 'Escape') {
-                this.cancelTransform()
-            } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
-                this.confirmTransform()
-            } else if (event.code === 'KeyX') {
-                t.setAxis(0, event.shiftKey)
-            } else if (event.code === 'KeyY') {
-                t.setAxis(1, event.shiftKey)
-            } else if (event.code === 'KeyZ') {
-                t.setAxis(2, event.shiftKey)
-            } else if (event.code === 'KeyC') {
-                t.clearConstraint()
-            } else if (t.handleNumericKey(event.key)) {
-                // consumed by the numeric buffer
-            } else {
-                return
-            }
-            t.precision = event.shiftKey
-            this.refreshOverlays()
-            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
-            event.preventDefault()
+            if (this.handleModalKey(event)) event.preventDefault()
             return
         }
 

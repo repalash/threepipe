@@ -132,6 +132,23 @@ export class ModalTransform {
     private _currentX: number
     private _currentY: number
     private _done = false
+    private _valuesFinal: [number, number, number] = [0, 0, 0]
+    private _axisFinal: [number, number, number] = [0, 0, 1]
+
+    /**
+     * The transform's final value, Blender's `t->values_final` (`transform.cc`, what `saveTransform`
+     * writes into the operator's `value` property so the redo panel can re-run it): the translation
+     * delta in the object's space, `[angle, 0, 0]` in radians for a rotation, or the per-axis scale
+     * factor. Updated on every `apply()`, so it is also the live value while the modal runs.
+     */
+    get valuesFinal(): readonly [number, number, number] {
+        return this._valuesFinal
+    }
+
+    /** The rotation axis actually used (a constraint axis, or the view axis), in the object's space. */
+    get axisFinal(): readonly [number, number, number] {
+        return this._axisFinal
+    }
 
     constructor(bm: BMesh, options: TransformStartOptions) {
         this._opts = options
@@ -321,6 +338,7 @@ export class ModalTransform {
             } else {
                 delta = this._constrain(delta)
             }
+            this._valuesFinal = delta
             for (const s of this._snapshot) {
                 s.v.x = s.x + delta[0]
                 s.v.y = s.y + delta[1]
@@ -334,6 +352,7 @@ export class ModalTransform {
             const per: [number, number, number] = axes.length
                 ? [axes.includes(0) ? factor : 1, axes.includes(1) ? factor : 1, axes.includes(2) ? factor : 1]
                 : [factor, factor, factor]
+            this._valuesFinal = per
             for (const s of this._snapshot) {
                 s.v.x = this._pivot[0] + (s.x - this._pivot[0]) * per[0]
                 s.v.y = this._pivot[1] + (s.y - this._pivot[1]) * per[1]
@@ -346,6 +365,8 @@ export class ModalTransform {
             const axis = this.constraint.axes.length === 1
                 ? ([[1, 0, 0], [0, 1, 0], [0, 0, 1]][this.constraint.axes[0]] as [number, number, number])
                 : normalise(this._opts.cameraForward)
+            this._valuesFinal = [angle, 0, 0]
+            this._axisFinal = axis
             rotateAboutAxis(this._snapshot, this._pivot, axis, angle)
             break
         }
