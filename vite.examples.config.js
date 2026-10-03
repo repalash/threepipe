@@ -23,6 +23,9 @@ const alias = {
     '@threepipe/mesh-kernel': path.resolve(__dirname, './plugins/mesh-kernel/src/index.ts'),
     '@threepipe/plugin-mesh-edit': path.resolve(__dirname, './plugins/mesh-edit/src/index.ts'),
     '@threepipe/plugin-modelling': path.resolve(__dirname, './plugins/modelling/src/index.ts'),
+    // bundled (React 18 + Blueprint inside); the examples config aliases `react` to esm.sh react@19 for r3f, so the
+    // editor ships its own copy via its dist. Build it with `npm run build:modelling-editor` (or `dev` in the package).
+    '@threepipe/plugin-modelling-editor': path.resolve(__dirname, './plugins/modelling-editor/dist/index.mjs'),
     '@threepipe/plugins-extra-importers': path.resolve(__dirname, './plugins/extra-importers/src/index.ts'),
     '@threepipe/plugin-geometry-generator': path.resolve(__dirname, './plugins/geometry-generator/src/index.ts'),
     '@threepipe/plugin-gaussian-splatting': path.resolve(__dirname, './plugins/gaussian-splatting/src/index.ts'),

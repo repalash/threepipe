@@ -230,6 +230,7 @@ export default defineConfig({
           {text: 'Mesh Kernel', link: 'package/mesh-kernel'},
           {text: 'Modelling Command API', link: 'package/plugin-modelling'},
           {text: 'Mesh Edit Plugin', link: 'package/plugin-mesh-edit'},
+          {text: 'Modelling Editor', link: 'package/plugin-modelling-editor'},
         ]
       },
     ],
