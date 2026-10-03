@@ -67,6 +67,22 @@ describe('what runs in node without a viewer', () => {
         expect(evaluated.validate()).toEqual([])
     })
 
+    it('evaluates a wireframe modifier with the Wireframe modifier\'s defaults, not the operator\'s', () => {
+        // An uncapped square tube: its two open rims, 8 boundary edges, only get a strut when
+        // `boundary` is on - which is the operator's default and *not* the modifier's.
+        const grid = () => primitiveCone({segments: 4, radiusTop: 1, radiusBottom: 1, depth: 1, capEnds: false})
+        const bare = evaluateModifiers(grid(), [{type: 'wireframe'}])
+        const explicit = evaluateModifiers(grid(), [{type: 'wireframe', thickness: 0.02, offset: 0,
+            replace: true, boundary: false, evenOffset: true}])
+        const withBoundary = evaluateModifiers(grid(), [{type: 'wireframe', boundary: true}])
+        expect(bare.validate()).toEqual([])
+        // Same geometry as spelling out `WireframeModifierData`'s defaults...
+        expect(bare.facesNum).toBe(explicit.facesNum)
+        expect(Array.from(bare.positions)).toEqual(Array.from(explicit.positions))
+        // ...and the open rims are only strutted when asked: 2 rims x 4 edges x 2 quads.
+        expect(withBoundary.facesNum - bare.facesNum).toBe(16)
+    })
+
     it('describes and validates commands, which needs no viewer either', () => {
         const registry = new CommandRegistry()
         registry.registerAll([...createCommands, ...editCommands])

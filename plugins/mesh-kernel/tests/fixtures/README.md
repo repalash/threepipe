@@ -114,3 +114,23 @@ Two differences from Blender are asserted as *expected*, with the reasoning in t
   shows the conversion pair does not lose or reorder what Blender wrote.
 - **Blender 5.0 and pre-3.6 files.** The extractor rejects both layouts, so `attribute_storage` and
   `MPoly` meshes are entirely unverified.
+
+## Operator fixtures written by Blender's Python API
+
+`bmesh-ops-poke-wireframe.json` is a different kind of fixture: it checks an *edit operation*
+rather than the conversion pair, which is the gap the last section describes for those two
+operators. [`gen-bmesh-ops-fixtures.py`](./gen-bmesh-ops-fixtures.py) runs inside Blender, builds
+each input mesh from explicit coordinates, refreshes normals (`bm.normal_update()`, what edit mode
+keeps current), runs `bmesh.ops.poke` / `bmesh.ops.wireframe`, and records every resulting position
+and face. The input is stored with the output so the TypeScript side builds the identical mesh.
+
+```sh
+blender --background --factory-startup --python plugins/mesh-kernel/tests/fixtures/gen-bmesh-ops-fixtures.py
+```
+
+It was generated with **Blender 3.4.1** (Debian's package). Neither `bmo_poke.cc` nor
+`bmesh_wireframe.cc` has changed algorithmically since; the port cites the current source.
+[`../bmesh-ops-parity.test.ts`](../bmesh-ops-parity.test.ts) compares the multiset of positions
+(within 1e-4, Blender being float32) and every face as a cyclic vertex sequence, so winding is
+checked too. Element *order* is not compared: Blender's mempool reuses the slot of a face that poke
+kills mid-operator, so its order is not creation order.

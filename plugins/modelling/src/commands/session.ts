@@ -7,7 +7,10 @@
  * repeatable views, no clearance checks. Those are commands, not algorithms, and they live here.
  */
 
-import {Box3, Box3B, getFittingDistance, ThreeViewer, Vector3} from 'threepipe'
+import {
+    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
+    Vector3,
+} from 'threepipe'
 import {bakeGeometry} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
@@ -24,15 +27,46 @@ import {ModellingEntry} from '../document'
  */
 export function applyCamera(
     viewer: ThreeViewer, position: Vector3 | null, target: Vector3,
-): void {
+): number | null {
     const camera = viewer.scene.mainCamera
     if (position) camera.position.copy(position)
     camera.target.copy(target)
     camera.lookAt(target)
     camera.updateMatrixWorld(true)
+    const raised = ensureFarPlane(viewer)
     camera.setDirty?.()
     viewer.scene.refreshActiveCameraNearFar()
     viewer.setDirty()
+    return raised
+}
+
+/**
+ * Make sure the far plane reaches the far side of the model from where the camera now is.
+ *
+ * threepipe derives near and far from the scene bounds, but clamps far at the camera's `maxFarPlane`
+ * (`iCameraCommons.defaultMaxFar`, 1000 units, when unset) - `RootScene.refreshActiveCameraNearFar`.
+ * Put the camera more than that from a model, as a view of anything tall from a realistic distance
+ * does, and every fragment is clipped: the capture comes back blank, with no error. When the model's
+ * farthest corner is beyond the limit this raises the camera's own `maxFarPlane` - threepipe's knob
+ * for exactly this - to reach it, and returns the new value; otherwise it returns null.
+ */
+function ensureFarPlane(viewer: ThreeViewer): number | null {
+    const camera = viewer.scene.mainCamera as ICamera & {maxFarPlane?: number}
+    const box = new Box3B().expandByObject(viewer.scene.modelRoot as never, false, true)
+    if (box.isEmpty()) return null
+    const eye = camera.getWorldPosition(new Vector3())
+    let farthest = 0
+    for (let i = 0; i < 8; i++) {
+        const c = new Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y,
+            i & 4 ? box.max.z : box.min.z)
+        farthest = Math.max(farthest, c.distanceTo(eye))
+    }
+    const limit = camera.maxFarPlane ?? iCameraCommons.defaultMaxFar
+    if (farthest <= limit) return null
+    // Rounded up, so a camera that moves a little further does not raise it again every time.
+    const raised = Math.ceil(farthest * 1.25 / 100) * 100
+    camera.maxFarPlane = raised
+    return raised
 }
 
 /** Named orientations, as unit directions from the target towards the camera. */
@@ -61,6 +95,62 @@ function worldBounds(objects: ModellingEntry[]): Box3B {
     return box
 }
 
+const ORTHO_CAMERA_NAME = 'modelling:orthographic'
+
+/**
+ * The orthographic camera `camera {projection: 'orthographic'}` switches to: created once per scene,
+ * kept out of exports, and made the scene's main camera through threepipe's own `mainCamera` setter,
+ * which is how threepipe switches cameras everywhere else (`RootScene.mainCamera`).
+ */
+function orthographicCamera(viewer: ThreeViewer): OrthographicCamera2 {
+    const existing = viewer.scene.getObjectByName(ORTHO_CAMERA_NAME) as OrthographicCamera2 | undefined
+    if (existing) return existing
+    const camera = new OrthographicCamera2('orbit', viewer.canvas, true, 4)
+    camera.name = ORTHO_CAMERA_NAME
+    camera.userData.excludeFromExport = true
+    viewer.scene.add(camera)
+    return camera
+}
+
+/** Make `next` the main camera, carrying the current eye position and target across. */
+function switchCamera(viewer: ThreeViewer, next: ICamera): void {
+    const current = viewer.scene.mainCamera
+    if (current === next) return
+    next.position.copy(current.position)
+    next.target.copy(current.target)
+    viewer.scene.mainCamera = next
+    applyCamera(viewer, null, next.target.clone())
+}
+
+/**
+ * The frustum height (an orthographic camera's `frustumSize`) that shows all of `box` from where the
+ * camera now looks, with `margin` to spare: the box's corners projected onto the camera's right and up
+ * axes, with the width folded in through the aspect ratio.
+ */
+function orthographicFrustumFor(camera: ICamera, box: Box3, margin: number): number {
+    camera.updateMatrixWorld(true)
+    const e = camera.matrixWorld.elements
+    const right = new Vector3(e[0], e[1], e[2]).normalize()
+    const up = new Vector3(e[4], e[5], e[6]).normalize()
+    let minR = Infinity, maxR = -Infinity, minU = Infinity, maxU = -Infinity
+    for (let i = 0; i < 8; i++) {
+        const c = new Vector3(
+            i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z)
+        const r = c.dot(right)
+        const u = c.dot(up)
+        minR = Math.min(minR, r)
+        maxR = Math.max(maxR, r)
+        minU = Math.min(minU, u)
+        maxU = Math.max(maxU, u)
+    }
+    const aspect = isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1
+    // Frame the projected box about the target, so it stays centred where the camera looks.
+    const t = camera.target
+    const halfR = Math.max(maxR - t.dot(right), t.dot(right) - minR)
+    const halfU = Math.max(maxU - t.dot(up), t.dot(up) - minU)
+    return Math.max(2 * halfU, 2 * halfR / aspect) * margin
+}
+
 export const cameraCommand: CommandDefinition = {
     op: 'camera',
     summary: 'Move the camera: a named view, a fit to some objects, or an explicit position.',
@@ -69,7 +159,15 @@ export const cameraCommand: CommandDefinition = {
         + 'the bounds of whatever they frame, so the same command gives the same framing as a model '
         + 'grows - which is what makes two screenshots comparable. `save` stores the current camera '
         + 'under a name via threepipe\'s CameraViews plugin, and `view` will replay a saved name '
-        + 'before it falls back to a standard one.',
+        + 'before it falls back to a standard one.\n\n'
+        + '`projection: "orthographic"` switches to a parallel projection - what an elevation drawing '
+        + 'is, and the only way a capture lines up with one. It stays on until '
+        + '`projection: "perspective"`. Framing in orthographic sets `frustumSize`, the height of the '
+        + 'world the frame shows; give it yourself to fix a scale across captures. `fov` sets the '
+        + 'perspective lens in degrees - a long lens (small fov) flattens perspective for a '
+        + 'photo-like comparison.\n\n'
+        + 'A `ref:<name>` view is recomputed for the current projection and lens, so a reference '
+        + 'plane fills the frame top to bottom however the camera is set up.',
     mutates: false,
     schema: schema({
         view: S.string('A saved view name, or one of front/back/left/right/top/bottom/iso.'),
@@ -82,13 +180,59 @@ export const cameraCommand: CommandDefinition = {
         target: S.vec3('Explicit look-at point.'),
         duration: S.number('Animate over this many milliseconds. 0, the default, jumps.'),
         save: S.string('Save the resulting camera under this name for later replay.'),
+        projection: S.enum('Switch the projection. Stays until switched back.',
+            ['perspective', 'orthographic']),
+        fov: S.number('Perspective vertical field of view in degrees.', {minimum: 0.1, maximum: 179}),
+        frustumSize: S.number('Orthographic: the world height the frame shows. Overrides framing.',
+            {minimum: 0}),
     }),
 
     async run(p: Record<string, unknown>, ctx) {
         const viewer = ctx.viewer
-        const camera = viewer.scene.mainCamera
         const views = viewer.getPlugin<any>('CameraViews')
         const duration = (p.duration as number) ?? 0
+
+        if (p.projection === 'orthographic') switchCamera(viewer, orthographicCamera(viewer))
+        else if (p.projection === 'perspective') switchCamera(viewer, viewer.scene.defaultCamera)
+        const camera = viewer.scene.mainCamera
+        const ortho = !!(camera as {isOrthographicCamera?: boolean}).isOrthographicCamera
+
+        if (p.fov !== undefined) {
+            if (ortho) throw new Error('`fov` is a perspective setting - switch with `projection: "perspective"`')
+            ;(camera as PerspectiveCamera2).fov = p.fov as number
+            camera.updateProjectionMatrix()
+            camera.setDirty?.()
+        }
+        if (p.frustumSize !== undefined && !ortho) {
+            throw new Error('`frustumSize` is an orthographic setting - switch with `projection: "orthographic"`')
+        }
+        const describeLens = () => ortho
+            ? {projection: 'orthographic', frustumSize: (camera as OrthographicCamera2).frustumSize}
+            : {projection: 'perspective', fov: (camera as PerspectiveCamera2).fov}
+
+        // A reference view is registered to its plane, not to a lens: recompute it for this one, so
+        // the photograph fills the frame top to bottom in either projection and at any fov.
+        const refName = typeof p.view === 'string' && p.view.startsWith('ref:') ? p.view.slice(4) : null
+        const refState = refName !== null ? ctx.plugin.references.get(refName) : undefined
+        if (refState) {
+            const centre = refState.object.getWorldPosition(new Vector3())
+            const normal = refState.object.getWorldDirection(new Vector3())
+            let distance: number
+            if (ortho) {
+                (camera as OrthographicCamera2).frustumSize = (p.frustumSize as number) ?? refState.height
+                distance = Math.max(refState.width, refState.height) * 2
+            } else {
+                const fov = (camera as PerspectiveCamera2).fov
+                distance = refState.height / 2 / Math.tan(fov * Math.PI / 360)
+            }
+            applyCamera(viewer, centre.clone().addScaledVector(normal, distance), centre)
+            return {
+                data: {
+                    position: camera.position.toArray(), target: camera.target.toArray(),
+                    view: p.view, source: 'reference', saved: null, ...describeLens(),
+                },
+            }
+        }
 
         // A saved view wins over a standard name, so a session can define its own "detail" view.
         if (p.view !== undefined && views) {
@@ -106,6 +250,7 @@ export const cameraCommand: CommandDefinition = {
                         // command was also asked to store one - never overloaded with this.
                         source: 'saved',
                         saved: null,
+                        ...describeLens(),
                     },
                 }
             }
@@ -113,6 +258,7 @@ export const cameraCommand: CommandDefinition = {
 
         let target = new Vector3()
         let position: Vector3 | null = null
+        let framingBox: Box3B | null = null
 
         const fitRef = p.fit
         const framing = fitRef !== undefined || p.view !== undefined
@@ -123,6 +269,7 @@ export const cameraCommand: CommandDefinition = {
                     ? ctx.doc.entries
                     : ctx.doc.resolve(fitRef as string | string[])
             const box = worldBounds(entries)
+            framingBox = box
             if (box.isEmpty()) {
                 ctx.warn('nothing to frame - the document is empty')
                 target.set(0, 0, 0)
@@ -132,7 +279,11 @@ export const cameraCommand: CommandDefinition = {
             const padding = (p.padding as number) ?? 1.4
             // threepipe's own fitting distance, so `camera {fit}` and `viewer.fitToView` agree. It
             // accounts for aspect ratio, which matters when the subject is much wider than it is tall.
-            const distance = Math.max(0.05, getFittingDistance(camera, box) * padding)
+            // An orthographic camera's distance does not change what it shows; it only has to sit
+            // outside the subject so near and far can bracket it.
+            const distance = ortho
+                ? Math.max(0.05, box.getSize(new Vector3()).length() * 1.5)
+                : Math.max(0.05, getFittingDistance(camera, box) * padding)
 
             const dirName = (p.view as string) ?? 'iso'
             const dir = STANDARD_VIEWS[dirName]
@@ -148,7 +299,22 @@ export const cameraCommand: CommandDefinition = {
         if (p.target !== undefined) target = new Vector3(...readVec3(p.target, [0, 0, 0], 'target'))
 
         if (position || p.target !== undefined || framing) {
-            applyCamera(viewer, position, target)
+            const raised = applyCamera(viewer, position, target)
+            if (raised !== null) {
+                ctx.warn(`raised the camera's far plane (maxFarPlane) to ${raised} so the model is not clipped`)
+            }
+        }
+        if (ortho) {
+            const ocam = camera as OrthographicCamera2
+            if (p.frustumSize !== undefined) ocam.frustumSize = p.frustumSize as number
+            else if (framingBox && !framingBox.isEmpty()) {
+                // In orthographic `padding` is a margin on the projected extent; 1.4 radii of margin
+                // would be far looser than the same number gives in perspective, so it is rescaled
+                // to keep the default framing comparable: 1.4 -> a 10% margin.
+                const margin = 1 + ((p.padding as number) ?? 1.4) * 0.1 / 1.4
+                ocam.frustumSize = orthographicFrustumFor(ocam, framingBox, margin)
+            }
+            viewer.scene.refreshActiveCameraNearFar()
         }
 
         let savedView: string | null = null
@@ -171,6 +337,7 @@ export const cameraCommand: CommandDefinition = {
                 view: p.view ?? null,
                 source: 'computed',
                 saved: savedView,
+                ...describeLens(),
             },
         }
     },

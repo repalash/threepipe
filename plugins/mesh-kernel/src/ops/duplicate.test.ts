@@ -152,6 +152,37 @@ describe('deleteSelection', () => {
     })
 })
 
+describe('deleteSelection edges context', () => {
+    // `DEL_EDGES` removes the vertices the deleted edges leave loose - and only those. A loose
+    // vertex elsewhere in the mesh is not part of the delete. The kernel used to sweep every loose
+    // vertex in the mesh, which silently ate unrelated geometry.
+    it('removes the endpoints left loose, and leaves an unrelated loose vertex alone', () => {
+        const {bm} = quad()
+        const stray = bm.vertCreate(5, 5, 5)
+        bm.selectMode = SelectMode.Edge
+        for (const e of bm.edges) e.hflag |= 1 // every edge of the quad
+        deleteSelection(bm, 'edges')
+        expect(bm.totface).toBe(0)
+        expect(bm.totedge).toBe(0)
+        // The quad's four corners went with their edges; the stray vertex did not.
+        expect([...bm.verts]).toEqual([stray])
+        expect(bm.validate()).toEqual([])
+    })
+
+    it('keeps an endpoint that still has another edge', () => {
+        const {bm} = quad()
+        bm.selectMode = SelectMode.Edge
+        const e = [...bm.edges][0]
+        e.hflag |= 1
+        deleteSelection(bm, 'edges')
+        // The face goes with its edge; all four corners still have an edge each.
+        expect(bm.totface).toBe(0)
+        expect(bm.totedge).toBe(3)
+        expect(bm.totvert).toBe(4)
+        expect(bm.validate()).toEqual([])
+    })
+})
+
 describe('mergeSelectedVerts', () => {
     it('merges two vertices of a quad into one, leaving a triangle', () => {
         const {bm, v} = quad()

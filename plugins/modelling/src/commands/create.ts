@@ -267,6 +267,9 @@ export const sweepCommand: CommandDefinition = {
     schema: schema({
         path: S.array('Path points in object space.', S.vec3('A point.'), {minItems: 2}),
         radius: S.number('Section radius. Default 0.05.'),
+        radii: S.array('A scale of the section at each path point - Blender\'s curve radius. One '
+            + 'number per path point; it multiplies `radius`, or a custom `profile`. Tapers a tube.',
+        {type: 'number'}),
         steps: S.integer('Segments around the section. Default 8.', {minimum: 3}),
         profile: S.array('A custom section replacing the circle, as `[x, y]` pairs.',
             {type: 'array', items: {type: 'number'}}),
@@ -279,7 +282,18 @@ export const sweepCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const path = readPoints(p.path, 'path') as Vec3[]
+        if (p.radii !== undefined) {
+            const radii = p.radii as unknown[]
+            if (radii.length !== path.length) {
+                throw new Error(`\`radii\` has ${radii.length} entries but \`path\` has ${path.length} `
+                    + 'points - give one radius per path point')
+            }
+            if (radii.some(r => typeof r !== 'number' || !Number.isFinite(r))) {
+                throw new Error('every entry of `radii` must be a finite number')
+            }
+        }
         const mesh = primitiveSweep({
+            radii: p.radii as number[] | undefined,
             path,
             radius: (p.radius as number) ?? 0.05,
             steps: (p.steps as number) ?? 8,

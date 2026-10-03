@@ -2450,6 +2450,22 @@ test('modelling-api', async({page}) => {
     })
     expect(sweep.ok).toBe(true)
 
+    // A tapered sweep: the section scales by the curve radius at each path point.
+    const horn = await run({
+        op: 'sweep', name: 'horn', radius: 0.5, steps: 12,
+        path: [[5, 0, 0], [5, 1, 0], [5, 2, 0]], radii: [1, 0.5, 0.1],
+    })
+    expect(horn.ok).toBe(true)
+    // Widest at the base ring (radius 0.5 x 1), so the horn is a unit across, not more.
+    expect((horn.data as any).bounds.size[0]).toBeCloseTo(1, 3)
+    const hornDetail = await run({op: 'inspect', object: 'horn', detail: true})
+    const topRing = (hornDetail.data as any).vertices.filter((v: number[]) => v[1] > 1.99)
+    for (const v of topRing) expect(Math.hypot(v[0] - 5, v[2])).toBeCloseTo(0.05, 4)
+    const badRadii = await run({op: 'sweep', name: 'bad', path: [[0, 0, 0], [0, 1, 0]], radii: [1]})
+    expect(badRadii.ok).toBe(false)
+    expect(badRadii.error).toContain('one radius per path point')
+    await run({op: 'delete', object: 'horn'})
+
     // Every mesh the generators produced must be valid topology that bakes.
     const health = await run({op: 'selftest'})
     expect((health.data as any).failed).toBe(0)
@@ -2599,9 +2615,49 @@ test('modelling-api', async({page}) => {
     // The registered view must be replayable.
     const replay = await run({op: 'camera', view: 'ref:side'})
     expect(replay.ok).toBe(true)
-    // `source` says how the framing was arrived at; `saved` only ever names where one was stored.
-    expect((replay.data as any).source).toBe('saved')
+    // `source` says how the framing was arrived at - a reference view is recomputed from its plane
+    // for the current lens - and `saved` only ever names where one was stored.
+    expect((replay.data as any).source).toBe('reference')
     expect((replay.data as any).saved).toBe(null)
+    // Perspective: the 5-unit-high plane exactly fills the frame, so the eye sits at
+    // (h / 2) / tan(fov / 2) from it along the plane normal (+X for the right plane).
+    const fov = (replay.data as any).fov as number
+    expect((replay.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(fov * Math.PI / 360), 3)
+
+    // A long lens and an orthographic camera both stay registered to the plane.
+    const longLens = await run({op: 'camera', view: 'ref:side', fov: 10})
+    expect((longLens.data as any).fov).toBe(10)
+    expect((longLens.data as any).position[0]).toBeCloseTo(2.5 / Math.tan(5 * Math.PI / 180), 3)
+    const orthoRef = await run({op: 'camera', view: 'ref:side', projection: 'orthographic'})
+    expect(orthoRef.ok).toBe(true)
+    expect((orthoRef.data as any).projection).toBe('orthographic')
+    expect((orthoRef.data as any).frustumSize).toBeCloseTo(5, 5)
+    // `fov` means nothing to a parallel projection, and says so.
+    const orthoFov = await run({op: 'camera', fov: 30})
+    expect(orthoFov.ok).toBe(false)
+    expect(orthoFov.error).toContain('perspective setting')
+    // Orthographic framing of a box: the frame is the box's projected height plus a 10% margin.
+    await run({op: 'primitive', type: 'cube', name: 'tall', width: 1, height: 4, depth: 1,
+        position: [0, 2, 0]})
+    const orthoFit = await run({op: 'camera', view: 'front', fit: 'tall'})
+    expect((orthoFit.data as any).frustumSize).toBeCloseTo(4.4, 3)
+    const orthoShot = await run({op: 'capture'})
+    expect(orthoShot.ok).toBe(true)
+    // ...and the export does not pick up the orthographic camera.
+    const exportedObjects = await page.evaluate(() =>
+        (window as any).viewer.scene.getObjectByName('modelling:orthographic')?.userData.excludeFromExport)
+    expect(exportedObjects).toBe(true)
+    const backToPerspective = await run({op: 'camera', projection: 'perspective', fov: 45})
+    expect((backToPerspective.data as any).projection).toBe('perspective')
+
+    // A camera further from the model than threepipe's default far-plane limit (1000) must not clip
+    // it away: the far plane is raised to reach the model's far side, and the command says so.
+    const distant = await run({op: 'camera', position: [0, 2, 1500], target: [0, 2, 0]})
+    expect(distant.ok).toBe(true)
+    expect((distant.warnings ?? []).join(' ')).toContain('far plane')
+    const far = await page.evaluate(() => (window as any).viewer.scene.mainCamera.far)
+    expect(far).toBeGreaterThan(1502)
+    await run({op: 'delete', object: 'tall'})
 
     const computed = await run({op: 'camera', view: 'top', fit: '*', save: 'overhead'})
     expect((computed.data as any).source).toBe('computed')
@@ -2698,6 +2754,109 @@ test('modelling-api', async({page}) => {
 
     const bevelHealth = await run({op: 'selftest'})
     expect((bevelHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
+    // --- poke and wireframe: lattice bracing ------------------------------------------------------
+
+    await run({op: 'primitive', type: 'cube', name: 'cage', size: 2})
+    const poked = await run({op: 'poke', object: 'cage'})
+    expect(poked.ok).toBe(true)
+    // Six quads become six fans of four triangles around six new centre vertices.
+    expect((poked.data as any).faces.length).toBe(24)
+    expect((poked.data as any).verts.length).toBe(6)
+    expect((poked.data as any).vertsTotal).toBe(14)
+    // The centres are where they should be: the middle of each face, on the surface (offset 0).
+    const pokedShape = await run({op: 'inspect', object: 'cage', detail: true})
+    for (const i of (poked.data as any).verts) {
+        const c = (pokedShape.data as any).vertices[i] as number[]
+        expect(c.map(Math.abs).sort()).toEqual([0, 0, 1])
+    }
+
+    // A live wireframe keeps the 14-vertex cage as the master and draws the struts.
+    await run({op: 'duplicate', object: 'cage', name: 'cage-live', move: [4, 0, 0]})
+    const liveWire = await run({op: 'wireframe', object: 'cage-live', thickness: 0.1, live: true})
+    expect(liveWire.ok).toBe(true)
+    expect((liveWire.data as any).masterVerts).toBe(14)
+
+    const wire = await run({op: 'wireframe', object: 'cage', thickness: 0.1})
+    expect(wire.ok).toBe(true)
+    // Every corner of every triangle gets an inset vertex (24 x 3) and every vertex a copy each side
+    // of the surface (14 x 2); the originals go. Each corner then makes two quads.
+    expect((wire.data as any).verts).toBe(72 + 28)
+    expect((wire.data as any).faces).toBe(144)
+    // Struts sit astride the surface (offset ~0), so the frame overhangs the 2-unit cube by about
+    // half the thickness on each side, no more.
+    const wireBounds = await run({op: 'inspect', object: 'cage'})
+    for (const s of (wireBounds.data as any).bounds.size) {
+        expect(s).toBeGreaterThan(2.04)
+        expect(s).toBeLessThan(2.12)
+    }
+    // The live one evaluates to exactly the same frame - the command resolves its defaults once, so
+    // the modifier does not quietly pick up the Wireframe modifier's different ones.
+    expect((liveWire.data as any).evaluatedFaces).toBe((wire.data as any).faces)
+    expect((liveWire.data as any).evaluatedVerts).toBe((wire.data as any).verts)
+    // ...and it follows the cage: pull one corner out and the struts go with it.
+    const liveCage = await run({op: 'inspect', object: 'cage-live', detail: true})
+    const top = (liveCage.data as any).vertices.findIndex((v: number[]) => v[0] > 0.9 && v[1] > 0.9 && v[2] > 0.9)
+    const evaluatedTop = async() => page.evaluate(() => {
+        const e = (window as any).modelling.document.find('cage-live')
+        const pos = e.evaluated.positions
+        let top = -Infinity
+        for (let i = 1; i < pos.length; i += 3) top = Math.max(top, pos[i])
+        return {top, verts: e.evaluated.vertsNum}
+    })
+    const liveBefore = await evaluatedTop()
+    expect(liveBefore.top).toBeLessThan(1.1)
+    await run({op: 'vertices', object: 'cage-live', relative: true, verts: [[top, 0, 1, 0]]})
+    const liveAfter = await evaluatedTop()
+    expect(liveAfter.top).toBeGreaterThan(1.9)
+    expect(liveAfter.verts).toBe(liveBefore.verts)
+
+    // A live wireframe has no face selection, and says so rather than ignoring the list.
+    const liveFaces = await run({op: 'wireframe', object: 'cage-live', faces: [0], live: true})
+    expect(liveFaces.ok).toBe(false)
+    expect(liveFaces.error).toContain('takes no `faces`')
+
+    const wireHealth = await run({op: 'selftest'})
+    expect((wireHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
+    // --- deleting parts of a mesh -------------------------------------------------------------------
+
+    // The top and bottom of a cube, found by their centres.
+    const capsOf = async(name: string) => {
+        const d = (await run({op: 'inspect', object: name, detail: true})).data as any
+        return d.faceVerts
+            .map((verts: number[], i: number) =>
+                ({i, y: verts.reduce((a: number, v: number) => a + d.vertices[v][1], 0) / verts.length}))
+            .filter((f: any) => Math.abs(f.y) > 0.4)
+            .map((f: any) => f.i)
+    }
+    await run({op: 'primitive', type: 'cube', name: 'tube', size: 1})
+    // ONLY_FACE opens the ends and keeps every vertex and edge: an open square tube.
+    const opened = await run({op: 'deleteElements', object: 'tube', faces: await capsOf('tube'),
+        type: 'ONLY_FACE'})
+    expect(opened.ok).toBe(true)
+    expect((opened.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+    expect((opened.data as any).faces).toBe(4)
+
+    // FACE also takes edges and vertices that only those faces used - none, for a cube's caps.
+    await run({op: 'primitive', type: 'cube', name: 'box', size: 1, position: [3, 0, 0]})
+    const capsGone = await run({op: 'deleteElements', object: 'box', faces: await capsOf('box')})
+    expect((capsGone.data as any).type).toBe('FACE')
+    expect((capsGone.data as any).removed).toEqual({verts: 0, edges: 0, faces: 2})
+
+    // VERT takes everything using the vertex.
+    await run({op: 'primitive', type: 'cube', name: 'corner', size: 1, position: [6, 0, 0]})
+    const cut = await run({op: 'deleteElements', object: 'corner', verts: [0]})
+    expect((cut.data as any).removed).toEqual({verts: 1, edges: 3, faces: 3})
+
+    // Asking a type to read a list it ignores is an error, not a silent no-op.
+    const wrong = await run({op: 'deleteElements', object: 'corner', verts: [0], type: 'FACE'})
+    expect(wrong.ok).toBe(false)
+    expect(wrong.error).toContain('give a non-empty `faces` list')
+    const deleteHealth = await run({op: 'selftest'})
+    expect((deleteHealth.data as any).failed).toBe(0)
     await run({op: 'delete', object: '*'})
 
     // --- join and separate ------------------------------------------------------------------------

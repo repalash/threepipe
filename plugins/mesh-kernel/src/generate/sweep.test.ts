@@ -456,6 +456,27 @@ describe('sweep topology', () => {
 })
 
 describe('sweep geometry', () => {
+    it('scales each ring by its path point\'s radius, the curve radius attribute', () => {
+        const radius = 0.5
+        const steps = 7
+        const path = sBend(6)
+        const radii = [1, 0.8, 0.6, 0.5, 0.3, 0.1]
+        const mesh = primitiveSweep({path, radius, steps, radii})
+        const pos = mesh.positions
+        for (let i = 0; i < path.length; i++) {
+            for (let j = 0; j < steps; j++) {
+                const k = (i * steps + j) * 3
+                const d = v3len(v3sub([pos[k], pos[k + 1], pos[k + 2]], path[i]))
+                expect(d).toBeCloseTo(radius * radii[i], F32_PLACES)
+            }
+        }
+    })
+
+    it('says how many radii it wanted when the count is wrong', () => {
+        expect(() => primitiveSweep({path: sBend(4), radii: [1, 2]}))
+            .toThrow('4 path points but 2 radii')
+    })
+
     it('puts every ring vertex exactly `radius` from its path point', () => {
         const radius = 0.37
         const steps = 11

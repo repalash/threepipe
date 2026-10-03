@@ -896,12 +896,29 @@ export interface SweepOptions {
     capEnds?: boolean
     /** Normal mode - Blender's `NormalMode`. */
     normalMode?: NormalMode
+    /**
+     * A uniform scale of the section at each path point - the curve's `radius` attribute, which
+     * Curve to Mesh passes as its `scales` (`curve_to_mesh_convert.cc`). One per path point; omit for
+     * a constant section. A tapered tube, a horn, a pier narrowing as it rises.
+     */
+    radii?: number[]
 }
 
 /** Everything {@link sweep} and {@link primitiveSweep} agree on before calling the port. */
-function sweepInputs(opts: SweepOptions): {main: SweepCurve[], profile: SweepCurve[], fillCaps: boolean} {
+function sweepInputs(opts: SweepOptions): {
+    main: SweepCurve[], profile: SweepCurve[], fillCaps: boolean, scales: number[] | undefined,
+} {
     if (!opts.path || opts.path.length < 1) {
         throw new Error('mesh-kernel: sweep needs at least one path point')
+    }
+    if (opts.radii !== undefined) {
+        if (opts.radii.length !== opts.path.length) {
+            throw new Error(`mesh-kernel: sweep has ${opts.path.length} path points but `
+                + `${opts.radii.length} radii - give one radius per path point`)
+        }
+        for (const r of opts.radii) {
+            if (!Number.isFinite(r)) throw new Error('mesh-kernel: sweep radii must be finite numbers')
+        }
     }
     const steps = opts.steps ?? 8
     const profilePositions: Vec3[] = opts.profile
@@ -916,6 +933,7 @@ function sweepInputs(opts: SweepOptions): {main: SweepCurve[], profile: SweepCur
         // and what `hasCaps` requires before it will cap anything.
         profile: [{positions: profilePositions, cyclic: true}],
         fillCaps: !!opts.capEnds,
+        scales: opts.radii,
     }
 }
 
@@ -927,16 +945,16 @@ function sweepInputs(opts: SweepOptions): {main: SweepCurve[], profile: SweepCur
  * the returned arrays are the new ones, in Blender's index order.
  */
 export function sweep(bm: BMesh, opts: SweepOptions): {verts: BMVert[], edges: BMEdge[], faces: BMFace[]} {
-    const {main, profile, fillCaps} = sweepInputs(opts)
-    const mesh = curveToMeshSweep(main, profile, {fillCaps})
+    const {main, profile, fillCaps, scales} = sweepInputs(opts)
+    const mesh = curveToMeshSweep(main, profile, {fillCaps, scales})
     if (!mesh) return {verts: [], edges: [], faces: []}
     return appendMeshData(bm, mesh)
 }
 
 /** Sweep a section along a path as a standalone mesh. */
 export function primitiveSweep(opts: SweepOptions): MeshData {
-    const {main, profile, fillCaps} = sweepInputs(opts)
-    const mesh = curveToMeshSweep(main, profile, {fillCaps})
+    const {main, profile, fillCaps, scales} = sweepInputs(opts)
+    const mesh = curveToMeshSweep(main, profile, {fillCaps, scales})
     if (!mesh) throw new Error('mesh-kernel: sweep produced no geometry')
     return mesh
 }

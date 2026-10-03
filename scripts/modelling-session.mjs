@@ -60,6 +60,23 @@ await mkdir(outDir, {recursive: true})
 // --- static server ----------------------------------------------------------------------------
 
 let server = null
+
+/**
+ * Stop the static server, and everything it started.
+ *
+ * `npx ws` is two processes: npx, and the `ws` server it launches as a child. Killing the npx pid
+ * alone leaves `ws` running with the port bound after the session has exited, so the server is
+ * spawned as its own process group and the whole group is signalled.
+ */
+function stopServer() {
+    if (!server) return
+    try {
+        process.kill(-server.pid, 'SIGTERM')
+    } catch {
+        server.kill()
+    }
+    server = null
+}
 async function reachable() {
     try {
         const res = await fetch(url, {method: 'HEAD'})
@@ -71,13 +88,13 @@ async function reachable() {
 
 if (!flags.get('no-serve') && !await reachable()) {
     console.log(`starting a static server on ${port}`)
-    server = spawn('npx', ['ws', '-d', '.', '-p', String(port)], {stdio: 'ignore', detached: false})
+    server = spawn('npx', ['ws', '-d', '.', '-p', String(port)], {stdio: 'ignore', detached: true})
     const deadline = Date.now() + 20000
     while (Date.now() < deadline && !await reachable()) await sleep(250)
     if (!await reachable()) {
         console.error(`could not reach ${url} - is the example built? `
             + 'Run: npm run build && npm run build-plugins && npm run build-examples')
-        server?.kill()
+        stopServer()
         process.exit(1)
     }
 }
@@ -297,7 +314,7 @@ if (watchDir) {
     console.log('session ended')
     await context.close()
     await browser.close()
-    server?.kill()
+    stopServer()
     process.exit(0)
 }
 
@@ -348,7 +365,7 @@ if (flags.get('keep-open')) {
 
 await context.close()
 await browser.close()
-server?.kill()
+stopServer()
 process.exit(failure || failed.length ? 1 : 0)
 
 function slug(s) {

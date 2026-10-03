@@ -67,17 +67,20 @@ const modelling = viewer.addPluginSync(ModellingPlugin)
 | `inset` | a smaller copy of a face ringed by new side faces — panel lines, hatch rims |
 | `bevel` | round or chamfer edges, or a vertex corner |
 | `solidify` | give a surface thickness, with a rim closing it — plates and panels |
+| `poke` | split faces into triangle fans around a centre vertex — on a quad, both diagonals |
+| `wireframe` | turn every edge into a strut — lattices and trusses; `live` for a modifier |
 | `array` | repeat geometry in a line, around a pivot, or along a path - baked, or `live` |
-| `modifier` | the live stack: add, update, reorder, remove, apply |
+| `modifier` | the live stack (array, mirror, wireframe): add, update, reorder, remove, apply |
 | `duplicate` | copy objects, optionally repeated and offset |
 | `mirror` | mirror geometry across a plane, welding what sits on it |
 | `join` | merge objects into one mesh, keeping relative placement |
 | `separate` | split by loose parts, or by a list of faces |
 | `weld` | merge coincident vertices — merge by distance, optionally connected-only |
 | `delete` | remove objects |
+| `deleteElements` | delete vertices, edges or faces — Blender's `mesh.delete` types |
 | `rename`, `material`, `select` | naming, colour and surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
-| `camera` | named views, fit-to-objects, saved views |
+| `camera` | named views, fit-to-objects, saved views; orthographic or perspective with a chosen `fov` |
 | `reference` | a calibrated reference photograph on a world plane |
 | `capture` | render a frame and hand it back |
 | `inspect` | counts, bounds, transform, and per-vertex detail |

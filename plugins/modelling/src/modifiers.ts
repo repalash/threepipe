@@ -22,6 +22,7 @@ import {
     bmToMesh,
     mirrorGeometry,
     Vec3,
+    wireframe,
 } from '@threepipe/mesh-kernel'
 import type {MeshData} from '@threepipe/mesh-kernel'
 
@@ -49,7 +50,38 @@ export interface MirrorModifierSpec {
     center?: Vec3
 }
 
-export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec
+/**
+ * Blender's Wireframe modifier (`MOD_wireframe.cc`): every edge of the evaluated mesh becomes a
+ * strut, through the same `BM_mesh_wireframe` the `wireframe` command runs.
+ *
+ * A field left out takes the *modifier's* default (`WireframeModifierData`, `DNA_modifier_types.h`:
+ * thickness 0.02, offset 0, replace and even offset on, boundary off, crease weight 1), which is not
+ * the edit-mode operator's. The `wireframe` command with `live: true` writes every field explicitly,
+ * so a live wireframe and a baked one from the same command are the same geometry.
+ */
+export interface WireframeModifierSpec {
+    type: 'wireframe'
+    /** Strut thickness, `wmd->offset`. Default 0.02. */
+    thickness?: number
+    /** Placement in -1..1, `wmd->offset_fac`. Default 0. */
+    offset?: number
+    /** `MOD_WIREFRAME_REPLACE`: remove the original faces. Default true. */
+    replace?: boolean
+    /** `MOD_WIREFRAME_BOUNDARY`: strut the open boundary too. Default false. */
+    boundary?: boolean
+    /** `MOD_WIREFRAME_OFS_EVEN`: keep strut widths true at sharp corners. Default true. */
+    evenOffset?: boolean
+    /** `MOD_WIREFRAME_OFS_RELATIVE`: scale thickness by local edge length. Default false. */
+    relativeOffset?: boolean
+    /** `MOD_WIREFRAME_CREASE`: crease the hub edges. Default false. */
+    crease?: boolean
+    /** `wmd->crease_weight`. Default 1. */
+    creaseWeight?: number
+    /** `wmd->mat_ofs`, added to new faces' material index. Default 0. */
+    materialOffset?: number
+}
+
+export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec
 
 /**
  * Run a master mesh through its stack.
@@ -88,6 +120,20 @@ export function evaluateModifiers(mesh: MeshData, modifiers: ModifierSpec[]): Me
                     mergeThreshold: modifier.mergeThreshold,
                 })
             }
+        } else if (modifier.type === 'wireframe') {
+            // The modifier's call: every face, no tags (`MOD_wireframe.cc`, `use_tag = false`).
+            // Defaults are `WireframeModifierData`'s, not the operator's - see the spec.
+            wireframe(bm, null, {
+                thickness: modifier.thickness ?? 0.02,
+                offset: modifier.offset ?? 0,
+                useReplace: modifier.replace ?? true,
+                useBoundary: modifier.boundary ?? false,
+                useEvenOffset: modifier.evenOffset ?? true,
+                useRelativeOffset: modifier.relativeOffset ?? false,
+                useCrease: modifier.crease ?? false,
+                creaseWeight: modifier.creaseWeight ?? 1,
+                materialOffset: modifier.materialOffset ?? 0,
+            })
         } else {
             mirrorGeometry(bm, input, {
                 axis: modifier.axis,
@@ -118,6 +164,13 @@ export function checkModifier(spec: ModifierSpec): void {
         if (!['x', 'y', 'z'].includes(spec.axis)) {
             throw new Error('a mirror modifier needs an `axis` of x, y or z')
         }
+    } else if (spec.type === 'wireframe') {
+        if (spec.thickness !== undefined && (!Number.isFinite(spec.thickness) || spec.thickness < 0)) {
+            throw new Error('a wireframe modifier `thickness` must be a number of 0 or more')
+        }
+        if (spec.offset !== undefined && !Number.isFinite(spec.offset)) {
+            throw new Error('a wireframe modifier `offset` must be a number')
+        }
     } else {
         throw new Error(`unknown modifier type "${(spec as {type: string}).type}"`)
     }
@@ -133,5 +186,6 @@ export function describeModifier(spec: ModifierSpec): string {
                 : `step [${(spec.step ?? [0, 0, 0]).join(', ')}]`
         return `array ${spec.mode} ×${spec.count}, ${detail}`
     }
+    if (spec.type === 'wireframe') return `wireframe ${spec.thickness ?? 0.02}`
     return `mirror ${spec.axis}`
 }

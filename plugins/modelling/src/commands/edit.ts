@@ -17,15 +17,21 @@ import {
     averageFaceNormal,
     bmFromMesh,
     bmToMesh,
+    deleteSelection,
+    DeleteContext,
+    edgeSelectSet,
     extrudeFaceRegion,
+    faceSelectSet,
     joinMeshes,
     Mat4,
     removeDoubles,
     mirrorGeometry,
     separateFaces,
     separateLooseParts,
+    selectNone,
     translateVerts,
     Vec3,
+    vertSelectSet,
 } from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {checkModifier} from '../modifiers'
@@ -679,6 +685,7 @@ export const weldCommand: CommandDefinition = {
 export const deleteCommand: CommandDefinition = {
     op: 'delete',
     summary: 'Remove objects from the document and the scene.',
+    description: 'Whole objects. To delete vertices, edges or faces of a mesh, use `deleteElements`.',
     mutates: true,
     schema: schema({
         object: S.objectRef('Objects to remove. `prefix*` and `*` work.'),
@@ -693,7 +700,104 @@ export const deleteCommand: CommandDefinition = {
     },
 }
 
+/**
+ * `mesh.delete`'s `type` enum (`MESH_OT_delete`, `editmesh_tools.cc`), and the `DEL_*` context each
+ * one runs (`edbm_delete_exec`, `:445`), with the element domain whose selection it reads.
+ */
+const DELETE_TYPES: Record<string, {context: DeleteContext, domain: 'verts' | 'edges' | 'faces'}> = {
+    VERT: {context: 'verts', domain: 'verts'},
+    EDGE: {context: 'edges', domain: 'edges'},
+    FACE: {context: 'faces', domain: 'faces'},
+    EDGE_FACE: {context: 'edgesFaces', domain: 'edges'},
+    ONLY_FACE: {context: 'onlyFaces', domain: 'faces'},
+}
+
+export const deleteElementsCommand: CommandDefinition = {
+    op: 'deleteElements',
+    summary: 'Delete vertices, edges or faces of one object - Blender\'s X menu in edit mode.',
+    description:
+        '`type` is `mesh.delete`\'s: `VERT` removes the vertices and everything using them; `EDGE` '
+        + 'removes the edges, the faces using them, and any vertex left loose; `FACE` removes the '
+        + 'faces plus edges and vertices no other face uses; `EDGE_FACE` removes edges and faces but '
+        + 'keeps every vertex; `ONLY_FACE` removes just the faces, leaving their rim - how you open a '
+        + 'hole.\n\n'
+        + 'Give the elements the type reads: `verts` for `VERT`, `edges` for `EDGE` and `EDGE_FACE`, '
+        + '`faces` for `FACE` and `ONLY_FACE`. With one list and no `type`, the type is that list\'s '
+        + 'domain (`VERT`, `EDGE` or `FACE`). Indices are renumbered afterwards; `inspect` again.\n\n'
+        + 'This deletes *parts* of a mesh. `delete` removes whole objects.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to delete from.'),
+        objects: S.objectRef('Alias for `object`.'),
+        verts: S.array('Vertex indices, for `VERT`.', {type: 'integer'}),
+        edges: S.array('Edge indices, for `EDGE` and `EDGE_FACE`.', {type: 'integer'}),
+        faces: S.array('Face indices, for `FACE` and `ONLY_FACE`.', {type: 'integer'}),
+        type: S.enum('What to delete, as Blender\'s `mesh.delete`.', Object.keys(DELETE_TYPES)),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const given = (['verts', 'edges', 'faces'] as const).filter(k => p[k] !== undefined)
+        let type = p.type as string | undefined
+        if (type === undefined) {
+            if (given.length !== 1) {
+                throw new Error('give `type` (VERT, EDGE, FACE, EDGE_FACE or ONLY_FACE), or exactly one '
+                    + 'of `verts`, `edges`, `faces` to infer it from')
+            }
+            type = given[0] === 'verts' ? 'VERT' : given[0] === 'edges' ? 'EDGE' : 'FACE'
+        }
+        const spec = DELETE_TYPES[type]
+        if (!spec) throw new Error(`unknown delete type "${type}"`)
+        const list = p[spec.domain]
+        if (!Array.isArray(list) || !list.length) {
+            throw new Error(`type ${type} deletes ${spec.domain} - give a non-empty \`${spec.domain}\` list`)
+        }
+        const others = given.filter(k => k !== spec.domain)
+        if (others.length) {
+            throw new Error(`type ${type} reads only \`${spec.domain}\`; \`${others.join('`, `')}\` would be ignored`)
+        }
+
+        const bm = bmFromMesh(entry.mesh)
+        const pool = spec.domain === 'verts' ? [...bm.verts] : spec.domain === 'edges' ? [...bm.edges] : [...bm.faces]
+        const elements = (list as unknown[]).map(i => {
+            if (!Number.isInteger(i) || (i as number) < 0 || (i as number) >= pool.length) {
+                throw new Error(`${spec.domain.slice(0, -1)} ${i} is out of range - "${entry.name}" has ${pool.length}`)
+            }
+            return pool[i as number]
+        })
+
+        // Select exactly the listed elements, as the X menu sees a selection in edit mode.
+        selectNone(bm)
+        for (const el of elements) {
+            if (spec.domain === 'verts') vertSelectSet(bm, el as never, true)
+            else if (spec.domain === 'edges') edgeSelectSet(bm, el as never, true)
+            else faceSelectSet(bm, el as never, true)
+        }
+        const before = {verts: bm.totvert, edges: bm.totedge, faces: bm.totface}
+        deleteSelection(bm, spec.context)
+        // Nothing stays selected afterwards, as after Blender's delete.
+        selectNone(bm)
+
+        const mesh = bmToMesh(bm)
+        ctx.doc.setMesh(entry, mesh)
+        return {
+            objects: [entry.name],
+            data: {
+                type,
+                removed: {
+                    verts: before.verts - mesh.vertsNum,
+                    edges: before.edges - mesh.edgesNum,
+                    faces: before.faces - mesh.facesNum,
+                },
+                verts: mesh.vertsNum,
+                edges: mesh.edgesNum,
+                faces: mesh.facesNum,
+            },
+        }
+    },
+}
+
 export const editCommands = [
     verticesCommand, transformCommand, extrudeCommand, arrayCommand, duplicateCommand,
-    mirrorCommand, joinCommand, separateCommand, weldCommand, deleteCommand,
+    mirrorCommand, joinCommand, separateCommand, weldCommand, deleteCommand, deleteElementsCommand,
 ]
