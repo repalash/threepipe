@@ -44,7 +44,8 @@ export default defineConfig({
     workers: WORKERS,
     reporter: process.env.CI ? [['html', {open: 'never'}], ['line']] : 'html',
     use: {
-        baseURL: 'http://127.0.0.1:9229',
+        // PLAYWRIGHT_BASE_URL points the suite at another server, e.g. a vite dev server on a different port.
+        baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:9229',
         trace: 'on-first-retry',
         viewport: {width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT},
         launchOptions: {
@@ -81,7 +82,8 @@ export default defineConfig({
     ],
     webServer: {
         command: 'npm run serve',
-        url: 'http://127.0.0.1:9229',
+        // the examples folder, so a vite dev server (which has no root index) also counts as ready
+        url: (process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:9229') + '/examples/',
         reuseExistingServer: !process.env.CI,
     },
 })

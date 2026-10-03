@@ -2964,3 +2964,94 @@ test('modelling-workspace', async({page}) => {
     expect(mode.inEdit).toBe('EDIT MODE')
     expect(mode.after).toBe('OBJECT MODE')
 })
+
+test('modelling-editor', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor')
+
+    // The shell renders from the engine's registries; the example exposes the engine on window.
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+    await expect(page.locator('[data-editor-root]')).toBeVisible()
+    // the viewer canvas plus the view gizmo's own canvas live in the viewport
+    await expect(page.locator('[data-viewport] canvas').first()).toBeVisible()
+
+    const engineState = async() => page.evaluate(() => {
+        const e = (window as any).engine
+        return {mode: e.mode, selectMode: e.selectMode, tool: e.activeTool?.id ?? null, stats: e.stats(), lastOp: e.lastOperation?.operator.id ?? null}
+    })
+
+    // Starts in object mode with the cube selected; the status bar and outliner agree.
+    let s = await engineState()
+    expect(s.mode).toBe('object')
+    expect(s.stats.objects).toBe(1)
+    await expect(page.locator('[data-status-bar] .me-stat-mode')).toHaveText('Object')
+    await expect(page.locator('.me-outliner .bp5-tree-node-selected')).toHaveCount(1)
+
+    // Toolbar: real clicks switch the active tool and show the gizmo hints.
+    await page.locator('[data-tool="object.move"]').click()
+    expect((await engineState()).tool).toBe('object.move')
+    await expect(page.locator('[data-status-bar]')).toContainText('Drag a handle to move')
+    await page.locator('[data-tool="select"]').click()
+    expect((await engineState()).tool).toBe('select')
+
+    // Header: Object/Edit switch and select-mode buttons.
+    await expect(page.locator('[data-select-mode="face"]')).toHaveCount(0)
+    await page.locator('[data-mode-button="edit"]').click()
+    s = await engineState()
+    expect(s.mode).toBe('edit')
+    await expect(page.locator('[data-status-bar] .me-stat-mode')).toHaveText('Edit · vertex')
+    await page.locator('[data-select-mode="face"]').click()
+    expect((await engineState()).selectMode).toBe('face')
+    await expect(page.locator('[data-status-bar] .me-stat-mode')).toHaveText('Edit · face')
+    // The edit-mode tools replace the object-mode ones.
+    await expect(page.locator('[data-tool="mesh.extrude"]')).toBeVisible()
+    await expect(page.locator('[data-tool="object.move"]')).toHaveCount(0)
+
+    // Command palette from the keyboard: F3 opens it, typing filters, Enter runs the top hit.
+    await page.keyboard.press('F3')
+    const palette = page.locator('.me-palette input')
+    await expect(palette).toBeVisible()
+    await palette.fill('object mode')
+    await expect(page.locator('.me-palette .bp5-menu-item').first()).toContainText('Object Mode')
+    await page.keyboard.press('Enter')
+    await expect(palette).toHaveCount(0)
+    expect((await engineState()).mode).toBe('object')
+
+    // Menus render from the registry: Add > UV Sphere adds an object and fills the redo-last panel.
+    await page.locator('[data-menu="Add"]').click()
+    await page.getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(2)
+    s = await engineState()
+    expect(s.lastOp).toBe('add.sphere')
+    await expect(page.locator('[data-operator-panel="add.sphere"]')).toBeVisible()
+    await page.locator('[data-operator-panel="add.sphere"] .me-operator-title').click()
+    await expect(page.locator('[data-operator-panel="add.sphere"] #me-prop-radius')).toBeVisible()
+    await expect(page.locator('.me-outliner .bp5-tree-node')).toHaveCount(2)
+
+    // Edit menu: the undo history dialog lists both the document commands and reverses them.
+    await page.locator('[data-menu="Edit"]').click()
+    await page.getByRole('menuitem', {name: 'Undo History…'}).click()
+    const history = page.locator('[data-history]')
+    await expect(history).toBeVisible()
+    await expect(history).toContainText('primitive type=sphere')
+    await page.getByRole('button', {name: 'Undo'}).click()
+    await expect.poll(async() => (await engineState()).stats.objects).toBe(1)
+    // the dialog header's X is also named Close; take the footer button
+    await page.locator('.me-dialog .bp5-dialog-footer').getByRole('button', {name: 'Close'}).click()
+    // the dialog's overlay keeps catching pointer events until its close transition ends
+    await expect(page.locator('.me-dialog')).toHaveCount(0)
+
+    // Viewport context menu: a right click that does not drag opens the operators for the selection.
+    const vp = await page.locator('[data-viewport]').boundingBox()
+    await page.mouse.click(vp!.x + vp!.width / 2, vp!.y + vp!.height / 2, {button: 'right'})
+    await expect(page.locator('.me-context-menu')).toBeVisible()
+    await expect(page.locator('.me-context-menu')).toContainText('Duplicate')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.me-context-menu')).toHaveCount(0)
+
+    // Disabled operators explain themselves instead of failing silently.
+    await page.evaluate(() => (window as any).engine.picking.clearSelection())
+    await page.locator('[data-menu="Object"]').click()
+    const del = page.getByRole('menuitem', {name: 'Delete'})
+    await expect(del).toHaveAttribute('aria-disabled', 'true')
+    await page.keyboard.press('Escape')
+})
