@@ -163,15 +163,26 @@ export function deleteSelection(bm: BMesh, context: DeleteContext = 'verts'): nu
         }
         break
 
-    case 'edges':
+    case 'edges': {
+        // `DEL_EDGES` (`bmesh_delete.cc:286`): flush the selection down to the edges' vertices, kill
+        // the edges, then kill only those *flagged* vertices left with no edge
+        // (`bm_remove_tagged_verts_loose`, `:249`). A loose vertex elsewhere in the mesh is not part
+        // of the delete and survives it.
+        const endpoints = new Set<BMVert>()
+        for (const e of selEdges) {
+            endpoints.add(e.v1)
+            endpoints.add(e.v2)
+        }
         for (const e of selEdges) {
             if (!bm.edges.has(e)) continue
             bm.edgeKill(e)
             removed++
         }
-        // Vertices left with nothing attached go too, matching Blender's cleanup.
-        for (const v of [...bm.verts]) if (v.e === null) bm.vertKill(v)
+        for (const v of [...bm.verts]) {
+            if ((endpoints.has(v) || (v.hflag & ElemFlag.Select)) && v.e === null) bm.vertKill(v)
+        }
         break
+    }
 
     case 'onlyFaces':
         for (const f of selFaces) {
