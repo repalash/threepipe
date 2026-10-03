@@ -3050,6 +3050,243 @@ test('mesh-edit-plugin', async({page}) => {
     expect(entered!.verts - entered!.edges + entered!.faces).toBe(2)
     expect(entered!.problems).toEqual([])
 
+    // ── Transform and gizmo (track T): real mouse and keyboard against Blender's transform maths ──
+    const canvas = (await page.locator('#mcanvas').boundingBox())!
+    /** Positions compare numerically: a restored mesh may hold 0 where the original held -0. */
+    const expectSame = (a: any, b: any) => expect(JSON.parse(JSON.stringify(a))).toEqual(JSON.parse(JSON.stringify(b)))
+    const positions = () => page.evaluate(() =>
+        [...(window as any).meshEdit.state.bm.verts].map((v: any) => [v.x, v.y, v.z] as [number, number, number]))
+    const selectedIndices = () => page.evaluate(() =>
+        [...(window as any).meshEdit.state.bm.verts].map((v: any, i: number) => v.hflag & 1 ? i : -1).filter((i: number) => i >= 0))
+    /** Screen position (page coordinates) of a vertex by index. */
+    const screenOf = (index: number) => page.evaluate(i => {
+        const me = (window as any).meshEdit
+        const v = [...me.state.bm.verts][i]
+        const p = me._projectFn()(v.x, v.y, v.z)
+        const r = (window as any).viewer.canvas.getBoundingClientRect()
+        return {x: r.left + p.x, y: r.top + p.y, depth: p.depth}
+    }, index)
+    /** Pixels in a box around a page point that pass a colour test. */
+    const countPixels = async(x: number, y: number, half: number, test: string) => {
+        // `clip` is in document coordinates; the point is in viewport coordinates.
+        const [sx, sy] = await page.evaluate(() => [window.scrollX, window.scrollY])
+        const png = await page.screenshot({clip: {x: x - half + sx, y: y - half + sy, width: half * 2, height: half * 2}})
+        return page.evaluate(async([b64, fn]) => {
+            const img = new Image()
+            img.src = 'data:image/png;base64,' + b64
+            await img.decode()
+            const c = document.createElement('canvas')
+            c.width = img.width
+            c.height = img.height
+            const ctx = c.getContext('2d')!
+            ctx.drawImage(img, 0, 0)
+            const d = ctx.getImageData(0, 0, c.width, c.height).data
+            const f = new Function('r', 'g', 'b', 'return ' + fn) as (r: number, g: number, b: number) => boolean
+            let n = 0
+            for (let i = 0; i < d.length; i += 4) if (f(d[i], d[i + 1], d[i + 2])) n++
+            return n
+        }, [png.toString('base64'), test] as const)
+    }
+    /** Screen position of a gizmo handle's outermost part (the arrow cone), in page coordinates. */
+    const gizmoHandleScreen = (handle: string) => page.evaluate(h => {
+        const me = (window as any).meshEdit
+        const viewer = (window as any).viewer
+        const parts = me.gizmo.children.filter((c: any) => c.userData.handle === h)
+        parts.sort((a: any, b: any) => b.position.length() - a.position.length())
+        const part = parts[0]
+        const p = part.getWorldPosition(part.position.clone())
+        p.project(viewer.scene.mainCamera)
+        const r = viewer.canvas.getBoundingClientRect()
+        return {x: r.left + (p.x * 0.5 + 0.5) * r.width, y: r.top + (-p.y * 0.5 + 0.5) * r.height}
+    }, handle)
+
+    // Select the front-most vertex with a real click; the gizmo appears on it.
+    await page.evaluate(() => (window as any).meshEdit.deselectAllElements())
+    const front = await page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        const ps = [...me.state.bm.verts].map((v: any, i: number) => ({i, p: project(v.x, v.y, v.z)})).filter((o: any) => o.p)
+        ps.sort((a: any, b: any) => a.p.depth - b.p.depth)
+        return ps[0].i as number
+    })
+    const frontScreen = await screenOf(front)
+    await page.mouse.click(frontScreen.x, frontScreen.y)
+    await page.waitForTimeout(250)
+    expect(await selectedIndices()).toEqual([front])
+    expect(await page.evaluate(() => (window as any).meshEdit.gizmo.visible)).toBe(true)
+
+    // The gizmo is drawn: red X and blue Z handles around the pivot (Blender's axis colours, at
+    // 0.6 alpha over the background; the orange selection overlays have no blue and are excluded).
+    const pivotScreen = await screenOf(front)
+    const red = 'r > 200 && g < 150 && b > 50 && b < 180 && r - g > 70'
+    const blue = 'b > 200 && r < 150 && b - r > 70'
+    expect(await countPixels(pivotScreen.x, pivotScreen.y, 130, red)).toBeGreaterThan(15)
+    expect(await countPixels(pivotScreen.x, pivotScreen.y, 130, blue)).toBeGreaterThan(15)
+
+    // Hovering the X arrow highlights it (full alpha): more saturated red pixels around the arrow.
+    const arrow = await gizmoHandleScreen('TRANS_X')
+    const redBefore = await countPixels(arrow.x, arrow.y, 24, 'r > 235 && g < 75 && b < 110')
+    await page.mouse.move(arrow.x, arrow.y)
+    await page.waitForTimeout(250)
+    expect(await page.evaluate(() => (window as any).meshEdit.gizmo.hovered)).toBe('TRANS_X')
+    const redAfter = await countPixels(arrow.x, arrow.y, 24, 'r > 235 && g < 75 && b < 110')
+    expect(redAfter).toBeGreaterThan(redBefore)
+
+    // Dragging the X arrow moves the vertex along X only; release confirms; Ctrl+Z undoes it.
+    const before = (await positions())[front]
+    await page.mouse.down()
+    await page.mouse.move(arrow.x + 60, arrow.y, {steps: 6})
+    // A gizmo handle is an operator-set constraint, named by its space (`initTransform`, transform.cc:2195).
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform?.status)).toMatch(/^D: .* global$/)
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    let after = (await positions())[front]
+    expect(after[0]).toBeGreaterThan(before[0] + 0.05)
+    expect(after[1]).toBeCloseTo(before[1], 6)
+    expect(after[2]).toBeCloseTo(before[2], 6)
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform)).toBeNull()
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame((await positions())[front], before)
+
+    // Typing during a gizmo drag sets the value exactly (Plasticity/SketchUp style): the release
+    // confirms the typed 0.5 along the handle's axis, wherever the cursor went.
+    await page.mouse.move(arrow.x, arrow.y)
+    await page.waitForTimeout(150)
+    await page.mouse.down()
+    await page.mouse.move(arrow.x + 40, arrow.y + 30, {steps: 4})
+    for (const k of ['0', '.', '5']) await page.keyboard.press(k)
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform?.status)).toContain('D: [0.5|] = 0.5')
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    after = (await positions())[front]
+    expect(after[0]).toBeCloseTo(before[0] + 0.5, 5)
+    expect(after[1]).toBeCloseTo(before[1], 6)
+    expect(after[2]).toBeCloseTo(before[2], 6)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame((await positions())[front], before)
+
+    // Numeric entry during a key-started move: G, 0.25, Enter moves by exactly 0.25 in X.
+    await page.mouse.move(canvas.x + canvas.width * 0.7, canvas.y + canvas.height * 0.7)
+    await page.keyboard.press('KeyG')
+    for (const k of ['0', '.', '2', '5']) await page.keyboard.press(k)
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform?.status)).toContain('Dx: [0.25|] = 0.25')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(250)
+    after = (await positions())[front]
+    expect(after[0]).toBeCloseTo(before[0] + 0.25, 6)
+    expect(after[1]).toBeCloseTo(before[1], 6)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame((await positions())[front], before)
+
+    // Snapping: with vertex snapping on, G and a cursor over another vertex lands exactly on it.
+    await page.locator('#snap').check()
+    await page.locator('#snap-target').selectOption('vertex')
+    const target = await page.evaluate(f => {
+        const me = (window as any).meshEdit
+        const project = me._projectFn()
+        const verts = [...me.state.bm.verts]
+        const fp = project(verts[f].x, verts[f].y, verts[f].z)
+        // Another visible vertex at least 60 px away on screen.
+        const ps = verts.map((v: any, i: number) => ({i, p: project(v.x, v.y, v.z)})).filter((o: any) => o.p && o.i !== f)
+        ps.sort((a: any, b: any) => a.p.depth - b.p.depth)
+        const pick = ps.find((o: any) => Math.hypot(o.p.x - fp.x, o.p.y - fp.y) > 60)
+        return pick.i as number
+    }, front)
+    const targetScreen = await screenOf(target)
+    await page.mouse.move(frontScreen.x, frontScreen.y)
+    await page.keyboard.press('KeyG')
+    await page.mouse.move(targetScreen.x + 6, targetScreen.y - 5, {steps: 5})
+    await page.waitForTimeout(100)
+    const snapped = await page.evaluate(([f, tg]) => {
+        const verts = [...(window as any).meshEdit.state.bm.verts]
+        const a = verts[f], b = verts[tg]
+        return {type: (window as any).meshEdit.activeTransform.t.tsnap.targetType, d: Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)}
+    }, [front, target] as const)
+    expect(snapped.type).toBe('vertex')
+    expect(snapped.d).toBeLessThan(1e-6)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+    expectSame((await positions())[front], before)
+    await page.locator('#snap').uncheck()
+
+    // Rotation: R with the whole cube selected sweeps the angle about the pivot's screen position.
+    await page.keyboard.press('KeyA')
+    const pivot = await page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const bm = me.state.bm
+        let x = 0, y = 0, z = 0, n = 0
+        for (const v of bm.verts) { x += v.x; y += v.y; z += v.z; n++ }
+        const p = me._projectFn()(x / n, y / n, z / n)
+        const r = (window as any).viewer.canvas.getBoundingClientRect()
+        return {x: r.left + p.x, y: r.top + p.y}
+    })
+    const allBefore = await positions()
+    await page.mouse.move(pivot.x + 120, pivot.y)
+    await page.keyboard.press('KeyR')
+    await page.mouse.move(pivot.x + 85, pivot.y - 85, {steps: 4})
+    await page.mouse.move(pivot.x, pivot.y - 120, {steps: 4})
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform?.status)).toMatch(/^Rotation: -9[0-9]\.|^Rotation: -8[5-9]\./)
+    await page.mouse.click(pivot.x, pivot.y - 120)
+    await page.waitForTimeout(250)
+    const allAfter = await positions()
+    // The centroid is the pivot, so it stays; every vertex keeps its distance to it; one moved.
+    const centroid = (ps: number[][]) => ps.reduce((a, p) => [a[0] + p[0] / ps.length, a[1] + p[1] / ps.length, a[2] + p[2] / ps.length], [0, 0, 0])
+    const cb = centroid(allBefore), ca = centroid(allAfter)
+    for (let i = 0; i < 3; i++) expect(ca[i]).toBeCloseTo(cb[i], 5)
+    const dist = (p: number[], c: number[]) => Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2])
+    for (let i = 0; i < allBefore.length; i++) expect(dist(allAfter[i], ca)).toBeCloseTo(dist(allBefore[i], cb), 5)
+    expect(dist(allAfter[front], allBefore[front])).toBeGreaterThan(0.1)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame(await positions(), allBefore)
+
+    // Proportional editing: a 0.75 radius reaches the 0.5-away neighbours with the smooth falloff.
+    await page.evaluate(() => (window as any).meshEdit.deselectAllElements())
+    await page.mouse.click(frontScreen.x, frontScreen.y)
+    await page.waitForTimeout(200)
+    expect(await selectedIndices()).toEqual([front])
+    await page.locator('#proportional').check()
+    await page.evaluate(() => (window as any).meshEdit.setProportional({size: 0.75}))
+    await page.mouse.move(canvas.x + canvas.width * 0.7, canvas.y + canvas.height * 0.7)
+    await page.keyboard.press('KeyG')
+    // The wheel grows the circle by 10% (Blender's PROPORTIONAL_SIZE_UP).
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform.t.propSize)).toBeCloseTo(0.825, 6)
+    await page.mouse.wheel(0, -100)
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => (window as any).meshEdit.activeTransform.t.propSize)).toBeCloseTo(0.75, 6)
+    await page.keyboard.press('1')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(250)
+    const prop = await positions()
+    // smooth(dist): d = (0.75 - 0.5) / 0.75 -> 3d^2 - 2d^3.
+    const d = (0.75 - 0.5) / 0.75
+    const smooth = 3 * d * d - 2 * d * d * d
+    let neighbours = 0, far = 0
+    for (let i = 0; i < prop.length; i++) {
+        const r = dist(allBefore[i], allBefore[front])
+        const dx = prop[i][0] - allBefore[i][0]
+        if (i === front) expect(dx).toBeCloseTo(1, 5)
+        else if (Math.abs(r - 0.5) < 1e-6) {
+            expect(dx).toBeCloseTo(smooth, 5)
+            neighbours++
+        } else if (r > 0.75) {
+            expect(dx).toBeCloseTo(0, 6)
+            far++
+        }
+    }
+    // A corner has 3 neighbours half an edge away, a face centre 4; either way they all moved by the falloff.
+    expect(neighbours).toBeGreaterThanOrEqual(3)
+    expect(far).toBeGreaterThan(10)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame(await positions(), allBefore)
+    await page.locator('#proportional').uncheck()
+
     await page.evaluate(() => {
         const e = (window as any).meshEdit
         e.setSelectMode(4)
@@ -3083,6 +3320,32 @@ test('mesh-edit-plugin', async({page}) => {
     expect(baked.editing).toBe(false)
     expect(baked.positions).toBeGreaterThan(0)
     expect(baked.indices % 3).toBe(0)
+
+    // Object mode: the same gizmo and backend move whole objects, with an undo step on UndoManagerPlugin.
+    await page.evaluate(() => {
+        const me = (window as any).meshEdit
+        me.objectGizmo = true
+        ;(window as any).viewer.setDirty()
+    })
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => (window as any).meshEdit.gizmo.visible)).toBe(true)
+    const objectBefore = await page.evaluate(() => (window as any).picking.getSelectedObject().position.toArray())
+    const objArrow = await gizmoHandleScreen('TRANS_X')
+    await page.mouse.move(objArrow.x, objArrow.y)
+    await page.waitForTimeout(150)
+    expect(await page.evaluate(() => (window as any).meshEdit.gizmo.hovered)).toBe('TRANS_X')
+    await page.mouse.down()
+    await page.mouse.move(objArrow.x + 60, objArrow.y, {steps: 6})
+    expect(await page.evaluate(() => (window as any).meshEdit.activeObjectTransform?.header)).toMatch(/^D: .* global$/)
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    const objectAfter = await page.evaluate(() => (window as any).picking.getSelectedObject().position.toArray())
+    expect(objectAfter[0]).toBeGreaterThan(objectBefore[0] + 0.05)
+    expect(objectAfter[1]).toBeCloseTo(objectBefore[1], 6)
+    expect(objectAfter[2]).toBeCloseTo(objectBefore[2], 6)
+    await page.keyboard.press('Control+KeyZ')
+    await page.waitForTimeout(250)
+    expectSame(await page.evaluate(() => (window as any).picking.getSelectedObject().position.toArray()), objectBefore)
 })
 
 test('modelling-workspace', async({page}) => {

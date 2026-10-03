@@ -29,6 +29,7 @@ import {
 } from 'threepipe'
 import {
     BMEdge,
+    BMesh,
     BMFace,
     BMVert,
     ElemFlag,
@@ -54,7 +55,7 @@ import {
     DeleteContext,
     bmToMesh,
 } from '@threepipe/mesh-kernel'
-import {Matrix4} from 'threepipe'
+import {Matrix4, Quaternion} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
 import {ModalTransform, TransformMode} from './transform'
 import {buildEdgeOverlay, buildFaceOverlay, buildVertexOverlay} from './overlays'
@@ -62,6 +63,43 @@ import {PickCycleState, pickElement, ProjectFn} from './picking'
 import {createEdgeMaterial, createVertexMaterial, EditTheme, setOverlayPixelRatio} from './overlayMaterials'
 import {SelectBuffer} from './select/SelectBuffer'
 import {unifiedFindNearest} from './select/findNearest'
+import {TransformView} from './transform/view'
+import {ObjectTransformTarget, ProportionalSettings, SnapSettings, TransInfo} from './transform/TransInfo'
+import {CON_AXIS2, OrientationType, PivotType} from './transform/types'
+import type {Mat3, Mat4, Vec3} from './transform/math'
+import {calcOrientationFromType} from './transform/orientation'
+import {objectsPivotWorld, selectionPivotWorld} from './transform/pivot'
+import {SnapContext} from './snap/snap'
+import {snapTargetFromBMesh, snapTargetFromGeometry} from './snap/targets'
+import {GizmoHandle, TransformGizmo} from './gizmo/TransformGizmo'
+import {TransformOverlay} from './gizmo/TransformOverlay'
+import type {ModalKeyEvent} from './transform/keymap'
+
+/** Options for {@link MeshEditPlugin.startTransform}. */
+export interface StartTransformOptions {
+    /** The mesh before a topology change this transform is chained to (extrude, duplicate), for one undo step. */
+    undoBefore?: MeshData
+    /** `CON_AXIS*` bits to start constrained with, as a gizmo handle does. */
+    constraint?: number
+    /** An orientation set by the operator (`normal` for extrude, `custom` for a gizmo); overrides the default. */
+    orientation?: OrientationType
+    /** The basis for `custom`. */
+    customMatrix?: Mat3
+    /** Confirm when the button is released rather than on the next click (gizmo drags). */
+    releaseConfirm?: boolean
+    /** Where the drag starts, in canvas CSS pixels; defaults to the last pointer position. */
+    mouse?: {x: number, y: number}
+}
+
+/** The transform settings a header exposes: pivot, orientation, snapping, proportional editing. */
+export interface TransformSettings {
+    pivot: PivotType
+    orientation: OrientationType
+    snapping: SnapSettings
+    proportional: ProportionalSettings
+    /** The 3D cursor, world space. */
+    cursor: Vec3
+}
 
 export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     /** Edit mode entered or left. */
@@ -76,6 +114,10 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     preselectChanged: {element: BMVert | BMEdge | BMFace | null}
     /** Something the user tried could not be done. Show it; it used to go to the console only. */
     notice: {message: string, level: 'info' | 'warning'}
+    /** Pivot, orientation, snapping or proportional settings changed. */
+    transformSettingsChanged: {settings: TransformSettings}
+    /** The gizmo handle under the cursor changed. */
+    gizmoHoverChanged: {handle: GizmoHandle | null}
 }
 
 /**
@@ -184,6 +226,46 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** The running transform follows a topology change (extrude, duplicate) that must stay undoable. */
     private _chained = false
 
+    // region transform settings
+
+    /** Where rotation and scaling happen about. Blender's header pivot selector. */
+    pivot: PivotType = 'median'
+    /** The space axis keys and the gizmo use. */
+    orientation: OrientationType = 'global'
+    /** Snapping, as the header magnet and its popover. Ctrl inverts it during a transform. */
+    readonly snapping: SnapSettings = {
+        enabled: false, targets: ['increment'], source: 'closest', absoluteGrid: false,
+        affect: {translate: true, rotate: false, resize: false}, backfaceCulling: false, occlusion: true,
+    }
+    /** Proportional editing. The size changes with the wheel or PageUp/PageDown during a transform. */
+    readonly proportional: ProportionalSettings = {enabled: false, connected: false, projected: false, size: 1, falloff: 'smooth'}
+    /** The 3D cursor, world space: a pivot and the place new geometry appears. */
+    readonly cursor: Vec3 = [0, 0, 0]
+
+    /** The combined gizmo: arrows, plane squares, rings, scale boxes, centre circle. */
+    readonly gizmo = new TransformGizmo()
+    /** Constraint lines, helpline, proportional circle and snap glyph while a transform runs. */
+    readonly overlay = new TransformOverlay()
+    /**
+     * Show the gizmo on the edit-mode selection. Off by default, as in Blender, where the gizmo
+     * belongs to the Move/Rotate/Scale/Transform tools: a handle takes the click, so with a gizmo
+     * up a vertex under it cannot be clicked. The tool (or an app) turns it on with {@link showGizmo}.
+     */
+    gizmoVisible = false
+    /**
+     * Show the gizmo on the picked objects in object mode and let it move them. Off by default:
+     * threepipe's `TransformControlsPlugin` does that unless an app switches to this one.
+     */
+    objectGizmo = false
+    /** Other scene meshes are snap targets too, not only the edited one. */
+    snapToSceneObjects = true
+
+    private _gizmoDrag: GizmoHandle | null = null
+    private _objectTransform: TransInfo | null = null
+    private _objectTargets: {object: IObject3D, start: {position: Vector3, quaternion: Quaternion, scale: Vector3}}[] = []
+
+    // endregion
+
     get isEditing(): boolean {
         return this.state !== null
     }
@@ -193,6 +275,15 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return this._transform
     }
 
+    /** The running object-mode transform, if any. */
+    get activeObjectTransform(): TransInfo | null {
+        return this._objectTransform
+    }
+
+    get transformSettings(): TransformSettings {
+        return {pivot: this.pivot, orientation: this.orientation, snapping: this.snapping, proportional: this.proportional, cursor: this.cursor}
+    }
+
     get selectMode(): SelectModeMask {
         return this.state?.selectMode ?? SelectMode.Vertex
     }
@@ -200,23 +291,45 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         window.addEventListener('keydown', this._onKeyDown)
+        window.addEventListener('keyup', this._onKeyUp)
         viewer.canvas.addEventListener('pointerdown', this._onPointerDown)
         viewer.canvas.addEventListener('pointermove', this._onPointerMove)
         viewer.canvas.addEventListener('pointerleave', this._onPointerLeave)
         viewer.canvas.addEventListener('dblclick', this._onDoubleClick)
+        viewer.canvas.addEventListener('wheel', this._onWheel, {passive: false})
         // Release can happen outside the canvas; listen where it will arrive.
         window.addEventListener('pointerup', this._onPointerUp)
+        // The rotation rings are clipped to their front half with a clipping plane.
+        ;(viewer.renderManager.renderer as any).localClippingEnabled = true
+        viewer.scene.addObject(this.gizmo as never, {addToRoot: true})
+        viewer.scene.addObject(this.overlay as never, {addToRoot: true})
+        viewer.forPlugin<any>('Picking', (picking: any) => {
+            picking.addEventListener('selectedObjectChanged', this._onObjectSelectionChanged)
+        }, (picking: any) => {
+            picking.removeEventListener('selectedObjectChanged', this._onObjectSelectionChanged)
+        }, this)
     }
 
     onRemove(viewer: ThreeViewer): void {
         window.removeEventListener('keydown', this._onKeyDown)
+        window.removeEventListener('keyup', this._onKeyUp)
         viewer.canvas.removeEventListener('pointerdown', this._onPointerDown)
         viewer.canvas.removeEventListener('pointermove', this._onPointerMove)
         viewer.canvas.removeEventListener('pointerleave', this._onPointerLeave)
         viewer.canvas.removeEventListener('dblclick', this._onDoubleClick)
+        viewer.canvas.removeEventListener('wheel', this._onWheel)
         window.removeEventListener('pointerup', this._onPointerUp)
         if (this.isEditing) this.exit(false)
+        if (this._objectTransform) this.cancelObjectTransform()
+        viewer.scene.remove(this.gizmo as never)
+        viewer.scene.remove(this.overlay as never)
+        this.gizmo.dispose()
+        this.overlay.dispose()
         super.onRemove(viewer)
+    }
+
+    protected _viewerListeners = {
+        preRender: () => this._updateWidgets(),
     }
 
     /** Tell the user why something did not happen, on screen if the app listens for `notice`. */
@@ -613,11 +726,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.refreshOverlays()
         this.dispatchEvent({type: 'meshChanged', state})
 
-        // Chain into a move constrained to the region's normal, which is what makes `E` push a face
-        // straight out of the surface however it is oriented. An axis key overrides it. The undo step
-        // covers both, and is recorded when the move ends - confirmed or cancelled, the extrusion stays.
-        this.startTransform('translate', before)
-        if (normal && this._transform) this._transform.setCustomAxis(normal)
+        // Chain into a move along the region's normal, which is what makes `E` push a face straight
+        // out of the surface however it is oriented: Blender's `extrude_region_move` runs the
+        // translate with `orient_type = NORMAL` and `constraint_axis = (0, 0, 1)`. An axis key
+        // overrides it. The undo step covers both, and is recorded when the move ends - confirmed or
+        // cancelled, the extrusion stays.
+        if (normal) this.startTransform('translate', {undoBefore: before, orientation: 'normal', constraint: CON_AXIS2})
+        else this.startTransform('translate', {undoBefore: before})
         return true
     }
 
@@ -638,7 +753,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this.applyToObject()
         this.refreshOverlays()
         this.dispatchEvent({type: 'meshChanged', state})
-        this.startTransform('translate', before)
+        this.startTransform('translate', {undoBefore: before})
         return true
     }
 
@@ -757,86 +872,97 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      * Begin a modal move, rotate or scale on the current selection.
      *
      * Mirrors Blender: the transform owns the input until it is confirmed with a click or Enter, or
-     * cancelled with Escape. Axis keys and typed numbers refine it while it runs.
+     * cancelled with Escape. Axis keys, typed numbers, Ctrl (snap), Shift (precision) and the wheel
+     * (proportional size) refine it while it runs. The maths is Blender's, see `transform/TransInfo.ts`.
      */
-    startTransform(mode: TransformMode, undoBefore?: MeshData): boolean {
+    startTransform(mode: TransformMode, opts: StartTransformOptions = {}): boolean {
         const viewer = this._viewer
         const state = this.state
         if (!viewer || !state) return false
-        if (this._transform) this._transform.cancel()
+        if (this._transform) this.cancelTransform()
+        if (this._objectTransform) this.cancelObjectTransform()
 
-        const camera = viewer.scene.mainCamera
         const object = this.editObject!
         object.updateWorldMatrix(true, false)
-
-        // Camera basis expressed in the object's local space, so screen motion maps into the mesh
-        // regardless of how the object is transformed.
-        const toLocal = new Matrix4().copy(object.matrixWorld as never).invert()
-        const camMatrix = new Matrix4().copy(camera.matrixWorld as never).premultiply(toLocal)
-        const right: [number, number, number] = [camMatrix.elements[0], camMatrix.elements[1], camMatrix.elements[2]]
-        const up: [number, number, number] = [camMatrix.elements[4], camMatrix.elements[5], camMatrix.elements[6]]
-        const forward: [number, number, number] = [camMatrix.elements[8], camMatrix.elements[9], camMatrix.elements[10]]
-
+        const objectMatrix = Array.from(object.matrixWorld.elements)
         const rect = viewer.canvas.getBoundingClientRect()
-        const unitsPerPixel = this._unitsPerPixel(rect.height)
+        const mouse = opts.mouse ?? {x: this._pointerX, y: this._pointerY}
 
-        const transform = new ModalTransform(state.bm, {
+        const transform = new ModalTransform({
             mode,
-            startX: this._pointerX,
-            startY: this._pointerY,
-            unitsPerPixel,
-            cameraRight: right,
-            cameraUp: up,
-            cameraForward: forward,
+            view: this._transformView(),
+            // Region pixels, y up, as Blender measures.
+            mval: [mouse.x, rect.height - mouse.y],
+            around: this.pivot,
+            cursor: this.cursor,
+            orientation: this.orientation,
+            orientationSet: opts.orientation ?? null,
+            customMatrix: opts.customMatrix,
+            proportional: this.proportional,
+            snap: this.snapping,
+            snapContext: this._snapContext(state.bm, objectMatrix),
+            constraint: opts.constraint,
+            releaseConfirm: opts.releaseConfirm,
+            bm: state.bm,
+            objectMatrix,
+            onChange: t => this._onTransformChange(t),
         })
 
         if (transform.isEmpty) {
             this._notice('Select something to ' + (mode === 'translate' ? 'move' : mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
             // An extrude or duplicate that chained into this still happened; keep its undo step.
-            if (undoBefore) this._recordUndo(undoBefore)
+            if (opts.undoBefore) this._recordUndo(opts.undoBefore)
             return false
         }
         this._transform = transform
-        this._undoBefore = undoBefore ?? this._snapshot()
-        this._chained = !!undoBefore
+        this._undoBefore = opts.undoBefore ?? this._snapshot()
+        this._chained = !!opts.undoBefore
         this._setPreselect(null)
+        // The transform owns the pointer until it ends: no orbiting, panning or zooming underneath it.
+        viewer.scene.mainCamera.setInteractions(false, MeshEditPlugin.PluginType)
         this.dispatchEvent({type: 'transformChanged', transform})
+        viewer.setDirty()
         return true
     }
 
-    /**
-     * World units per screen pixel at the selection's depth, so drags feel consistent at any zoom.
-     * Measured at the selection's centre, not the object's origin, so a selection far from the origin
-     * of a large object moves at the speed the cursor does.
-     */
-    private _unitsPerPixel(canvasHeight: number): number {
+    /** The camera as the transform maths sees it. */
+    private _transformView(): TransformView {
         const viewer = this._viewer!
         const camera = viewer.scene.mainCamera as any
-        const object = this.editObject!
-        const centre = this._selectionCentre() ?? new Vector3()
-        const cw = centre.applyMatrix4(object.matrixWorld as never)
-        const cp = new Vector3().setFromMatrixPosition(camera.matrixWorld)
-        if (camera.isOrthographicCamera) {
-            return (camera.top - camera.bottom) / (camera.zoom || 1) / Math.max(1, canvasHeight)
-        }
-        const dist = Math.max(0.001, cw.distanceTo(cp))
-        const fov = (camera.fov ?? 45) * Math.PI / 180
-        return (2 * Math.tan(fov / 2) * dist) / Math.max(1, canvasHeight)
+        camera.updateMatrixWorld(true)
+        camera.matrixWorldInverse.copy(camera.matrixWorld).invert()
+        const rect = viewer.canvas.getBoundingClientRect()
+        return TransformView.fromCamera(camera, rect.width, rect.height)
     }
 
-    /** Median point of the selected vertices, in the object's space. */
-    private _selectionCentre(): Vector3 | null {
-        const bm = this.state?.bm
-        if (!bm) return null
-        let x = 0, y = 0, z = 0, n = 0
-        for (const v of bm.verts) {
-            if (!(v.hflag & ElemFlag.Select)) continue
-            x += v.x
-            y += v.y
-            z += v.z
-            n++
+    /** Flush the transform's results into the mesh and the view; called on every input. */
+    private _onTransformChange(t: TransInfo): void {
+        this._refreshFlags()
+        this._scheduleLiveUpdate()
+        if (this._transform && this._transform.t === t) this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+    }
+
+    /**
+     * Snap targets for a transform: the edited mesh minus what is moving (Blender's
+     * `bm_*_is_snap_target` filters), and the other scene meshes.
+     */
+    private _snapContext(bm: BMesh | null, objectMatrix: Mat4 | null, moving?: Set<IObject3D>): SnapContext {
+        const ctx = new SnapContext()
+        const geom = this.snapping.targets.some(x => x === 'vertex' || x === 'edge' || x === 'edgeMidpoint' || x === 'face')
+        if (!geom) return ctx
+        if (bm && objectMatrix) ctx.targets.push(snapTargetFromBMesh(bm, objectMatrix, true, this.editObject))
+        if (this.snapToSceneObjects && this._viewer) {
+            this._viewer.scene.modelRoot.traverse((o: IObject3D) => {
+                if (o === this.editObject || moving?.has(o) || !o.visible) return
+                if ((o as any).assetType === 'widget' || o.userData?.isWidgetRoot) return
+                const geometry = o.geometry as unknown as BufferGeometry2 | undefined
+                const position = geometry?.getAttribute?.('position')
+                if (!position) return
+                o.updateWorldMatrix(true, false)
+                ctx.targets.push(snapTargetFromGeometry(position.array as ArrayLike<number>, geometry!.getIndex()?.array as ArrayLike<number> ?? null, Array.from(o.matrixWorld.elements), o))
+            })
         }
-        return n ? new Vector3(x / n, y / n, z / n) : null
+        return ctx
     }
 
     /** Finish the running transform, keeping the result. */
@@ -844,6 +970,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!this._transform || !this.state) return
         this._transform.confirm()
         this._transform = null
+        this._endTransformInput()
         cancelAnimationFrame(this._liveFrame)
         this.state.syncFromBMesh()
         this.applyToObject()
@@ -863,6 +990,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!this._transform) return
         this._transform.cancel()
         this._transform = null
+        this._endTransformInput()
         cancelAnimationFrame(this._liveFrame)
         if (this.state) {
             this.state.syncFromBMesh()
@@ -878,6 +1006,268 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (before && chained) this._recordUndo(before)
     }
 
+    /** Give the pointer back to the camera and the gizmo its handles. */
+    private _endTransformInput(): void {
+        this._gizmoDrag = null
+        this.gizmo.active = null
+        this._viewer?.scene.mainCamera.setInteractions(true, MeshEditPlugin.PluginType)
+        this._viewer?.setDirty()
+    }
+
+    // endregion
+
+    // region transform settings
+
+    /** Set the pivot point. Blender's `.` pie: median, active, individual origins, bounds, cursor. */
+    setPivot(pivot: PivotType): void {
+        if (pivot === this.pivot) return
+        this.pivot = pivot
+        this._settingsChanged()
+    }
+
+    /** Set the transform orientation. Blender's `,` pie: global, local, normal, view, cursor. */
+    setOrientation(orientation: OrientationType): void {
+        if (orientation === this.orientation) return
+        this.orientation = orientation
+        this._settingsChanged()
+    }
+
+    /** Change snapping: the magnet, the targets, the source, grid mode, what it affects. */
+    setSnapping(opts: Partial<SnapSettings>): void {
+        Object.assign(this.snapping, opts)
+        if (opts.affect) this.snapping.affect = {...this.snapping.affect, ...opts.affect}
+        this._settingsChanged()
+    }
+
+    /** Change proportional editing: on/off, falloff, size, connected, projected. */
+    setProportional(opts: Partial<ProportionalSettings>): void {
+        Object.assign(this.proportional, opts)
+        this._settingsChanged()
+    }
+
+    /** Place the 3D cursor (world space). */
+    setCursor(x: number, y: number, z: number): void {
+        this.cursor[0] = x
+        this.cursor[1] = y
+        this.cursor[2] = z
+        this._settingsChanged()
+    }
+
+    /** Show or hide the gizmo on the edit-mode selection. */
+    showGizmo(show: boolean): void {
+        this.gizmoVisible = show
+        this._viewer?.setDirty()
+    }
+
+    private _settingsChanged(): void {
+        this.dispatchEvent({type: 'transformSettingsChanged', settings: this.transformSettings})
+        this._viewer?.setDirty()
+    }
+
+    // endregion
+
+    // region object-mode transform
+
+    /**
+     * Move, rotate or scale whole objects with the same backend as the edit-mode transform: the
+     * same pivot, orientation, snapping, proportional editing and keys. Objects default to the
+     * picking selection. One undo step on `UndoManagerPlugin` per confirmed transform.
+     */
+    startObjectTransform(mode: TransformMode, opts: StartTransformOptions & {objects?: IObject3D[]} = {}): boolean {
+        const viewer = this._viewer
+        if (!viewer || this.isEditing) return false
+        if (this._objectTransform) this.cancelObjectTransform()
+
+        const picking = viewer.getPlugin<any>('Picking')
+        const objects = (opts.objects ?? picking?.getSelectedObjects?.() ?? []).filter((o: any) => o?.isObject3D) as IObject3D[]
+        if (!objects.length) {
+            this._notice('Select an object to ' + (mode === 'translate' ? 'move' : mode === 'rotate' ? 'rotate' : 'scale') + ' first.', 'info')
+            return false
+        }
+        const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        const targets: ObjectTransformTarget[] = objects.map(o => {
+            o.updateWorldMatrix(true, false)
+            return {
+                id: o,
+                matrixWorld: Array.from(o.matrixWorld.elements),
+                parentMatrixWorld: o.parent ? Array.from(o.parent.matrixWorld.elements) : identity,
+                localScale: [o.scale.x, o.scale.y, o.scale.z],
+            }
+        })
+        this._objectTargets = objects.map(o => ({object: o, start: {position: o.position.clone(), quaternion: o.quaternion.clone(), scale: o.scale.clone()}}))
+
+        const active = (picking?.getSelectedObject?.() as IObject3D | undefined) ?? objects[0]
+        active.updateWorldMatrix(true, false)
+        const activeMatrix = Array.from(active.matrixWorld.elements)
+        const rect = viewer.canvas.getBoundingClientRect()
+        const mouse = opts.mouse ?? {x: this._pointerX, y: this._pointerY}
+
+        const t = new TransInfo({
+            mode,
+            view: this._transformView(),
+            mval: [mouse.x, rect.height - mouse.y],
+            around: this.pivot,
+            cursor: this.cursor,
+            orientation: this.orientation,
+            orientationSet: opts.orientation ?? null,
+            customMatrix: opts.customMatrix,
+            proportional: this.proportional,
+            snap: this.snapping,
+            snapContext: this._snapContext(null, null, new Set(objects)),
+            constraint: opts.constraint,
+            releaseConfirm: opts.releaseConfirm,
+            objects: targets,
+            objectMatrix: activeMatrix,
+            activeObjectCenter: [activeMatrix[12], activeMatrix[13], activeMatrix[14]],
+            onChange: tt => this._onObjectTransformChange(tt),
+        })
+        this._objectTransform = t
+        viewer.scene.mainCamera.setInteractions(false, MeshEditPlugin.PluginType)
+        this._onObjectTransformChange(t)
+        this.dispatchEvent({type: 'transformChanged', transform: null})
+        return true
+    }
+
+    private _onObjectTransformChange(t: TransInfo): void {
+        const p = new Vector3(), q = new Quaternion(), s = new Vector3()
+        for (const r of t.objectResults()) {
+            const obj = r.id as IObject3D
+            const rot = new Matrix4().set(
+                r.rotWorld[0][0], r.rotWorld[1][0], r.rotWorld[2][0], 0,
+                r.rotWorld[0][1], r.rotWorld[1][1], r.rotWorld[2][1], 0,
+                r.rotWorld[0][2], r.rotWorld[1][2], r.rotWorld[2][2], 0,
+                0, 0, 0, 1,
+            )
+            const world = new Matrix4().compose(new Vector3(r.loc[0], r.loc[1], r.loc[2]), q.setFromRotationMatrix(rot), s.set(1, 1, 1))
+            const local = new Matrix4().fromArray(r.parentInv).multiply(world)
+            local.decompose(p, q, s)
+            obj.position.copy(p)
+            obj.quaternion.copy(q)
+            obj.scale.set(r.scale[0], r.scale[1], r.scale[2])
+            obj.updateMatrixWorld(true)
+            obj.setDirty?.({change: 'transform', frameFade: false})
+        }
+        this._viewer?.setDirty()
+    }
+
+    /** Finish the object transform and record its undo step. */
+    confirmObjectTransform(): void {
+        const t = this._objectTransform
+        if (!t) return
+        t.confirm()
+        this._objectTransform = null
+        this._endTransformInput()
+        const targets = this._objectTargets
+        this._objectTargets = []
+        const ends = targets.map(x => ({position: x.object.position.clone(), quaternion: x.object.quaternion.clone(), scale: x.object.scale.clone()}))
+        const changed = targets.some((x, i) => !x.start.position.equals(ends[i].position) || !x.start.quaternion.equals(ends[i].quaternion) || !x.start.scale.equals(ends[i].scale))
+        const undoManager = this._viewer?.getPlugin<any>('UndoManagerPlugin')?.undoManager
+        if (!changed || !undoManager) {
+            this.dispatchEvent({type: 'transformChanged', transform: null})
+            return
+        }
+        const apply = (states: {position: Vector3, quaternion: Quaternion, scale: Vector3}[]) => {
+            targets.forEach((x, i) => {
+                x.object.position.copy(states[i].position)
+                x.object.quaternion.copy(states[i].quaternion)
+                x.object.scale.copy(states[i].scale)
+                x.object.updateMatrixWorld(true)
+                x.object.setDirty?.({change: 'transform', frameFade: false})
+            })
+            this._viewer?.setDirty()
+        }
+        undoManager.record({undo: () => apply(targets.map(x => x.start)), redo: () => apply(ends)})
+        this.dispatchEvent({type: 'transformChanged', transform: null})
+    }
+
+    /** Abandon the object transform, restoring every object exactly. */
+    cancelObjectTransform(): void {
+        const t = this._objectTransform
+        if (!t) return
+        t.cancel()
+        this._objectTransform = null
+        this._objectTargets = []
+        this._endTransformInput()
+        this.dispatchEvent({type: 'transformChanged', transform: null})
+    }
+
+    // endregion
+
+    // region gizmo and overlay
+
+    private _onObjectSelectionChanged = (): void => {
+        this._viewer?.setDirty()
+    }
+
+    /** The transform that currently owns the input, in either mode. */
+    private _running(): TransInfo | null {
+        return this._transform?.t ?? this._objectTransform
+    }
+
+    /** Place the gizmo on the pivot each frame and draw the transform's lines. */
+    private _updateWidgets(): void {
+        const viewer = this._viewer
+        if (!viewer || this.isDisabled()) {
+            this.gizmo.visible = false
+            this.overlay.visible = false
+            return
+        }
+        const camera = viewer.scene.mainCamera as any
+        const rect = viewer.canvas.getBoundingClientRect()
+        const running = this._running()
+
+        let pivot: Vec3 | null = null
+        let orientation: Mat3 | null = null
+        // A keyboard-started transform hides the gizmo; a gizmo drag keeps its active handle.
+        const showGizmo = !running || this._gizmoDrag !== null
+        if (showGizmo && this.isEditing && this.state && this.gizmoVisible) {
+            const object = this.editObject!
+            object.updateWorldMatrix(true, false)
+            const objectMatrix = Array.from(object.matrixWorld.elements)
+            pivot = selectionPivotWorld(this.state.bm, this.pivot, objectMatrix, this.cursor)
+            if (pivot) {
+                orientation = calcOrientationFromType(this.orientation, {
+                    objectMatrix, view: this._transformView(), bm: this.state.bm, around: this.pivot,
+                })
+            }
+        } else if (showGizmo && !this.isEditing && this.objectGizmo) {
+            const picking = viewer.getPlugin<any>('Picking')
+            const objects = ((picking?.getSelectedObjects?.() ?? []) as IObject3D[]).filter(o => o?.isObject3D)
+            const positions: Vec3[] = objects.map(o => {
+                o.updateWorldMatrix(true, false)
+                const e = o.matrixWorld.elements
+                return [e[12], e[13], e[14]]
+            })
+            const active = (picking?.getSelectedObject?.() as IObject3D | undefined) ?? objects[0]
+            const activePos = active ? positions[objects.indexOf(active)] ?? positions[0] : null
+            pivot = objectsPivotWorld(positions, this.pivot, activePos ?? null, this.cursor)
+            if (pivot && active) {
+                orientation = calcOrientationFromType(this.orientation, {
+                    objectMatrix: Array.from(active.matrixWorld.elements), view: this._transformView(), around: this.pivot, objectMode: true,
+                })
+            }
+        }
+        this.gizmo.visible = !!pivot && !!orientation
+        if (pivot && orientation) {
+            this.gizmo.setPivot(pivot, orientation)
+            this.gizmo.update(camera, rect.height)
+        }
+
+        let mouseWorld: Vec3 | null = null
+        let pixelSize = 1
+        if (running) {
+            const view = running.view
+            pixelSize = view.pixelSize(running.centerGlobal)
+            // The cursor at the pivot's depth, for the helpline.
+            const ndc = new Vector3(running.centerGlobal[0], running.centerGlobal[1], running.centerGlobal[2]).project(camera)
+            const m = new Vector3(this._pointerX / rect.width * 2 - 1, -(this._pointerY / rect.height * 2 - 1), ndc.z).unproject(camera)
+            mouseWorld = [m.x, m.y, m.z]
+        }
+        this.overlay.update(running, camera, mouseWorld, pixelSize)
+    }
+
+    // endregion
+
     /** Re-bake the surface once per frame while a transform runs, so the shading follows the drag. */
     private _scheduleLiveUpdate(): void {
         if (this._liveFrame) return
@@ -889,8 +1279,6 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._viewer?.setDirty()
         })
     }
-
-    // endregion
 
     // region input
 
@@ -966,17 +1354,31 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     }
 
     private _onPointerMove = (event: PointerEvent): void => {
-        if (!this.isEditing || this.isDisabled()) return
+        if (this.isDisabled()) return
         const {x, y} = this._canvasPos(event)
         this._pointerX = x
         this._pointerY = y
-        if (this._transform) {
-            this._transform.setMousePosition(x, y)
-            this._refreshFlags()
-            this._scheduleLiveUpdate()
-            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+        const running = this._running()
+        if (running) {
+            const rect = this._viewer!.canvas.getBoundingClientRect()
+            running.handleEvent({type: 'mousemove', mval: [x, rect.height - y]})
+            this._viewer?.setDirty()
             return
         }
+        // The gizmo under the cursor highlights; it takes precedence over element preselection.
+        if (this.gizmo.visible && event.buttons === 0) {
+            const handle = this._pickGizmo(x, y)
+            if (handle !== this.gizmo.hovered) {
+                this.gizmo.hovered = handle
+                this.dispatchEvent({type: 'gizmoHoverChanged', handle})
+                this._viewer?.setDirty()
+            }
+            if (handle) {
+                if (this.isEditing) this._setPreselect(null)
+                return
+            }
+        }
+        if (!this.isEditing) return
         // Hover: what would a click here select? Not while a button is held - that is an orbit or a drag.
         if (!this.preselectHighlight || event.buttons !== 0) return
         if (this._hoverFrame) return
@@ -989,23 +1391,86 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     private _onPointerLeave = (): void => {
         if (this.isEditing) this._setPreselect(null)
+        if (this.gizmo.hovered && !this._gizmoDrag) {
+            this.gizmo.hovered = null
+            this.dispatchEvent({type: 'gizmoHoverChanged', handle: null})
+            this._viewer?.setDirty()
+        }
+    }
+
+    /** The gizmo handle under a canvas position, or null. */
+    private _pickGizmo(x: number, y: number): GizmoHandle | null {
+        const viewer = this._viewer
+        if (!viewer) return null
+        // The gizmo follows the selection on the next render; a click right after a selection change
+        // must see the current pivot, not last frame's.
+        this._updateWidgets()
+        if (!this.gizmo.visible) return null
+        const rect = viewer.canvas.getBoundingClientRect()
+        return this.gizmo.pick(x / rect.width * 2 - 1, -(y / rect.height * 2 - 1), viewer.scene.mainCamera as never)
+    }
+
+    /** A press on a gizmo handle starts the handle's transform; the release confirms it. */
+    private _startGizmoDrag(handle: GizmoHandle, event: PointerEvent): void {
+        const info = this.gizmo.handleInfo(handle)
+        // The gizmo is built from the scene orientation, so an axis handle constrains in that space
+        // (Blender passes the gizmo matrix as `orient_matrix` with the scene's `orient_matrix_type`).
+        const opts: StartTransformOptions = {
+            constraint: info.constraint || undefined,
+            orientation: info.constraint ? this.orientation : undefined,
+            releaseConfirm: true,
+            mouse: this._canvasPos(event),
+        }
+        const ok = this.isEditing ? this.startTransform(info.mode, opts) : this.startObjectTransform(info.mode, opts)
+        if (!ok) return
+        this._gizmoDrag = handle
+        this.gizmo.active = handle
+        event.preventDefault()
     }
 
     private _onPointerDown = (event: PointerEvent): void => {
-        if (!this.isEditing || this.isDisabled()) return
-        // A press confirms or cancels a running transform rather than changing the selection. The
-        // middle button stays free for navigating mid-transform, as in Blender.
-        if (this._transform) {
-            if (event.button === 0) this.confirmTransform()
-            else if (event.button === 2) this.cancelTransform()
+        if (this.isDisabled()) return
+        // A press confirms or cancels a running transform rather than changing the selection; the
+        // middle button picks the axis the mouse moves along (Blender's MMB), with Shift a plane.
+        const running = this._running()
+        if (running) {
+            if (event.button === 0) {
+                if (this._gizmoDrag) return
+                if (this._transform) this.confirmTransform()
+                else this.confirmObjectTransform()
+            } else if (event.button === 2) {
+                if (this._transform) this.cancelTransform()
+                else this.cancelObjectTransform()
+            } else if (event.button === 1) {
+                running.handleEvent({type: 'modal', item: event.shiftKey ? 'autoConstraintPlane' : 'autoConstraint'})
+                event.preventDefault()
+            }
             return
         }
         if (event.button !== 0) return
+        if (this.gizmo.visible) {
+            const handle = this._pickGizmo(this._canvasPos(event).x, this._canvasPos(event).y)
+            if (handle) {
+                this._startGizmoDrag(handle, event)
+                return
+            }
+        }
+        if (!this.isEditing) return
         // Selection waits for the release: a press that turns into a drag is an orbit, not a click.
         this._press = this._canvasPos(event)
     }
 
     private _onPointerUp = (event: PointerEvent): void => {
+        if (this._gizmoDrag && event.button === 0) {
+            // A gizmo drag confirms on release (Blender's `release_confirm`).
+            if (this._transform) this.confirmTransform()
+            else if (this._objectTransform) this.confirmObjectTransform()
+            return
+        }
+        if (this._running() && event.button === 1) {
+            this._running()!.handleEvent({type: 'modal', item: event.shiftKey ? 'autoConstraintPlane' : 'autoConstraint'})
+            return
+        }
         const press = this._press
         this._press = null
         if (!press || !this.isEditing || this.isDisabled() || this._transform || event.button !== 0) return
@@ -1035,9 +1500,48 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable
     }
 
+    /** A DOM key event as the transform's modal keymap reads it. */
+    private _modalKey(event: KeyboardEvent, press: boolean): ModalKeyEvent {
+        return {code: event.code, key: event.key, ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey, alt: event.altKey, press, repeat: event.repeat}
+    }
+
+    /** A running transform owns the keyboard, exactly as in Blender. Returns true when it took the key. */
+    private _transformKey(event: KeyboardEvent, press: boolean): boolean {
+        const running = this._running()
+        if (!running) return false
+        const consumed = running.handleEvent({type: 'key', event: this._modalKey(event, press)})
+        if (running.state === 'confirm') {
+            if (this._transform) this.confirmTransform()
+            else this.confirmObjectTransform()
+        } else if (running.state === 'cancel') {
+            if (this._transform) this.cancelTransform()
+            else this.cancelObjectTransform()
+        } else if (consumed) {
+            this._viewer?.setDirty()
+        }
+        // Tab belongs to the numeric input while a transform runs; it must not toggle edit mode.
+        if (consumed || event.code === 'Tab') event.preventDefault()
+        return true
+    }
+
+    private _onKeyUp = (event: KeyboardEvent): void => {
+        if (this.isDisabled() || this._isTypingTarget(event.target)) return
+        this._transformKey(event, false)
+    }
+
+    /** The wheel resizes the proportional editing circle during a transform (Blender's `PROPORTIONAL_SIZE_UP/DOWN`). */
+    private _onWheel = (event: WheelEvent): void => {
+        const running = this._running()
+        if (!running || this.isDisabled()) return
+        event.preventDefault()
+        if (running.handleEvent({type: 'modal', item: event.deltaY > 0 ? 'propsizeUp' : 'propsizeDown'})) this._viewer?.setDirty()
+    }
+
     private _onKeyDown = (event: KeyboardEvent): void => {
         if (this.isDisabled()) return
         if (this._isTypingTarget(event.target)) return
+
+        if (this._transformKey(event, true)) return
 
         // Tab toggles edit mode whether or not we are in it. Only when focus is not on a control, so
         // keyboard navigation of the rest of the page still works.
@@ -1048,33 +1552,6 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             return
         }
         if (!this.isEditing) return
-
-        // A running transform owns the keyboard, exactly as in Blender.
-        if (this._transform) {
-            const t = this._transform
-            if (event.code === 'Escape') {
-                this.cancelTransform()
-            } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
-                this.confirmTransform()
-            } else if (event.code === 'KeyX') {
-                t.setAxis(0, event.shiftKey)
-            } else if (event.code === 'KeyY') {
-                t.setAxis(1, event.shiftKey)
-            } else if (event.code === 'KeyZ') {
-                t.setAxis(2, event.shiftKey)
-            } else if (event.code === 'KeyC') {
-                t.clearConstraint()
-            } else if (t.handleNumericKey(event.key)) {
-                // consumed by the numeric buffer
-            } else {
-                return
-            }
-            t.precision = event.shiftKey
-            this.refreshOverlays()
-            this.dispatchEvent({type: 'transformChanged', transform: this._transform})
-            event.preventDefault()
-            return
-        }
 
         if (event.ctrlKey || event.metaKey) {
             if (event.code === 'KeyI') {

@@ -28,6 +28,9 @@
             top: 12px;
             left: 12px;
             width: 260px;
+            max-height: calc(100vh - 24px);
+            overflow-y: auto;
+            box-sizing: border-box;
             padding: 12px;
             background: rgba(20, 20, 24, 0.86);
             border-radius: 8px;
@@ -58,6 +61,10 @@
         #panel .help { color: #b9b9c4; margin: 2px 0 6px; }
         #panel .help b { color: #e6e6ea; }
         #panel .sep { margin: 10px 0 4px; color: #8a8a96; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+        #panel .row { display: flex; gap: 6px; align-items: center; margin: 3px 0; color: #b9b9c4; }
+        #panel .row label { min-width: 0; }
+        #panel .row select { flex: 1; min-width: 0; background: #26262e; color: #e6e6ea; border: 1px solid #3a3a44; border-radius: 4px; font: inherit; padding: 2px 4px; }
+        #transform-status { min-height: 1.5em; color: #ffd27a; white-space: pre-line; }
         #stats { margin-top: 10px; padding-top: 8px; border-top: 1px solid #3a3a44; white-space: pre-line; color: #b9b9c4; }
         #stats .bad { color: #ff8a8a; }
     </style>
@@ -88,13 +95,52 @@
 
     <div class="sep">Transform</div>
     <div class="help">
-        <b>G / R / S</b> move / rotate / scale<br>
+        drag the <b>gizmo</b>, or <b>G / R / S</b> move / rotate / scale<br>
         <b>E</b> extrude the selection<br>
-        <b>X / Y / Z</b> lock to an axis<br>
-        <b>Shift+X/Y/Z</b> lock to a plane<br>
-        type <b>digits</b> for an exact value<br>
+        <b>X / Y / Z</b> lock to an axis, again for local<br>
+        <b>Shift+X/Y/Z</b> lock to a plane, <b>MMB</b> picks the axis<br>
+        type <b>digits</b> or <b>= expression</b> for an exact value<br>
+        <b>Ctrl</b> snap, <b>Shift</b> precision, <b>wheel</b> proportional size<br>
         <b>click</b> or <b>Enter</b> confirm, <b>Esc</b> cancel
     </div>
+    <div class="row"><label for="pivot">Pivot</label>
+        <select id="pivot" title="What rotation and scaling happen about">
+            <option value="median">Median point</option>
+            <option value="active">Active element</option>
+            <option value="individual">Individual origins</option>
+            <option value="bounds">Bounding box centre</option>
+            <option value="cursor">3D cursor</option>
+        </select></div>
+    <div class="row"><label for="orientation">Orientation</label>
+        <select id="orientation" title="The axes the gizmo and the axis keys use">
+            <option value="global">Global</option>
+            <option value="local">Local</option>
+            <option value="normal">Normal</option>
+            <option value="view">View</option>
+        </select></div>
+    <div class="row"><label><input type="checkbox" id="snap"> Snap</label>
+        <select id="snap-target" title="What to snap to">
+            <option value="increment">Increment</option>
+            <option value="grid">Grid</option>
+            <option value="vertex">Vertex</option>
+            <option value="edge">Edge</option>
+            <option value="edgeMidpoint">Edge centre</option>
+            <option value="face">Face</option>
+        </select></div>
+    <div class="row"><label><input type="checkbox" id="proportional"> Proportional</label>
+        <select id="prop-falloff" title="Falloff">
+            <option value="smooth">Smooth</option>
+            <option value="sphere">Sphere</option>
+            <option value="root">Root</option>
+            <option value="sharp">Sharp</option>
+            <option value="linear">Linear</option>
+            <option value="constant">Constant</option>
+            <option value="inverseSquare">Inverse square</option>
+        </select>
+        <label><input type="checkbox" id="prop-connected"> connected</label></div>
+    <div class="row"><label><input type="checkbox" id="gizmo" checked> Gizmo</label>
+        <label><input type="checkbox" id="xray"> X-ray</label></div>
+    <div id="transform-status" class="help" data-transform-status></div>
 
     <div class="sep">Reference</div>
     <div class="help">Drag image files onto the viewport, then drag and resize the panels.</div>
