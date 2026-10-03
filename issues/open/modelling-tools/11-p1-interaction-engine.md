@@ -1,6 +1,6 @@
 # P1 — interaction engine (subplan of [10-editor-plan](./10-editor-plan.md))
 
-**Status**: started 2026-10-03. P0 is done (`2c1dce3`, `4d44e3f`), the shell is merged (`98c33f3`), and so is
+**Status**: tracks E, T, S merged into `modelling-editor` on 2026-10-03 (`933ed80`, `d26a3e6`, `888bbb8`, fixes `e5477a2`+). Started 2026-10-03. P0 is done (`2c1dce3`, `4d44e3f`), the shell is merged (`98c33f3`), and so is
 the Eiffel work (`a5ac8e3` via `modelling-tools`). Base for all P1 branches: `modelling-editor`.
 
 ## Where things live
@@ -68,3 +68,27 @@ theme sizes from Blender's theme; hidden elements (H / Alt+H).
   `boxSelect`, `setPivot`, ...) and keep the plugin's existing keys working as fallbacks.
 - Every user-facing behaviour gets a real-input e2e test and a Mac GPU browser check before it is
   reported done. Ports cite Blender file:line.
+
+## Status after merge (2026-10-03)
+
+Verified with real mouse/keyboard on the Mac GPU browser and in the e2e suite (7 modelling tests, twice):
+box select, gizmo axis drag, typed rotate, extrude with typed distance, redo-panel edits (value, axis
+toggles) re-running through the ported transform system, one undo history across modes.
+
+Integration done at merge: Blender's redo path (`saveTransform` / `initTransInfo` with
+`T_INPUT_IS_VALUES_FINAL`) ported into `TransInfo`, replacing the engine's own replay maths; instanced
+edge overlay rebuilt with a fresh geometry (three.js caches `_maxInstanceCount`); boolean-triple props as
+X/Y/Z toggles.
+
+Open:
+- [ ] Engine tools drive track T's gizmo: Move/Rotate/Scale tools should show it (it is off by default);
+      today they start one-shot modals.
+- [ ] Object-mode box select (left drag in object mode does nothing under `leftDrag: 'select'`).
+- [ ] Navigation per preset on a real trackpad (two-finger orbit/pan, pinch) - not yet checked on device.
+- [ ] `ts-browser-helpers` `JSUndoManager` change event + labels ([undo-manager-change-event](../undo-manager-change-event.md)) - maintainer decision; contained wrapper meanwhile.
+- [ ] Redo panel opens collapsed; consider open-by-default for the first operations (discoverability).
+- [ ] P3 gaps flagged by the engine: subdivide (only the icosphere pattern is ported), loop cut, knife,
+      edge-net fill, dissolve options.
+- [ ] Select track gaps: fill region, select similar/checker/mirror, X-ray face pick by face centre.
+- [ ] Transform track gaps: multi-point snapping, edge-perpendicular snap, snap-to-normal rotation,
+      3D-cursor placement gesture.

@@ -5,7 +5,7 @@
  */
 
 import React from 'react'
-import {Checkbox, HTMLSelect, InputGroup, NumericInput, Tooltip} from '@blueprintjs/core'
+import {Button, ButtonGroup, Checkbox, HTMLSelect, InputGroup, NumericInput, Tooltip} from '@blueprintjs/core'
 import type {PropDef, PropSchema} from '@threepipe/plugin-editor-engine'
 
 export interface PropsFormProps {
@@ -23,6 +23,8 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
     const id = `me-prop-${name}`
     let control: React.ReactNode
     const isVec3 = def.type === 'array' && def.items?.type === 'number' && def.minItems === 3 && def.maxItems === 3
+    // Three booleans: per-axis toggles, as Blender draws `constraint_axis`.
+    const isAxisToggles = def.type === 'array' && def.items?.type === 'boolean' && def.minItems === 3 && def.maxItems === 3
     if (def.enum) {
         control = <HTMLSelect id={id} value={(value as string) ?? ''} disabled={disabled} fill
             onChange={e => onChange(e.currentTarget.value || undefined)}>
@@ -38,6 +40,13 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
             min={def.minimum} max={def.maximum} stepSize={step} minorStepSize={def.type === 'integer' ? null : step / 10}
             majorStepSize={step * 10} placeholder={def.default !== undefined ? String(def.default) : 'default'}
             onValueChange={(n, s) => onChange(s === '' || Number.isNaN(n) ? undefined : n)} />
+    } else if (isAxisToggles) {
+        const arr = Array.isArray(value) ? (value as unknown[]).map(Boolean) : [false, false, false]
+        control = <ButtonGroup id={id} fill className="me-axis-toggles">
+            {['X', 'Y', 'Z'].map((axis, i) => <Button key={axis} text={axis} small active={arr[i]} disabled={disabled}
+                aria-pressed={arr[i]} data-axis={axis}
+                onClick={() => { const next = [...arr]; next[i] = !next[i]; onChange(next) }} />)}
+        </ButtonGroup>
     } else if (isVec3) {
         const arr = Array.isArray(value) ? value as number[] : [0, 0, 0]
         control = <div className="me-vec3">
