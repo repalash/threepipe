@@ -20,3 +20,12 @@ consumer wrapping the same methods would stack wrappers.
   and `UndoManagerPlugin.performAction` could accept it.
 
 When that lands, `EditorHistory._wrap()` goes away.
+
+## Status (2026-10-03)
+
+Implemented in the library: repalash/ts-browser-helpers#1 (branch `undo-change-events`) -
+`addChangeListener`/`removeChangeListener` with `record | undo | redo | replace | reset | limit |
+enabled`, `label` on commands with `labelOf()`, and a fix for `execute()` (it recorded `undefined`).
+Once released and threepipe's `ts-browser-helpers` range picks it up:
+- `UndoManagerPlugin` re-dispatches the change as a plugin event (`historyChanged`);
+- `@threepipe/plugin-editor-engine`'s `EditorHistory` listens to it and drops its method wrapping.
