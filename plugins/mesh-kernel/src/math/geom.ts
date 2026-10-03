@@ -53,15 +53,22 @@ export function normalizeV2(v: Vec2): number {
     return d
 }
 
-/** `normalize_v3` in place, returning the length (`math_vector_inline.cc`). */
+/**
+ * `normalize_v3` in place, returning the length (`normalize_v3_v3_length`,
+ * `math_vector_inline.cc:872`). The threshold is on the *squared* length, as Blender's is
+ * (`d = dot_v3v3(a, a); if (d > 1.0e-35f)`); anything at or below it becomes the zero vector and
+ * reports length 0.
+ */
 export function normalizeV3Len(v: Vec3): number {
-    const d = v3len(v)
+    let d = v3dot(v, v)
     if (d > 1.0e-35) {
+        d = Math.sqrt(d)
         v[0] /= d
         v[1] /= d
         v[2] /= d
     } else {
         v[0] = v[1] = v[2] = 0
+        d = 0
     }
     return d
 }
