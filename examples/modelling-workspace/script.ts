@@ -72,6 +72,11 @@ async function init() {
 
     // --- status ------------------------------------------------------------------------------
 
+    // The top bar wraps on narrow windows; keep the help panel just below it.
+    const topbar = document.getElementById('topbar')!
+    const panel = document.getElementById('panel')!
+    new ResizeObserver(() => panel.style.top = topbar.offsetHeight + 12 + 'px').observe(topbar)
+
     const modeEl = document.getElementById('mode')!
     const statsEl = document.getElementById('stats')!
 

@@ -25,9 +25,11 @@
         }
         body { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+        /* Stops short of the settings panel on the right and wraps, so no button ends up underneath it. */
         #topbar {
-            position: absolute; top: 0; left: 0; right: 0; height: 34px;
-            display: flex; align-items: center; gap: 10px; padding: 0 10px;
+            position: absolute; top: 0; left: 0; right: 320px; min-height: 34px;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 10px;
+            box-sizing: border-box; border-bottom-right-radius: 8px;
             background: rgba(18,18,22,0.9); color: #e6e6ea; backdrop-filter: blur(6px);
             z-index: 10;
         }
