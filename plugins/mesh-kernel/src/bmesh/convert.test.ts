@@ -85,16 +85,22 @@ describe('round trip', () => {
         expect([...got.data].map(v => +v.toFixed(5))).toEqual(expected.map(v => +v.toFixed(5)))
     })
 
-    it('preserves selection flags on all three domains', () => {
-        const before = cubeMesh()
-        const sv = before.attributes.ensure(AttrName.selectVert, AttrDomain.Point, 'bool')
-        const se = before.attributes.ensure(AttrName.selectEdge, AttrDomain.Edge, 'bool')
-        const sf = before.attributes.ensure(AttrName.selectFace, AttrDomain.Face, 'bool')
-        sv.data[0] = 1
-        sv.data[3] = 1
-        se.data[2] = 1
-        sf.data[4] = 1
-        before.select.mode = SelectMode.Edge | SelectMode.Face
+    it('preserves selection flags on all three domains', async() => {
+        const {edgeSelectSet, faceSelectSet, vertSelectSet} = await import('./marking')
+        // A selection as Blender stores one: built through the select functions, so an edge's vertices
+        // and a face's edges are selected with it. (Raw flags that disagree are flushed on load, as
+        // Blender flushes them - see the test below.)
+        const bm0 = bmFromMesh(cubeMesh())
+        const verts = [...bm0.verts], edges = [...bm0.edges], faces = [...bm0.faces]
+        vertSelectSet(bm0, verts[0], true)
+        vertSelectSet(bm0, verts[3], true)
+        edgeSelectSet(bm0, edges[2], true)
+        faceSelectSet(bm0, faces[4], true)
+        bm0.selectMode = SelectMode.Edge | SelectMode.Face
+        const before = bmToMesh(bm0)
+        const sv = before.attributes.require(AttrName.selectVert, AttrDomain.Point, 'bool')
+        const se = before.attributes.require(AttrName.selectEdge, AttrDomain.Edge, 'bool')
+        const sf = before.attributes.require(AttrName.selectFace, AttrDomain.Face, 'bool')
 
         const after = bmToMesh(bmFromMesh(before))
         expect([...after.attributes.require(AttrName.selectVert, AttrDomain.Point, 'bool').data])
@@ -104,6 +110,25 @@ describe('round trip', () => {
         expect([...after.attributes.require(AttrName.selectFace, AttrDomain.Face, 'bool').data])
             .toEqual([...sf.data])
         expect(after.select.mode).toBe(SelectMode.Edge | SelectMode.Face)
+    })
+
+    it('flushes a selected edge or face to its elements on load, as BM_mesh_bm_from_me does', () => {
+        const before = cubeMesh()
+        before.attributes.ensure(AttrName.selectEdge, AttrDomain.Edge, 'bool').data[2] = 1
+        before.attributes.ensure(AttrName.selectFace, AttrDomain.Face, 'bool').data[4] = 1
+        const bm = bmFromMesh(before)
+        const edge = [...bm.edges][2]
+        const face = [...bm.faces][4]
+        // `BM_edge_select_set` selects both vertices; `BM_face_select_set` every edge and vertex.
+        expect(edge.v1.hflag & ElemFlag.Select).toBeTruthy()
+        expect(edge.v2.hflag & ElemFlag.Select).toBeTruthy()
+        for (const l of face.eachLoop()) {
+            expect(l.v.hflag & ElemFlag.Select).toBeTruthy()
+            expect(l.e.hflag & ElemFlag.Select).toBeTruthy()
+        }
+        let verts = 0
+        for (const v of bm.verts) if (v.hflag & ElemFlag.Select) verts++
+        expect(bm.totvertsel).toBe(verts)
     })
 
     it('preserves sharp edges and flat faces, which BMesh stores inverted as smooth flags', () => {
@@ -215,5 +240,22 @@ describe('round trip', () => {
         expect(after.vertsNum).toBe(8)
         expect(after.edgesNum).toBe(12)
         expect(after.cornersNum).toBe(20)
+    })
+})
+
+describe('selection loaded from a mesh (BM_mesh_bm_from_me)', () => {
+    it('counts what it selects, as BM_vert/edge/face_select_set do', async() => {
+        const {primitiveCube} = await import('../generate/primitives')
+        const {selectNone} = await import('./marking')
+        // Primitives come out fully selected, as Blender's primitive operators leave them.
+        const mesh = primitiveCube({size: 2})
+        const bm = bmFromMesh(mesh)
+        expect(bm.totvertsel).toBe(8)
+        expect(bm.totedgesel).toBe(12)
+        expect(bm.totfacesel).toBe(6)
+        // Deselecting must land on zero. The flags used to be set without the counts, so this went to
+        // -8 / -12 / -6 and edit mode reported negative selections.
+        selectNone(bm)
+        expect([bm.totvertsel, bm.totedgesel, bm.totfacesel]).toEqual([0, 0, 0])
     })
 })

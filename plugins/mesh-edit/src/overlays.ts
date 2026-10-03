@@ -17,6 +17,8 @@ export const OverlayFlag = {
     Selected: 1,
     Active: 2,
     Hidden: 4,
+    /** Under the cursor: what a click would select. */
+    Preselect: 8,
 } as const
 
 export interface VertexOverlayData {
@@ -40,16 +42,17 @@ export interface FaceOverlayData {
     elements: BMFace[]
 }
 
-function flagFor(elem: {hflag: number}, active: unknown, self: unknown): number {
+function flagFor(elem: {hflag: number}, active: unknown, self: unknown, preselect?: unknown): number {
     let f = 0
     if (elem.hflag & ElemFlag.Select) f |= OverlayFlag.Selected
     if (elem.hflag & ElemFlag.Hidden) f |= OverlayFlag.Hidden
     if (active === self) f |= OverlayFlag.Active
+    if (preselect !== undefined && preselect === self) f |= OverlayFlag.Preselect
     return f
 }
 
 /** Points for every visible vertex. */
-export function buildVertexOverlay(bm: BMesh, active?: unknown): VertexOverlayData {
+export function buildVertexOverlay(bm: BMesh, active?: unknown, preselect?: unknown): VertexOverlayData {
     const elements: BMVert[] = []
     for (const v of bm.verts) if (!(v.hflag & ElemFlag.Hidden)) elements.push(v)
 
@@ -60,13 +63,13 @@ export function buildVertexOverlay(bm: BMesh, active?: unknown): VertexOverlayDa
         position[i * 3] = v.x
         position[i * 3 + 1] = v.y
         position[i * 3 + 2] = v.z
-        flag[i] = flagFor(v, active, v)
+        flag[i] = flagFor(v, active, v, preselect)
     }
     return {position, flag, elements}
 }
 
 /** Line segments for every visible edge. */
-export function buildEdgeOverlay(bm: BMesh, active?: unknown): EdgeOverlayData {
+export function buildEdgeOverlay(bm: BMesh, active?: unknown, preselect?: unknown): EdgeOverlayData {
     const elements: BMEdge[] = []
     for (const e of bm.edges) if (!(e.hflag & ElemFlag.Hidden)) elements.push(e)
 
@@ -80,7 +83,7 @@ export function buildEdgeOverlay(bm: BMesh, active?: unknown): EdgeOverlayData {
         position[i * 6 + 3] = e.v2.x
         position[i * 6 + 4] = e.v2.y
         position[i * 6 + 5] = e.v2.z
-        const f = flagFor(e, active, e)
+        const f = flagFor(e, active, e, preselect)
         flag[i * 2] = f
         flag[i * 2 + 1] = f
     }
@@ -93,12 +96,16 @@ export function buildEdgeOverlay(bm: BMesh, active?: unknown): EdgeOverlayData {
  * Fan triangulation is adequate here because the overlay is a highlight, not the shaded surface: a
  * concave n-gon's highlight may bulge slightly, and that costs nothing. The real bake ear-clips.
  */
-export function buildFaceOverlay(bm: BMesh): FaceOverlayData {
+export function buildFaceOverlay(bm: BMesh, only?: BMFace): FaceOverlayData {
     const elements: BMFace[] = []
-    for (const f of bm.faces) {
-        if (f.hflag & ElemFlag.Hidden) continue
-        if (!(f.hflag & ElemFlag.Select)) continue
-        elements.push(f)
+    if (only) {
+        if (!(only.hflag & ElemFlag.Hidden)) elements.push(only)
+    } else {
+        for (const f of bm.faces) {
+            if (f.hflag & ElemFlag.Hidden) continue
+            if (!(f.hflag & ElemFlag.Select)) continue
+            elements.push(f)
+        }
     }
 
     let vertCount = 0

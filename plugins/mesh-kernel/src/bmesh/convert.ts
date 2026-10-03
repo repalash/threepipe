@@ -12,6 +12,7 @@
  */
 
 import {MeshData, SelectHistoryEntry} from '../MeshData'
+import {edgeSelectSet, faceSelectSet, vertSelectSet} from './marking'
 import {
     AttrDomain,
     AttrName,
@@ -104,7 +105,9 @@ export function bmFromMesh(mesh: MeshData): BMesh {
         const v = bm.vertCreate(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])
         v.index = i
         if (vertHidden(i)) v.hflag |= ElemFlag.Hidden
-        else if (vertSelected(i)) v.hflag |= ElemFlag.Select
+        // `BM_vert_select_set`, as `BM_mesh_bm_from_me` does: setting the flag alone left `totvertsel`
+        // at zero for a selected mesh, so the first deselect drove the counts negative.
+        else if (vertSelected(i)) vertSelectSet(bm, v, true)
         copyGeneric(AttrDomain.Point, bm.vdata, i, v)
         verts[i] = v
     }
@@ -124,7 +127,7 @@ export function bmFromMesh(mesh: MeshData): BMesh {
         else e.hflag |= ElemFlag.Smooth
         if (edgeSeam(i)) e.hflag |= ElemFlag.Seam
         if (edgeHidden(i)) e.hflag |= ElemFlag.Hidden
-        else if (edgeSelected(i)) e.hflag |= ElemFlag.Select
+        else if (edgeSelected(i)) edgeSelectSet(bm, e, true) // `BM_edge_select_set`
         copyGeneric(AttrDomain.Edge, bm.edata, i, e)
         edges[i] = e
     }
@@ -153,7 +156,7 @@ export function bmFromMesh(mesh: MeshData): BMesh {
         if (faceSharp(fi)) f.hflag &= ~ElemFlag.Smooth
         else f.hflag |= ElemFlag.Smooth
         if (faceHidden(fi)) f.hflag |= ElemFlag.Hidden
-        else if (faceSelected(fi)) f.hflag |= ElemFlag.Select
+        else if (faceSelected(fi)) faceSelectSet(bm, f, true) // `BM_face_select_set`
         if (materialLayer) f.matNr = materialLayer.data[fi]
         copyGeneric(AttrDomain.Face, bm.pdata, fi, f)
 

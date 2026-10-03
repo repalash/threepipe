@@ -35,6 +35,8 @@
         "prepare": "npm run build",
         "build": "rimraf dist && vite build",
         "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "dev": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },

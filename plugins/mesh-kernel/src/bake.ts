@@ -173,6 +173,45 @@ function earClip(xs: number[], ys: number[], out: number[]): void {
     }
 }
 
+/**
+ * Triangulate one polygon given as a flat list of 3D points, appending local index triples to `out`.
+ *
+ * The polygon is projected onto the axis plane its Newell normal faces most, then ear-clipped - the
+ * same path {@link bakeGeometry} takes for every face, exported so anything else that has to draw or
+ * hit-test faces (edit-mode overlays, selection buffers) triangulates them identically.
+ */
+export function tessellatePolygon(points: ArrayLike<number>, out: number[]): void {
+    const n = points.length / 3
+    if (n < 3) return
+    if (n === 3) {
+        out.push(0, 1, 2)
+        return
+    }
+    let nx = 0, ny = 0, nz = 0
+    for (let i = 0; i < n; i++) {
+        const a = i * 3
+        const b = ((i + 1) % n) * 3
+        nx += (points[a + 1] - points[b + 1]) * (points[a + 2] + points[b + 2])
+        ny += (points[a + 2] - points[b + 2]) * (points[a] + points[b])
+        nz += (points[a] - points[b]) * (points[a + 1] + points[b + 1])
+    }
+    const len = Math.hypot(nx, ny, nz)
+    const normal = len > 0 ? [nx / len, ny / len, nz / len] : [0, 0, 1]
+    const axis = dominantAxis(normal)
+    // Project onto the plane most facing the normal, dropping the dominant axis.
+    const ia = axis === 0 ? 1 : 0
+    const ib = axis === 2 ? 1 : 2
+    // Flip one axis for negative-facing normals so the winding survives projection.
+    const flip = normal[axis] < 0
+    const xs: number[] = []
+    const ys: number[] = []
+    for (let i = 0; i < n; i++) {
+        xs.push(points[i * 3 + ia])
+        ys.push(flip ? -points[i * 3 + ib] : points[i * 3 + ib])
+    }
+    earClip(xs, ys, out)
+}
+
 /** Pick a sensible default UV layer: the first float2 layer on the corner domain. */
 function defaultUvLayer(mesh: MeshData): AttributeLayer | undefined {
     return mesh.attributes.layersOnDomain(AttrDomain.Corner)
@@ -209,9 +248,7 @@ export function bakeGeometry(mesh: MeshData, options: BakeOptions = {}): BakeRes
     // --- tessellate ---
     const indices: number[] = []
     const triangleToFaceList: number[] = []
-    const normal: [number, number, number] = [0, 0, 1]
-    const xs: number[] = []
-    const ys: number[] = []
+    const points: number[] = []
     const local: number[] = []
 
     for (let f = 0; f < mesh.facesNum; f++) {
@@ -225,24 +262,14 @@ export function bakeGeometry(mesh: MeshData, options: BakeOptions = {}): BakeRes
             continue
         }
 
-        faceNormal(mesh, start, end, normal)
-        const axis = dominantAxis(normal)
-        // Project onto the plane most facing the normal, dropping the dominant axis.
-        const ia = axis === 0 ? 1 : 0
-        const ib = axis === 2 ? 1 : 2
-        // Flip one axis for negative-facing normals so the winding survives projection.
-        const flip = normal[axis] < 0
-
-        xs.length = 0
-        ys.length = 0
+        points.length = 0
         for (let c = start; c < end; c++) {
             const p = cornerVerts[c] * 3
-            xs.push(positions[p + ia])
-            ys.push(flip ? -positions[p + ib] : positions[p + ib])
+            points.push(positions[p], positions[p + 1], positions[p + 2])
         }
 
         local.length = 0
-        earClip(xs, ys, local)
+        tessellatePolygon(points, local)
         for (let i = 0; i < local.length; i += 3) {
             indices.push(start + local[i], start + local[i + 1], start + local[i + 2])
             triangleToFaceList.push(f)

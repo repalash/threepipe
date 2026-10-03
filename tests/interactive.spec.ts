@@ -2937,7 +2937,7 @@ test('modelling-workspace', async({page}) => {
     expect(await count()).toBe(0)
 
     // Every entry in the Add bar must produce exactly one object with usable geometry.
-    for (const primitive of ['box', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
+    for (const primitive of ['cube', 'plane', 'circle', 'sphere', 'cylinder', 'cone', 'torus']) {
         await page.locator(`[data-add="${primitive}"]`).click()
         await page.waitForTimeout(160)
     }
