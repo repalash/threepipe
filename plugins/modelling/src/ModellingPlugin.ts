@@ -24,10 +24,10 @@
  * ```
  */
 
-import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, ThreeViewer} from 'threepipe'
+import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, JSUndoManager, ThreeViewer} from 'threepipe'
 import type {MeshData} from '@threepipe/mesh-kernel'
 import {ModellingDocument} from './document'
-import {ModellingHistory} from './history'
+import {HistoryEntry, ModellingHistory} from './history'
 import {CommandRegistry} from './commands/registry'
 import {Command, CommandContext, CommandDefinition, CommandResult, validateParams} from './commands/types'
 import {createCommands} from './commands/create'
@@ -47,11 +47,14 @@ export interface CaptureResult {
     path: string | null
 }
 
+/** Who changed the document: a command, an undo/redo of one, an edit-mode session handing back a mesh, or a glTF import. */
+export type DocumentChangeSource = 'command' | 'undo' | 'sink' | 'gltf'
+
 export interface ModellingPluginEventMap extends AViewerPluginEventMap {
     /** One command finished, successfully or not. */
     commandRun: {command: Command, result: CommandResult}
     /** The document's object set or any object's topology changed. */
-    documentChanged: {document: ModellingDocument}
+    documentChanged: {document: ModellingDocument, source: DocumentChangeSource}
 }
 
 export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> {
@@ -90,12 +93,25 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
     private _index = 0
     private _queue: Promise<unknown> = Promise.resolve()
     private _gltfExtension: GLTFMeshTopologyExtension | null = null
+    private _undoManager: JSUndoManager | undefined
+
+    /**
+     * The viewer's one undo stack, when `UndoManagerPlugin` is loaded.
+     *
+     * Every mutating command records a labelled step on it, so the user's Ctrl+Z and an agent's `undo`
+     * walk the same history as edit-mode steps, object deletes and property edits. Without the plugin,
+     * {@link history} stands alone as before.
+     */
+    get undoManager(): JSUndoManager | undefined {
+        return this._undoManager
+    }
 
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         this.document = new ModellingDocument(viewer)
         this.history = new ModellingHistory(this.document)
         this._connectMeshEdit(viewer)
+        this._connectUndoManager(viewer)
         this._registerGltfExtension(viewer)
         this.commands.registerAll([
             ...createCommands,
@@ -124,11 +140,18 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         const sink = (object: IObject3D, mesh: MeshData) => {
             const entry = this.document.find(object.uuid)
             if (!entry) return
-            this.document.beginRecording()
-            this.document.setMesh(entry, mesh.clone())
-            const before = this.document.endRecording()
-            this.history.push('editMode', `edit ${entry.name}`, before, ++this._index)
-            this.dispatchEvent({type: 'documentChanged', document: this.document})
+            if (this._undoManager) {
+                // One owner per undo step: with the viewer's undo stack present, `MeshEditPlugin`
+                // records its own labelled step for the edit (and restores through this same sink),
+                // so the document only follows. Recording here too gave every edit two entries.
+                this.document.setMesh(entry, mesh.clone())
+            } else {
+                this.document.beginRecording()
+                this.document.setMesh(entry, mesh.clone())
+                const before = this.document.endRecording()
+                this.history.push('editMode', `edit ${entry.name}`, before, ++this._index)
+            }
+            this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'sink'})
         }
         viewer.forPlugin('MeshEditPlugin', (plugin: any) => {
             plugin.meshProviders?.push(provider)
@@ -137,6 +160,43 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             remove(plugin.meshProviders, provider)
             remove(plugin.meshSinks, sink)
         }, this)
+    }
+
+    /**
+     * Join the viewer's undo stack when `UndoManagerPlugin` is present, by plugin-type string so this
+     * package keeps running headless without it.
+     */
+    private _connectUndoManager(viewer: ThreeViewer): void {
+        viewer.forPlugin('UndoManagerPlugin', (plugin: any) => {
+            this._undoManager = plugin.undoManager
+        }, () => {
+            this._undoManager = undefined
+        }, this)
+    }
+
+    /**
+     * Record a finished command's history entry as one labelled step on the viewer's undo stack.
+     * Undo and redo go back through {@link ModellingHistory.undoEntry}, which keeps this log's
+     * position in step with the unified stack.
+     */
+    private _recordUndoStep(entry: HistoryEntry, label: string): void {
+        const um = this._undoManager
+        if (!um) return
+        const command = {
+            label,
+            undo: () => {
+                this.history.undoEntry(entry)
+                this._viewer?.setDirty()
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'undo'})
+            },
+            redo: () => {
+                this.history.redoEntry(entry)
+                this._viewer?.setDirty()
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'undo'})
+            },
+        }
+        entry.command = command
+        um.record(command)
     }
 
     /**
@@ -157,7 +217,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 this.document.beginRecording()
                 this.document.adopt(object, mesh, modifiers)
                 this.document.endRecording()
-                this.dispatchEvent({type: 'documentChanged', document: this.document})
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
             },
         })
         viewer.assetManager.registerGltfExtension(this._gltfExtension.extension as never)
@@ -248,8 +308,10 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             const output = await def.run(params, ctx) || {}
             const before = def.mutates ? this.document.endRecording() : []
             if (def.mutates) {
-                this.history.push(op, describeCommand(command), before, index)
-                this.dispatchEvent({type: 'documentChanged', document: this.document})
+                const label = describeCommand(command)
+                const entry = this.history.push(op, label, before, index)
+                if (entry) this._recordUndoStep(entry, labelForUndo(command))
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'command'})
             }
             const result: CommandResult = {
                 ok: true,
@@ -351,6 +413,17 @@ function describeCommand(command: Command): string {
         if (typeof v === 'string' || typeof v === 'number') parts.push(`${key}=${v}`)
     }
     return parts.join(' ')
+}
+
+/** The label a user sees in an undo history: `Add Cube`, `Inset hull`, `Delete 2 objects`. */
+function labelForUndo(command: Command): string {
+    const c = command as Record<string, unknown>
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+    if (command.op === 'primitive' && typeof c.type === 'string') return `Add ${cap(c.type)}`
+    const target = c.object ?? c.objects
+    const name = typeof target === 'string' ? target
+        : Array.isArray(target) ? target.length === 1 ? String(target[0]) : `${target.length} objects` : undefined
+    return name ? `${cap(command.op)} ${name}` : cap(command.op)
 }
 
 function remove<T>(list: T[] | undefined, item: T): void {

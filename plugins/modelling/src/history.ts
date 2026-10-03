@@ -24,6 +24,11 @@ export interface HistoryEntry {
     /** Named by a `checkpoint` command, so `undo {to}` can rewind to it. */
     checkpoint?: string
     index: number
+    /**
+     * The step recorded for this entry on the viewer's `UndoManagerPlugin`, when one is attached.
+     * Lets `undo {to}` walk the unified stack back to a checkpoint.
+     */
+    command?: unknown
 }
 
 export class ModellingHistory {
@@ -59,8 +64,8 @@ export class ModellingHistory {
         }))
     }
 
-    push(op: string, label: string, before: EntrySnapshot[], index: number): void {
-        if (!before.length) return
+    push(op: string, label: string, before: EntrySnapshot[], index: number): HistoryEntry | null {
+        if (!before.length) return null
         // A new command discards anything that was undone, as every editor does.
         this._entries.length = this._position
         const after = before
@@ -71,9 +76,34 @@ export class ModellingHistory {
         for (const b of before) {
             if (!this._doc.find(b.id)) after.push({...b, mesh: null})
         }
-        this._entries.push({op, label, before, after, index})
+        const entry: HistoryEntry = {op, label, before, after, index}
+        this._entries.push(entry)
         if (this._entries.length > this.limit) this._entries.shift()
         this._position = this._entries.length
+        return entry
+    }
+
+    /**
+     * Undo one specific entry, for a unified undo stack that interleaves these entries with steps
+     * from elsewhere. When the entry is the most recent applied one - the normal case, since the
+     * unified stack undoes in order - the position moves with it; an entry this log has already
+     * dropped (its `limit`) is still restored from its own snapshots.
+     */
+    undoEntry(entry: HistoryEntry): void {
+        if (this._entries[this._position - 1] === entry) {
+            this.undo(1)
+            return
+        }
+        for (const snap of entry.before) this._doc.restore(snap)
+    }
+
+    /** The counterpart of {@link undoEntry}. */
+    redoEntry(entry: HistoryEntry): void {
+        if (this._entries[this._position] === entry) {
+            this.redo(1)
+            return
+        }
+        for (const snap of entry.after) this._doc.restore(snap)
     }
 
     /** Name the most recent command, so it can be rewound to later. */
