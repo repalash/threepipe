@@ -437,3 +437,212 @@ export function* foreachSparseRange(src: number, dst: number): Generator<number>
 }
 
 // endregion
+
+// region rotations, curves and lines (subdivide edge-ring's path interpolation)
+
+/** A quaternion `[w, x, y, z]`, Blender's `float q[4]` order. */
+export type Quat = [number, number, number, number]
+
+/** `safe_acosf` (`math_base_inline.cc`): `acos` clamped into its domain. */
+export const safeAcos = (a: number): number => a <= -1 ? Math.PI : a >= 1 ? 0 : Math.acos(a)
+
+/** `unit_qt`. */
+export const unitQt = (): Quat => [1, 0, 0, 0]
+
+/** `mul_qt_qtqt` (`math_rotation_c.cc:64`): `a * b`. */
+export function mulQtQtqt(a: Quat, b: Quat): Quat {
+    const t0 = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
+    const t1 = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
+    const t2 = a[0] * b[2] + a[2] * b[0] + a[3] * b[1] - a[1] * b[3]
+    const q3 = a[0] * b[3] + a[3] * b[0] + a[1] * b[2] - a[2] * b[1]
+    return [t0, t1, t2, q3]
+}
+
+/** `mul_qt_v3` (`math_rotation_c.cc:77`): rotate `r` by `q`, in place, Blender's two-step form. */
+export function mulQtV3(q: Quat, r: Vec3): void {
+    const t0 = -q[1] * r[0] - q[2] * r[1] - q[3] * r[2]
+    let t1 = q[0] * r[0] + q[2] * r[2] - q[3] * r[1]
+    let t2 = q[0] * r[1] + q[3] * r[0] - q[1] * r[2]
+    r[2] = q[0] * r[2] + q[1] * r[1] - q[2] * r[0]
+    r[0] = t1
+    r[1] = t2
+
+    t1 = t0 * -q[1] + r[0] * q[0] - r[1] * q[3] + r[2] * q[2]
+    t2 = t0 * -q[2] + r[1] * q[0] - r[2] * q[1] + r[0] * q[3]
+    r[2] = t0 * -q[3] + r[2] * q[0] - r[0] * q[2] + r[1] * q[1]
+    r[0] = t1
+    r[1] = t2
+}
+
+/** `normalize_qt` (`math_rotation_c.cc:472`), in place; a zero quaternion becomes `(0, 1, 0, 0)`. */
+export function normalizeQt(q: Quat): number {
+    const len = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
+    if (len !== 0) {
+        const f = 1 / len
+        q[0] *= f
+        q[1] *= f
+        q[2] *= f
+        q[3] *= f
+    } else {
+        q[1] = 1
+        q[0] = q[2] = q[3] = 0
+    }
+    return len
+}
+
+/** `axis_angle_normalized_to_quat` (`math_rotation_c.cc:1065`); `axis` must be unit length. */
+export function axisAngleNormalizedToQuat(axis: Vec3, angle: number): Quat {
+    const phi = 0.5 * angle
+    const si = Math.sin(phi)
+    const co = Math.cos(phi)
+    return [co, axis[0] * si, axis[1] * si, axis[2] * si]
+}
+
+/** `axis_angle_to_quat` (`math_rotation_c.cc:1075`): the identity for a zero axis. */
+export function axisAngleToQuat(axis: Vec3, angle: number): Quat {
+    const nor: Vec3 = [axis[0], axis[1], axis[2]]
+    if (normalizeV3Len(nor) !== 0) return axisAngleNormalizedToQuat(nor, angle)
+    return unitQt()
+}
+
+/**
+ * `quat_to_mat3` (`math_rotation_c.cc:198`, `quat_to_mat3_no_error`), in Blender's `m[col][row]`
+ * layout: `m[2]` is the image of the Z axis.
+ */
+export function quatToMat3(q: Quat): [Vec3, Vec3, Vec3] {
+    const q0 = Math.SQRT2 * q[0]
+    const q1 = Math.SQRT2 * q[1]
+    const q2 = Math.SQRT2 * q[2]
+    const q3 = Math.SQRT2 * q[3]
+
+    const qda = q0 * q1
+    const qdb = q0 * q2
+    const qdc = q0 * q3
+    const qaa = q1 * q1
+    const qab = q1 * q2
+    const qac = q1 * q3
+    const qbb = q2 * q2
+    const qbc = q2 * q3
+    const qcc = q3 * q3
+
+    return [
+        [1.0 - qbb - qcc, qdc + qab, -qdb + qac],
+        [-qdc + qab, 1.0 - qaa - qcc, qda + qbc],
+        [qdb + qac, -qda + qbc, 1.0 - qaa - qbb],
+    ]
+}
+
+/**
+ * `vec_to_quat` (`math_rotation_c.cc:722`): the rotation taking `axis` (0..5 for +X, +Y, +Z, -X,
+ * -Y, -Z) onto `vec`, rolled so that `upflag` (0..2) points up.
+ */
+export function vecToQuat(vec: Vec3, axis: number, upflag: number): Quat {
+    const eps = 1e-4
+    // first set the quat to unit
+    let q = unitQt()
+
+    const len = v3len(vec)
+    if (len === 0) return q
+
+    // rotate to axis
+    let tvec: Vec3
+    if (axis > 2) {
+        tvec = [vec[0], vec[1], vec[2]]
+        axis = axis - 3
+    } else {
+        tvec = [-vec[0], -vec[1], -vec[2]]
+    }
+
+    // "nasty! I need a good routine for this... problem is a rotation of an Y axis to the negative
+    // Y-axis for example."
+    const nor: Vec3 = [0, 0, 0]
+    let co: number
+    if (axis === 0) { // x-axis
+        nor[0] = 0.0
+        nor[1] = -tvec[2]
+        nor[2] = tvec[1]
+        if (Math.abs(tvec[1]) + Math.abs(tvec[2]) < eps) nor[1] = 1.0
+        co = tvec[0]
+    } else if (axis === 1) { // y-axis
+        nor[0] = tvec[2]
+        nor[1] = 0.0
+        nor[2] = -tvec[0]
+        if (Math.abs(tvec[0]) + Math.abs(tvec[2]) < eps) nor[2] = 1.0
+        co = tvec[1]
+    } else { // z-axis
+        nor[0] = -tvec[1]
+        nor[1] = tvec[0]
+        nor[2] = 0.0
+        if (Math.abs(tvec[0]) + Math.abs(tvec[1]) < eps) nor[0] = 1.0
+        co = tvec[2]
+    }
+    co /= len
+
+    normalizeV3Len(nor)
+
+    q = axisAngleNormalizedToQuat(nor, safeAcos(co))
+
+    if (axis !== upflag) {
+        const mat = quatToMat3(q)
+        const fp = mat[2]
+        let angle: number
+        if (axis === 0) {
+            if (upflag === 1) angle = 0.5 * Math.atan2(fp[2], fp[1])
+            else angle = -0.5 * Math.atan2(fp[1], fp[2])
+        } else if (axis === 1) {
+            if (upflag === 0) angle = -0.5 * Math.atan2(fp[2], fp[0])
+            else angle = 0.5 * Math.atan2(fp[0], fp[2])
+        } else {
+            if (upflag === 0) angle = 0.5 * Math.atan2(-fp[1], -fp[0])
+            else angle = -0.5 * Math.atan2(-fp[0], -fp[1])
+        }
+
+        co = Math.cos(angle)
+        const si = Math.sin(angle) / len
+        const q2: Quat = [co, tvec[0] * si, tvec[1] * si, tvec[2] * si]
+        q = mulQtQtqt(q2, q)
+    }
+    return q
+}
+
+/** `bisect_v3_v3v3v3` (`math_vector.cc:549`): the normalised sum of the two segment directions at `b`. */
+export function bisectV3V3V3(a: Vec3, b: Vec3, c: Vec3): Vec3 {
+    const d12 = v3sub(b, a)
+    const d23 = v3sub(c, b)
+    normalizeV3Len(d12)
+    normalizeV3Len(d23)
+    const r: Vec3 = [d12[0] + d23[0], d12[1] + d23[1], d12[2] + d23[2]]
+    normalizeV3Len(r)
+    return r
+}
+
+/**
+ * `BKE_curve_forward_diff_bezier` (`blenkernel/intern/curve.cc:1695`): `it + 1` evenly spaced
+ * samples of one coordinate of a cubic Bezier, by forward differencing (which is why they differ from
+ * direct evaluation in the last bits).
+ */
+export function curveForwardDiffBezier(q0: number, q1: number, q2: number, q3: number, it: number): number[] {
+    let f = it
+    const rt0 = q0
+    const rt1 = 3.0 * (q1 - q0) / f
+    f *= f
+    const rt2 = 3.0 * (q0 - 2.0 * q1 + q2) / f
+    f *= it
+    const rt3 = (q3 - q0 + 3.0 * (q1 - q2)) / f
+
+    q0 = rt0
+    q1 = rt1 + rt2 + rt3
+    q2 = 2 * rt2 + 6 * rt3
+    q3 = 6 * rt3
+
+    const out: number[] = []
+    for (let a = 0; a <= it; a++) {
+        out.push(q0)
+        q0 += q1
+        q1 += q2
+        q2 += q3
+    }
+    return out
+}
+
+// endregion

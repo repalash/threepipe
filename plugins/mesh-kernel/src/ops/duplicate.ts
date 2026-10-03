@@ -8,7 +8,7 @@
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
-import {diskEdges, radialLoops} from '../bmesh/structure'
+import {diskEdges, edgeIsBoundary, radialLoops} from '../bmesh/structure'
 import {copyElemAttrs} from '../bmesh/customdata'
 import {ElemFlag} from '../constants'
 import {edgeSelectSet, faceSelectSet, selectNone, vertSelectSet} from '../bmesh/marking'
@@ -140,6 +140,66 @@ export type DeleteContext =
     | 'onlyFaces'
     /** Edges and faces, keeping the vertices. */
     | 'edgesFaces'
+    /**
+     * `DEL_FACES_KEEP_BOUNDARY`: as `DEL_FACES`, except that an edge which was a mesh boundary (one
+     * face) before the delete survives with its vertices. Bridge Edge Loops deletes the selected
+     * faces this way. See {@link deleteFacesOflagContext}.
+     */
+    | 'facesKeepBoundary'
+
+/**
+ * The `DEL_FACES` / `DEL_FACES_KEEP_BOUNDARY` branch of `BMO_mesh_delete_oflag_context`
+ * (`bmesh_delete.cc:139-193`) for the face input of `bmo_delete_exec` (`bmo_dupe.cc:527`,
+ * `delete geom=%hf`): `faces` plays the operator flag `DEL_INPUT`, which only faces carry on entry.
+ *
+ * Every vertex and edge of an input face is marked; every vertex and edge of a face that is not input
+ * is unmarked (it is still in use); with `keepBoundary`, an edge that is a boundary *before* the
+ * delete is unmarked too (`:172`, "Only exception to normal 'DEL_FACES' logic"); a vertex of any
+ * unmarked edge is unmarked. Then the marked faces, edges and vertices are killed, each in mesh
+ * order (`bmo_remove_tagged_faces/edges/verts`).
+ */
+export function deleteFacesOflagContext(bm: BMesh, faces: Iterable<BMFace>, keepBoundary: boolean): void {
+    const oflagF = new Set<BMFace>(faces)
+    const oflagE = new Set<BMEdge>()
+    const oflagV = new Set<BMVert>()
+
+    // go through and mark all edges and all verts of all faces for delete
+    for (const f of bm.faces) {
+        if (oflagF.has(f)) {
+            for (const l of f.eachLoop()) {
+                oflagV.add(l.v)
+                oflagE.add(l.e!)
+            }
+        }
+    }
+    // now go through and mark all remaining faces all edges for keeping
+    for (const f of bm.faces) {
+        if (!oflagF.has(f)) {
+            for (const l of f.eachLoop()) {
+                oflagV.delete(l.v)
+                oflagE.delete(l.e!)
+            }
+        }
+    }
+    // also mark all the vertices of remaining edges for keeping
+    for (const e of bm.edges) {
+        // Only exception to normal 'DEL_FACES' logic.
+        if (keepBoundary) {
+            if (edgeIsBoundary(e)) oflagE.delete(e)
+        }
+        if (!oflagE.has(e)) {
+            oflagV.delete(e.v1)
+            oflagV.delete(e.v2)
+        }
+    }
+
+    // now delete marked face
+    for (const f of [...bm.faces]) if (oflagF.has(f)) bm.faceKill(f)
+    // delete marked edge
+    for (const e of [...bm.edges]) if (oflagE.has(e)) bm.edgeKill(e)
+    // remove loose vertices
+    for (const v of [...bm.verts]) if (oflagV.has(v)) bm.vertKill(v)
+}
 
 /**
  * Delete the selection with the given context.
@@ -223,6 +283,13 @@ export function deleteSelection(bm: BMesh, context: DeleteContext = 'verts'): nu
             removed++
         }
         break
+
+    case 'facesKeepBoundary': {
+        const before = bm.totface
+        deleteFacesOflagContext(bm, selFaces, true)
+        removed = before - bm.totface
+        break
+    }
     }
 
     return removed
