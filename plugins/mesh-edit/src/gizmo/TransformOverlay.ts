@@ -1,7 +1,8 @@
 /**
  * What Blender draws while a transform runs (`drawConstraint`, `drawPropCircle`, `drawSnapping`,
- * the `HLP_*` helplines): the constraint axis lines through the pivot, a line from the pivot to the
- * cursor for rotate and scale, the proportional-editing circle, and the snap target glyph.
+ * the `HLP_*` helplines, the modes' `draw_fn`): the constraint axis lines through the pivot, a line
+ * from the pivot to the cursor for rotate and scale, the proportional-editing circle, the snap target
+ * glyph, and the edge and vertex slide guides (`drawEdgeSlide`, `drawVertSlide`).
  *
  * World-space three.js objects without depth testing; the host updates it from the running
  * {@link TransInfo} each frame.
@@ -24,6 +25,7 @@ import {CON_APPLY, T_PROP_EDIT} from '../transform/types'
 import {transformConstraintLines} from '../transform/TransInfo'
 import {GIZMO_COLORS} from './TransformGizmo'
 import type {SnapTargetType} from '../transform/types'
+import {edgeSlideDrawData, SlideDrawData, vertSlideDrawData} from '../transform/slide'
 
 const _v = new Vector3()
 
@@ -33,6 +35,9 @@ export class TransformOverlay extends Object3D {
     private _propCircle: LineLoop
     private _snapGlyph: LineLoop
     private _constraintColors: Float32BufferAttribute
+    /** Slide guides: the side segments (`TH_EDGE_SELECT`), and squares at the control points. */
+    private _slideLines: LineSegments
+    private _slidePoints: LineSegments
 
     constructor() {
         super()
@@ -64,7 +69,12 @@ export class TransformOverlay extends Object3D {
         this._snapGlyph = new LineLoop(sg, this._mat(0xffffff))
         this._snapGlyph.visible = false
 
-        for (const o of [this._constraint, this._helpline, this._propCircle, this._snapGlyph]) {
+        this._slideLines = new LineSegments(new BufferGeometry(), this._mat(0xffa000))
+        this._slideLines.visible = false
+        this._slidePoints = new LineSegments(new BufferGeometry(), this._mat(0xffffff))
+        this._slidePoints.visible = false
+
+        for (const o of this._objects()) {
             o.frustumCulled = false
             o.renderOrder = 999
             o.userData.userSelectable = false
@@ -123,7 +133,7 @@ export class TransformOverlay extends Object3D {
         }
 
         // `HLP_SPRING` / `HLP_ANGLE`: a line from the pivot to the cursor.
-        if (mouseWorld && t.mode !== 'translate') {
+        if (mouseWorld && (t.mode === 'rotate' || t.mode === 'resize')) {
             const pos = this._helpline.geometry.getAttribute('position') as Float32BufferAttribute
             pos.setXYZ(0, c[0], c[1], c[2])
             pos.setXYZ(1, mouseWorld[0], mouseWorld[1], mouseWorld[2])
@@ -150,6 +160,10 @@ export class TransformOverlay extends Object3D {
             this._propCircle.visible = false
         }
 
+        // The slide modes' `draw_fn`.
+        const slide = t.mode === 'edgeSlide' ? edgeSlideDrawData(t) : t.mode === 'vertSlide' ? vertSlideDrawData(t) : null
+        this._drawSlide(slide, camera, pixelSize * 4)
+
         // `drawSnapping`: a glyph at the snap target, its shape by type.
         const snap = t.tsnap.lastResult
         if (t.snapIsActive() && snap) {
@@ -158,6 +172,46 @@ export class TransformOverlay extends Object3D {
         } else {
             this._snapGlyph.visible = false
         }
+    }
+
+    private _objects(): (LineSegments | Line | LineLoop)[] {
+        return [this._constraint, this._helpline, this._propCircle, this._snapGlyph, this._slideLines, this._slidePoints]
+    }
+
+    /** The slide guide lines, and a view-facing square at each control point (the guide point larger). */
+    private _drawSlide(data: SlideDrawData | null, camera: Camera, size: number): void {
+        if (!data) {
+            this._slideLines.visible = false
+            this._slidePoints.visible = false
+            return
+        }
+        const set = (o: LineSegments, pts: number[]) => {
+            const g = o.geometry
+            const attr = g.getAttribute('position') as Float32BufferAttribute | undefined
+            if (attr && attr.array.length === pts.length) {
+                (attr.array as Float32Array).set(pts)
+                attr.needsUpdate = true
+            } else {
+                g.setAttribute('position', new Float32BufferAttribute(new Float32Array(pts), 3))
+            }
+            g.setDrawRange(0, pts.length / 3)
+            o.visible = pts.length > 0
+        }
+        set(this._slideLines, data.lines.flat())
+        const right = _v.set(1, 0, 0).applyQuaternion(camera.quaternion).clone()
+        const up = _v.set(0, 1, 0).applyQuaternion(camera.quaternion).clone()
+        const square: number[] = []
+        const corners: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
+        const addSquare = (p: [number, number, number], s: number) => {
+            for (let i = 0; i < 4; i++) {
+                for (const [cx, cy] of [corners[i], corners[(i + 1) % 4]]) {
+                    square.push(p[0] + (right.x * cx + up.x * cy) * s, p[1] + (right.y * cx + up.y * cy) * s, p[2] + (right.z * cx + up.z * cy) * s)
+                }
+            }
+        }
+        for (const p of data.points) addSquare(p, size)
+        if (data.guide) addSquare(data.guide, size * 0.75)
+        set(this._slidePoints, square)
     }
 
     /** Circle for a vertex, diamond for an edge, triangle for a midpoint, square for a face, cross for the grid. */
@@ -193,7 +247,7 @@ export class TransformOverlay extends Object3D {
     }
 
     dispose(): void {
-        for (const o of [this._constraint, this._helpline, this._propCircle, this._snapGlyph]) {
+        for (const o of this._objects()) {
             o.geometry.dispose()
             ;(o.material as Material).dispose()
         }

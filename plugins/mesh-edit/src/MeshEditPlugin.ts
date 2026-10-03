@@ -102,6 +102,7 @@ import {meshHide, meshReveal} from './select/hide'
 import {LinkedDelimit, linkedDelimitDefault, selectLinkedAll, selectLinkedPick} from './select/linked'
 import {TransformView} from './transform/view'
 import {ObjectTransformTarget, ProportionalSettings, SnapSettings, TransInfo} from './transform/TransInfo'
+import type {SlideProps} from './transform/slide'
 import {CON_AXIS2, OrientationType, PivotType} from './transform/types'
 import type {Mat3, Mat4, Vec3} from './transform/math'
 import {calcOrientationFromType} from './transform/orientation'
@@ -128,6 +129,8 @@ export interface StartTransformOptions {
     mouse?: {x: number, y: number}
     /** The topology operator this transform completes, for the undo label and the redo panel. */
     chained?: 'extrude' | 'duplicate'
+    /** Edge and vertex slide: the slide operator's properties (even, flipped, clamp). */
+    slide?: SlideProps
 }
 
 /** The transform settings a header exposes: pivot, orientation, snapping, proportional editing. */
@@ -196,7 +199,16 @@ const SUSPENDED_PLUGINS = ['Picking', 'TransformControlsPlugin', 'PivotControlsP
 const DISABLE_KEY = 'meshEdit'
 
 /** Undo-step labels, as Blender names the operators in its Undo History. */
-const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale'}
+const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale', edgeSlide: 'Edge Slide', vertSlide: 'Vertex Slide'}
+/** What to select when a transform has nothing to work on. */
+const TRANSFORM_EMPTY: Record<TransformMode, string> = {
+    translate: 'Select something to move first.',
+    rotate: 'Select something to rotate first.',
+    resize: 'Select something to scale first.',
+    // `transform_mesh_edge_slide_data_create` returns nothing for anything but edge loops.
+    edgeSlide: 'Select one or more edge loops to slide: each selected vertex needs one or two selected edges, each edge at most two faces.',
+    vertSlide: 'Select vertices to slide first.',
+}
 const CHAIN_LABELS = {extrude: 'Extrude', duplicate: 'Duplicate'} as const
 const DELETE_LABELS: Partial<Record<DeleteContext, string>> = {
     verts: 'Delete Vertices', edges: 'Delete Edges', faces: 'Delete Faces',
@@ -1531,7 +1543,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!state) return false
         const before = this._snapshot()
         if (!this._runTransform(saved)) {
-            this._notice('Select something to ' + (saved.mode === 'translate' ? 'move' : saved.mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
+            this._notice(TRANSFORM_EMPTY[saved.mode])
             return false
         }
         this._commitTopologyChange(before, TRANSFORM_LABELS[saved.mode])
@@ -1548,7 +1560,9 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const t = new ModalTransform({
             mode: saved.mode,
             view: this._transformView(),
-            mval: [0, 0],
+            // Deliberate deviation for the slides (`SlideSavedProps`): Blender's exec uses (0, 0); the
+            // first run's cursor makes a redo pick the same reference vertex and loop sides.
+            mval: saved.slide ? saved.slide.mval : [0, 0],
             around: this.pivot,
             cursor: this.cursor,
             orientation: this.orientation,
@@ -1561,10 +1575,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             modal: false,
             proportional: saved.proportional,
             snap: {...this.snapping, enabled: false},
+            slide: saved.slide ?? null,
+            xray: this.xray,
             bm: state.bm,
             objectMatrix,
         })
-        if (t.isEmpty) return false
+        // Empty, or a slide that cannot run on this selection (`TRANS_CANCEL` from its init).
+        if (t.isEmpty || t.isDone) return false
         t.confirm()
         return true
     }
@@ -1781,13 +1798,16 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             snapContext: this._snapContext(state.bm, objectMatrix),
             constraint: opts.constraint,
             releaseConfirm: opts.releaseConfirm,
+            slide: opts.slide ?? null,
+            xray: this.xray,
             bm: state.bm,
             objectMatrix,
             onChange: t => this._onTransformChange(t),
         })
 
-        if (transform.isEmpty) {
-            this._notice('Select something to ' + (mode === 'translate' ? 'move' : mode === 'rotate' ? 'rotate' : 'scale') + ' first.')
+        // Empty, or a slide that cannot run on this selection (`TRANS_CANCEL` from its init).
+        if (transform.isEmpty || transform.isDone) {
+            this._notice(TRANSFORM_EMPTY[mode])
             // An extrude or duplicate that chained into this still happened; keep its undo step.
             if (opts.undoBefore) this._recordUndo(opts.undoBefore, CHAIN_LABELS[opts.chained ?? 'extrude'])
             return false

@@ -7,7 +7,8 @@
 
 import type {Mat3, Mat4, Vec3} from './math'
 
-export type TransformMode = 'translate' | 'rotate' | 'resize'
+/** `TFM_TRANSLATION`, `TFM_ROTATION`, `TFM_RESIZE`, `TFM_EDGE_SLIDE`, `TFM_VERT_SLIDE` (`transform.hh`). */
+export type TransformMode = 'translate' | 'rotate' | 'resize' | 'edgeSlide' | 'vertSlide'
 
 /** `V3D_AROUND_*`: what the transform pivots on. */
 export type PivotType = 'median' | 'active' | 'individual' | 'bounds' | 'cursor'
@@ -39,6 +40,10 @@ export const T_MODAL = 1 << 7
 /** Confirm when the launching button is released (gizmo drags). */
 export const T_RELEASE_CONFIRM = 1 << 8
 export const T_INPUT_IS_VALUES_FINAL = 1 << 9
+/** Alt held, or a mode's alternative behaviour (edge and vertex slide: unclamped). */
+export const T_ALT_TRANSFORM = 1 << 10
+/** `T_ALL_RESTRICTIONS`: what `resetTransRestrictions` clears when the mode changes. */
+export const T_ALL_RESTRICTIONS = T_NO_CONSTRAINT | T_NULL_ONE
 export const T_PROP_EDIT_ALL = T_PROP_EDIT | T_PROP_CONNECTED | T_PROP_PROJECTED
 
 // endregion
@@ -143,6 +148,8 @@ export interface TransDataContainer {
     centerLocal: Vec3
     /** The object, for callers that write results back. */
     object: unknown
+    /** `tc->custom.mode.data`: the mode's per-container data (edge and vertex slide), freed on a mode change. */
+    customMode?: unknown
 }
 
 /** `TransSnapPoint` results and state (`TransSnap` in `transform.hh`). */

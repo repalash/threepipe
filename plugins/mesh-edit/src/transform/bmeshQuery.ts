@@ -204,6 +204,37 @@ export function edgeOrderedVerts(e: BMEdge): [BMVert, BMVert] {
     return [l.v, l.next.v]
 }
 
+/** `BM_vert_is_edge_pair` (`bmesh_query.cc:580`): exactly two edges use `v`. */
+export function vertIsEdgePair(v: BMVert): boolean {
+    const e = v.e
+    if (e) {
+        const eOther = e.diskNext(v)
+        return !!eOther && eOther !== e && eOther.diskNext(v) === e
+    }
+    return false
+}
+
+/** `BM_vert_is_boundary` (`bmesh_query.cc:930`): an edge of `v` has exactly one face. */
+export function vertIsBoundary(v: BMVert): boolean {
+    if (!v.e) return false
+    for (const e of diskEdges(v)) if (edgeIsBoundary(e)) return true
+    return false
+}
+
+/**
+ * `BM_loop_calc_face_direction` (`bmesh_query.cc:1298`): the direction along the face boundary at a
+ * corner, the normalized sum of the incoming and outgoing edge directions.
+ */
+export function loopCalcFaceDirection(l: BMLoop): Vec3 {
+    const vPrev = subV3(vertCo(l.v), vertCo(l.prev.v))
+    const vNext = subV3(vertCo(l.next.v), vertCo(l.v))
+    normalizeV3(vPrev)
+    normalizeV3(vNext)
+    const dir = addV3(vPrev, vNext)
+    normalizeV3(dir)
+    return dir
+}
+
 /** `BM_edge_exists`: the edge joining two verts, if any. */
 export function edgeExists(a: BMVert, b: BMVert): BMEdge | null {
     if (!a.e) return null

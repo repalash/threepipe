@@ -2,7 +2,7 @@
  * The modal transform state machine, Blender's `TransInfo`, ported from `editors/transform/`
  * (`transform.cc`, `transform_generics.cc`, `transform_mode.cc`, `transform_mode_translate.cc`,
  * `transform_mode_rotate.cc`, `transform_mode_resize.cc`, `transform_convert_mesh.cc`,
- * `transform_convert_object.cc`).
+ * `transform_convert_object.cc`). Edge and vertex slide live in `slide.ts`.
  *
  * One `TransInfo` is one interactive move, rotate or scale: it snapshots the elements
  * (`TransData`), reads the mouse through {@link MouseInput}, numbers through {@link NumInput},
@@ -104,6 +104,8 @@ import {
     T_PROP_EDIT,
     T_PROP_EDIT_ALL,
     T_PROP_PROJECTED,
+    T_ALL_RESTRICTIONS,
+    T_ALT_TRANSFORM,
     T_RELEASE_CONFIRM,
     TD_SELECTED,
     TD_SKIP,
@@ -129,6 +131,7 @@ import {
 } from '../snap/transformSnap'
 import {gridViewScale, SnapContext} from '../snap/snap'
 import {blenderTransformKeymap, ModalKeyEvent, TransformKeymap, TransformModalItem} from './keymap'
+import {EdgeSlideParams, SlideEvent, SlideProps, TransModeEdgeSlide, TransModeVertSlide, VertSlideParams} from './slide'
 
 /** `T_PROP_SIZE_MIN/MAX` (`transform.hh:37`). */
 const T_PROP_SIZE_MIN = 1e-6
@@ -224,6 +227,16 @@ export interface TransInfoOptions {
     orientMatrixType?: OrientationType | null
     /** The operator's `orient_axis` (rotation): which column of the orientation is the axis. */
     orientAxis?: number
+    /**
+     * Edge and vertex slide: the slide operator's properties, read by the mode's init as Blender reads
+     * them from `op->ptr` (`initEdgeSlide`, `initVertSlide`). A slide entered with `G G` gets defaults.
+     */
+    slide?: SlideProps | null
+    /**
+     * X-ray is on: edge slide then considers every vertex, not only those with a visible edge
+     * (`use_occlude_geometry`, `transform_mode_edge_slide.cc:238`).
+     */
+    xray?: boolean
     /** Called after every apply, once the results are flushed. */
     onChange?: (t: TransInfo) => void
     /** Blender seeds its random falloff from the clock; tests pass a fixed source. */
@@ -250,13 +263,40 @@ export interface TransformSavedProps {
     orientAxis: number
     proportional: {enabled: boolean, connected: boolean, projected: boolean, falloff: PropFalloff, size: number}
     snap: boolean
+    /** Edge and vertex slide only: the slide operator's properties. */
+    slide?: SlideSavedProps
 }
 
-/** `TransModeInfo` (`transform_mode.hh`). */
+/**
+ * The slide operators' redo properties (`TRANSFORM_OT_edge_slide`, `TRANSFORM_OT_vert_slide`).
+ *
+ * Deliberate deviations from Blender, so a redo reproduces what the user saw:
+ * - `useEven`, `flipped` and `useClamp` are written from the final state. Blender's `saveTransform`
+ *   does not write them, so after toggling E, F or C in the modal its redo panel re-runs without them.
+ * - `mval`, the cursor the slide was started with, is kept. Blender's exec runs with `mval = (0, 0)`,
+ *   which decides the vertex the slide measures from and, with several loops, which side of each loop
+ *   is positive (`calcEdgeSlide_mval_range`), so a redo could slide some loops the other way.
+ */
+export interface SlideSavedProps {
+    useEven: boolean
+    flipped: boolean
+    useClamp: boolean
+    mval: Vec2
+    /** Vertex slide: the world direction that chose each vertex's edge (Blender's hidden `direction`). */
+    direction: Vec3 | null
+}
+
+/** `TransModeInfo` (`transform_mode.hh:28`). */
 export interface TransformModeInfo {
     flags: number
-    init(t: TransInfo): void
+    /** `init_fn`; `op` is the operator's properties, null when the mode is entered from another. */
+    init(t: TransInfo, op: SlideProps | null): void
     transform(t: TransInfo): void
+    /**
+     * `handle_event_fn`: the mode's own keys and mouse handling, after the transform's. `handled` is
+     * Blender's `t->redraw` (the event was used already). Returns true when it changed something.
+     */
+    handleEvent?(t: TransInfo, ev: SlideEvent, handled: boolean): boolean
     snapDistance(t: TransInfo, p1: Vec3, p2: Vec3): number
     snapApply(t: TransInfo, vec: number[]): void
 }
@@ -321,6 +361,10 @@ export class TransInfo implements MouseInputContext {
     keymap: TransformKeymap
     /** The header text, as Blender draws it. */
     header = ''
+    /** `t->custom.mode.data`: the mode's parameters (edge and vertex slide), freed on a mode change. */
+    customMode: unknown = null
+    /** `use_occlude_geometry` of edge slide: solid shading without X-ray. */
+    readonly occludeGeometry: boolean
     /** The selection's bounds in world space at the start, for the gizmo and the helpline. */
     private _onChange: ((t: TransInfo) => void) | null
     private _orientationCtx: {objectMatrix: Mat4, cursorMatrix?: Mat3, customMatrix?: Mat3, objectMode: boolean}
@@ -341,13 +385,15 @@ export class TransInfo implements MouseInputContext {
         this._onChange = opts.onChange ?? null
         this.flag = opts.modal === false ? 0 : T_MODAL
         if (opts.releaseConfirm) this.flag |= T_RELEASE_CONFIRM
+        this.occludeGeometry = !opts.xray
         if (opts.orientAxis !== undefined) this.orientAxis = opts.orientAxis
 
         const objectMatrix = opts.objectMatrix ?? [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
         this._orientationCtx = {objectMatrix, cursorMatrix: opts.cursorMatrix, customMatrix: opts.customMatrix, objectMode: !opts.bm}
 
-        // Proportional editing flags come first: data creation depends on them.
-        const prop = opts.proportional
+        // Proportional editing flags come first: data creation depends on them. The slide operators
+        // have no proportional properties, so Blender leaves it off for them (`initTransInfo`).
+        const prop = isSlideMode(opts.mode) ? undefined : opts.proportional
         if (prop?.enabled) {
             this.flag |= T_PROP_EDIT
             if (prop.connected) this.flag |= T_PROP_CONNECTED
@@ -427,7 +473,9 @@ export class TransInfo implements MouseInputContext {
         initMouseInput(this.mouse, this.center2d, this.mval, !!opts.precision)
         if (opts.precision) this.modifiers |= MOD_PRECISION
 
-        this.transformModeInit(opts.mode)
+        this.transformModeInit(opts.mode, opts.slide ?? null)
+        // A slide on a selection it cannot slide (`t->state == TRANS_CANCEL` after init).
+        if (this._initFailed()) return
 
         // Constraint init from the operator (`initTransform`).
         if (this.con.mode & CON_APPLY) setUserConstraint(this, this.con.mode, '%s')
@@ -581,11 +629,22 @@ export class TransInfo implements MouseInputContext {
     }
 
     /** `transform_mode_init` (`transform_mode.cc:1207`). */
-    transformModeInit(mode: TransformMode): void {
+    transformModeInit(mode: TransformMode, op: SlideProps | null = null): void {
         this.mode = mode
         this.modeInfo = modeInfoGet(mode)
         this.flag |= this.modeInfo.flags
-        this.modeInfo.init(this)
+        this.modeInfo.init(this, op)
+    }
+
+    /** A mode's init set `TRANS_CANCEL`: it cannot run on this data. */
+    private _initFailed(): boolean {
+        return this.state === 'cancel'
+    }
+
+    /** `resetTransModal` (`transform_generics.cc:59`): `freeTransCustomDataForMode`. */
+    resetTransModal(): void {
+        this.customMode = null
+        for (const tc of this.containers) tc.customMode = undefined
     }
 
     // endregion
@@ -628,23 +687,39 @@ export class TransInfo implements MouseInputContext {
             this.mval = [ev.mval[0], ev.mval[1]]
             if (this.state === 'starting') this.state = 'running'
             this.values = applyMouseInput(this, this.mouse, this.mval)
+            // Per transform event, if present.
+            this.modeInfo.handleEvent?.(this, ev, true)
             this.apply()
             return true
         case 'key': {
             const e = ev.event
+            let handled = false
+            let modalItem = false
             // Handle modal numinput events first, if already activated.
             if (e.press && hasNumInput(this.num) && handleNumInput(this.num, keyToNumEvent(e))) {
-                this.apply()
-                return true
+                handled = true
+            } else {
+                // The modal keymap: the first of the key's items whose poll passes.
+                const mapped = this.keymap(e)
+                const items = mapped === null ? [] : Array.isArray(mapped) ? mapped : [mapped]
+                const item = items.find(i => this.modalItemPoll(i))
+                if (item) {
+                    modalItem = true
+                    if (this._handleModal(item)) return true
+                } else if (e.code === 'AltLeft' || e.code === 'AltRight') {
+                    // `transformEvent` (`transform.cc:1455`, `:1468`): Alt is the alternative transform
+                    // while held (edge and vertex slide: unclamped).
+                    if (e.press) this.flag |= T_ALT_TRANSFORM
+                    else this.flag &= ~T_ALT_TRANSFORM
+                    handled = true
+                }
             }
-            const item = this.keymap(e)
-            if (item && this._handleModal(item)) return true
+            // Per transform event, if present. A modal item is not a key event to the mode.
+            if (!modalItem && this.modeInfo.handleEvent?.(this, ev, handled)) handled = true
             // Try to init modal numinput now, if possible.
-            if (e.press && handleNumInput(this.num, keyToNumEvent(e))) {
-                this.apply()
-                return true
-            }
-            return false
+            if (!handled && e.press && handleNumInput(this.num, keyToNumEvent(e))) handled = true
+            if (handled) this.apply()
+            return handled
         }
         case 'modal':
             return this._handleModal(ev.item)
@@ -661,6 +736,46 @@ export class TransInfo implements MouseInputContext {
         }
     }
 
+    /**
+     * `transform_modal_item_poll` (`transform.cc:627`), for the items this port has: whether a modal key
+     * applies now. A key whose items all fail reaches the mode as a plain key.
+     */
+    modalItemPoll(item: TransformModalItem): boolean {
+        switch (item) {
+        case 'propsizeUp':
+        case 'propsizeDown':
+        // Not in Blender's modal map (Alt+C and Shift+O are view keys there); polled the same way so
+        // without proportional editing the key reaches the mode (edge slide's C).
+        case 'propFalloffCycle':
+        case 'propConnectedToggle':
+            return (this.flag & T_PROP_EDIT) !== 0
+        case 'axisX':
+        case 'axisY':
+        case 'axisZ':
+        case 'planeX':
+        case 'planeY':
+        case 'planeZ':
+        case 'autoConstraint':
+        case 'autoConstraintPlane':
+            return !(this.flag & T_NO_CONSTRAINT)
+        case 'consOff':
+            return (this.con.mode & CON_APPLY) !== 0
+        case 'translate':
+        case 'rotate':
+        case 'resize':
+        case 'vertEdgeSlide':
+            // `transform_mode_is_changeable`: every mode of this port is.
+            if (item === 'translate' && this.mode === 'translate') return false
+            if (item === 'rotate' && this.mode === 'rotate') return false
+            if (item === 'resize' && this.mode === 'resize') return false
+            // Only meshes slide, and only from Move: `G` is also Move's key (see the WORKAROUND note).
+            if (item === 'vertEdgeSlide' && (!this.bm || this.mode !== 'translate')) return false
+            return true
+        default:
+            return true
+        }
+    }
+
     private _handleModal(item: TransformModalItem): boolean {
         switch (item) {
         case 'cancel':
@@ -671,17 +786,47 @@ export class TransInfo implements MouseInputContext {
             return true
         case 'translate':
         case 'rotate':
-        case 'resize': {
+        case 'resize':
+        case 'vertEdgeSlide': {
             if (item === this.mode) return false
-            // `TFM_MODAL_TRANSLATE/ROTATE/RESIZE`: restart in the other mode from the same input.
+            if (item === 'vertEdgeSlide' && isSlideMode(this.mode)) return false
+            // `TFM_MODAL_TRANSLATE/ROTATE/RESIZE/VERT_EDGE_SLIDE` (`transform.cc:1117`): restart in the
+            // other mode from the same input.
             this.restoreTransObjects()
-            if (item === 'resize' && this.con.mode & CON_APPLY && this.orient[this.orientCurr].type === 'normal') {
-                // Scale isn't normally very useful after extrude along normals, see #39756.
-                stopConstraint(this)
-            }
-            this.flag &= ~(T_NO_CONSTRAINT | T_NULL_ONE)
+            // Blender's `td->loc` is the vertex itself: the restore must reach the mesh before a slide
+            // reads the neighbouring positions.
+            this.flushVerts()
+            this.resetTransModal()
+            this.flag &= ~T_ALL_RESTRICTIONS
             initNumInput(this.num)
-            this.transformModeInit(item)
+            if (item === 'translate') {
+                this.transformModeInit('translate')
+            } else if (item === 'rotate') {
+                this.transformModeInit('rotate')
+            } else if (item === 'resize') {
+                if (this.con.mode & CON_APPLY && this.orient[this.orientCurr].type === 'normal') {
+                    // Scale isn't normally very useful after extrude along normals, see #39756.
+                    stopConstraint(this)
+                }
+                this.transformModeInit('resize')
+            } else {
+                // First try Edge Slide.
+                this.transformModeInit('edgeSlide')
+                // If that fails, try Vertex Slide.
+                if (this._initFailed()) {
+                    this.resetTransModal()
+                    this.state = 'starting'
+                    this.transformModeInit('vertSlide')
+                }
+                // Vert Slide can fail on unconnected vertices (rare but possible).
+                if (this._initFailed()) {
+                    this.resetTransModal()
+                    this.state = 'starting'
+                    this.flag &= ~T_ALL_RESTRICTIONS
+                    this.transformModeInit('translate')
+                }
+            }
+            // Need to reinitialize after mode change.
             this.transformSnapResetFromMode()
             this.values = applyMouseInput(this, this.mouse, this.mval)
             this.apply()
@@ -815,7 +960,7 @@ export class TransInfo implements MouseInputContext {
         const type = this.orient[this.orientCurr].type
         return {
             mode: this.mode,
-            value: this.mode === 'rotate' ? [this.valuesFinal[0]] : [...this.valuesFinal],
+            value: this.mode === 'rotate' || isSlideMode(this.mode) ? [this.valuesFinal[0]] : [...this.valuesFinal],
             orientType: type,
             orientMatrixType: type,
             orientMatrix: copyM3(this.spacemtx),
@@ -829,7 +974,22 @@ export class TransInfo implements MouseInputContext {
                 size: this.propSize,
             },
             snap: !!(this.modifiers & MOD_SNAP),
+            slide: this._saveSlideProps(),
         }
+    }
+
+    /** The slide operators' properties, see {@link SlideSavedProps}. */
+    private _saveSlideProps(): SlideSavedProps | undefined {
+        if (this.mode === 'edgeSlide') {
+            const slp = this.customMode as EdgeSlideParams
+            return {useEven: slp.useEven, flipped: slp.flipped, useClamp: !(this.flag & T_ALT_TRANSFORM), mval: [...slp.mvalInit], direction: null}
+        }
+        if (this.mode === 'vertSlide') {
+            const slp = this.customMode as VertSlideParams
+            return {useEven: slp.useEven, flipped: slp.flipped, useClamp: !(this.flag & T_ALT_TRANSFORM), mval: [...slp.mvalInit],
+                direction: slp.dir3d ? copyV3(slp.dir3d) : null}
+        }
+        return undefined
     }
 
     /** Keep the current positions (`TRANS_CONFIRM`). */
@@ -1606,7 +1766,14 @@ export function modeInfoGet(mode: TransformMode): TransformModeInfo {
     case 'translate': return TransModeTranslate
     case 'rotate': return TransModeRotate
     case 'resize': return TransModeResize
+    case 'edgeSlide': return TransModeEdgeSlide
+    case 'vertSlide': return TransModeVertSlide
     }
+}
+
+/** `TFM_EDGE_SLIDE` or `TFM_VERT_SLIDE`. */
+export function isSlideMode(mode: TransformMode): mode is 'edgeSlide' | 'vertSlide' {
+    return mode === 'edgeSlide' || mode === 'vertSlide'
 }
 
 /** The constrained axes as world directions, for drawing. */

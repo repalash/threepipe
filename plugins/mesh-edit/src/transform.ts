@@ -112,9 +112,12 @@ export class ModalTransform {
         this.handleModal('consOff')
     }
 
-    /** Switch to another mode mid-transform (`G` then `R`). */
+    /**
+     * Switch to another mode mid-transform (`G` then `R`). Either slide mode asks for
+     * `VERT_EDGE_SLIDE`: edge slide, or vertex slide when the selection is not edge loops (`G G`).
+     */
     switchMode(mode: TransformMode): void {
-        this.handleModal(mode)
+        this.handleModal(mode === 'edgeSlide' || mode === 'vertSlide' ? 'vertEdgeSlide' : mode)
     }
 
     /** Resize the proportional editing circle (wheel, PageUp/PageDown). */
