@@ -139,6 +139,13 @@ export interface HistoryApi {
     undo(): void
     redo(): void
     entries(): HistoryEntry[]
+    /** Index into {@link entries} of the last step that is done; -1 when everything is undone. */
+    readonly position: number
+    /**
+     * Undo or redo until `index` is the last done step (-1 for the original state), as clicking an
+     * entry in Blender's Undo History does. Returns the number of steps moved.
+     */
+    jumpTo(index: number): number
 }
 
 /** A step recorded on the one undo stack. `label` is what the history list shows. */

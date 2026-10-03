@@ -73,7 +73,11 @@ export class EditorHistory implements HistoryApi {
         }
     }
 
+    /** Counts every record, so a dirty check can tell a new step from an undo back to the same position. */
+    serial = 0
+
     private _beforeRecord(cmd: AnyCommand): void {
+        this.serial++
         if (!cmd || typeof cmd !== 'object') return
         if (typeof cmd.label !== 'string') {
             const label = this.pendingLabel ?? this._eventLabel
@@ -170,6 +174,30 @@ export class EditorHistory implements HistoryApi {
         const um = this.manager
         if (!um) return []
         return um.stack.map((cmd, i) => ({label: labelOf(cmd as AnyCommand), undone: i > um.sp}))
+    }
+
+    get position(): number {
+        return this.manager?.sp ?? -1
+    }
+
+    /**
+     * Blender's `undo_history_exec` (ed_undo.cc): "undo / redo until the item is the current one" -
+     * `BKE_undosys_step_load_data` walks the stack one step at a time in the needed direction.
+     */
+    jumpTo(index: number): number {
+        const um = this.manager
+        if (!um) return 0
+        const target = Math.max(-1, Math.min(index, um.stack.length - 1))
+        let n = 0
+        while (um.sp > target && um.canUndo()) {
+            um.undo()
+            n++
+        }
+        while (um.sp < target && um.canRedo()) {
+            um.redo()
+            n++
+        }
+        return n
     }
 
     dispose(): void {

@@ -90,3 +90,47 @@ describe('EditorHistory.noteEvent', () => {
         expect(history.entries().map(e => e.label)).toEqual(['Select cube', 'Action'])
     })
 })
+
+describe('EditorHistory.jumpTo', () => {
+    // Blender's Undo History list (`undo_history_exec`, ed_undo.cc): clicking an entry undoes or redoes
+    // one step at a time until that entry is the current one.
+    function three() {
+        const {history} = make()
+        const value = {n: 0}
+        for (const [label, to] of [['A', 1], ['B', 2], ['C', 3]] as const) {
+            const from = value.n
+            value.n = to
+            history.record({label, undo: () => { value.n = from }, redo: () => { value.n = to }})
+        }
+        return {history, value}
+    }
+
+    it('walks back and forward to the clicked entry', () => {
+        const {history, value} = three()
+        expect(history.position).toBe(2)
+        expect(history.jumpTo(0)).toBe(2)
+        expect(value.n).toBe(1)
+        expect(history.position).toBe(0)
+        expect(history.entries().map(e => e.undone)).toEqual([false, true, true])
+        expect(history.jumpTo(2)).toBe(2)
+        expect(value.n).toBe(3)
+    })
+
+    it('-1 is the original state; out-of-range indices clamp', () => {
+        const {history, value} = three()
+        expect(history.jumpTo(-1)).toBe(3)
+        expect(value.n).toBe(0)
+        expect(history.position).toBe(-1)
+        expect(history.jumpTo(99)).toBe(3)
+        expect(value.n).toBe(3)
+        expect(history.jumpTo(2)).toBe(0)
+    })
+
+    it('counts records in `serial`, which undo and redo do not move', () => {
+        const {history} = three()
+        expect(history.serial).toBe(3)
+        history.jumpTo(0)
+        history.jumpTo(2)
+        expect(history.serial).toBe(3)
+    })
+})
