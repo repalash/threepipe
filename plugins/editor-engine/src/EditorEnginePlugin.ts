@@ -46,6 +46,7 @@ import {
     ToolDescriptor,
 } from './registry'
 import {EditorHistory} from './history/EditorHistory'
+import {EditorFile} from './files/EditorFile'
 import {Keymap} from './keymap/Keymap'
 import {blenderPreset} from './keymap/presets/blender'
 import {designPreset} from './keymap/presets/design'
@@ -68,7 +69,10 @@ const SELECT_MASKS: Record<SelectModeName, number> = {
 export interface EditorEngineOptions {
     /** Keymap preset to start with. Default: the stored preference, else `blender`. */
     keymap?: string
-    /** `localStorage` key for the keymap preference. `null` turns persistence off. */
+    /**
+     * `localStorage` key for the keymap preference; the recent-files list and the chosen pointing
+     * device use it with a `-recent` and a `-device` suffix. `null` turns persistence off.
+     */
     storageKey?: string | null
     /** Register the built-in operator packs and tools. Default true. */
     builtins?: boolean
@@ -98,6 +102,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     history!: EditorHistory
     input!: InputRouter
     navigation!: Navigation
+    file!: EditorFile
 
     private _options: EditorEngineOptions
     private _presets: KeymapPreset[] = [blenderPreset, designPreset]
@@ -148,7 +153,19 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         this.history = new EditorHistory(this.undoPlugin, () => this._historyChanged())
         this._disposers.push(() => this.history.dispose())
 
+        const storageKey = this._storageKey()
+        this.file = new EditorFile(this.history, storageKey ? storageKey + '-recent' : null, () => this._fileChanged())
+
         this.navigation = new Navigation(viewer, () => this.meshEdit)
+        // A device the user chose is remembered; a detected one is detected again next time.
+        const deviceKey = storageKey ? storageKey + '-device' : null
+        const storedDevice = deviceKey ? readStorage(deviceKey) : null
+        if (storedDevice === 'mouse' || storedDevice === 'trackpad') this.navigation.setDevice(storedDevice)
+        this.navigation.onDeviceChange = (device, source) => {
+            if (deviceKey) writeStorage(deviceKey, source === 'chosen' ? device : null)
+            this.dispatchEvent({type: 'navigationChanged', device, source})
+            this._statusChanged()
+        }
         this._disposers.push(() => this.navigation.dispose())
 
         this.input = new InputRouter({
@@ -265,9 +282,24 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
                 this.dispatchEvent({type: 'sceneChanged'})
             })
         }
-        if (this.transformControls?.transformControls) {
-            this._on(this.transformControls.transformControls as any, 'mode-changed', () => this.dispatchEvent({type: 'toolChanged', tool: this._activeTool}))
+        const tc = this.transformControls?.transformControls
+        if (tc) {
+            this._on(tc as any, 'mode-changed', () => this.dispatchEvent({type: 'toolChanged', tool: this._activeTool}))
+            // `TransformControlsPlugin` records the drag as an unlabelled step on its `mouseUp`; its
+            // listener was added before this one, so a label noted on `mouseDown` names that step
+            // ("Move cube") and is cleared once the release has been handled.
+            const verb = () => ({translate: 'Move', rotate: 'Rotate', scale: 'Scale'} as Record<string, string>)[tc.getMode()] ?? 'Transform'
+            this._on(tc as any, 'mouseDown', () => {
+                const name = (tc.object as IObject3D | undefined)?.name || 'object'
+                this.history.pendingLabel = `${verb()} ${name}`
+            })
+            this._on(tc as any, 'mouseUp', () => { this.history.pendingLabel = null })
         }
+    }
+
+    private _fileChanged(): void {
+        if (this._disposed) return
+        this.dispatchEvent({type: 'fileChanged', name: this.file.name, dirty: this.file.dirty})
     }
 
     /**
@@ -298,7 +330,12 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         // Blender drops the redo panel once its step is no longer the top of the stack (an undo, or any
         // other undoable action after it). Not while redo-last itself is popping and re-pushing.
         if (this._lastStep && !this._redoing && this.history.peek() !== this._lastStep) this.setLastOperation(null)
-        queueMicrotask(() => !this._disposed && this.dispatchEvent({type: 'historyChanged'}))
+        queueMicrotask(() => {
+            if (this._disposed) return
+            this.dispatchEvent({type: 'historyChanged'})
+            // The dirty flag is a function of the history; tell the shell when it may have flipped.
+            this._fileChanged()
+        })
     }
 
     // endregion
@@ -329,19 +366,25 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         ;(this.keymap as {activePreset: KeymapPreset}).activePreset = preset
         this.navigation.apply(preset.navigation, this.mode)
         this._applyShortcuts()
-        const key = this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
-        if (key) {
-            try { localStorage.setItem(key, preset.id) } catch { /* private mode */ }
-        }
+        const key = this._storageKey()
+        if (key) writeStorage(key, preset.id)
         this.dispatchEvent({type: 'keymapChanged', preset: preset.id})
         this.dispatchEvent({type: 'registryChanged'})
         this._statusChanged()
     }
 
+    private _storageKey(): string | null {
+        return this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
+    }
+
     private _storedPreset(): string | undefined {
-        const key = this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
-        if (!key) return undefined
-        try { return localStorage.getItem(key) ?? undefined } catch { return undefined }
+        const key = this._storageKey()
+        return key ? readStorage(key) ?? undefined : undefined
+    }
+
+    keyHint(id: string, mode?: EditorMode): string {
+        const key = this._keymap.shortcutFor(id, mode ?? this.mode)
+        return key ? ` (${key})` : ''
     }
 
     /** Every operator and tool shows the key the active preset gives it in the current mode. */
@@ -380,11 +423,13 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         if (mode === 'edit') {
             const selected = this.picking.getSelectedObject<IObject3D>()
             if (!selected?.isObject3D || !selected.geometry) {
-                this.message('warning', 'Select a mesh first, then switch to Edit mode (Tab).')
+                this.message('warning', selected?.isObject3D
+                    ? `${selected.name || 'This object'} has no mesh to edit. Select a mesh (click one), then switch to Edit mode${this.keyHint('object.enter_edit', 'object')}.`
+                    : `Click a mesh to select it first, then switch to Edit mode${this.keyHint('object.enter_edit', 'object')} or double-click it.`)
                 return false
             }
             const ok = this.meshEdit.enter(selected)
-            if (!ok) this.message('error', 'Could not enter edit mode on the selected object.')
+            if (!ok) this.message('error', `Could not enter edit mode on ${selected.name || 'the selected object'}: its geometry could not be read. Try another object, or File > Open a .glb.`)
             return ok
         }
         this.propDrag?.cancel()
@@ -516,7 +561,13 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     }
 
     poll(op: OperatorDescriptor, ctx = this.context()): {enabled: boolean, reason?: string} {
-        if (op.modes && !op.modes.includes(ctx.mode)) return {enabled: false, reason: `Only in ${op.modes.join('/')} mode`}
+        if (op.modes && !op.modes.includes(ctx.mode)) {
+            const target = op.modes[0]
+            const reason = target === 'edit'
+                ? `Only in Edit mode: select a mesh and press ${this._keymap.shortcutFor('object.enter_edit', 'object') ?? 'the Edit button'}, or double-click it`
+                : `Only in Object mode: leave Edit mode first${this.keyHint('mesh.exit_edit', 'edit') || ' (the Object button)'}`
+            return {enabled: false, reason}
+        }
         if (!op.poll) return {enabled: true}
         const r = op.poll(ctx)
         if (r === true || r === undefined) return {enabled: true}
@@ -532,7 +583,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         const ctx = this.context()
         const polled = this.poll(op, ctx)
         if (!polled.enabled) {
-            const reason = polled.reason ?? `${op.label} is not available right now`
+            const reason = polled.reason ?? `${op.label} cannot run right now: hover its menu entry or toolbar button for what it needs`
             this.message('info', reason)
             return {ok: false, error: reason}
         }
@@ -595,9 +646,11 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             }
         }
         const nav = this.navigation.hints()
+        const tip = this._emptyTip()
         if (this._activeTool?.hints) {
             const h = this._activeTool.hints
-            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(h.keys ?? []), ...nav.extra]}
+            // A tip (nothing to act on) stands in for the tool's keys; how to move the view stays.
+            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(tip ? [] : h.keys ?? []), ...nav.extra], tip}
         }
         // The keys that matter most in each mode, read from the active keymap so they are never stale.
         const hintOps: [string, string][] = this.mode === 'edit'
@@ -609,11 +662,29 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             if (key) keys.push({key, label})
         }
         return {
-            lmb: this.mode === 'edit' ? `${nav.lmb} (Shift: extend)` : `${nav.lmb} (Shift: extend)`,
+            lmb: `${nav.lmb} (Shift: extend)`,
             mmb: nav.mmb,
             rmb: nav.rmb,
-            keys: [...keys, ...nav.extra],
+            keys: [...(tip ? [] : keys), ...nav.extra],
+            tip,
         }
+    }
+
+    /**
+     * What to do when there is nothing to act on, worded with the live keys: edit mode with no
+     * element selected, object mode with no object selected, an empty scene.
+     */
+    private _emptyTip(): string | undefined {
+        const key = (id: string, fallback: string) => this._keymap.shortcutFor(id, this.mode) ?? fallback
+        if (this.mode === 'edit') {
+            const bm = this.meshEdit.state?.bm
+            if (!bm || bm.totvertsel > 0) return undefined
+            const unit = this.selectMode === 'face' ? 'a face' : this.selectMode === 'edge' ? 'an edge' : 'a vertex'
+            return `Nothing selected: click ${unit} or drag a box around some, ${key('mesh.select_all', 'Select > All')} selects everything, ${key('mesh.exit_edit', 'the Object button')} goes back to Object mode.`
+        }
+        if (this.picking.getSelectedObjects().length > 0) return undefined
+        if (this.modelObjects().length === 0) return `The scene is empty: add a shape from the Add menu${this.keyHint('add.menu')}, or drop a .glb / .obj file onto the viewport.`
+        return `Nothing selected: click an object to select it, then ${key('object.enter_edit', 'the Edit button')} or double-click to edit it.`
     }
 
     stats(): SceneStats {
@@ -663,6 +734,18 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     }
 
     // endregion
+}
+
+/** `localStorage`, which throws in private mode and on a full quota; preferences are best-effort. */
+function readStorage(key: string): string | null {
+    try { return localStorage.getItem(key) } catch { return null }
+}
+
+function writeStorage(key: string, value: string | null): void {
+    try {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+    } catch { /* private mode, quota */ }
 }
 
 /** The engine for a viewer, adding it (and what it needs) when absent. */

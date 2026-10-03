@@ -1,9 +1,12 @@
 /**
  * The status bar: what the mouse buttons do right now, the running modal operator's text and keys,
- * and scene statistics.
+ * and scene statistics. When there is nothing to act on (nothing selected, an empty scene) the
+ * engine's `tip` says what to do next, ahead of the mouse hints (the engine then leaves out the
+ * operator keys, keeping the navigation ones).
  */
 
 import {useMemo} from 'react'
+import {Icon} from '@blueprintjs/core'
 import {useEditor, useEngineVersion, formatShortcut} from './EditorContext'
 
 function Hint({button, text}: {button: string, text: string | undefined}) {
@@ -13,7 +16,7 @@ function Hint({button, text}: {button: string, text: string | undefined}) {
 
 export function StatusBar() {
     const {engine} = useEditor()
-    const v = useEngineVersion('statusChanged', 'sceneChanged', 'selectionChanged', 'modeChanged', 'toolChanged', 'selectModeChanged')
+    const v = useEngineVersion('statusChanged', 'sceneChanged', 'selectionChanged', 'modeChanged', 'toolChanged', 'selectModeChanged', 'keymapChanged', 'navigationChanged')
     const status = engine.status
     const stats = useMemo(() => engine.stats(), [engine, v])
     const mode = engine.mode
@@ -23,6 +26,9 @@ export function StatusBar() {
         <div className="me-status-hints">
             {status?.modal
                 ? <span className="me-modal" data-modal>{status.modal}</span>
+                : null}
+            {status?.tip && !status.modal
+                ? <span className="me-status-tip" data-status-tip title={status.tip}><Icon icon="lightbulb" size={12} />{status.tip}</span>
                 : null}
             <Hint button="LMB" text={status?.lmb} />
             <Hint button="MMB" text={status?.mmb} />

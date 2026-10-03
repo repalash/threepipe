@@ -19,9 +19,20 @@
  */
 
 import {MOUSE, PerspectiveCamera, Quaternion, Spherical, ThreeViewer, Vector3} from 'threepipe'
-import type {EditorMode, KeymapPreset} from '../registry'
+import {GESTURE_TEXT} from '../registry'
+import type {EditorMode, GestureKind, KeymapPreset, NavigationApi, NavigationGesture, PointingDevice} from '../registry'
 
 export type NavigationSpec = KeymapPreset['navigation']
+
+/**
+ * The device to assume before any wheel event has been seen: a Mac is a laptop with a trackpad far
+ * more often than not; everything else is called a mouse (a wrong guess is corrected by the first
+ * scroll, and the user can choose). Only the hints and cards depend on it.
+ */
+export function defaultPointingDevice(): PointingDevice {
+    const platform = typeof navigator !== 'undefined' ? navigator.platform || navigator.userAgent : ''
+    return /Mac|iPhone|iPad/.test(platform) ? 'trackpad' : 'mouse'
+}
 
 /** The parts of `OrbitControls3` this reads and writes. Other camera controls simply lack them. */
 interface OrbitLike {
@@ -37,7 +48,7 @@ interface OrbitLike {
     update?: () => void
 }
 
-export class Navigation {
+export class Navigation implements NavigationApi {
     private _spec: NavigationSpec | null = null
     private _mode: EditorMode = 'object'
     private _spaceDown = false
@@ -46,12 +57,112 @@ export class Navigation {
     /** kokraf's gesture lock: a two-finger gesture keeps its meaning for this long after the last event. */
     gestureLockMs = 150
 
+    private _chosenDevice: PointingDevice | null = null
+    private _detectedDevice: PointingDevice | null = null
+    /** Called when {@link device} or {@link deviceSource} changes. */
+    onDeviceChange: ((device: PointingDevice, source: NavigationApi['deviceSource']) => void) | null = null
+
     constructor(private _viewer: ThreeViewer, private _dragSelectTarget: () => {dragSelect?: 'box' | 'lasso' | 'none', objectDragSelect?: boolean} | undefined) {
         const canvas = _viewer.canvas
         canvas.addEventListener('pointerdown', this._onPointerDown, true)
         canvas.addEventListener('wheel', this._onWheel, {capture: true, passive: false})
         _viewer.scene.addEventListener('mainCameraChange', this._onCameraChange)
     }
+
+    // region device
+
+    get device(): PointingDevice {
+        return this._chosenDevice ?? this._detectedDevice ?? defaultPointingDevice()
+    }
+
+    get deviceSource(): NavigationApi['deviceSource'] {
+        return this._chosenDevice ? 'chosen' : this._detectedDevice ? 'detected' : 'default'
+    }
+
+    setDevice(device: PointingDevice | 'auto'): void {
+        const before = [this.device, this.deviceSource]
+        this._chosenDevice = device === 'auto' ? null : device
+        if (before[0] !== this.device || before[1] !== this.deviceSource) this.onDeviceChange?.(this.device, this.deviceSource)
+    }
+
+    /**
+     * What a wheel event says about the device, if anything. Only unambiguous events give a verdict,
+     * so one fast trackpad swipe (large deltas) or one smooth-scrolling mouse notch does not flip the
+     * hints back and forth:
+     * - a trackpad streams fractional pixel deltas, scrolls on both axes at once, and pinches as
+     *   Ctrl+wheel with small deltas (Chrome, Safari and Firefox all synthesise `ctrlKey` for a pinch);
+     * - a mouse wheel reports lines or pages (`deltaMode` 1/2, Firefox), or a whole notch of 100+
+     *   pixels on one axis (Chrome, Edge: 100 or 120 per notch).
+     * The per-event routing in {@link _onWheel} keeps kokraf's looser test; this only drives what the
+     * hints and cards describe.
+     */
+    static wheelVerdict(event: Pick<WheelEvent, 'deltaMode' | 'deltaX' | 'deltaY' | 'ctrlKey'>): PointingDevice | null {
+        const {deltaMode, deltaX: dx, deltaY: dy} = event
+        if (deltaMode !== 0) return 'mouse'
+        if (!Number.isInteger(dx) || !Number.isInteger(dy)) return 'trackpad'
+        if (dx !== 0 && dy !== 0) return 'trackpad'
+        if (event.ctrlKey && Math.abs(dy) < 50) return 'trackpad'
+        if (dx === 0 && Math.abs(dy) >= 100) return 'mouse'
+        return null
+    }
+
+    private _noteDevice(verdict: PointingDevice | null): void {
+        if (!verdict || this._detectedDevice === verdict) return
+        const before = [this.device, this.deviceSource]
+        this._detectedDevice = verdict
+        if (before[0] !== this.device || before[1] !== this.deviceSource) this.onDeviceChange?.(this.device, this.deviceSource)
+    }
+
+    /**
+     * Orbit, pan and zoom as the user does them with the active preset on a device. Derived from the
+     * preset's `navigation` spec and the paths that implement it (the controls' buttons, `OrbitControls`
+     * panning a ROTATE drag with Shift held, the Alt / Space left-button override, the trackpad
+     * routing), so a card can never disagree with the controls.
+     */
+    gestures(device: PointingDevice = this.device): NavigationGesture[] {
+        const s = this._spec
+        if (!s) return []
+        const buttonKind = (b: 'left' | 'middle' | 'right'): GestureKind => b === 'left' ? 'left-drag' : b === 'middle' ? 'middle-drag' : 'right-drag'
+        // A left button that selects is not free for the action, whatever the spec says.
+        const button = (b: 'left' | 'middle' | 'right'): GestureKind | undefined => b === 'left' && s.leftDrag === 'select' ? undefined : buttonKind(b)
+        const orbit: (GestureKind | undefined)[] = []
+        const pan: (GestureKind | undefined)[] = []
+        const zoom: (GestureKind | undefined)[] = []
+        if (device === 'trackpad') {
+            if (s.trackpad) {
+                orbit.push(s.trackpad === 'orbit' ? 'two-finger' : 'shift-two-finger')
+                pan.push(s.trackpad === 'pan' ? 'two-finger' : 'shift-two-finger')
+            }
+            zoom.push('pinch', 'ctrl-two-finger')
+        }
+        if (device === 'mouse') {
+            orbit.push(button(s.orbit))
+            pan.push(button(s.pan))
+            // `OrbitControls` pans a ROTATE drag while Shift is held (Blender's Shift+MMB).
+            if (s.orbit === 'middle') pan.push('shift-middle-drag')
+            zoom.push(s.zoom === 'wheel' ? 'wheel' : button(s.zoom))
+        }
+        if (s.altOrbit) {
+            orbit.push('alt-drag')
+            if (!s.spacePan) pan.push('shift-alt-drag')
+        }
+        if (s.spacePan) pan.push('space-drag')
+        if (device === 'trackpad' && !s.trackpad) {
+            orbit.push(button(s.orbit))
+            pan.push(button(s.pan))
+        }
+        const make = (action: NavigationGesture['action'], label: string, list: (GestureKind | undefined)[]): NavigationGesture | null => {
+            const kinds = [...new Set(list.filter((k): k is GestureKind => !!k))]
+            if (!kinds.length) return null
+            return {
+                action, label, kind: kinds[0], gesture: GESTURE_TEXT[kinds[0]],
+                alternatives: kinds.slice(1).map(kind => ({kind, gesture: GESTURE_TEXT[kind]})),
+            }
+        }
+        return [make('orbit', 'Orbit', orbit), make('pan', 'Pan', pan), make('zoom', 'Zoom', zoom)].filter((g): g is NavigationGesture => !!g)
+    }
+
+    // endregion
 
     dispose(): void {
         const canvas = this._viewer.canvas
@@ -123,6 +234,7 @@ export class Navigation {
 
     private _onWheel = (event: WheelEvent): void => {
         const s = this._spec
+        this._noteDevice(Navigation.wheelVerdict(event))
         if (!s?.trackpad || event.defaultPrevented) return
         let dx = event.deltaX
         let dy = event.deltaY
@@ -221,7 +333,10 @@ export class Navigation {
 
     // endregion
 
-    /** The status-bar wording for the current mapping. */
+    /**
+     * The status-bar wording for the current mapping. On a trackpad the mouse-button hints give way
+     * to the gestures the user actually has (no middle button, no wheel).
+     */
     hints(): {lmb: string, mmb?: string, rmb?: string, extra: {key: string, label: string}[]} {
         const s = this._spec
         if (!s) return {lmb: 'Select', extra: []}
@@ -229,11 +344,17 @@ export class Navigation {
             s.orbit === b ? 'Orbit' : s.pan === b ? 'Pan' : s.zoom === b ? 'Zoom' : undefined
         const left = s.leftDrag === 'select' ? (this._mode === 'edit' ? 'Select / drag to box select' : 'Select') : word('left') ?? 'Select'
         const extra: {key: string, label: string}[] = []
+        if (this.device === 'trackpad') {
+            if (s.trackpad) extra.push({key: 'Two fingers', label: s.trackpad === 'orbit' ? 'Orbit (Shift: pan)' : 'Pan (Shift: orbit)'}, {key: 'Pinch', label: 'Zoom'})
+            if (s.altOrbit) extra.push({key: 'Alt+Drag', label: 'Orbit'})
+            if (s.spacePan) extra.push({key: 'Space+Drag', label: 'Pan'})
+            const rmb = word('right')
+            return {lmb: left, rmb: rmb ? `${rmb} / context menu` : 'Context menu', extra}
+        }
         if (s.altOrbit) extra.push({key: 'Alt+Drag', label: 'Orbit'})
         if (s.spacePan) extra.push({key: 'Space+Drag', label: 'Pan'})
         if (s.orbit === 'middle') extra.push({key: 'Shift+MMB', label: 'Pan'})
-        if (s.trackpad) extra.push({key: 'Two fingers', label: s.trackpad === 'orbit' ? 'Orbit (Shift: pan)' : 'Pan (Shift: orbit)'}, {key: 'Pinch', label: 'Zoom'})
-        const mmb = word('middle') ?? (s.zoom === 'wheel' ? undefined : undefined)
+        const mmb = word('middle')
         const rmb = word('right')
         return {lmb: left, mmb: mmb ?? (s.zoom === 'wheel' ? 'Wheel: zoom' : undefined), rmb: rmb ? `${rmb} / context menu` : 'Context menu', extra}
     }

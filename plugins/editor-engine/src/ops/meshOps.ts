@@ -49,13 +49,15 @@ const DELETE_MENU: {type: string, label: string}[] = [
 export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
     const modelling = engine.modelling
-    const editing = () => me.isEditing || 'Only in edit mode'
-    const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first'
+    // Reasons say what to do next, with the live key from the active preset.
+    const onlyInEdit = () => `Only in Edit mode: select a mesh and press ${engine.keymap.shortcutFor('object.enter_edit', 'object') ?? 'the Edit button'}, or double-click it`
+    const editing = () => me.isEditing || onlyInEdit()
+    const notModal = () => !me.activeTransform && !engine.propDrag || 'Finish the current operation first: click or Enter confirms it, Esc cancels'
     const hasSelection = (_ctx: EditorContext) => {
-        if (!me.state) return 'Only in edit mode'
-        return me.state.bm.totvertsel > 0 || 'Select some vertices, edges or faces first'
+        if (!me.state) return onlyInEdit()
+        return me.state.bm.totvertsel > 0 || `Select some vertices, edges or faces first: click one, drag a box around some, or press ${engine.keymap.shortcutFor('mesh.select_all', 'edit') ?? 'Select > All'} for everything`
     }
-    const hasFaces = () => me.state ? me.state.bm.totfacesel > 0 || 'Select some faces first' : 'Only in edit mode'
+    const hasFaces = () => me.state ? me.state.bm.totfacesel > 0 || `Select some faces first: press ${engine.keymap.shortcutFor('mesh.select_mode_face', 'edit') ?? 'the face button'} for face mode, then click a face` : onlyInEdit()
     const ready = (poll: (ctx: EditorContext) => boolean | string) => (ctx: EditorContext) => {
         const p = poll(ctx)
         return p === true ? notModal() : p
@@ -162,9 +164,9 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         poll: ready(hasSelection),
         exec: (_ctx, p) => {
             // No props: the interactive modal (G/R/S). With props: the exact re-run the redo panel asks for.
-            if (!p) return me.startTransform(mode) ? {ok: true, modal: true} : {ok: false, error: 'Nothing to transform'}
-            if (!me.state) return {ok: false, error: 'Only in edit mode'}
-            return me.applyTransformValues(propsToSaved(mode, p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to transform'}
+            if (!p) return me.startTransform(mode) ? {ok: true, modal: true} : {ok: false, error: 'Nothing to transform. Select some vertices, edges or faces first'}
+            if (!me.state) return {ok: false, error: onlyInEdit()}
+            return me.applyTransformValues(propsToSaved(mode, p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to transform. Select some vertices, edges or faces first'}
         },
     })
 
@@ -191,9 +193,9 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         ...(['vertex', 'edge', 'face'] as const).map((m, i): OperatorDescriptor => ({
             id: `mesh.select_mode_${m}`, label: `${m.charAt(0).toUpperCase() + m.slice(1)} Select`, icon: ['dot', 'minus', 'square'][i], category: 'Select',
             description: `Select ${m === 'vertex' ? 'vertices' : m + 's'}. In object mode, enters edit mode on the selected mesh first.`,
-            poll: ctx => ctx.mode === 'edit' || ctx.selectedObjects.some(o => !!o.geometry) || 'Select a mesh first',
+            poll: ctx => ctx.mode === 'edit' || ctx.selectedObjects.some(o => !!o.geometry) || 'Click a mesh to select it first',
             exec: ctx => {
-                if (ctx.mode === 'object' && !engine.setMode('edit')) return {ok: false, error: 'Select a mesh first'}
+                if (ctx.mode === 'object' && !engine.setMode('edit')) return {ok: false, error: 'Click a mesh to select it first'}
                 engine.setSelectMode(m)
                 return {ok: true}
             },
@@ -283,8 +285,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             }},
             poll: ready(hasSelection),
             exec: (_ctx, p) => {
-                if (!p) return me.extrude() ? {ok: true, modal: true} : {ok: false, error: 'Nothing to extrude'}
-                return me.extrudeBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to extrude'}
+                if (!p) return me.extrude() ? {ok: true, modal: true} : {ok: false, error: 'Nothing to extrude. Select some vertices, edges or faces first'}
+                return me.extrudeBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to extrude. Select some vertices, edges or faces first'}
             },
         },
         {
@@ -298,8 +300,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             }},
             poll: ready(hasSelection),
             exec: (_ctx, p) => {
-                if (!p) return me.duplicate() ? {ok: true, modal: true} : {ok: false, error: 'Nothing to duplicate'}
-                return me.duplicateBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to duplicate'}
+                if (!p) return me.duplicate() ? {ok: true, modal: true} : {ok: false, error: 'Nothing to duplicate. Select some vertices, edges or faces first'}
+                return me.duplicateBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to duplicate. Select some vertices, edges or faces first'}
             },
         },
         {
@@ -308,7 +310,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             description: 'Detach the selection from the rest of the mesh, keeping it in place.',
             flags: {undo: true, register: true},
             poll: ready(hasSelection),
-            exec: () => me.split() ? {ok: true} : {ok: false, error: 'Nothing to split'},
+            exec: () => me.split() ? {ok: true} : {ok: false, error: 'Nothing to split. Select some vertices, edges or faces first'},
         },
         {
             id: 'mesh.merge', label: 'Merge', icon: 'group-objects', category: 'Mesh', modes: ['edit'],
@@ -318,7 +320,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             props: {type: 'object', properties: {
                 mode: {type: 'string', enum: ['center', 'first', 'last'], description: 'Where the merged vertex ends up.', default: 'center'},
             }},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices to merge' : p }),
+            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices to merge: Shift+click adds to the selection' : p }),
             exec: (_ctx, p) => {
                 if (!p) {
                     engine.requestMenu('Merge', [
@@ -340,7 +342,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             poll: ready(hasSelection),
             exec: ctx => {
                 const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: 'Only in edit mode'}
+                if (!before || !me.state) return {ok: false, error: onlyInEdit()}
                 const bm = me.state.bm
                 let n = 0
                 if (ctx.selectMode === 'face') {
@@ -361,10 +363,10 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             contextMenu: ['vertex', 'edge'],
             description: 'Make a face from the selected vertices or edges, or an edge from two vertices (Blender\'s F).',
             flags: {undo: true, register: true},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices' : p }),
+            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices: Shift+click adds to the selection' : p }),
             exec: () => {
                 const before = me.snapshot()
-                if (!before || !me.state) return {ok: false, error: 'Only in edit mode'}
+                if (!before || !me.state) return {ok: false, error: onlyInEdit()}
                 const made = fillSelection(me.state.bm)
                 if (!made) return {ok: false, error: 'Could not make a face from this selection: a face there already exists, or the vertices do not form a loop'}
                 me.commit(before, made.face ? 'Make Face' : 'Make Edge')
@@ -434,7 +436,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             poll: ready(() => { const p = hasFaces(); return p === true ? needsDocument() : p }),
             exec: async() => {
                 const faces = selectedIndices('face')
-                if (me.state && faces.length === me.state.bm.totface) return {ok: false, error: 'That would separate every face, leaving nothing'}
+                if (me.state && faces.length === me.state.bm.totface) return {ok: false, error: 'That would separate every face and leave nothing behind: select fewer faces'}
                 return runCommand('separate', {mode: 'faces', faces})
             },
         },

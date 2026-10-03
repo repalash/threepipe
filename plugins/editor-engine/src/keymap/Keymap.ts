@@ -73,11 +73,15 @@ const DISPLAY: Record<string, string> = {
     'home': 'Home', 'end': 'End', 'pageup': 'PgUp', 'pagedown': 'PgDn',
     'up': '↑', 'down': '↓', 'left': '←', 'right': '→',
     'numpadadd': 'Numpad +', 'numpadsubtract': 'Numpad -', 'numpaddecimal': 'Numpad .', 'numpadenter': 'Numpad Enter',
+    // pointer "keys" of informative bindings (the cheat sheet lists them; the pointer path wires them)
+    'click': 'Click', 'dblclick': 'Double-click', 'drag': 'Drag', 'wheel': 'Wheel',
 }
 
 /** `ctrl+shift+z` → `Ctrl+Shift+Z`; the shell's `formatShortcut` swaps the modifier glyphs on a Mac. */
 export function formatCombo(keys: string): string {
     const c = parseCombo(keys)
+    // The `?` key is Shift+/ physically; show the character people look for on the keycap.
+    if (c.shift && c.key === '/' && !c.ctrl && !c.alt) return '?'
     let key = DISPLAY[c.key]
     if (!key) {
         if (c.key.startsWith('numpad')) key = 'Numpad ' + c.key.slice(6).toUpperCase()

@@ -91,3 +91,17 @@ describe('presets', () => {
         })
     }
 })
+
+describe('cheat sheet key', () => {
+    it('? is Shift+Slash physically, shown as ?', () => {
+        expect(formatCombo('shift+/')).toBe('?')
+        for (const preset of [blenderPreset, designPreset]) {
+            const map = new Keymap(preset)
+            expect(map.lookup(keyEvent('Slash', {shiftKey: true}), 'object')?.id, preset.id).toBe('help.shortcuts')
+            expect(map.lookup(keyEvent('Slash', {shiftKey: true}), 'edit')?.id, preset.id).toBe('help.shortcuts')
+        }
+        // F1 is help in the Blender preset and Front view in the Design one (IC :726).
+        expect(new Keymap(blenderPreset).lookup(keyEvent('F1'), 'object')?.id).toBe('help.shortcuts')
+        expect(new Keymap(designPreset).lookup(keyEvent('F1'), 'object')?.id).toBe('view.front')
+    })
+})

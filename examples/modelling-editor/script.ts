@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, LoadingScreenPlugin} from 'threepipe'
+import {_testFinish, _testStart, LoadingScreenPlugin, PickingPlugin} from 'threepipe'
 import {createModellingEditor} from '@threepipe/plugin-modelling-editor'
 
 /**
@@ -6,8 +6,12 @@ import {createModellingEditor} from '@threepipe/plugin-modelling-editor'
  * status bar and command palette (Ctrl/Cmd+K or F3), all rendered from the operator and tool
  * registries in `@threepipe/plugin-modelling-editor`.
  *
- * Starts with a cube, selected, so the first five minutes begin with something to edit: double-click
- * it (or press Tab, or the Edit button) to enter edit mode.
+ * First run: a welcome asks "Have you used Blender?" (Blender or Design keys) and shows how to orbit,
+ * pan and zoom with your mouse or trackpad; then three hints walk through select, edit and move.
+ * Both are remembered in localStorage; Help > Welcome and Help > Show Hints Again bring them back.
+ *
+ * The start scene, like Blender's: a cube on the grid seen from a three-quarter view, not selected
+ * yet - clicking it is the first hint.
  */
 
 async function init() {
@@ -18,8 +22,11 @@ async function init() {
     })
     const {viewer, engine} = editor
 
-    // The empty state is never empty: a cube to start with, selected, seen from the default three-quarter view.
+    // The scene is never empty to start with: a cube, seen from the default three-quarter view.
     await engine.run('add.cube')
+    viewer.getPlugin(PickingPlugin)?.setSelectedObject(undefined, false, false)
+    // The start scene is the "home file": nothing to save yet.
+    engine.file.markClean()
 
     // The scripting surface is the agent surface: everything the UI does is reachable from here.
     Object.assign(window as never, {viewer, editor, engine})

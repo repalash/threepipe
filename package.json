@@ -47,6 +47,7 @@
     "dev-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
     "serve-docs": "ws -d docs -p 8080",
     "serve": "ws -d . -p 9229",
+    "serve:port": "ws -d . -p ${PORT:-9229}",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:unit:mesh-kernel": "npm run test --prefix plugins/mesh-kernel",

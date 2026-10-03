@@ -32,6 +32,8 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'f9', id: 'edit.repeat_last'},                            // screen.redo_last :860
         {keys: 'shift+r', id: 'edit.repeat', repeat: true},              // screen.repeat_last :830
         {keys: 'f3', id: 'ui.command_palette'},                          // wm.search_menu :775
+        {keys: 'shift+/', id: 'help.shortcuts'},                         // `?`: the cheat sheet (Penpot, Womp Shift+?; research §7)
+        {keys: 'f1', id: 'help.shortcuts'},                              // F1 is unbound in km_screen since 2.8; the desktop norm for help
         {keys: 'f2', id: 'edit.rename'},                                 // topbar.rename (space_topbar.py)
         {keys: 'ctrl+n', id: 'file.new'},                                // wm.read_homefile
         {keys: 'ctrl+o', id: 'file.open'},                               // wm.open_mainfile

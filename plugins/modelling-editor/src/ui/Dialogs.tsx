@@ -1,21 +1,19 @@
 /**
- * Shell dialogs served by `uiRequest`: undo history, keyboard shortcuts and about.
+ * Shell dialogs served by `uiRequest`: undo history, keyboard shortcuts (the cheat sheet) and about.
  */
 
-
 import {Button, Dialog, DialogBody, DialogFooter} from '@blueprintjs/core'
-import {useEditor, useEngineVersion, formatShortcut} from './EditorContext'
+import {useEditor, useEngineVersion} from './EditorContext'
+import {HistoryList} from './HistoryList'
+import {CheatSheet} from './CheatSheet'
 
 export function HistoryDialog({isOpen, onClose}: {isOpen: boolean, onClose: () => void}) {
     const {engine} = useEditor()
     useEngineVersion('historyChanged')
-    const entries = engine.history.entries()
     return <Dialog isOpen={isOpen} onClose={onClose} title="Undo History" className="me-dialog" icon="history">
         <DialogBody>
-            {entries.length === 0 && <div className="me-empty">Nothing has been done yet.</div>}
-            <ol className="me-history" data-history>
-                {entries.map((e, i) => <li key={i} className={e.undone ? 'me-undone' : ''}>{e.label}</li>)}
-            </ol>
+            <HistoryList />
+            <div className="me-dialog-note">Click a step to go back (or forward) to it. The History tab next to the outliner shows the same list.</div>
         </DialogBody>
         <DialogFooter actions={<>
             <Button text="Undo" icon="undo" disabled={!engine.history.canUndo()} onClick={() => engine.history.undo()} />
@@ -25,33 +23,8 @@ export function HistoryDialog({isOpen, onClose}: {isOpen: boolean, onClose: () =
     </Dialog>
 }
 
-export function ShortcutsDialog({isOpen, onClose}: {isOpen: boolean, onClose: () => void}) {
-    const {engine} = useEditor()
-    useEngineVersion('registryChanged')
-    const ops = engine.operators.list(op => !!op.shortcut)
-    const tools = engine.tools.list(t => !!t.shortcut)
-    const groups = new Map<string, {label: string, shortcut: string, description?: string}[]>()
-    for (const op of ops) {
-        const c = op.category ?? 'Other'
-        if (!groups.has(c)) groups.set(c, [])
-        groups.get(c)!.push({label: op.label, shortcut: op.shortcut!, description: op.description})
-    }
-    groups.set('Tools', tools.map(t => ({label: t.label, shortcut: t.shortcut!, description: t.description})))
-    return <Dialog isOpen={isOpen} onClose={onClose} title="Keyboard Shortcuts" className="me-dialog me-dialog-wide" icon="key">
-        <DialogBody>
-            <div className="me-shortcuts">
-                {[...groups.entries()].map(([c, list]) => <div key={c} className="me-shortcut-group">
-                    <h6 className="bp5-heading">{c}</h6>
-                    {list.map(s => <div key={s.label + s.shortcut} className="me-shortcut-row" title={s.description}>
-                        <span>{s.label}</span><kbd className="me-kbd">{formatShortcut(s.shortcut)}</kbd>
-                    </div>)}
-                </div>)}
-            </div>
-            <div className="me-dialog-note">Keys are handled by the interaction engine; this list is generated from the operator registry.</div>
-        </DialogBody>
-        <DialogFooter actions={<Button text="Close" onClick={onClose} />} />
-    </Dialog>
-}
+/** The cheat sheet, under the name the shell has always exported. */
+export const ShortcutsDialog = CheatSheet
 
 export function AboutDialog({isOpen, onClose}: {isOpen: boolean, onClose: () => void}) {
     return <Dialog isOpen={isOpen} onClose={onClose} title="About" className="me-dialog" icon="info-sign">

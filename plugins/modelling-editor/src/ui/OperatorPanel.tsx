@@ -4,23 +4,35 @@
  * Shows `engine.lastOperation`: its label and a form for its props. Editing a value calls
  * `redo(newProps)`, which the engine implements as pop-undo + re-exec (Blender's
  * `ED_undo_operator_repeat`). Operators without `redo` show their values read-only and say why.
+ *
+ * Open or collapsed: Blender keeps the panel open, which is what makes "you don't have to get the
+ * numbers right the first time" discoverable (`ux-patterns.md` §4.1) but crowds the view later. So
+ * it opens by itself for the first few operations (the onboarding store counts them), then stays
+ * collapsed - unless the user opened or closed it by hand, which from then on is the rule. F9
+ * (Adjust Last Operation) opens it for the current operation either way.
  */
 
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {Button, Collapse} from '@blueprintjs/core'
-import {useEditor, useEngineEvent, useEngineVersion} from './EditorContext'
+import type {LastOperation} from '@threepipe/plugin-editor-engine'
+import {useEditor, useEngineEvent, useEngineVersion, useOnboarding} from './EditorContext'
 import {PropsForm} from './PropsForm'
 
 export function OperatorPanel() {
     const {engine} = useEditor()
+    const [store] = useOnboarding()
     useEngineVersion('lastOperationChanged')
     const op = engine.lastOperation
-    const [open, setOpen] = useState(false)
+    const [forcedFor, setForcedFor] = useState<LastOperation | null>(null)
     const [values, setValues] = useState<Record<string, unknown>>({})
     const [busy, setBusy] = useState(false)
+    const rerunning = useRef(false)
 
     useEffect(() => { setValues(op?.props ?? {}) }, [op])
-    useEngineEvent('uiRequest', e => { if (e.request === 'operatorPanel') setOpen(true) })
+    // A new operation, not the panel's own re-run of the last one, counts towards the first few.
+    useEngineEvent('lastOperationChanged', e => { if (e.operation && !rerunning.current) store.noteOperation() })
+    useEngineEvent('uiRequest', e => { if (e.request === 'operatorPanel') setForcedFor(engine.lastOperation) })
+    const open = (!!op && forcedFor === op) || store.redoPanelOpen
 
     if (!op) return null
     const schema = op.operator.props
@@ -30,7 +42,15 @@ export function OperatorPanel() {
         setValues(next)
         if (!op.redo || busy) return
         setBusy(true)
-        try { await op.redo(next) } finally { setBusy(false) }
+        rerunning.current = true
+        try {
+            const result = await op.redo(next)
+            // The re-run is a new LastOperation for the same operator: keep an F9-opened panel open.
+            if (forcedFor && result.ok) setForcedFor(engine.lastOperation)
+        } finally {
+            rerunning.current = false
+            setBusy(false)
+        }
     }
 
     return <div className={'me-operator-panel' + (open ? ' me-open' : '')} data-operator-panel={op.operator.id}>
@@ -39,7 +59,11 @@ export function OperatorPanel() {
             text={op.operator.label}
             className="me-operator-title"
             onMouseDown={e => e.preventDefault()}
-            onClick={() => setOpen(!open)} />
+            data-open={open}
+            onClick={() => {
+                setForcedFor(null)
+                store.setRedoPanel(!open)
+            }} />
         <Collapse isOpen={open} keepChildrenMounted={false}>
             <div className="me-operator-body">
                 {hasProps

@@ -9,7 +9,7 @@ import type {AxisView, EditorViewportPlugin, ViewportShading} from '../EditorVie
 
 export function registerViewOperators(engine: EditorEngine, vp: EditorViewportPlugin | undefined): () => void {
     const needsViewport = () => !!vp || 'EditorViewportPlugin is not loaded'
-    const ui = (request: 'palette' | 'shortcuts' | 'about') => () => { engine.dispatchEvent({type: 'uiRequest', request}); return {ok: true} }
+    const ui = (request: 'palette' | 'shortcuts' | 'about' | 'welcome' | 'hints') => () => { engine.dispatchEvent({type: 'uiRequest', request}); return {ok: true} }
 
     const ops: OperatorDescriptor[] = [
         {
@@ -22,7 +22,7 @@ export function registerViewOperators(engine: EditorEngine, vp: EditorViewportPl
             id: 'view.frame_selected', label: 'Frame Selected', icon: 'locate', category: 'View',
             contextMenu: ['object', 'vertex', 'edge', 'face'],
             description: 'Fit the selection in the view.',
-            poll: ctx => !!vp && (ctx.selectedObjects.length > 0 || !!ctx.editObject) || 'Select something first',
+            poll: ctx => !!vp && (ctx.selectedObjects.length > 0 || !!ctx.editObject) || 'Click an object to select it first, or use Frame All',
             async exec(ctx) { await vp!.frame(ctx.editObject ? [ctx.editObject] : ctx.selectedObjects); return {ok: true} },
         },
         {
@@ -65,6 +65,16 @@ export function registerViewOperators(engine: EditorEngine, vp: EditorViewportPl
             id: 'help.shortcuts', label: 'Keyboard Shortcuts', icon: 'key', category: 'Help',
             description: 'Every command with its key in the active keymap.',
             exec: ui('shortcuts'),
+        },
+        {
+            id: 'help.welcome', label: 'Welcome…', icon: 'hand', category: 'Help',
+            description: 'The first-run setup again: Blender or Design keys, and how to orbit, pan and zoom with your mouse or trackpad.',
+            exec: ui('welcome'),
+        },
+        {
+            id: 'help.hints', label: 'Show Hints Again', icon: 'lightbulb', category: 'Help',
+            description: 'The three start hints again: click to select, edit, move.',
+            exec: ui('hints'),
         },
         {
             id: 'help.docs', label: 'Threepipe Documentation', icon: 'manual', category: 'Help',

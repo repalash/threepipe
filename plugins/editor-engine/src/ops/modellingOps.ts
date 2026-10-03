@@ -67,8 +67,8 @@ export function registerModellingOperators(engine: EditorEnginePlugin): void {
             flags: {undo: true, register: true},
             poll: ctx => {
                 if (!needsObject) return true
-                if (!ctx.selectedObjects.length) return 'Select an object first'
-                if (!docObject(ctx).length) return 'Enter edit mode on this object once (Tab) to make it modellable'
+                if (!ctx.selectedObjects.length) return 'Click an object to select it first'
+                if (!docObject(ctx).length) return `Enter Edit mode on this object once${engine.keyHint('object.enter_edit', 'object')} to make it modellable, then come back`
                 return true
             },
             async exec(ctx, props) {

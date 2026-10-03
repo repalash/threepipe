@@ -395,11 +395,202 @@
 .me-dialog {
   width: 440px;
   &.me-dialog-wide { width: 720px; }
-  .me-history { margin: 0; padding-left: 22px; li { padding: 2px 0; } .me-undone { opacity: 0.45; text-decoration: line-through; } }
-  .me-shortcuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px 18px; }
-  .me-shortcut-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 0; font-size: var(--me-font-size-small); }
   .me-dialog-note { margin-top: 12px; color: var(--me-text-muted); font-size: var(--me-font-size-small); }
 }
 
 // uiconfig-blueprint folders inside the properties pane: tighter
 .me-properties .bpInspectorCard, .me-properties .bp5-card { background: transparent; box-shadow: none; }
+
+// ------------------------------------------------------------------ onboarding: document name, welcome, hints, empty state
+
+.me-doc-name {
+  font-size: var(--me-font-size-small);
+  color: var(--me-text-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  .me-doc-dirty { color: var(--pt-intent-warning, #ffb400); font-weight: 700; }
+}
+
+.me-welcome {
+  width: 620px;
+  .me-welcome-lead { color: var(--me-text-muted); }
+  .me-welcome-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 4px; }
+  .me-welcome-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    padding: 14px;
+    border-radius: var(--me-radius);
+    border: 1px solid var(--me-border);
+    background: var(--me-bg-raised);
+    color: var(--me-text);
+    cursor: pointer;
+    font: inherit;
+    &:hover, &:focus-visible { border-color: var(--me-accent); outline: none; }
+    &.me-current { box-shadow: inset 0 0 0 1px var(--me-accent); }
+  }
+  .me-welcome-choice-title { font-weight: 600; font-size: 14px; }
+  .me-welcome-choice-sub { color: var(--me-text-muted); font-size: var(--me-font-size-small); line-height: 1.45; }
+  .me-welcome-device { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .me-welcome-device-source { color: var(--me-text-muted); font-size: var(--me-font-size-small); }
+  .me-welcome-tips { margin: 14px 0 0; padding-left: 18px; color: var(--me-text-muted); li { margin: 3px 0; } }
+}
+.me-gesture-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.me-gesture-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: var(--me-radius);
+  border: 1px solid var(--me-border);
+  background: var(--me-bg-raised);
+  .me-gesture-card-label { font-weight: 600; font-size: 14px; }
+  .me-gesture-card-text { color: var(--me-text); }
+  .me-gesture-card-alt { color: var(--me-text-muted); font-size: var(--me-font-size-small); }
+}
+.me-gesture-icon {
+  .me-gesture-line { stroke: var(--me-text); stroke-width: 1.6; }
+  .me-gesture-arrow { stroke: var(--me-accent); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .me-gesture-finger { fill: var(--me-accent); fill-opacity: 0.85; stroke: var(--me-text); stroke-width: 1; }
+  .me-gesture-key { fill: var(--me-bg); stroke: var(--me-text-muted); stroke-width: 1; }
+  .me-gesture-key-text { fill: var(--me-text); font: 600 7px/1 ui-sans-serif, system-ui, sans-serif; }
+}
+
+// coach marks: never over the thing they point at, so they never take its click
+.me-coach {
+  position: fixed;
+  z-index: 18;
+  width: 250px;
+  padding: 8px 10px 6px;
+  border-radius: var(--me-radius);
+  background: var(--me-bg-raised);
+  border: 1px solid var(--me-accent);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+  font-size: var(--me-font-size-small);
+  color: var(--me-text);
+  &.me-coach-right { transform: translateY(-50%); }
+  &.me-coach-bottom { transform: translateX(-50%); }
+  &::before {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--me-bg-raised);
+    border: 1px solid var(--me-accent);
+    transform: rotate(45deg);
+  }
+  &.me-coach-right::before { left: -6px; top: calc(50% - 5px); border-top: none; border-right: none; }
+  &.me-coach-bottom::before { top: -6px; left: calc(50% - 5px); border-bottom: none; border-right: none; }
+  .me-coach-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .me-coach-title { font-weight: 700; font-size: 13px; }
+  .me-coach-body { margin: 2px 0 4px; line-height: 1.45; color: var(--me-text-muted); }
+  .me-coach-foot { display: flex; align-items: center; justify-content: space-between; }
+  .me-coach-step { color: var(--me-text-muted); font-size: 10.5px; }
+}
+.me-hint-ring {
+  position: fixed;
+  z-index: 17;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  border: 2px solid var(--me-accent);
+  pointer-events: none;
+  animation: me-hint-pulse 1.6s ease-out infinite;
+}
+@keyframes me-hint-pulse {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.me-empty-state {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  z-index: 14;
+  width: min(440px, 90%);
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: var(--me-bg-raised);
+  border: 1px solid var(--me-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  .me-empty-state-title { font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .me-empty-state-sub { margin-top: 4px; color: var(--me-text-muted); }
+  .me-empty-state-shapes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 14px 0 10px; }
+  .me-empty-state-more { color: var(--me-text-muted); font-size: var(--me-font-size-small); line-height: 1.5; }
+}
+
+// ------------------------------------------------------------------ history list, side tabs, status tip, cheat sheet
+
+.me-history-list {
+  padding: 4px;
+  font-size: var(--me-font-size-small);
+  .me-history { margin: 0; padding: 0 0 0 22px; li { padding: 0; } li::marker { color: var(--me-text-muted); } }
+  .me-history-original { padding-left: 22px; }
+  .me-history-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 3px 6px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--me-text);
+    font: inherit;
+    cursor: pointer;
+    &:hover { background: rgba(127, 127, 140, 0.16); }
+    &.me-current { background: var(--me-selected); font-weight: 600; }
+    &.me-undone { opacity: 0.45; }
+  }
+}
+.me-side-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  .me-side-tab-list { flex: 0 0 auto; display: flex; gap: 2px; padding: 4px 8px 0; border-bottom: 1px solid var(--me-border); }
+  .me-side-tab {
+    border: none;
+    background: transparent;
+    color: var(--me-text-muted);
+    font-size: var(--me-font-size-small);
+    line-height: 24px;
+    padding: 0 8px;
+    cursor: pointer;
+    &[aria-selected="true"] { color: var(--me-text); box-shadow: inset 0 -2px 0 var(--me-accent); }
+  }
+  .me-side-tab-body { flex: 1 1 auto; min-height: 0; }
+  .me-panel-title { display: none; }
+}
+.me-status-bar .me-status-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--me-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  .bp5-icon { color: var(--pt-intent-warning, #ffb400); flex: 0 0 auto; }
+}
+.me-cheatsheet {
+  .me-cheatsheet-search { margin-bottom: 12px; }
+  .me-shortcuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px 22px; max-height: 60vh; overflow: auto; }
+  .me-shortcut-group h6 { margin: 0 0 4px; }
+  .me-shortcut-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 2px 8px;
+    padding: 2px 0;
+    font-size: var(--me-font-size-small);
+  }
+  .me-shortcut-cat { grid-column: 1 / -1; margin-top: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--me-text-muted); }
+  .me-shortcut-keys { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+}

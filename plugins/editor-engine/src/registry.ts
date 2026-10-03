@@ -100,6 +100,12 @@ export interface StatusHints {
     keys?: {key: string, label: string}[]
     /** A running modal operator's text, e.g. `Move: 0.42 along X`. */
     modal?: string
+    /**
+     * What to do next when there is nothing to act on - edit mode with no selection, object mode with
+     * nothing selected, an empty scene. Shown ahead of the mouse hints; `keys` then holds only the
+     * navigation keys, not the operator keys the tip stands in for. Undefined when something is selected.
+     */
+    tip?: string
 }
 
 /** An active (modal, sticky) tool: select box, move, rotate, scale, extrude... */
@@ -139,6 +145,75 @@ export interface HistoryApi {
     undo(): void
     redo(): void
     entries(): HistoryEntry[]
+    /** Index into {@link entries} of the last step that is done; -1 when everything is undone. */
+    readonly position: number
+    /**
+     * Undo or redo until `index` is the last done step (-1 for the original state), as clicking an
+     * entry in Blender's Undo History does. Returns the number of steps moved.
+     */
+    jumpTo(index: number): number
+}
+
+export type PointingDevice = 'mouse' | 'trackpad'
+
+/**
+ * A physical gesture. The shell draws it (a mouse with a button lit, two fingers on a trackpad); the
+ * text is {@link GESTURE_TEXT}.
+ */
+export type GestureKind =
+    | 'left-drag' | 'middle-drag' | 'right-drag' | 'wheel'
+    | 'alt-drag' | 'shift-alt-drag' | 'space-drag' | 'shift-middle-drag'
+    | 'two-finger' | 'shift-two-finger' | 'ctrl-two-finger' | 'pinch'
+
+export const GESTURE_TEXT: Record<GestureKind, string> = {
+    'left-drag': 'Left-drag', 'middle-drag': 'Middle-drag', 'right-drag': 'Right-drag', 'wheel': 'Scroll the wheel',
+    'alt-drag': 'Alt+drag', 'shift-alt-drag': 'Shift+Alt+drag', 'space-drag': 'Space+drag', 'shift-middle-drag': 'Shift+middle-drag',
+    'two-finger': 'Two-finger scroll', 'shift-two-finger': 'Shift+two-finger scroll', 'ctrl-two-finger': 'Ctrl+two-finger scroll', 'pinch': 'Pinch',
+}
+
+/** One of the three ways to move the view, with the gestures for a device, for the "how to move around" cards. */
+export interface NavigationGesture {
+    action: 'orbit' | 'pan' | 'zoom'
+    label: string
+    /** The main gesture. */
+    kind: GestureKind
+    /** Its text, e.g. `Middle-drag`, `Two-finger scroll`, `Pinch`. */
+    gesture: string
+    /** Other gestures that do the same, main one first. */
+    alternatives: {kind: GestureKind, gesture: string}[]
+}
+
+export interface NavigationApi {
+    /** The device the hints and cards are written for. */
+    readonly device: PointingDevice
+    /** Where {@link device} came from: the user's choice, the wheel heuristic, or the platform default. */
+    readonly deviceSource: 'chosen' | 'detected' | 'default'
+    /** Choose the device; `'auto'` goes back to detection. */
+    setDevice(device: PointingDevice | 'auto'): void
+    /** Orbit, pan and zoom for the active preset and a device (default: the current one). */
+    gestures(device?: PointingDevice): NavigationGesture[]
+}
+
+/** Metadata of a file the user opened, kept in `localStorage`; the file itself is never stored. */
+export interface RecentFile {
+    name: string
+    size: number
+    lastModified: number
+    openedAt: number
+}
+
+/** The document on disk, as far as a browser knows: a name, whether it has unsaved changes, and what was opened before. */
+export interface FileApi {
+    /** The document's name without extension; null until it is saved or opened. */
+    readonly name: string | null
+    /** True when the history moved since the last save, open or new. */
+    readonly dirty: boolean
+    readonly recent: RecentFile[]
+    clearRecent(): void
+    /** The scene as it is now counts as saved: an app's start scene, or after a save of its own. */
+    markClean(): void
+    /** A change the undo history does not record (an import) leaves unsaved changes. */
+    markDirty(): void
 }
 
 /** A step recorded on the one undo stack. `label` is what the history list shows. */
@@ -179,7 +254,7 @@ export interface MenuRequestItem {
 }
 
 export type UiRequest =
-    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel'}
+    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints'}
     | {
         request: 'menu'
         title?: string
@@ -202,6 +277,10 @@ export interface EditorEngineEventMap {
     sceneChanged: {}
     /** The active keymap preset changed. */
     keymapChanged: {preset: string}
+    /** The pointing device changed (chosen, or detected from a wheel event). */
+    navigationChanged: {device: PointingDevice, source: NavigationApi['deviceSource']}
+    /** The document's name, dirty flag or recent-files list changed. */
+    fileChanged: {name: string | null, dirty: boolean}
     /** Something to tell the user. The shell shows a toast. */
     message: {level: 'info' | 'warning' | 'error', text: string}
     /** An operator asks the shell to open one of its own surfaces, or a popup menu at the cursor. */
@@ -285,6 +364,8 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly history: HistoryApi
     readonly keymap: KeymapApi
     readonly input: InputApi
+    readonly navigation: NavigationApi
+    readonly file: FileApi
 
     readonly mode: EditorMode
     setMode(mode: EditorMode): boolean
@@ -297,6 +378,8 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
 
     context(): EditorContext
     stats(): SceneStats
+    /** The user's top-level objects: the model root's children, without gizmos and helpers. */
+    modelObjects(): IObject3D[]
     /** Poll result as a boolean plus reason, with the `modes` check folded in. */
     poll(op: OperatorDescriptor, ctx?: EditorContext): {enabled: boolean, reason?: string}
     /** Run an operator by id through the registry (poll, exec, last-operation bookkeeping, toasts). */
@@ -305,6 +388,11 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     record(cmd: LabelledUndoCommand): void
     /** Tell the user something. The shell shows a toast. */
     message(level: 'info' | 'warning' | 'error', text: string): void
+    /**
+     * The key for an operator in the active preset, formatted for a sentence: ` (Tab)`, or an empty
+     * string when it has none. For messages that tell the user what to do next.
+     */
+    keyHint(id: string, mode?: EditorMode): string
     dispose(): void
 }
 
