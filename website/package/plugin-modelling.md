@@ -72,8 +72,10 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `inset` | a smaller copy of a face ringed by new side faces — panel lines, hatch rims |
 | `bevel` | round or chamfer edges, or a vertex corner |
 | `solidify` | give a surface thickness, with a rim closing it — plates and panels |
+| `poke` | split faces into triangle fans around a centre vertex — on a quad, both diagonals |
+| `wireframe` | turn every edge into a strut — lattices and trusses; `live` for a modifier |
 | `array` | repeat in a line, around a pivot, or along a path — baked, or `live` |
-| `modifier` | the live stack: add, update, reorder, remove, apply |
+| `modifier` | the live stack (array, mirror, wireframe): add, update, reorder, remove, apply |
 | `duplicate`, `mirror`, `join`, `separate`, `weld`, `delete` | the rest of object assembly |
 | `rename`, `material`, `select` | naming, surface, viewport selection |
 | `light`, `lighting`, `display` | lights, environment, shading mode |

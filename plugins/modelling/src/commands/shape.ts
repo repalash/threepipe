@@ -14,11 +14,14 @@ import {
     bmToMesh,
     insetIndividual,
     insetRegion,
+    pokeFaces,
     solidify,
+    wireframe,
 } from '@threepipe/mesh-kernel'
 import type {BMEdge, BMFace, BMVert} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget} from './params'
+import {checkModifier, WireframeModifierSpec} from '../modifiers'
 
 /** Resolve an index list against an element array, with a message worth reading when it is wrong. */
 function elementsOf<T>(all: T[], indices: unknown, kind: string, name: string): T[] {
@@ -255,4 +258,154 @@ export const bevelCommand: CommandDefinition = {
     },
 }
 
-export const shapeCommands = [insetCommand, solidifyCommand, bevelCommand]
+/** Index lookup for a BMesh element set after `bmToMesh`, which numbers elements in set order. */
+function indexer<T>(set: Iterable<T>): (list: T[]) => number[] {
+    const index = new Map<T, number>()
+    let i = 0
+    for (const e of set) index.set(e, i++)
+    return list => list.map(e => index.get(e)).filter((x): x is number => x !== undefined)
+}
+
+const POKE_CENTER_MODES = ['meanWeighted', 'mean', 'bounds'] as const
+
+export const pokeCommand: CommandDefinition = {
+    op: 'poke',
+    summary: 'Split faces into triangle fans around a new centre vertex.',
+    description:
+        'Blender\'s Poke Faces (`bmo_poke.cc`). On a quad it gives both diagonals with a node where '
+        + 'they cross - a St Andrew\'s cross - which `wireframe` then turns into lattice bracing.\n\n'
+        + '`offset` lifts the centre along the face normal, so a poked face becomes a shallow '
+        + 'pyramid. The result lists the new triangles (`faces`) and centre vertices (`verts`) by '
+        + 'their indices in the rebuilt mesh.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to poke.'),
+        objects: S.objectRef('Alias for `object`.'),
+        faces: S.array('Face indices. Default every face.', {type: 'integer'}),
+        offset: S.number('Move the centre along the face normal. Default 0.'),
+        centerMode: S.enum('How the centre is found. Default `meanWeighted` (corners weighted by '
+            + 'their edge lengths), as in Blender.', POKE_CENTER_MODES),
+        relativeOffset: S.boolean('Scale `offset` by the mean centre-to-corner distance.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const bm = bmFromMesh(entry.mesh)
+        const faces = facesOf(bm, p.faces, entry.name)
+        if (!faces.length) throw new Error(`"${entry.name}" has no faces to poke`)
+
+        const result = pokeFaces(bm, faces, {
+            offset: (p.offset as number) ?? 0,
+            centerMode: (p.centerMode as typeof POKE_CENTER_MODES[number]) ?? 'meanWeighted',
+            useRelativeOffset: p.relativeOffset as boolean | undefined,
+        })
+
+        const mesh = bmToMesh(bm)
+        ctx.doc.setMesh(entry, mesh)
+        return {
+            objects: [entry.name],
+            data: {
+                faces: indexer(bm.faces)(result.faces),
+                verts: indexer(bm.verts)(result.verts),
+                vertsTotal: mesh.vertsNum,
+                facesTotal: mesh.facesNum,
+            },
+        }
+    },
+}
+
+export const wireframeCommand: CommandDefinition = {
+    op: 'wireframe',
+    summary: 'Turn every edge of the faces into a strut - a lattice, truss or cage.',
+    description:
+        'Blender\'s Wireframe (`bmesh_wireframe.cc`). Each edge becomes a closed strut `thickness` '
+        + 'across, and with `replace` (the default) the original faces go, leaving only the frame. '
+        + '`poke` the faces first for X-bracing in every panel.\n\n'
+        + '`offset` is a placement in -1..1, as for `solidify`: 0 centres the struts on the surface. '
+        + '`boundary` puts a strut along open edges too. `evenOffset` keeps the strut width true at '
+        + 'sharp corners. Defaults are the edit-mode operator\'s (`MESH_OT_wireframe`).\n\n'
+        + '`live: true` adds a Wireframe modifier instead, so the cage stays editable - change it '
+        + 'with `vertices` or `transform` and the struts follow. A live wireframe works on the whole '
+        + 'mesh, so it takes no `faces`.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to wireframe.'),
+        objects: S.objectRef('Alias for `object`.'),
+        faces: S.array('Face indices. Default every face.', {type: 'integer'}),
+        thickness: S.number('Strut thickness. Default 0.01.', {minimum: 0}),
+        offset: S.number('Placement in -1..1. Default 0.01, as in Blender.'),
+        replace: S.boolean('Remove the original faces. Default true.'),
+        boundary: S.boolean('Put a strut along open boundary edges too. Default true.'),
+        evenOffset: S.boolean('Keep strut widths true at sharp corners. Default true.'),
+        relativeOffset: S.boolean('Scale the thickness by local edge length.'),
+        crease: S.boolean('Crease the hub edges, for a subdivision surface.'),
+        creaseWeight: S.number('Crease weight for `crease`. Default 0.01.'),
+        live: S.boolean('Add a live Wireframe modifier instead of baking. See the `modifier` command.'),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        // Resolved here, once, so the live path stores exactly what the baked path would use.
+        const spec: WireframeModifierSpec = {
+            type: 'wireframe',
+            thickness: (p.thickness as number) ?? 0.01,
+            offset: (p.offset as number) ?? 0.01,
+            replace: p.replace === undefined ? true : p.replace as boolean,
+            boundary: p.boundary === undefined ? true : p.boundary as boolean,
+            evenOffset: p.evenOffset === undefined ? true : p.evenOffset as boolean,
+            relativeOffset: p.relativeOffset === undefined ? false : p.relativeOffset as boolean,
+            crease: p.crease === undefined ? false : p.crease as boolean,
+            creaseWeight: (p.creaseWeight as number) ?? 0.01,
+            materialOffset: 0,
+        }
+
+        if (p.live) {
+            if (p.faces !== undefined) {
+                throw new Error('a live wireframe works on the whole mesh and takes no `faces` - '
+                    + 'bake it (leave out `live`) to wireframe a subset')
+            }
+            checkModifier(spec)
+            ctx.doc.record(entry)
+            entry.modifiers.push(spec)
+            ctx.doc.rebake(entry)
+            return {
+                objects: [entry.name],
+                data: {
+                    live: true,
+                    modifiers: entry.modifiers.length,
+                    masterVerts: entry.mesh.vertsNum,
+                    evaluatedVerts: entry.evaluated.vertsNum,
+                    evaluatedFaces: entry.evaluated.facesNum,
+                },
+            }
+        }
+
+        const bm = bmFromMesh(entry.mesh)
+        const faces = facesOf(bm, p.faces, entry.name)
+        if (!faces.length) throw new Error(`"${entry.name}" has no faces to wireframe`)
+
+        const result = wireframe(bm, faces, {
+            thickness: spec.thickness,
+            offset: spec.offset,
+            useReplace: spec.replace,
+            useBoundary: spec.boundary,
+            useEvenOffset: spec.evenOffset,
+            useRelativeOffset: spec.relativeOffset,
+            useCrease: spec.crease,
+            creaseWeight: spec.creaseWeight,
+        })
+
+        const mesh = bmToMesh(bm)
+        ctx.doc.setMesh(entry, mesh)
+        return {
+            objects: [entry.name],
+            data: {
+                newFaces: result.faces.length,
+                verts: mesh.vertsNum,
+                faces: mesh.facesNum,
+            },
+        }
+    },
+}
+
+export const shapeCommands = [insetCommand, solidifyCommand, bevelCommand, pokeCommand, wireframeCommand]

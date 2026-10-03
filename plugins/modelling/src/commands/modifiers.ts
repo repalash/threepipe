@@ -27,10 +27,13 @@ export const modifierCommand: CommandDefinition = {
         objects: S.objectRef('Alias for `object`.'),
         add: {
             type: 'object',
-            description: 'A modifier to append. `{type: "array", mode, count, ...}` or '
-                + '`{type: "mirror", axis}`.',
+            description: 'A modifier to append. `{type: "array", mode, count, ...}`, '
+                + '`{type: "mirror", axis}` or `{type: "wireframe", thickness, ...}`. A wireframe '
+                + 'field left out takes the Wireframe modifier\'s default (thickness 0.02, offset 0, '
+                + 'replace and evenOffset on, boundary off), which differs from the `wireframe` '
+                + 'command\'s.',
             properties: {
-                type: {type: 'string', enum: ['array', 'mirror']},
+                type: {type: 'string', enum: ['array', 'mirror', 'wireframe']},
                 mode: {type: 'string', enum: ['linear', 'radial', 'curve']},
                 count: {type: 'integer', minimum: 1},
                 step: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
@@ -43,6 +46,15 @@ export const modifierCommand: CommandDefinition = {
                 mergeThreshold: {type: 'number'},
                 mergeDistance: {type: 'number'},
                 center: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
+                thickness: {type: 'number', minimum: 0},
+                offset: {type: 'number'},
+                replace: {type: 'boolean'},
+                boundary: {type: 'boolean'},
+                evenOffset: {type: 'boolean'},
+                relativeOffset: {type: 'boolean'},
+                crease: {type: 'boolean'},
+                creaseWeight: {type: 'number'},
+                materialOffset: {type: 'integer'},
             },
             required: ['type'],
         },
@@ -141,6 +153,20 @@ function readModifier(raw: Record<string, unknown>): ModifierSpec {
             axis: (raw.axis as 'x' | 'y' | 'z') ?? 'x',
             mergeDistance: raw.mergeDistance as number | undefined,
             center: raw.center as ModifierSpec extends never ? never : [number, number, number] | undefined,
+        }
+    }
+    if (type === 'wireframe') {
+        return {
+            type: 'wireframe',
+            thickness: raw.thickness as number | undefined,
+            offset: raw.offset as number | undefined,
+            replace: raw.replace as boolean | undefined,
+            boundary: raw.boundary as boolean | undefined,
+            evenOffset: raw.evenOffset as boolean | undefined,
+            relativeOffset: raw.relativeOffset as boolean | undefined,
+            crease: raw.crease as boolean | undefined,
+            creaseWeight: raw.creaseWeight as number | undefined,
+            materialOffset: raw.materialOffset as number | undefined,
         }
     }
     if (type !== 'array') throw new Error(`unknown modifier type "${String(type)}"`)

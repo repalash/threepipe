@@ -2700,6 +2700,71 @@ test('modelling-api', async({page}) => {
     expect((bevelHealth.data as any).failed).toBe(0)
     await run({op: 'delete', object: '*'})
 
+    // --- poke and wireframe: lattice bracing ------------------------------------------------------
+
+    await run({op: 'primitive', type: 'cube', name: 'cage', size: 2})
+    const poked = await run({op: 'poke', object: 'cage'})
+    expect(poked.ok).toBe(true)
+    // Six quads become six fans of four triangles around six new centre vertices.
+    expect((poked.data as any).faces.length).toBe(24)
+    expect((poked.data as any).verts.length).toBe(6)
+    expect((poked.data as any).vertsTotal).toBe(14)
+    // The centres are where they should be: the middle of each face, on the surface (offset 0).
+    const pokedShape = await run({op: 'inspect', object: 'cage', detail: true})
+    for (const i of (poked.data as any).verts) {
+        const c = (pokedShape.data as any).vertices[i] as number[]
+        expect(c.map(Math.abs).sort()).toEqual([0, 0, 1])
+    }
+
+    // A live wireframe keeps the 14-vertex cage as the master and draws the struts.
+    await run({op: 'duplicate', object: 'cage', name: 'cage-live', move: [4, 0, 0]})
+    const liveWire = await run({op: 'wireframe', object: 'cage-live', thickness: 0.1, live: true})
+    expect(liveWire.ok).toBe(true)
+    expect((liveWire.data as any).masterVerts).toBe(14)
+
+    const wire = await run({op: 'wireframe', object: 'cage', thickness: 0.1})
+    expect(wire.ok).toBe(true)
+    // Every corner of every triangle gets an inset vertex (24 x 3) and every vertex a copy each side
+    // of the surface (14 x 2); the originals go. Each corner then makes two quads.
+    expect((wire.data as any).verts).toBe(72 + 28)
+    expect((wire.data as any).faces).toBe(144)
+    // Struts sit astride the surface (offset ~0), so the frame overhangs the 2-unit cube by about
+    // half the thickness on each side, no more.
+    const wireBounds = await run({op: 'inspect', object: 'cage'})
+    for (const s of (wireBounds.data as any).bounds.size) {
+        expect(s).toBeGreaterThan(2.04)
+        expect(s).toBeLessThan(2.12)
+    }
+    // The live one evaluates to exactly the same frame - the command resolves its defaults once, so
+    // the modifier does not quietly pick up the Wireframe modifier's different ones.
+    expect((liveWire.data as any).evaluatedFaces).toBe((wire.data as any).faces)
+    expect((liveWire.data as any).evaluatedVerts).toBe((wire.data as any).verts)
+    // ...and it follows the cage: pull one corner out and the struts go with it.
+    const liveCage = await run({op: 'inspect', object: 'cage-live', detail: true})
+    const top = (liveCage.data as any).vertices.findIndex((v: number[]) => v[0] > 0.9 && v[1] > 0.9 && v[2] > 0.9)
+    const evaluatedTop = async() => page.evaluate(() => {
+        const e = (window as any).modelling.document.find('cage-live')
+        const pos = e.evaluated.positions
+        let top = -Infinity
+        for (let i = 1; i < pos.length; i += 3) top = Math.max(top, pos[i])
+        return {top, verts: e.evaluated.vertsNum}
+    })
+    const liveBefore = await evaluatedTop()
+    expect(liveBefore.top).toBeLessThan(1.1)
+    await run({op: 'vertices', object: 'cage-live', relative: true, verts: [[top, 0, 1, 0]]})
+    const liveAfter = await evaluatedTop()
+    expect(liveAfter.top).toBeGreaterThan(1.9)
+    expect(liveAfter.verts).toBe(liveBefore.verts)
+
+    // A live wireframe has no face selection, and says so rather than ignoring the list.
+    const liveFaces = await run({op: 'wireframe', object: 'cage-live', faces: [0], live: true})
+    expect(liveFaces.ok).toBe(false)
+    expect(liveFaces.error).toContain('takes no `faces`')
+
+    const wireHealth = await run({op: 'selftest'})
+    expect((wireHealth.data as any).failed).toBe(0)
+    await run({op: 'delete', object: '*'})
+
     // --- join and separate ------------------------------------------------------------------------
 
     await run({op: 'delete', object: '*'})
