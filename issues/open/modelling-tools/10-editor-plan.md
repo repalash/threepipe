@@ -177,3 +177,5 @@ modelling depth (P3). Agent work is reviewed and re-verified before merge.
 ## Log
 
 - 2026-10-03: research done (see above); plan written; P0 started.
+- 2026-10-03: P0 done (`2c1dce3`, real-input e2e `4d44e3f`). Shell (P2 first cut) merged (`98c33f3`).
+  Eiffel build merged via `modelling-tools`. P1 split into tracks: [11-p1-interaction-engine](./11-p1-interaction-engine.md).
