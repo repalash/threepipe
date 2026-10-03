@@ -17,6 +17,7 @@ import sys
 import bmesh
 import bpy
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bmesh_fixture_util import build, dump, write  # noqa: E402
 
