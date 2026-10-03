@@ -371,13 +371,6 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 return {ok: true}
             },
         },
-        {
-            id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
-            description: 'Cut each selected edge and the faces between them.',
-            flags: {undo: true, register: true},
-            poll: () => 'Not available yet: the kernel has Blender\'s `bmo_subdivide_edges` only for the icosphere (`tri_3edge`); the quad patterns are in the P3 backlog',
-            exec: () => ({ok: false, error: 'Subdivide is not implemented yet'}),
-        },
         // --- topology: document commands ------------------------------------------------------
         {
             id: 'mesh.inset', label: 'Inset Faces', icon: 'inner-join', category: 'Mesh', modes: ['edit'],

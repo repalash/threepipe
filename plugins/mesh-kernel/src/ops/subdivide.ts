@@ -1000,10 +1000,10 @@ export interface EditMeshSubdivideProps {
 }
 
 /**
- * `edbm_subdivide_exec` (`editmesh_tools.cc:89`) for one edit mesh: Subdivide in the edit-mode Edge
- * menu, on the selected edges. Returns null when nothing is selected, as Blender skips the object.
+ * The `subdivide_edges` options `edbm_subdivide_exec` (`editmesh_tools.cc:89`) builds from
+ * `MESH_OT_subdivide`'s properties, for a caller that passes its own edges rather than the selection.
  */
-export function editMeshSubdivide(bm: BMesh, props: EditMeshSubdivideProps = {}): SubdivideEdgesResult | null {
+export function editMeshSubdivideOptions(props: EditMeshSubdivideProps = {}): MeshEsubdivideOptions {
     const cuts = props.numberCuts ?? 1
     const smooth = props.smoothness ?? 0
     const fractal = (props.fractal ?? 0) / 2.5
@@ -1014,9 +1014,7 @@ export function editMeshSubdivide(bm: BMesh, props: EditMeshSubdivideProps = {})
     if (useQuadTri && quadCornerType === 'straightCut') quadCornerType = 'innerVert'
     const seed = props.seed ?? 0
 
-    if (!(bm.totedgesel || bm.totfacesel)) return null
-
-    return meshEsubdivide(bm, {
+    return {
         smooth,
         smoothFalloff: 'linear',
         useSmoothEven: false,
@@ -1029,7 +1027,16 @@ export function editMeshSubdivide(bm: BMesh, props: EditMeshSubdivideProps = {})
         useGridFill: true,
         useOnlyQuads: false,
         seed,
-    })
+    }
+}
+
+/**
+ * `edbm_subdivide_exec` (`editmesh_tools.cc:89`) for one edit mesh: Subdivide in the edit-mode Edge
+ * menu, on the selected edges. Returns null when nothing is selected, as Blender skips the object.
+ */
+export function editMeshSubdivide(bm: BMesh, props: EditMeshSubdivideProps = {}): SubdivideEdgesResult | null {
+    if (!(bm.totedgesel || bm.totfacesel)) return null
+    return meshEsubdivide(bm, editMeshSubdivideOptions(props))
 }
 
 /**
