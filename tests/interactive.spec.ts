@@ -3502,6 +3502,16 @@ test('modelling-workspace', async({page}) => {
     await page.mouse.click(cx, cy - 80)
     await page.waitForTimeout(300)
     expect((await state()).counts).toEqual([12, 20, 10])
+    // Every edge of the extruded mesh is drawn, not only the cube's original twelve: the fat-line overlay
+    // is instanced, and a reused geometry kept drawing the instance count it was first bound with.
+    await page.waitForTimeout(200)
+    const drawn = await page.evaluate(() => {
+        const me = (window as any).meshEdit
+        const g = me._edgeLines.geometry
+        return {instances: g.instanceCount, limit: g._maxInstanceCount ?? Infinity, edges: me.state.bm.totedge}
+    })
+    expect(drawn.instances).toBe(drawn.edges)
+    expect(drawn.limit).toBeGreaterThanOrEqual(drawn.edges)
     await page.locator('[data-mode="object"]').click()
     await page.waitForTimeout(200)
     expect((await state()).editing).toBe(false)

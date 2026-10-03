@@ -867,7 +867,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
         if (this._edgeLines) {
             const data = this._edgeData = buildEdgeOverlay(bm)
-            const g = this._edgeLines.geometry as LineSegmentsGeometry
+            // A new geometry every rebuild: three.js caches an instanced geometry's draw limit the first
+            // time it binds its attributes (`_maxInstanceCount`, WebGLBindingStates.js), so reusing the old
+            // one after an extrude drew only as many edges as the mesh had before - the new edges vanished.
+            const old = this._edgeLines.geometry
+            const g = new LineSegmentsGeometry()
+            this._edgeLines.geometry = g as never
+            old.dispose()
             g.setPositions(data.position)
             // The two flags per edge, interleaved, so a selection change rewrites one array in place.
             const flags = new InstancedInterleavedBuffer(data.flag, 2, 1)
