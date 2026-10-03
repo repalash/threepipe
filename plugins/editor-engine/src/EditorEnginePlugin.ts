@@ -586,7 +586,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         if (knife) {
             // `knife_update_header` (`editmesh_knife.cc:1061`), with the editor's E / Backspace additions.
             const h = knife.hints()
-            return {modal: h.modal, lmb: 'Cut', mmb: 'Pan View', rmb: 'Stop', keys: h.keys}
+            return {modal: h.modal, lmb: h.lmb, mmb: h.mmb, rmb: h.rmb, keys: h.keys}
         }
         if (this.meshEdit.isLineGesture) {
             return {modal: 'Bisect: drag a line across the mesh', lmb: 'Draw Cut Line', rmb: 'Cancel', keys: [{key: 'Esc', label: 'Cancel'}]}

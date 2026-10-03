@@ -13,7 +13,7 @@
  */
 
 import {BMesh, BMFace, KnifeAngleSnap, KnifeEvent, KnifeStatus, KnifeTool, KnifeView, KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT} from '@threepipe/mesh-kernel'
-import {KNIFE_STATUS_KEYS, KnifeButtonInput, knifeButtonToModal, KnifeKeyInput, knifeKeyToModal} from './keymap'
+import {KNIFE_STATUS_KEYS, KNIFE_STATUS_MOUSE, KnifeButtonInput, knifeButtonToModal, KnifeKeyInput, knifeKeyToModal} from './keymap'
 
 /** Options of a knife run: `MESH_OT_knife_tool`'s properties (`:4686`). */
 export interface KnifeOptions {
@@ -47,6 +47,9 @@ export interface KnifeModalSetup extends KnifeOptions {
 
 export interface KnifeHints {
     modal: string
+    lmb: string
+    mmb: string
+    rmb: string
     keys: {key: string, label: string}[]
 }
 
@@ -154,6 +157,7 @@ export class KnifeModal {
         if (!t.depthTest) state.push('X-Ray')
         return {
             modal: `Knife${state.length ? ' - ' + state.join(', ') : ''}. ${angle}`,
+            ...KNIFE_STATUS_MOUSE,
             keys: KNIFE_STATUS_KEYS.map(k => ({key: k.key, label: k.item === 'ANGLE_SNAP_TOGGLE' ? angle : k.label})),
         }
     }

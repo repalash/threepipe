@@ -107,18 +107,19 @@ export function knifeButtonToModal(e: KnifeButtonInput): KnifeModalInput | null 
     return null
 }
 
+/** What the mouse buttons do while the knife runs (`knife_update_header`, `editmesh_knife.cc:1061`). */
+export const KNIFE_STATUS_MOUSE = {lmb: 'Cut', mmb: 'Pan View', rmb: 'Stop'} as const
+
 /**
- * The keys the knife shows in the status bar, in Blender's order (`knife_update_header`,
- * `editmesh_knife.cc:1061`), with the additions marked.
+ * The keys the knife shows in the status bar, in Blender's order (`knife_update_header`), after the
+ * mouse buttons ({@link KNIFE_STATUS_MOUSE}). E and Backspace are the editor's additions.
  */
 export const KNIFE_STATUS_KEYS: {key: string, label: string, item: KnifeModalItem}[] = [
-    {key: 'LMB', label: 'Cut', item: 'ADD_CUT'},
     {key: 'Double-click', label: 'Close', item: 'ADD_CUT_CLOSED'},
-    {key: 'RMB / E', label: 'Stop', item: 'NEW_CUT'},
+    {key: 'E', label: 'Stop', item: 'NEW_CUT'},
     {key: 'Enter / Space', label: 'Confirm', item: 'CONFIRM'},
     {key: 'Esc', label: 'Cancel', item: 'CANCEL'},
     {key: 'Ctrl+Z / Backspace', label: 'Undo', item: 'UNDO'},
-    {key: 'MMB', label: 'Pan View', item: 'PANNING'},
     {key: 'Shift', label: 'Midpoint Snap', item: 'SNAP_MIDPOINTS_ON'},
     {key: 'Ctrl', label: 'Ignore Snap', item: 'IGNORE_SNAP_ON'},
     {key: 'C', label: 'Cut Through', item: 'CUT_THROUGH_TOGGLE'},
