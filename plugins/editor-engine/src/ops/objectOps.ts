@@ -41,7 +41,7 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
     const viewer = engine.viewer
     const picking = engine.picking
     const modelling = engine.modelling
-    const needsSelection = (ctx: EditorContext) => ctx.selectedObjects.length > 0 || 'Select an object first'
+    const needsSelection = (ctx: EditorContext) => ctx.selectedObjects.length > 0 || 'Click an object to select it first (drag a box around several)'
     const docEntries = (objects: IObject3D[]) => objects.map(o => modelling?.document.find(o.uuid)).filter(e => !!e)
     const allInDocument = (objects: IObject3D[]) => !!modelling && objects.length > 0 && objects.every(o => !!modelling.document.find(o.uuid))
     const commandSchema = (op: string): PropSchema | undefined => {
@@ -94,7 +94,7 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
             id: 'object.enter_edit', label: 'Edit Mode', icon: 'edit', category: 'Object', modes: ['object'],
             contextMenu: ['object'],
             description: 'Edit the selected mesh\'s vertices, edges and faces.',
-            poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Select a mesh first',
+            poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Click a mesh to select it first, or double-click it',
             exec: () => ({ok: engine.setMode('edit')}),
         },
         {
@@ -162,8 +162,8 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
             description: 'Merge the selected objects into one mesh; the active (last selected) object survives.',
             flags: {undo: true, register: true},
             poll: ctx => {
-                if (ctx.selectedObjects.length < 2) return 'Select two or more objects to join'
-                if (!allInDocument(ctx.selectedObjects)) return 'Enter edit mode on each object once (Tab) to make it joinable'
+                if (ctx.selectedObjects.length < 2) return 'Select two or more objects to join: Shift+click adds to the selection'
+                if (!allInDocument(ctx.selectedObjects)) return `Enter Edit mode on each object once${engine.keyHint('object.enter_edit', 'object')} to make it joinable, then come back`
                 return true
             },
             async exec(ctx) {
@@ -182,8 +182,8 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
             description: 'Split the selected object into one object per disconnected piece.',
             flags: {undo: true, register: true},
             poll: ctx => {
-                if (ctx.selectedObjects.length !== 1) return 'Select one object to separate'
-                if (!allInDocument(ctx.selectedObjects)) return 'Enter edit mode on this object once (Tab) to make it separable'
+                if (ctx.selectedObjects.length !== 1) return 'Select exactly one object to separate'
+                if (!allInDocument(ctx.selectedObjects)) return `Enter Edit mode on this object once${engine.keyHint('object.enter_edit', 'object')} to make it separable, then come back`
                 return true
             },
             async exec(ctx) {
@@ -265,7 +265,7 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
                     scale: {type: 'boolean', description: 'Bake the scale.', default: true},
                 },
             },
-            poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Select a mesh first',
+            poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Click a mesh to select it first',
             async exec(ctx, props) {
                 if (!props) {
                     engine.requestMenu('Apply', [

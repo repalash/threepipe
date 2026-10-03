@@ -100,6 +100,12 @@ export interface StatusHints {
     keys?: {key: string, label: string}[]
     /** A running modal operator's text, e.g. `Move: 0.42 along X`. */
     modal?: string
+    /**
+     * What to do next when there is nothing to act on - edit mode with no selection, object mode with
+     * nothing selected, an empty scene. The status bar shows it ahead of the mouse hints, in place of
+     * the key hints. Undefined when the user has something selected.
+     */
+    tip?: string
 }
 
 /** An active (modal, sticky) tool: select box, move, rotate, scale, extrude... */

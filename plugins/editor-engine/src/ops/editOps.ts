@@ -29,7 +29,7 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
         {
             id: 'edit.repeat_last', label: 'Adjust Last Operation', icon: 'settings', category: 'Edit',
             description: 'Open the panel for the last operation\'s parameters.',
-            poll: () => !!engine.lastOperation || 'No operation to adjust',
+            poll: () => !!engine.lastOperation || 'Nothing to adjust yet: run an operation first (add a shape, extrude, inset…)',
             exec: () => { engine.dispatchEvent({type: 'uiRequest', request: 'operatorPanel'}); return {ok: true} },
         },
         {
@@ -37,8 +37,9 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
             description: 'Run the last operation again with the same parameters (Blender\'s Shift+R).',
             poll: () => {
                 const last = engine.lastOperation
-                if (!last) return 'No operation to repeat'
-                return engine.poll(last.operator).enabled || `${last.operator.label} cannot run now`
+                if (!last) return 'Nothing to repeat yet: run an operation first (add a shape, extrude, inset…)'
+                const p = engine.poll(last.operator)
+                return p.enabled || `${last.operator.label} cannot run now${p.reason ? ': ' + p.reason : ''}`
             },
             exec: async() => {
                 const last = engine.lastOperation!
@@ -50,7 +51,7 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
             contextMenu: ['object'],
             description: 'Rename the active object.',
             flags: {undo: true},
-            poll: ctx => ctx.selectedObjects.length > 0 || 'Select an object first',
+            poll: ctx => ctx.selectedObjects.length > 0 || 'Click an object to select it first',
             async exec(ctx) {
                 const obj = ctx.selectedObjects[ctx.selectedObjects.length - 1]
                 const name = await viewer.dialog.prompt('Object name', obj.name, true)
@@ -110,7 +111,7 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
                 }
                 if (!engine.keymap.presets.some(p => p.id === id)) return {ok: false, error: `No keymap preset "${id}"`}
                 engine.keymap.setPreset(id)
-                engine.message('info', `Keymap: ${engine.keymap.activePreset.label}`)
+                engine.message('info', `Keymap: ${engine.keymap.activePreset.label}. Press ${engine.keymap.shortcutFor('help.shortcuts') ?? 'Help > Keyboard Shortcuts'} for the cheat sheet.`)
                 return {ok: true}
             },
         },

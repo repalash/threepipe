@@ -28,8 +28,8 @@ export function registerTools(engine: EditorEnginePlugin): void {
         lmb: `Drag a handle to ${verb}; click to select`,
         keys: [{key: 'Shift', label: 'Snap'}],
     })
-    const hasElements = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totvertsel > 0) ? true : 'Select some elements first'
-    const hasFaces = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totfacesel > 0) ? true : 'Select some faces first'
+    const hasElements = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totvertsel > 0) ? true : `Select some vertices, edges or faces first: click one, or press ${engine.keymap.shortcutFor('mesh.select_all', 'edit') ?? 'Select > All'} for everything`
+    const hasFaces = (ctx: EditorContext) => (ctx.editObject && engine.meshEdit.state && engine.meshEdit.state.bm.totfacesel > 0) ? true : `Select some faces first: press ${engine.keymap.shortcutFor('mesh.select_mode_face', 'edit') ?? 'the face button'} for face mode, then click a face`
     /** Show the edit-mode gizmo with only the given handles; null hides it. */
     const elementGizmo = (handles: {translate: boolean, rotate: boolean, scale: boolean} | null) => {
         const me = engine.meshEdit

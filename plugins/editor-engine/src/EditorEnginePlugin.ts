@@ -413,11 +413,13 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         if (mode === 'edit') {
             const selected = this.picking.getSelectedObject<IObject3D>()
             if (!selected?.isObject3D || !selected.geometry) {
-                this.message('warning', 'Select a mesh first, then switch to Edit mode (Tab).')
+                this.message('warning', selected?.isObject3D
+                    ? `${selected.name || 'This object'} has no mesh to edit. Select a mesh (click one), then switch to Edit mode${this.keyHint('object.enter_edit', 'object')}.`
+                    : `Click a mesh to select it first, then switch to Edit mode${this.keyHint('object.enter_edit', 'object')} or double-click it.`)
                 return false
             }
             const ok = this.meshEdit.enter(selected)
-            if (!ok) this.message('error', 'Could not enter edit mode on the selected object.')
+            if (!ok) this.message('error', `Could not enter edit mode on ${selected.name || 'the selected object'}: its geometry could not be read. Try another object, or File > Open a .glb.`)
             return ok
         }
         this.propDrag?.cancel()
@@ -549,7 +551,13 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     }
 
     poll(op: OperatorDescriptor, ctx = this.context()): {enabled: boolean, reason?: string} {
-        if (op.modes && !op.modes.includes(ctx.mode)) return {enabled: false, reason: `Only in ${op.modes.join('/')} mode`}
+        if (op.modes && !op.modes.includes(ctx.mode)) {
+            const target = op.modes[0]
+            const reason = target === 'edit'
+                ? `Only in Edit mode: select a mesh and press ${this._keymap.shortcutFor('object.enter_edit', 'object') ?? 'the Edit button'}, or double-click it`
+                : `Only in Object mode: leave Edit mode first${this.keyHint('mesh.exit_edit', 'edit') || ' (the Object button)'}`
+            return {enabled: false, reason}
+        }
         if (!op.poll) return {enabled: true}
         const r = op.poll(ctx)
         if (r === true || r === undefined) return {enabled: true}
@@ -565,7 +573,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         const ctx = this.context()
         const polled = this.poll(op, ctx)
         if (!polled.enabled) {
-            const reason = polled.reason ?? `${op.label} is not available right now`
+            const reason = polled.reason ?? `${op.label} cannot run right now: hover its menu entry or toolbar button for what it needs`
             this.message('info', reason)
             return {ok: false, error: reason}
         }
@@ -628,9 +636,10 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             }
         }
         const nav = this.navigation.hints()
+        const tip = this._emptyTip()
         if (this._activeTool?.hints) {
             const h = this._activeTool.hints
-            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(h.keys ?? []), ...nav.extra]}
+            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(h.keys ?? []), ...nav.extra], tip}
         }
         // The keys that matter most in each mode, read from the active keymap so they are never stale.
         const hintOps: [string, string][] = this.mode === 'edit'
@@ -642,11 +651,29 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             if (key) keys.push({key, label})
         }
         return {
-            lmb: this.mode === 'edit' ? `${nav.lmb} (Shift: extend)` : `${nav.lmb} (Shift: extend)`,
+            lmb: `${nav.lmb} (Shift: extend)`,
             mmb: nav.mmb,
             rmb: nav.rmb,
             keys: [...keys, ...nav.extra],
+            tip,
         }
+    }
+
+    /**
+     * What to do when there is nothing to act on, worded with the live keys: edit mode with no
+     * element selected, object mode with no object selected, an empty scene.
+     */
+    private _emptyTip(): string | undefined {
+        const key = (id: string, fallback: string) => this._keymap.shortcutFor(id, this.mode) ?? fallback
+        if (this.mode === 'edit') {
+            const bm = this.meshEdit.state?.bm
+            if (!bm || bm.totvertsel > 0) return undefined
+            const unit = this.selectMode === 'face' ? 'a face' : this.selectMode === 'edge' ? 'an edge' : 'a vertex'
+            return `Nothing selected: click ${unit} or drag a box around some, ${key('mesh.select_all', 'Select > All')} selects everything, ${key('mesh.exit_edit', 'the Object button')} goes back to Object mode.`
+        }
+        if (this.picking.getSelectedObjects().length > 0) return undefined
+        if (this.modelObjects().length === 0) return `The scene is empty: add a shape from the Add menu${this.keyHint('add.menu')}, or drop a .glb / .obj file onto the viewport.`
+        return `Nothing selected: click an object to select it, then ${key('object.enter_edit', 'the Edit button')} or double-click to edit it.`
     }
 
     stats(): SceneStats {
