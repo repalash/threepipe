@@ -148,6 +148,47 @@ export interface HistoryApi {
     jumpTo(index: number): number
 }
 
+export type PointingDevice = 'mouse' | 'trackpad'
+
+/**
+ * A physical gesture. The shell draws it (a mouse with a button lit, two fingers on a trackpad); the
+ * text is {@link GESTURE_TEXT}.
+ */
+export type GestureKind =
+    | 'left-drag' | 'middle-drag' | 'right-drag' | 'wheel'
+    | 'alt-drag' | 'shift-alt-drag' | 'space-drag' | 'shift-middle-drag'
+    | 'two-finger' | 'shift-two-finger' | 'ctrl-two-finger' | 'pinch'
+
+export const GESTURE_TEXT: Record<GestureKind, string> = {
+    'left-drag': 'Left-drag', 'middle-drag': 'Middle-drag', 'right-drag': 'Right-drag', 'wheel': 'Scroll the wheel',
+    'alt-drag': 'Alt+drag', 'shift-alt-drag': 'Shift+Alt+drag', 'space-drag': 'Space+drag', 'shift-middle-drag': 'Shift+middle-drag',
+    'two-finger': 'Two-finger scroll', 'shift-two-finger': 'Shift+two-finger scroll', 'ctrl-two-finger': 'Ctrl+two-finger scroll', 'pinch': 'Pinch',
+}
+
+/** One of the three ways to move the view, with the gestures for a device, for the "how to move around" cards. */
+export interface NavigationGesture {
+    action: 'orbit' | 'pan' | 'zoom'
+    label: string
+    /** The main gesture. */
+    kind: GestureKind
+    /** Its text, e.g. `Middle-drag`, `Two-finger scroll`, `Pinch`. */
+    gesture: string
+    /** Other gestures that do the same, main one first. */
+    alternatives: {kind: GestureKind, gesture: string}[]
+}
+
+export interface NavigationApi {
+    /** The device the hints and cards are written for. */
+    readonly device: PointingDevice
+    /** Where {@link device} came from: the user's choice, the wheel heuristic, or the platform default. */
+    readonly deviceSource: 'chosen' | 'detected' | 'default'
+    /** Choose the device; `'auto'` goes back to detection. */
+    setDevice(device: PointingDevice | 'auto'): void
+    /** Orbit, pan and zoom for the active preset and a device (default: the current one). */
+    gestures(device?: PointingDevice): NavigationGesture[]
+}
+
+
 /** A step recorded on the one undo stack. `label` is what the history list shows. */
 export interface LabelledUndoCommand {
     label: string
@@ -209,6 +250,8 @@ export interface EditorEngineEventMap {
     sceneChanged: {}
     /** The active keymap preset changed. */
     keymapChanged: {preset: string}
+    /** The pointing device changed (chosen, or detected from a wheel event). */
+    navigationChanged: {device: PointingDevice, source: NavigationApi['deviceSource']}
     /** Something to tell the user. The shell shows a toast. */
     message: {level: 'info' | 'warning' | 'error', text: string}
     /** An operator asks the shell to open one of its own surfaces, or a popup menu at the cursor. */
@@ -292,6 +335,7 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly history: HistoryApi
     readonly keymap: KeymapApi
     readonly input: InputApi
+    readonly navigation: NavigationApi
 
     readonly mode: EditorMode
     setMode(mode: EditorMode): boolean

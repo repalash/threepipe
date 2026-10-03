@@ -68,7 +68,10 @@ const SELECT_MASKS: Record<SelectModeName, number> = {
 export interface EditorEngineOptions {
     /** Keymap preset to start with. Default: the stored preference, else `blender`. */
     keymap?: string
-    /** `localStorage` key for the keymap preference. `null` turns persistence off. */
+    /**
+     * `localStorage` key for the keymap preference; the chosen pointing device uses it with a
+     * `-device` suffix. `null` turns persistence off.
+     */
     storageKey?: string | null
     /** Register the built-in operator packs and tools. Default true. */
     builtins?: boolean
@@ -148,7 +151,18 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         this.history = new EditorHistory(this.undoPlugin, () => this._historyChanged())
         this._disposers.push(() => this.history.dispose())
 
+        const storageKey = this._storageKey()
+
         this.navigation = new Navigation(viewer, () => this.meshEdit)
+        // A device the user chose is remembered; a detected one is detected again next time.
+        const deviceKey = storageKey ? storageKey + '-device' : null
+        const storedDevice = deviceKey ? readStorage(deviceKey) : null
+        if (storedDevice === 'mouse' || storedDevice === 'trackpad') this.navigation.setDevice(storedDevice)
+        this.navigation.onDeviceChange = (device, source) => {
+            if (deviceKey) writeStorage(deviceKey, source === 'chosen' ? device : null)
+            this.dispatchEvent({type: 'navigationChanged', device, source})
+            this._statusChanged()
+        }
         this._disposers.push(() => this.navigation.dispose())
 
         this.input = new InputRouter({
@@ -329,19 +343,20 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         ;(this.keymap as {activePreset: KeymapPreset}).activePreset = preset
         this.navigation.apply(preset.navigation, this.mode)
         this._applyShortcuts()
-        const key = this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
-        if (key) {
-            try { localStorage.setItem(key, preset.id) } catch { /* private mode */ }
-        }
+        const key = this._storageKey()
+        if (key) writeStorage(key, preset.id)
         this.dispatchEvent({type: 'keymapChanged', preset: preset.id})
         this.dispatchEvent({type: 'registryChanged'})
         this._statusChanged()
     }
 
+    private _storageKey(): string | null {
+        return this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
+    }
+
     private _storedPreset(): string | undefined {
-        const key = this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
-        if (!key) return undefined
-        try { return localStorage.getItem(key) ?? undefined } catch { return undefined }
+        const key = this._storageKey()
+        return key ? readStorage(key) ?? undefined : undefined
     }
 
     /** Every operator and tool shows the key the active preset gives it in the current mode. */
@@ -663,6 +678,18 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     }
 
     // endregion
+}
+
+/** `localStorage`, which throws in private mode and on a full quota; preferences are best-effort. */
+function readStorage(key: string): string | null {
+    try { return localStorage.getItem(key) } catch { return null }
+}
+
+function writeStorage(key: string, value: string | null): void {
+    try {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+    } catch { /* private mode, quota */ }
 }
 
 /** The engine for a viewer, adding it (and what it needs) when absent. */

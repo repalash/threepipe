@@ -114,6 +114,33 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
                 return {ok: true}
             },
         },
+        {
+            id: 'edit.input_device', label: 'Input Device', icon: 'hand', category: 'Edit',
+            description: 'Mouse or trackpad: which gestures the hints and the cheat sheet describe. Detected from the first scroll; choose to override.',
+            props: {
+                type: 'object',
+                properties: {
+                    device: {type: 'string', enum: ['mouse', 'trackpad', 'auto'], description: 'The device, or auto to detect it again.'},
+                },
+            },
+            exec: (_ctx, props) => {
+                const device = props?.device as 'mouse' | 'trackpad' | 'auto' | undefined
+                if (!device) {
+                    const current = engine.navigation.device
+                    const source = engine.navigation.deviceSource
+                    engine.requestMenu('Input device', [
+                        {id: 'edit.input_device', label: (current === 'mouse' ? '● ' : '') + 'Mouse', props: {device: 'mouse'}},
+                        {id: 'edit.input_device', label: (current === 'trackpad' ? '● ' : '') + 'Trackpad', props: {device: 'trackpad'}},
+                        {id: 'edit.input_device', label: (source !== 'chosen' ? '● ' : '') + 'Detect automatically', props: {device: 'auto'}},
+                    ])
+                    return {ok: true}
+                }
+                engine.navigation.setDevice(device)
+                const g = engine.navigation.gestures()
+                engine.message('info', `${engine.navigation.device === 'trackpad' ? 'Trackpad' : 'Mouse'}: ${g.map(x => `${x.gesture.toLowerCase()} to ${x.label.toLowerCase()}`).join(', ')}.`)
+                return {ok: true}
+            },
+        },
     ]
     for (const op of ops) engine.operators.register(op)
     // The preset list can grow after registration (apps add their own); keep the enum current.
