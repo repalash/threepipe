@@ -32,6 +32,7 @@ import {CommandRegistry} from './commands/registry'
 import {Command, CommandContext, CommandDefinition, CommandResult, validateParams} from './commands/types'
 import {createCommands} from './commands/create'
 import {editCommands} from './commands/edit'
+import {fillCommands} from './commands/fill'
 import {sceneCommands} from './commands/scene'
 import {sessionCommands} from './commands/session'
 import {referenceCommands, ReferencePlaneState} from './commands/reference'
@@ -116,6 +117,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this.commands.registerAll([
             ...createCommands,
             ...editCommands,
+            ...fillCommands,
             ...sceneCommands,
             ...sessionCommands,
             ...referenceCommands,
