@@ -17,14 +17,18 @@ import {
     AViewerPluginSync,
     BufferAttribute,
     BufferGeometry2,
+    InstancedInterleavedBuffer,
+    InterleavedBufferAttribute,
     IObject3D,
-    LineSegments,
+    LineSegments2,
+    LineSegmentsGeometry,
     Mesh2,
     Object3D2,
     Points,
     ShaderMaterial,
     ThreeViewer,
     UnlitMaterial,
+    Vector2,
     Vector3,
 } from 'threepipe'
 import {
@@ -41,10 +45,10 @@ import {
     selectInvert,
     SelectMode,
     SelectModeMask,
+    selectModeFlush,
     selectModeSet,
     selectNone,
     vertSelectSet,
-    walkVertShell,
     extrudeSelection,
     averageFaceNormal,
     duplicateSelection,
@@ -57,11 +61,42 @@ import {
 import {Matrix4} from 'threepipe'
 import {EditMeshState} from './EditMeshState'
 import {ModalTransform, TransformMode} from './transform'
-import {buildEdgeOverlay, buildFaceOverlay, buildVertexOverlay} from './overlays'
+import {
+    buildEdgeOverlay,
+    buildFaceDotOverlay,
+    buildFaceOverlay,
+    buildVertexOverlay,
+    EdgeOverlayData,
+    FaceDotOverlayData,
+    refreshEdgeFlags,
+    refreshEdgePositions,
+    refreshFaceDotFlags,
+    refreshFaceDotPositions,
+    refreshVertexFlags,
+    refreshVertexPositions,
+    VertexOverlayData,
+} from './overlays'
 import {PickCycleState, pickElement, ProjectFn} from './picking'
-import {createEdgeMaterial, createVertexMaterial, EditTheme, setOverlayPixelRatio} from './overlayMaterials'
+import {
+    createEdgeMaterial,
+    createFaceDotMaterial,
+    createVertexMaterial,
+    edgeLineWidthPx,
+    EditTheme,
+    setOverlayPixelRatio,
+} from './overlayMaterials'
 import {SelectBuffer} from './select/SelectBuffer'
-import {unifiedFindNearest} from './select/findNearest'
+import {SELECT_DIST_PX, SelectDomain, unifiedFindNearest} from './select/findNearest'
+import {SelectOp, selectOpFromModifiers} from './select/selectOp'
+import {LassoPoint, lassoBoundBox, ScreenRect} from './select/lasso'
+import {regionSelect, RegionShape, RegionVisibility} from './select/regionSelect'
+import {RegionOverlay} from './select/regionOverlay'
+import {selectModeToggleMulti} from './select/selectMode'
+import {LoopDelimit, loopSelectEdge, LoopSelectParams} from './select/loopSelect'
+import {activeElemOrFace, PathSelectParams, shortestPathPick} from './select/path'
+import {selectLess, selectMore} from './select/moreLess'
+import {meshHide, meshReveal} from './select/hide'
+import {LinkedDelimit, linkedDelimitDefault, selectLinkedAll, selectLinkedPick} from './select/linked'
 
 export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     /** Edit mode entered or left. */
@@ -76,6 +111,23 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
     preselectChanged: {element: BMVert | BMEdge | BMFace | null}
     /** Something the user tried could not be done. Show it; it used to go to the console only. */
     notice: {message: string, level: 'info' | 'warning'}
+    /** A box, lasso or circle select gesture started, moved or ended (`region` is null then). */
+    regionChanged: {region: RegionShape | null}
+    /** X-ray was toggled. */
+    xrayChanged: {xray: boolean}
+}
+
+/** How a left-drag on the canvas behaves in edit mode. */
+export type DragSelectTool = 'box' | 'lasso' | 'none'
+
+/** When face dots are drawn in face mode. */
+export type FaceDotMode = 'always' | 'xray' | 'never'
+
+/** three.js `MOUSE` actions per button (`MOUSE.ROTATE` 0, `MOUSE.DOLLY` 1, `MOUSE.PAN` 2), or null for none. */
+export interface OrbitButtons {
+    LEFT?: number | null
+    MIDDLE?: number | null
+    RIGHT?: number | null
 }
 
 /**
@@ -144,17 +196,100 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     set xray(value: boolean) {
         if (value === this._xray) return
         this._xray = value
-        for (const obj of [this._vertPoints, this._edgeLines, this._faceHighlight, this._facePreselect]) {
+        for (const obj of [this._vertPoints, this._edgeLines, this._faceDots, this._faceHighlight, this._facePreselect]) {
             const material = obj?.material as any
             if (!material) continue
             material.depthTest = !value
             material.needsUpdate = true
         }
+        if (this._select) this._select.xray = value
         this._preselect = null
         this._refreshFlags()
+        this.dispatchEvent({type: 'xrayChanged', xray: value})
     }
 
     private _xray = false
+
+    /**
+     * What a left-button drag over the canvas does in edit mode: box select (Blender's default
+     * "Select Box" tool), lasso select, or nothing (the drag is left to the camera controls).
+     *
+     * While this is not `none`, the camera's orbit moves off the left button for the session: the
+     * middle button orbits, as in Blender, and `Alt`+left drag orbits too (Blender's "emulate 3
+     * button mouse"). Everything is restored on exit. An editor with its own navigation preset sets
+     * this to `none` and drives {@link boxSelect} / {@link lassoSelect} itself.
+     */
+    get dragSelect(): DragSelectTool {
+        return this._dragSelect
+    }
+
+    set dragSelect(value: DragSelectTool) {
+        if (value === this._dragSelect) return
+        this._dragSelect = value
+        if (this.isEditing) {
+            this._restoreOrbit()
+            this._captureOrbit()
+        }
+    }
+
+    private _dragSelect: DragSelectTool = 'box'
+
+    /**
+     * Override the camera mouse buttons used during edit mode. Null (the default) is Blender's
+     * mapping while {@link dragSelect} is on: left selects, middle orbits, `Alt`+left orbits. An
+     * editor with its own navigation preset passes the three.js `MOUSE` actions it wants (`null`
+     * for a button that does nothing); the original buttons come back on exit or disable.
+     */
+    setOrbitButtons(buttons: OrbitButtons | null): void {
+        this._orbitButtons = buttons ? {...buttons} : null
+        this._applyOrbitButtons()
+    }
+
+    get orbitButtons(): OrbitButtons | null {
+        return this._orbitButtons
+    }
+
+    private _orbitButtons: OrbitButtons | null = null
+
+    /**
+     * Face dots in face mode. Blender draws them only with X-ray on (or the "Center" overlay), where
+     * they are the click target; `always` also draws them in solid shading, so it is visible that
+     * faces are now the unit a click selects. That is the default here: discoverability for a
+     * newcomer outweighs the small amount of clutter, and the dots are also the X-ray click target.
+     */
+    get faceDots(): FaceDotMode {
+        return this._faceDotMode
+    }
+
+    set faceDots(value: FaceDotMode) {
+        if (value === this._faceDotMode) return
+        this._faceDotMode = value
+        this._refreshFlags()
+    }
+
+    private _faceDotMode: FaceDotMode = 'always'
+
+    /** Circle select radius in CSS pixels. Blender's default `radius` is 25. Changed with the wheel. */
+    circleRadius = 25
+
+    /**
+     * Delimiters for Alt+click loop select: Blender's `mesh.loop_select` defaults, which stop a
+     * boundary loop at outer corners (so one click on a grid's edge takes one side, the next the
+     * whole boundary) and keep loops to quads.
+     */
+    loopDelimit: LoopDelimit = {delimitOuterCorners: true, delimitNgons: true}
+
+    /** Delimiters for Ctrl+Alt+click ring select: Blender's `mesh.edgering_select` default. */
+    ringDelimit: LoopDelimit = {delimitNgons: true}
+
+    /**
+     * Delimiters for select-linked (`L`, `Ctrl+L`). Null means Blender's mode-dependent default:
+     * none in vertex and edge mode, seams in face mode.
+     */
+    linkedDelimit: LinkedDelimit | null = null
+
+    /** Options for Ctrl+click shortest path. */
+    pathOptions: Pick<PathSelectParams, 'useTopologyDistance' | 'useStepFace' | 'edgeMode'> = {}
 
     /**
      * Pixels the pointer may move between press and release and still count as a click. Blender's
@@ -168,15 +303,26 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
 
     private _root: Object3D2 | null = null
     private _vertPoints: Points | null = null
-    private _edgeLines: LineSegments | null = null
+    private _edgeLines: LineSegments2 | null = null
+    private _faceDots: Points | null = null
     private _faceHighlight: Mesh2 | null = null
     private _facePreselect: Mesh2 | null = null
+    /** The overlay buffers, kept so a selection change rewrites flags without rebuilding geometry. */
+    private _vertData: VertexOverlayData | null = null
+    private _edgeData: EdgeOverlayData | null = null
+    private _faceDotData: FaceDotOverlayData | null = null
+    private _regionOverlay: RegionOverlay | null = null
+    /** The running box or lasso gesture. */
+    private _region: {kind: 'box' | 'lasso', op: SelectOp, x0: number, y0: number, x1: number, y1: number, points: LassoPoint[]} | null = null
+    /** The running circle-select modal (`C`). */
+    private _circle: {painting: boolean, op: SelectOp, first: boolean} | null = null
+    private _orbitSaved: {controls: any, mouseButtons: any} | null = null
     private _cycle = new PickCycleState()
     private _transform: ModalTransform | null = null
     private _select: SelectBuffer | null = null
     private _selectDirty = true
     private _preselect: BMVert | BMEdge | BMFace | null = null
-    private _press: {x: number, y: number} | null = null
+    private _press: {x: number, y: number, shift: boolean, ctrl: boolean, alt: boolean} | null = null
     private _hoverFrame = 0
     private _liveFrame = 0
     /** The mesh as it was before the running operation, for its undo step. */
@@ -197,24 +343,51 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return this.state?.selectMode ?? SelectMode.Vertex
     }
 
+    constructor() {
+        super()
+        // Disabling the plugin mid-session hands the camera buttons back; enabling takes them again.
+        const baseDisable = this.disable
+        const baseEnable = this.enable
+        this.disable = (key: any, setDirty = true) => {
+            baseDisable(key, setDirty)
+            if (this.isDisabled()) {
+                this._endRegion(false)
+                this.endCircleSelect()
+                this._restoreOrbit()
+            }
+        }
+        this.enable = (key: any, setDirty = true) => {
+            baseEnable(key, setDirty)
+            if (!this.isDisabled() && this.isEditing) this._captureOrbit()
+        }
+    }
+
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         window.addEventListener('keydown', this._onKeyDown)
+        window.addEventListener('keyup', this._onKeyUp)
         viewer.canvas.addEventListener('pointerdown', this._onPointerDown)
         viewer.canvas.addEventListener('pointermove', this._onPointerMove)
         viewer.canvas.addEventListener('pointerleave', this._onPointerLeave)
         viewer.canvas.addEventListener('dblclick', this._onDoubleClick)
-        // Release can happen outside the canvas; listen where it will arrive.
+        viewer.canvas.addEventListener('wheel', this._onWheel, {passive: false})
+        viewer.canvas.addEventListener('contextmenu', this._onContextMenu)
+        // Release can happen outside the canvas; listen where it will arrive. So can a drag.
         window.addEventListener('pointerup', this._onPointerUp)
+        window.addEventListener('pointermove', this._onWindowPointerMove)
     }
 
     onRemove(viewer: ThreeViewer): void {
         window.removeEventListener('keydown', this._onKeyDown)
+        window.removeEventListener('keyup', this._onKeyUp)
         viewer.canvas.removeEventListener('pointerdown', this._onPointerDown)
         viewer.canvas.removeEventListener('pointermove', this._onPointerMove)
         viewer.canvas.removeEventListener('pointerleave', this._onPointerLeave)
         viewer.canvas.removeEventListener('dblclick', this._onDoubleClick)
+        viewer.canvas.removeEventListener('wheel', this._onWheel)
+        viewer.canvas.removeEventListener('contextmenu', this._onContextMenu)
         window.removeEventListener('pointerup', this._onPointerUp)
+        window.removeEventListener('pointermove', this._onWindowPointerMove)
         if (this.isEditing) this.exit(false)
         super.onRemove(viewer)
     }
@@ -263,11 +436,18 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         }
         this.editObject = target
         this._select = new SelectBuffer()
+        this._select.xray = this._xray
         this._selectDirty = true
         this._preselect = null
 
         this._suspendObjectModePlugins(true)
+        this._captureOrbit()
+        this._offsetSurface(target, true)
         this._buildOverlays()
+        // Hidden faces are not drawn in edit mode; a mesh that comes in with some needs a bake now.
+        let anyHidden = false
+        for (const f of this.state.bm.faces) if (f.hflag & ElemFlag.Hidden) { anyHidden = true; break }
+        if (anyHidden) this._bakeIntoObject(target, this.state, true)
         this.dispatchEvent({type: 'editModeChanged', object: target})
         viewer.setDirty()
         return true
@@ -283,7 +463,11 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             if (commit) this.confirmTransform()
             else this.cancelTransform()
         }
-        if (commit) this.applyToObject()
+        this._endRegion(false)
+        this.endCircleSelect()
+        // Outside edit mode every face is drawn, hidden or not, as Blender's object mode does.
+        if (commit) this.applyToObject(false)
+        else this._bakeIntoObject(object, this.state, false)
         this._destroyOverlays()
         this._select?.dispose()
         this._select = null
@@ -291,6 +475,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._press = null
         cancelAnimationFrame(this._hoverFrame)
         cancelAnimationFrame(this._liveFrame)
+        this._restoreOrbit()
+        this._offsetSurface(object, false)
         this._suspendObjectModePlugins(false)
 
         this.state = null
@@ -310,11 +496,15 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         else this.enter()
     }
 
-    /** Bake the current topology into the edited object's geometry without leaving edit mode. */
-    applyToObject(): void {
+    /**
+     * Bake the current topology into the edited object's geometry without leaving edit mode.
+     * Hidden faces are left out of the drawn surface (`skipHidden`), as Blender's edit mode draws it;
+     * `exit` bakes them back in.
+     */
+    applyToObject(skipHidden = true): void {
         if (!this.state || !this.editObject) return
         this.state.syncFromBMesh()
-        this._bakeIntoObject(this.editObject, this.state)
+        this._bakeIntoObject(this.editObject, this.state, skipHidden)
 
         // Hand the result back to whatever owns this object's topology, before anyone re-bakes it.
         for (const sink of this.meshSinks) {
@@ -328,8 +518,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     }
 
     /** Replace an object's geometry with a bake of the session's mesh. */
-    private _bakeIntoObject(object: IObject3D, state: EditMeshState): void {
-        const {data} = state.bake()
+    private _bakeIntoObject(object: IObject3D, state: EditMeshState, skipHidden = false): void {
+        const {data} = state.bake(skipHidden)
         const geometry = geometryDataToBufferGeometry<BufferGeometry2>(data, {
             BufferGeometry: BufferGeometry2,
             BufferAttribute,
@@ -350,6 +540,40 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             }
         }
         return undefined
+    }
+
+    /**
+     * Push the edited surface back by its own depth slope while edit mode draws over it.
+     *
+     * A fat edge is a screen-space quad with the edge's depth across its whole width, but the
+     * surface it lies on tilts across those pixels, so without this the surface wins on one side of
+     * every edge and the line comes out one pixel wide and dashed - worse the more grazing the view.
+     * Slope-scaled polygon offset (`glPolygonOffset(1, 1)`) is the standard answer for "wireframe
+     * over solid": each surface fragment moves back by its own slope over one pixel, which is
+     * exactly the depth difference the quad's flat depth is missing. The materials' settings are
+     * put back on exit.
+     */
+    private _offsetSurface(object: IObject3D, on: boolean): void {
+        const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : []
+        for (const m of materials as any[]) {
+            if (on) {
+                if (m.userData.__meshEditOffset) continue
+                m.userData.__meshEditOffset = {
+                    polygonOffset: m.polygonOffset, factor: m.polygonOffsetFactor, units: m.polygonOffsetUnits,
+                }
+                m.polygonOffset = true
+                m.polygonOffsetFactor = 1
+                m.polygonOffsetUnits = 1
+            } else {
+                const saved = m.userData.__meshEditOffset
+                if (!saved) continue
+                delete m.userData.__meshEditOffset
+                m.polygonOffset = saved.polygonOffset
+                m.polygonOffsetFactor = saved.factor
+                m.polygonOffsetUnits = saved.units
+            }
+            m.needsUpdate = true
+        }
     }
 
     private _selectedMesh(): IObject3D | undefined {
@@ -396,11 +620,32 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._vertPoints.renderOrder = 100
         this._vertPoints.frustumCulled = false
 
+        // Fat lines: an instanced screen-space quad per edge, as Blender's edge overlay draws them.
         const edgeMaterial = createEdgeMaterial()
         edgeMaterial.depthTest = !this.xray
-        this._edgeLines = new LineSegments(new BufferGeometry2(), edgeMaterial)
+        this._edgeLines = new LineSegments2(new LineSegmentsGeometry(), edgeMaterial as never)
         this._edgeLines.renderOrder = 99
         this._edgeLines.frustumCulled = false
+        // The quad is expanded in NDC, where the full height is whatever is being rendered into: the
+        // render target's size, in device pixels, and the width in device pixels to match.
+        // (`LineSegments2.onBeforeRender` uses the renderer's viewport, which is the canvas in CSS
+        // pixels and not the target threepipe renders the scene into; the lines came out 1.5 px.)
+        const size = new Vector2()
+        this._edgeLines.onBeforeRender = (renderer: any) => {
+            const target = renderer.getRenderTarget()
+            if (target) size.set(target.width, target.height)
+            else renderer.getDrawingBufferSize(size)
+            edgeMaterial.uniforms.resolution.value.copy(size)
+            edgeMaterial.uniforms.linewidth.value = edgeLineWidthPx() * this._pixelRatio()
+        }
+
+        // Face dots: the click target of a face, drawn in face mode.
+        const dotMaterial = createFaceDotMaterial(this._pixelRatio())
+        dotMaterial.depthTest = !this.xray
+        this._faceDots = new Points(new BufferGeometry2(), dotMaterial)
+        this._faceDots.renderOrder = 101
+        this._faceDots.frustumCulled = false
+        this._faceDots.visible = false
 
         // Selected faces: Blender's `face_select`, a translucent tint that does not hide the shading.
         const faceMaterial = new UnlitMaterial({
@@ -425,16 +670,23 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._facePreselect.frustumCulled = false
         this._facePreselect.visible = false
 
-        root.add(this._vertPoints as never, this._edgeLines as never, this._faceHighlight as never,
-            this._facePreselect as never)
+        // Overlays are drawing only. The object picker's raycaster walks every child of the scene,
+        // and `LineSegments2.raycast` expects a `LineMaterial`; a widget must not answer at all.
+        for (const obj of [this._vertPoints, this._edgeLines, this._faceDots, this._faceHighlight, this._facePreselect]) {
+            obj.raycast = () => { /* not pickable */ }
+        }
+        root.add(this._vertPoints as never, this._edgeLines as never, this._faceDots as never,
+            this._faceHighlight as never, this._facePreselect as never)
         // Overlays live in the edited object's space, so they follow its transform for free.
         this.editObject.add(root as never)
+
+        this._regionOverlay = new RegionOverlay(viewer.canvas)
 
         this.refreshOverlays()
     }
 
     private _destroyOverlays(): void {
-        for (const obj of [this._vertPoints, this._edgeLines, this._faceHighlight, this._facePreselect]) {
+        for (const obj of [this._vertPoints, this._edgeLines, this._faceDots, this._faceHighlight, this._facePreselect]) {
             obj?.geometry?.dispose?.()
             ;(obj?.material as any)?.dispose?.()
         }
@@ -442,21 +694,96 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._root = null
         this._vertPoints = null
         this._edgeLines = null
+        this._faceDots = null
         this._faceHighlight = null
         this._facePreselect = null
+        this._vertData = null
+        this._edgeData = null
+        this._faceDotData = null
+        this._regionOverlay?.dispose()
+        this._regionOverlay = null
     }
 
-    /** Rebuild every overlay buffer from the current BMesh. Call after positions or topology changed. */
+    /**
+     * Rebuild every overlay buffer from the current BMesh. Call after topology changed, or elements
+     * were hidden or revealed. Selection and hover changes only need {@link _refreshFlags}, and a
+     * running transform only {@link _refreshOverlayPositions}.
+     */
     refreshOverlays(): void {
         if (!this.state) return
         // Elements may have moved, appeared or gone; the selection buffer is rebuilt before the next pick.
         this._selectDirty = true
         // A pre-selected element may no longer exist.
         if (this._preselect && !this._elementAlive(this._preselect)) this._preselect = null
+        this._rebuildOverlayGeometry()
         this._refreshFlags()
     }
 
-    /** Redraw selection, active and hover state. Positions are re-read too; this is cheap per frame. */
+    /** New buffers for the current elements: positions and flags, and the element lists behind them. */
+    private _rebuildOverlayGeometry(): void {
+        const bm = this.state!.bm
+
+        if (this._vertPoints) {
+            const data = this._vertData = buildVertexOverlay(bm)
+            const g = this._vertPoints.geometry
+            g.setAttribute('position', new BufferAttribute(data.position, 3))
+            g.setAttribute('aFlag', new BufferAttribute(data.flag, 1))
+            g.computeBoundingSphere()
+        }
+
+        if (this._edgeLines) {
+            const data = this._edgeData = buildEdgeOverlay(bm)
+            const g = this._edgeLines.geometry as LineSegmentsGeometry
+            g.setPositions(data.position)
+            // The two flags per edge, interleaved, so a selection change rewrites one array in place.
+            const flags = new InstancedInterleavedBuffer(data.flag, 2, 1)
+            g.setAttribute('instanceFlagStart', new InterleavedBufferAttribute(flags, 1, 0))
+            g.setAttribute('instanceFlagEnd', new InterleavedBufferAttribute(flags, 1, 1))
+            g.instanceCount = data.elements.length
+        }
+
+        if (this._faceDots) {
+            const data = this._faceDotData = buildFaceDotOverlay(bm)
+            const g = this._faceDots.geometry
+            g.setAttribute('position', new BufferAttribute(data.position, 3))
+            g.setAttribute('aFlag', new BufferAttribute(data.flag, 1))
+            g.computeBoundingSphere()
+        }
+    }
+
+    /** Re-read the vertex positions into the existing buffers; the topology is unchanged. */
+    private _refreshOverlayPositions(): void {
+        if (!this.state) return
+        this._selectDirty = true
+        if (this._vertPoints && this._vertData) {
+            refreshVertexPositions(this._vertData)
+            const g = this._vertPoints.geometry
+            g.getAttribute('position').needsUpdate = true
+            g.computeBoundingSphere()
+        }
+        if (this._edgeLines && this._edgeData) {
+            refreshEdgePositions(this._edgeData)
+            const g = this._edgeLines.geometry as LineSegmentsGeometry
+            const start = g.getAttribute('instanceStart') as InterleavedBufferAttribute
+            start.data.needsUpdate = true
+            g.computeBoundingSphere()
+        }
+        if (this._faceDots && this._faceDotData) {
+            refreshFaceDotPositions(this._faceDotData)
+            const g = this._faceDots.geometry
+            g.getAttribute('position').needsUpdate = true
+            g.computeBoundingSphere()
+        }
+        this._refreshFlags()
+    }
+
+    /** Whether face dots are drawn right now, from the mode, {@link faceDots} and X-ray. */
+    get faceDotsVisible(): boolean {
+        if (!this.state || !(this.state.bm.selectMode & SelectMode.Face)) return false
+        return this.faceDots === 'always' || this.faceDots === 'xray' && this.xray
+    }
+
+    /** Redraw selection, active and hover state. Rewrites the flag attributes only; cheap per frame. */
     private _refreshFlags(): void {
         if (!this.state) return
         const bm = this.state.bm
@@ -464,26 +791,32 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             ? bm.selectHistory[bm.selectHistory.length - 1].elem : undefined
         const pre = this.preselectHighlight ? this._preselect ?? undefined : undefined
 
-        const showVerts = (bm.selectMode & SelectMode.Vertex) !== 0
+        const vertexMode = (bm.selectMode & SelectMode.Vertex) !== 0
 
-        if (this._vertPoints) {
-            this._vertPoints.visible = showVerts
-            if (showVerts) {
-                const data = buildVertexOverlay(bm, active, pre)
-                const g = this._vertPoints.geometry
-                g.setAttribute('position', new BufferAttribute(data.position, 3))
-                g.setAttribute('aFlag', new BufferAttribute(data.flag, 1))
-                g.computeBoundingSphere()
+        if (this._vertPoints && this._vertData) {
+            this._vertPoints.visible = vertexMode
+            if (vertexMode) {
+                refreshVertexFlags(this._vertData, active, pre)
+                this._vertPoints.geometry.getAttribute('aFlag').needsUpdate = true
                 setOverlayPixelRatio(this._vertPoints.material as ShaderMaterial, this._pixelRatio())
             }
         }
 
-        if (this._edgeLines) {
-            const data = buildEdgeOverlay(bm, active, pre)
-            const g = this._edgeLines.geometry
-            g.setAttribute('position', new BufferAttribute(data.position, 3))
-            g.setAttribute('aFlag', new BufferAttribute(data.flag, 1))
-            g.computeBoundingSphere()
+        if (this._edgeLines && this._edgeData) {
+            refreshEdgeFlags(this._edgeData, active, pre, vertexMode)
+            const g = this._edgeLines.geometry as LineSegmentsGeometry
+            const flags = g.getAttribute('instanceFlagStart') as InterleavedBufferAttribute
+            flags.data.needsUpdate = true
+        }
+
+        if (this._faceDots && this._faceDotData) {
+            const show = this.faceDotsVisible
+            this._faceDots.visible = show
+            if (show) {
+                refreshFaceDotFlags(this._faceDotData, active, pre)
+                this._faceDots.geometry.getAttribute('aFlag').needsUpdate = true
+                setOverlayPixelRatio(this._faceDots.material as ShaderMaterial, this._pixelRatio(), EditTheme.facedotSizePx)
+            }
         }
 
         if (this._faceHighlight) {
@@ -518,6 +851,58 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return bm.faces.has(elem)
     }
 
+    // region camera buttons
+
+    /** three's `MOUSE.ROTATE`. */
+    private static readonly MOUSE_ROTATE = 0
+
+    private _controls(): any {
+        return (this._viewer?.scene.mainCamera as any)?.controls
+    }
+
+    /**
+     * Take the left button away from the camera while edit mode drag-selects: the middle button
+     * orbits (Blender's default) and so does `Alt`+left (Blender's "emulate 3 button mouse").
+     * Restored by {@link _restoreOrbit} on exit.
+     */
+    private _captureOrbit(): void {
+        const controls = this._controls()
+        if (!controls || !controls.mouseButtons || this._orbitSaved) return
+        this._orbitSaved = {controls, mouseButtons: {...controls.mouseButtons}}
+        this._applyOrbitButtons()
+    }
+
+    private _restoreOrbit(): void {
+        const saved = this._orbitSaved
+        if (!saved) return
+        this._orbitSaved = null
+        Object.assign(saved.controls.mouseButtons, saved.mouseButtons)
+    }
+
+    private _applyOrbitButtons(): void {
+        const saved = this._orbitSaved
+        if (!saved) return
+        const mb = saved.controls.mouseButtons
+        if (this._circle) {
+            // Circle select paints with the left and middle buttons; neither may orbit meanwhile.
+            mb.LEFT = null
+            mb.MIDDLE = null
+            mb.RIGHT = saved.mouseButtons.RIGHT
+        } else if (this._orbitButtons) {
+            Object.assign(mb, saved.mouseButtons, this._orbitButtons)
+        } else if (this._dragSelect === 'none') {
+            Object.assign(mb, saved.mouseButtons)
+        } else {
+            mb.LEFT = this._altHeld ? MeshEditPlugin.MOUSE_ROTATE : null
+            mb.MIDDLE = MeshEditPlugin.MOUSE_ROTATE
+            mb.RIGHT = saved.mouseButtons.RIGHT
+        }
+    }
+
+    private _altHeld = false
+
+    // endregion
+
     // endregion
 
     // region selection
@@ -537,15 +922,33 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             else faceSelectSet(bm, elem, select)
             if (select) selectHistoryStore(bm, elem)
         }
+        // `EDBM_select_pick` ends with the mode flush: two selected vertices select their edge, four
+        // corners their face, which is what lets a vertex-mode selection be extruded as a face.
+        selectModeFlush(bm)
         this._afterSelectionChange()
     }
 
+    /** Set the select mode outright, converting the selection (`EDBM_selectmode_set`). */
     setSelectMode(mode: SelectModeMask): void {
         if (!this.state) return
         selectModeSet(this.state.bm, mode)
         this._preselect = null
-        this._refreshFlags()
-        this.dispatchEvent({type: 'elementSelectionChanged', state: this.state})
+        this._afterSelectionChange()
+    }
+
+    /**
+     * The 1 / 2 / 3 keys and the header buttons (`EDBM_selectmode_toggle_multi`, Blender's
+     * `mesh.select_mode` operator): `extend` (Shift) adds the mode to the current ones or removes
+     * it, `expand` (Ctrl) converts the selection so elements touching it come along when going up.
+     * Returns whether the mode changed.
+     */
+    toggleSelectMode(mode: SelectModeMask, opts: {extend?: boolean, expand?: boolean} = {}): boolean {
+        if (!this.state) return false
+        const changed = selectModeToggleMulti(this.state.bm, mode, 2, !!opts.extend, !!opts.expand)
+        if (!changed) return false
+        this._preselect = null
+        this._afterSelectionChange()
+        return true
     }
 
     selectAllElements(): void {
@@ -566,17 +969,252 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._afterSelectionChange()
     }
 
-    /** Select everything connected to the current selection. Blender's `L`. */
-    selectLinked(): void {
+    /**
+     * Grow every selected element to its connected piece. Blender's `Ctrl+L` (`mesh.select_linked`).
+     * `delimit` defaults to {@link linkedDelimit}, or Blender's mode-dependent default.
+     */
+    selectLinked(delimit?: LinkedDelimit): void {
         const state = this.state
         if (!state) return
-        const bm = state.bm
-        const seeds = [...bm.verts].filter(v => v.hflag & ElemFlag.Select)
-        for (const seed of seeds) {
-            for (const v of walkVertShell(seed)) vertSelectSet(bm, v, true)
-        }
+        selectLinkedAll(state.bm, delimit ?? this.linkedDelimit ?? linkedDelimitDefault(state.bm))
         this._afterSelectionChange()
     }
+
+    /**
+     * Select what is connected to the element under the cursor. Blender's `L`
+     * (`mesh.select_linked_pick`); `deselect` is `Shift+L`. Returns false when nothing is there.
+     */
+    selectLinkedPick(x: number, y: number, opts: {deselect?: boolean, delimit?: LinkedDelimit} = {}): boolean {
+        const state = this.state
+        if (!state) return false
+        const elem = this.pickAt(x, y)
+        if (!elem) return false
+        selectLinkedPick(state.bm, elem, !opts.deselect, opts.delimit ?? this.linkedDelimit ?? linkedDelimitDefault(state.bm))
+        this._afterSelectionChange()
+        return true
+    }
+
+    /** Grow the selection by one step. Blender's `Ctrl+Numpad+` (`mesh.select_more`). */
+    selectMore(faceStep = false): void {
+        if (!this.state) return
+        selectMore(this.state.bm, faceStep)
+        this._afterSelectionChange()
+    }
+
+    /** Shrink the selection by one step. Blender's `Ctrl+Numpad-` (`mesh.select_less`). */
+    selectLess(faceStep = false): void {
+        if (!this.state) return
+        selectLess(this.state.bm, faceStep)
+        this._afterSelectionChange()
+    }
+
+    /**
+     * Loop select from the edge under the cursor: the edge loop, or with `ring` the edge ring, or
+     * in face mode the face loop. Blender's `Alt+click` / `Ctrl+Alt+click` (`mesh.loop_select`,
+     * `mesh.edgering_select`). Returns false when no edge is near the cursor.
+     */
+    selectLoop(x: number, y: number, params: Omit<LoopSelectParams, 'cursor'> = {}): boolean {
+        const state = this.state
+        const project = this._projectFn()
+        if (!state || !project) return false
+        const edge = this.pickEdgeAt(x, y)
+        if (!edge) return false
+        const delimit = params.delimit ?? (params.ring ? this.ringDelimit : this.loopDelimit)
+        loopSelectEdge(state.bm, edge, {...params, delimit, cursor: {x, y, project}})
+        this._afterSelectionChange()
+        return true
+    }
+
+    /**
+     * Select the shortest path from the active element to the element of the same kind under the
+     * cursor, toggling it off when the whole path was selected. Blender's `Ctrl+click`
+     * (`mesh.shortest_path_pick`). With nothing selected it selects the element under the cursor.
+     */
+    selectShortestPath(x: number, y: number, params: PathSelectParams = {}): boolean {
+        const state = this.state
+        if (!state) return false
+        const bm = state.bm
+        if (bm.totvertsel === 0) {
+            // Nothing to path from: select the picked element, as Blender does.
+            const picked = this.pickAt(x, y)
+            if (!picked) return false
+            this.selectElement(picked, true)
+            return true
+        }
+        const src = activeElemOrFace(bm)
+        if (!src) return false
+        const dst = this._findNearestOfType(src, x, y)
+        if (!dst) return false
+        const ok = shortestPathPick(bm, src, dst, {trackActive: true, ...this.pathOptions, ...params})
+        if (ok) this._afterSelectionChange()
+        return ok
+    }
+
+    // region region select
+
+    /**
+     * Box select in canvas pixels (`view3d.select_box`). `op`: `set` replaces, `add` extends,
+     * `sub` subtracts, `and` intersects, `xor` toggles. Returns whether the selection changed.
+     */
+    boxSelect(rect: {x0: number, y0: number, x1: number, y1: number}, op: SelectOp = 'set'): boolean {
+        const r: ScreenRect = {
+            xmin: Math.floor(Math.min(rect.x0, rect.x1)), ymin: Math.floor(Math.min(rect.y0, rect.y1)),
+            xmax: Math.floor(Math.max(rect.x0, rect.x1)), ymax: Math.floor(Math.max(rect.y0, rect.y1)),
+        }
+        return this._applyRegion({kind: 'rect', rect: r}, op)
+    }
+
+    /** Lasso select from a polyline of canvas pixels (`view3d.select_lasso`). */
+    lassoSelect(points: readonly (readonly [number, number])[], op: SelectOp = 'set'): boolean {
+        if (points.length < 3) return false
+        const ints: LassoPoint[] = points.map(p => [Math.round(p[0]), Math.round(p[1])])
+        return this._applyRegion({kind: 'lasso', points: ints}, op)
+    }
+
+    /** Circle select around a canvas point (`view3d.select_circle`); `sub` deselects, anything else selects. */
+    circleSelect(x: number, y: number, radius = this.circleRadius, op: SelectOp = 'add'): boolean {
+        return this._applyRegion({kind: 'circle', x, y, radius}, op)
+    }
+
+    /**
+     * The region tools over the selection buffer (`do_mesh_box_select` and friends). Without X-ray,
+     * the buffer says which elements have pixels in the region, so only visible ones take part;
+     * with X-ray everything is projected and tested.
+     */
+    private _applyRegion(shape: RegionShape, op: SelectOp): boolean {
+        const state = this.state
+        const viewer = this._viewer
+        const project = this._projectFn()
+        if (!state || !viewer || !project) return false
+        const bm = state.bm
+
+        let elements: SelectBuffer['elements']
+        let visibility: RegionVisibility | null = null
+        const select = this.xray ? null : this._prepareSelect()
+        if (select) {
+            elements = select.elements
+            const canvas = viewer.canvas.getBoundingClientRect()
+            const W = Math.max(1, Math.floor(canvas.width))
+            const H = Math.max(1, Math.floor(canvas.height))
+            const none = new Uint8Array(0)
+            const bitmap = (domain: SelectDomain): Uint8Array => {
+                if (shape.kind === 'circle') return select.bitmapFromCircle(domain, shape.x, shape.y, shape.radius + 1)
+                const rect = shape.kind === 'rect' ? shape.rect : lassoBoundBox(shape.points)
+                // Keep the read inside the canvas; the buffer cannot be read off its edges.
+                const clamped: ScreenRect = {
+                    xmin: Math.max(0, rect.xmin), ymin: Math.max(0, rect.ymin),
+                    xmax: Math.min(W - 1, rect.xmax), ymax: Math.min(H - 1, rect.ymax),
+                }
+                if (clamped.xmax < clamped.xmin || clamped.ymax < clamped.ymin) return new Uint8Array(select.elements[domain === 'vert' ? 'verts' : domain === 'edge' ? 'edges' : 'faces'].length)
+                return shape.kind === 'rect'
+                    ? select.bitmapFromRect(domain, clamped)
+                    : select.bitmapFromPoly(domain, shape.points, clamped)
+            }
+            const mode = bm.selectMode
+            visibility = {
+                verts: mode & SelectMode.Vertex ? bitmap('vert') : none,
+                edges: mode & SelectMode.Edge ? bitmap('edge') : none,
+                faces: mode & SelectMode.Face ? bitmap('face') : none,
+            }
+        } else {
+            const visible = (e: {hflag: number}) => !(e.hflag & ElemFlag.Hidden)
+            elements = {
+                verts: [...bm.verts].filter(visible),
+                edges: [...bm.edges].filter(visible),
+                faces: [...bm.faces].filter(visible),
+            }
+        }
+
+        const changed = regionSelect(bm, elements, shape, op, project, visibility)
+        if (changed) this._afterSelectionChange()
+        return changed
+    }
+
+    /** The running box or lasso gesture, for an app that wants to draw its own marquee. */
+    get activeRegion(): RegionShape | null {
+        const r = this._region
+        if (!r) return null
+        if (r.kind === 'box') {
+            return {kind: 'rect', rect: {xmin: Math.min(r.x0, r.x1), ymin: Math.min(r.y0, r.y1), xmax: Math.max(r.x0, r.x1), ymax: Math.max(r.y0, r.y1)}}
+        }
+        return {kind: 'lasso', points: r.points}
+    }
+
+    /** Whether the circle-select modal (`C`) is running. */
+    get isCircleSelecting(): boolean {
+        return this._circle !== null
+    }
+
+    /**
+     * Start Blender's circle select modal (`C`): the circle follows the cursor, the left button
+     * paints a selection, the middle button (or `Shift`+left) deselects, the wheel resizes it, and
+     * `Esc`, `Enter` or the right button end it.
+     */
+    startCircleSelect(): void {
+        if (!this.isEditing || this._circle) return
+        this._endRegion(false)
+        this._circle = {painting: false, op: 'add', first: true}
+        this._applyOrbitButtons()
+        this._setPreselect(null)
+        this._drawCircle()
+    }
+
+    endCircleSelect(): void {
+        if (!this._circle) return
+        this._circle = null
+        this._regionOverlay?.clear()
+        this._applyOrbitButtons()
+        this.dispatchEvent({type: 'regionChanged', region: null})
+    }
+
+    private _drawCircle(): void {
+        this._regionOverlay?.circle(this._pointerX, this._pointerY, this.circleRadius)
+        this.dispatchEvent({type: 'regionChanged', region: {kind: 'circle', x: this._pointerX, y: this._pointerY, radius: this.circleRadius}})
+    }
+
+    private _endRegion(apply: boolean): void {
+        const r = this._region
+        if (!r) return
+        this._region = null
+        this._regionOverlay?.clear()
+        if (apply) {
+            if (r.kind === 'box') this.boxSelect({x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1}, r.op)
+            else this.lassoSelect(r.points, r.op)
+        }
+        this.dispatchEvent({type: 'regionChanged', region: null})
+    }
+
+    // endregion
+
+    // region hide and reveal
+
+    /** Hide the selected elements, or with `unselected` everything else. Blender's `H` / `Shift+H`. */
+    hideSelected(unselected = false): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        if (!meshHide(state.bm, unselected)) {
+            this._notice(unselected ? 'Nothing to hide: everything is selected.' : 'Select something to hide first.', 'info')
+            return false
+        }
+        this._preselect = null
+        this._commitTopologyChange(before)
+        this.dispatchEvent({type: 'elementSelectionChanged', state})
+        return true
+    }
+
+    /** Show every hidden element, selecting what comes back. Blender's `Alt+H`. */
+    revealHidden(select = true): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        if (!meshReveal(state.bm, select)) return false
+        this._commitTopologyChange(before)
+        this.dispatchEvent({type: 'elementSelectionChanged', state})
+        return true
+    }
+
+    // endregion
 
     private _afterSelectionChange(): void {
         this._refreshFlags()
@@ -925,6 +1563,24 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return {x: event.clientX - rect.left, y: event.clientY - rect.top}
     }
 
+    /** The selection buffer, up to date with the mesh and the view, or null with X-ray or outside edit mode. */
+    private _prepareSelect(): SelectBuffer | null {
+        const state = this.state
+        const viewer = this._viewer
+        const object = this.editObject
+        const select = this._select
+        if (!state || !viewer || !object || !select) return null
+        if (this._selectDirty) {
+            select.update(state.bm)
+            this._selectDirty = false
+        }
+        const rect = viewer.canvas.getBoundingClientRect()
+        object.updateWorldMatrix(true, false)
+        select.matrixWorld.copy(object.matrixWorld as never)
+        select.setView(viewer.renderManager.renderer as any, viewer.scene.mainCamera as never, rect.width, rect.height)
+        return select
+    }
+
     /**
      * The element a click at this point means.
      *
@@ -934,28 +1590,67 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
      */
     pickAt(x: number, y: number, cycle = false): BMVert | BMEdge | BMFace | null {
         const state = this.state
-        const viewer = this._viewer
-        const object = this.editObject
         const project = this._projectFn()
-        if (!state || !viewer || !object || !project) return null
+        if (!state || !project) return null
 
-        if (this.xray || !this._select) {
+        const select = this.xray ? null : this._prepareSelect()
+        if (!select) {
             return pickElement(state.bm, x, y, project, {
                 maxDistance: this.pickDistance,
                 xray: true,
             }, cycle ? this._cycle : undefined).element
         }
-
-        const select = this._select
-        if (this._selectDirty) {
-            select.update(state.bm)
-            this._selectDirty = false
-        }
-        const rect = viewer.canvas.getBoundingClientRect()
-        object.updateWorldMatrix(true, false)
-        select.matrixWorld.copy(object.matrixWorld as never)
-        select.setView(viewer.renderManager.renderer as any, viewer.scene.mainCamera as never, rect.width, rect.height)
         return unifiedFindNearest(state.bm, select.elements, select, x, y, project).element
+    }
+
+    /**
+     * The edge nearest the cursor whatever the select mode, as loop select needs it
+     * (`edbm_select_loop_or_ring_pick` switches the mode to edges for the pick).
+     */
+    pickEdgeAt(x: number, y: number): BMEdge | null {
+        const state = this.state
+        if (!state) return null
+        const bm = state.bm
+        const saved = bm.selectMode
+        bm.selectMode = SelectMode.Edge
+        try {
+            const e = this.pickAt(x, y)
+            return e instanceof BMEdge ? e : null
+        } finally {
+            bm.selectMode = saved
+        }
+    }
+
+    /**
+     * `edbm_elem_find_nearest` (`editmesh_path.cc:701`): the nearest element of `src`'s kind within
+     * Blender's 75 px, from the buffer, or projected with X-ray.
+     */
+    private _findNearestOfType(src: BMVert | BMEdge | BMFace, x: number, y: number): BMVert | BMEdge | BMFace | null {
+        const state = this.state
+        const project = this._projectFn()
+        if (!state || !project) return null
+        const bm = state.bm
+        const domain: SelectDomain = src instanceof BMVert ? 'vert' : src instanceof BMEdge ? 'edge' : 'face'
+        const domainMode = domain === 'vert' ? SelectMode.Vertex : domain === 'edge' ? SelectMode.Edge : SelectMode.Face
+        if (!(bm.selectMode & domainMode)) return null
+
+        const select = this.xray ? null : this._prepareSelect()
+        if (select) {
+            if (domain === 'face') {
+                const index = select.samplePoint('face', x, y)
+                return index === null ? null : select.elements.faces[index] ?? null
+            }
+            const found = select.findNearest(domain, x, y, SELECT_DIST_PX)
+            if (!found || found.dist >= SELECT_DIST_PX) return null
+            return (domain === 'vert' ? select.elements.verts[found.index] : select.elements.edges[found.index]) ?? null
+        }
+        const saved = bm.selectMode
+        bm.selectMode = domainMode
+        try {
+            return pickElement(bm, x, y, project, {maxDistance: SELECT_DIST_PX, xray: true}).element
+        } finally {
+            bm.selectMode = saved
+        }
     }
 
     private _setPreselect(elem: BMVert | BMEdge | BMFace | null): void {
@@ -972,9 +1667,14 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._pointerY = y
         if (this._transform) {
             this._transform.setMousePosition(x, y)
-            this._refreshFlags()
+            this._refreshOverlayPositions()
             this._scheduleLiveUpdate()
             this.dispatchEvent({type: 'transformChanged', transform: this._transform})
+            return
+        }
+        if (this._circle) {
+            this._drawCircle()
+            if (this._circle.painting) this.circleSelect(x, y, this.circleRadius, this._circle.op)
             return
         }
         // Hover: what would a click here select? Not while a button is held - that is an orbit or a drag.
@@ -982,13 +1682,44 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (this._hoverFrame) return
         this._hoverFrame = requestAnimationFrame(() => {
             this._hoverFrame = 0
-            if (!this.isEditing || this._transform) return
+            if (!this.isEditing || this._transform || this._region || this._circle) return
             this._setPreselect(this.pickAt(this._pointerX, this._pointerY))
         })
     }
 
+    /** A box or lasso drag carries on outside the canvas; follow it from the window. */
+    private _onWindowPointerMove = (event: PointerEvent): void => {
+        const press = this._press
+        if (!press || !this.isEditing || this.isDisabled() || this._transform || this._circle) return
+        if (!(event.buttons & 1)) return
+        const {x, y} = this._canvasPos(event)
+        if (!this._region) {
+            if (this._dragSelect === 'none' || press.alt) return
+            if (Math.abs(x - press.x) <= this.dragThreshold && Math.abs(y - press.y) <= this.dragThreshold) return
+            // The modifiers at the press decide the mode, as Blender's gesture reads them at its start.
+            const op = selectOpFromModifiers(press.shift, press.ctrl)
+            this._region = this._dragSelect === 'lasso'
+                ? {kind: 'lasso', op, x0: press.x, y0: press.y, x1: x, y1: y, points: [[Math.round(press.x), Math.round(press.y)]]}
+                : {kind: 'box', op, x0: press.x, y0: press.y, x1: x, y1: y, points: []}
+            this._setPreselect(null)
+        }
+        const r = this._region
+        r.x1 = x
+        r.y1 = y
+        if (r.kind === 'box') {
+            this._regionOverlay?.box(r.x0, r.y0, r.x1, r.y1)
+        } else {
+            const last = r.points[r.points.length - 1]
+            const px = Math.round(x)
+            const py = Math.round(y)
+            if (Math.abs(px - last[0]) >= 2 || Math.abs(py - last[1]) >= 2) r.points.push([px, py])
+            this._regionOverlay?.lasso(r.points)
+        }
+        this.dispatchEvent({type: 'regionChanged', region: this.activeRegion})
+    }
+
     private _onPointerLeave = (): void => {
-        if (this.isEditing) this._setPreselect(null)
+        if (this.isEditing && !this._region) this._setPreselect(null)
     }
 
     private _onPointerDown = (event: PointerEvent): void => {
@@ -1000,24 +1731,60 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             else if (event.button === 2) this.cancelTransform()
             return
         }
+        if (this._circle) {
+            if (event.button === 0 || event.button === 1) {
+                // Left paints a selection, middle (or Shift+left) a deselection.
+                this._circle.op = event.button === 1 || event.shiftKey ? 'sub' : 'add'
+                this._circle.painting = true
+                const {x, y} = this._canvasPos(event)
+                this.circleSelect(x, y, this.circleRadius, this._circle.op)
+                event.preventDefault()
+            } else if (event.button === 2) {
+                this.endCircleSelect()
+            }
+            return
+        }
         if (event.button !== 0) return
-        // Selection waits for the release: a press that turns into a drag is an orbit, not a click.
-        this._press = this._canvasPos(event)
+        // Selection waits for the release: a press that turns into a drag is a box select, or an orbit.
+        const {x, y} = this._canvasPos(event)
+        this._press = {x, y, shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey, alt: event.altKey}
     }
 
     private _onPointerUp = (event: PointerEvent): void => {
         const press = this._press
         this._press = null
-        if (!press || !this.isEditing || this.isDisabled() || this._transform || event.button !== 0) return
+        if (!this.isEditing || this.isDisabled()) return
+        if (this._circle) {
+            this._circle.painting = false
+            return
+        }
+        if (this._region) {
+            if (event.button === 0) this._endRegion(true)
+            return
+        }
+        if (!press || this._transform || event.button !== 0) return
         const {x, y} = this._canvasPos(event)
         if (Math.abs(x - press.x) > this.dragThreshold || Math.abs(y - press.y) > this.dragThreshold) return
 
+        const shift = event.shiftKey
+        const ctrl = event.ctrlKey || event.metaKey
+        const alt = event.altKey
+
+        // Blender's click variants: Alt is a loop (Ctrl+Alt a ring, Shift toggles it), Ctrl is the
+        // shortest path from the active element, Shift toggles the element.
+        if (alt) {
+            this.selectLoop(x, y, {ring: ctrl, toggle: shift})
+            return
+        }
+        if (ctrl) {
+            this.selectShortestPath(x, y)
+            return
+        }
         const elem = this.pickAt(x, y, true)
-        const extend = event.shiftKey || event.ctrlKey || event.metaKey
         // Clicking empty space deselects everything (Blender's `deselect_all` on click); Shift-clicking
         // empty space leaves the selection alone.
-        if (!elem && extend) return
-        this.selectElement(elem, extend)
+        if (!elem && shift) return
+        this.selectElement(elem, shift)
     }
 
     /** Double-click a mesh to edit it, the way a Figma user drills into a group. */
@@ -1025,6 +1792,21 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (this.isDisabled() || this.isEditing || event.button !== 0) return
         const picked = this._selectedMesh()
         if (picked) this.enter(picked)
+    }
+
+    /** The wheel resizes the circle while circle select runs; otherwise it zooms as usual. */
+    private _onWheel = (event: WheelEvent): void => {
+        if (!this._circle || this.isDisabled()) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        // Blender steps the gesture radius by a fixed amount per wheel click.
+        this.circleRadius = Math.max(1, this.circleRadius + (event.deltaY < 0 ? 5 : -5))
+        this._drawCircle()
+    }
+
+    /** The right button ends circle select rather than opening the browser's menu. */
+    private _onContextMenu = (event: MouseEvent): void => {
+        if (this._circle) event.preventDefault()
     }
 
     /** Keys typed into a form control belong to it, not to the viewport. */
@@ -1035,9 +1817,23 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || el.isContentEditable
     }
 
+    private _onKeyUp = (event: KeyboardEvent): void => {
+        if (event.key === 'Alt' && this._altHeld) {
+            this._altHeld = false
+            this._applyOrbitButtons()
+        }
+    }
+
     private _onKeyDown = (event: KeyboardEvent): void => {
         if (this.isDisabled()) return
         if (this._isTypingTarget(event.target)) return
+
+        // Alt held makes the left button orbit (Blender's "emulate 3 button mouse"), since the plain
+        // left drag is the box select.
+        if (event.key === 'Alt' && !this._altHeld) {
+            this._altHeld = true
+            this._applyOrbitButtons()
+        }
 
         // Tab toggles edit mode whether or not we are in it. Only when focus is not on a control, so
         // keyboard navigation of the rest of the page still works.
@@ -1070,36 +1866,83 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
                 return
             }
             t.precision = event.shiftKey
-            this.refreshOverlays()
+            this._refreshOverlayPositions()
             this.dispatchEvent({type: 'transformChanged', transform: this._transform})
             event.preventDefault()
             return
         }
 
-        if (event.ctrlKey || event.metaKey) {
-            if (event.code === 'KeyI') {
+        // So does circle select: the keys that end it, and nothing else.
+        if (this._circle) {
+            if (event.code === 'Escape' || event.code === 'Enter' || event.code === 'NumpadEnter' || event.code === 'KeyC') {
+                this.endCircleSelect()
                 event.preventDefault()
-                this.invertSelection()
             }
+            return
+        }
+
+        const modeKey = event.code === 'Digit1' ? SelectMode.Vertex
+            : event.code === 'Digit2' ? SelectMode.Edge
+                : event.code === 'Digit3' ? SelectMode.Face : 0
+
+        if (event.ctrlKey || event.metaKey) {
+            switch (event.code) {
+            case 'KeyI':
+                this.invertSelection()
+                break
+            case 'KeyL':
+                this.selectLinked()
+                break
+            case 'NumpadAdd':
+            case 'Equal':
+                this.selectMore()
+                break
+            case 'NumpadSubtract':
+            case 'Minus':
+                this.selectLess()
+                break
+            case 'Digit1':
+            case 'Digit2':
+            case 'Digit3':
+                // Ctrl expands the selection on the way up the modes.
+                this.toggleSelectMode(modeKey, {extend: event.shiftKey, expand: true})
+                break
+            default:
+                return
+            }
+            event.preventDefault()
             return
         }
 
         switch (event.code) {
         case 'Digit1':
-            this.setSelectMode(SelectMode.Vertex)
-            break
         case 'Digit2':
-            this.setSelectMode(SelectMode.Edge)
-            break
         case 'Digit3':
-            this.setSelectMode(SelectMode.Face)
+            // Shift combines modes.
+            this.toggleSelectMode(modeKey, {extend: event.shiftKey})
             break
         case 'KeyA':
             if (event.altKey) this.deselectAllElements()
             else this.selectAllElements()
             break
         case 'KeyL':
-            this.selectLinked()
+            // Linked under the cursor; Shift+L deselects it.
+            this.selectLinkedPick(this._pointerX, this._pointerY, {deselect: event.shiftKey})
+            break
+        case 'KeyB':
+            this.dragSelect = 'box'
+            this._notice('Drag to box select. Shift adds, Ctrl subtracts.', 'info')
+            break
+        case 'KeyC':
+            this.startCircleSelect()
+            break
+        case 'KeyH':
+            if (event.altKey) this.revealHidden()
+            else this.hideSelected(event.shiftKey)
+            break
+        case 'KeyZ':
+            if (!event.altKey) return
+            this.xray = !this.xray
             break
         case 'KeyG':
             this.startTransform('translate')
@@ -1133,7 +1976,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
                     : this.selectMode & SelectMode.Edge ? 'edges' : 'verts')
             break
         case 'Escape':
-            // Outside a transform Esc does nothing, as in Blender: it must never throw away a session.
+            // Esc ends a box or lasso drag; outside a modal it does nothing, as in Blender: it must
+            // never throw away a session.
+            if (this._region) {
+                this._endRegion(false)
+                this._press = null
+                break
+            }
             return
         default:
             return
