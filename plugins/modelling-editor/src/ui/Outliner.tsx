@@ -177,12 +177,33 @@ export class HierarchyTree<T extends IObject3D = IObject3D> extends BPTreeCompon
     }
 
     private _selectedIds: Set<string> | undefined
+    private _refreshPending = false
+    private _refreshRunning = false
+    /**
+     * Rebuild the tree. `BPComponent.refreshConfigState` drops a call made while its previous one is
+     * still settling (uiconfig-blueprint, `_refreshing`), so a burst of scene events - File > New
+     * removing every object - left the tree one step behind. Refreshes are drained until none is
+     * pending; see issues/open/uiconfig-blueprint-refresh-drops-calls.md.
+     */
     private _refresh = () => {
-        const picking = this._viewer.getPlugin(PickingPlugin)
-        this._selectedIds = new Set(picking?.getSelectedObjects<IObject3D>().map(o => o?.uuid).filter(u => !!u) as string[])
-        const edit = this._viewer.getPlugin(MeshEditPlugin)?.editObject
-        if (edit) this._selectedIds.add(edit.uuid)
-        this.refreshConfigState()
+        this._refreshPending = true
+        if (!this._refreshRunning) void this._drainRefresh()
+    }
+
+    private async _drainRefresh() {
+        this._refreshRunning = true
+        try {
+            while (this._refreshPending) {
+                this._refreshPending = false
+                const picking = this._viewer.getPlugin(PickingPlugin)
+                this._selectedIds = new Set(picking?.getSelectedObjects<IObject3D>().map(o => o?.uuid).filter(u => !!u) as string[])
+                const edit = this._viewer.getPlugin(MeshEditPlugin)?.editObject
+                if (edit) this._selectedIds.add(edit.uuid)
+                await this.refreshConfigState()
+            }
+        } finally {
+            this._refreshRunning = false
+        }
     }
 
     componentDidMount() {
