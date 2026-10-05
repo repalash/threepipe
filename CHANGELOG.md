@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file.
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Add `TextureLoader2` ([docs](./website/plugin/TextureLoader2.md)) — subclass of three.js `TextureLoader` that can keep the source bytes of loaded images on `texture.source._sourceImgBuffer`. It is used in place of `TextureLoader` in `AssetManager`, and behaves the same unless enabled
+  - Enable with `TextureLoader2.SAVE_SOURCE_BLOBS = true` (global) or `loader.saveSourceBlobs = true` (per instance). Off by default since every texture keeps a copy of its source file in memory
+  - Not used for `data:` / `blob:` urls and urls without a known image extension
+- `GLTFWriter2.processTexture` writes the source bytes of jpeg/png textures as is when available, instead of re-encoding the image with a canvas — same bytes in every browser, no quality loss and faster export. The canvas is still used for textures with `flipY`, images larger than `maxTextureSize`, and images exported as a url reference
+  - Enabled in the `tweakpane-editor` example along with `KTX2LoadPlugin.SAVE_SOURCE_BLOBS`
+- **Breaking**: `__sourceBlob`, `__sourceBuffer` and `__needsSourceBuffer` moved from `userData` to the asset itself (`IImportResultUserData` → `ImportResultExtras`). `AssetImporter.processRaw` sets `asset.__sourceBlob` / `asset.__sourceBuffer`, and loaders request the buffer with `asset.__needsSourceBuffer = true`. `serializeTextureInExtras` already read `texture.__sourceBuffer`, so the buffer saved in `userData` was never used
+- Fix a crash when serializing textures and render targets with a `meta` that has no `textures` / `extras`
 
 ### Fixed
 
