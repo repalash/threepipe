@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - Switch `three` and `@types/three` dependencies from GitHub Releases tgz URLs to npm packages using `npm:` aliases
   - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
   - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
+- Fix Playwright e2e runs crashing with `Cannot redefine property: Symbol($$jest-matchers-object)` when vitest tests exist in `tests/unit` — playwright's default `testMatch` also matches `.test.ts`, added `**/tests/unit/**` to `testIgnore` in `playwright.config.ts`
+- Add [Publishing guide](./website/guide/publishing.md), and `tests/SKILL.md`, `tests/SKILL-interactive-tests.md` — docs for the test setup and for writing interactive tests
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
