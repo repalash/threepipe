@@ -3,6 +3,8 @@ import {readFileSync, existsSync} from 'node:fs'
 
 const VIEWPORT_WIDTH = parseInt(process.env.VIEWPORT_WIDTH || '1280')
 const VIEWPORT_HEIGHT = parseInt(process.env.VIEWPORT_HEIGHT || '720')
+// Port for the static test server. Override (TEST_PORT) to run several checkouts/worktrees side by side
+const PORT = parseInt(process.env.TEST_PORT || '9229')
 const WORKERS = process.env.PLAYWRIGHT_WORKERS ? parseInt(process.env.PLAYWRIGHT_WORKERS) : (process.env.CI ? 2 : 6)
 
 // Alpine Linux: system Chromium + Mesa GL (no SwiftShader available)
@@ -44,7 +46,7 @@ export default defineConfig({
     workers: WORKERS,
     reporter: process.env.CI ? [['html', {open: 'never'}], ['line']] : 'html',
     use: {
-        baseURL: 'http://127.0.0.1:9229',
+        baseURL: `http://127.0.0.1:${PORT}`,
         trace: 'on-first-retry',
         viewport: {width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT},
         launchOptions: {
@@ -80,8 +82,8 @@ export default defineConfig({
         // },
     ],
     webServer: {
-        command: 'npm run serve',
-        url: 'http://127.0.0.1:9229',
+        command: `npm run test:e2e:serve -- -p ${PORT}`,
+        url: `http://127.0.0.1:${PORT}`,
         reuseExistingServer: !process.env.CI,
     },
 })

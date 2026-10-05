@@ -1,4 +1,5 @@
 import {
+    BasicDepthPacking,
     RGBADepthPacking,
     BufferGeometry,
     Camera,
@@ -67,9 +68,19 @@ export class DepthBufferPlugin
     // @onChange2(DepthBufferPlugin.prototype._createTarget)
     readonly isPrimaryGBuffer: boolean // cannot be changed after creation (for now)
 
+    /**
+     * Clear color of the depth target, i.e. the packed value of the far plane (depth = 1) for the current packing.
+     * - RGBADepthPacking: `packDepthToRGBA(1.0)` is `vec4(1.0)`. (black with alpha 1 unpacks to ~0 with the packing in three.js since r167, which makes the background read as the near plane)
+     * - BasicDepthPacking: three.js writes `1.0 - depth`, so far is black.
+     */
+    protected _getClearColor(): Color {
+        return this.depthPacking === BasicDepthPacking ? new Color(0, 0, 0) : new Color(1, 1, 1)
+    }
+
     protected _depthPackingChanged() {
         this.material.depthPacking = this.depthPacking
         this.material.needsUpdate = true
+        if (this._pass) this._pass.clearColor = this._getClearColor()
         if (this.unpackExtension && this.unpackExtension.extraDefines) {
             this.unpackExtension.extraDefines.DEPTH_PACKING = this.depthPacking
             this.unpackExtension.setDirty?.()
@@ -147,7 +158,7 @@ export class DepthBufferPlugin
         this._createTarget(true)
         if (!this.target) throw new Error('DepthBufferPlugin: target not created')
         this.material.userData.isGBufferMaterial = true
-        const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(0, 0, 0), 1)
+        const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, this._getClearColor(), 1)
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth) // if renderToDepth is undefined then renderToGbuffer is taken internally
         pass.before = ['render']
