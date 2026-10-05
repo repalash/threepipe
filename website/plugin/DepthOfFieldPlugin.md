@@ -13,7 +13,7 @@ aside: false
 # DepthOfFieldPlugin (Depth of Field Plugin)
 
 [Example](https://threepipe.org/examples/#depthoffield-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/DepthOfFieldPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/DepthOfFieldPlugin.html)
 
 <iframe src="https://threepipe.org/examples/depthoffield-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Depth of Field Plugin Example"></iframe>
 
@@ -36,7 +36,7 @@ The DepthOfFieldPlugin implements a high-quality multi-pass depth of field algor
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins
