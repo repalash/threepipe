@@ -4,8 +4,8 @@ prev:
     link: './plugin-geometry-generator'
 
 next: 
-    text: '@threepipe/plugins-extra-importers'
-    link: './plugins-extra-importers'
+    text: '@threepipe/plugin-draco-js'
+    link: './plugin-draco-js'
 
 ---
 
