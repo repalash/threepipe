@@ -25,7 +25,6 @@ import {BVH, BVHLoader} from 'three/examples/jsm/loaders/BVHLoader.js'
 import {Chunk, VOXLoader, VOXMesh} from 'three/examples/jsm/loaders/VOXLoader.js'
 import {MDD, MDDLoader} from 'three/examples/jsm/loaders/MDDLoader.js'
 import {PCDLoader} from 'three/examples/jsm/loaders/PCDLoader.js'
-import {TiltLoader} from 'three/examples/jsm/loaders/TiltLoader.js'
 import {VRMLLoader} from 'three/examples/jsm/loaders/VRMLLoader.js'
 import {LDrawLoader} from 'three/examples/jsm/loaders/LDrawLoader.js'
 import {VTKLoader} from 'three/examples/jsm/loaders/VTKLoader.js'
@@ -160,15 +159,6 @@ export class PCDLoadPlugin extends BaseImporterPlugin {
     }, ['pcd'], ['application/pcd'], false)
 }
 
-// tilt
-/**
- * Adds support for loading Tilt brush `.tilt`, `application/tilt` files and data uris
- */
-export class TiltLoadPlugin extends BaseImporterPlugin {
-    public static readonly PluginType = 'TiltLoadPlugin'
-    protected _importer = new Importer(TiltLoader, ['tilt'], ['application/tilt'], false)
-}
-
 // vrml
 /**
  * Adds support for loading VRML `.wrl`, `model/vrml` files and data uris
@@ -239,7 +229,6 @@ export const extraImportPlugins = [
     VOXLoadPlugin,
     MDDLoadPlugin,
     PCDLoadPlugin,
-    TiltLoadPlugin,
     VRMLLoadPlugin,
     LDrawLoadPlugin,
     VTKLoadPlugin,
