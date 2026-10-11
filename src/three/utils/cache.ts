@@ -77,6 +77,11 @@ export function overrideThreeCache(storage?: Cache | Storage) {
                 return undefined
             }
             return payload
+        }).catch((e: any) => {
+            // The CacheStorage lookup itself failed (CacheStorage unavailable, quota, corrupted entry). Treat it as a cache miss,
+            // so the loader falls through to the network. Rejecting here leaves loaders that don't handle it (ImageLoader) waiting forever.
+            console.warn('[threepipe cache] lookup failed for', url, e)
+            return undefined
         })
     }
     threeCache.add = async(url: string, data: any, responseType?: string) => {
@@ -89,17 +94,20 @@ export function overrideThreeCache(storage?: Cache | Storage) {
             console.warn('[threepipe cache] skipping empty payload for', url)
             return
         }
-        // FileLoader passes the decoded data, which is not a valid Response body for json and document.
-        const body: BodyInit = responseType === 'json' ? JSON.stringify(data) :
-            responseType === 'document' ? new XMLSerializer().serializeToString(data) : data
-        // noinspection JSIgnoredPromiseFromCall
-        if (await cache.match(url)) await cache.delete(url)
-        // todo this can throw - Request scheme 'x' is unsupported, check if scheme is supported
-        await cache.put(url, new Response(body, {status: 200})).catch((e: any)=>{console.warn('[threepipe cache] add failed for', url, e)})
+        // The loaders don't await or catch the returned promise, so any failure here is only warned.
+        try {
+            // FileLoader passes the decoded data, which is not a valid Response body for json and document.
+            const body: BodyInit = responseType === 'json' ? JSON.stringify(data) :
+                responseType === 'document' ? new XMLSerializer().serializeToString(data) : data
+            if (await cache.match(url)) await cache.delete(url)
+            // todo put rejects for unsupported schemes (Request scheme 'x' is unsupported), check if the scheme is supported before
+            await cache.put(url, new Response(body, {status: 200}))
+        } catch (e: any) {
+            console.warn('[threepipe cache] add failed for', url, e)
+        }
     }
     threeCache.remove = (url: string, responseType?: string) => {
         if (!responseType) return oldCache.remove(url)
-        // noinspection JSIgnoredPromiseFromCall
-        cache.delete(url)
+        cache.delete(url).catch((e: any)=>{console.warn('[threepipe cache] remove failed for', url, e)})
     }
 }
