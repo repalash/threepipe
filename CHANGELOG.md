@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Store e2e snapshot baselines in R2 as content-addressed blobs with a per-env manifest `tests/snapshots.<env>.json` in the repo (`npm run test:e2e:sync|push|snapshots-status`), replacing the separate snapshot repo and `tests/sync-snapshots.sh` / `tests/update-snapshots.sh`
 
 ### Fixed
 
