@@ -6,9 +6,9 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+### Removed
 
-- NA
+- `TiltLoadPlugin` — three.js r169 removed `TiltLoader` (Tilt Brush `.tilt` files)
 
 ## [0.2.6] - 2025-19-24
 
