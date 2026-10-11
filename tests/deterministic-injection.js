@@ -95,12 +95,12 @@
      * onloadend callbacks that fire in non-deterministic order, causing different
      * bufferView indices and binary layouts across runs.
      *
-     * Fix: pre-allocate bufferView slots, defer buffer data, then in write() finalize
+     * Fix: pre-allocate bufferView slots, defer buffer data, then in writeAsync() finalize
      * them in image-array order (deterministic) after all pending promises complete.
      *
      * Called from GLTFWriter2's static {} block during module load. */
     window.testing_patchGLTFWriter2 = function (GLTFWriter2) {
-        var _origWrite = GLTFWriter2.prototype.write;
+        var _origWriteAsync = GLTFWriter2.prototype.writeAsync;
 
         GLTFWriter2.prototype.processBufferViewImage = function (blob) {
             if (!this._deferredImages) this._deferredImages = [];
@@ -115,7 +115,7 @@
             return Promise.resolve(callIndex);
         };
 
-        GLTFWriter2.prototype.write = async function (input, onDone, options) {
+        GLTFWriter2.prototype.writeAsync = async function (input, onDone, options) {
             if (!this._deferredImages) this._deferredImages = [];
 
             // --- Option setup (mirrors base class) ---
@@ -126,7 +126,7 @@
             }, options || {});
             if (this.options.animations.length > 0) this.options.trs = true;
 
-            this.processInput(input);
+            await this.processInputAsync(input);
             await Promise.all(this.pending);
 
             // --- Finalize deferred image bufferViews in deterministic order ---
