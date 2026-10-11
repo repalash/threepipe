@@ -34,7 +34,6 @@ This package exports several plugins to add support for several file types using
 - [GCodeLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/GCodeLoadPlugin.html) - Load GCode (.gcode) files
 - [MDDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/MDDLoadPlugin.html) - Load MDD (.mdd) files
 - [PCDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/PCDLoadPlugin.html) - Load Point cloud data (.pcd) files
-- [TiltLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/TiltLoadPlugin.html) - Load Tilt Brush (.tilt) files
 - [VRMLLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VRMLLoadPlugin.html) - Load VRML (.wrl) files
 - [MPDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/MPDLoadPlugin.html) - Load LDraw (.mpd) files
 - [VTKLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VTKLoadPlugin.html) - Load VTK (.vtk) files
