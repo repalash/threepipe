@@ -450,8 +450,8 @@ renderManager.clearColor({r: 0, g: 0, b: 0, a: 1, depth: true, viewport: new Vec
 // Clear of a render target
 renderManager.clearColor(renderTarget, {r: 0, g: 0, b: 0, a: 1, target: renderTarget})
 
-// Export a render target to a blob. The type is automatically picked from exr to png based on the render target
-const blob = renderManager.exportRenderTarget(renderTarget, 'auto')
+// Export a render target to a blob. The type is automatically picked from exr to png based on the render target (async)
+const blob = await renderManager.exportRenderTarget(renderTarget, 'auto')
 
 // Export a render target to png/jpeg data url. This will clamp any floating point targets to fit in png/jpeg
 const dataUrl = renderManager.renderTargetToDataUrl(renderTarget, 'image/png')

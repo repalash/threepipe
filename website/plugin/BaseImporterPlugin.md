@@ -100,7 +100,7 @@ protected _importer = new Importer(class extends STLLoader implements ILoader {
 
 ### External Packages
 
-- **[@threepipe/plugins-extra-importers](../package/plugins-extra-importers)** — 14 additional formats: 3DS, 3MF, Collada, AMF, GCode, BVH, VOX, MDD, PCD, Tilt, VRML, LDraw, VTK, XYZ
+- **[@threepipe/plugins-extra-importers](../package/plugins-extra-importers)** — 13 additional formats: 3DS, 3MF, Collada, AMF, GCode, BVH, VOX, MDD, PCD, VRML, LDraw, VTK, XYZ
 - **[@threepipe/plugin-blend-importer](../package/plugin-blend-importer)** — Blender `.blend` files
 - **[@threepipe/plugin-3d-tiles-renderer](../package/plugin-3d-tiles-renderer)** — B3DM, CMPT, PNTS, I3DM, DZI, slippy map tiles
 

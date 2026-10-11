@@ -235,7 +235,7 @@ function removeImage(config: UiObjectConfig, renderer: TweakpaneUiPlugin) {
     setterTex(isStr ? '' : null, config, renderer)
 }
 
-function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: ThreeViewer) {
+async function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: ThreeViewer) {
     CustomContextMenu.Remove()
     const tex: ITexture&Partial<ImportResultExtras> = config.__proxy.value_
     if (!tex) return
@@ -256,7 +256,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
     if (!src && tex.isRenderTargetTexture) {
         const target1 = tex._target
         if (target1?.isWebGLRenderTarget) {
-            const val = viewer.renderManager.exportRenderTarget(target1 as WebGLRenderTarget)
+            const val = await viewer.renderManager.exportRenderTarget(target1 as WebGLRenderTarget)
             if (!val) {
                 console.error('cannot export render target', vcv, tex, target1, config)
                 return
@@ -277,7 +277,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
             return
         }
         // todo: use viewer.export directly (check threepipe Readme)
-        const buffer = new EXRExporter2().parse(undefined as any, tex as DataTexture&ITexture)
+        const buffer = await new EXRExporter2().parse(tex as DataTexture&ITexture)
         const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
         if (!val) {
             console.error('cannot export data texture', vcv, tex, config)
@@ -392,7 +392,7 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
         const cv = config.uiRef.controller_.valueController.value.rawValue
         const isPlaceholder = cv === staticData.placeholderVal || cv?.isPlaceholder
         const items: any = isPlaceholder ? {} : {
-            ['download image']: () => downloadImage(config, renderer, viewer),
+            ['download image']: async() => downloadImage(config, renderer, viewer),
         }
         const readOnly = getOrCall(config.readOnly)
         if (!isPlaceholder && !readOnly) Object.assign(items, {

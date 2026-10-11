@@ -104,17 +104,27 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     // region UI Config
 
+    // LineMaterial defines most of these as accessors over its uniforms, so the ui decorators go on accessor overrides
+    // (a `declare` property cannot override an accessor). The order here is the ui order.
     @uiInput() declare name: string
-    @uiColor() declare color: Color
-    @uiToggle() declare dashed: boolean
-    @uiNumber() declare dashScale: number
-    @uiNumber() declare dashSize: number
-    @uiNumber() declare dashOffset: number
-    @uiNumber() declare gapSize: number
+    @uiColor() get color(): Color { return super.color }
+    set color(v: Color) { super.color = v }
+    @uiToggle() get dashed(): boolean { return super.dashed }
+    set dashed(v: boolean) { super.dashed = v }
+    @uiNumber() get dashScale(): number { return super.dashScale }
+    set dashScale(v: number) { super.dashScale = v }
+    @uiNumber() get dashSize(): number { return super.dashSize }
+    set dashSize(v: number) { super.dashSize = v }
+    @uiNumber() get dashOffset(): number { return super.dashOffset }
+    set dashOffset(v: number) { super.dashOffset = v }
+    @uiNumber() get gapSize(): number { return super.gapSize }
+    set gapSize(v: number) { super.gapSize = v }
     @uiNumber() declare linewidth: number
-    @uiVector() declare resolution: Vector2
+    @uiVector() get resolution(): Vector2 { return super.resolution }
+    set resolution(v: Vector2) { super.resolution = v }
     @uiToggle() declare alphaToCoverage: boolean
-    @uiToggle() declare worldUnits: boolean
+    @uiToggle() get worldUnits(): boolean { return super.worldUnits }
+    set worldUnits(v: boolean) { super.worldUnits = v }
     // @uiToggle() declare fog = true
 
 

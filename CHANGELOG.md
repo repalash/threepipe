@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.7.0-dev]
+
+### Changed
+
+- Upgrade `three` from v0.168.10006 to v0.172.10001 (three.js r172) and `@types/three` to v0.172.10001
+  - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
+  - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
+  - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
+  - `colorSpace` in `CreateRenderTargetOptions`, `getTexelDecoding` and `textureDataToImageData` accepts any registered color space (`string`), like `Texture.colorSpace` in three.js
+  - `LineMaterial2` ui properties are accessor overrides, as three.js types `LineMaterial`'s properties as accessors
+  - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
+  - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
+
+### Fixed
+
+- `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
+
 ## [0.6.0-dev]
 
 ### Changed
