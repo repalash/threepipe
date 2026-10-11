@@ -517,10 +517,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
         }
 
-        // Update camera controls postFrame if allowed to interact
+        // Update camera controls postFrame if allowed to interact.
+        // Disabled controls are skipped: their target is not synced with the camera target (see setDirty), so
+        // update() would turn the camera toward a stale target every frame and progressive rendering would never converge.
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
-            if (cam && cam.canUserInteract) {
+            if (cam && cam.canUserInteract && cam.controls?.enabled !== false) {
                 const d = this.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
                 // if (d && d > 0) delta = d
                 if (d !== undefined && d === 0) return // not converged yet.
