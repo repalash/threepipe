@@ -66,7 +66,7 @@ export function assignPolygons(
     if (intersections.length > 0) {
       const intersection = intersections[0];
       const faceIndex = intersection.faceIndex;
-      if (faceIndex !== undefined) {
+      if (faceIndex !== undefined && faceIndex !== null) {
         const intersectionMesh = intersection.object as Mesh;
         polygon.mesh = svgMeshesMap.get(intersectionMesh);
         if (polygon.mesh) {
