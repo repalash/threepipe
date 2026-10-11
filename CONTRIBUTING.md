@@ -27,7 +27,18 @@ Some examples requires env variables.
 
 ## Testing
 
-TBD
+- `npm run test:unit` runs the unit tests (Vitest, Node.js)
+- `npm run test:e2e` runs the e2e tests (Playwright, Chromium), comparing screenshots and outputs against the baselines in `tests/snapshots/<project>-<platform>/`
+
+### E2E snapshot baselines
+
+The baselines are not in git. Each file is stored once in the R2 bucket `threepipe-e2e-snapshots` as `blobs/<sha256><ext>`, publicly readable at `https://e2e-snapshots.threepipe.org`, and `tests/snapshots.<env>.json` (committed) maps every baseline path to its hash. A baseline update is a manifest diff in the PR.
+
+- `npm run test:e2e:sync` before running the e2e tests: downloads what the manifests name into `tests/snapshots/` (no credentials needed). `-- --prune` also deletes local files the manifest does not name
+- `npm run test:e2e:snapshots-status` shows what differs between `tests/snapshots/<env>/` and its manifest
+- `npm run test:e2e:push` after `npm run test:e2e:update`: uploads the new blobs and rewrites the manifest, commit the manifest with the change. Needs the S3 key in `.env.snapshots-r2` (gitignored) or `R2_*` environment variables
+- Pass env names to limit any of these to some folders, e.g. `npm run test:e2e:sync -- chromium-linux`
+- `npm run test:e2e:r2-init` is a one-time admin step (bucket, public domain, the S3 key in `.env.snapshots-r2`). It only checks unless run with `-- --apply`
 
 ## Building
 

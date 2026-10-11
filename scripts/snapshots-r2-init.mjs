@@ -22,6 +22,8 @@
 //
 // The S3 secret is written once to a 0600 file (--out, default <repo>/.env.snapshots-r2, gitignored) and never
 // printed. Lose the file: delete the token in the dashboard and run --apply again.
+//
+// Needs Node >= 20.11 (import.meta.dirname).
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'

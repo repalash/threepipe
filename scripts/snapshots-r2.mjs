@@ -9,13 +9,15 @@
 //                                                 files the manifest does not name)
 //
 // <env> is a folder name under tests/snapshots/ (Playwright's `<project>-<platform>`, e.g. chromium-linux);
-// default: every folder there (status/push) or every manifest (sync).
+// default: every folder there (push), every manifest (sync), or both (status).
 //
 // Layout in the bucket: blobs/<sha256><ext>. Identical files across envs and versions are stored once, and a
 // baseline update is a manifest diff in the PR. Nothing is ever deleted from the bucket by this script.
 //
 // Credentials for push: R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY from the environment or
 // from <repo>/.env.snapshots-r2 (--env <file>), as written by scripts/snapshots-r2-init.mjs.
+//
+// Needs Node >= 20.12 (import.meta.dirname, readdirSync({recursive}), Dirent.parentPath).
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -35,8 +37,11 @@ const envFileArg = args.includes('--env') ? args[args.indexOf('--env') + 1] : nu
 const envs = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--env')
 if (!['status', 'push', 'sync'].includes(command)) usage()
 
-const targets = envs.length ? envs : command === 'sync' ? listManifests() : listFolders()
-if (!targets.length) usage(`nothing to do: no folders in ${snapshotsDir} and no manifests`)
+const targets = envs.length ? envs : {status: [...new Set([...listFolders(), ...listManifests()])], push: listFolders(), sync: listManifests()}[command]
+if (!targets.length) {
+    console.log(`${command}: nothing found, no folders in ${path.relative(root, snapshotsDir)}/ and no tests/snapshots.<env>.json manifests`)
+    process.exit(command === 'status' ? 0 : 1)
+}
 
 let problems = 0
 for (const env of targets) await ({status, push, sync})[command](env)
@@ -49,35 +54,48 @@ async function status(env) {
     const manifest = readManifest(env)
     const {added, changed, removed, same} = compare(local, manifest?.files || {})
     console.log(`${env}: ${same} same, ${added.length} new, ${changed.length} changed, ${removed.length} only in manifest${manifest ? '' : ' (no manifest yet)'}`)
-    for (const f of [...added, ...changed].slice(0, 40)) console.log(`  ${changed.includes(f) ? '~' : '+'} ${f}`)
+    const differ = [...added, ...changed]
+    for (const f of differ.slice(0, 40)) console.log(`  ${changed.includes(f) ? '~' : '+'} ${f}`)
     for (const f of removed.slice(0, 40)) console.log(`  - ${f}`)
-    if (added.length + changed.length + removed.length > 80) console.log('  …')
+    const hidden = Math.max(0, differ.length - 40) + Math.max(0, removed.length - 40)
+    if (hidden) console.log(`  … ${hidden} more`)
 }
 
 async function push(env) {
     const creds = readCreds()
     const local = hashFolder(env)
     if (!Object.keys(local).length) return console.log(`${env}: folder is empty, nothing pushed`)
-    const existing = readManifest(env)?.files || {}
-    const {added, changed, removed} = compare(local, existing)
+    const old = readManifest(env)
+    const {added, changed, removed} = compare(local, old?.files || {})
 
-    // upload blobs the bucket does not have yet (dedup by hash across envs and versions)
-    const hashes = [...new Set(Object.values(local))]
+    // upload blobs the bucket does not have yet, one per key (dedup across envs and versions)
+    const blobs = new Map() // bucket key -> one local file with that content
+    for (const [rel, hash] of Object.entries(local)) blobs.set(blobKey(rel, hash), rel)
     let uploaded = 0, skipped = 0
-    await parallel(hashes, async(hash) => {
-        const rel = Object.keys(local).find(f => local[f] === hash)
-        const key = blobKey(rel, hash)
-        // existence check goes through the S3 API, not the public domain: the edge caches a public 404 for hours
-        if ((await s3(creds, 'HEAD', key)).status === 200) { skipped++; return }
-        const body = fs.readFileSync(path.join(snapshotsDir, env, rel))
-        const res = await s3(creds, 'PUT', key, body, contentType(rel))
-        if (res.status !== 200) throw new Error(`upload ${key} failed: HTTP ${res.status} ${await res.text()}`)
-        uploaded++
+    const errors = []
+    await parallel([...blobs], async([key, rel]) => {
+        try {
+            // existence check goes through the S3 API, not the public domain: the edge caches a public 404 for hours
+            if ((await s3(creds, 'HEAD', key)).status === 200) { skipped++; return }
+            const body = fs.readFileSync(path.join(snapshotsDir, env, rel))
+            const res = await s3(creds, 'PUT', key, body, contentType(rel))
+            if (res.status !== 200) throw new Error(`HTTP ${res.status} ${await res.text()}`)
+            uploaded++
+        } catch (e) { errors.push(`  FAIL upload ${key} (${rel}): ${errMsg(e)}`) }
     })
+    if (errors.length) {
+        problems++
+        console.log(errors.join('\n'))
+        return console.log(`${env}: ${errors.length} of ${blobs.size} uploads failed, manifest not written`)
+    }
 
-    const manifest = {bucket: creds.R2_BUCKET, publicBase: PUBLIC_BASE, generated: new Date().toISOString(), files: sortKeys(local)}
-    fs.writeFileSync(manifestPath(env), JSON.stringify(manifest, null, 1) + '\n')
-    console.log(`${env}: ${hashes.length} blobs (${uploaded} uploaded, ${skipped} already there); manifest ${path.relative(root, manifestPath(env))}: +${added.length} ~${changed.length} -${removed.length}`)
+    const manifestFile = path.relative(root, manifestPath(env))
+    const current = old && !(added.length || changed.length || removed.length) && old.bucket === creds.R2_BUCKET && old.publicBase === PUBLIC_BASE
+    if (!current) {
+        const manifest = {bucket: creds.R2_BUCKET, publicBase: PUBLIC_BASE, generated: new Date().toISOString(), files: sortKeys(local)}
+        fs.writeFileSync(manifestPath(env), JSON.stringify(manifest, null, 1) + '\n')
+    }
+    console.log(`${env}: ${blobs.size} blobs (${uploaded} uploaded, ${skipped} already there); manifest ${manifestFile}: ${current ? 'unchanged' : `+${added.length} ~${changed.length} -${removed.length}`}`)
 }
 
 async function sync(env) {
@@ -89,10 +107,13 @@ async function sync(env) {
     await parallel(files, async([rel, hash]) => {
         if (local[rel] === hash) return
         const url = `${manifest.publicBase || PUBLIC_BASE}/${blobKey(rel, hash)}`
-        let res = await fetch(url)
-        if (res.status === 404) res = await fetch(`${url}?t=${Date.now()}`) // a 404 cached at the edge before the blob was uploaded
-        if (!res.ok) { failed++; console.log(`  FAIL ${rel}: HTTP ${res.status}`); return }
-        const buf = Buffer.from(await res.arrayBuffer())
+        let buf
+        try {
+            let res = await fetch(url)
+            if (res.status === 404) res = await fetch(`${url}?t=${Date.now()}`) // a 404 cached at the edge before the blob was uploaded
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            buf = Buffer.from(await res.arrayBuffer())
+        } catch (e) { failed++; console.log(`  FAIL ${rel}: ${errMsg(e)}`); return }
         if (sha256(buf) !== hash) { failed++; console.log(`  FAIL ${rel}: hash mismatch after download`); return }
         const file = path.join(snapshotsDir, env, rel)
         fs.mkdirSync(path.dirname(file), {recursive: true})
@@ -147,6 +168,8 @@ function compare(local, manifest) {
     for (const f of Object.keys(manifest)) if (!(f in local)) removed.push(f)
     return {added, changed, removed, same}
 }
+// fetch rejects with 'fetch failed' and keeps the reason (DNS, refused, reset) in .cause
+function errMsg(e) { return e.cause?.message || e.cause?.code || e.message }
 function sha256(buf) { return crypto.createHash('sha256').update(buf).digest('hex') }
 function blobKey(rel, hash) { return `blobs/${hash}${path.extname(rel).toLowerCase()}` }
 function sortKeys(o) { return Object.fromEntries(Object.keys(o).sort().map(k => [k, o[k]])) }
