@@ -155,7 +155,7 @@ export class GLTFMaterialExtrasExtension {
      * @constructor
      */
     static Export = (w: GLTFWriter): GLTFExporterPlugin&{materialExternalResources:any, serializedMeta: any}=> ({
-        writeMaterial(material: Material & any, matDef: any) {
+        async writeMaterialAsync(material: Material & any, matDef: any) {
             if (!material?.isMaterial) return
             if (!matDef.extensions) matDef.extensions = {}
             const dat: any = {}

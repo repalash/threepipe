@@ -13,7 +13,6 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
-import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {metaToResources, SerializationMetaType} from '../../utils'
 import {GLTFLoader2} from '../import'
 
@@ -135,6 +134,9 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
     processors: ((obj: ArrayBuffer|any|Blob, options: GLTFExporter2Options) => Promise<ArrayBuffer|any|Blob>)[] = []
 
+    // three's GLTFExporter.parseAsync resolves with the raw glTF (ArrayBuffer or json); threepipe exporters (IExportWriter)
+    // resolve with a Blob after the processors ran, so this override intentionally does not match the base signature.
+    // @ts-expect-error TS2416
     async parseAsync(obj: ArrayBuffer|any, options: GLTFExporter2Options): Promise<Blob> {
         if (!obj) throw new Error('No object to export')
         let gltf = !obj.__isGLTFOutput && (Array.isArray(obj) || obj.isObject3D) ? await new Promise((resolve, reject) => this.parse(obj, resolve, reject, options)) : obj
@@ -179,7 +181,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
             gltfOptions.binary = true
         }
 
-        const onDone1 = (o: GLTF)=> {
+        const onDone1 = (o: ArrayBuffer | {[key: string]: unknown})=> {
 
             // eslint-disable-next-line @typescript-eslint/naming-convention
             onDone(Object.assign(o, {__isGLTFOutput: true}))
