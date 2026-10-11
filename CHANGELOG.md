@@ -36,6 +36,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Upgrade `three` from v0.168.10008 to v0.172.10001 (three.js r172)
+  - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
+  - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
+  - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
+  - `colorSpace` in `CreateRenderTargetOptions`, `getTexelDecoding` and `textureDataToImageData` accepts any registered color space (`string`), like `Texture.colorSpace` in three.js
+  - `LineMaterial2` ui properties are accessor overrides, as three.js types `LineMaterial`'s properties as accessors
+  - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
 - `ViewOverridesPlugin`: widgets (an object with `isWidget` or `assetType` `'widget'`, and its children) keep their own materials in every view, so a light or camera icon is not drawn as a rectangle
 - Releases run on [repalash/release-tools](https://github.com/repalash/release-tools) (`.github/workflows/publish.yml`): the same approval, tags and partial publishing as before, now with a Claude review in the Discord notice. Each package now builds on its own in dependency order (a failed one and what depends on it are left out); `scripts/ci/` (publish-check, build-verify, publish-packages, notify-discord) is gone
@@ -55,6 +62,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
 - `PickingPlugin`: clearing the selection because the plugin was disabled no longer records an undo step
 - `ObjectPicker.setSelected`: selecting the already selected object again (a click on an object selected from code, or a cycle that comes round to it) no longer dispatches `selectedObjectChanged` or records an undo step; only the stored hit is updated
