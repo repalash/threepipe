@@ -82,6 +82,8 @@ export default defineConfig({
         // },
     ],
     webServer: {
+        // `test:e2e:serve` has no port of its own (ws would fail with ALREADY_SET on a second -p), it's always passed here.
+        // By hand: `npm run test:e2e:serve -- -p 9229` (the default PORT), or `npm run serve` which serves the same on 9229.
         command: `npm run test:e2e:serve -- -p ${PORT}`,
         url: `http://127.0.0.1:${PORT}`,
         reuseExistingServer: !process.env.CI,
