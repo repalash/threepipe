@@ -4,26 +4,27 @@ threepipe is a 3D viewer framework on a modded three.js fork (`three` → `three
 `three-types-modded`, wired through npm aliases). Core in `src/`, plugin packages in `plugins/*`, ~240 examples
 in `examples/`, docs site in `website/`. See [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-> **HARD RULE — no git state changes in any checkout.** Never run `git stash`, `git checkout`, `git switch`,
-> `git reset`, `git restore` or `git clean` in this folder, in `three.js-modded/`, `three-ts-types/`,
-> `experiments/*`, `tests/snapshots/` or any worktree under `.repos/`. Other sessions work in the same
-> checkouts and share the stash stack. Revert a change by editing the file back. Set work aside with a
-> temporary commit on your own branch, never with a stash.
+> **HARD RULE — NEVER use `git stash` in this folder.** Not in the repo root, not in `three.js-modded/`,
+> `three-ts-types/`, `experiments/*`, `tests/snapshots/`, not in any worktree under `.repos/`. Other sessions
+> work in the same checkouts and share one stash stack. The same goes for every other git state change:
+> never `git checkout`, `git switch`, `git reset`, `git restore` or `git clean` there either. Revert a change
+> by editing the file back; set work aside with a temporary commit on your own branch, never with a stash.
 >
 > **HARD RULE — never push to `master`.** Changes land through a branch and a pull request into `dev`.
 > `master` is release-only; a push to `master` publishes to npm (`.github/workflows/publish.yml`).
 
-> **Model gate.** Subagents run on Claude Fable (complex, multi-step work) or Claude Opus (simpler, bounded
-> work). Never Sonnet, Haiku or smaller.
+> **Model gate.** The lead session does the planning, research and thinking itself. Implementation and
+> iteration work (build/fix loops, mechanical edits, PR fixes, running checks) is delegated to Claude Opus 5.5
+> subagents. Never smaller models (no Sonnet, no Haiku).
 
 ## Workflow — a worktree per task, a PR per change
 
-- The main checkout (`/Users/palash/Projects/threepipe`) may be in use by another session. Do your work in a
+- The main checkout (the repo root) may be in use by another session. Do your work in a
   worktree under `.repos/` (`git worktree add -b <branch> .repos/<name> origin/dev`), one per task.
 - Finish with a PR into `dev` (draft when the user says so). Push related follow-ups to the same PR instead
   of opening new ones. Give PRs as full URLs.
-- GitHub access from the container: fine-grained PAT `GITHUB_TOKEN_THREEPIPE` in `.env.threepipe` (covers
-  `repalash/threepipe` and `repalash/threepipe-webgi`). Pass it per command — `GH_TOKEN=… gh …` and
+- GitHub access when `gh` has no login: fine-grained PAT `GITHUB_TOKEN_THREEPIPE` in the gitignored
+  `.env.threepipe`. Pass it per command — `GH_TOKEN=… gh …` and
   `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …` — never persist it, never
   put it in argv of a command that is logged. Commits in repos without a local identity: `git -c user.name=…
   -c user.email=…` with the values from this repo's config.
@@ -41,9 +42,10 @@ with a guessed config; they pick the wrong tsconfig or mode. Pass parameters thr
 - `npm ci` runs `prepare` = `build` + `build-plugins` + `build-examples` (20–30 min). `npm run build` alone
   rebuilds `lib/` and `dist/` (~5 min). Examples import the built `dist/`; `npm run vite` serves examples
   from source with aliases to plugin sources (no plugin build needed).
-- `npm run serve` serves the built tree statically on 9229. Dev servers in the container must listen on
-  `0.0.0.0` and are opened on the host as `http://<port>.$AIBOX_URL_BASE`.
-- Long commands: write output to a file under `tmp/` and grep it; do not re-run builds to read their output.
+- `npm run serve` serves the built tree statically on 9229. In a container, dev servers must listen on
+  `0.0.0.0` to be reachable from the host; the URL scheme is in
+  [`scripts/remote-browser/README.md`](scripts/remote-browser/README.md).
+- Do not spam build or run calls: write long output to a file under `tmp/` and grep it instead of re-running.
   Background commands are stopped after 2 hours; start long servers detached (`nohup … &`).
 - `tsx` prints nothing for inline scripts; write the script to a file and run that.
 
@@ -52,27 +54,43 @@ with a guessed config; they pick the wrong tsconfig or mode. Pass parameters thr
 - Unit: `npm run test:unit` (Vitest, Node). E2E: `npm run test:e2e` (Playwright + Chromium);
   `test:e2e:interactive`, `test:e2e:smoke`, `test:e2e:update` (regenerate baselines), `check-test-coverage`
   (every example has a test). The test skill: [`tests/SKILL.md`](tests/SKILL.md).
-- `TEST_PORT=<port>` runs the suite against its own static server, so several checkouts can test side by
-  side without reusing another checkout's server on 9229.
+- To test a single example, run with a filter and a small timeout instead of the full suite
+  (`npm run test:e2e -- --grep "<example-name>" --timeout <ms>`).
+- `TEST_PORT=<port>` (added by PR #37) runs the suite against its own static server, so several checkouts
+  can test side by side without reusing another checkout's server on 9229.
 - Per-example console output is written to `tests/snapshots/<project>-<platform>/<example>/console.log`;
   read it when a test fails.
 - Never hack around a non-deterministic failure: a render or export that differs across runs is a bug to
   find and fix (file it in `issues/open/`), not an assertion to weaken or a test to skip. To test something
   else temporarily, comment a test out and uncomment it right away; never delete a test.
-- In this container Chromium renders WebGL on SwiftShader (software, arm64): slow, and heavy examples hit
-  the screenshot timeouts even on an idle machine. Baselines generated here are not comparable with x64 CI.
-  Use the host GPU browser (below) for visual checks, and A/B comparisons (build both refs, same machine,
-  same browser) when judging a change.
+- Without a GPU (e.g. in a container) Chromium renders WebGL on SwiftShader (software): slow, and heavy
+  examples hit the screenshot timeouts even on an idle machine. Baselines generated on arm64 SwiftShader are
+  not comparable with x64 CI. Use the host GPU browser (below) for visual checks, and A/B comparisons (build
+  both refs, same machine, same browser) when judging a change.
 
-## Host GPU browser (Palash's Mac) for WebGL runs
+### Playwright on Alpine Linux (ARM64)
 
-A Playwright browser server on the Mac renders on the real GPU (ANGLE Metal, Apple M4 Pro). Use it for
-visual checks and A/B diffs instead of SwiftShader: `scripts/remote-browser/connect.mjs` connects, retries
+`npx playwright install chromium` downloads a glibc-linked binary that cannot run on musl. Use the system
+Chromium and Mesa instead: `sudo apk add chromium mesa-gl mesa-egl mesa-gles`. `playwright.config.ts`
+detects Alpine and switches the launch flags:
+
+- Alpine: `--enable-webgl --ignore-gpu-blocklist --use-gl=angle --use-angle=gl-egl` (ANGLE → Mesa EGL →
+  llvmpipe).
+- Elsewhere: `--use-angle=swiftshader --enable-unsafe-swiftshader` (Playwright's bundled SwiftShader).
+
+On Alpine the system Chromium is picked up from `/usr/bin/chromium-browser` (or `/usr/bin/chromium`);
+override it with the `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` env var.
+
+## Host GPU browser for WebGL runs
+
+A Playwright browser server on the maintainer's host machine (GPU) renders WebGL on the real GPU. Use it
+for visual checks and A/B diffs instead of SwiftShader: `scripts/remote-browser/connect.mjs` connects, retries
 while the server is down, and prints the renderer when run directly. Read
 [`scripts/remote-browser/README.md`](scripts/remote-browser/README.md) first — the server has quirks
 (a scratch Playwright client of exactly the server's version, a required `Host` header, a path that changes
-per start, and **closing any page ends the browser for every client**). Ask the user to start it if
-`/json` does not answer.
+per start, and **closing any page ends the browser for every client** — never close pages mid-run). The
+server is running when its `/json` endpoint answers (the exact check, host and URL scheme are in that
+README); if it does not, ask the user to start it — it cannot be started from the container.
 
 ## Working with three.js and the fork
 
@@ -115,8 +133,10 @@ per start, and **closing any page ends the browser for every client**). Ask the 
 
 ## Subagents
 
-- Verify every report: subagents take the lazy path, report partial work as done, and misstate what they
-  verified. Re-check claims against files, commands and the browser; redo work that is wrong.
+- Use subagents, but always verify their work: subagents have a tendency to take the lazy path and lie
+  about it, or to try to hack the parent agent into accepting partial work. Assume every report may be
+  incorrect or inaccurate; verify everything it claims yourself (files, commands, the browser) and redo
+  the work when you find an inaccuracy.
 - Long tasks use a comm folder `./tmp/agent-comm/<agent-name>/` with `parent.md` (parent writes
   instructions and corrections) and `agent.md` (agent writes progress, questions, blockers). Both sides
   re-read the other file about every minute of work. Put this protocol in the launch prompt. The harness
