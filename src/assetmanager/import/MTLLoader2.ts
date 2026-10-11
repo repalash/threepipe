@@ -354,28 +354,31 @@ class MaterialCreator {
             if (params[mapType]) return; // Keep the first encountered texture
 
             const texParams = scope.getTextureParams(value, params);
-            return new Promise((resolve, reject) => {
-                let resolved = false;
-                let res = ()=> (!resolved && (resolved = true) && resolve())
-                const map = scope.loadTexture(resolveURL(scope.baseUrl, texParams.url), undefined, (map)=>{
-                    params[mapType] = map;
-                    res()
-                }, undefined, res);
-                setTimeout(res, 50); // timeout.
+            const url = resolveURL(scope.baseUrl, texParams.url);
 
-                map.repeat.copy(texParams.scale);
-                map.offset.copy(texParams.offset);
+            // Wait for the texture (image) to load, so that the material is complete (for render, export etc) when the loader resolves.
+            // Note - there must be no timeout here, a texture that is not set in params before the material is created is never added to the material.
+            const map = await new Promise((resolve) => {
+                scope.loadTexture(url, undefined, resolve, undefined, (e) => {
+                    console.warn('MTLLoader2: Unable to load texture', url, e);
+                    resolve(undefined);
+                });
+            });
+            if (!map) return; // same as before for a failed texture, the material is created without it
 
-                map.wrapS = scope.wrap;
-                map.wrapT = scope.wrap;
+            map.repeat.copy(texParams.scale);
+            map.offset.copy(texParams.offset);
 
-                if ( mapType === 'map' || mapType === 'emissiveMap' ) {
+            map.wrapS = scope.wrap;
+            map.wrapT = scope.wrap;
 
-                    map.colorSpace = SRGBColorSpace;
+            if ( mapType === 'map' || mapType === 'emissiveMap' ) {
 
-                }
+                map.colorSpace = SRGBColorSpace;
 
-            })
+            }
+
+            params[mapType] = map;
 
         }
 

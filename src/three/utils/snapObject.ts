@@ -1,9 +1,9 @@
-import {Object3D, PerspectiveCamera, Scene, Vector3} from 'three'
+import {Color, Object3D, PerspectiveCamera, Scene, Vector3} from 'three'
 import {Box3B} from '../math/Box3B'
 import {IWebGLRenderer} from '../../core'
 
 /**
- * Returns a snapshot of the object.
+ * Returns a snapshot of the object as a png data url, with a transparent background.
  * Does a simple render, does not run the full pipeline.
  *
  * Ideally, call this from preRender and object must be in root, for usage see {@link MaterialPreviewGenerator}.
@@ -46,6 +46,10 @@ export function snapObject(
 
     renderer.setRenderTarget(null)
 
+    // clear to transparent, so that the snapshot has only the object and does not depend on the clear color left by the last pass
+    const clearColor = renderer.getClearColor(new Color())
+    const clearAlpha = renderer.getClearAlpha()
+    renderer.setClearColor(0x000000, 0)
     renderer.clear()
     if (typeof renderer.renderWithModes === 'function') {
         renderer.renderWithModes({
@@ -66,6 +70,7 @@ export function snapObject(
     const snap = renderer.domElement.toDataURL('image/png')
 
     renderer.clear()
+    renderer.setClearColor(clearColor, clearAlpha)
 
     object.visible = oldVisible
     object.traverseVisible(obj => {
