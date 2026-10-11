@@ -9,10 +9,16 @@
 // results.json, summary.json and index.html (side-by-side for every changed example, console differences,
 // examples that did not finish). Resumable: examples already in results.json are skipped.
 //
-// Serve both trees from the container on 0.0.0.0 (e.g. `npm run test:e2e:serve -- -p <port>` or
-// `npm run vite -- --host 0.0.0.0 --port <port>`) and pass their http://<port>.$AIBOX_URL_BASE urls.
-// Pixel comparison uses sharp (already installed for the e2e helpers): a pixel differs when any channel differs by
-// more than 25/255 — close to Playwright's threshold 0.1, not identical to it.
+// The three renders of an example (A, A2 and B) run concurrently in one browser, so they contend for the
+// same GPU and CPU; heavy examples render slower than alone and the A/A2 noise floor includes that load.
+// Per-render contexts are intentionally never closed: closing a page or context ends the shared server
+// browser for every client (README.md). Pages are parked on about:blank instead, and the whole browser is
+// closed and reconnected every --batch examples (default 5) to release them.
+//
+// Serve both trees from the container on 0.0.0.0 (e.g. `npm run test:e2e:serve -- -p <port>`, added by
+// PR #37, or `npm run vite -- --host 0.0.0.0 --port <port>`) and pass their http://<port>.$AIBOX_URL_BASE urls.
+// Pixel comparison uses sharp (devDependency, also used by tests/helpers.ts): a pixel differs when any channel
+// differs by more than 25/255 — close to Playwright's threshold 0.1, not identical to it.
 import fs from 'node:fs'
 import path from 'node:path'
 import {createRequire} from 'node:module'
@@ -27,9 +33,17 @@ const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 
 const positional = args.filter((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'))
 const [baseA, baseB, outDir] = positional
 if (!baseA || !baseB || !outDir) { console.error('usage: ab-compare.mjs <baseUrlA> <baseUrlB> <outDir> [--filter <regex>] [--limit <n>] [--batch <n>]'); process.exit(2) }
+// A positive integer option; a missing or invalid value falls back to the default with a warning.
+const intOpt = (name, def) => {
+    if (!args.includes('--' + name)) return def
+    const raw = opt(name), n = Number(raw)
+    if (raw !== undefined && !raw.startsWith('--') && Number.isInteger(n) && n > 0) return n
+    console.warn(`--${name} needs a positive integer (got ${raw === undefined || raw.startsWith('--') ? 'no value' : JSON.stringify(raw)}), using ${def}`)
+    return def
+}
 const filter = opt('filter') ? new RegExp(opt('filter')) : null
-const limit = opt('limit') ? parseInt(opt('limit')) : Infinity
-const BATCH = parseInt(opt('batch', '5')) // examples per browser connection (the server ends the browser on any page close)
+const limit = intOpt('limit', Infinity)
+const BATCH = intOpt('batch', 5) // examples per browser connection (the server ends the browser on any page close)
 
 const injection = fs.readFileSync(path.join(root, 'tests', 'deterministic-injection.js'), 'utf8')
 const names = [...new Set(['tests/extras.spec.ts', 'tests/interactive.spec.ts']
@@ -120,7 +134,7 @@ function writeReport(results) {
     const summary = {
         a: baseA, b: baseB, total: rows.length, compared: ok.length, identical: ok.length - changed.length, changed: changed.length,
         overThreshold: changed.filter(r => r.change.ratio > 0.003).length, noisy: noisy.length, errored: errored.length,
-        unfinished: ok.filter(r => !r.a.finished || !r.b.finished).map(r => r.name), renderer: ok[0]?.a.renderer,
+        unfinished: ok.filter(r => !r.a.finished || !r.b.finished).map(r => r.name), renderer: ok[0]?.a.renderer ?? 'n/a',
         changedList: changed.map(r => ({name: r.name, pixels: r.change.pixels, ratio: +r.change.ratio.toFixed(5), noise: r.noise?.pixels})),
         erroredList: errored.map(r => ({name: r.name, error: r.error || r.a?.error || r.b?.error || 'no screenshot'})),
     }

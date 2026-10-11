@@ -12,7 +12,9 @@
 //                      (default /tmp/pw/node_modules/playwright; make it with
 //                      `npm i --prefix /tmp/pw playwright@<version>`, never inside a project)
 import http from 'node:http'
+import path from 'node:path'
 import {createRequire} from 'node:module'
+import {fileURLToPath} from 'node:url'
 
 const require = createRequire(import.meta.url)
 
@@ -52,7 +54,7 @@ export async function connectHostBrowser({
     throw last
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
     const browser = await connectHostBrowser()
     try {
         const page = await (await browser.newContext()).newPage()

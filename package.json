@@ -139,6 +139,7 @@
     "rimraf": "^5.0.1",
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
+    "sharp": "^0.34.5",
     "three": "npm:three-modded@0.168.10006",
     "tslib": "^2.5.0",
     "typedoc": "^0.28.10",
