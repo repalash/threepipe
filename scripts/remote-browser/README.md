@@ -2,7 +2,7 @@
 
 In the aibox container Chromium renders WebGL on SwiftShader (software, arm64). It is slow, heavy examples
 hit the screenshot timeouts, and its pixels are not comparable with x64 CI or a real GPU. Palash runs a
-Playwright browser server on his Mac (`chromium.launchServer`, port 3145, Metal via ANGLE on the M4 Pro);
+Playwright browser server on their Mac (`chromium.launchServer`, port 3145, Metal via ANGLE on the M4 Pro);
 the container drives it and the renders happen on the GPU.
 
 First used 2026-10-02 for the r163 → r168 A/B comparison of all examples (now `ab-compare.mjs` here):
