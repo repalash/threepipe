@@ -1,7 +1,6 @@
 import {
     AddEquation,
     Color,
-    ColorSpace,
     ConstantAlphaFactor,
     CustomBlending,
     FloatType,
@@ -595,6 +594,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         const tempTarget = this.getTempTarget(w && h ? {size: {width: w, height: h}, type: tex.type} : {sizeMultiplier: 1, type: tex.type})
         this.blit(tempTarget, {source: tex, clear: true})
         const result = fn(tempTarget as WebGLRenderTarget)
+        if (result instanceof Promise) return result.finally(() => this.releaseTempTarget(tempTarget)) as T
         this.releaseTempTarget(tempTarget)
         return result
     }
@@ -668,13 +668,14 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     /**
      * Exports a render target to a blob. The type is automatically picked from exr to png based on the render target.
      * Also supports `{texture}` or `{textures}` wrappers — these are blitted to a temporary color render target for export.
+     * Async since three.js r169 made `EXRExporter.parse()` async.
      * @param target - render target to export, or a `{texture}` / `{textures}` wrapper
      * @param mimeType - mime type to use.
      * If auto (default), then it will be picked based on the render target type.
      * @param textureIndex - index of the texture to use in the render target (only in case of multiple render target)
      */
-    exportRenderTarget(target: WebGLRenderTarget | IRenderTarget | {texture?: ITexture, textures?: ITexture[]}, mimeType = 'auto', textureIndex = 0): BlobExt {
-        const resolved = this._withResolvedTarget(target, textureIndex, (rt) => this.exportRenderTarget(rt, mimeType, 0))
+    async exportRenderTarget(target: WebGLRenderTarget | IRenderTarget | {texture?: ITexture, textures?: ITexture[]}, mimeType = 'auto', textureIndex = 0): Promise<BlobExt> {
+        const resolved = this._withResolvedTarget(target, textureIndex, async(rt) => this.exportRenderTarget(rt, mimeType, 0))
         if (resolved) return resolved
         const rt = target as WebGLRenderTarget
         const hdrFormats = ['image/x-exr']
@@ -695,7 +696,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
                 mimeType = 'image/x-exr'
             }
             const exporter = new EXRExporter2()
-            buffer = exporter.parse(this._renderer, rt, {textureIndex}).buffer as ArrayBuffer
+            buffer = (await exporter.parse(this._renderer, rt, {textureIndex})).buffer as ArrayBuffer
         }
         const b = new Blob([buffer], {type: mimeType}) as BlobExt
         b.ext = mimeType === 'image/x-exr' ? 'exr' : mimeType.split('/')[1]
@@ -741,7 +742,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
                 this._initTexture(colorSpace)
             }
 
-            private _initTexture(colorSpace?: ColorSpace) {
+            private _initTexture(colorSpace?: string) {
                 const init = (t: ITexture)=>{
                     if (colorSpace !== undefined) t.colorSpace = colorSpace
                     if (!t.userData) t.userData = {}

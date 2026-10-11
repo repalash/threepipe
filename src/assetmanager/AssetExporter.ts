@@ -165,7 +165,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
                 if (obj.textures.length > 1) {
                     const zippa: Zippable = {}
                     for (let i = 0; i < obj.textures.length; i++) {
-                        const expBlob = obj.renderManager!.exportRenderTarget(obj as WebGLRenderTarget, mime, i)
+                        const expBlob = await obj.renderManager!.exportRenderTarget(obj as WebGLRenderTarget, mime, i)
                         // zippa[(f as File).name] = new Uint8Array(await (f as File).arrayBuffer())
                         zippa[`texture_${i}.${expBlob.ext}`] = new Uint8Array(expBlob.__buffer || await expBlob.arrayBuffer())
                     }
@@ -174,7 +174,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
                     blob.ext = 'zip'
                     blob.__buffer = zipped.buffer
                 } else {
-                    blob = obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget, mime)
+                    blob = await obj.renderManager.exportRenderTarget(obj as WebGLRenderTarget, mime)
                 }
                 return {
                     obj, ext: blob.ext, blob,

@@ -6,9 +6,13 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- NA
+- `download image` on render target textures awaits `RenderManager.exportRenderTarget()`, which is async since threepipe 0.7.0 (three.js r169 made `EXRExporter.parse()` async)
+
+### Fixed
+
+- `download image` on a Float/HalfFloat `DataTexture` always threw `EXRExporter.parse: Unsupported first parameter` (the texture was passed as the second argument)
 
 ## [0.10.1] - 2025-10-27
 
