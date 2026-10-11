@@ -71,6 +71,8 @@ export class DepthBufferPlugin
     /**
      * Clear color of the depth target, i.e. the packed value of the far plane (depth = 1) for the current packing.
      * - RGBADepthPacking: `packDepthToRGBA(1.0)` is `vec4(1.0)`. (black with alpha 1 unpacks to ~0 with the packing in three.js since r167, which makes the background read as the near plane)
+     * - RGBDepthPacking: `packDepthToRGB(1.0)` is `vec3(1.0)`, so far is white.
+     * - RGDepthPacking: far is written as `vec4(packDepthToRG(1.0), 0.0, 1.0)` i.e. `(1, 1, 0, 1)`, but only `.rg` is unpacked, so white is correct too.
      * - BasicDepthPacking: three.js writes `1.0 - depth`, so far is black.
      */
     protected _getClearColor(): Color {
