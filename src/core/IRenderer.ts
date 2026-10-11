@@ -85,7 +85,7 @@ export interface IRenderManager<TE extends IRenderManagerEventMap = IRenderManag
 
     renderTargetToBuffer(target: WebGLRenderTarget): Uint8Array|Uint16Array|Float32Array
 
-    exportRenderTarget(target: WebGLRenderTarget, mimeType?: 'auto'|string, textureIndex?: number): BlobExt
+    exportRenderTarget(target: WebGLRenderTarget, mimeType?: 'auto'|string, textureIndex?: number): Promise<BlobExt>
 }
 
 export interface IRenderManagerOptions {
