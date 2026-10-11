@@ -104,11 +104,9 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     // region UI Config
 
+    // LineMaterial defines most of these as accessors over its uniforms, so the ui decorators go on accessor overrides
+    // (a `declare` property cannot override an accessor). The order here is the ui order.
     @uiInput() declare name: string
-    @uiNumber() declare linewidth: number
-    @uiToggle() declare alphaToCoverage: boolean
-
-    // LineMaterial defines these as accessors over its uniforms, so the ui decorators go on accessor overrides (a `declare` property cannot override an accessor)
     @uiColor() get color(): Color { return super.color }
     set color(v: Color) { super.color = v }
     @uiToggle() get dashed(): boolean { return super.dashed }
@@ -121,8 +119,10 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
     set dashOffset(v: number) { super.dashOffset = v }
     @uiNumber() get gapSize(): number { return super.gapSize }
     set gapSize(v: number) { super.gapSize = v }
+    @uiNumber() declare linewidth: number
     @uiVector() get resolution(): Vector2 { return super.resolution }
     set resolution(v: Vector2) { super.resolution = v }
+    @uiToggle() declare alphaToCoverage: boolean
     @uiToggle() get worldUnits(): boolean { return super.worldUnits }
     set worldUnits(v: boolean) { super.worldUnits = v }
     // @uiToggle() declare fog = true

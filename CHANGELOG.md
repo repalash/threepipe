@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
   - `colorSpace` in `CreateRenderTargetOptions`, `getTexelDecoding` and `textureDataToImageData` accepts any registered color space (`string`), like `Texture.colorSpace` in three.js
   - `LineMaterial2` ui properties are accessor overrides, as three.js types `LineMaterial`'s properties as accessors
   - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
+  - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
 
 ### Fixed
 
