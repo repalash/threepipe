@@ -85,7 +85,7 @@ class GLTFMaterialsLightMapExtensionExport {
 
     }
 
-    writeMaterial(material: MeshStandardMaterial, materialDef: any) {
+    async writeMaterialAsync(material: MeshStandardMaterial, materialDef: any) {
 
         if (!material.isMeshStandardMaterial || material.lightMapIntensity === 0) return
 
@@ -99,7 +99,7 @@ class GLTFMaterialsLightMapExtensionExport {
 
         if (material.lightMap && writer.checkEmptyMap(material.lightMap)) {
 
-            const lightMapDef = {index: writer.processTexture(material.lightMap)}
+            const lightMapDef = {index: await writer.processTextureAsync(material.lightMap)}
             writer.applyTextureTransform(lightMapDef, material.lightMap)
             extensionDef.lightMapTexture = lightMapDef
 
