@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- New package [`@threepipe/plugin-canvas-recorder`](https://threepipe.org/package/plugin-canvas-recorder.html): records the canvas as frame-exact video (WebCodecs, MP4), image sequences (zip or folder) or real-time video (`MediaRecorder`)
+- `ViewerTimeline.recordingDeltaProvider` and `ViewerTimeline.recordingDelta()`: a fixed time step per frame for frame-exact recorders, works without `ProgressivePlugin`. The timeline (when running), `PopmotionPlugin`, `GLTFAnimationPlugin` and the camera controls read it, so they advance by the same step in every frame, independent of how long a frame takes to render or encode
 - `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
 
 ### Changed
@@ -18,6 +20,8 @@ All notable changes to this project will be documented in this file.
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- `ProgressivePlugin.postFrameConvergedRecordingDelta()` now returns `viewer.timeline.recordingDelta()` (it returned `-1` always) and is deprecated, use `viewer.timeline.recordingDelta()`. `ThreeViewer`, `ViewerTimeline`, `PopmotionPlugin` and `GLTFAnimationPlugin` read the timeline instead of `ProgressivePlugin`
+- `ViewerTimeline.update`: a recording delta is in seconds (it was read as milliseconds by the timeline, and as seconds by `PopmotionPlugin` and `GLTFAnimationPlugin`), and the wall clock reference is kept current while recording, so the time does not jump when the recording stops
 
 ### Fixed
 

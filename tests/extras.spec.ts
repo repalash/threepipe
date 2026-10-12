@@ -61,6 +61,7 @@ test('blueprintjs-ui-plugin', async({page}) => expect(page).toHaveTitle('Bluepri
 test('bone-helper-widget', async({page}) => expect(page).toHaveTitle('Bone Helper Widget'))
 test('camera-ortho-uiconfig', async({page}) => expect(page).toHaveTitle('Camera UiConfig'))
 test('camera-view-plugin', async({page}) => expect(page).toHaveTitle('Camera View Plugin'))
+test('canvas-recorder-plugin', async({page}) => expect(page).toHaveTitle('Canvas Recorder Plugin'))
 test('chromatic-aberration-plugin', async({page}) => expect(page).toHaveTitle('Chromatic Aberration Plugin'))
 test('clear-reimport-test', async({page}) => expect(page).toHaveTitle('Clear + Reimport Test with config'))
 test('clear-reimport-test-2', async({page}) => expect(page).toHaveTitle('Clear + Reimport Test with config 2'))

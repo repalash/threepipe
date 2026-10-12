@@ -2,7 +2,6 @@ import {now} from 'ts-browser-helpers'
 import {animate, type AnimationOptions, Driver, KeyframeOptions, PlaybackOptions} from '@repalash/popmotion' // todo: its not able to import from fork anymore since animateKeyframes is used, it can be imported from main.
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
-import type {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {generateUUID} from '../../three'
 import {
     animateCameraToViewLinear,
@@ -90,8 +89,8 @@ export class PopmotionPlugin extends AViewerPluginSync {
 
             this._lastFrameTime = time
 
-            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-            if (d && d > 0) delta = d
+            const d = this._viewer.timeline.recordingDelta() // fixed step (secs) when a frame-exact recorder is running
+            if (d > 0) delta = d
             if (d === 0) delta = 0 // not converged yet.
             // if d < 0: not recording, do nothing
 

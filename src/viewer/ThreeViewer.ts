@@ -63,7 +63,6 @@ import type {
     AssetExporterPlugin,
     CanvasSnapshotPlugin,
     FileTransferPlugin,
-    ProgressivePlugin,
 } from '../plugins'
 import {CameraViewPlugin} from '../plugins/animation/CameraViewPlugin'
 // noinspection ES6PreferShortImport
@@ -521,9 +520,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this.addEventListener('postFrame', () => { // todo: move inside RootScene.
             const cam = this._scene.mainCamera
             if (cam && cam.canUserInteract) {
-                const d = this.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
+                const d = this.timeline.recordingDelta()
                 // if (d && d > 0) delta = d
-                if (d !== undefined && d === 0) return // not converged yet.
+                if (d === 0) return // not converged yet.
                 // if d < 0 or undefined: not recording, do nothing
 
                 if (typeof cam.controls?.update === 'function') cam.controls?.update()

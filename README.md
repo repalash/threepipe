@@ -571,6 +571,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-timeline-ui](https://threepipe.org/package/plugin-timeline-ui.html) - A timeline UI component and plugin to manage global viewer timeline and animations
   - [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context
   - [@threepipe/plugin-troika-text](https://threepipe.org/package/plugin-troika-text.html) - [troika-three-text](https://protectwise.github.io/troika/troika-three-text/) integration plugin that provides high performance SDF Text
+  - [@threepipe/plugin-canvas-recorder](https://threepipe.org/package/plugin-canvas-recorder.html) - Record the canvas as frame-exact video (WebCodecs, MP4) or image sequences, with a real-time MediaRecorder fallback
 
 ## Documentation
 
