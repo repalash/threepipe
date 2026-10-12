@@ -5,6 +5,7 @@ import {
     FloatType,
     MagnificationTextureFilter,
     MinificationTextureFilter,
+    PixelFormat,
     RenderTarget,
     Texture,
     TextureDataType,
@@ -80,7 +81,7 @@ export interface CreateRenderTargetOptions {
      */
     colorSpace?: string
     type?: TextureDataType
-    format?: number
+    format?: PixelFormat
     /**
      * @default true
      */
