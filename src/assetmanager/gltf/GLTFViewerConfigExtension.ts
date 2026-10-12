@@ -228,7 +228,7 @@ export class GLTFViewerConfigExtension {
                 const d = encodingVersion < 3 ? halfFloatToRgbe2(buffer.data, 4) : halfFloatToRgbe(buffer.data, 4)
                 const id = new ImageData(d, buffer.width, buffer.height)
 
-                const b64 = ImageUtils.getDataURL(id, true).split(',')[1]
+                const b64 = ImageUtils.getDataURL(id).split(',')[1]
 
                 mime = 'image/png'
                 if (encodingVersion === 1) {

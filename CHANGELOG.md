@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.8.0-dev]
+
+### Changed
+
+- Upgrade `three` from v0.172.10001 to v0.177.10001 (three.js r177) and `@types/three` to v0.177.10001
+  - Fork patches that three.js now has upstream are dropped from `three-modded` (`Material.allowOverride`, `LightShadow.copy` of `normalBias`, `textureIndex` in `readRenderTargetPixels`, `KTX2Loader` `crossOrigin`), no change in threepipe's API
+  - `ImageUtils.getDataURL(image, type = 'image/png')` always returns a PNG (three.js r173), the fork's `forcePng` second argument is removed. `GLTFViewerConfigExtension` no longer passes it
+  - glTF export writes parent nodes before their children (three.js r177, #31125), so node indices in exported files change and exported glb/gltf files differ byte-wise from earlier versions for the same scene
+  - Material JSON `metadata.version` is `4.7` (three.js r177) instead of the fork's `4.6001`. Files saved by earlier versions load as before (the legacy bump scale is only applied for `<= 4.6`)
+  - **Breaking** `CreateRenderTargetOptions.format` is a `PixelFormat` instead of a `number` (three.js r177 types `RenderTargetOptions.format` as `PixelFormat`), callers passing a plain `number` have to pass a `PixelFormat` constant. Added the `isPixelFormat()` type guard to check a `Texture.format`
+  - `LineMaterial2` places the `beforeAccumulation` shader marker before `#include <logdepthbuf_fragment>`, as three.js r177 (#31144) moved `vec4 diffuseColor = ` to the start of `main()`. The marker stays after the discards and the final alpha, like before
+
+### Fixed
+
+- `ExtendedShaderPass.dispose` disposes the full-screen quad again (three.js r175 renamed it to `_fsQuad`)
+- Lerp of compressed textures (e.g. KTX2) no longer creates a render target with a compressed format, it falls back to `RGBAFormat`
+
 ## [0.7.0-dev]
 
 ### Changed
