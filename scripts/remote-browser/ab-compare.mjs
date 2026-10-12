@@ -72,6 +72,15 @@ async function render(browser, base, name, file) {
         }).catch(() => {})
         await page.addStyleTag({content: '#stats-js {display: none !important;} .show-code-btn {display: none !important;} .code-block {display: none !important;}'})
         await page.waitForTimeout(1000)
+        // Some examples (the r3f ones) call _testFinish before their assets arrive: wait until the asset manager has no
+        // import in progress (same condition the LoadingScreenPlugin uses to hide) and the loading screen is gone.
+        await page.waitForFunction(() => {
+            const viewer = window.threeViewers?.[0]
+            if (!viewer) return true
+            const states = [...viewer.assetManager.processState.values()]
+            const loadingScreen = viewer.getPlugin?.('LoadingScreen')
+            return states.every(s => s.state === 'error') && (!loadingScreen || !loadingScreen.visible)
+        }, null, {timeout: 60000}).catch(() => { res.logs.push('[ab] imports still pending after 60 s') })
         res.renderer = await page.evaluate(async() => {
             const viewer = window.threeViewers?.[0]
             if (!viewer) return null
