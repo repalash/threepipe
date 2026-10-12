@@ -103,6 +103,16 @@ Check the example [image-snapshot-export](https://threepipe.org/examples/#image-
 
 See also: [CanvasSnapshotPlugin](../plugin/CanvasSnapshotPlugin).
 
+## Recording Canvas Videos
+
+The canvas can be recorded as a frame-exact video (WebCodecs, MP4) or an image sequence with the [@threepipe/plugin-canvas-recorder](../package/plugin-canvas-recorder) package.
+```typescript
+const recorder = viewer.addPluginSync(CanvasRecorderPlugin)
+const blob = await recorder.recordDuration(5, {fps: 60}) // 300 frames, downloads recording.mp4
+```
+
+Check the example [canvas-recorder-plugin](https://threepipe.org/examples/#canvas-recorder-plugin/) to see a demo.
+
 ## Exporting Viewer Config (vjson)
 
 The viewer configuration can be exported to JSON using `viewer.exportConfig` or `viewer.export(viewer)`. This would export a JSON object with all the viewer, scene and all plugin configuration but no 3D data.
