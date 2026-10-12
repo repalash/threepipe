@@ -48,8 +48,7 @@ export class ExtendedShaderPass extends ShaderPass implements IPass {
 
     public onDirty: (()=>void)[] = []
     dispose() {
-        this.material?.dispose?.()
-        this.fsQuad?.dispose?.()
+        super.dispose() // disposes the material and the full-screen quad (three r175 renamed fsQuad to _fsQuad)
         this.onDirty = []
     }
 
