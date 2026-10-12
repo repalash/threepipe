@@ -11,7 +11,6 @@ import {
     Object3D,
     Scene,
 } from 'three'
-import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import {IObject3D, ISceneEventMap} from '../../core'
 import {generateUUID} from '../../three'
 import type {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
@@ -466,8 +465,8 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
             // if (Math.abs(delta) < 0.0001) return
 
-            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-            if (d && d > 0) delta = d
+            const d = this._viewer.timeline.recordingDelta() // fixed step (secs) when a frame-exact recorder is running
+            if (d > 0) delta = d
             if (d === 0) delta = 0 // not converged yet.
             // if d < 0: not recording, do nothing
 

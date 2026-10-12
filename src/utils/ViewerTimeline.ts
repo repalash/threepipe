@@ -1,6 +1,5 @@
 import {Clock, EventDispatcher} from 'three'
 import {ThreeViewer} from '../viewer'
-import {ProgressivePlugin} from '../plugins'
 import {uiButton, uiFolderContainer, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChangeDispatchEvent, serializable, serialize} from 'ts-browser-helpers'
 import {OnChangeDispatchEventType} from './browser-helpers'
@@ -127,27 +126,48 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         // if (this._stop) this._stop = false
     }
 
-    update(viewer: ThreeViewer) {
+    /**
+     * Source of a fixed time step, set by recorders that capture every rendered frame, like `CanvasRecorderPlugin` in `@threepipe/plugin-canvas-recorder`.
+     *
+     * It is called after a frame is rendered, possibly more than once in a frame (it must return the same value within a frame). It returns
+     * - the time in seconds to advance in this frame (like `1 / fps`),
+     * - `0` to hold the time in this frame (like while a frame converges), or
+     * - `-1` (any negative value) to use the real (wall clock) time.
+     *
+     * The timeline (when running), the animations in `PopmotionPlugin` and `GLTFAnimationPlugin` and the camera controls read it with {@link recordingDelta},
+     * so they advance by the same step in every frame, independent of how long a frame takes to render or encode.
+     *
+     * Set it back to `undefined` when the recording stops. Not serialized.
+     */
+    recordingDeltaProvider?: () => number
+
+    /**
+     * The time step of the current frame in seconds, when a recorder controls the time. See {@link recordingDeltaProvider}.
+     * @returns the time in seconds to advance in this frame, `0` to hold the time (frame converging), or `-1` when not recording (use real time).
+     */
+    recordingDelta(): number {
+        const d = this.recordingDeltaProvider?.()
+        return d !== undefined && d >= 0 ? d : -1
+    }
+
+    update(_viewer: ThreeViewer) {
         this._refreshParams()
         if (!this.running) {
             this.delta = this._clock.getDelta() // this will return 0 always
             this._time = this._clock.elapsedTime
             return
         }
-        const d = viewer.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
-        if (d && d > 0) {
-            // recorded frame
-            this.delta = d / 1000
-            this._clock.oldTime += d
-            this._clock.elapsedTime += this.delta
+        const d = this.recordingDelta()
+        if (d >= 0) {
+            // recording. d > 0: recorded frame, advance by the fixed step. d === 0: not converged yet, hold the time.
+            const elapsed = this._clock.elapsedTime
+            this._clock.getDelta() // keeps the wall clock reference current, so that the time does not jump when the recording stops
+            this._clock.elapsedTime = elapsed + d
+            this.delta = d
             this._time = this._clock.elapsedTime
             // viewer.setDirty(this) // for next frame
-            this.dispatchEvent({type: 'update'})
-        } else if (d !== undefined && d === 0) {
-            // recording, not converged yet.
-            this.delta = 0
-            this._time = this._clock.elapsedTime
-        } else if (d === undefined || d < 0) {
+            if (d > 0) this.dispatchEvent({type: 'update'})
+        } else {
             // not recording
             this.delta = this._clock.getDelta() // this updates oldTime and elapsedTime
             this._time = this._clock.elapsedTime

@@ -133,14 +133,13 @@ export class ProgressivePlugin
     }
 
     /**
-     * Get recording delta post render, For use with animations to sync with converge mode in canvas recorder. See PopmotionPlugin for usage.
-     * @returns {number} - delta time in milliseconds, or 0 when converging, or -1 in case of not recording in converge mode
+     * Get recording delta post render, For use with animations to sync with converge mode in canvas recorder.
+     * Same as `viewer.timeline.recordingDelta()`, see {@link ViewerTimeline.recordingDeltaProvider}.
+     * @deprecated use `viewer.timeline.recordingDelta()` ({@link ViewerTimeline.recordingDelta}), it also works when this plugin is not added.
+     * @returns {number} - delta time in seconds, or 0 when converging, or -1 in case of not recording
      */
     postFrameConvergedRecordingDelta(_ = 'CanvasRecorder'): number {
-        // const recorder = this._viewer!.getPluginByType<IConvergedCanvasRecorder&IViewerPlugin>(recorderPlugin)
-        // if (recorder && recorder.isRecording() && recorder.convergeMode)
-        //     return this.isConverged(true) ? 1. / recorder.videoFrameRate : 0
-        return -1
+        return this._viewer?.timeline.recordingDelta() ?? -1
     }
 
     get convergedPromise() {
