@@ -17,7 +17,9 @@ float unpack16(vec2 value){
 vec3 unpackNormal(vec2 enc) {
     vec2 fenc = enc*4.0-2.0;
     float f = dot(fenc, fenc);
-    float g = sqrt(1.0-f/4.0);
+    // f > 4 is outside the encoding (packNormal divides by zero for a normal facing straight away, n.z = -1): without
+    // the max the sqrt gives NaN, which spreads through any pass that filters or accumulates the normal.
+    float g = sqrt(max(0.0, 1.0-f/4.0));
     return vec3(fenc*g, 1.0-f/2.0);
 }
 float unpackDepth(vec2 uncodedDepth) {

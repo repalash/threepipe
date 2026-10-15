@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Fix NaN normals from the GBuffer: `unpackNormal` returned NaN for an encoding outside the valid range, which `packNormal` writes for a view normal facing straight away (`n.z = -1`, e.g. back faces). Screen-space passes that filter or accumulate the normal (SSR/SSGI denoisers) spread the NaN into growing black squares
 
 ### Fixed
 
