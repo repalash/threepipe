@@ -12,7 +12,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {bakeGeometry} from '@threepipe/mesh-kernel'
-import {CommandDefinition, S, schema} from './types'
+import {CommandContext, CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
 import {ModellingEntry} from '../document'
 
@@ -70,7 +70,7 @@ function ensureFarPlane(viewer: ThreeViewer): number | null {
 }
 
 /** Named orientations, as unit directions from the target towards the camera. */
-const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
+export const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
     front: [0, 0, 1],
     back: [0, 0, -1],
     right: [1, 0, 0],
@@ -86,7 +86,7 @@ const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
  * `Box3B` rather than `Box3`: its `expandByObject` takes threepipe's precise-bounds flags, which is
  * what `camera.fitObject` uses, so framing computed here matches framing computed there.
  */
-function worldBounds(objects: ModellingEntry[]): Box3B {
+export function worldBounds(objects: ModellingEntry[]): Box3B {
     const box = new Box3B()
     for (const e of objects) {
         e.object.updateWorldMatrix(true, true)
@@ -127,7 +127,7 @@ function switchCamera(viewer: ThreeViewer, next: ICamera): void {
  * camera now looks, with `margin` to spare: the box's corners projected onto the camera's right and up
  * axes, with the width folded in through the aspect ratio.
  */
-function orthographicFrustumFor(camera: ICamera, box: Box3, margin: number): number {
+export function orthographicFrustumFor(camera: ICamera, box: Box3, margin: number): number {
     camera.updateMatrixWorld(true)
     const e = camera.matrixWorld.elements
     const right = new Vector3(e[0], e[1], e[2]).normalize()
@@ -188,6 +188,19 @@ export const cameraCommand: CommandDefinition = {
     }),
 
     async run(p: Record<string, unknown>, ctx) {
+        const out = await runCamera(p, ctx)
+        // Remember where the session put the camera, so `look {view: 'camera'}` can come back to it
+        // after a person has orbited the viewport in between.
+        const camera = ctx.viewer.scene.mainCamera
+        ctx.plugin.sessionCamera = {
+            position: camera.position.toArray() as Vec3Tuple, target: camera.target.toArray() as Vec3Tuple,
+        }
+        return out
+    },
+}
+
+async function runCamera(p: Record<string, unknown>, ctx: CommandContext) {
+    {
         const viewer = ctx.viewer
         const views = viewer.getPlugin<any>('CameraViews')
         const duration = (p.duration as number) ?? 0
@@ -340,7 +353,7 @@ export const cameraCommand: CommandDefinition = {
                 ...describeLens(),
             },
         }
-    },
+    }
 }
 
 function selectedEntries(ctx: {viewer: any, doc: any}): ModellingEntry[] {

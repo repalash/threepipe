@@ -41,6 +41,7 @@ import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
+import {lookCommand} from './commands/look'
 
 export interface CaptureResult {
     dataUrl: string
@@ -75,6 +76,12 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
 
     /** Calibrated reference planes, keyed by name. See `commands/reference.ts`. */
     readonly references = new Map<string, ReferencePlaneState>()
+
+    /**
+     * Where the last `camera` command left the camera. A person orbiting the viewport moves the
+     * camera without touching this, so `look {view: 'camera'}` can still see what the session framed.
+     */
+    sessionCamera: {position: [number, number, number], target: [number, number, number]} | null = null
 
     /** Current viewport shading, as set by the `display` command. */
     displayMode: 'material' | 'solid' | 'wireframe' = 'material'
@@ -127,6 +134,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...shapeCommands,
             ...loopCommands,
             ...cutCommands,
+            lookCommand,
         ])
     }
 

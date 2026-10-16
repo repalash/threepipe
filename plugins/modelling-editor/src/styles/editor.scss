@@ -400,6 +400,10 @@
   width: 440px;
   &.me-dialog-wide { width: 720px; }
   .me-dialog-note { margin-top: 12px; color: var(--me-text-muted); font-size: var(--me-font-size-small); }
+  &.me-look-dialog { width: min(1000px, 92vw); }
+  .me-look-image { display: block; width: 100%; max-height: 62vh; object-fit: contain; border-radius: 3px; background: #202226; }
+  .me-look-meta { margin-top: 8px; font-size: var(--me-font-size-small); line-height: 1.6; color: var(--me-text-muted);
+    code { font-size: 11px; word-break: break-all; } b { color: var(--me-text); } }
 }
 
 // uiconfig-blueprint folders inside the properties pane: tighter
