@@ -395,8 +395,9 @@ export const inspectCommand: CommandDefinition = {
     schema: schema({
         object: S.objectRef('Objects to inspect. Omit to summarise the document.'),
         objects: S.objectRef('Alias for `object`.'),
-        detail: S.boolean('Include per-vertex positions and per-face vertex lists.'),
-        limit: S.integer('Cap on detailed vertices per object. Default 400.', {minimum: 1}),
+        detail: S.boolean('Include per-vertex positions, per-face vertex lists and per-edge vertex '
+            + 'pairs (`edgeVerts`, in the edge-index order `bevel` and `subdivide` take).'),
+        limit: S.integer('Cap on detailed vertices, faces and edges per object. Default 400.', {minimum: 1}),
     }),
 
     run(p: Record<string, unknown>, ctx) {
@@ -451,6 +452,13 @@ export const inspectCommand: CommandDefinition = {
                 const fn = Math.min(mesh.facesNum, limit)
                 base.faceVerts = Array.from({length: fn}, (_, i) => mesh.faceVerts(i))
                 if (fn < mesh.facesNum) base.facesTruncated = mesh.facesNum - fn
+                // Edge indices are what `bevel`, `subdivide`, `deleteElements` and `bridgeEdgeLoops`
+                // take, and `bmFromMesh` creates the BMesh edges in this order, so index i here is
+                // edge i there.
+                const en = Math.min(mesh.edgesNum, limit)
+                const ev = mesh.edgeVerts
+                base.edgeVerts = Array.from({length: en}, (_, i) => [ev[i * 2], ev[i * 2 + 1]])
+                if (en < mesh.edgesNum) base.edgesTruncated = mesh.edgesNum - en
             }
             return base
         })

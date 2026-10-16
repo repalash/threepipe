@@ -2726,6 +2726,28 @@ test('modelling-api', async({page}) => {
     expect((chamfer.data as any).edges).toBe(48)
     expect((chamfer.data as any).faces).toBe(26)
 
+    // `inspect {detail}` lists edges as vertex pairs in the index order `bevel {edges}` takes, so an
+    // edge can be chosen by where it is rather than guessed.
+    await run({op: 'primitive', type: 'cube', name: 'picked', size: 2, position: [0, 0, 8]})
+    const pickedShape = (await run({op: 'inspect', object: 'picked', detail: true})).data as any
+    expect(pickedShape.edgeVerts.length).toBe(pickedShape.edges)
+    for (const f of pickedShape.faceVerts as number[][]) {
+        for (let k = 0; k < f.length; k++) {
+            const a = f[k], b = f[(k + 1) % f.length]
+            expect(pickedShape.edgeVerts.some((e: number[]) => (e[0] === a && e[1] === b) || (e[0] === b && e[1] === a))).toBe(true)
+        }
+    }
+    // The one edge along +x on the top, back side: both ends at y = 1, z = -1.
+    const topBack = (pickedShape.edgeVerts as number[][]).findIndex(([a, b]) =>
+        [a, b].every(v => pickedShape.vertices[v][1] > 0.99 && pickedShape.vertices[v][2] < -0.99))
+    expect(topBack).toBeGreaterThanOrEqual(0)
+    const oneEdge = await run({op: 'bevel', object: 'picked', edges: [topBack], offset: 0.2})
+    expect(oneEdge.ok).toBe(true)
+    // One chamfered edge on a cube: 8 + 2 vertices, 6 + 1 faces.
+    expect((oneEdge.data as any).verts).toBe(10)
+    expect((oneEdge.data as any).faces).toBe(7)
+    await run({op: 'delete', object: 'picked'})
+
     // At `profile: 0.5` the intermediate points lie on a circular arc, so a rounded cube's corner
     // vertices all sit the same distance from the corner they replaced.
     await run({op: 'primitive', type: 'cube', name: 'rounded', size: 2, position: [5, 0, 0]})
