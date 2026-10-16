@@ -44,18 +44,96 @@ export interface ModellingEntry {
     revision: number
 }
 
-/** A restorable snapshot of one object. `null` `mesh` means the object did not exist. */
+/**
+ * The material properties the `material` command sets - all of them, so an undo gives back every one.
+ * `color` is the linear RGB the material holds, not a hex string, so restoring it is exact.
+ */
+export interface MaterialSnapshot {
+    color: [number, number, number]
+    metalness: number
+    roughness: number
+    opacity: number
+    transparent: boolean
+    flatShading: boolean
+    wireframe: boolean
+}
+
+/**
+ * A restorable snapshot of one object. `null` `mesh` means the object did not exist.
+ *
+ * Every field holds the value the object holds, not one derived from it - the rotation is the
+ * quaternion, not Euler angles re-derived from it - so restoring a snapshot reproduces the object
+ * exactly, and a redo is a replay rather than an approximation.
+ */
 export interface EntrySnapshot {
     id: string
     name: string
     mesh: MeshData | null
     modifiers: ModifierSpec[]
     position: [number, number, number]
-    rotation: [number, number, number]
+    /** `object.quaternion`, `[x, y, z, w]`. */
+    quaternion: [number, number, number, number]
     scale: [number, number, number]
     visible: boolean
     parentId: string | null
-    materialColor: string | null
+    material: MaterialSnapshot | null
+}
+
+/** The `material` command's properties of a material, or null when it has none of them. */
+export function snapshotMaterial(mat: PhysicalMaterial | undefined): MaterialSnapshot | null {
+    if (!mat?.color) return null
+    return {
+        color: mat.color.toArray() as [number, number, number],
+        metalness: mat.metalness,
+        roughness: mat.roughness,
+        opacity: mat.opacity,
+        transparent: mat.transparent,
+        flatShading: mat.flatShading,
+        wireframe: mat.wireframe,
+    }
+}
+
+/** Write a {@link MaterialSnapshot} back. */
+export function applyMaterial(mat: PhysicalMaterial | undefined, snap: MaterialSnapshot | null): void {
+    if (!mat?.color || !snap) return
+    mat.color.fromArray(snap.color)
+    mat.metalness = snap.metalness
+    mat.roughness = snap.roughness
+    mat.opacity = snap.opacity
+    mat.transparent = snap.transparent
+    // `needsUpdate` through threepipe's setDirty: flat shading and wireframe change the program.
+    if (mat.flatShading !== snap.flatShading || mat.wireframe !== snap.wireframe) mat.needsUpdate = true
+    mat.flatShading = snap.flatShading
+    mat.wireframe = snap.wireframe
+    mat.setDirty?.()
+}
+
+/** Exact equality of two meshes: face offsets, material slots, selection state and every attribute layer. */
+export function meshDataEqual(a: MeshData, b: MeshData): boolean {
+    if (a === b) return true
+    if (a.faceOffsets.length !== b.faceOffsets.length || a.faceOffsets.some((x, i) => x !== b.faceOffsets[i])) return false
+    if (a.materials.length !== b.materials.length || a.materials.some((x, i) => x !== b.materials[i])) return false
+    if (JSON.stringify(a.select) !== JSON.stringify(b.select)) return false
+    const la = a.attributes.layers(), lb = b.attributes.layers()
+    if (la.length !== lb.length) return false
+    for (const x of la) {
+        const y = b.attributes.get(x.name)
+        if (!y || y.domain !== x.domain || y.type !== x.type || y.data.length !== x.data.length) return false
+        // Object.is, so -0 and 0 count as different, as they are different bits in the file.
+        for (let i = 0; i < x.data.length; i++) if (!Object.is(x.data[i], y.data[i])) return false
+    }
+    return true
+}
+
+/** Whether two snapshots of the same object describe the same state - i.e. a command changed nothing. */
+export function snapshotsEqual(a: EntrySnapshot, b: EntrySnapshot): boolean {
+    if (a.id !== b.id || a.name !== b.name || a.visible !== b.visible || a.parentId !== b.parentId) return false
+    if (!a.mesh || !b.mesh) {
+        if (a.mesh !== b.mesh) return false
+    } else if (!meshDataEqual(a.mesh, b.mesh)) return false
+    const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y)
+    return same(a.modifiers, b.modifiers) && same(a.position, b.position) && same(a.quaternion, b.quaternion)
+        && same(a.scale, b.scale) && same(a.material, b.material)
 }
 
 let documentCounter = 0
@@ -303,11 +381,11 @@ export class ModellingDocument {
             mesh: null,
             modifiers: [],
             position: [0, 0, 0],
-            rotation: [0, 0, 0],
+            quaternion: [0, 0, 0, 1],
             scale: [1, 1, 1],
             visible: true,
             parentId: null,
-            materialColor: null,
+            material: null,
         } : this.snapshot(entry))
     }
 
@@ -321,12 +399,17 @@ export class ModellingDocument {
             mesh: entry.mesh.clone(),
             modifiers: entry.modifiers.map(m => ({...m})),
             position: o.position.toArray() as [number, number, number],
-            rotation: [o.rotation.x, o.rotation.y, o.rotation.z],
+            quaternion: o.quaternion.toArray() as [number, number, number, number],
             scale: o.scale.toArray() as [number, number, number],
             visible: o.visible,
             parentId: null,
-            materialColor: mat?.color ? '#' + mat.color.getHexString() : null,
+            material: snapshotMaterial(mat),
         }
+    }
+
+    /** Whether two snapshots describe the same state. See {@link snapshotsEqual}. */
+    snapshotsEqual(a: EntrySnapshot, b: EntrySnapshot): boolean {
+        return snapshotsEqual(a, b)
     }
 
     /** Put one object back the way a snapshot found it. A `null` mesh means: it should not exist. */
@@ -342,8 +425,9 @@ export class ModellingDocument {
         }
         if (!entry) {
             // The command deleted it; rebuild under the same id so later snapshots still match.
+            // The defaults `add` uses; `_applyTransform` then writes the snapshot's own values over them.
             const material = new PhysicalMaterial({
-                color: new Color(snap.materialColor ?? '#b7bcc4'),
+                color: new Color('#b7bcc4'),
                 roughness: 0.55,
                 metalness: 0.1,
             })
@@ -373,11 +457,10 @@ export class ModellingDocument {
     private _applyTransform(entry: ModellingEntry, snap: EntrySnapshot): void {
         const o = entry.object
         o.position.fromArray(snap.position)
-        o.rotation.set(snap.rotation[0], snap.rotation[1], snap.rotation[2])
+        o.quaternion.fromArray(snap.quaternion)
         o.scale.fromArray(snap.scale)
         o.visible = snap.visible
-        const mat = o.material as PhysicalMaterial | undefined
-        if (snap.materialColor && mat?.color) mat.color.set(snap.materialColor)
+        applyMaterial(o.material as PhysicalMaterial | undefined, snap.material)
         o.setDirty?.()
     }
 
