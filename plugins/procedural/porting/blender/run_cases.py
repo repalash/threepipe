@@ -40,7 +40,7 @@ import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from geometry_dump import BinWriter, read_geometry  # noqa: E402
+from geometry_dump import BinWriter, input_group, read_geometry  # noqa: E402
 
 # Properties that change which sockets exist must be set first.
 PROPERTY_ORDER = ["data_type", "input_type", "capture_type", "domain", "mode", "noise_dimensions",
@@ -230,7 +230,10 @@ def evaluate(case, writer):
     ident_map = built[main][1]
     for item in groups[main].interface.items_tree:
         if item.item_type == "SOCKET" and item.in_out == "INPUT" and item.name in case.get("inputs", {}):
-            mod[item.identifier] = resolve(case["inputs"][item.name])
+            group = input_group(mod, item.identifier)
+            if group is None:
+                raise KeyError(f"modifier input '{item.name}' has no value to set")
+            group.value = resolve(case["inputs"][item.name])
     obj.update_tag()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     depsgraph.update()

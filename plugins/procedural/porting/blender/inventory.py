@@ -72,7 +72,10 @@ def properties(node):
             entry["items"] = [i.identifier for i in prop.enum_items]
             value = getattr(node, prop.identifier)
             entry["default"] = sorted(value) if isinstance(value, set) else value
-            if not prop.is_readonly and not getattr(prop, "is_enum_flag", False):
+            if not entry["items"]:
+                # Dynamic enum with no items in a fresh node (menu switch items, ...): nothing to sweep.
+                entry["dynamicEmpty"] = True
+            elif not prop.is_readonly and not getattr(prop, "is_enum_flag", False):
                 layouts = {}
                 for item in entry["items"]:
                     try:
@@ -80,7 +83,10 @@ def properties(node):
                     except Exception:  # noqa: BLE001 - some items are not allowed in this tree type
                         continue
                     layouts[item] = layout(node)
-                setattr(node, prop.identifier, value)
+                try:
+                    setattr(node, prop.identifier, value)
+                except Exception:  # noqa: BLE001 - restore may fail for context-dependent enums
+                    entry["restoreFailed"] = True
                 entry["layouts"] = layouts
         elif prop.type in ("BOOLEAN", "INT", "FLOAT", "STRING") and getattr(prop, "array_length", 0) == 0:
             entry["default"] = getattr(node, prop.identifier)

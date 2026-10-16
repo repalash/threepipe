@@ -197,3 +197,13 @@ def serialize_value(value):
         return [serialize_value(v) for v in value]
     except TypeError:
         return str(value)
+
+
+def input_group(mod, identifier):
+    """The generated property group of one modifier input (5.x: `mod.properties.inputs.<identifier>`,
+    `nodes/intern/geometry_nodes_srna.cc:110`), or None (geometry sockets have none)."""
+    props = getattr(mod, "properties", None)
+    inputs = getattr(props, "inputs", None) if props is not None else None
+    if inputs is None:
+        return None
+    return getattr(inputs, identifier, None)

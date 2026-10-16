@@ -31,7 +31,7 @@ import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from geometry_dump import BinWriter, matrix_list, read_geometry, serialize_value  # noqa: E402
+from geometry_dump import BinWriter, input_group, matrix_list, read_geometry, serialize_value  # noqa: E402
 
 FORBIDDEN = frozenset([
     "bl_idname", "bl_label", "bl_subtype_label", "bl_static_type", "bl_description", "bl_icon",
@@ -227,18 +227,23 @@ def collect_groups(tree, out):
 
 
 def modifier_inputs(mod):
+    """Every interface input with its value and attribute settings, read from the generated RNA
+    (`value`, `type` = VALUE / ATTRIBUTE / ..., `attribute_name`, `layer_name`)."""
     values = {}
     for item in mod.node_group.interface.items_tree:
         if item.item_type != "SOCKET" or item.in_out != "INPUT":
             continue
-        key = item.identifier
-        entry = {"name": item.name}
-        if key in mod.keys():
-            entry["value"] = serialize_value(mod[key])
-        for suffix in ("_use_attribute", "_attribute_name"):
-            if key + suffix in mod.keys():
-                entry[suffix[1:]] = serialize_value(mod[key + suffix])
-        values[key] = entry
+        entry = {"name": item.name, "socketType": item.bl_socket_idname}
+        group = input_group(mod, item.identifier)
+        if group is not None:
+            for prop in group.bl_rna.properties:
+                if prop.identifier == "rna_type":
+                    continue
+                try:
+                    entry[prop.identifier] = serialize_value(getattr(group, prop.identifier))
+                except Exception as error:  # noqa: BLE001 - record and continue
+                    entry[prop.identifier + "_error"] = str(error)
+        values[item.identifier] = entry
     return values
 
 
@@ -250,15 +255,22 @@ def apply_sets(sets):
         mod = bpy.data.objects[obj_name].modifiers[mod_name]
         item = next(i for i in mod.node_group.interface.items_tree
                     if i.item_type == "SOCKET" and i.in_out == "INPUT" and i.name == input_name)
-        current = mod[item.identifier]
-        parsed = json.loads(value) if value[:1] in "[{0123456789-tf" else value
-        if isinstance(current, bpy.types.ID):
-            pool = {"Object": bpy.data.objects, "Collection": bpy.data.collections,
-                    "Material": bpy.data.materials, "Image": bpy.data.images}[type(current).__name__]
-            parsed = pool[value]
-        mod[item.identifier] = parsed
+        group = input_group(mod, item.identifier)
+        if group is None:
+            raise SystemExit(f"--set: input '{input_name}' has no value to set")
+        current = group.value
+        if isinstance(current, bpy.types.ID) or current is None and value and value[:1] not in "[{0123456789-":
+            pools = {"NodeSocketObject": bpy.data.objects, "NodeSocketCollection": bpy.data.collections,
+                     "NodeSocketMaterial": bpy.data.materials, "NodeSocketImage": bpy.data.images}
+            parsed = pools[item.bl_socket_idname][value]
+        else:
+            # JSON literals: numbers, true/false, [x, y, z]
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                parsed = tuple(parsed)
+        group.value = parsed
         applied.append({"object": obj_name, "modifier": mod_name, "input": input_name,
-                        "identifier": item.identifier, "value": serialize_value(mod[item.identifier])})
+                        "identifier": item.identifier, "value": serialize_value(group.value)})
     return applied
 
 
@@ -402,7 +414,7 @@ def main():
     for o in objects:
         for m in o["modifiers"]:
             if m["inputs"]:
-                names = ", ".join(f"{v['name']}={v.get('value')!r}" for v in m["inputs"].values())
+                names = ", ".join(f"{v['name']}={v.get('value', '-')!r}" for v in m["inputs"].values())
                 print(f"  {o['name']}:{m['name']} inputs: {names}")
 
 
