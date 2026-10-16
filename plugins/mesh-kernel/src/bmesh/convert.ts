@@ -15,6 +15,7 @@ import {MeshData, SelectHistoryEntry} from '../MeshData'
 import {edgeSelectSet, faceSelectSet, vertSelectSet} from './marking'
 import {
     AttrDomain,
+    attrDomainName,
     AttrName,
     ATTR_TYPE_INFO,
     AttrType,
@@ -52,6 +53,9 @@ function domainOf(domain: AttrDomain): 'vert' | 'edge' | 'loop' | 'face' {
     case AttrDomain.Edge: return 'edge'
     case AttrDomain.Face: return 'face'
     case AttrDomain.Corner: return 'loop'
+    case AttrDomain.Curve:
+    case AttrDomain.Instance:
+        throw new Error(`mesh-kernel: a mesh attribute cannot live on the ${attrDomainName(domain)} domain`)
     }
 }
 

@@ -10,7 +10,7 @@
 import {
     ArrayConstructor2,
     AttrDomain,
-    ATTR_DOMAINS,
+    ALL_ATTR_DOMAINS,
     ATTR_TYPE_INFO,
     AttrType,
     attrDomainName,
@@ -50,11 +50,14 @@ function allocate(type: AttrType, count: number): TypedArray2 {
 export class AttributeStorage {
     private _layers = new Map<string, AttributeLayer>()
 
-    /** Current element count per domain, indexed by {@link AttrDomain}. */
-    readonly domainSizes: number[] = [0, 0, 0, 0]
+    /**
+     * Current element count per domain, indexed by {@link AttrDomain}: the four mesh domains, then Curve
+     * and Instance (zero on a mesh).
+     */
+    readonly domainSizes: number[] = [0, 0, 0, 0, 0, 0]
 
     constructor(domainSizes?: Partial<Record<AttrDomain, number>>) {
-        if (domainSizes) for (const d of ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
+        if (domainSizes) for (const d of ALL_ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
     }
 
     get size(): number {
@@ -155,7 +158,7 @@ export class AttributeStorage {
     /** Deep copy, including the contents of every layer. */
     clone(): AttributeStorage {
         const out = new AttributeStorage()
-        for (const d of ATTR_DOMAINS) out.domainSizes[d] = this.domainSizes[d]
+        for (const d of ALL_ATTR_DOMAINS) out.domainSizes[d] = this.domainSizes[d]
         for (const layer of this._layers.values()) {
             out._layers.set(layer.name, {
                 name: layer.name,
