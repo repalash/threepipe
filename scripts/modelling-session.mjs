@@ -115,9 +115,9 @@ page.on('console', m => {
 })
 
 console.log(`opening ${url}`)
-await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000})
+await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 180000})
 // The viewer renders continuously, so `networkidle` never settles. Wait for the plugin instead.
-await page.waitForFunction(() => !!window.modelling, {timeout: 90000})
+await page.waitForFunction(() => !!window.modelling, undefined, {timeout: 180000})
 // Captures are of the model, not of the tool - unless you are documenting the tool itself.
 if (!flags.get('keep-ui')) {
     await page.evaluate(() => {
