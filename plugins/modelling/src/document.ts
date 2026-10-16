@@ -18,6 +18,7 @@ import {
     IObject3D,
     Mesh2,
     PhysicalMaterial,
+    safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
 import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
@@ -76,6 +77,49 @@ export class ModellingDocument {
 
     constructor(readonly viewer: ThreeViewer, documentId?: string) {
         this.documentId = documentId ?? `doc-${++documentCounter}-${Math.random().toString(36).slice(2, 8)}`
+    }
+
+    /**
+     * A UUID derived from the document id and a key, for everything the document creates.
+     *
+     * three.js gives every object and material a random UUID and threepipe writes them into the glTF it
+     * exports, so two replays of one transcript differed in nothing but those strings. Derived ones make a
+     * replay byte-identical when the document id is the same (`new ModellingPlugin({documentId})`), and keep
+     * an object's UUID across delete and undo, since a revived object derives the same one. Different
+     * documents still get different UUIDs.
+     */
+    stableUuid(key: string): string {
+        const text = `${this.documentId}/${key}`
+        // Four FNV-1a passes with different offsets make 128 bits; a UUID only needs to be unique within
+        // the scene, which the document id already scopes.
+        let hex = ''
+        for (const seed of [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b]) {
+            let h = seed >>> 0
+            for (let i = 0; i < text.length; i++) {
+                h ^= text.charCodeAt(i)
+                h = Math.imul(h, 0x01000193) >>> 0
+            }
+            hex += h.toString(16).padStart(8, '0')
+        }
+        // RFC 4122 layout, version 5-style (name-based) and variant bits set.
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+    }
+
+    /** A new object and material for `entry`, with UUIDs derived from its id. */
+    private _createObject(entryId: string, name: string, color: string): IObject3D {
+        const material = new PhysicalMaterial({
+            color: new Color(color),
+            roughness: 0.55,
+            metalness: 0.1,
+        })
+        // threepipe's own way to set an identity (`MaterialManager.create`, `GLTFLoader2`): `uuid` is
+        // read-only in its types. The material mirrors it into `userData.uuid` for serialisation.
+        safeSetProperty(material, 'uuid', this.stableUuid(`${entryId}/material`), true, true)
+        material.userData.uuid = material.uuid
+        const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
+        safeSetProperty(object, 'uuid', this.stableUuid(`${entryId}/object`), true, true)
+        object.name = name
+        return object
     }
 
     get entries(): ModellingEntry[] {
@@ -175,16 +219,11 @@ export class ModellingDocument {
      */
     add(mesh: MeshData, options: {name?: string, color?: string} = {}): ModellingEntry {
         const name = this.uniqueName(options.name ?? 'object')
-        const material = new PhysicalMaterial({
-            color: new Color(options.color ?? '#b7bcc4'),
-            roughness: 0.55,
-            metalness: 0.1,
-        })
-        const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
-        object.name = name
+        const id = `o${this._nextId++}`
+        const object = this._createObject(id, name, options.color ?? '#b7bcc4')
 
         const entry: ModellingEntry = {
-            id: `o${this._nextId++}`,
+            id,
             name,
             object,
             mesh,
@@ -341,14 +380,9 @@ export class ModellingDocument {
             return
         }
         if (!entry) {
-            // The command deleted it; rebuild under the same id so later snapshots still match.
-            const material = new PhysicalMaterial({
-                color: new Color(snap.materialColor ?? '#b7bcc4'),
-                roughness: 0.55,
-                metalness: 0.1,
-            })
-            const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
-            object.name = snap.name
+            // The command deleted it; rebuild under the same id so later snapshots still match - and
+            // under the same UUIDs, which derive from that id.
+            const object = this._createObject(snap.id, snap.name, snap.materialColor ?? '#b7bcc4')
             const revived: ModellingEntry = {
                 id: snap.id, name: snap.name, object,
                 mesh: snap.mesh.clone(),

@@ -42,6 +42,7 @@ import {shapeCommands} from './commands/shape'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
 import {lookCommand} from './commands/look'
+import {checkCommands, computeLocality, targetIds} from './commands/checks'
 
 export interface CaptureResult {
     dataUrl: string
@@ -89,6 +90,13 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
     /** Every result this session has produced, in order. A session log, and a replayable one. */
     readonly results: CommandResult[] = []
 
+    /**
+     * Attach a `locality` report to every mutating command's result: a geometric diff of each object it
+     * touched, against the before-state already recorded for undo. Turn off to save the diff's time on
+     * very large meshes.
+     */
+    reportLocality = true
+
     /** Keep the last N results. Captures are large; the log should not grow without bound. */
     resultLimit = 500
 
@@ -116,9 +124,20 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         return this._undoManager
     }
 
+    private _documentId: string | undefined
+
+    /**
+     * @param options.documentId - fix the document id instead of generating one. Everything the document
+     * creates derives its UUID from it, so a replay under the same id exports byte-identical files.
+     */
+    constructor(options: {documentId?: string} = {}) {
+        super()
+        this._documentId = options.documentId
+    }
+
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        this.document = new ModellingDocument(viewer)
+        this.document = new ModellingDocument(viewer, this._documentId)
         this.history = new ModellingHistory(this.document)
         this._connectMeshEdit(viewer)
         this._connectUndoManager(viewer)
@@ -135,6 +154,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...loopCommands,
             ...cutCommands,
             lookCommand,
+            ...checkCommands,
         ])
     }
 
@@ -317,10 +337,19 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             warn: (m: string) => warnings.push(m),
         }
 
+        const targets = def.mutates && this.reportLocality ? targetIds(command, this.document) : []
         if (def.mutates) this.document.beginRecording()
         try {
             const output = await def.run(params, ctx) || {}
             const before = def.mutates ? this.document.endRecording() : []
+            let locality: CommandResult['locality']
+            if (def.mutates && this.reportLocality) {
+                try {
+                    locality = computeLocality(command, before, this.document, targets)
+                } catch (e) {
+                    warnings.push(`could not compute locality: ${(e as Error).message}`)
+                }
+            }
             if (def.mutates) {
                 const label = describeCommand(command)
                 const entry = this.history.push(op, label, before, index)
@@ -336,6 +365,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 data: output.data,
                 warnings: warnings.length ? warnings : undefined,
                 ms: round(now() - started),
+                locality,
             }
             this._viewer?.setDirty()
             this._finish(command, result)

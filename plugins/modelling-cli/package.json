@@ -1,0 +1,61 @@
+{
+    "name": "@threepipe/modelling-cli",
+    "description": "threepipe-modelling: drive threepipe's modelling command API from a shell - one JSON object per verb, a headless Node session, a headless browser for renders, or a live editor over the agent socket",
+    "version": "0.1.0",
+    "type": "module",
+    "bin": {
+        "threepipe-modelling": "dist/cli.mjs"
+    },
+    "main": "dist/index.mjs",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs"
+        },
+        "./page/": "./dist/page/"
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "build": "rimraf dist && vite build && vite build --config vite.page.config.js",
+        "build:page": "vite build --config vite.page.config.js",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "cli": "node dist/cli.mjs"
+    },
+    "dependencies": {
+        "playwright-core": "^1.55.0",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "@types/ws": "^8.5.12"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "threepipe",
+        "modelling",
+        "cli",
+        "agent",
+        "mcp",
+        "claude"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://threepipe.org/package/modelling-cli.html",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/modelling-cli"
+    }
+}

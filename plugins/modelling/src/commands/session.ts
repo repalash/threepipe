@@ -11,7 +11,8 @@ import {
     Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
     Vector3,
 } from 'threepipe'
-import {bakeGeometry} from '@threepipe/mesh-kernel'
+import {bakeGeometry, measureMesh} from '@threepipe/mesh-kernel'
+import {summariseMeasure} from './checks'
 import {CommandContext, CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
 import {ModellingEntry} from '../document'
@@ -399,16 +400,19 @@ export const captureCommand: CommandDefinition = {
 
 export const inspectCommand: CommandDefinition = {
     op: 'inspect',
-    summary: 'Report an object\'s counts, bounds, transform and - with `detail` - its vertices.',
+    summary: 'Report an object\'s counts, bounds, transform and - with `detail` - its vertices, edges and faces.',
     description:
         'The reply is what a later `vertices` or `transform` command needs in order to address '
-        + 'anything: indices are the ones those commands take. With no object, it summarises the '
-        + 'whole document.',
+        + 'anything: indices are the ones those commands take. `detail` lists `vertices` (positions), '
+        + '`edgeVerts` (edge i joins these two vertices), `faceVerts` and `faceEdges`. `bounds` is the master '
+        + 'mesh in object space - what the indices address; with a modifier stack `evaluatedBounds` is the '
+        + 'drawn shape, and `worldBounds` is always the drawn shape in world space. With no object, it '
+        + 'summarises the whole document.',
     mutates: false,
     schema: schema({
         object: S.objectRef('Objects to inspect. Omit to summarise the document.'),
         objects: S.objectRef('Alias for `object`.'),
-        detail: S.boolean('Include per-vertex positions and per-face vertex lists.'),
+        detail: S.boolean('Include vertex positions, edge vertex pairs, and per-face vertex and edge lists.'),
         limit: S.integer('Cap on detailed vertices per object. Default 400.', {minimum: 1}),
     }),
 
@@ -451,6 +455,19 @@ export const inspectCommand: CommandDefinition = {
                 scale: o.scale.toArray(),
                 bounds: meshBounds(entry.mesh),
             }
+            // `bounds` is the master - what vertex indices address. When a modifier stack is present the
+            // drawn shape differs, so report that too, and in world space, which is what a dimension
+            // check against a drawing wants.
+            if (entry.modifiers.length) {
+                base.evaluatedBounds = meshBounds(entry.evaluated)
+                base.evaluated = {verts: entry.evaluated.vertsNum, edges: entry.evaluated.edgesNum, faces: entry.evaluated.facesNum}
+            }
+            o.updateWorldMatrix(true, false)
+            const world = new Box3().expandByObject(o as never)
+            base.worldBounds = world.isEmpty() ? null : {
+                min: world.min.toArray().map(round), max: world.max.toArray().map(round),
+                size: world.getSize(new Vector3()).toArray().map(round),
+            }
             if (p.detail) {
                 const mesh = entry.mesh
                 const pos = mesh.positions
@@ -464,6 +481,14 @@ export const inspectCommand: CommandDefinition = {
                 const fn = Math.min(mesh.facesNum, limit)
                 base.faceVerts = Array.from({length: fn}, (_, i) => mesh.faceVerts(i))
                 if (fn < mesh.facesNum) base.facesTruncated = mesh.facesNum - fn
+                // Edge `i` joins `edgeVerts[i]` - the indices `bevel {edges}` and `deleteElements {edges}` take.
+                const en = Math.min(mesh.edgesNum, limit)
+                const ev = mesh.edgeVerts
+                base.edgeVerts = Array.from({length: en}, (_, i) => [ev[i * 2], ev[i * 2 + 1]])
+                if (en < mesh.edgesNum) base.edgesTruncated = mesh.edgesNum - en
+                // And, per face, its edges in corner order, so "the edges of face 3" needs no geometry.
+                base.faceEdges = Array.from({length: fn}, (_, i) =>
+                    Array.from(mesh.cornerEdges.subarray(mesh.faceOffsets[i], mesh.faceOffsets[i + 1])))
             }
             return base
         })
@@ -495,8 +520,9 @@ export const measureCommand: CommandDefinition = {
     schema: schema({
         object: S.objectRef('Objects to measure. Default everything.'),
         objects: S.objectRef('Alias for `object`.'),
-        mode: S.enum('`bounds` reports each object\'s world box; `overlaps` reports intersecting pairs.',
-            ['bounds', 'overlaps']),
+        mode: S.enum('`bounds` reports each object\'s world box; `overlaps` reports intersecting pairs; '
+            + '`topology` reports counts, area, volume, closed/winding, Euler characteristic, holes and layers.',
+            ['bounds', 'overlaps', 'topology']),
         tolerance: S.number('Ignore overlaps smaller than this on every axis. Default 0.'),
     }),
 
@@ -508,6 +534,16 @@ export const measureCommand: CommandDefinition = {
             e.object.updateWorldMatrix(true, true)
             return {entry: e, box: new Box3().expandByObject(e.object as never)}
         })
+
+        if (mode === 'topology') {
+            return {
+                objects: entries.map(e => e.name),
+                data: entries.map(e => {
+                    e.object.updateWorldMatrix(true, false)
+                    return {name: e.name, ...summariseMeasure(measureMesh(e.evaluated, {matrix: e.object.matrixWorld.elements}))}
+                }),
+            }
+        }
 
         if (mode === 'bounds') {
             return {
@@ -681,11 +717,25 @@ export const exportCommand: CommandDefinition = {
         objects: S.objectRef('Export only these objects. Default the whole scene.'),
         includeData: S.boolean('Return the file as base64 in the result, for a caller that will '
             + 'write it itself. Off by default - it is large.'),
+        viewerConfig: S.boolean('Bundle the viewer and scene settings (camera, environment, plugins). '
+            + 'Default true; false writes a model-only file.'),
+        uuids: S.boolean('Write object UUIDs into the file (threepipe\'s `preserveUUIDs`). Default true. A '
+            + 'replay of the same transcript under the same `documentId` writes the same document UUIDs, but '
+            + 'the viewer\'s own scene root is random per page - so for a byte-comparable model file use '
+            + '`viewerConfig: false, uuids: false`.'),
     }),
 
     async run(p: Record<string, unknown>, ctx) {
         const binary = ((p.format as string) ?? 'glb') === 'glb'
-        const blob = await ctx.viewer.exportScene({exportExt: binary ? 'glb' : 'gltf'})
+        if (p.objects !== undefined) {
+            ctx.warn('`objects` is not supported yet - the whole scene was exported '
+                + '(issues/open/modelling-tools/command-export-objects-ignored.md)')
+        }
+        const blob = await ctx.viewer.exportScene({
+            exportExt: binary ? 'glb' : 'gltf',
+            ...p.viewerConfig === false ? {viewerConfig: false} : {},
+            ...p.uuids === false ? {preserveUUIDs: false} : {},
+        })
         if (!blob) throw new Error('the exporter returned nothing')
         const buffer = new Uint8Array(await blob.arrayBuffer())
         if (p.path) await ctx.plugin.writeFile(p.path as string, buffer)
