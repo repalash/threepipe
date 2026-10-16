@@ -1,0 +1,1264 @@
+{
+ "attr-conversions": {
+  "status": "pass"
+ },
+ "attr-instance-position": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+ },
+ "attr-interp-byte-color": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "attr-interp-corner": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshCube"
+ },
+ "attr-interp-curves": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveCircle"
+ },
+ "attr-interp-int-rounding": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath"
+ },
+ "attr-interp-loose": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodePointsToVertices"
+ },
+ "attr-interp-point-to-all": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "attr-interp-quaternion": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeEulerToRotation, ShaderNodeCombineXYZ"
+ },
+ "attr-missing-read": {
+  "status": "pass"
+ },
+ "attr-reserved-name": {
+  "status": "pass"
+ },
+ "bool-AND-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-AND-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-AND-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-AND-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-float-negative": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-IMPLY-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-IMPLY-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-IMPLY-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-IMPLY-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-int-negative": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath, FunctionNodeIntegerMath"
+ },
+ "bool-NAND-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NAND-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NAND-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NAND-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NIMPLY-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NIMPLY-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NIMPLY-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NIMPLY-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOR-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOR-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOR-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOR-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOT-0": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-NOT-1": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-OR-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-OR-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-OR-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-OR-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XNOR-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XNOR-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XNOR-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XNOR-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XOR-00": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XOR-01": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XOR-10": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "bool-XOR-11": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeBooleanMath"
+ },
+ "collection-info-none": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-reset": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-reset-ignored": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-separate-order": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-separate-transform": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-whole": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo"
+ },
+ "collection-info-whole-realized": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCollectionInfo, GeometryNodeRealizeInstances"
+ },
+ "combine-basic": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeCombineXYZ"
+ },
+ "combine-linked-large": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeCombineXYZ"
+ },
+ "compare-coerce-op": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-brighter": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-eq-alpha": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-b-above": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-b-at": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-b-hi": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-g-hi": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-g-lo": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-r-at": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-r-below": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-color-luma-r-hi": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-float-eq-eps": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-float-eq-neg-eps": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-float-nan-eq": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-float-nan-ne": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-float-ne-neg-eps": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-int-from-float-link": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-int-le": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-new-node-default": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-string-case": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-average-eq": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dir-both-zero": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dir-gt": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dir-opposite": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dir-zero": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dot-eq-at-eps": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dot-gt": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-dot-ne-at-eps": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-element-ge": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-element-lt": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-element-ne": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "compare-vec-length-eq": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare"
+ },
+ "edge-angle-cube": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMeshCube"
+ },
+ "edge-angle-grid-flat-and-boundary": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
+ },
+ "edge-angle-grid-valleys": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeSetPosition, ShaderNodeCombineXYZ, ShaderNodeSeparateXYZ"
+ },
+ "edge-angle-icosphere": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMeshIcoSphere"
+ },
+ "edge-angle-nonmanifold": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMergeByDistance, GeometryNodeTransform"
+ },
+ "eval-dangling-reroute": {
+  "status": "pass"
+ },
+ "eval-index-switch-out-of-range": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeIndexSwitch"
+ },
+ "eval-invalid-link": {
+  "status": "pass"
+ },
+ "eval-link-conversion": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeCombineXYZ"
+ },
+ "eval-muted-math": {
+  "status": "pass"
+ },
+ "eval-muted-math-unlinked": {
+  "status": "pass"
+ },
+ "eval-muted-set-position": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetPosition"
+ },
+ "eval-reroute": {
+  "status": "pass"
+ },
+ "eval-switch-field": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeSwitch"
+ },
+ "eval-switch-geometry-field-condition": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeSwitch"
+ },
+ "eval-switch-single": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSwitch"
+ },
+ "eval-unlinked-defaults": {
+  "status": "pass"
+ },
+ "extrude-edges-all-grid-normal": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-edges-loose-line": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+ },
+ "extrude-edges-loose-single-value": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+ },
+ "extrude-edges-one-boundary": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-edges-top-side-stored": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-edges-varying-offset": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+ },
+ "extrude-faces-individual-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-faces-region-cube-all": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshCube"
+ },
+ "extrude-faces-region-grid-all": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-faces-region-grid-partial": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-faces-region-nonmanifold": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMergeByDistance, GeometryNodeTransform"
+ },
+ "extrude-faces-region-single-quad": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-faces-top-side-stored": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-vertices-grid-first": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh"
+ },
+ "extrude-vertices-loose-origin": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodePointsToVertices"
+ },
+ "fields-anonymous-lost": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeDuplicateElements"
+ },
+ "fields-anonymous-through-join": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeDuplicateElements"
+ },
+ "fields-constant-field-into-single": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt, FunctionNodeIntegerMath"
+ },
+ "fields-context-field-into-single": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath"
+ },
+ "fields-geometry-binding": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeSetPosition, ShaderNodeVectorMath"
+ },
+ "fields-multi-component": {
+  "status": "pass"
+ },
+ "fields-read-before-write": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetPosition, ShaderNodeVectorMath"
+ },
+ "fields-selection": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeSetPosition"
+ },
+ "fields-two-consumers": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath"
+ },
+ "grid-3x2": {
+  "status": "pass"
+ },
+ "grid-default": {
+  "status": "pass"
+ },
+ "grid-large-count": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt"
+ },
+ "grid-line-x1": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt"
+ },
+ "grid-line-y1": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt"
+ },
+ "grid-negative-size-uv": {
+  "status": "pass"
+ },
+ "grid-single-vertex": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt"
+ },
+ "grid-to-points-faces": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "grid-transformed": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeTransform"
+ },
+ "grid-uv-stored": {
+  "status": "pass"
+ },
+ "grid-zero-size": {
+  "status": "pass"
+ },
+ "grid-zero-vertices": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt"
+ },
+ "gs-join-curves-radius-resolution": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveCircle, GeometryNodeCurvePrimitiveLine, GeometryNodeRemoveAttribute, GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
+ },
+ "gs-join-domain-face-corner": {
+  "status": "pass"
+ },
+ "gs-join-domain-face-point": {
+  "status": "pass"
+ },
+ "gs-join-empty-mesh": {
+  "status": "pass"
+ },
+ "gs-join-instance-references": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+ },
+ "gs-join-missing-fill": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCombineTransform, FunctionNodeEulerToRotation"
+ },
+ "gs-join-muted": {
+  "status": "pass"
+ },
+ "gs-join-order": {
+  "status": "pass"
+ },
+ "gs-join-pointcloud-radius": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints, GeometryNodeRemoveAttribute"
+ },
+ "gs-join-type-promotion": {
+  "status": "pass"
+ },
+ "gs-join-volumes": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeVolumeCube"
+ },
+ "iop-attribute-propagation": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+ },
+ "iop-component-order": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "iop-empty-instance": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshLine"
+ },
+ "iop-face-attribute-to-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+ },
+ "iop-line-cubes": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "iop-pick-without-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "iop-pick-wrap": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "iop-points-inside-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ },
+ "iop-selection-rot-scale": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "is-edge-smooth-cube-default": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputEdgeSmooth, GeometryNodeMeshCube"
+ },
+ "is-edge-smooth-partial-edges-and-faces": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputEdgeSmooth, GeometryNodeSetShadeSmooth"
+ },
+ "is-face-smooth-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputShadeSmooth"
+ },
+ "is-face-smooth-no-attribute": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeMeshLine"
+ },
+ "is-face-smooth-partial-on-edges": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeSetShadeSmooth"
+ },
+ "is-face-smooth-partial-on-points": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeSetShadeSmooth"
+ },
+ "join-attr-merge": {
+  "status": "pass"
+ },
+ "join-attr-missing": {
+  "status": "pass"
+ },
+ "join-id-kept": {
+  "status": "pass"
+ },
+ "join-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "join-mesh-order": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine"
+ },
+ "join-mixed-components": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "join-multi-input-order": {
+  "status": "pass"
+ },
+ "join-no-links": {
+  "status": "pass"
+ },
+ "join-radius-kept": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeMeshToPoints"
+ },
+ "join-single-passthrough": {
+  "status": "pass"
+ },
+ "join-two-volumes": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeVolumeCube"
+ },
+ "math-acos-clamped": {
+  "status": "pass"
+ },
+ "math-asin-clamped": {
+  "status": "pass"
+ },
+ "math-atan2-order": {
+  "status": "pass"
+ },
+ "math-atan2-pi": {
+  "status": "pass"
+ },
+ "math-ceil-neg": {
+  "status": "pass"
+ },
+ "math-clamp-high": {
+  "status": "pass"
+ },
+ "math-clamp-low": {
+  "status": "pass"
+ },
+ "math-compare-eps": {
+  "status": "pass"
+ },
+ "math-compare-floor-eps": {
+  "status": "pass"
+ },
+ "math-compare-neg-eps": {
+  "status": "pass"
+ },
+ "math-defaults": {
+  "status": "pass"
+ },
+ "math-degrees": {
+  "status": "pass"
+ },
+ "math-divide-zero": {
+  "status": "pass"
+ },
+ "math-divide-zero-zero": {
+  "status": "pass"
+ },
+ "math-fract-neg": {
+  "status": "pass"
+ },
+ "math-greater": {
+  "status": "pass"
+ },
+ "math-invsqrt-4": {
+  "status": "pass"
+ },
+ "math-invsqrt-zero": {
+  "status": "pass"
+ },
+ "math-less": {
+  "status": "pass"
+ },
+ "math-log-8-2": {
+  "status": "pass"
+ },
+ "math-log-base-1": {
+  "status": "pass"
+ },
+ "math-log-neg": {
+  "status": "pass"
+ },
+ "math-min-max": {
+  "status": "pass"
+ },
+ "math-mod-floored": {
+  "status": "pass"
+ },
+ "math-mod-floored-negb": {
+  "status": "pass"
+ },
+ "math-mod-floored-zero": {
+  "status": "pass"
+ },
+ "math-mod-trunc": {
+  "status": "pass"
+ },
+ "math-mod-trunc-negb": {
+  "status": "pass"
+ },
+ "math-mod-zero": {
+  "status": "pass"
+ },
+ "math-muladd": {
+  "status": "pass"
+ },
+ "math-nan-clamp": {
+  "status": "pass"
+ },
+ "math-nan-compare": {
+  "status": "pass"
+ },
+ "math-nan-divide-by-single-zero": {
+  "status": "pass"
+ },
+ "math-nan-max-second": {
+  "status": "pass"
+ },
+ "math-nan-min-first": {
+  "status": "pass"
+ },
+ "math-nan-min-second": {
+  "status": "pass"
+ },
+ "math-nan-sign": {
+  "status": "pass"
+ },
+ "math-nan-sqrt": {
+  "status": "pass"
+ },
+ "math-nan-zero-over-nan": {
+  "status": "pass"
+ },
+ "math-pingpong-3": {
+  "status": "pass"
+ },
+ "math-pingpong-4-5": {
+  "status": "pass"
+ },
+ "math-pingpong-neg": {
+  "status": "pass"
+ },
+ "math-pingpong-zero": {
+  "status": "pass"
+ },
+ "math-power-exp-2-5": {
+  "status": "pass"
+ },
+ "math-power-neg-frac": {
+  "status": "pass"
+ },
+ "math-power-neg-int": {
+  "status": "pass"
+ },
+ "math-radians": {
+  "status": "pass"
+ },
+ "math-round-2-5": {
+  "status": "pass"
+ },
+ "math-round-float-edge": {
+  "status": "pass"
+ },
+ "math-round-neg-1-5": {
+  "status": "pass"
+ },
+ "math-round-neg-half": {
+  "status": "pass"
+ },
+ "math-sign-neg": {
+  "status": "pass"
+ },
+ "math-sign-zero": {
+  "status": "pass"
+ },
+ "math-smoothmax": {
+  "status": "pass"
+ },
+ "math-smoothmin": {
+  "status": "pass"
+ },
+ "math-smoothmin-negk": {
+  "status": "pass"
+ },
+ "math-smoothmin-zero-k": {
+  "status": "pass"
+ },
+ "math-snap": {
+  "status": "pass"
+ },
+ "math-snap-neg": {
+  "status": "pass"
+ },
+ "math-snap-zero": {
+  "status": "pass"
+ },
+ "math-sqrt-neg": {
+  "status": "pass"
+ },
+ "math-trunc-neg": {
+  "status": "pass"
+ },
+ "math-wrap": {
+  "status": "pass"
+ },
+ "math-wrap-empty-range": {
+  "status": "pass"
+ },
+ "math-wrap-neg": {
+  "status": "pass"
+ },
+ "math-wrap-swapped": {
+  "status": "pass"
+ },
+ "mesh-to-points-builtins-skipped": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeMeshToPoints, GeometryNodeSetMaterialIndex, GeometryNodeSetShadeSmooth"
+ },
+ "mesh-to-points-corners-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "mesh-to-points-edges-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "mesh-to-points-empty-selection": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "mesh-to-points-faces-no-faces": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeMeshToPoints"
+ },
+ "mesh-to-points-faces-selection-radius-field": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "mesh-to-points-vertices-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshToPoints"
+ },
+ "object-info-as-instance": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-as-instance-relative": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-empty-as-instance": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-empty-geometry": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-negative-scale": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-none-scale": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-none-transform": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-original": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-relative": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-self-geometry": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "object-info-self-location": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeObjectInfo"
+ },
+ "position-curve-bezier": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment"
+ },
+ "position-curve-domain": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
+ },
+ "position-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+ },
+ "position-mesh-edge": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine"
+ },
+ "position-mesh-face": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeSetPosition"
+ },
+ "position-mesh-point": {
+  "status": "pass"
+ },
+ "realize-attr-conflict": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-curves-order": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-depth-one": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-id-hash": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-instance-attr-curves-domain": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-instance-attr-mesh": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-mesh-order": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "realize-selection-kept-first": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+ },
+ "rv-bool-default": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-bool-probability": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-face-domain-ignores-id": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+ },
+ "rv-float-big-id": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+ },
+ "rv-float-default": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-float-id-attribute": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+ },
+ "rv-float-min-above-max": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-float-negative-id": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+ },
+ "rv-float-range-seed": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-int-default": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-int-full-range": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-int-negative": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+ },
+ "rv-int-swapped": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-into-single-constant": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeInputInt, FunctionNodeRandomValue"
+ },
+ "rv-into-single-context": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-vector-default": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "rv-vector-range": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeRandomValue"
+ },
+ "separate-basic-x": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeSeparateXYZ"
+ },
+ "separate-basic-z": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeSeparateXYZ"
+ },
+ "separate-edge-domain-leaves-pointcloud": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-from-float": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeSeparateXYZ"
+ },
+ "separate-from-position": {
+  "status": "skip",
+  "reason": "not ported: ShaderNodeSeparateXYZ"
+ },
+ "separate-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeSeparateGeometry, GeometryNodeSetPosition"
+ },
+ "separate-instances-unused-references": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-constant-false": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-edge-all-drops-loose-vertex": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodePointsToVertices, GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-edge-constant-true-keeps-loose": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodePointsToVertices, GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-edge-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-face-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-point-grid": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry, GeometryNodeTransform"
+ },
+ "separate-mesh-point-inverted-only": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-mesh-point-selection-only": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry"
+ },
+ "separate-point-inside-instances": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeSeparateGeometry"
+ },
+ "separate-pointcloud-point": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSeparateGeometry, GeometryNodeSetPosition"
+ },
+ "set-shade-smooth-edge-keeps-unselected": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-edge-sharp-partial": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-face-defaults": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-face-field-all-true": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-face-partial": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-no-faces": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSetShadeSmooth"
+ },
+ "set-shade-smooth-selection-false": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
+ },
+ "switch-bool": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-color-default": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-field-condition": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-field-values": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-float-true": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-geometry": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-geometry-field-condition": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-int": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-new-node-float": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-rotation": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "switch-vector": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+ },
+ "transform-bezier-handles": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment, GeometryNodeTransform"
+ },
+ "transform-instances-top-level": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTransform"
+ },
+ "transform-matrix-mode": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCombineTransform, GeometryNodeTransform"
+ },
+ "transform-pointcloud-radius": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeTransform"
+ },
+ "transform-small-rotation-applied": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeTransform"
+ },
+ "transform-tiny-rotation-dropped": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeTransform"
+ },
+ "translate-global": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ },
+ "translate-local": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ },
+ "translate-local-field": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ },
+ "translate-nested-untouched": {
+  "status": "skip",
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ },
+ "translate-selection": {
+  "status": "skip",
+  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+ }
+}

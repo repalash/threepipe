@@ -285,3 +285,38 @@ export function mat4FromLocQuatScale(loc: ArrayLike<number>, q: ArrayLike<number
 export function mat4FromLocEulerScale(loc: ArrayLike<number>, e: ArrayLike<number>, scale: ArrayLike<number>, out?: Float4x4): Float4x4 {
     return mat4FromLocRot3Scale(loc, eulerToMat3(e), scale, out)
 }
+
+/**
+ * `float4x4 * float4x4` (`blenlib/intern/math_matrix.cc:26`). Blender's release builds take the SSE2
+ * branch (also on arm64, through sse2neon, `BLI_simd.hh`), which sums the four products pairwise:
+ * `(b0*a0 + b1*a1) + (b2*a2 + b3*a3)`.
+ */
+export function mat4Multiply(a: ArrayLike<number>, b: ArrayLike<number>, out: Float4x4 = new Float32Array(16)): Float4x4 {
+    const r = new Float32Array(16)
+    for (let i = 0; i < 4; i++) {
+        const b0 = b[i * 4], b1 = b[i * 4 + 1], b2 = b[i * 4 + 2], b3 = b[i * 4 + 3]
+        for (let k = 0; k < 4; k++) {
+            const p0 = f32(b0 * a[k]), p1 = f32(b1 * a[4 + k]), p2 = f32(b2 * a[8 + k]), p3 = f32(b3 * a[12 + k])
+            r[i * 4 + k] = f32(f32(p0 + p1) + f32(p2 + p3))
+        }
+    }
+    out.set(r)
+    return out
+}
+
+/**
+ * `math::transform_point(float4x4, float3)` (`BLI_math_matrix.hh:1647`): the 3x3 part times the point
+ * (`result += b[c] * a[c]`, `BLI_math_matrix_types.hh:402`), then the location.
+ */
+export function transformPoint(m: ArrayLike<number>, x: number, y: number, z: number, out: number[] | Float32Array, o = 0): void {
+    for (let k = 0; k < 3; k++) {
+        const v = f32(f32(f32(f32(0 + f32(x * m[k])) + f32(y * m[4 + k])) + f32(z * m[8 + k])))
+        out[o + k] = f32(v + m[12 + k])
+    }
+}
+
+/** `math::is_equal(transform, float4x4::identity(), 1e-6f)` - Blender's `skip_transform`. */
+export function isIdentityTransform(m: ArrayLike<number>): boolean {
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) if (Math.abs(m[c * 4 + r] - (c === r ? 1 : 0)) > 1e-6) return false
+    return true
+}

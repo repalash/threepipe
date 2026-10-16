@@ -83,29 +83,43 @@ export class GeometrySet {
         return !this._mesh && !this._pointCloud && !this._curves && !this._instances
     }
 
-    /** Takes ownership of `mesh`; pass a clone if the caller keeps using it. */
-    setMesh(mesh: MeshData | undefined): void {
+    /**
+     * Set the mesh. By default the set takes ownership (writes go in place); pass `shared` when the
+     * mesh also lives elsewhere, so the first write clones it.
+     */
+    setMesh(mesh: MeshData | undefined, shared = false): void {
         this._mesh = mesh
-        if (mesh) this.owned.add('mesh')
-        else this.owned.delete('mesh')
+        this.own('mesh', !!mesh && !shared)
     }
 
-    setPointCloud(pc: PointCloud | undefined): void {
+    setPointCloud(pc: PointCloud | undefined, shared = false): void {
         this._pointCloud = pc
-        if (pc) this.owned.add('pointcloud')
-        else this.owned.delete('pointcloud')
+        this.own('pointcloud', !!pc && !shared)
     }
 
-    setCurves(c: CurvesGeometry | undefined): void {
+    setCurves(c: CurvesGeometry | undefined, shared = false): void {
         this._curves = c
-        if (c) this.owned.add('curves')
-        else this.owned.delete('curves')
+        this.own('curves', !!c && !shared)
     }
 
-    setInstances(i: Instances | undefined): void {
+    setInstances(i: Instances | undefined, shared = false): void {
         this._instances = i
-        if (i) this.owned.add('instances')
-        else this.owned.delete('instances')
+        this.own('instances', !!i && !shared)
+    }
+
+    private own(type: ComponentType, owned: boolean): void {
+        if (owned) this.owned.add(type)
+        else this.owned.delete(type)
+    }
+
+    /** Set a component of `type` taken from `from`, shared with it. */
+    setShared(type: ComponentType, from: GeometrySet): void {
+        switch (type) {
+        case 'mesh': return this.setMesh(from.mesh, true)
+        case 'pointcloud': return this.setPointCloud(from.pointCloud, true)
+        case 'curves': return this.setCurves(from.curves, true)
+        case 'instances': return this.setInstances(from.instances, true)
+        }
     }
 
     remove(type: ComponentType): void {
