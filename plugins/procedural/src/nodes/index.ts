@@ -1,5 +1,6 @@
-/** Registers every ported node type. */
-import './shader/math'
-import './geometry/attribute'
-import './geometry/primitives'
-import './geometry/points'
+/** Registers every ported node type. One index per family so parallel ports do not collide. */
+import './shader'
+import './function'
+import './texture'
+import './geometry'
+import './curve'
