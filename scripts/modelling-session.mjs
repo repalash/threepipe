@@ -219,6 +219,8 @@ async function capture(label, {view, fit, padding} = {}) {
     await writeFile(join(outDir, name),
         Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'))
     transcript[transcript.length - 1].capture = name
+    // The pixels are in the PNG; a base64 copy in the transcript only makes it unreadably large.
+    delete result.data.dataUrl
     console.log(`  📷 ${name}  ${label}`)
     return name
 }
@@ -312,8 +314,7 @@ async function captureToFile(command) {
 
 if (watchDir) {
     await watchSession(outDir)
-    await writeFile(join(outDir, 'transcript.json'),
-        JSON.stringify({operations: transcript}, null, 2))
+    await writeFile(join(outDir, 'transcript.json'), formatJson({operations: transcript}))
     console.log('session ended')
     await context.close()
     await browser.close()
@@ -351,8 +352,7 @@ const summary = {
     maxMs: times.length ? times[times.length - 1] : 0,
     pageErrors,
 }
-await writeFile(join(outDir, 'transcript.json'),
-    JSON.stringify({summary, operations: transcript}, null, 2))
+await writeFile(join(outDir, 'transcript.json'), formatJson({summary, operations: transcript}))
 
 console.log('\n' + JSON.stringify(summary, null, 2))
 if (failed.length) {
@@ -370,6 +370,27 @@ await context.close()
 await browser.close()
 stopServer()
 process.exit(failure || failed.length ? 1 : 0)
+
+/**
+ * JSON indented like `JSON.stringify(v, null, 2)`, except that arrays of numbers - and arrays of
+ * those, such as `inspect {detail}`'s vertex and face lists - stay on one line. Pretty-printing them
+ * one number per line made a transcript with a few detailed inspects five times its compact size.
+ */
+function formatJson(value, indent = '') {
+    const flat = v => typeof v !== 'object' || v === null || (Array.isArray(v) && v.every(e => typeof e !== 'object' || e === null))
+    if (Array.isArray(value)) {
+        if (value.every(flat)) return JSON.stringify(value)
+        const inner = indent + '  '
+        return `[\n${value.map(v => inner + formatJson(v, inner)).join(',\n')}\n${indent}]`
+    }
+    if (value && typeof value === 'object') {
+        const entries = Object.entries(value).filter(([, v]) => v !== undefined)
+        if (!entries.length) return '{}'
+        const inner = indent + '  '
+        return `{\n${entries.map(([k, v]) => `${inner}${JSON.stringify(k)}: ${formatJson(v, inner)}`).join(',\n')}\n${indent}}`
+    }
+    return JSON.stringify(value) ?? 'null'
+}
 
 function slug(s) {
     return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48)
