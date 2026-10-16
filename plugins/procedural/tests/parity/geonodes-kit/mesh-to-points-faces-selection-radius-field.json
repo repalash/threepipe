@@ -1,0 +1,177 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "mesh-to-points-faces-selection-radius-field",
+  "description": "Faces mode on a 4 by 4 grid, odd faces only, radius = index - 4 (negative radii clamp to 0)",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 4,
+      "Vertices Y": 4
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "odd",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "MODULO"
+     },
+     "inputs": {
+      "Value_001": 2
+     }
+    },
+    {
+     "name": "radius",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "SUBTRACT"
+     },
+     "inputs": {
+      "Value_001": 4
+     }
+    },
+    {
+     "name": "points",
+     "type": "GeometryNodeMeshToPoints",
+     "properties": {
+      "mode": "FACES"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "points",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "odd",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "odd",
+      "Value"
+     ],
+     "to": [
+      "points",
+      "Selection"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "radius",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "radius",
+      "Value"
+     ],
+     "to": [
+      "points",
+      "Radius"
+     ]
+    }
+   ],
+   "output": [
+    "points",
+    "Points"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeMeshToPoints.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 4,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.3333333432674408,
+      0.0,
+      0.0,
+      0.0,
+      -0.3333333134651184,
+      0.0,
+      0.0,
+      0.3333333432674408,
+      0.0,
+      0.3333333432674408,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      0.0,
+      1.0,
+      3.0
+     ]
+    }
+   ]
+  }
+ }
+}

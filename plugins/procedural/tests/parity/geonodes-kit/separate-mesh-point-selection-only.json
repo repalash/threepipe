@@ -1,0 +1,173 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-mesh-point-selection-only",
+  "description": "POINT domain on a 3 by 3 grid, vertices with index < 5, Selection output alone",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid"
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "pick",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 4.5
+     }
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "POINT"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "pick",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "pick",
+      "Value"
+     ],
+     "to": [
+      "separate",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "separate",
+    "Selection"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 5,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    3,
+    4,
+    0,
+    3,
+    1,
+    4
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    3,
+    4,
+    1
+   ],
+   "attributes": [
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      3,
+      4,
+      0,
+      3,
+      1,
+      4
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      3,
+      4,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      3,
+      2,
+      4,
+      0
+     ]
+    },
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

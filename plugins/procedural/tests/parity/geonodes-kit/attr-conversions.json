@@ -1,0 +1,1275 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-conversions",
+  "description": "One point: attributes of several types read through Named Attribute of another type and stored again",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 1
+     }
+    },
+    {
+     "name": "s1",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_red",
+      "Value": [
+       1,
+       0,
+       0,
+       1
+      ]
+     }
+    },
+    {
+     "name": "s2",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_green",
+      "Value": [
+       0,
+       1,
+       0,
+       1
+      ]
+     }
+    },
+    {
+     "name": "s3",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_blue",
+      "Value": [
+       0,
+       0,
+       1,
+       1
+      ]
+     }
+    },
+    {
+     "name": "s4",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_mix",
+      "Value": [
+       0.5,
+       0.2,
+       1,
+       0.25
+      ]
+     }
+    },
+    {
+     "name": "s5",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BYTE_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "b_mix",
+      "Value": [
+       0.5,
+       0.2,
+       1,
+       0.25
+      ]
+     }
+    },
+    {
+     "name": "s6",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BYTE_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "b_small",
+      "Value": [
+       0.002,
+       0.01,
+       0.9,
+       1
+      ]
+     }
+    },
+    {
+     "name": "s7",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f_neg",
+      "Value": -2.7
+     }
+    },
+    {
+     "name": "s8",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "i_neg",
+      "Value": -3
+     }
+    },
+    {
+     "name": "s9",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "i_big",
+      "Value": -300
+     }
+    },
+    {
+     "name": "s10",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "v",
+      "Value": [
+       1,
+       2,
+       4.5
+      ]
+     }
+    },
+    {
+     "name": "s11",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "euler",
+      "Value": [
+       0.3,
+       -0.2,
+       1.1
+      ]
+     }
+    },
+    {
+     "name": "s12",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "lum_r"
+     }
+    },
+    {
+     "name": "r12",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "c_red"
+     }
+    },
+    {
+     "name": "s13",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "lum_g"
+     }
+    },
+    {
+     "name": "r13",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "c_green"
+     }
+    },
+    {
+     "name": "s14",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "lum_b"
+     }
+    },
+    {
+     "name": "r14",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "c_blue"
+     }
+    },
+    {
+     "name": "s15",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BYTE_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_mix_as_byte"
+     }
+    },
+    {
+     "name": "r15",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR"
+     },
+     "inputs": {
+      "Name": "c_mix"
+     }
+    },
+    {
+     "name": "s16",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "b_mix_as_color"
+     }
+    },
+    {
+     "name": "r16",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR"
+     },
+     "inputs": {
+      "Name": "b_mix"
+     }
+    },
+    {
+     "name": "s17",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "b_small_as_color"
+     }
+    },
+    {
+     "name": "r17",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR"
+     },
+     "inputs": {
+      "Name": "b_small"
+     }
+    },
+    {
+     "name": "s18",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f_neg_as_int"
+     }
+    },
+    {
+     "name": "r18",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "INT"
+     },
+     "inputs": {
+      "Name": "f_neg"
+     }
+    },
+    {
+     "name": "s19",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f_neg_as_bool"
+     }
+    },
+    {
+     "name": "r19",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN"
+     },
+     "inputs": {
+      "Name": "f_neg"
+     }
+    },
+    {
+     "name": "s20",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "i_neg_as_bool"
+     }
+    },
+    {
+     "name": "r20",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN"
+     },
+     "inputs": {
+      "Name": "i_neg"
+     }
+    },
+    {
+     "name": "s21",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "v_as_float"
+     }
+    },
+    {
+     "name": "r21",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "v"
+     }
+    },
+    {
+     "name": "s22",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "v_as_int"
+     }
+    },
+    {
+     "name": "r22",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "INT"
+     },
+     "inputs": {
+      "Name": "v"
+     }
+    },
+    {
+     "name": "s23",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f_neg_as_color"
+     }
+    },
+    {
+     "name": "r23",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR"
+     },
+     "inputs": {
+      "Name": "f_neg"
+     }
+    },
+    {
+     "name": "s24",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "euler_as_rotation"
+     }
+    },
+    {
+     "name": "r24",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION"
+     },
+     "inputs": {
+      "Name": "euler"
+     }
+    },
+    {
+     "name": "s25",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f_neg_as_vector"
+     }
+    },
+    {
+     "name": "r25",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR"
+     },
+     "inputs": {
+      "Name": "f_neg"
+     }
+    },
+    {
+     "name": "s26",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT8",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "i_big_as_int8"
+     }
+    },
+    {
+     "name": "r26",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "INT"
+     },
+     "inputs": {
+      "Name": "i_big"
+     }
+    },
+    {
+     "name": "s27",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT2",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "v_as_float2"
+     }
+    },
+    {
+     "name": "r27",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR"
+     },
+     "inputs": {
+      "Name": "v"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "s1",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s1",
+      "Geometry"
+     ],
+     "to": [
+      "s2",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s2",
+      "Geometry"
+     ],
+     "to": [
+      "s3",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s3",
+      "Geometry"
+     ],
+     "to": [
+      "s4",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s4",
+      "Geometry"
+     ],
+     "to": [
+      "s5",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s5",
+      "Geometry"
+     ],
+     "to": [
+      "s6",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s6",
+      "Geometry"
+     ],
+     "to": [
+      "s7",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s7",
+      "Geometry"
+     ],
+     "to": [
+      "s8",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s8",
+      "Geometry"
+     ],
+     "to": [
+      "s9",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s9",
+      "Geometry"
+     ],
+     "to": [
+      "s10",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s10",
+      "Geometry"
+     ],
+     "to": [
+      "s11",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s11",
+      "Geometry"
+     ],
+     "to": [
+      "s12",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r12",
+      "Attribute"
+     ],
+     "to": [
+      "s12",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s12",
+      "Geometry"
+     ],
+     "to": [
+      "s13",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r13",
+      "Attribute"
+     ],
+     "to": [
+      "s13",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s13",
+      "Geometry"
+     ],
+     "to": [
+      "s14",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r14",
+      "Attribute"
+     ],
+     "to": [
+      "s14",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s14",
+      "Geometry"
+     ],
+     "to": [
+      "s15",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r15",
+      "Attribute"
+     ],
+     "to": [
+      "s15",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s15",
+      "Geometry"
+     ],
+     "to": [
+      "s16",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r16",
+      "Attribute"
+     ],
+     "to": [
+      "s16",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s16",
+      "Geometry"
+     ],
+     "to": [
+      "s17",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r17",
+      "Attribute"
+     ],
+     "to": [
+      "s17",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s17",
+      "Geometry"
+     ],
+     "to": [
+      "s18",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r18",
+      "Attribute"
+     ],
+     "to": [
+      "s18",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s18",
+      "Geometry"
+     ],
+     "to": [
+      "s19",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r19",
+      "Attribute"
+     ],
+     "to": [
+      "s19",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s19",
+      "Geometry"
+     ],
+     "to": [
+      "s20",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r20",
+      "Attribute"
+     ],
+     "to": [
+      "s20",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s20",
+      "Geometry"
+     ],
+     "to": [
+      "s21",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r21",
+      "Attribute"
+     ],
+     "to": [
+      "s21",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s21",
+      "Geometry"
+     ],
+     "to": [
+      "s22",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r22",
+      "Attribute"
+     ],
+     "to": [
+      "s22",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s22",
+      "Geometry"
+     ],
+     "to": [
+      "s23",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r23",
+      "Attribute"
+     ],
+     "to": [
+      "s23",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s23",
+      "Geometry"
+     ],
+     "to": [
+      "s24",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r24",
+      "Attribute"
+     ],
+     "to": [
+      "s24",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s24",
+      "Geometry"
+     ],
+     "to": [
+      "s25",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r25",
+      "Attribute"
+     ],
+     "to": [
+      "s25",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s25",
+      "Geometry"
+     ],
+     "to": [
+      "s26",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r26",
+      "Attribute"
+     ],
+     "to": [
+      "s26",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s26",
+      "Geometry"
+     ],
+     "to": [
+      "s27",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r27",
+      "Attribute"
+     ],
+     "to": [
+      "s27",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s27",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 1,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "c_red",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "c_green",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.0,
+      1.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "c_blue",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "name": "c_mix",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.5,
+      0.20000000298023224,
+      1.0,
+      0.25
+     ]
+    },
+    {
+     "name": "b_mix",
+     "domain": "POINT",
+     "type": "BYTE_COLOR",
+     "values": [
+      0.5028864741325378,
+      0.20155629515647888,
+      1.0,
+      0.250980406999588
+     ]
+    },
+    {
+     "name": "b_small",
+     "domain": "POINT",
+     "type": "BYTE_COLOR",
+     "values": [
+      0.0021246890537440777,
+      0.009721217676997185,
+      0.8962695598602295,
+      1.0
+     ]
+    },
+    {
+     "name": "f_neg",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      -2.700000047683716
+     ]
+    },
+    {
+     "name": "i_neg",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      -3
+     ]
+    },
+    {
+     "name": "i_big",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      -300
+     ]
+    },
+    {
+     "name": "v",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      1.0,
+      2.0,
+      4.5
+     ]
+    },
+    {
+     "name": "euler",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.30000001192092896,
+      -0.20000000298023224,
+      1.100000023841858
+     ]
+    },
+    {
+     "name": "lum_r",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.2125999927520752
+     ]
+    },
+    {
+     "name": "lum_g",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.7152000069618225
+     ]
+    },
+    {
+     "name": "lum_b",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0722000002861023
+     ]
+    },
+    {
+     "name": "c_mix_as_byte",
+     "domain": "POINT",
+     "type": "BYTE_COLOR",
+     "values": [
+      0.5028864741325378,
+      0.20155629515647888,
+      1.0,
+      0.250980406999588
+     ]
+    },
+    {
+     "name": "b_mix_as_color",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.5028864741325378,
+      0.20155629515647888,
+      1.0,
+      0.250980406999588
+     ]
+    },
+    {
+     "name": "b_small_as_color",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.0021246890537440777,
+      0.009721217676997185,
+      0.8962695598602295,
+      1.0
+     ]
+    },
+    {
+     "name": "f_neg_as_int",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      -2
+     ]
+    },
+    {
+     "name": "f_neg_as_bool",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      0
+     ]
+    },
+    {
+     "name": "i_neg_as_bool",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      0
+     ]
+    },
+    {
+     "name": "v_as_float",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      2.5
+     ]
+    },
+    {
+     "name": "v_as_int",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      2
+     ]
+    },
+    {
+     "name": "f_neg_as_color",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      -2.700000047683716,
+      -2.700000047683716,
+      -2.700000047683716,
+      1.0
+     ]
+    },
+    {
+     "name": "euler_as_rotation",
+     "domain": "POINT",
+     "type": "QUATERNION",
+     "values": [
+      0.8309423923492432,
+      0.17835892736911774,
+      -0.00643555074930191,
+      0.5269548296928406
+     ]
+    },
+    {
+     "name": "f_neg_as_vector",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -2.700000047683716,
+      -2.700000047683716,
+      -2.700000047683716
+     ]
+    },
+    {
+     "name": "i_big_as_int8",
+     "domain": "POINT",
+     "type": "INT8",
+     "values": [
+      -128
+     ]
+    },
+    {
+     "name": "v_as_float2",
+     "domain": "POINT",
+     "type": "FLOAT2",
+     "values": [
+      1.0,
+      2.0
+     ]
+    }
+   ]
+  }
+ }
+}

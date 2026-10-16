@@ -1,0 +1,276 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-mesh-edge-constant-true-keeps-loose",
+  "description": "EDGE domain with the unlinked Selection (constant true) on a grid joined with a loose vertex: the mesh is unchanged",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid"
+    },
+    {
+     "name": "cloud",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Position": [
+       3,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "name": "verts",
+     "type": "GeometryNodePointsToVertices"
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "EDGE"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cloud",
+      "Geometry"
+     ],
+     "to": [
+      "verts",
+      "Points"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "verts",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "join",
+      "Geometry"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "separate",
+    "Selection"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 10,
+   "edges": [
+    1,
+    2,
+    2,
+    3,
+    4,
+    5,
+    5,
+    6,
+    7,
+    8,
+    8,
+    9,
+    1,
+    4,
+    4,
+    7,
+    2,
+    5,
+    5,
+    8,
+    3,
+    6,
+    6,
+    9
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    1,
+    4,
+    5,
+    2,
+    2,
+    5,
+    6,
+    3,
+    4,
+    7,
+    8,
+    5,
+    5,
+    8,
+    9,
+    6
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      3.0,
+      0.0,
+      0.0,
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      1,
+      2,
+      2,
+      3,
+      4,
+      5,
+      5,
+      6,
+      7,
+      8,
+      8,
+      9,
+      1,
+      4,
+      4,
+      7,
+      2,
+      5,
+      5,
+      8,
+      3,
+      6,
+      6,
+      9
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      4,
+      5,
+      2,
+      2,
+      5,
+      6,
+      3,
+      4,
+      7,
+      8,
+      5,
+      5,
+      8,
+      9,
+      6
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      6,
+      2,
+      8,
+      0,
+      8,
+      3,
+      10,
+      1,
+      7,
+      4,
+      9,
+      2,
+      9,
+      5,
+      11,
+      3
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

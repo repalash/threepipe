@@ -1,0 +1,127 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "eval-dangling-reroute",
+  "description": "A link from a reroute with nothing connected to it is ignored: the Value input uses its stored value 5",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints"
+    },
+    {
+     "name": "r",
+     "type": "NodeReroute",
+     "properties": {
+      "socket_idname": "NodeSocketFloat"
+     }
+    },
+    {
+     "name": "s",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f",
+      "Value": 5
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "r",
+      "Output"
+     ],
+     "to": [
+      "s",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "s",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "s",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/evaluation.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 1,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "f",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      5.0
+     ]
+    }
+   ]
+  }
+ }
+}

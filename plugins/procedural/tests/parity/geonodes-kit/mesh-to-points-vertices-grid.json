@@ -1,0 +1,269 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "mesh-to-points-vertices-grid",
+  "description": "Vertices mode on a 3 by 2 grid with a vertex float, a face int and the UV map stored",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 3,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "vf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "vf"
+     }
+    },
+    {
+     "name": "fi",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "fi"
+     }
+    },
+    {
+     "name": "uv",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "CORNER"
+     },
+     "inputs": {
+      "Name": "uv"
+     }
+    },
+    {
+     "name": "points",
+     "type": "GeometryNodeMeshToPoints",
+     "properties": {
+      "mode": "VERTICES"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "vf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "vf",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "vf",
+      "Geometry"
+     ],
+     "to": [
+      "fi",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "fi",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "fi",
+      "Geometry"
+     ],
+     "to": [
+      "uv",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "UV Map"
+     ],
+     "to": [
+      "uv",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "uv",
+      "Geometry"
+     ],
+     "to": [
+      "points",
+      "Mesh"
+     ]
+    }
+   ],
+   "output": [
+    "points",
+    "Points"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeMeshToPoints.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 6,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806
+     ]
+    },
+    {
+     "name": "vf",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0
+     ]
+    },
+    {
+     "name": "fi",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0,
+      0,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "uv",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.5,
+      1.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

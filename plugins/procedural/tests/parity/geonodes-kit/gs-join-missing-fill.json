@@ -1,0 +1,555 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "gs-join-missing-fill",
+  "description": "Attributes present only on the first grid: the second grid gets 0, (0,0,0,0) colour, identity rotation and an all-zero matrix",
+  "tree": {
+   "nodes": [
+    {
+     "name": "a",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "s1",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "fa",
+      "Value": 2.5
+     }
+    },
+    {
+     "name": "s2",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "col",
+      "Value": [
+       0.5,
+       0.5,
+       0.5,
+       0.5
+      ]
+     }
+    },
+    {
+     "name": "rot",
+     "type": "FunctionNodeEulerToRotation",
+     "inputs": {
+      "Euler": [
+       0.1,
+       0.2,
+       0.3
+      ]
+     }
+    },
+    {
+     "name": "s3",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "q"
+     }
+    },
+    {
+     "name": "mat",
+     "type": "FunctionNodeCombineTransform",
+     "inputs": {
+      "Translation": [
+       1,
+       2,
+       3
+      ]
+     }
+    },
+    {
+     "name": "s4",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT4X4",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m"
+     }
+    },
+    {
+     "name": "b",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "a",
+      "Mesh"
+     ],
+     "to": [
+      "s1",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s1",
+      "Geometry"
+     ],
+     "to": [
+      "s2",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s2",
+      "Geometry"
+     ],
+     "to": [
+      "s3",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rot",
+      "Rotation"
+     ],
+     "to": [
+      "s3",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "s3",
+      "Geometry"
+     ],
+     "to": [
+      "s4",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "mat",
+      "Transform"
+     ],
+     "to": [
+      "s4",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "b",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s4",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "join",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/geometry-set.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    4,
+    6,
+    5,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    4,
+    6,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      4,
+      5,
+      6,
+      7,
+      4,
+      6,
+      5,
+      7
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      4,
+      6,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0,
+      6,
+      5,
+      7,
+      4
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1
+     ]
+    },
+    {
+     "name": "fa",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "col",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "q",
+     "domain": "POINT",
+     "type": "QUATERNION",
+     "values": [
+      0.983347475528717,
+      0.03427080065011978,
+      0.10602051019668579,
+      0.14357218146324158,
+      0.983347475528717,
+      0.03427080065011978,
+      0.10602051019668579,
+      0.14357218146324158,
+      0.983347475528717,
+      0.03427080065011978,
+      0.10602051019668579,
+      0.14357218146324158,
+      0.983347475528717,
+      0.03427080065011978,
+      0.10602051019668579,
+      0.14357218146324158,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "m",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

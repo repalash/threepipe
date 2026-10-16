@@ -1,0 +1,224 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-vertices-grid-first",
+  "description": "Vertices mode on a 2 by 2 grid, only vertex 0, default normal offset; edge attribute mixing from the store",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "eindex",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "w"
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "first",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 0.5
+     }
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "properties": {
+      "mode": "VERTICES"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "eindex",
+      "Index"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "store",
+      "Geometry"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "first",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "first",
+      "Value"
+     ],
+     "to": [
+      "extrude",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 5,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    0,
+    4
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      -0.5,
+      -0.5,
+      1.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      0,
+      4
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "w",
+     "domain": "EDGE",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,536 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-faces-region-grid-partial",
+  "description": "Faces mode, Individual off, faces 0 and 1 of a 4 by 3 grid (they share one inner edge) with material_index stored as the face index; side faces copy it",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 4,
+      "Vertices Y": 3
+     }
+    },
+    {
+     "name": "findex",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "mat",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "material_index"
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "first2",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 1.5
+     }
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "inputs": {
+      "Individual": false,
+      "Offset": [
+       0,
+       0,
+       1
+      ]
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "mat",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "findex",
+      "Index"
+     ],
+     "to": [
+      "mat",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "mat",
+      "Geometry"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "first2",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "first2",
+      "Value"
+     ],
+     "to": [
+      "extrude",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 18,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    3,
+    4,
+    4,
+    5,
+    6,
+    7,
+    7,
+    8,
+    9,
+    10,
+    10,
+    11,
+    0,
+    3,
+    3,
+    6,
+    6,
+    9,
+    13,
+    16,
+    4,
+    7,
+    7,
+    10,
+    2,
+    5,
+    5,
+    8,
+    8,
+    11,
+    0,
+    12,
+    1,
+    13,
+    2,
+    14,
+    3,
+    15,
+    4,
+    16,
+    5,
+    17,
+    12,
+    13,
+    13,
+    14,
+    15,
+    16,
+    16,
+    17,
+    12,
+    15,
+    14,
+    17
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36,
+    40,
+    44
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    12,
+    15,
+    16,
+    13,
+    13,
+    16,
+    17,
+    14,
+    3,
+    6,
+    7,
+    4,
+    4,
+    7,
+    8,
+    5,
+    6,
+    9,
+    10,
+    7,
+    7,
+    10,
+    11,
+    8,
+    12,
+    13,
+    1,
+    0,
+    13,
+    14,
+    2,
+    1,
+    15,
+    3,
+    4,
+    16,
+    16,
+    4,
+    5,
+    17,
+    12,
+    0,
+    3,
+    15,
+    14,
+    17,
+    5,
+    2
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      -0.1666666716337204,
+      -0.5,
+      0.0,
+      -0.1666666716337204,
+      0.0,
+      0.0,
+      -0.1666666716337204,
+      0.5,
+      0.0,
+      0.1666666716337204,
+      -0.5,
+      0.0,
+      0.1666666716337204,
+      0.0,
+      0.0,
+      0.1666666716337204,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      -0.5,
+      -0.5,
+      1.0,
+      -0.5,
+      0.0,
+      1.0,
+      -0.5,
+      0.5,
+      1.0,
+      -0.1666666716337204,
+      -0.5,
+      1.0,
+      -0.1666666716337204,
+      0.0,
+      1.0,
+      -0.1666666716337204,
+      0.5,
+      1.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      3,
+      4,
+      4,
+      5,
+      6,
+      7,
+      7,
+      8,
+      9,
+      10,
+      10,
+      11,
+      0,
+      3,
+      3,
+      6,
+      6,
+      9,
+      13,
+      16,
+      4,
+      7,
+      7,
+      10,
+      2,
+      5,
+      5,
+      8,
+      8,
+      11,
+      0,
+      12,
+      1,
+      13,
+      2,
+      14,
+      3,
+      15,
+      4,
+      16,
+      5,
+      17,
+      12,
+      13,
+      13,
+      14,
+      15,
+      16,
+      16,
+      17,
+      12,
+      15,
+      14,
+      17
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      12,
+      15,
+      16,
+      13,
+      13,
+      16,
+      17,
+      14,
+      3,
+      6,
+      7,
+      4,
+      4,
+      7,
+      8,
+      5,
+      6,
+      9,
+      10,
+      7,
+      7,
+      10,
+      11,
+      8,
+      12,
+      13,
+      1,
+      0,
+      13,
+      14,
+      2,
+      1,
+      15,
+      3,
+      4,
+      16,
+      16,
+      4,
+      5,
+      17,
+      12,
+      0,
+      3,
+      15,
+      14,
+      17,
+      5,
+      2
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      27,
+      25,
+      11,
+      23,
+      11,
+      26,
+      28,
+      24,
+      9,
+      4,
+      12,
+      2,
+      12,
+      5,
+      15,
+      3,
+      10,
+      6,
+      13,
+      4,
+      13,
+      7,
+      16,
+      5,
+      23,
+      18,
+      0,
+      17,
+      24,
+      19,
+      1,
+      18,
+      20,
+      2,
+      21,
+      25,
+      21,
+      3,
+      22,
+      26,
+      17,
+      8,
+      20,
+      27,
+      28,
+      22,
+      14,
+      19
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "material_index",
+     "domain": "FACE",
+     "type": "INT",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

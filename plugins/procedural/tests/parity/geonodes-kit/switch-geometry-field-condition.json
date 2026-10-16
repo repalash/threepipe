@@ -1,0 +1,164 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "switch-geometry-field-condition",
+  "description": "GEOMETRY Switch driven by a field (Index >= 1): error, and the field evaluated without context gives false, so the False geometry is output",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 5
+     }
+    },
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "cmp",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "INT",
+      "operation": "GREATER_EQUAL"
+     },
+     "inputs": {
+      "B": 1
+     }
+    },
+    {
+     "name": "sw",
+     "type": "GeometryNodeSwitch",
+     "properties": {
+      "input_type": "GEOMETRY"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "cmp",
+      "A"
+     ]
+    },
+    {
+     "from": [
+      "cmp",
+      "Result"
+     ],
+     "to": [
+      "sw",
+      "Switch"
+     ]
+    },
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "False"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "True"
+     ]
+    }
+   ],
+   "output": [
+    "sw",
+    "Output"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeSwitch.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 5,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    2,
+    3,
+    3,
+    4
+   ],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      4.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  }
+ }
+}

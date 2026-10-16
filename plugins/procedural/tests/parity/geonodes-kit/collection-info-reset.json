@@ -1,0 +1,129 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "collection-info-reset",
+  "description": "Separate Children with Reset Children: identity transform",
+  "scene": [
+   {
+    "collection": "Moved",
+    "objects": [
+     {
+      "name": "A",
+      "mesh": "cube",
+      "location": [
+       1,
+       2,
+       3
+      ],
+      "rotation": [
+       0,
+       0,
+       0.5
+      ],
+      "scale": [
+       2,
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  ],
+  "tree": {
+   "nodes": [
+    {
+     "name": "ci",
+     "type": "GeometryNodeCollectionInfo",
+     "inputs": {
+      "Collection": "Moved",
+      "Separate Children": true,
+      "Reset Children": true
+     }
+    }
+   ],
+   "links": [],
+   "output": [
+    "ci",
+    "Instances"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeCollectionInfo.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "instances": {
+   "count": 1,
+   "attributes": [
+    {
+     "name": ".reference_index",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0
+     ]
+    },
+    {
+     "name": "instance_transform",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   ],
+   "references": [
+    {
+     "kind": "object",
+     "name": "A"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,214 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "position-mesh-point",
+  "description": "Position on the Point domain of a 3x2 grid of size 2 x 1.5",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Size X": 2,
+      "Size Y": 1.5,
+      "Vertices X": 3,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "pos",
+     "type": "GeometryNodeInputPosition"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "p"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "pos",
+      "Position"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/math/GeometryNodeInputPosition.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 6,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    2,
+    2,
+    4,
+    1,
+    3,
+    3,
+    5
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    2,
+    4,
+    5,
+    3
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.0,
+      -0.75,
+      0.0,
+      -1.0,
+      0.75,
+      0.0,
+      0.0,
+      -0.75,
+      0.0,
+      0.0,
+      0.75,
+      0.0,
+      1.0,
+      -0.75,
+      0.0,
+      1.0,
+      0.75,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      0,
+      2,
+      2,
+      4,
+      1,
+      3,
+      3,
+      5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      2,
+      4,
+      5,
+      3
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      3,
+      1,
+      5,
+      0,
+      4,
+      2,
+      6,
+      1
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1
+     ]
+    },
+    {
+     "name": "p",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.0,
+      -0.75,
+      0.0,
+      -1.0,
+      0.75,
+      0.0,
+      0.0,
+      -0.75,
+      0.0,
+      0.0,
+      0.75,
+      0.0,
+      1.0,
+      -0.75,
+      0.0,
+      1.0,
+      0.75,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

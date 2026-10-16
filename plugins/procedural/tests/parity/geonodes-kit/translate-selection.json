@@ -1,0 +1,431 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "translate-selection",
+  "description": "Only instance 1 is selected",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 2,
+      "Offset": [
+       1,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "iop",
+     "type": "GeometryNodeInstanceOnPoints",
+     "inputs": {
+      "Rotation": [
+       0,
+       0,
+       1.5707964
+      ],
+      "Scale": [
+       2,
+       2,
+       2
+      ]
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "sel",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "INT",
+      "operation": "EQUAL"
+     },
+     "inputs": {
+      "B": 1
+     }
+    },
+    {
+     "name": "tr",
+     "type": "GeometryNodeTranslateInstances",
+     "inputs": {
+      "Translation": [
+       1,
+       0,
+       0
+      ]
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "iop",
+      "Points"
+     ]
+    },
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "iop",
+      "Instance"
+     ]
+    },
+    {
+     "from": [
+      "iop",
+      "Instances"
+     ],
+     "to": [
+      "tr",
+      "Instances"
+     ]
+    },
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "sel",
+      "A"
+     ]
+    },
+    {
+     "from": [
+      "sel",
+      "Result"
+     ],
+     "to": [
+      "tr",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "tr",
+    "Instances"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeTranslateInstances.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "instances": {
+   "count": 2,
+   "attributes": [
+    {
+     "name": ".reference_index",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0,
+      0
+     ]
+    },
+    {
+     "name": "instance_transform",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      6.845708355740499e-08,
+      1.9999998807907104,
+      0.0,
+      0.0,
+      -1.9999998807907104,
+      6.845708355740499e-08,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      6.845708355740499e-08,
+      1.9999998807907104,
+      0.0,
+      0.0,
+      -1.9999998807907104,
+      6.845708355740499e-08,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      1.0000001192092896,
+      1.9999998807907104,
+      0.0,
+      1.0
+     ]
+    }
+   ],
+   "references": [
+    {
+     "kind": "geometry",
+     "geometry": {
+      "mesh": {
+       "vertices": 8,
+       "edges": [
+        0,
+        1,
+        0,
+        2,
+        2,
+        3,
+        1,
+        3,
+        0,
+        4,
+        1,
+        5,
+        4,
+        5,
+        4,
+        6,
+        5,
+        7,
+        6,
+        7,
+        2,
+        6,
+        3,
+        7
+       ],
+       "faceStarts": [
+        0,
+        4,
+        8,
+        12,
+        16,
+        20
+       ],
+       "faceSizes": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+       ],
+       "cornerVertices": [
+        0,
+        2,
+        3,
+        1,
+        0,
+        1,
+        5,
+        4,
+        4,
+        5,
+        7,
+        6,
+        2,
+        6,
+        7,
+        3,
+        0,
+        4,
+        6,
+        2,
+        1,
+        3,
+        7,
+        5
+       ],
+       "attributes": [
+        {
+         "name": "position",
+         "domain": "POINT",
+         "type": "FLOAT_VECTOR",
+         "values": [
+          -0.5,
+          -0.5,
+          -0.5,
+          0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          0.5,
+          -0.5,
+          0.5,
+          0.5,
+          -0.5,
+          -0.5,
+          -0.5,
+          0.5,
+          0.5,
+          -0.5,
+          0.5,
+          -0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5,
+          0.5
+         ]
+        },
+        {
+         "name": ".corner_vert",
+         "domain": "CORNER",
+         "type": "INT",
+         "values": [
+          0,
+          2,
+          3,
+          1,
+          0,
+          1,
+          5,
+          4,
+          4,
+          5,
+          7,
+          6,
+          2,
+          6,
+          7,
+          3,
+          0,
+          4,
+          6,
+          2,
+          1,
+          3,
+          7,
+          5
+         ]
+        },
+        {
+         "name": ".corner_edge",
+         "domain": "CORNER",
+         "type": "INT",
+         "values": [
+          1,
+          2,
+          3,
+          0,
+          0,
+          5,
+          6,
+          4,
+          6,
+          8,
+          9,
+          7,
+          10,
+          9,
+          11,
+          2,
+          4,
+          7,
+          10,
+          1,
+          3,
+          11,
+          8,
+          5
+         ]
+        },
+        {
+         "name": "sharp_face",
+         "domain": "FACE",
+         "type": "BOOLEAN",
+         "values": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+         ]
+        },
+        {
+         "name": ".edge_verts",
+         "domain": "EDGE",
+         "type": "INT32_2D",
+         "values": [
+          0,
+          1,
+          0,
+          2,
+          2,
+          3,
+          1,
+          3,
+          0,
+          4,
+          1,
+          5,
+          4,
+          5,
+          4,
+          6,
+          5,
+          7,
+          6,
+          7,
+          2,
+          6,
+          3,
+          7
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ]
+  }
+ }
+}

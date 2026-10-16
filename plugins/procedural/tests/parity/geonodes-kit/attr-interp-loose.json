@@ -1,0 +1,455 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-interp-loose",
+  "description": "Grid 2x2 joined with a two-vertex Mesh Line and one loose vertex; ff = 7 on Face and fb = true on Face read on Point and Edge",
+  "tree": {
+   "nodes": [
+    {
+     "name": "g",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 2
+     }
+    },
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 1,
+      "Position": [
+       5,
+       5,
+       5
+      ]
+     }
+    },
+    {
+     "name": "p2v",
+     "type": "GeometryNodePointsToVertices"
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    },
+    {
+     "name": "sf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "ff",
+      "Value": 7
+     }
+    },
+    {
+     "name": "sb",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "fb",
+      "Value": true
+     }
+    },
+    {
+     "name": "rf",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "ff"
+     }
+    },
+    {
+     "name": "rb",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN"
+     },
+     "inputs": {
+      "Name": "fb"
+     }
+    },
+    {
+     "name": "fp",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "ff_point"
+     }
+    },
+    {
+     "name": "fe",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "ff_edge"
+     }
+    },
+    {
+     "name": "bp",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "fb_point"
+     }
+    },
+    {
+     "name": "be",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "fb_edge"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "p2v",
+      "Points"
+     ]
+    },
+    {
+     "from": [
+      "p2v",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "g",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "join",
+      "Geometry"
+     ],
+     "to": [
+      "sf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sf",
+      "Geometry"
+     ],
+     "to": [
+      "sb",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sb",
+      "Geometry"
+     ],
+     "to": [
+      "fp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rf",
+      "Attribute"
+     ],
+     "to": [
+      "fp",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "fp",
+      "Geometry"
+     ],
+     "to": [
+      "fe",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rf",
+      "Attribute"
+     ],
+     "to": [
+      "fe",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "fe",
+      "Geometry"
+     ],
+     "to": [
+      "bp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rb",
+      "Attribute"
+     ],
+     "to": [
+      "bp",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "bp",
+      "Geometry"
+     ],
+     "to": [
+      "be",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rb",
+      "Attribute"
+     ],
+     "to": [
+      "be",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "be",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 7,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    4,
+    5
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      5.0,
+      5.0,
+      5.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "ff",
+     "domain": "FACE",
+     "type": "FLOAT",
+     "values": [
+      7.0
+     ]
+    },
+    {
+     "name": "fb",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "ff_point",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "ff_edge",
+     "domain": "EDGE",
+     "type": "FLOAT",
+     "values": [
+      7.0,
+      7.0,
+      7.0,
+      7.0,
+      0.0
+     ]
+    },
+    {
+     "name": "fb_point",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "fb_edge",
+     "domain": "EDGE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      0
+     ]
+    }
+   ]
+  }
+ }
+}

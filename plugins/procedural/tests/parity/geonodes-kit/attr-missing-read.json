@@ -1,0 +1,575 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-missing-read",
+  "description": "Named Attribute of a missing name for every socket type stored on a Grid 2x2",
+  "tree": {
+   "nodes": [
+    {
+     "name": "g",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "n_FLOAT",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_INT",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "INT"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_BOOLEAN",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_FLOAT_VECTOR",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_FLOAT_COLOR",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_QUATERNION",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "n_FLOAT4X4",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT4X4"
+     },
+     "inputs": {
+      "Name": "nope"
+     }
+    },
+    {
+     "name": "s_FLOAT",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_float"
+     }
+    },
+    {
+     "name": "s_INT",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_int"
+     }
+    },
+    {
+     "name": "s_BOOLEAN",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_boolean"
+     }
+    },
+    {
+     "name": "s_FLOAT_VECTOR",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_float_vector"
+     }
+    },
+    {
+     "name": "s_FLOAT_COLOR",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_COLOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_float_color"
+     }
+    },
+    {
+     "name": "s_QUATERNION",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_quaternion"
+     }
+    },
+    {
+     "name": "s_FLOAT4X4",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT4X4",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "m_float4x4"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "g",
+      "Mesh"
+     ],
+     "to": [
+      "s_FLOAT",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_FLOAT",
+      "Geometry"
+     ],
+     "to": [
+      "s_INT",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_INT",
+      "Geometry"
+     ],
+     "to": [
+      "s_BOOLEAN",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_BOOLEAN",
+      "Geometry"
+     ],
+     "to": [
+      "s_FLOAT_VECTOR",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_FLOAT_VECTOR",
+      "Geometry"
+     ],
+     "to": [
+      "s_FLOAT_COLOR",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_FLOAT_COLOR",
+      "Geometry"
+     ],
+     "to": [
+      "s_QUATERNION",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "s_QUATERNION",
+      "Geometry"
+     ],
+     "to": [
+      "s_FLOAT4X4",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "n_FLOAT",
+      "Attribute"
+     ],
+     "to": [
+      "s_FLOAT",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_INT",
+      "Attribute"
+     ],
+     "to": [
+      "s_INT",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_BOOLEAN",
+      "Attribute"
+     ],
+     "to": [
+      "s_BOOLEAN",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_FLOAT_VECTOR",
+      "Attribute"
+     ],
+     "to": [
+      "s_FLOAT_VECTOR",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_FLOAT_COLOR",
+      "Attribute"
+     ],
+     "to": [
+      "s_FLOAT_COLOR",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_QUATERNION",
+      "Attribute"
+     ],
+     "to": [
+      "s_QUATERNION",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "n_FLOAT4X4",
+      "Attribute"
+     ],
+     "to": [
+      "s_FLOAT4X4",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s_FLOAT4X4",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 4,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "m_float",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "m_int",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "m_boolean",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "m_float_vector",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "m_float_color",
+     "domain": "POINT",
+     "type": "FLOAT_COLOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "m_quaternion",
+     "domain": "POINT",
+     "type": "QUATERNION",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "m_float4x4",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

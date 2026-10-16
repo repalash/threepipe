@@ -1,0 +1,222 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "eval-switch-geometry-field-condition",
+  "description": "Geometry Switch with a context-dependent condition: the condition becomes false, the False input is output",
+  "tree": {
+   "nodes": [
+    {
+     "name": "a",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 3,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "b",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "cmp",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "FLOAT",
+      "operation": "GREATER_THAN"
+     },
+     "inputs": {
+      "B": -1
+     }
+    },
+    {
+     "name": "sw",
+     "type": "GeometryNodeSwitch",
+     "properties": {
+      "input_type": "GEOMETRY"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "cmp",
+      "A"
+     ]
+    },
+    {
+     "from": [
+      "cmp",
+      "Result"
+     ],
+     "to": [
+      "sw",
+      "Switch"
+     ]
+    },
+    {
+     "from": [
+      "a",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "False"
+     ]
+    },
+    {
+     "from": [
+      "b",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "True"
+     ]
+    }
+   ],
+   "output": [
+    "sw",
+    "Output"
+   ]
+  },
+  "spec": "docs/spec/core/evaluation.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 6,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    2,
+    2,
+    4,
+    1,
+    3,
+    3,
+    5
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    2,
+    4,
+    5,
+    3
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      0,
+      2,
+      2,
+      4,
+      1,
+      3,
+      3,
+      5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      2,
+      4,
+      5,
+      3
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      3,
+      1,
+      5,
+      0,
+      4,
+      2,
+      6,
+      1
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

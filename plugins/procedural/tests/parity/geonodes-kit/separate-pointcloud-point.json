@@ -1,0 +1,193 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-pointcloud-point",
+  "description": "POINT domain on a 5-point cloud offset by index along every axis, radius set to the index, points with index < 2.5 selected: Inverted output keeps points 3 and 4",
+  "tree": {
+   "nodes": [
+    {
+     "name": "cloud",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 5
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "spread",
+     "type": "GeometryNodeSetPosition"
+    },
+    {
+     "name": "rad",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "radius"
+     }
+    },
+    {
+     "name": "pick",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 2.5
+     }
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "POINT"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cloud",
+      "Geometry"
+     ],
+     "to": [
+      "spread",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "spread",
+      "Offset"
+     ]
+    },
+    {
+     "from": [
+      "spread",
+      "Geometry"
+     ],
+     "to": [
+      "rad",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "rad",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "rad",
+      "Geometry"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "pick",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "pick",
+      "Value"
+     ],
+     "to": [
+      "separate",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "separate",
+    "Inverted"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 2,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      3.0,
+      3.0,
+      3.0,
+      4.0,
+      4.0,
+      4.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      3.0,
+      4.0
+     ]
+    }
+   ]
+  }
+ }
+}

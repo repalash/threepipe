@@ -12,6 +12,7 @@
 import {f32, truncToInt} from '../blender/f32'
 import {eulerToQuat, mat3ToEuler, normalizedToQuatSafe, quatToMat3} from '../blender/math/matrix'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
+import {decodeByteColor, encodeByteColor} from '../blender/color'
 import {GVArray} from './varray'
 
 const LUMA = [f32(0.2126), f32(0.7152), f32(0.0722)]
@@ -177,6 +178,30 @@ const CONVERSIONS: Partial<Record<DataType, Partial<Record<DataType, Conv>>>> = 
             o.splice(0, 4, ...normalizedToQuatSafe(m))
         },
     },
+}
+
+// Byte colours (`*_to_byte_color` = `color::encode(*_to_color(a))`, `byte_color_to_*` through
+// `color::decode`, `type_conversions.cc:87-600`).
+for (const from of Object.keys(CONVERSIONS) as DataType[]) {
+    const toColor = from === 'float4' ? (v: ArrayLike<number>, s: number, o: number[]) => {
+        for (let k = 0; k < 4; k++) o[k] = v[s + k]
+    } : CONVERSIONS[from]!.float4
+    if (!toColor) continue
+    CONVERSIONS[from]!.byteColor = (v, s, o) => {
+        const c: number[] = []
+        toColor(v, s, c)
+        encodeByteColor(c, o)
+    }
+}
+CONVERSIONS.byteColor = {
+    bool: (v, s, o) => { o[0] = v[s] > 0 || v[s + 1] > 0 || v[s + 2] > 0 ? 1 : 0 },
+    int16x2: (v, s, o) => { o[0] = v[s]; o[1] = v[s + 1] },
+    int32x2: (v, s, o) => { o[0] = v[s]; o[1] = v[s + 1] },
+    float4: (v, s, o) => { decodeByteColor([v[s], v[s + 1], v[s + 2], v[s + 3]], o) },
+}
+for (const to of ['float', 'int32', 'int8', 'float2', 'float3'] as DataType[]) {
+    const fromColor = CONVERSIONS.float4![to]!
+    CONVERSIONS.byteColor[to] = (v, s, o) => fromColor(decodeByteColor([v[s], v[s + 1], v[s + 2], v[s + 3]]), 0, o)
 }
 
 /** `math::to_euler(Quaternion)` through the rotation matrix (`BLI_math_quaternion.hh:660`). */

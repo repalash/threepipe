@@ -1,0 +1,222 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "position-mesh-face",
+  "description": "Face Position is the plain mean of the face's vertices",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Size X": 2,
+      "Size Y": 2,
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "is0",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "INT",
+      "operation": "EQUAL"
+     },
+     "inputs": {
+      "B": 0
+     }
+    },
+    {
+     "name": "setp",
+     "type": "GeometryNodeSetPosition",
+     "inputs": {
+      "Offset": [
+       1,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "name": "pos",
+     "type": "GeometryNodeInputPosition"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "p"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "setp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "is0",
+      "A"
+     ]
+    },
+    {
+     "from": [
+      "is0",
+      "Result"
+     ],
+     "to": [
+      "setp",
+      "Selection"
+     ]
+    },
+    {
+     "from": [
+      "setp",
+      "Geometry"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "pos",
+      "Position"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/math/GeometryNodeInputPosition.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 4,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      -1.0,
+      0.0,
+      -1.0,
+      1.0,
+      0.0,
+      1.0,
+      -1.0,
+      0.0,
+      1.0,
+      1.0,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "p",
+     "domain": "FACE",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.25,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,326 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-faces-top-side-stored",
+  "description": "Faces mode, Individual off, single quad; Top and Side stored as named face attributes",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "inputs": {
+      "Individual": false
+     }
+    },
+    {
+     "name": "top",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "top"
+     }
+    },
+    {
+     "name": "side",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "side"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "extrude",
+      "Mesh"
+     ],
+     "to": [
+      "top",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "extrude",
+      "Top"
+     ],
+     "to": [
+      "top",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "top",
+      "Geometry"
+     ],
+     "to": [
+      "side",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "extrude",
+      "Side"
+     ],
+     "to": [
+      "side",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "side",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    0,
+    4,
+    1,
+    5,
+    2,
+    6,
+    3,
+    7,
+    4,
+    5,
+    6,
+    7,
+    4,
+    6,
+    5,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    4,
+    6,
+    7,
+    5,
+    4,
+    5,
+    1,
+    0,
+    6,
+    2,
+    3,
+    7,
+    4,
+    0,
+    2,
+    6,
+    5,
+    7,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      -0.5,
+      -0.5,
+      1.0,
+      -0.5,
+      0.5,
+      1.0,
+      0.5,
+      -0.5,
+      1.0,
+      0.5,
+      0.5,
+      1.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      0,
+      4,
+      1,
+      5,
+      2,
+      6,
+      3,
+      7,
+      4,
+      5,
+      6,
+      7,
+      4,
+      6,
+      5,
+      7
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      4,
+      6,
+      7,
+      5,
+      4,
+      5,
+      1,
+      0,
+      6,
+      2,
+      3,
+      7,
+      4,
+      0,
+      2,
+      6,
+      5,
+      7,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      10,
+      9,
+      11,
+      8,
+      8,
+      5,
+      0,
+      4,
+      6,
+      1,
+      7,
+      9,
+      4,
+      2,
+      6,
+      10,
+      11,
+      7,
+      3,
+      5
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "top",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "side",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      0,
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,251 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-faces-region-cube-all",
+  "description": "Faces mode, Individual off, every face of the default cube: nothing duplicated, vertices move by the corner-weighted mean normal",
+  "tree": {
+   "nodes": [
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "inputs": {
+      "Individual": false
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    0,
+    2,
+    2,
+    3,
+    1,
+    3,
+    0,
+    4,
+    1,
+    5,
+    4,
+    5,
+    4,
+    6,
+    5,
+    7,
+    6,
+    7,
+    2,
+    6,
+    3,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    0,
+    1,
+    5,
+    4,
+    4,
+    5,
+    7,
+    6,
+    2,
+    6,
+    7,
+    3,
+    0,
+    4,
+    6,
+    2,
+    1,
+    3,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.8333333730697632,
+      -0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      -0.8333333730697632,
+      -0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632,
+      -0.8333333730697632,
+      -0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      -0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632,
+      0.8333333730697632
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      0,
+      1,
+      5,
+      4,
+      4,
+      5,
+      7,
+      6,
+      2,
+      6,
+      7,
+      3,
+      0,
+      4,
+      6,
+      2,
+      1,
+      3,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      2,
+      3,
+      0,
+      0,
+      5,
+      6,
+      4,
+      6,
+      8,
+      9,
+      7,
+      10,
+      9,
+      11,
+      2,
+      4,
+      7,
+      10,
+      1,
+      3,
+      11,
+      8,
+      5
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      0,
+      2,
+      2,
+      3,
+      1,
+      3,
+      0,
+      4,
+      1,
+      5,
+      4,
+      5,
+      4,
+      6,
+      5,
+      7,
+      6,
+      7,
+      2,
+      6,
+      3,
+      7
+     ]
+    }
+   ]
+  }
+ }
+}

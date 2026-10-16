@@ -1,0 +1,416 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-mesh-point-grid",
+  "description": "POINT domain on a 3 by 3 grid, vertices with index < 5 (with vertex, edge, face, corner attributes stored); both outputs joined in order Selection, Inverted",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid"
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "vf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "vf"
+     }
+    },
+    {
+     "name": "ef",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "ef"
+     }
+    },
+    {
+     "name": "ff",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "ff"
+     }
+    },
+    {
+     "name": "cf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "CORNER"
+     },
+     "inputs": {
+      "Name": "cf"
+     }
+    },
+    {
+     "name": "pick",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 4.5
+     }
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "POINT"
+     }
+    },
+    {
+     "name": "move",
+     "type": "GeometryNodeTransform",
+     "inputs": {
+      "Translation": [
+       0,
+       0,
+       1
+      ]
+     }
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "vf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "vf",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "vf",
+      "Geometry"
+     ],
+     "to": [
+      "ef",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "ef",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "ef",
+      "Geometry"
+     ],
+     "to": [
+      "ff",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "ff",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "ff",
+      "Geometry"
+     ],
+     "to": [
+      "cf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "cf",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "cf",
+      "Geometry"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "pick",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "pick",
+      "Value"
+     ],
+     "to": [
+      "separate",
+      "Selection"
+     ]
+    },
+    {
+     "from": [
+      "separate",
+      "Inverted"
+     ],
+     "to": [
+      "move",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "separate",
+      "Selection"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "move",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "join",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 9,
+   "edges": [
+    1,
+    2,
+    2,
+    3,
+    0,
+    3,
+    4,
+    5,
+    5,
+    6,
+    7,
+    8,
+    4,
+    7,
+    5,
+    8
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    4,
+    7,
+    8,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.5,
+      1.0,
+      0.5,
+      -0.5,
+      1.0,
+      0.5,
+      0.0,
+      1.0,
+      0.5,
+      0.5,
+      1.0,
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      1,
+      2,
+      2,
+      3,
+      0,
+      3,
+      4,
+      5,
+      5,
+      6,
+      7,
+      8,
+      4,
+      7,
+      5,
+      8
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      4,
+      7,
+      8,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      6,
+      5,
+      7,
+      3
+     ]
+    },
+    {
+     "name": "vf",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0
+     ]
+    },
+    {
+     "name": "ef",
+     "domain": "EDGE",
+     "type": "FLOAT",
+     "values": [
+      4.0,
+      5.0,
+      11.0,
+      0.0,
+      1.0,
+      2.0,
+      6.0,
+      8.0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "ff",
+     "domain": "FACE",
+     "type": "FLOAT",
+     "values": [
+      0.0
+     ]
+    },
+    {
+     "name": "cf",
+     "domain": "CORNER",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      1.0,
+      2.0,
+      3.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,145 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "compare-color-eq-alpha",
+  "description": "RGBA EQUAL ignores alpha",
+  "tree": {
+   "nodes": [
+    {
+     "name": "pts",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 1
+     }
+    },
+    {
+     "name": "c",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "RGBA",
+      "operation": "EQUAL"
+     },
+     "inputs": {
+      "A": [
+       1,
+       0,
+       0,
+       1
+      ],
+      "B": [
+       1,
+       0,
+       0,
+       0
+      ],
+      "Epsilon": 0
+     }
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "r"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "pts",
+      "Geometry"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "c",
+      "Result"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/math/FunctionNodeCompare.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 1,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "r",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,450 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-interp-corner",
+  "description": "Cube: c = Index on Face Corner read on Edge, Point and Face",
+  "tree": {
+   "nodes": [
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "sc",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "CORNER"
+     },
+     "inputs": {
+      "Name": "c"
+     }
+    },
+    {
+     "name": "rc",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "c"
+     }
+    },
+    {
+     "name": "se",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "c_edge"
+     }
+    },
+    {
+     "name": "sp",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "c_point"
+     }
+    },
+    {
+     "name": "sf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "c_face"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "sc",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "sc",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sc",
+      "Geometry"
+     ],
+     "to": [
+      "se",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rc",
+      "Attribute"
+     ],
+     "to": [
+      "se",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "se",
+      "Geometry"
+     ],
+     "to": [
+      "sp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rc",
+      "Attribute"
+     ],
+     "to": [
+      "sp",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sp",
+      "Geometry"
+     ],
+     "to": [
+      "sf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rc",
+      "Attribute"
+     ],
+     "to": [
+      "sf",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "sf",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    0,
+    2,
+    2,
+    3,
+    1,
+    3,
+    0,
+    4,
+    1,
+    5,
+    4,
+    5,
+    4,
+    6,
+    5,
+    7,
+    6,
+    7,
+    2,
+    6,
+    3,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    0,
+    1,
+    5,
+    4,
+    4,
+    5,
+    7,
+    6,
+    2,
+    6,
+    7,
+    3,
+    0,
+    4,
+    6,
+    2,
+    1,
+    3,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      0,
+      1,
+      5,
+      4,
+      4,
+      5,
+      7,
+      6,
+      2,
+      6,
+      7,
+      3,
+      0,
+      4,
+      6,
+      2,
+      1,
+      3,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      2,
+      3,
+      0,
+      0,
+      5,
+      6,
+      4,
+      6,
+      8,
+      9,
+      7,
+      10,
+      9,
+      11,
+      2,
+      4,
+      7,
+      10,
+      1,
+      3,
+      11,
+      8,
+      5
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      0,
+      2,
+      2,
+      3,
+      1,
+      3,
+      0,
+      4,
+      1,
+      5,
+      4,
+      5,
+      4,
+      6,
+      5,
+      7,
+      6,
+      7,
+      2,
+      6,
+      3,
+      7
+     ]
+    },
+    {
+     "name": "c",
+     "domain": "CORNER",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      9.0,
+      10.0,
+      11.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0,
+      16.0,
+      17.0,
+      18.0,
+      19.0,
+      20.0,
+      21.0,
+      22.0,
+      23.0
+     ]
+    },
+    {
+     "name": "c_edge",
+     "domain": "EDGE",
+     "type": "FLOAT",
+     "values": [
+      3.0,
+      9.0,
+      7.5,
+      11.5,
+      11.0,
+      13.5,
+      7.5,
+      13.5,
+      16.0,
+      12.0,
+      15.5,
+      18.0
+     ]
+    },
+    {
+     "name": "c_point",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      6.6666669845581055,
+      9.333333969116211,
+      10.666666984558105,
+      12.666666984558105,
+      10.666666984558105,
+      12.666666984558105,
+      14.0,
+      15.333333969116211
+     ]
+    },
+    {
+     "name": "c_face",
+     "domain": "FACE",
+     "type": "FLOAT",
+     "values": [
+      1.5,
+      5.5,
+      9.5,
+      13.5,
+      17.5,
+      21.5
+     ]
+    }
+   ]
+  }
+ }
+}

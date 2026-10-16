@@ -1,0 +1,197 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-edges-loose-single-value",
+  "description": "Edges mode on a Mesh Line after storing a constant int face attribute (zero faces) and a varying edge attribute",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 3
+     }
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "tag",
+      "Value": 7
+     }
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "properties": {
+      "mode": "EDGES"
+     },
+     "inputs": {
+      "Offset": [
+       0,
+       1,
+       0
+      ]
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "store",
+      "Geometry"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 6,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    0,
+    3,
+    1,
+    4,
+    2,
+    5,
+    3,
+    4,
+    4,
+    5
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    3,
+    4,
+    1,
+    1,
+    4,
+    5,
+    2
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      3.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      0,
+      3,
+      1,
+      4,
+      2,
+      5,
+      3,
+      4,
+      4,
+      5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      3,
+      4,
+      1,
+      1,
+      4,
+      5,
+      2
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      5,
+      3,
+      0,
+      3,
+      6,
+      4,
+      1
+     ]
+    },
+    {
+     "name": "tag",
+     "domain": "FACE",
+     "type": "INT",
+     "values": [
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ }
+}

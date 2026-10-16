@@ -1,0 +1,210 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-edges-varying-offset",
+  "description": "Edges mode on a Mesh Line with Offset = Position: each new vertex moves by the mean of its selected edges' offsets",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 4,
+      "Offset": [
+       1,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "name": "position",
+     "type": "GeometryNodeInputPosition"
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "properties": {
+      "mode": "EDGES"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "position",
+      "Position"
+     ],
+     "to": [
+      "extrude",
+      "Offset"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    2,
+    3,
+    0,
+    4,
+    1,
+    5,
+    2,
+    6,
+    3,
+    7,
+    4,
+    5,
+    5,
+    6,
+    6,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    4,
+    5,
+    1,
+    1,
+    5,
+    6,
+    2,
+    2,
+    6,
+    7,
+    3
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      3.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      0.0,
+      4.0,
+      0.0,
+      0.0,
+      5.5,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      2,
+      3,
+      0,
+      4,
+      1,
+      5,
+      2,
+      6,
+      3,
+      7,
+      4,
+      5,
+      5,
+      6,
+      6,
+      7
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      4,
+      5,
+      1,
+      1,
+      5,
+      6,
+      2,
+      2,
+      6,
+      7,
+      3
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      3,
+      7,
+      4,
+      0,
+      4,
+      8,
+      5,
+      1,
+      5,
+      9,
+      6,
+      2
+     ]
+    }
+   ]
+  }
+ }
+}

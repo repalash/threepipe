@@ -1,0 +1,288 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "is-edge-smooth-cube-default",
+  "description": "Cube without sharp_edge: Smooth stored on edges is true everywhere",
+  "tree": {
+   "nodes": [
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "smooth",
+     "type": "GeometryNodeInputEdgeSmooth"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "smooth"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "smooth",
+      "Smooth"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeInputEdgeSmooth.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    0,
+    2,
+    2,
+    3,
+    1,
+    3,
+    0,
+    4,
+    1,
+    5,
+    4,
+    5,
+    4,
+    6,
+    5,
+    7,
+    6,
+    7,
+    2,
+    6,
+    3,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    0,
+    1,
+    5,
+    4,
+    4,
+    5,
+    7,
+    6,
+    2,
+    6,
+    7,
+    3,
+    0,
+    4,
+    6,
+    2,
+    1,
+    3,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      0,
+      1,
+      5,
+      4,
+      4,
+      5,
+      7,
+      6,
+      2,
+      6,
+      7,
+      3,
+      0,
+      4,
+      6,
+      2,
+      1,
+      3,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      2,
+      3,
+      0,
+      0,
+      5,
+      6,
+      4,
+      6,
+      8,
+      9,
+      7,
+      10,
+      9,
+      11,
+      2,
+      4,
+      7,
+      10,
+      1,
+      3,
+      11,
+      8,
+      5
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      0,
+      2,
+      2,
+      3,
+      1,
+      3,
+      0,
+      4,
+      1,
+      5,
+      4,
+      5,
+      4,
+      6,
+      5,
+      7,
+      6,
+      7,
+      2,
+      6,
+      3,
+      7
+     ]
+    },
+    {
+     "name": "smooth",
+     "domain": "EDGE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

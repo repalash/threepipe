@@ -1,0 +1,181 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-from-position",
+  "description": "X of Position on a 2x2 grid of size 2",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Size X": 2,
+      "Size Y": 2,
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "pos",
+     "type": "GeometryNodeInputPosition"
+    },
+    {
+     "name": "s",
+     "type": "ShaderNodeSeparateXYZ"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "x"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "pos",
+      "Position"
+     ],
+     "to": [
+      "s",
+      "Vector"
+     ]
+    },
+    {
+     "from": [
+      "s",
+      "X"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/math/ShaderNodeSeparateXYZ.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 4,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.0,
+      -1.0,
+      0.0,
+      -1.0,
+      1.0,
+      0.0,
+      1.0,
+      -1.0,
+      0.0,
+      1.0,
+      1.0,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "x",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      -1.0,
+      -1.0,
+      1.0,
+      1.0
+     ]
+    }
+   ]
+  }
+ }
+}

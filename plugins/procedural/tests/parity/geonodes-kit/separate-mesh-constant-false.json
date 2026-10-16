@@ -1,0 +1,77 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-mesh-constant-false",
+  "description": "FACE domain with Selection false: Selection output has no mesh component",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid"
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Selection": false
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "separate",
+    "Selection"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  }
+ }
+}

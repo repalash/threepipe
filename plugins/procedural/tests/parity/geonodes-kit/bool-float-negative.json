@@ -1,0 +1,153 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "bool-float-negative",
+  "description": "A float -1 linked into Boolean Math OR converts to false",
+  "tree": {
+   "nodes": [
+    {
+     "name": "pts",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 1
+     }
+    },
+    {
+     "name": "f",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "SUBTRACT"
+     },
+     "inputs": {
+      "Value": 0,
+      "Value_001": 1
+     }
+    },
+    {
+     "name": "b",
+     "type": "FunctionNodeBooleanMath",
+     "properties": {
+      "operation": "OR"
+     },
+     "inputs": {
+      "Boolean_001": false
+     }
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "BOOLEAN",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "r"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "f",
+      "Value"
+     ],
+     "to": [
+      "b",
+      "Boolean"
+     ]
+    },
+    {
+     "from": [
+      "pts",
+      "Geometry"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "b",
+      "Boolean"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "store",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/math/FunctionNodeBooleanMath.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 1,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "r",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      0
+     ]
+    }
+   ]
+  }
+ }
+}

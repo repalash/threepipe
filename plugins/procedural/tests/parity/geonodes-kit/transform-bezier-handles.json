@@ -1,0 +1,157 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "transform-bezier-handles",
+  "description": "Bezier segment rotated 90 degrees about Z: control points and handles rotate",
+  "tree": {
+   "nodes": [
+    {
+     "name": "bez",
+     "type": "GeometryNodeCurvePrimitiveBezierSegment"
+    },
+    {
+     "name": "move",
+     "type": "GeometryNodeTransform",
+     "inputs": {
+      "Rotation": [
+       0,
+       0,
+       1.5707964
+      ]
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "bez",
+      "Curve"
+     ],
+     "to": [
+      "move",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "move",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeTransform.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "curves": {
+   "curves": 1,
+   "points": 2,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -3.422854177870249e-08,
+      -0.9999999403953552,
+      0.0,
+      3.422854177870249e-08,
+      0.9999999403953552,
+      0.0
+     ]
+    },
+    {
+     "name": "curve_type",
+     "domain": "CURVE",
+     "type": "INT8",
+     "values": [
+      2
+     ]
+    },
+    {
+     "name": "resolution",
+     "domain": "CURVE",
+     "type": "INT",
+     "values": [
+      16
+     ]
+    },
+    {
+     "name": "handle_type_left",
+     "domain": "POINT",
+     "type": "INT8",
+     "values": [
+      3,
+      3
+     ]
+    },
+    {
+     "name": "handle_type_right",
+     "domain": "POINT",
+     "type": "INT8",
+     "values": [
+      3,
+      3
+     ]
+    },
+    {
+     "name": "handle_right",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.4999999403953552,
+      0.0,
+      6.845708355740499e-08,
+      1.9999998807907104,
+      0.0
+     ]
+    },
+    {
+     "name": "handle_left",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.49999991059303284,
+      -1.4999998807907104,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

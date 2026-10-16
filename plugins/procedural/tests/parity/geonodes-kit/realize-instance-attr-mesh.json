@@ -1,0 +1,504 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "realize-instance-attr-mesh",
+  "description": "Instance attribute foo (float, = instance index) lands on the Point domain of the realized cubes",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 2,
+      "Offset": [
+       5,
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "iop",
+     "type": "GeometryNodeInstanceOnPoints"
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "store",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "INSTANCE"
+     },
+     "inputs": {
+      "Name": "foo"
+     }
+    },
+    {
+     "name": "real",
+     "type": "GeometryNodeRealizeInstances"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "iop",
+      "Points"
+     ]
+    },
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "iop",
+      "Instance"
+     ]
+    },
+    {
+     "from": [
+      "iop",
+      "Instances"
+     ],
+     "to": [
+      "store",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "store",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "store",
+      "Geometry"
+     ],
+     "to": [
+      "real",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "real",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeRealizeInstances.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 16,
+   "edges": [
+    0,
+    1,
+    0,
+    2,
+    2,
+    3,
+    1,
+    3,
+    0,
+    4,
+    1,
+    5,
+    4,
+    5,
+    4,
+    6,
+    5,
+    7,
+    6,
+    7,
+    2,
+    6,
+    3,
+    7,
+    8,
+    9,
+    8,
+    10,
+    10,
+    11,
+    9,
+    11,
+    8,
+    12,
+    9,
+    13,
+    12,
+    13,
+    12,
+    14,
+    13,
+    15,
+    14,
+    15,
+    10,
+    14,
+    11,
+    15
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36,
+    40,
+    44
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    0,
+    1,
+    5,
+    4,
+    4,
+    5,
+    7,
+    6,
+    2,
+    6,
+    7,
+    3,
+    0,
+    4,
+    6,
+    2,
+    1,
+    3,
+    7,
+    5,
+    8,
+    10,
+    11,
+    9,
+    8,
+    9,
+    13,
+    12,
+    12,
+    13,
+    15,
+    14,
+    10,
+    14,
+    15,
+    11,
+    8,
+    12,
+    14,
+    10,
+    9,
+    11,
+    15,
+    13
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      4.5,
+      -0.5,
+      -0.5,
+      5.5,
+      -0.5,
+      -0.5,
+      4.5,
+      0.5,
+      -0.5,
+      5.5,
+      0.5,
+      -0.5,
+      4.5,
+      -0.5,
+      0.5,
+      5.5,
+      -0.5,
+      0.5,
+      4.5,
+      0.5,
+      0.5,
+      5.5,
+      0.5,
+      0.5
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      0,
+      2,
+      2,
+      3,
+      1,
+      3,
+      0,
+      4,
+      1,
+      5,
+      4,
+      5,
+      4,
+      6,
+      5,
+      7,
+      6,
+      7,
+      2,
+      6,
+      3,
+      7,
+      8,
+      9,
+      8,
+      10,
+      10,
+      11,
+      9,
+      11,
+      8,
+      12,
+      9,
+      13,
+      12,
+      13,
+      12,
+      14,
+      13,
+      15,
+      14,
+      15,
+      10,
+      14,
+      11,
+      15
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      0,
+      1,
+      5,
+      4,
+      4,
+      5,
+      7,
+      6,
+      2,
+      6,
+      7,
+      3,
+      0,
+      4,
+      6,
+      2,
+      1,
+      3,
+      7,
+      5,
+      8,
+      10,
+      11,
+      9,
+      8,
+      9,
+      13,
+      12,
+      12,
+      13,
+      15,
+      14,
+      10,
+      14,
+      15,
+      11,
+      8,
+      12,
+      14,
+      10,
+      9,
+      11,
+      15,
+      13
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      2,
+      3,
+      0,
+      0,
+      5,
+      6,
+      4,
+      6,
+      8,
+      9,
+      7,
+      10,
+      9,
+      11,
+      2,
+      4,
+      7,
+      10,
+      1,
+      3,
+      11,
+      8,
+      5,
+      13,
+      14,
+      15,
+      12,
+      12,
+      17,
+      18,
+      16,
+      18,
+      20,
+      21,
+      19,
+      22,
+      21,
+      23,
+      14,
+      16,
+      19,
+      22,
+      13,
+      15,
+      23,
+      20,
+      17
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "foo",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,253 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "join-attr-merge",
+  "description": "foo INT on the points of grid A and FLOAT on the face of grid B: result FLOAT on the Point domain",
+  "tree": {
+   "nodes": [
+    {
+     "name": "ga",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "sa",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "foo",
+      "Value": 7
+     }
+    },
+    {
+     "name": "gb",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "sb",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "foo",
+      "Value": 0.5
+     }
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "ga",
+      "Mesh"
+     ],
+     "to": [
+      "sa",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "gb",
+      "Mesh"
+     ],
+     "to": [
+      "sb",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sa",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sb",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "join",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeJoinGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    4,
+    6,
+    5,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    4,
+    6,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0,
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      4,
+      5,
+      6,
+      7,
+      4,
+      6,
+      5,
+      7
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      4,
+      6,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0,
+      6,
+      5,
+      7,
+      4
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1
+     ]
+    },
+    {
+     "name": "foo",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      7.0,
+      7.0,
+      7.0,
+      7.0
+     ]
+    }
+   ]
+  }
+ }
+}

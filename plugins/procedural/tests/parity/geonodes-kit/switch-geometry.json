@@ -1,0 +1,156 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "switch-geometry",
+  "description": "GEOMETRY Switch true: the True geometry (a 2x2 grid) is output, the False one (a mesh line) is not",
+  "tree": {
+   "nodes": [
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 5
+     }
+    },
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "sw",
+     "type": "GeometryNodeSwitch",
+     "properties": {
+      "input_type": "GEOMETRY"
+     },
+     "inputs": {
+      "Switch": true
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "False"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "sw",
+      "True"
+     ]
+    }
+   ],
+   "output": [
+    "sw",
+    "Output"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeSwitch.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 4,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

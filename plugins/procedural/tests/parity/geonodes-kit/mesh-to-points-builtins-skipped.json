@@ -1,0 +1,159 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "mesh-to-points-builtins-skipped",
+  "description": "Vertices mode on a cube after Set Material Index and Set Shade Smooth (edge): material_index and sharp_edge must not appear on the points",
+  "tree": {
+   "nodes": [
+    {
+     "name": "cube",
+     "type": "GeometryNodeMeshCube"
+    },
+    {
+     "name": "mat",
+     "type": "GeometryNodeSetMaterialIndex",
+     "inputs": {
+      "Material Index": 3
+     }
+    },
+    {
+     "name": "sharp",
+     "type": "GeometryNodeSetShadeSmooth",
+     "properties": {
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Shade Smooth": false
+     }
+    },
+    {
+     "name": "points",
+     "type": "GeometryNodeMeshToPoints"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "cube",
+      "Mesh"
+     ],
+     "to": [
+      "mat",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "mat",
+      "Geometry"
+     ],
+     "to": [
+      "sharp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sharp",
+      "Geometry"
+     ],
+     "to": [
+      "points",
+      "Mesh"
+     ]
+    }
+   ],
+   "output": [
+    "points",
+    "Points"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeMeshToPoints.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 8,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      -0.5,
+      -0.5,
+      0.5,
+      0.5,
+      -0.5,
+      0.5,
+      -0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806,
+      0.05000000074505806
+     ]
+    }
+   ]
+  }
+ }
+}

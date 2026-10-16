@@ -1,0 +1,221 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "rv-float-negative-id",
+  "description": "Float, Seed -3, ID = Index - 6 (negative ids)",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 12
+     }
+    },
+    {
+     "name": "rv",
+     "type": "FunctionNodeRandomValue",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Seed": -3
+     }
+    },
+    {
+     "name": "idx_rv",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "sub6",
+     "type": "FunctionNodeIntegerMath",
+     "properties": {
+      "operation": "SUBTRACT"
+     },
+     "inputs": {
+      "Value_001": 6
+     }
+    },
+    {
+     "name": "s",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "r"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "idx_rv",
+      "Index"
+     ],
+     "to": [
+      "sub6",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sub6",
+      "Value"
+     ],
+     "to": [
+      "rv",
+      "ID"
+     ]
+    },
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "s",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rv",
+      "Value"
+     ],
+     "to": [
+      "s",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/random-value.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 12,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "r",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.9808233380317688,
+      0.722011923789978,
+      0.1236051619052887,
+      0.2627803683280945,
+      0.7261060476303101,
+      0.5596654415130615,
+      0.5534893870353699,
+      0.5306701064109802,
+      0.8500189781188965,
+      0.4867417812347412,
+      0.8720126748085022,
+      0.050582218915224075
+     ]
+    }
+   ]
+  }
+ }
+}

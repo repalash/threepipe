@@ -1,0 +1,315 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "separate-mesh-face-grid",
+  "description": "FACE domain on a 4 by 3 grid, faces 1 and 4 (not adjacent), Selection output with corner UVs stored",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 4,
+      "Vertices Y": 3
+     }
+    },
+    {
+     "name": "uv",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "CORNER"
+     },
+     "inputs": {
+      "Name": "uv"
+     }
+    },
+    {
+     "name": "index",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "sub",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "SUBTRACT"
+     },
+     "inputs": {
+      "Value_001": 1
+     }
+    },
+    {
+     "name": "mod",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "FLOORED_MODULO"
+     },
+     "inputs": {
+      "Value_001": 3
+     }
+    },
+    {
+     "name": "pick",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "LESS_THAN"
+     },
+     "inputs": {
+      "Value_001": 0.5
+     }
+    },
+    {
+     "name": "separate",
+     "type": "GeometryNodeSeparateGeometry",
+     "properties": {
+      "domain": "FACE"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "uv",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "UV Map"
+     ],
+     "to": [
+      "uv",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "uv",
+      "Geometry"
+     ],
+     "to": [
+      "separate",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "index",
+      "Index"
+     ],
+     "to": [
+      "sub",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sub",
+      "Value"
+     ],
+     "to": [
+      "mod",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "mod",
+      "Value"
+     ],
+     "to": [
+      "pick",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "pick",
+      "Value"
+     ],
+     "to": [
+      "separate",
+      "Selection"
+     ]
+    }
+   ],
+   "output": [
+    "separate",
+    "Selection"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeSeparateGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    4,
+    6,
+    0,
+    2,
+    5,
+    7,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0,
+    4
+   ],
+   "faceSizes": [
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    4,
+    6,
+    7,
+    5
+   ],
+   "attributes": [
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      4,
+      6,
+      0,
+      2,
+      5,
+      7,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      4,
+      6,
+      7,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      5,
+      1,
+      7,
+      0,
+      4,
+      3,
+      6,
+      2
+     ]
+    },
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      -0.1666666716337204,
+      0.0,
+      0.0,
+      -0.1666666716337204,
+      0.5,
+      0.0,
+      0.1666666716337204,
+      -0.5,
+      0.0,
+      0.1666666716337204,
+      0.0,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1
+     ]
+    },
+    {
+     "name": "uv",
+     "domain": "CORNER",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.5,
+      0.0,
+      0.3333333134651184,
+      0.5,
+      0.0,
+      0.3333333134651184,
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.6666666865348816,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+      0.5,
+      0.0,
+      0.6666666865348816,
+      0.5,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

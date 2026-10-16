@@ -1,0 +1,137 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "join-radius-kept",
+  "description": "A cloud with radius 0.3 joined with a mesh-to-points cloud of radius 0.05: radii kept per source",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p1",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 1,
+      "Radius": 0.3
+     }
+    },
+    {
+     "name": "line",
+     "type": "GeometryNodeMeshLine",
+     "inputs": {
+      "Count": 2
+     }
+    },
+    {
+     "name": "m2p",
+     "type": "GeometryNodeMeshToPoints"
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "line",
+      "Mesh"
+     ],
+     "to": [
+      "m2p",
+      "Mesh"
+     ]
+    },
+    {
+     "from": [
+      "p1",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "m2p",
+      "Points"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    }
+   ],
+   "output": [
+    "join",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeJoinGeometry.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 3,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.05000000074505806,
+      0.05000000074505806,
+      0.30000001192092896
+     ]
+    }
+   ]
+  }
+ }
+}

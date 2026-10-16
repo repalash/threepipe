@@ -1,0 +1,625 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "object-info-negative-scale",
+  "description": "Object scale (-1,1,1) decomposes to Scale (-1,-1,-1) and a 180 degree rotation about X",
+  "scene": [
+   {
+    "collection": "Things",
+    "objects": [
+     {
+      "name": "N",
+      "mesh": "cube",
+      "scale": [
+       -1,
+       1,
+       1
+      ]
+     }
+    ]
+   }
+  ],
+  "tree": {
+   "nodes": [
+    {
+     "name": "oi",
+     "type": "GeometryNodeObjectInfo",
+     "properties": {},
+     "inputs": {
+      "Object": "N"
+     }
+    },
+    {
+     "name": "sl",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "loc"
+     }
+    },
+    {
+     "name": "ss",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT_VECTOR",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "scl"
+     }
+    },
+    {
+     "name": "sr",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "rot"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "oi",
+      "Geometry"
+     ],
+     "to": [
+      "sl",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "oi",
+      "Location"
+     ],
+     "to": [
+      "sl",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sl",
+      "Geometry"
+     ],
+     "to": [
+      "ss",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "oi",
+      "Scale"
+     ],
+     "to": [
+      "ss",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "ss",
+      "Geometry"
+     ],
+     "to": [
+      "sr",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "oi",
+      "Rotation"
+     ],
+     "to": [
+      "sr",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "sr",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeObjectInfo.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    2,
+    0,
+    0,
+    1,
+    1,
+    3,
+    3,
+    2,
+    6,
+    2,
+    3,
+    7,
+    7,
+    6,
+    4,
+    6,
+    7,
+    5,
+    5,
+    4,
+    0,
+    4,
+    5,
+    1
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    1,
+    3,
+    2,
+    2,
+    3,
+    7,
+    6,
+    6,
+    7,
+    5,
+    4,
+    4,
+    5,
+    1,
+    0,
+    2,
+    6,
+    4,
+    0,
+    7,
+    3,
+    1,
+    5
+   ],
+   "attributes": [
+    {
+     "name": "UVMap",
+     "domain": "CORNER",
+     "type": "FLOAT2",
+     "values": [
+      0.375,
+      0.0,
+      0.625,
+      0.0,
+      0.625,
+      0.25,
+      0.375,
+      0.25,
+      0.375,
+      0.25,
+      0.625,
+      0.25,
+      0.625,
+      0.5,
+      0.375,
+      0.5,
+      0.375,
+      0.5,
+      0.625,
+      0.5,
+      0.625,
+      0.75,
+      0.375,
+      0.75,
+      0.375,
+      0.75,
+      0.625,
+      0.75,
+      0.625,
+      1.0,
+      0.375,
+      1.0,
+      0.125,
+      0.5,
+      0.375,
+      0.5,
+      0.375,
+      0.75,
+      0.125,
+      0.75,
+      0.625,
+      0.5,
+      0.875,
+      0.5,
+      0.875,
+      0.75,
+      0.625,
+      0.75
+     ]
+    },
+    {
+     "name": ".select_vert",
+     "domain": "POINT",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".select_edge",
+     "domain": "EDGE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".select_poly",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": ".uv_select_vert",
+     "domain": "CORNER",
+     "type": "BOOLEAN",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": ".uv_select_edge",
+     "domain": "CORNER",
+     "type": "BOOLEAN",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": ".uv_select_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      1.0,
+      -1.0,
+      1.0,
+      -1.0,
+      -1.0,
+      1.0,
+      1.0,
+      1.0,
+      -1.0,
+      -1.0,
+      1.0,
+      -1.0,
+      1.0,
+      1.0,
+      1.0,
+      -1.0,
+      1.0,
+      1.0,
+      1.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      2,
+      0,
+      0,
+      1,
+      1,
+      3,
+      3,
+      2,
+      6,
+      2,
+      3,
+      7,
+      7,
+      6,
+      4,
+      6,
+      7,
+      5,
+      5,
+      4,
+      0,
+      4,
+      5,
+      1
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      1,
+      3,
+      2,
+      2,
+      3,
+      7,
+      6,
+      6,
+      7,
+      5,
+      4,
+      4,
+      5,
+      1,
+      0,
+      2,
+      6,
+      4,
+      0,
+      7,
+      3,
+      1,
+      5
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      1,
+      2,
+      3,
+      0,
+      3,
+      5,
+      6,
+      4,
+      6,
+      8,
+      9,
+      7,
+      9,
+      11,
+      1,
+      10,
+      4,
+      7,
+      10,
+      0,
+      5,
+      2,
+      11,
+      8
+     ]
+    },
+    {
+     "name": "loc",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "scl",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0
+     ]
+    },
+    {
+     "name": "rot",
+     "domain": "POINT",
+     "type": "QUATERNION",
+     "values": [
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0,
+      -4.371138828673793e-08,
+      -1.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,362 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "fields-constant-field-into-single",
+  "description": "Integer 2 + 3 linked to Grid Vertices X: a constant, evaluated once, Vertices X = 5",
+  "tree": {
+   "nodes": [
+    {
+     "name": "g",
+     "type": "GeometryNodeMeshGrid"
+    },
+    {
+     "name": "int",
+     "type": "FunctionNodeInputInt",
+     "properties": {
+      "integer": 2
+     }
+    },
+    {
+     "name": "add",
+     "type": "FunctionNodeIntegerMath",
+     "properties": {
+      "operation": "ADD"
+     },
+     "inputs": {
+      "Value_001": 3
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "int",
+      "Integer"
+     ],
+     "to": [
+      "add",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "add",
+      "Value"
+     ],
+     "to": [
+      "g",
+      "Vertices X"
+     ]
+    }
+   ],
+   "output": [
+    "g",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/core/fields.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 15,
+   "edges": [
+    0,
+    1,
+    1,
+    2,
+    3,
+    4,
+    4,
+    5,
+    6,
+    7,
+    7,
+    8,
+    9,
+    10,
+    10,
+    11,
+    12,
+    13,
+    13,
+    14,
+    0,
+    3,
+    3,
+    6,
+    6,
+    9,
+    9,
+    12,
+    1,
+    4,
+    4,
+    7,
+    7,
+    10,
+    10,
+    13,
+    2,
+    5,
+    5,
+    8,
+    8,
+    11,
+    11,
+    14
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    3,
+    4,
+    1,
+    1,
+    4,
+    5,
+    2,
+    3,
+    6,
+    7,
+    4,
+    4,
+    7,
+    8,
+    5,
+    6,
+    9,
+    10,
+    7,
+    7,
+    10,
+    11,
+    8,
+    9,
+    12,
+    13,
+    10,
+    10,
+    13,
+    14,
+    11
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      -0.25,
+      -0.5,
+      0.0,
+      -0.25,
+      0.0,
+      0.0,
+      -0.25,
+      0.5,
+      0.0,
+      0.0,
+      -0.5,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5,
+      0.0,
+      0.25,
+      -0.5,
+      0.0,
+      0.25,
+      0.0,
+      0.0,
+      0.25,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.0,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      1,
+      2,
+      3,
+      4,
+      4,
+      5,
+      6,
+      7,
+      7,
+      8,
+      9,
+      10,
+      10,
+      11,
+      12,
+      13,
+      13,
+      14,
+      0,
+      3,
+      3,
+      6,
+      6,
+      9,
+      9,
+      12,
+      1,
+      4,
+      4,
+      7,
+      7,
+      10,
+      10,
+      13,
+      2,
+      5,
+      5,
+      8,
+      8,
+      11,
+      11,
+      14
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      3,
+      4,
+      1,
+      1,
+      4,
+      5,
+      2,
+      3,
+      6,
+      7,
+      4,
+      4,
+      7,
+      8,
+      5,
+      6,
+      9,
+      10,
+      7,
+      7,
+      10,
+      11,
+      8,
+      9,
+      12,
+      13,
+      10,
+      10,
+      13,
+      14,
+      11
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      10,
+      2,
+      14,
+      0,
+      14,
+      3,
+      18,
+      1,
+      11,
+      4,
+      15,
+      2,
+      15,
+      5,
+      19,
+      3,
+      12,
+      6,
+      16,
+      4,
+      16,
+      7,
+      20,
+      5,
+      13,
+      8,
+      17,
+      6,
+      17,
+      9,
+      21,
+      7
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

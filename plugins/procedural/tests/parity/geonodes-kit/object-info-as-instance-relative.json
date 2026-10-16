@@ -1,0 +1,131 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "object-info-as-instance-relative",
+  "description": "As Instance, RELATIVE: the instance carries the object's world matrix (modifier object at identity)",
+  "scene": [
+   {
+    "collection": "Things",
+    "objects": [
+     {
+      "name": "A",
+      "mesh": "cube",
+      "location": [
+       1,
+       2,
+       3
+      ],
+      "rotation": [
+       0,
+       0,
+       0.5
+      ],
+      "scale": [
+       2,
+       2,
+       2
+      ]
+     }
+    ]
+   }
+  ],
+  "tree": {
+   "nodes": [
+    {
+     "name": "oi",
+     "type": "GeometryNodeObjectInfo",
+     "properties": {
+      "transform_space": "RELATIVE"
+     },
+     "inputs": {
+      "Object": "A",
+      "As Instance": true
+     }
+    }
+   ],
+   "links": [],
+   "output": [
+    "oi",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeObjectInfo.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "instances": {
+   "count": 1,
+   "attributes": [
+    {
+     "name": ".reference_index",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0
+     ]
+    },
+    {
+     "name": "instance_transform",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      1.7551651000976562,
+      0.9588510990142822,
+      0.0,
+      0.0,
+      -0.9588510990142822,
+      1.7551651000976562,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      1.0
+     ]
+    }
+   ],
+   "references": [
+    {
+     "kind": "object",
+     "name": "A"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,309 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "edge-angle-nonmanifold",
+  "description": "3 by 2 grid joined with a vertical quad on its middle edge and merged: the 3-face edge reads 0",
+  "tree": {
+   "nodes": [
+    {
+     "name": "grid",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 3,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "wall",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "stand",
+     "type": "GeometryNodeTransform",
+     "inputs": {
+      "Translation": [
+       0,
+       0,
+       0.5
+      ],
+      "Rotation": [
+       0,
+       1.5707963267948966,
+       0
+      ]
+     }
+    },
+    {
+     "name": "join",
+     "type": "GeometryNodeJoinGeometry"
+    },
+    {
+     "name": "merge",
+     "type": "GeometryNodeMergeByDistance"
+    },
+    {
+     "name": "angle",
+     "type": "GeometryNodeInputMeshEdgeAngle"
+    },
+    {
+     "name": "unsigned",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "EDGE"
+     },
+     "inputs": {
+      "Name": "unsigned"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "wall",
+      "Mesh"
+     ],
+     "to": [
+      "stand",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "grid",
+      "Mesh"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "stand",
+      "Geometry"
+     ],
+     "to": [
+      "join",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "join",
+      "Geometry"
+     ],
+     "to": [
+      "merge",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "merge",
+      "Geometry"
+     ],
+     "to": [
+      "unsigned",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "angle",
+      "Unsigned Angle"
+     ],
+     "to": [
+      "unsigned",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "unsigned",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeInputMeshEdgeAngle.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 8,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    4,
+    2,
+    2,
+    6,
+    5,
+    3,
+    3,
+    7
+   ],
+   "faceStarts": [
+    0,
+    4,
+    8
+   ],
+   "faceSizes": [
+    4,
+    4,
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1,
+    4,
+    2,
+    3,
+    5,
+    2,
+    6,
+    7,
+    3
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -1.7114270889351246e-08,
+      -0.5,
+      1.0,
+      -1.7114270889351246e-08,
+      0.5,
+      1.0,
+      8.557135444675623e-09,
+      -0.5,
+      1.4901161193847656e-08,
+      8.557135444675623e-09,
+      0.5,
+      1.4901161193847656e-08,
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3,
+      4,
+      5,
+      6,
+      7,
+      4,
+      2,
+      2,
+      6,
+      5,
+      3,
+      3,
+      7
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1,
+      4,
+      2,
+      3,
+      5,
+      2,
+      6,
+      7,
+      3
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0,
+      6,
+      1,
+      8,
+      4,
+      7,
+      5,
+      9,
+      1
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1,
+      1,
+      1
+     ]
+    },
+    {
+     "name": "unsigned",
+     "domain": "EDGE",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ]
+  }
+ }
+}

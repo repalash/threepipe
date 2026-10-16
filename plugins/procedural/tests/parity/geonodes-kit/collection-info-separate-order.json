@@ -1,0 +1,208 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "collection-info-separate-order",
+  "description": "Separate Children sorts by natural case-insensitive name: b, Cube.001, cube2, Cube10",
+  "scene": [
+   {
+    "collection": "Named",
+    "objects": [
+     {
+      "name": "Cube10",
+      "mesh": "empty",
+      "location": [
+       0,
+       0,
+       10
+      ]
+     },
+     {
+      "name": "cube2",
+      "mesh": "empty",
+      "location": [
+       0,
+       0,
+       2
+      ]
+     },
+     {
+      "name": "Cube.001",
+      "mesh": "empty",
+      "location": [
+       0,
+       0,
+       1
+      ]
+     },
+     {
+      "name": "b",
+      "mesh": "empty",
+      "location": [
+       0,
+       0,
+       0
+      ]
+     }
+    ]
+   }
+  ],
+  "tree": {
+   "nodes": [
+    {
+     "name": "ci",
+     "type": "GeometryNodeCollectionInfo",
+     "inputs": {
+      "Collection": "Named",
+      "Separate Children": true
+     }
+    }
+   ],
+   "links": [],
+   "output": [
+    "ci",
+    "Instances"
+   ]
+  },
+  "spec": "docs/spec/nodes/instances/GeometryNodeCollectionInfo.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "instances": {
+   "count": 4,
+   "attributes": [
+    {
+     "name": ".reference_index",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      3,
+      2,
+      1,
+      0
+     ]
+    },
+    {
+     "name": "instance_transform",
+     "domain": "POINT",
+     "type": "FLOAT4X4",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      2.0,
+      1.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      10.0,
+      1.0
+     ]
+    }
+   ],
+   "references": [
+    {
+     "kind": "object",
+     "name": "Cube10"
+    },
+    {
+     "kind": "object",
+     "name": "cube2"
+    },
+    {
+     "kind": "object",
+     "name": "Cube.001"
+    },
+    {
+     "kind": "object",
+     "name": "b"
+    }
+   ]
+  }
+ }
+}

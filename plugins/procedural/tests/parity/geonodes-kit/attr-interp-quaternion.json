@@ -1,0 +1,277 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-interp-quaternion",
+  "description": "Grid 2x2: rotation about Z by Index * 0.5 on Point, read on Face",
+  "tree": {
+   "nodes": [
+    {
+     "name": "g",
+     "type": "GeometryNodeMeshGrid",
+     "inputs": {
+      "Vertices X": 2,
+      "Vertices Y": 2
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "mul",
+     "type": "ShaderNodeMath",
+     "properties": {
+      "operation": "MULTIPLY"
+     },
+     "inputs": {
+      "Value_001": 0.5
+     }
+    },
+    {
+     "name": "xyz",
+     "type": "ShaderNodeCombineXYZ"
+    },
+    {
+     "name": "eul",
+     "type": "FunctionNodeEulerToRotation"
+    },
+    {
+     "name": "sq",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "q"
+     }
+    },
+    {
+     "name": "r",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION"
+     },
+     "inputs": {
+      "Name": "q"
+     }
+    },
+    {
+     "name": "sf",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "QUATERNION",
+      "domain": "FACE"
+     },
+     "inputs": {
+      "Name": "q_face"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "mul",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "mul",
+      "Value"
+     ],
+     "to": [
+      "xyz",
+      "Z"
+     ]
+    },
+    {
+     "from": [
+      "xyz",
+      "Vector"
+     ],
+     "to": [
+      "eul",
+      "Euler"
+     ]
+    },
+    {
+     "from": [
+      "g",
+      "Mesh"
+     ],
+     "to": [
+      "sq",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "eul",
+      "Rotation"
+     ],
+     "to": [
+      "sq",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sq",
+      "Geometry"
+     ],
+     "to": [
+      "sf",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r",
+      "Attribute"
+     ],
+     "to": [
+      "sf",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "sf",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 4,
+   "edges": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    2,
+    1,
+    3
+   ],
+   "faceStarts": [
+    0
+   ],
+   "faceSizes": [
+    4
+   ],
+   "cornerVertices": [
+    0,
+    2,
+    3,
+    1
+   ],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      -0.5,
+      -0.5,
+      0.0,
+      -0.5,
+      0.5,
+      0.0,
+      0.5,
+      -0.5,
+      0.0,
+      0.5,
+      0.5,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1,
+      2,
+      3,
+      0,
+      2,
+      1,
+      3
+     ]
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      0,
+      2,
+      3,
+      1
+     ]
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": [
+      2,
+      1,
+      3,
+      0
+     ]
+    },
+    {
+     "name": "sharp_face",
+     "domain": "FACE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "q",
+     "domain": "POINT",
+     "type": "QUATERNION",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.9689124226570129,
+      0.0,
+      0.0,
+      0.24740396440029144,
+      0.8775825500488281,
+      0.0,
+      0.0,
+      0.4794255495071411,
+      0.7316888570785522,
+      0.0,
+      0.0,
+      0.681638777256012
+     ]
+    },
+    {
+     "name": "q_face",
+     "domain": "FACE",
+     "type": "QUATERNION",
+     "values": [
+      0.9305076003074646,
+      0.0,
+      0.0,
+      0.36627253890037537
+     ]
+    }
+   ]
+  }
+ }
+}

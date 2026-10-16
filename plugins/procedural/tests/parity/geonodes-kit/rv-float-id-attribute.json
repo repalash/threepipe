@@ -1,0 +1,258 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "rv-float-id-attribute",
+  "description": "Float with an id attribute = Index * 7 on the points: the attribute replaces the index",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 12
+     }
+    },
+    {
+     "name": "idx_id",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "mul7",
+     "type": "FunctionNodeIntegerMath",
+     "properties": {
+      "operation": "MULTIPLY"
+     },
+     "inputs": {
+      "Value_001": 7
+     }
+    },
+    {
+     "name": "sid",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "INT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "id"
+     }
+    },
+    {
+     "name": "rv",
+     "type": "FunctionNodeRandomValue",
+     "properties": {
+      "data_type": "FLOAT"
+     }
+    },
+    {
+     "name": "s",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "r"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "sid",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "idx_id",
+      "Index"
+     ],
+     "to": [
+      "mul7",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "mul7",
+      "Value"
+     ],
+     "to": [
+      "sid",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sid",
+      "Geometry"
+     ],
+     "to": [
+      "s",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rv",
+      "Value"
+     ],
+     "to": [
+      "s",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/random-value.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 12,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "id",
+     "domain": "POINT",
+     "type": "INT",
+     "values": [
+      0,
+      7,
+      14,
+      21,
+      28,
+      35,
+      42,
+      49,
+      56,
+      63,
+      70,
+      77
+     ]
+    },
+    {
+     "name": "r",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.8603127598762512,
+      0.5444470643997192,
+      0.4662460386753082,
+      0.4588417112827301,
+      0.40917688608169556,
+      0.04075881093740463,
+      0.42081451416015625,
+      0.37656521797180176,
+      0.6772240400314331,
+      0.2869979441165924,
+      0.34778261184692383,
+      0.6302957534790039
+     ]
+    }
+   ]
+  }
+ }
+}

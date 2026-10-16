@@ -1,0 +1,298 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "attr-interp-curves",
+  "description": "Curve Circle with 8 points: Index on Point read on Curve, and 5 on Curve read on Point",
+  "tree": {
+   "nodes": [
+    {
+     "name": "c",
+     "type": "GeometryNodeCurvePrimitiveCircle",
+     "inputs": {
+      "Resolution": 8
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "sp",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "pf"
+     }
+    },
+    {
+     "name": "r",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "pf"
+     }
+    },
+    {
+     "name": "sc",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "CURVE"
+     },
+     "inputs": {
+      "Name": "pf_curve"
+     }
+    },
+    {
+     "name": "sc2",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "CURVE"
+     },
+     "inputs": {
+      "Name": "cf",
+      "Value": 5
+     }
+    },
+    {
+     "name": "r2",
+     "type": "GeometryNodeInputNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Name": "cf"
+     }
+    },
+    {
+     "name": "sp2",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "cf_point"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "c",
+      "Curve"
+     ],
+     "to": [
+      "sp",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "sp",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sp",
+      "Geometry"
+     ],
+     "to": [
+      "sc",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r",
+      "Attribute"
+     ],
+     "to": [
+      "sc",
+      "Value"
+     ]
+    },
+    {
+     "from": [
+      "sc",
+      "Geometry"
+     ],
+     "to": [
+      "sc2",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sc2",
+      "Geometry"
+     ],
+     "to": [
+      "sp2",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "r2",
+      "Attribute"
+     ],
+     "to": [
+      "sp2",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "sp2",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/attributes.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "curves": {
+   "curves": 1,
+   "points": 8,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      1.0,
+      0.0,
+      0.0,
+      0.7071067690849304,
+      0.7071067690849304,
+      0.0,
+      -4.371138828673793e-08,
+      1.0,
+      0.0,
+      -0.7071067690849304,
+      0.7071067690849304,
+      0.0,
+      -1.0,
+      -8.742277657347586e-08,
+      0.0,
+      -0.7071066498756409,
+      -0.70710688829422,
+      0.0,
+      1.1924880638503055e-08,
+      -1.0,
+      0.0,
+      0.7071070075035095,
+      -0.7071065306663513,
+      0.0
+     ]
+    },
+    {
+     "name": "curve_type",
+     "domain": "CURVE",
+     "type": "INT8",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "cyclic",
+     "domain": "CURVE",
+     "type": "BOOLEAN",
+     "values": [
+      1
+     ]
+    },
+    {
+     "name": "pf",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0
+     ]
+    },
+    {
+     "name": "pf_curve",
+     "domain": "CURVE",
+     "type": "FLOAT",
+     "values": [
+      3.5
+     ]
+    },
+    {
+     "name": "cf",
+     "domain": "CURVE",
+     "type": "FLOAT",
+     "values": [
+      5.0
+     ]
+    },
+    {
+     "name": "cf_point",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0
+     ]
+    }
+   ]
+  }
+ }
+}

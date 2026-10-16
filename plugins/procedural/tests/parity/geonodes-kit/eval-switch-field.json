@@ -1,0 +1,183 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "eval-switch-field",
+  "description": "Float Switch with a field condition Index > 1 picks per element",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 4
+     }
+    },
+    {
+     "name": "idx",
+     "type": "GeometryNodeInputIndex"
+    },
+    {
+     "name": "cmp",
+     "type": "FunctionNodeCompare",
+     "properties": {
+      "data_type": "FLOAT",
+      "operation": "GREATER_THAN"
+     },
+     "inputs": {
+      "B": 1
+     }
+    },
+    {
+     "name": "sw",
+     "type": "GeometryNodeSwitch",
+     "properties": {
+      "input_type": "FLOAT"
+     },
+     "inputs": {
+      "False": 1,
+      "True": 2
+     }
+    },
+    {
+     "name": "s",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "f"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "idx",
+      "Index"
+     ],
+     "to": [
+      "cmp",
+      "A"
+     ]
+    },
+    {
+     "from": [
+      "cmp",
+      "Result"
+     ],
+     "to": [
+      "sw",
+      "Switch"
+     ]
+    },
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "s",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "sw",
+      "Output"
+     ],
+     "to": [
+      "s",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/evaluation.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 4,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "f",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      1.0,
+      1.0,
+      2.0,
+      2.0
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,188 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "rv-float-min-above-max",
+  "description": "Float, Min 5, Max -1: no swap, the formula runs as is",
+  "tree": {
+   "nodes": [
+    {
+     "name": "p",
+     "type": "GeometryNodePoints",
+     "inputs": {
+      "Count": 12
+     }
+    },
+    {
+     "name": "rv",
+     "type": "FunctionNodeRandomValue",
+     "properties": {
+      "data_type": "FLOAT"
+     },
+     "inputs": {
+      "Min": 5,
+      "Max": -1
+     }
+    },
+    {
+     "name": "s",
+     "type": "GeometryNodeStoreNamedAttribute",
+     "properties": {
+      "data_type": "FLOAT",
+      "domain": "POINT"
+     },
+     "inputs": {
+      "Name": "r"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "p",
+      "Geometry"
+     ],
+     "to": [
+      "s",
+      "Geometry"
+     ]
+    },
+    {
+     "from": [
+      "rv",
+      "Value"
+     ],
+     "to": [
+      "s",
+      "Value"
+     ]
+    }
+   ],
+   "output": [
+    "s",
+    "Geometry"
+   ]
+  },
+  "spec": "docs/spec/core/random-value.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 0,
+   "edges": [],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": []
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": []
+    },
+    {
+     "name": ".corner_vert",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    },
+    {
+     "name": ".corner_edge",
+     "domain": "CORNER",
+     "type": "INT",
+     "values": []
+    }
+   ]
+  },
+  "pointcloud": {
+   "points": 12,
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": "radius",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612
+     ]
+    },
+    {
+     "name": "r",
+     "domain": "POINT",
+     "type": "FLOAT",
+     "values": [
+      -0.16187667846679688,
+      -0.055126190185546875,
+      -0.8489274978637695,
+      -0.9738540649414062,
+      1.7666339874267578,
+      1.5017261505126953,
+      3.939517021179199,
+      1.7333176136016846,
+      0.043444156646728516,
+      1.6307899951934814,
+      3.35286283493042,
+      4.400268077850342
+     ]
+    }
+   ]
+  }
+ }
+}
