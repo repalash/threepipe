@@ -241,6 +241,19 @@ describe('AttributeStorage', () => {
         expect(copy.validate()).toEqual([])
     })
 
+    it('enforces the built-in table it was given, and keeps it on clone', () => {
+        // Curves keep `material_index` per curve, not per face (`curves_attributes.cc:259`).
+        const curveBuiltins = {material_index: {domain: AttrDomain.Curve, type: 'int32' as const}}
+        const store = new AttributeStorage({[AttrDomain.Curve]: 2}, curveBuiltins)
+        expect(() => store.add({name: 'material_index', domain: AttrDomain.Curve, type: 'int32'})).not.toThrow()
+        const copy = store.clone()
+        copy.remove('material_index')
+        expect(() => copy.add({name: 'material_index', domain: AttrDomain.Face, type: 'int32'})).toThrow(/must be curve\/int32/)
+        // The default stays the mesh table.
+        expect(() => new AttributeStorage({[AttrDomain.Curve]: 1}).add({name: 'material_index', domain: AttrDomain.Curve, type: 'int32'}))
+            .toThrow(/must be face\/int32/)
+    })
+
     it('stores float4x4 as 16 floats per element', () => {
         const store = new AttributeStorage({[AttrDomain.Instance]: 2})
         const layer = store.add({name: 'instance_transform', domain: AttrDomain.Instance, type: 'float4x4'})

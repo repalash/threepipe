@@ -56,8 +56,19 @@ export class AttributeStorage {
      */
     readonly domainSizes: number[] = [0, 0, 0, 0, 0, 0]
 
-    constructor(domainSizes?: Partial<Record<AttrDomain, number>>) {
+    /**
+     * Built-in attribute shapes this storage enforces on {@link add}. A mesh's storage uses the mesh
+     * table ({@link BUILTIN_ATTRS}); point clouds, curves and instances pass their own, since the same
+     * name can mean a different domain there (`material_index` is per curve on curves).
+     */
+    readonly builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>
+
+    constructor(
+        domainSizes?: Partial<Record<AttrDomain, number>>,
+        builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>> = BUILTIN_ATTRS,
+    ) {
         if (domainSizes) for (const d of ALL_ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
+        this.builtins = builtins
     }
 
     get size(): number {
@@ -106,7 +117,7 @@ export class AttributeStorage {
      */
     add({name, domain, type, data}: AttributeInit): AttributeLayer {
         if (this._layers.has(name)) throw new Error(`mesh-kernel: attribute '${name}' already exists`)
-        const builtin = BUILTIN_ATTRS[name]
+        const builtin = Object.prototype.hasOwnProperty.call(this.builtins, name) ? this.builtins[name] : undefined
         if (builtin && (builtin.domain !== domain || builtin.type !== type)) {
             throw new Error(
                 `mesh-kernel: built-in attribute '${name}' must be ${attrDomainName(builtin.domain)}/${builtin.type}, ` +
@@ -157,7 +168,7 @@ export class AttributeStorage {
 
     /** Deep copy, including the contents of every layer. */
     clone(): AttributeStorage {
-        const out = new AttributeStorage()
+        const out = new AttributeStorage(undefined, this.builtins)
         for (const d of ALL_ATTR_DOMAINS) out.domainSizes[d] = this.domainSizes[d]
         for (const layer of this._layers.values()) {
             out._layers.set(layer.name, {
