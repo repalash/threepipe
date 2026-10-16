@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>edit-chain: a 30-step EditHero-style chain on the modelling API</title>
+<style>
+    :root {
+        --bg: #f6f5f2; --card: #fff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e1dc;
+        --pass: #1f7a4d; --pass-bg: #e3f3ea; --fail: #b3261e; --fail-bg: #fbe5e3;
+        --unv: #8a5a00; --unv-bg: #fdf1d8; --na: #6b6b70; --na-bg: #eeeeec;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+    header, main { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+    header { padding-top: 32px; }
+    h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+    h2 { font-size: 18px; margin: 40px 0 12px; }
+    h3 { font-size: 15px; margin: 24px 0 8px; }
+    p.lede { color: var(--muted); max-width: 900px; margin: 0 0 16px; }
+    code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: #efede8; padding: 1px 4px; border-radius: 3px; }
+    a { color: #2457a6; }
+
+    .totals { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 8px; }
+    .tile { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-width: 150px; }
+    .tile .k { color: var(--muted); font-size: 12px; }
+    .tile .v { font-size: 20px; font-weight: 600; }
+    table { border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; width: 100%; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { background: #f0eee9; font-weight: 600; font-size: 12px; color: var(--muted); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .b { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px; margin: 1px 2px 1px 0; white-space: nowrap; }
+    .PASS { color: var(--pass); background: var(--pass-bg); }
+    .FAIL { color: var(--fail); background: var(--fail-bg); }
+    .UNVERIFIED { color: var(--unv); background: var(--unv-bg); }
+    .NA { color: var(--na); background: var(--na-bg); }
+
+    .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 12px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .card.FAILc { border-color: #e6a8a3; }
+    .card.UNVERIFIEDc { border-color: #e9cf95; }
+    .card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: #e9e8e4; }
+    .card .noimg { width: 100%; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; color: var(--muted); background: #eceae5; font-size: 12px; }
+    .card .body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .card .title { font-weight: 600; font-size: 13px; }
+    .card .n { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+    .card .ops { font: 11px ui-monospace, Menlo, monospace; color: #4b4b52; }
+    .card .claim { color: var(--muted); font-size: 12px; flex: 1; }
+    .card .stats { font: 11px ui-monospace, Menlo, monospace; color: #4b4b52; }
+    details { font-size: 12px; }
+    details summary { cursor: pointer; color: #2457a6; }
+    details ul { margin: 4px 0 0; padding-left: 16px; }
+    details li { margin: 2px 0; word-break: break-word; }
+    .bad { color: var(--fail); }
+    .unk { color: var(--unv); }
+    .chainhead { display: flex; align-items: baseline; gap: 10px; }
+    .chainhead .cnt { color: var(--muted); font-size: 12px; }
+    footer { color: var(--muted); font-size: 12px; padding: 32px 24px 48px; max-width: 1400px; margin: 0 auto; }
+    .legend { color: var(--muted); font-size: 12px; margin: 4px 0 12px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>edit-chain: thirty edits on one mesh, and nothing else</h1>
+    <p class="lede">An EditHero-style chain (arXiv 2610.02298) on threepipe's modelling command API: a 16-sided
+        cylinder becomes a chess rook in 30 commands, and side chains cover the rest of the command table.
+        After every step the harness checks that the step did what it claimed (<b>did</b>), that nothing outside
+        its claim changed, bit for bit (<b>locality</b>), that the mesh validates and gained no non-manifold
+        edges or flipped windings (<b>manifold</b>), that <code>undo</code> restores the document exactly and
+        <code>redo</code> brings the edit back (<b>undo</b>), and that a second run in a fresh page gives the same
+        document (<b>determinism</b>). Re-run with <code>npm run demo:edit-chain</code>; this page reads
+        <a href="results.json">results.json</a>.</p>
+    <div id="totals" class="totals"></div>
+    <div class="legend">Badges: D did · L locality · M manifold · U undo/redo · R determinism (re-run).
+        <span class="b PASS">PASS</span> <span class="b FAIL">FAIL</span> <span class="b UNVERIFIED">UNVERIFIED</span> (could not be computed) <span class="b NA">N/A</span></div>
+</header>
+<main>
+    <h2>The main chain</h2>
+    <div id="main" class="strip"></div>
+
+    <h2>Issues filed</h2>
+    <table id="issues"><thead><tr><th>Issue</th><th>Shown by</th></tr></thead><tbody></tbody></table>
+
+    <h2>Side quests and side chains</h2>
+    <div id="side"></div>
+
+    <h2>Operator coverage</h2>
+    <p class="lede">Every command <code>help</code> lists, the steps that ran it, and how those steps scored.
+        Commands the harness calls around every step are counted where a step also names them.</p>
+    <table id="coverage"><thead><tr><th>command</th><th>mutates</th><th class="num">steps</th><th class="num">passed</th><th class="num">failed</th><th>steps</th><th>note</th></tr></thead><tbody></tbody></table>
+
+    <h2>Controls</h2>
+    <p class="lede">Steps that do damage on purpose. Each passes only if the named check catches it, which is
+        what shows the locality and manifold checks are not vacuous.</p>
+    <div id="controls" class="strip"></div>
+</main>
+<footer id="footer"></footer>
+
+<script type="module">
+const CHECKS = [['did', 'D'], ['locality', 'L'], ['manifold', 'M'], ['undo', 'U'], ['determinism', 'R']]
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]))
+const cls = s => s === 'N/A' ? 'NA' : s
+const fmt = v => typeof v === 'string' ? v : JSON.stringify(v)
+
+const res = await (await fetch('results.json', {cache: 'no-store'})).json()
+
+// --- totals -----------------------------------------------------------------------------------------
+const s = res.summary
+const tiles = [
+    ['steps scored', s.steps],
+    ['main chain', `${s.main.byStatus.PASS ?? 0} / ${s.main.steps} pass`],
+    ['all steps', `${s.byStatus.PASS ?? 0} pass · ${s.byStatus.FAIL ?? 0} fail · ${s.byStatus.UNVERIFIED ?? 0} unverified`],
+    ['commands covered', `${res.coverage.filter(c => c.used).length} / ${res.commands}`],
+    ['controls caught', `${s.controls?.detected ?? 0} / ${s.controls?.steps ?? 0}`],
+    ['issues filed', (res.issues ?? []).length],
+]
+for (const [check] of CHECKS) {
+    const c = s.byCheck[check]
+    if (c) tiles.push([check, `${c.PASS} pass · ${c.FAIL} fail · ${c.UNVERIFIED} unv · ${c['N/A']} n/a`])
+}
+document.getElementById('totals').innerHTML = tiles.map(([k, v]) => `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('')
+
+// --- cards ------------------------------------------------------------------------------------------
+function badges(rec) {
+    return CHECKS.map(([k, short]) => {
+        const st = rec.checks[k]?.status ?? 'N/A'
+        return `<span class="b ${cls(st)}" title="${esc(k)}: ${esc(st)}">${short} ${st === 'N/A' ? 'n/a' : st === 'UNVERIFIED' ? '?' : st === 'PASS' ? '✓' : '✗'}</span>`
+    }).join('')
+}
+function statsLine(rec) {
+    const p = rec.stats?.post
+    if (!p) return ''
+    const bb = p.bbox ? p.bbox.max.map((x, i) => (x - p.bbox.min[i]).toFixed(2)).join('×') : '-'
+    return `V${p.verts} E${p.edges} F${p.faces} · tris ${p.tris} · quads ${p.quadPct}%<br>χ ${p.euler} · bnd loops ${p.boundaryLoops} · non-mfd ${p.nonManifoldEdges}${p.genus !== null ? ' · genus ' + p.genus : ''}<br>bbox ${bb} · vol ${p.volume} · area ${p.area}`
+}
+function detailItems(rec) {
+    const lines = []
+    for (const [k] of CHECKS) {
+        const c = rec.checks[k]
+        if (!c) continue
+        if (c.items?.length) {
+            for (const i of c.items) {
+                const mark = i.ok === false ? 'bad' : (i.ok === null || i.ok === undefined) ? 'unk' : ''
+                lines.push(`<li class="${mark}"><b>${k}</b> ${esc(i.what)}${i.ok === false || mark ? ` - got ${esc(fmt(i.got))}${i.want !== undefined ? `, want ${esc(fmt(i.want))}` : ''}` : ''}</li>`)
+            }
+        } else if (c.detail) {
+            lines.push(`<li class="${c.status === 'FAIL' ? 'bad' : ''}"><b>${k}</b> ${esc(c.detail)}</li>`)
+        }
+    }
+    for (const n of rec.notes ?? []) lines.push(`<li>${esc(n)}</li>`)
+    if (rec.warnings?.length) lines.push(`<li>warnings: ${esc(rec.warnings.join('; '))}</li>`)
+    lines.push(`<li><b>command</b> <code>${esc(JSON.stringify(rec.commands).slice(0, 600))}</code></li>`)
+    return `<details><summary>checks</summary><ul>${lines.join('')}</ul></details>`
+}
+function card(rec) {
+    const img = rec.capture ? `<img loading="lazy" src="${esc(rec.capture)}" alt="${esc(rec.id)}">` : `<div class="noimg">no capture (scene/session step)</div>`
+    return `<div class="card ${rec.status}c" id="${esc(rec.id)}">${img}<div class="body">
+        <div class="title"><span class="n">${esc(rec.id)}</span>${esc(rec.title)} <span class="b ${cls(rec.status)}">${rec.status}</span></div>
+        <div class="ops">${esc(rec.commandOps.join(' + '))}</div>
+        <div class="claim">${esc(rec.claimText)}</div>
+        <div>${badges(rec)}</div>
+        <div class="stats">${statsLine(rec)}</div>
+        ${detailItems(rec)}
+    </div></div>`
+}
+
+const steps = res.steps
+document.getElementById('main').innerHTML = steps.filter(r => r.chain === 'main').map(card).join('')
+document.getElementById('controls').innerHTML = steps.filter(r => r.chain === 'control').map(card).join('')
+const side = steps.filter(r => r.chain !== 'main' && r.chain !== 'control')
+const groups = []
+for (const r of side) {
+    let g = groups.find(x => x.id === r.chain)
+    if (!g) groups.push(g = {id: r.chain, name: r.chainName, steps: []})
+    g.steps.push(r)
+}
+document.getElementById('side').innerHTML = groups.map(g => {
+    const pass = g.steps.filter(r => r.status === 'PASS').length
+    return `<h3 class="chainhead">${esc(g.name)} <span class="cnt">${pass}/${g.steps.length} pass</span></h3><div class="strip">${g.steps.map(card).join('')}</div>`
+}).join('')
+
+// --- coverage ---------------------------------------------------------------------------------------
+document.querySelector('#coverage tbody').innerHTML = res.coverage.map(c => `<tr>
+    <td><code>${esc(c.op)}</code></td><td>${c.mutates ? 'yes' : ''}</td>
+    <td class="num">${c.steps.length}</td><td class="num">${c.passed}</td><td class="num">${c.failed ? `<span class="b FAIL">${c.failed}</span>` : 0}</td>
+    <td>${c.steps.slice(0, 8).map(id => `<a href="#${esc(id)}">${esc(id)}</a>`).join(' ')}${c.steps.length > 8 ? ` +${c.steps.length - 8}` : ''}</td>
+    <td>${esc(c.note ?? '')}</td></tr>`).join('')
+
+// --- issues -----------------------------------------------------------------------------------------
+document.querySelector('#issues tbody').innerHTML = (res.issues ?? []).map(i => `<tr>
+    <td><a href="../../issues/open/modelling-tools/${esc(i.file)}">${esc(i.title)}</a><br><code>issues/open/modelling-tools/${esc(i.file)}</code></td>
+    <td>${i.steps.map(id => `<a href="#${esc(id)}">${esc(id)}</a>`).join(' ') || '(harness design)'}</td></tr>`).join('')
+
+document.getElementById('footer').textContent = `Generated ${res.generated} in ${res.wallSeconds} s · ${res.commands} commands in the table · two passes, the second in a freshly loaded page.`
+</script>
+</body>
+</html>

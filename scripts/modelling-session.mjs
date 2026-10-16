@@ -40,7 +40,7 @@ for (let i = 0; i < args.length; i++) {
 const watchDir = flags.get('watch')
 const buildPath = positional[0]
 if (!buildPath && !watchDir) {
-    console.error('usage: npm run modelling:session -- <build-script.mjs> [--out dir] [--port 9229]'
+    console.error('usage: npm run modelling:session -- <build-script.mjs> [--out dir] [--port 9229] [--ws endpoint [--ws-host host]]'
         + '\n   or: npm run modelling:session -- --watch <dir>  (live session; append JSON commands'
         + ' to <dir>/commands.jsonl, read <dir>/results.jsonl)'
         + ' [--width 1280] [--height 800] [--headed] [--keep-open] [--no-serve]'
@@ -101,10 +101,16 @@ if (!flags.get('no-serve') && !await reachable()) {
 
 // --- browser ----------------------------------------------------------------------------------
 
-const browser = await chromium.launch({
-    headless: !flags.get('headed'),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--hide-scrollbars'],
-})
+// `--ws <endpoint>` drives a remote Playwright browser server instead (a machine with a real GPU);
+// `--ws-host` sets the Host header such a server may insist on. The `--url` must then be reachable
+// from that machine, not from here.
+const wsEndpoint = flags.get('ws')
+const browser = wsEndpoint
+    ? await chromium.connect(wsEndpoint, flags.get('ws-host') ? {headers: {Host: flags.get('ws-host')}} : {})
+    : await chromium.launch({
+        headless: !flags.get('headed'),
+        args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--hide-scrollbars'],
+    })
 const context = await browser.newContext({viewport: {width, height}, deviceScaleFactor: 1})
 const page = await context.newPage()
 
