@@ -44,7 +44,7 @@ if (!buildPath && !watchDir) {
         + '\n   or: npm run modelling:session -- --watch <dir>  (live session; append JSON commands'
         + ' to <dir>/commands.jsonl, read <dir>/results.jsonl)'
         + ' [--width 1280] [--height 800] [--headed] [--keep-open] [--no-serve]'
-        + ' [--command-timeout 60000] [--keep-ui]')
+        + ' [--command-timeout 60000] [--load-timeout 90000] [--keep-ui]')
     process.exit(1)
 }
 
@@ -115,9 +115,12 @@ page.on('console', m => {
 })
 
 console.log(`opening ${url}`)
-await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 60000})
+// A cold dev server transforms a few hundred modules before the page's module script runs; on a
+// loaded machine that alone can take minutes, so the load budget is a flag.
+const loadTimeout = Number(flags.get('load-timeout') ?? 90000)
+await page.goto(url, {waitUntil: 'domcontentloaded', timeout: loadTimeout})
 // The viewer renders continuously, so `networkidle` never settles. Wait for the plugin instead.
-await page.waitForFunction(() => !!window.modelling, {timeout: 90000})
+await page.waitForFunction(() => !!window.modelling, {timeout: loadTimeout})
 // Captures are of the model, not of the tool - unless you are documenting the tool itself.
 if (!flags.get('keep-ui')) {
     await page.evaluate(() => {
