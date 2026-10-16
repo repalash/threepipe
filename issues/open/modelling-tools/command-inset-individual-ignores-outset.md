@@ -28,3 +28,11 @@ Both behaviours match Blender's operators, but Blender makes them visible:
 Warn when `outset` is given with `individual`, and say "use a negative thickness". Warn when a region
 outset finds no edges to inset (`rimFaces` empty), naming the cause (no neighbouring faces). Mention
 the negative-thickness form in the `inset` description.
+
+## And the ring comes out facing down
+
+The negative-thickness ring is wound as an inset ring would be, but its new vertices are outside the
+face, so every rim quad faces the other way (-y for a face that faced +y). The Haussmann build found
+this when `solidify {offset: -1}` grew its balcony slabs *up*: the slabs' tops measured 0.16 m above
+the floor line. Blender's `bmo_inset_individual` has the same geometry, so this is faithful, but it
+belongs in the same warning: an outward individual inset is inside out.

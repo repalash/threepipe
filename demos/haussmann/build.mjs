@@ -58,7 +58,7 @@ const L = Object.fromEntries(Object.entries(ELEV.rows).map(([k, v]) => [k, lv(v)
 
 /**
  * Daly, Exemple M2 Pl. 3 (plans of the 1st-4th floors, 1:200). Its own scale bar reads 35.57 px/m,
- * but that makes the six boulevard bays 2.51 m apart against the elevation's 2.371 m, 5.9 % out. The
+ * but that makes the six boulevard bays 2.47 m apart against the elevation's 2.371 m, 4.2 % out. The
  * elevation is the drawing to trust: it is twice the scale, and it puts the cornice at 19.95 m, on
  * the 20 m the 1859 decree allowed on a street this wide. So the plan is calibrated on the same six
  * bays: their centres, at pixel columns 893.5 ... 1333 on the plan, are 5 x 2.371 m apart.
@@ -66,7 +66,7 @@ const L = Object.fromEntries(Object.entries(ELEV.rows).map(([k, v]) => [k, lv(v)
 const PLAN = {
     file: '/demos/haussmann/refs/daly-1870-m2-pl3-plans-77-bd-sebastopol.jpg',
     size: [2118, 3204],
-    pxPerM: (1333 - 893.5) / (5 * (ELEV.bays[5] - ELEV.bays[0]) / 5 / ELEV.pxPerM),
+    pxPerM: (1333 - 893.5) / ((ELEV.bays[5] - ELEV.bays[0]) / ELEV.pxPerM),
     seb: 1269, pal: 682, // rows of the outer wall faces
     origin: 822, // column where the boulevard front starts at the lower cut corner
     greneta: y => 0.4726 * y + 177.7, // outer face of the rue Greneta wall, fitted to its six piers
@@ -107,7 +107,9 @@ for (const f of FRONTS) {
     const d = sub(f.b, f.a)
     f.length = len(d)
     f.dir = [d[0] / f.length, d[1] / f.length]
-    f.normal = [f.dir[1], -f.dir[0]] // outward, in [x, z]
+    // Outward, in [x, z]. The ring runs E -> F -> A -> ... so the street is on the left of travel when
+    // seen from above with x right and z down the page: for the boulevard (dir +x) that is +z.
+    f.normal = [-f.dir[1], f.dir[0]]
     f.street = f.key !== 'party'
 }
 
@@ -150,6 +152,11 @@ export default async (session) => {
     const {run, log} = session
     // `capture` is optional, so the same build drives the report (stills) and the video (beats).
     const capture = session.capture ?? (async () => null)
+    /** Camera moves eased in the film (`cameraDuration`), instant in a session. */
+    const shotCam = (position, target, fov = 40) => run({op: 'camera', projection: 'perspective', fov, position, target,
+        duration: session.cameraDuration ?? 0})
+    /** From across the rue Greneta / boulevard corner, a little above the street. */
+    const CORNER_VIEW = [[-30, 24, 32], [4, 9.5, -7.5]]
     const beat = session.beat ?? (async () => null)
 
     const must = async command => {
@@ -201,9 +208,10 @@ export default async (session) => {
         (PLAN.size[0] / 2 - PLAN.origin) * pm, -0.2, (PLAN.size[1] / 2 - PLAN.seb) * pm]})
     log(`plan reference: ${(1 / pm).toFixed(2)} px/m`)
     await beat('references')
-    await must({op: 'camera', projection: 'orthographic', view: 'ref:elevation'})
+    await must({op: 'camera', projection: 'orthographic', position: [SEB_LENGTH / 2, 11.5, 60], target: [SEB_LENGTH / 2, 11.5, 0],
+        frustumSize: 27})
     await capture('the 1870 elevation, registered')
-    await must({op: 'camera', projection: 'orthographic', view: 'ref:plan'})
+    await must({op: 'camera', projection: 'orthographic', position: [2.5, 80, -7.85], target: [2.5, 0, -7.9], frustumSize: 24})
     await capture('the plan, registered')
     await must({op: 'camera', projection: 'perspective', fov: 40})
     // Out of the way until the model is compared with them again.
@@ -232,11 +240,11 @@ export default async (session) => {
         const r = await must({op: 'extrude', object: 'facade', faces: cap, direction: [0, 1, 0], distance: L[k] - prev})
         cap = r.data.capFaces
         prev = L[k]
-        if (k === 'F1') await capture('blockout: the plan pushed up to the first floor', {view: 'iso', fit: '*'})
+        if (k === 'F1') (await shotCam(...CORNER_VIEW), await capture('blockout: the plan pushed up to the first floor'))
     }
     await beat('walls')
     await must({op: 'display', mode: 'wireframe'})
-    await capture('one extrude per storey line: every bay is a quad', {view: 'iso', fit: '*'})
+    await capture('one extrude per storey line: every bay is a quad')
     await must({op: 'display', mode: 'material'})
 
     /** Side faces of the wall, classified by band and ring segment. */
@@ -305,7 +313,8 @@ export default async (session) => {
     d = await detail('facade')
     const reveals = d.faceVerts.map((_, i) => i).filter(i => recessed.some(c => near3(centroid(d, i), c)))
     const sash = await must({op: 'inset', object: 'facade', faces: reveals, individual: true, thickness: 0.05})
-    await capture('windows framed, recessed and glazed', {view: 'iso', fit: '*'})
+    await shotCam([-9, 9, 16], [4, 8, -2], 45)
+    await capture('windows framed, recessed and glazed')
 
     // The panes and the shop doors become their own objects, so they can be glass and painted wood.
     await must({op: 'separate', object: 'facade', mode: 'faces', faces: sash.data.insetFaces, name: 'glass'})
@@ -351,7 +360,8 @@ export default async (session) => {
     sides = classify(d)
     await must({op: 'inset', object: 'facade', faces: [...bandFaces(5), ...bandFaces(7)], thickness: 0.3, depth: 0.07})
     await beat('cornices')
-    await capture('cornice and string courses pushed out of the wall', {view: 'iso', fit: '*'})
+    await shotCam([-10, 21, 9], [0, 18.5, -2], 45)
+    await capture('cornice and string courses pushed out of the wall')
 
     // --- mansard: the outline inset with a depth equal to its width ------------------------------
     //
@@ -395,7 +405,9 @@ export default async (session) => {
     await must({op: 'bisect', object: 'roof', planeCo: [SEB_LENGTH, 0, 0], planeNo: [1, 0, 0], clearOuter: true, fill: true})
     await must({op: 'material', object: 'roof', ...MAT.zinc})
     await beat('roof')
-    await capture('mansard: a 45° brisis and a shallow terrasson, by inset', {view: 'iso', fit: '*'})
+    // Seen end-on from the party wall, before the neighbour is built: the gable is the roof's section.
+    await shotCam([SEB_LENGTH + 30, 21.5, -DEPTH / 2], [SEB_LENGTH, 20.8, -DEPTH / 2], 32)
+    await capture('mansard: a 45° brisis and a shallow terrasson, by inset')
 
     // --- balconies: the plan outset, cut flush at the party wall, thickened and nosed ------------
     /** The street fronts offset outward by `r`, as a polyline from the party wall round to the party wall. */
@@ -451,7 +463,8 @@ export default async (session) => {
         const party = dd.faceVerts.map((v, i) => ({i, c: centroid(dd, i)})).find(({c}) => c[0] > SEB_LENGTH).i
         await must({op: 'deleteElements', object: name, faces: [party], type: 'FACE'})
         await must({op: 'bisect', object: name, planeCo: [SEB_LENGTH, 0, 0], planeNo: [1, 0, 0], clearOuter: true})
-        await must({op: 'solidify', object: name, thickness: 0.16, offset: -1})
+        // A negative inset winds the new ring facing down (-y), so the shell grows along it: offset 1.
+        await must({op: 'solidify', object: name, thickness: 0.16, offset: 1})
         // Nose the slab: the outer top edge, all along the front.
         const s = await detail(name)
         const nose = s.edgeVerts.map((e, i) => ({e, i})).filter(({e}) => e.every(v => {
@@ -471,7 +484,8 @@ export default async (session) => {
     }
     const balconies = []
     balconies.push(await balcony(2, L.F2))
-    await capture('2nd-floor balcony: outset, bisected, solidified, railing on a curve array', {view: 'iso', fit: '*'})
+    await shotCam([-13, 10, 10], [-1, 8, -1.5], 45)
+    await capture('2nd-floor balcony: outset, bisected, solidified, railing on a curve array')
     balconies.push(await balcony(4, L.F4))
     balconies.push(await balcony(5, L.F5))
     await beat('balconies')
@@ -511,7 +525,8 @@ export default async (session) => {
         await must({op: 'material', objects: ['balconettes-3', 'guards-1'], ...MAT.iron})
         await must({op: 'material', object: 'balconette-slabs-3', ...MAT.stone})
     }
-    await capture('balconettes and window guards: one master, placed on every bay', {view: 'iso', fit: '*'})
+    await shotCam([-8, 9, 14], [3, 8, -2], 45)
+    await capture('balconettes and window guards: one master, placed on every bay')
 
     // --- dormers: one master, live arrays along the regular fronts -------------------------------
     {
@@ -574,7 +589,8 @@ export default async (session) => {
         log(`dormers: ${seb.windows.length + gre.windows.length + k}`)
     }
     await beat('dormers')
-    await capture('dormers on live arrays', {view: 'iso', fit: '*'})
+    await shotCam([-22, 30, 22], [3, 20, -7], 40)
+    await capture('dormers on live arrays')
 
     // --- chimneys: party-wall stack and the two stacks the elevation shows -----------------------
     {
@@ -617,7 +633,7 @@ export default async (session) => {
         await must({op: 'vertices', object: 'pavement', verts: out.map(([x, z], i) => [i, x, 0, z])})
         const o = await must({op: 'inset', object: 'pavement', faces: [0], individual: true, thickness: -4.0})
         await must({op: 'deleteElements', object: 'pavement', faces: o.data.insetFaces, type: 'FACE'})
-        await must({op: 'solidify', object: 'pavement', thickness: 0.15, offset: -1})
+        await must({op: 'solidify', object: 'pavement', thickness: 0.15, offset: 1})
         // The next house along the boulevard and the rue Palestro, to the same 20 m.
         await must({op: 'primitive', type: 'cube', name: 'neighbour', width: 12, height: L.eave - 0.4, depth: DEPTH,
             position: [SEB_LENGTH + 6, (L.eave - 0.4) / 2, -DEPTH / 2], color: MAT.neighbour.color})
@@ -636,7 +652,8 @@ export default async (session) => {
     await must({op: 'material', object: 'pavement', ...MAT.pavement})
     await must({op: 'material', object: 'neighbour', ...MAT.neighbour})
     await beat('street')
-    await capture('the street', {view: 'iso', fit: '*'})
+    await shotCam([-16, 1.7, 26], [3, 12, -6], 45)
+    await capture('the street')
 
     // --- checks: the model against the drawings -------------------------------------------------
     //
@@ -646,9 +663,10 @@ export default async (session) => {
     if (health.data.failed) throw new Error('selftest failed')
 
     const checks = []
-    const expect = (what, got, want, source, tol = 0.02) => {
+    /** Within 2 % of the drawing, and never more than `abs` (3 cm for lengths) - whichever is tighter. */
+    const expect = (what, got, want, source, abs = 0.03) => {
         const delta = got - want
-        const ok = Math.abs(delta) <= Math.max(tol * Math.abs(want), 0.005)
+        const ok = Math.abs(delta) <= Math.min(0.02 * Math.abs(want), abs) + 1e-9
         checks.push({what, want: +want.toFixed(3), got: +got.toFixed(3), delta: +delta.toFixed(3), ok, source})
         log(`  ${ok ? 'ok  ' : 'FAIL'} ${what}: ${got.toFixed(3)} (drawing ${want.toFixed(3)})`)
     }
@@ -673,7 +691,7 @@ export default async (session) => {
     expect('cut corner, Greneta / boulevard', dist(cD, cE), Math.hypot(PLAN.greneta(PLAN.lowerCut.gre) - PLAN.origin, PLAN.lowerCut.gre - PLAN.seb) / PLAN.pxPerM, 'Pl. 3')
     expect('cut corner, Palestro / Greneta', dist(cB, cC), Math.hypot(PLAN.upperCut.pal - PLAN.greneta(PLAN.upperCut.gre), PLAN.upperCut.gre - PLAN.pal) / PLAN.pxPerM, 'Pl. 3')
     const greAngle = Math.atan2(cD[0] - cC[0], cD[1] - cC[1]) * 180 / Math.PI
-    expect('rue Greneta, angle off square (deg)', greAngle, Math.atan(0.4726) * 180 / Math.PI, 'Pl. 3 pier fit')
+    expect('rue Greneta, angle off square (deg)', greAngle, Math.atan(0.4726) * 180 / Math.PI, 'Pl. 3 pier fit', 0.3)
     for (const [lvl, name] of [[2, 'balcony-2'], [4, 'balcony-4'], [5, 'balcony-5']]) {
         expect(`${lvl}${lvl === 2 ? 'nd' : 'th'}-floor balcony, top of slab`, (await box(name)).max[1], L[`F${lvl}`], `Pl. 1 row ${ELEV.rows[`F${lvl}`]}`)
     }
@@ -684,7 +702,7 @@ export default async (session) => {
     const glass = await detail('glass')
     const sebPanes = glass.faceVerts.map((_, i) => centroid(glass, i))
         .filter(c => Math.abs(c[2] + RECESS) < 0.01 && c[1] > L.F2 && c[1] < L.headF2).sort((a, b) => a[0] - b[0])
-    expect('boulevard windows, 2nd floor', sebPanes.length, 6, 'Pl. 1')
+    expect('boulevard windows, 2nd floor', sebPanes.length, 6, 'Pl. 1', 0)
     expect('bay spacing, boulevard', (sebPanes[sebPanes.length - 1][0] - sebPanes[0][0]) / (sebPanes.length - 1), BAY, 'Pl. 1 window leaves')
     {
         const first = (ELEV.bays[0] - ELEV.left) / ELEV.pxPerM
@@ -696,7 +714,7 @@ export default async (session) => {
     const brisisTop = roof.vertices.filter(v => Math.abs(v[1] - L.brisisTop) < 1e-3 && v[0] > 1 && v[0] < SEB_LENGTH - 3)
     const setback = Math.min(...brisisTop.map(v => -v[2]).filter(z => z > 0 && z < 5))
     expect('top of the brisis', Math.max(...brisisTop.map(v => v[1])), L.brisisTop, `Pl. 1 row ${ELEV.rows.brisisTop}`)
-    expect('brisis pitch (deg; 1859: within 45°)', Math.atan2(L.brisisTop - L.eave, setback) * 180 / Math.PI, BRISIS_PITCH, '1859 decree')
+    expect('brisis pitch (deg; 1859: within 45°)', Math.atan2(L.brisisTop - L.eave, setback) * 180 / Math.PI, BRISIS_PITCH, '1859 decree', 0.3)
     expect('chimney tops (party-wall stack, capping)', (await box('chimney-party')).max[1], L.chimney + 0.08, `Pl. 1 row ${ELEV.rows.chimney} + coping`)
     expect('main cornice projection', facadeBox.max[2], CORNICE_PROJECTION, 'A2 Pl. 6 profile, scaled')
     const failed = checks.filter(c => !c.ok)
@@ -750,7 +768,6 @@ export default async (session) => {
     await view('three-quarter on the cut corner, as the rue Monge photograph', [-21, 7, 21], [-1, 11, -3], 42)
     await view('the boulevard front from across the boulevard', [7.5, 1.7, 30], [7.5, 10.5, 0], 48)
     await view('rue Palestro and the upper cut corner', [-18, 6, -34], [1, 11, -12], 45)
-    await view('the roof: 45° brisis in silhouette', [SEB_LENGTH + 26, 21, -2.6], [SEB_LENGTH - 2, 20.6, -2.6], 30)
     await must({op: 'display', mode: 'wireframe'})
     await view('wireframe', [-26, 26, 30], [5, 9, -8], 40)
     await must({op: 'display', mode: 'material'})
@@ -758,14 +775,15 @@ export default async (session) => {
     await view('x-ray', [-26, 26, 30], [5, 9, -8], 40)
     await must({op: 'material', object: '*', opacity: 1})
     await must({op: 'reference', name: 'elevation', plane: 'front', visible: true})
-    await must({op: 'camera', projection: 'orthographic', view: 'ref:elevation'})
+    await must({op: 'camera', projection: 'orthographic', position: [SEB_LENGTH / 2, 11.5, 60], target: [SEB_LENGTH / 2, 11.5, 0],
+        frustumSize: 27})
     await must({op: 'display', mode: 'wireframe'})
     await capture('orthographic, wireframe over the 1870 elevation')
     await must({op: 'display', mode: 'material'})
     await must({op: 'reference', name: 'elevation', plane: 'front', visible: false})
     await capture('orthographic, the model alone, same framing')
     await must({op: 'reference', name: 'plan', plane: 'top', visible: true})
-    await must({op: 'camera', projection: 'orthographic', view: 'ref:plan'})
+    await must({op: 'camera', projection: 'orthographic', position: [2.5, 80, -7.85], target: [2.5, 0, -7.9], frustumSize: 24})
     await must({op: 'display', mode: 'wireframe'})
     await capture('top, wireframe over the 1870 plan')
     await must({op: 'display', mode: 'material'})

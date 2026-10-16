@@ -94,7 +94,7 @@ const dims = [
     ['Storey lines (floors 1-5)', ['F1', 'F2', 'F3', 'F4', 'F5'].map(k => DATA.L[k].toFixed(2)).join(' / ') + ' m', 'Pl. 1, rows 2050 / 1805 / 1550 / 1335 / 1110'],
     ['Top of the brisis; chimney tops', `${DATA.L.brisisTop.toFixed(2)} m; ${DATA.L.chimney.toFixed(2)} m`, 'Pl. 1, rows 700 and 640'],
     ['Boulevard front', `${DATA.SEB_LENGTH.toFixed(2)} m, 6 bays at ${DATA.BAY.toFixed(3)} m, windows ${DATA.WIN.toFixed(2)} m`, 'Pl. 1, columns 515-1602; window leaves of the 2nd floor'],
-    ['Depth, boulevard to rue Palestro', `${DATA.DEPTH.toFixed(2)} m`, 'Pl. 3, rows 682-1269, calibrated on the six bays (37.66 px/m)'],
+    ['Depth, boulevard to rue Palestro', `${DATA.DEPTH.toFixed(2)} m`, `Pl. 3, rows 682-1269, calibrated on the six bays (${DATA.PLAN.pxPerM.toFixed(2)} px/m)`],
     ['Rue Greneta', `${Math.hypot(DATA.D[0] - DATA.C[0], DATA.D[1] - DATA.C[1]).toFixed(2)} m at ${(Math.atan(0.4726) * 180 / Math.PI).toFixed(1)}° off square`, 'Pl. 3, line fitted to the six piers'],
     ['Cut corners', `${Math.hypot(DATA.E[0] - DATA.D[0], DATA.E[1] - DATA.D[1]).toFixed(2)} m (boulevard) and ${Math.hypot(DATA.C[0] - DATA.B[0], DATA.C[1] - DATA.B[1]).toFixed(2)} m (Palestro)`, 'Pl. 3'],
     ['Balconies', '0.50 m deep, on the 2nd, 4th and 5th floors; balconettes on the 3rd; guards on the 1st', 'Pl. 3 outline; Pl. 1'],
@@ -190,7 +190,7 @@ const html = `<!DOCTYPE html>
   <div class="two">
     <figure><img src="${esc(shot('wireframe').file)}" alt="" loading="lazy"><figcaption>Wireframe: the façade is quads, bay by bay and band by band.</figcaption></figure>
     <figure><img src="${esc(shot('x-ray').file)}" alt="" loading="lazy"><figcaption>X-ray (30 % opacity): window reveals, the two roof slopes, balcony slabs inside their railings.</figcaption></figure>
-    <figure><img src="${esc(shot('the roof').file)}" alt="" loading="lazy"><figcaption>The brisis in silhouette: 45°, as the 1859 decree allowed.</figcaption></figure>
+    <figure><img src="${esc(shot('mansard').file)}" alt="" loading="lazy"><figcaption>The roof end-on, from the party wall: a 45° brisis each side, as the 1859 decree allowed.</figcaption></figure>
     <figure><img src="${esc(shot('the boulevard front').file)}" alt="" loading="lazy"><figcaption>The boulevard front from across the street.</figcaption></figure>
   </div>
 </section>
@@ -212,10 +212,12 @@ const html = `<!DOCTYPE html>
     <thead><tr><th>Quantity</th><th>Value</th><th>Where it comes from</th></tr></thead>
     <tbody>${dims.map(([a, b, c]) => `<tr><td>${esc(a)}</td><td>${esc(b)}</td><td class="note">${esc(c)}</td></tr>`).join('')}</tbody>
   </table>
-  <p class="note">The plan's own scale bar (35.57 px/m) disagrees with the elevation by 5.9 %: it would put the six boulevard
-  bays 2.51 m apart against the elevation's 2.371 m. The elevation is twice the scale and puts the cornice on the 20 m of the
-  1859 decree, so the plan is calibrated on the bays instead (37.66 px/m). The plan then draws the party wall 0.34 m beyond the
-  elevation's edge - half the party wall's thickness, which the elevation stops at the axis of.</p>
+  <p class="note">The plan's own scale bar (35.57 px/m) disagrees with the elevation by ${(100 * (DATA.PLAN.pxPerM / 35.57 - 1)).toFixed(1)} %: it
+  would put the six boulevard bays ${(439.5 / 5 / 35.57).toFixed(2)} m apart against the elevation's ${DATA.BAY.toFixed(3)} m. The elevation is
+  twice the scale and puts the cornice on the 20 m of the 1859 decree, so the plan is calibrated on the same six bays instead
+  (${DATA.PLAN.pxPerM.toFixed(2)} px/m). Even so, the plan draws the party wall ${((1397 - DATA.PLAN.origin) / DATA.PLAN.pxPerM - DATA.SEB_LENGTH).toFixed(2)} m
+  beyond the elevation's edge; the elevation stops at the wall's axis and the plan draws all of it, which explains about half of
+  that. The model follows the elevation.</p>
 </section>
 
 <section>

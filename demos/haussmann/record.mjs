@@ -134,7 +134,42 @@ const table = html => page.evaluate(html => {
 // --- the session the build runs against -------------------------------------------------------
 
 let commands = 0
-const run = command => (commands++, page.evaluate(c => window.modelling.run(c), command))
+const send = command => (commands++, page.evaluate(c => window.modelling.run(c), command))
+/**
+ * An eased camera move. `camera {duration}` only animates saved views
+ * (issues/open/modelling-tools/command-camera-duration-saved-views-only.md), so the move is tweened in
+ * the page and the command is sent at the end to settle the camera (near/far, controls).
+ */
+async function tween(position, target, duration) {
+    await page.evaluate(async ({position, target, duration}) => {
+        const cam = window.viewer.scene.mainCamera
+        const p0 = cam.position.clone(), t0 = cam.target.clone()
+        const p1 = p0.clone().set(...position), t1 = t0.clone().set(...target)
+        const start = performance.now()
+        await new Promise(resolve => {
+            const step = () => {
+                const k = Math.min(1, (performance.now() - start) / duration)
+                const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2
+                cam.position.lerpVectors(p0, p1, e)
+                cam.target.lerpVectors(t0, t1, e)
+                cam.lookAt(cam.target)
+                cam.setDirty?.()
+                if (k < 1) requestAnimationFrame(step)
+                else resolve()
+            }
+            requestAnimationFrame(step)
+        })
+    }, {position, target, duration})
+}
+const run = async command => {
+    if (command.op === 'camera' && command.duration > 0 && command.position && command.target) {
+        const {duration, position, target, ...rest} = command
+        if (Object.keys(rest).length > 1) await send({...rest}) // projection, fov
+        await tween(position, target, duration)
+        return send({op: 'camera', position, target})
+    }
+    return send(command)
+}
 const cam = (position, target, duration = 2000, extra = {}) =>
     run({op: 'camera', position, target, duration, ...extra})
 
@@ -258,7 +293,7 @@ await shot('elevation plate', async () => {
     await sleep(800)
 })
 
-const session = {run, log: (...a) => console.log(' ', ...a), page, capture, beat, present: false}
+const session = {run, log: (...a) => console.log(' ', ...a), page, capture, beat, present: false, cameraDuration: 1800}
 await build(session)
 const report = session.report
 
