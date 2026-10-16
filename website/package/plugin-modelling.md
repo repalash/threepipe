@@ -89,7 +89,7 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `camera` | named views, fit-to-objects, saved views; orthographic or perspective with a chosen `fov` |
 | `reference` | a calibrated reference photograph on a world plane |
 | `capture` | render a frame and hand it back |
-| `inspect` | counts, bounds, transform, per-vertex detail |
+| `inspect` | counts, bounds, transform; with `detail`, vertices, face vertex lists and edge vertex pairs |
 | `measure` | world bounds, and intersecting pairs — clearance checking |
 | `undo`, `redo`, `checkpoint`, `history` | history, with named points to rewind to |
 | `selftest` | validate every mesh's topology and render bake |
