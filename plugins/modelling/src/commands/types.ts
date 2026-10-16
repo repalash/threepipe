@@ -29,6 +29,13 @@ export interface CommandResult {
     index: number
     /** The document the command ran against. Their weakness #3: identity, explicitly. */
     documentId: string
+    /**
+     * For a mutating command: whether it changed the document. `false` means it finished but left
+     * everything as it was - nothing in range to merge, edges Blender declines to bevel - and pushed no
+     * undo step, so `undo` after it undoes the command *before* it (Blender's rule for an operator
+     * that returns `CANCELLED`). Absent for read-only commands.
+     */
+    changed?: boolean
     /** Objects the command created or changed, by name. */
     objects?: string[]
     /** Anything the command wants to return - counts, bounds, an inspection. */
