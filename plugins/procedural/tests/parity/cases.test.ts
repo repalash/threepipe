@@ -21,6 +21,7 @@ import {demoCases} from './cases/demos'
 import {curveSetterCases} from './cases/curveSetters'
 import {fieldNodeCases} from './cases/fieldNodes'
 import {topologyCases} from './cases/topology'
+import {inputCases} from './cases/inputs'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -40,6 +41,7 @@ import {meshMergeCases} from './cases/meshMerge'
 import {curvesBasicCases} from './cases/curvesBasic'
 import {curvesOpsCases} from './cases/curvesOps'
 import {distributeCases} from './cases/distribute'
+import {subdivMeshCases} from './cases/subdivMesh'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -65,11 +67,13 @@ SETS.demos = demoCases
 SETS.curveSetters = curveSetterCases
 SETS.fieldNodes = fieldNodeCases
 SETS.topology = topologyCases
+SETS.inputs = inputCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
 SETS.curvesBasic = curvesBasicCases
 SETS.curvesOps = curvesOpsCases
+SETS.subdivMesh = subdivMeshCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

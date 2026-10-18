@@ -194,6 +194,15 @@ export type ClampNode = NodeHandle & {
     readonly result: Socket<"FLOAT">
 }
 
+/** `GeometryNodeInputCollection` (Collection). */
+export interface CollectionArgs {
+    collection?: unknown
+    mute?: boolean
+}
+export type CollectionNode = NodeHandle & {
+    readonly collection: Socket<"COLLECTION">
+}
+
 /** `GeometryNodeCollectionInfo` (Collection Info). */
 export interface CollectionInfoArgs {
     transformSpace?: "ORIGINAL" | "RELATIVE"
@@ -349,6 +358,14 @@ export interface CurveOfPointArgs {
 export type CurveOfPointNode = NodeHandle & {
     readonly curveIndex: Socket<"INT">
     readonly indexInCurve: Socket<"INT">
+}
+
+/** `GeometryNodeInputCurveTilt` (Curve Tilt). */
+export interface CurveTiltArgs {
+    mute?: boolean
+}
+export type CurveTiltNode = NodeHandle & {
+    readonly tilt: Socket<"FLOAT">
 }
 
 /** `GeometryNodeCurveToMesh` (Curve to Mesh). */
@@ -667,6 +684,15 @@ export type IDNode = NodeHandle & {
     readonly iD: Socket<"INT">
 }
 
+/** `GeometryNodeInputImage` (Image). */
+export interface ImageArgs {
+    image?: unknown
+    mute?: boolean
+}
+export type ImageNode = NodeHandle & {
+    readonly image: Socket<"IMAGE">
+}
+
 /** `GeometryNodeImageTexture` (Image Texture). */
 export interface ImageTextureArgs {
     interpolation?: "Linear" | "Closest" | "Cubic"
@@ -720,6 +746,22 @@ export type InstanceOnPointsNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeInputInstanceRotation` (Instance Rotation). */
+export interface InstanceRotationArgs {
+    mute?: boolean
+}
+export type InstanceRotationNode = NodeHandle & {
+    readonly rotation: Socket<"ROTATION">
+}
+
+/** `GeometryNodeInputInstanceScale` (Instance Scale). */
+export interface InstanceScaleArgs {
+    mute?: boolean
+}
+export type InstanceScaleNode = NodeHandle & {
+    readonly scale: Socket<"VECTOR">
+}
+
 /** `GeometryNodeInstancesToPoints` (Instances to Points). */
 export interface InstancesToPointsArgs {
     instances?: In<"GEOMETRY">
@@ -730,6 +772,14 @@ export interface InstancesToPointsArgs {
 }
 export type InstancesToPointsNode = NodeHandle & {
     readonly points: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeInstanceTransform` (Instance Transform). */
+export interface InstanceTransformArgs {
+    mute?: boolean
+}
+export type InstanceTransformNode = NodeHandle & {
+    readonly transform: Socket<"MATRIX">
 }
 
 /** `FunctionNodeInputInt` (Integer). */
@@ -797,6 +847,22 @@ export type IsFaceSmoothNode = NodeHandle & {
     readonly smooth: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeInputSplineCyclic` (Is Spline Cyclic). */
+export interface IsSplineCyclicArgs {
+    mute?: boolean
+}
+export type IsSplineCyclicNode = NodeHandle & {
+    readonly cyclic: Socket<"BOOLEAN">
+}
+
+/** `GeometryNodeIsViewport` (Is Viewport). */
+export interface IsViewportArgs {
+    mute?: boolean
+}
+export type IsViewportNode = NodeHandle & {
+    readonly isViewport: Socket<"BOOLEAN">
+}
+
 /** `GeometryNodeJoinGeometry` (Join Geometry). */
 export interface JoinGeometryArgs {
     geometry?: In<"GEOMETRY"> | In<"GEOMETRY">[]
@@ -828,6 +894,15 @@ export interface MapRangeArgs {
 export type MapRangeNode = NodeHandle & {
     readonly result: Socket<"FLOAT">
     readonly vector: Socket<"VECTOR">
+}
+
+/** `GeometryNodeInputMaterial` (Material). */
+export interface MaterialArgs {
+    material?: unknown
+    mute?: boolean
+}
+export type MaterialNode = NodeHandle & {
+    readonly material: Socket<"MATERIAL">
 }
 
 /** `GeometryNodeInputMaterialIndex` (Material Index). */
@@ -1100,6 +1175,15 @@ export type NormalNode = NodeHandle & {
     readonly trueNormal: Socket<"VECTOR">
 }
 
+/** `GeometryNodeInputObject` (Object). */
+export interface ObjectArgs {
+    object?: unknown
+    mute?: boolean
+}
+export type ObjectNode = NodeHandle & {
+    readonly object: Socket<"OBJECT">
+}
+
 /** `GeometryNodeObjectInfo` (Object Info). */
 export interface ObjectInfoArgs {
     transformSpace?: "ORIGINAL" | "RELATIVE"
@@ -1188,6 +1272,14 @@ export interface QuaternionToRotationArgs {
 }
 export type QuaternionToRotationNode = NodeHandle & {
     readonly rotation: Socket<"ROTATION">
+}
+
+/** `GeometryNodeInputRadius` (Radius). */
+export interface RadiusArgs {
+    mute?: boolean
+}
+export type RadiusNode = NodeHandle & {
+    readonly radius: Socket<"FLOAT">
 }
 
 /** `FunctionNodeRandomValue` (Random Value). */
@@ -1411,6 +1503,14 @@ export type SceneTimeNode = NodeHandle & {
     readonly frame: Socket<"FLOAT">
 }
 
+/** `GeometryNodeSelfObject` (Self Object). */
+export interface SelfObjectArgs {
+    mute?: boolean
+}
+export type SelfObjectNode = NodeHandle & {
+    readonly selfObject: Socket<"OBJECT">
+}
+
 /** `FunctionNodeSeparateColor` (Separate Color). */
 export interface SeparateColorArgs {
     mode?: "RGB" | "HSV" | "HSL"
@@ -1572,6 +1672,14 @@ export interface SplineLengthArgs {
 export type SplineLengthNode = NodeHandle & {
     readonly length: Socket<"FLOAT">
     readonly pointCount: Socket<"INT">
+}
+
+/** `GeometryNodeInputSplineResolution` (Spline Resolution). */
+export interface SplineResolutionArgs {
+    mute?: boolean
+}
+export type SplineResolutionNode = NodeHandle & {
+    readonly resolution: Socket<"INT">
 }
 
 /** `GeometryNodeSplitEdges` (Split Edges). */
@@ -1817,6 +1925,7 @@ export interface NodeConstructors {
     BoundingBox(args?: BoundingBoxArgs): BoundingBoxNode
     CaptureAttribute(args?: CaptureAttributeArgs): CaptureAttributeNode
     Clamp(args?: ClampArgs): ClampNode
+    Collection(args?: CollectionArgs): CollectionNode
     CollectionInfo(args?: CollectionInfoArgs): CollectionInfoNode
     Color(args?: ColorArgs): ColorNode
     ColorRamp(args?: ColorRampArgs): ColorRampNode
@@ -1830,6 +1939,7 @@ export interface NodeConstructors {
     CurveCircle(args?: CurveCircleArgs): CurveCircleNode
     CurveLine(args?: CurveLineArgs): CurveLineNode
     CurveOfPoint(args?: CurveOfPointArgs): CurveOfPointNode
+    CurveTilt(args?: CurveTiltArgs): CurveTiltNode
     CurveToMesh(args?: CurveToMeshArgs): CurveToMeshNode
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
@@ -1857,11 +1967,15 @@ export interface NodeConstructors {
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
     HashValue(args?: HashValueArgs): HashValueNode
     ID(args?: IDArgs): IDNode
+    Image(args?: ImageArgs): ImageNode
     ImageTexture(args?: ImageTextureArgs): ImageTextureNode
     Index(args?: IndexArgs): IndexNode
     IndexSwitch(args?: IndexSwitchArgs): IndexSwitchNode
     InstanceOnPoints(args?: InstanceOnPointsArgs): InstanceOnPointsNode
+    InstanceRotation(args?: InstanceRotationArgs): InstanceRotationNode
+    InstanceScale(args?: InstanceScaleArgs): InstanceScaleNode
     InstancesToPoints(args?: InstancesToPointsArgs): InstancesToPointsNode
+    InstanceTransform(args?: InstanceTransformArgs): InstanceTransformNode
     Integer(args?: IntegerArgs): IntegerNode
     IntegerMath(args?: IntegerMathArgs): IntegerMathNode
     InvertMatrix(args?: InvertMatrixArgs): InvertMatrixNode
@@ -1869,8 +1983,11 @@ export interface NodeConstructors {
     IsEdgeSmooth(args?: IsEdgeSmoothArgs): IsEdgeSmoothNode
     IsFacePlanar(args?: IsFacePlanarArgs): IsFacePlanarNode
     IsFaceSmooth(args?: IsFaceSmoothArgs): IsFaceSmoothNode
+    IsSplineCyclic(args?: IsSplineCyclicArgs): IsSplineCyclicNode
+    IsViewport(args?: IsViewportArgs): IsViewportNode
     JoinGeometry(args?: JoinGeometryArgs): JoinGeometryNode
     MapRange(args?: MapRangeArgs): MapRangeNode
+    Material(args?: MaterialArgs): MaterialNode
     MaterialIndex(args?: MaterialIndexArgs): MaterialIndexNode
     Math(args?: MathArgs): MathNode
     MenuSwitch(args?: MenuSwitchArgs): MenuSwitchNode
@@ -1890,6 +2007,7 @@ export interface NodeConstructors {
     NamedAttribute(args?: NamedAttributeArgs): NamedAttributeNode
     NoiseTexture(args?: NoiseTextureArgs): NoiseTextureNode
     Normal(args?: NormalArgs): NormalNode
+    Object(args?: ObjectArgs): ObjectNode
     ObjectInfo(args?: ObjectInfoArgs): ObjectInfoNode
     OffsetCornerInFace(args?: OffsetCornerInFaceArgs): OffsetCornerInFaceNode
     OffsetPointInCurve(args?: OffsetPointInCurveArgs): OffsetPointInCurveNode
@@ -1898,6 +2016,7 @@ export interface NodeConstructors {
     PointsToVertices(args?: PointsToVerticesArgs): PointsToVerticesNode
     Position(args?: PositionArgs): PositionNode
     QuaternionToRotation(args?: QuaternionToRotationArgs): QuaternionToRotationNode
+    Radius(args?: RadiusArgs): RadiusNode
     RandomValue(args?: RandomValueArgs): RandomValueNode
     Raycast(args?: RaycastArgs): RaycastNode
     RealizeInstances(args?: RealizeInstancesArgs): RealizeInstancesNode
@@ -1916,6 +2035,7 @@ export interface NodeConstructors {
     SampleNearestSurface(args?: SampleNearestSurfaceArgs): SampleNearestSurfaceNode
     ScaleInstances(args?: ScaleInstancesArgs): ScaleInstancesNode
     SceneTime(args?: SceneTimeArgs): SceneTimeNode
+    SelfObject(args?: SelfObjectArgs): SelfObjectNode
     SeparateColor(args?: SeparateColorArgs): SeparateColorNode
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
@@ -1930,6 +2050,7 @@ export interface NodeConstructors {
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
     SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
+    SplineResolution(args?: SplineResolutionArgs): SplineResolutionNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
