@@ -7,6 +7,7 @@
  */
 
 import {Rule} from './sdc'
+import type {FVarLevel} from './fvar'
 
 /** `Level::VTag` bits (`level.h`). The rule is kept apart, in `vertRule`. */
 export enum VTag {
@@ -22,6 +23,24 @@ export enum VTag {
     InfSharpEdges = 1 << 9,
     InfSharpCrease = 1 << 10,
     InfIrregular = 1 << 11,
+}
+
+/**
+ * A vertex's tag bits with its rule above them (`VTag::_rule` is a bit field of `VTag` in OpenSubdiv), so tags of
+ * several corners combine with a plain OR like `VTag::BitwiseOr` / `getFaceCompositeVTag`.
+ */
+export const RULE_SHIFT = 12
+export const tagRule = (fullTag: number): number => fullTag >> RULE_SHIFT
+
+/** `Level::VSpan` (`level.h:176`): the part of a vertex's ring that contributes to a patch. */
+export class VSpan {
+    numFaces = 0
+    startFace = 0
+    cornerInSpan = 0
+    periodic = false
+    sharp = false
+    clear(): void { this.numFaces = 0; this.startFace = 0; this.cornerInSpan = 0; this.periodic = false; this.sharp = false }
+    isAssigned(): boolean { return this.numFaces > 0 }
 }
 
 /** `Level::ETag` bits (`level.h`). */
@@ -94,6 +113,8 @@ export class Level {
 
     maxValence = 0
     maxEdgeFaces = 0
+    /** Face-varying channels (UV maps), one {@link FVarLevel} per channel at this level. */
+    fvarChannels: FVarLevel[] = []
 
     getFaceVertices(f: number): Int32Array { return this.faceVerts.get(f) }
     getFaceEdges(f: number): Int32Array {
@@ -109,6 +130,96 @@ export class Level {
     getVertexEdgeLocalIndices(v: number): Int32Array { return this.vertEdges.getLocal(v) }
     getVertexRule(v: number): Rule { return this.vertRule[v] as Rule }
     isEdgeNonManifold(e: number): boolean { return (this.edgeTags[e] & ETag.NonManifold) !== 0 }
+
+    // region tag queries used by feature-adaptive refinement and patch building (level.cpp:540-760)
+
+    getFVarLevel(c: number): FVarLevel { return this.fvarChannels[c] }
+    isVertexNonManifold(v: number): boolean { return (this.vertTags[v] & VTag.NonManifold) !== 0 }
+    /** The vertex tag with its rule (see {@link RULE_SHIFT}). */
+    getVertexTag(v: number): number { return this.vertTags[v] | (this.vertRule[v] << RULE_SHIFT) }
+    getFaceFVarValues(f: number, c: number): Int32Array { return this.fvarChannels[c].getFaceValues(f) }
+
+    /** `Level::doesFaceFVarTopologyMatch` (`level.cpp:548`). */
+    doesFaceFVarTopologyMatch(f: number, c: number): boolean {
+        return !(this.fvarChannels[c].getFaceCompositeValueTag(f) & 1 /* FVTag.Mismatch */)
+    }
+
+    /** `Level::getFaceVTags` (`level.cpp:554`): per corner, combined with the channel's value tags when `fvc >= 0`. */
+    getFaceVTags(f: number, out: number[], fvc = -1): number[] {
+        const fVerts = this.getFaceVertices(f)
+        out.length = fVerts.length
+        if (fvc < 0) {
+            for (let i = 0; i < fVerts.length; i++) out[i] = this.getVertexTag(fVerts[i])
+        } else {
+            const F = this.fvarChannels[fvc]
+            const fValues = F.getFaceValues(f)
+            for (let i = 0; i < fVerts.length; i++) {
+                const vv = F.findVertexValueIndex(fVerts[i], fValues[i])
+                out[i] = F.combineWithLevelVTag(F.vertValueTags[vv], this.getVertexTag(fVerts[i]))
+            }
+        }
+        return out
+    }
+
+    /** `Level::getFaceETags` (`level.cpp:573`). */
+    getFaceETags(f: number, out: number[], fvc = -1): number[] {
+        const fEdges = this.getFaceEdges(f)
+        out.length = fEdges.length
+        if (fvc < 0) {
+            for (let i = 0; i < fEdges.length; i++) out[i] = this.edgeTags[fEdges[i]]
+        } else {
+            const F = this.fvarChannels[fvc]
+            for (let i = 0; i < fEdges.length; i++) out[i] = F.combineWithLevelETag(F.edgeTags[fEdges[i]], this.edgeTags[fEdges[i]])
+        }
+        return out
+    }
+
+    /** `Level::getFaceCompositeVTag` (`level.cpp:610, :619`). */
+    getFaceCompositeVTag(f: number, fvc = -1): number {
+        const fVerts = this.getFaceVertices(f)
+        let bits = 0
+        if (fvc < 0) {
+            for (let i = 0; i < fVerts.length; i++) bits |= this.getVertexTag(fVerts[i])
+        } else {
+            const F = this.fvarChannels[fvc]
+            const fValues = F.getFaceValues(f)
+            for (let i = 0; i < fVerts.length; i++) {
+                const vv = F.findVertexValueIndex(fVerts[i], fValues[i])
+                bits |= F.combineWithLevelVTag(F.vertValueTags[vv], this.getVertexTag(fVerts[i]))
+            }
+        }
+        return bits
+    }
+
+    /** `Level::getVertexCompositeFVarVTag` (`level.cpp:638`). */
+    getVertexCompositeFVarVTag(v: number, fvc: number): number {
+        const F = this.fvarChannels[fvc]
+        const o = F.getVertexValueOffset(v), n = F.getNumVertexValues(v)
+        const vTag = this.getVertexTag(v)
+        if (F.vertValueTags[o] & 1 /* Mismatch */) {
+            let bits = 0
+            for (let i = 0; i < n; i++) bits |= F.combineWithLevelVTag(F.vertValueTags[o + i], vTag)
+            return bits
+        }
+        return vTag
+    }
+
+    /** `Level::gatherQuadRegularRingAroundVertex` (`level.cpp:692`). */
+    gatherQuadRegularRingAroundVertex(v: number, ring: number[], fvc = -1): number {
+        const vEdges = this.getVertexEdges(v), vFaces = this.getVertexFaces(v), vInFaces = this.getVertexFaceLocalIndices(v)
+        const isBoundary = vEdges.length > vFaces.length
+        let n = 0
+        for (let i = 0; i < vFaces.length; i++) {
+            const fPoints = fvc < 0 ? this.getFaceVertices(vFaces[i]) : this.getFaceFVarValues(vFaces[i], fvc)
+            const vIn = vInFaces[i]
+            ring[n++] = fPoints[(vIn + 1) & 3]
+            ring[n++] = fPoints[(vIn + 2) & 3]
+            if (isBoundary && i === vFaces.length - 1) ring[n++] = fPoints[(vIn + 3) & 3]
+        }
+        return n
+    }
+
+    // endregion
 
     allocateTags(): void {
         this.edgeSharpness = new Float32Array(this.numEdges)

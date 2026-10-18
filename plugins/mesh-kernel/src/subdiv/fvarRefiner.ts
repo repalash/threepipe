@@ -80,19 +80,11 @@ export class FVarChannel {
     readonly levels: FVarLevel[] = []
     readonly refinements: FVarRefinement[] = []
 
-    /** `cornerValues` per base face-vertex (the mesh's corner order, faces are unchanged at level 0). */
-    constructor(refiner: TopologyRefiner, cornerValues: Int32Array, numValues: number) {
+    /** Channel `channel` of a refiner (added with `TopologyRefiner.addFVarChannel` before refining). */
+    constructor(refiner: TopologyRefiner, channel: number) {
         this.refiner = refiner
-        const base = new FVarLevel(refiner.levels[0], refiner.options)
-        base.faceVertValues.set(cornerValues)
-        base.valueCount = numValues
-        base.completeTopologyFromFaceValues(2)
-        this.levels.push(base)
-        for (const r of refiner.refinements) {
-            const fr = new FVarRefinement(r, this.levels[this.levels.length - 1])
-            this.levels.push(fr.apply())
-            this.refinements.push(fr)
-        }
+        for (const L of refiner.levels) this.levels.push(L.getFVarLevel(channel))
+        for (const frs of refiner.fvarRefinements) this.refinements.push(frs[channel])
     }
 
     /** Face-varying values of level `level - 1` in, level `level` out (`stride` components). */
@@ -108,6 +100,7 @@ export class FVarChannel {
 
         // interpFVarFromFaces
         for (let f = 0; f < P.numFaces; f++) {
+            if (r.faceChildVert[f] < 0) continue
             const cVal = cF.getVertexValueOffset(r.faceChildVert[f])
             const fValues = pF.getFaceValues(f)
             computeFaceVertexMask(fValues.length, mask)
@@ -116,6 +109,7 @@ export class FVarChannel {
         // interpFVarFromEdges
         for (let e = 0; e < P.numEdges; e++) {
             const cv = r.edgeChildVert[e]
+            if (cv < 0) continue
             const cVals = cF.getVertexValues(cv)
             if (cF.valueTopologyMatches(cVals[0])) {
                 if (isLinear) {
@@ -144,6 +138,7 @@ export class FVarChannel {
         const edgeValues: number[] = []
         for (let v = 0; v < P.numVertices; v++) {
             const cv = r.vertChildVert[v]
+            if (cv < 0) continue
             const pVals = pF.getVertexValues(v), cVals = cF.getVertexValues(cv)
             const matches = cF.valueTopologyMatches(cVals[0])
             if (isLinear && matches) { add(cVals[0], src, pVals[0], 1); continue }

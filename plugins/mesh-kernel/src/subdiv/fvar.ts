@@ -1,6 +1,6 @@
 /**
  * Face-varying channels (UV maps): OpenSubdiv `Vtr::internal::FVarLevel` and `FVarRefinement`, ported from
- * `opensubdiv/vtr/{fvarLevel.h, fvarLevel.cpp, fvarRefinement.cpp}` for uniform refinement.
+ * `opensubdiv/vtr/{fvarLevel.h, fvarLevel.cpp, fvarRefinement.cpp}`, uniform and sparse refinement.
  *
  * A vertex has one "value" per distinct UV around it (its siblings); each value is tagged with how its span of
  * faces should be interpolated (matching the vertex, a smooth boundary "crease", a sharp "corner", semi-sharp, or
@@ -8,9 +8,9 @@
  * sibling offset plus the sibling (`trimAndFinalizeChildValues`).
  */
 
-import {Level, VTag, ETag as LevelETag} from './level'
+import {Level, VTag, ETag as LevelETag, RULE_SHIFT} from './level'
 import {QuadRefinement} from './refinement'
-import {computeFractionalWeightAtVertex, FVarLinearInterpolation, SdcOptions, VtxBoundaryInterpolation} from './sdc'
+import {computeFractionalWeightAtVertex, FVarLinearInterpolation, Rule, SdcOptions, VtxBoundaryInterpolation} from './sdc'
 
 /** `FVarLevel::ETag` bits. */
 export enum FETag { Mismatch = 1, DisctsV0 = 2, DisctsV1 = 4, Linear = 8 }
@@ -76,6 +76,49 @@ export class FVarLevel {
         return this.vertValueIndices.subarray(o, o + this.vertSiblingCounts[v])
     }
     valueTopologyMatches(valueIndex: number): boolean { return !(this.vertValueTags[valueIndex] & FVTag.Mismatch) }
+
+    /** `FVarLevel::findVertexValueIndex` (`fvarLevel.h:356`). */
+    findVertexValueIndex(v: number, value: number): number {
+        if (this.level.depth > 0) return value
+        let vv = this.getVertexValueOffset(v)
+        while (this.vertValueIndices[vv] !== value) vv++
+        return vv
+    }
+
+    /** `FVarLevel::getFaceCompositeValueTag` (`fvarLevel.cpp:1027`). */
+    getFaceCompositeValueTag(f: number): number {
+        const fValues = this.getFaceValues(f), fVerts = this.level.getFaceVertices(f)
+        let bits = 0
+        for (let i = 0; i < fValues.length; i++) bits |= this.vertValueTags[this.findVertexValueIndex(fVerts[i], fValues[i])]
+        return bits
+    }
+
+    /** `FVarLevel::ETag::combineWithLevelETag` (`fvarLevel.h:371`). */
+    combineWithLevelETag(fvarETag: number, levelETag: number): number {
+        return fvarETag & FETag.Mismatch ? levelETag | LevelETag.Boundary | LevelETag.InfSharp : levelETag
+    }
+
+    /** `FVarLevel::ValueTag::combineWithLevelVTag` (`fvarLevel.h:380`), on a tag with its rule (`Level.getVertexTag`). */
+    combineWithLevelVTag(valueTag: number, levelTag: number): number {
+        if (!(valueTag & FVTag.Mismatch)) return levelTag
+        let tag = levelTag & ((1 << RULE_SHIFT) - 1)
+        const rule = valueIsCorner(valueTag) ? Rule.Corner : Rule.Crease
+        if ((valueTag & FVTag.Crease) || (valueTag & FVTag.SemiSharp)) {
+            tag &= ~(VTag.InfSharp | VTag.Corner)
+            tag |= VTag.InfSharpCrease
+        } else {
+            tag |= VTag.InfSharp
+            tag &= ~VTag.InfSharpCrease
+            if (!(valueTag & FVTag.InfIrregular) && !(valueTag & FVTag.InfSharpEdges)) tag |= VTag.Corner
+            else tag &= ~VTag.Corner
+        }
+        tag |= VTag.InfSharpEdges
+        if (valueTag & FVTag.InfIrregular) tag |= VTag.InfIrregular; else tag &= ~VTag.InfIrregular
+        tag |= VTag.Boundary
+        if (valueTag & FVTag.Xordinary) tag |= VTag.Xordinary; else tag &= ~VTag.Xordinary
+        if (valueTag & FVTag.NonManifold) tag |= VTag.NonManifold
+        return tag | (rule << RULE_SHIFT)
+    }
     edgeTopologyMatches(e: number): boolean { return !(this.edgeTags[e] & FETag.Mismatch) }
 
     private resizeVertexValues(n: number): void {
@@ -353,7 +396,7 @@ export class FVarLevel {
     }
 }
 
-/** `Vtr::internal::FVarRefinement` (`fvarRefinement.cpp`), uniform. */
+/** `Vtr::internal::FVarRefinement` (`fvarRefinement.cpp`). */
 export class FVarRefinement {
     readonly refinement: QuadRefinement
     readonly parentFVar: FVarLevel
@@ -378,17 +421,19 @@ export class FVarRefinement {
         cF.hasLinearBoundaries = pF.hasLinearBoundaries
         cF.hasDependentSharpness = pF.hasDependentSharpness
 
-        // populateChildValues (vertex-vertex first, then face, then edge: the refinement's order)
+        // populateChildValues (fvarRefinement.cpp:241): vertex-vertices first, then face, then edge vertices,
+        // the refinement's order, over the child vertices that exist (sparse refinement leaves gaps in the parents)
         const source: number[] = []
         cF.valueCount = 0
-        for (let pv = 0; pv < P.numVertices; pv++) {
-            const cv = r.vertChildVert[pv]
+        for (let cv = r.firstChildVertFromVert; cv < r.firstChildVertFromVert + r.childVertFromVertCount; cv++) {
+            const pv = r.childVertParent[cv]
             cF.vertSiblingOffsets[cv] = cF.valueCount
             if (pF.valueTopologyMatches(pF.getVertexValueOffset(pv))) {
                 cF.vertSiblingCounts[cv] = 1
                 source[cF.valueCount] = 0
                 cF.valueCount++
             } else {
+                // populateChildValuesForVertexVertex (:206): complete in feature-adaptive refinement
                 const n = pF.getNumVertexValues(pv)
                 for (let j = 0; j < n; j++) source[cF.valueCount + j] = j
                 if (n > 1) cF.getVertexFaceSiblings(cv).set(pF.getVertexFaceSiblings(pv))
@@ -396,15 +441,14 @@ export class FVarRefinement {
                 cF.valueCount += n
             }
         }
-        for (let pf = 0; pf < P.numFaces; pf++) {
-            const cv = r.faceChildVert[pf]
+        for (let cv = r.firstChildVertFromFace; cv < r.firstChildVertFromFace + r.childVertFromFaceCount; cv++) {
             cF.vertSiblingOffsets[cv] = cF.valueCount
             cF.vertSiblingCounts[cv] = 1
             source[cF.valueCount] = 0
             cF.valueCount++
         }
-        for (let pe = 0; pe < P.numEdges; pe++) {
-            const cv = r.edgeChildVert[pe]
+        for (let cv = r.firstChildVertFromEdge; cv < r.firstChildVertFromEdge + r.childVertFromEdgeCount; cv++) {
+            const pe = r.childVertParent[cv]
             cF.vertSiblingOffsets[cv] = cF.valueCount
             if (pF.edgeTopologyMatches(pe)) {
                 cF.vertSiblingCounts[cv] = 1
@@ -414,7 +458,7 @@ export class FVarRefinement {
                 // populateChildValuesForEdgeVertex (fvarRefinement.cpp:150): one value per incident face
                 const pEdgeFaces = P.getEdgeFaces(pe)
                 const n = pEdgeFaces.length
-                for (let i = 0; i < n; i++) source[cF.valueCount + i] = i
+                for (let i = 0; i < n; i++) source[cF.valueCount + i] = n === 1 ? 0 : i
                 if (n > 1) {
                     const cVertFaces = C.getVertexFaces(cv), sib = cF.getVertexFaceSiblings(cv)
                     for (let i = 0; i < cVertFaces.length; i++) {
@@ -437,16 +481,15 @@ export class FVarRefinement {
         // propagateEdgeTags
         for (let ce = r.firstChildEdgeFromEdge; ce < C.numEdges; ce++) cF.edgeTags[ce] = pF.edgeTags[r.childEdgeParent[ce]]
 
-        // propagateValueTags
+        // propagateValueTags (:353): face values match (zero), edge values by the parent edge, vertex values inherited
         const splitTag = pF.hasSmoothBoundaries ? FVTag.Mismatch | FVTag.Crease : FVTag.Mismatch
-        for (let pe = 0; pe < P.numEdges; pe++) {
-            const cv = r.edgeChildVert[pe]
-            const t = pF.edgeTags[pe]
+        for (let cv = r.firstChildVertFromEdge; cv < r.firstChildVertFromEdge + r.childVertFromEdgeCount; cv++) {
+            const t = pF.edgeTags[r.childVertParent[cv]]
             const o = cF.vertSiblingOffsets[cv], n = cF.vertSiblingCounts[cv]
             cF.vertValueTags.fill((t & FETag.Mismatch) || (t & FETag.Linear) ? splitTag : 0, o, o + n)
         }
-        for (let pv = 0; pv < P.numVertices; pv++) {
-            const cv = r.vertChildVert[pv]
+        for (let cv = r.firstChildVertFromVert; cv < r.firstChildVertFromVert + r.childVertFromVertCount; cv++) {
+            const pv = r.childVertParent[cv]
             const po = pF.vertSiblingOffsets[pv], co = cF.vertSiblingOffsets[cv], n = pF.getNumVertexValues(pv)
             for (let j = 0; j < n; j++) cF.vertValueTags[co + j] = pF.vertValueTags[po + j]
         }
@@ -461,12 +504,12 @@ export class FVarRefinement {
 
     /** `FVarRefinement::propagateValueCreases` (`fvarRefinement.cpp:427`). */
     private propagateValueCreases(): void {
-        const r = this.refinement, P = r.parent, pF = this.parentFVar, cF = this.childFVar
+        const r = this.refinement, pF = this.parentFVar, cF = this.childFVar
         const incChildFacesPerEdge = 2
-        for (let pe = 0; pe < P.numEdges; pe++) {
-            const cv = r.edgeChildVert[pe]
+        for (let cv = r.firstChildVertFromEdge; cv < r.firstChildVertFromEdge + r.childVertFromEdgeCount; cv++) {
             const o = cF.vertSiblingOffsets[cv], n = cF.vertSiblingCounts[cv]
             if (!(cF.vertValueTags[o] & FVTag.Mismatch)) continue
+            if (!r.isChildVertexComplete(cv)) continue
             let start = 0, end = incChildFacesPerEdge - 1
             for (let i = 0; i < n; i++) {
                 if (!valueIsInfSharp(cF.vertValueTags[o + i])) { cF.creaseStart[o + i] = start; cF.creaseEnd[o + i] = end }
@@ -474,10 +517,11 @@ export class FVarRefinement {
                 end += incChildFacesPerEdge
             }
         }
-        for (let pv = 0; pv < P.numVertices; pv++) {
-            const cv = r.vertChildVert[pv]
+        for (let cv = r.firstChildVertFromVert; cv < r.firstChildVertFromVert + r.childVertFromVertCount; cv++) {
+            const pv = r.childVertParent[cv]
             const o = cF.vertSiblingOffsets[cv], n = cF.vertSiblingCounts[cv], po = pF.vertSiblingOffsets[pv]
             if (!(cF.vertValueTags[o] & FVTag.Mismatch)) continue
+            if (!r.isChildVertexComplete(cv)) continue
             for (let j = 0; j < n; j++) {
                 if (!valueIsInfSharp(cF.vertValueTags[o + j])) { cF.creaseStart[o + j] = pF.creaseStart[po + j]; cF.creaseEnd[o + j] = pF.creaseEnd[po + j] }
             }
@@ -487,10 +531,11 @@ export class FVarRefinement {
     /** `FVarRefinement::reclassifySemisharpValues` (`fvarRefinement.cpp:478`). */
     private reclassifySemisharpValues(): void {
         const r = this.refinement, P = r.parent, C = r.child, cF = this.childFVar
-        for (let pv = 0; pv < P.numVertices; pv++) {
-            const cv = r.vertChildVert[pv]
+        for (let cv = r.firstChildVertFromVert; cv < r.firstChildVertFromVert + r.childVertFromVertCount; cv++) {
+            const pv = r.childVertParent[cv]
             const o = cF.vertSiblingOffsets[cv], n = cF.vertSiblingCounts[cv]
             if (!(cF.vertValueTags[o] & FVTag.Mismatch)) continue
+            if (!r.isChildVertexComplete(cv)) continue
             const pTag = P.vertTags[pv]
             if (!(pTag & VTag.SemiSharp) && !(pTag & VTag.SemiSharpEdges)) continue
             const cTag = C.vertTags[cv]

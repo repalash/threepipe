@@ -22,7 +22,9 @@
 import {MeshData} from '../MeshData'
 import {AttrName} from '../constants'
 import {ETag, Level, VTag} from './level'
-import {QuadRefinement} from './refinement'
+import {QuadRefinement, SparseSelector} from './refinement'
+import {FVarLevel, FVarRefinement} from './fvar'
+import {doesFaceHaveDistinctFaceVaryingFeatures, doesFaceHaveFeatures, FeatureMask, initializeFeatures} from './adaptive'
 import {
     computeEdgeVertexMask, computeFaceVertexMask, computeVertexLimitMask, computeVertexVertexMask, determineVertexVertexRuleFromCount,
     isInfinite, isSemiSharp, isSharp, Mask, Rule, SdcOptions, SHARPNESS_INFINITE, VertexNeighborhood, VtxBoundaryInterpolation,
@@ -146,31 +148,135 @@ function prepareComponentTagsAndSharpness(L: Level, options: SdcOptions): void {
         if (!(tag & VTag.NonManifold) && !(tag & VTag.Corner)) {
             if ((tag & VTag.Boundary) ? vFacesN !== regularBoundary : vFacesN !== regularInterior) tag |= VTag.Xordinary
         }
+        // inf-sharp features partitioning regular topology (topologyRefinerFactory.cpp:338-383)
         if (infCount > 0) tag |= VTag.InfSharpEdges
+        let infIrregular = (tag & VTag.InfSharp) !== 0 || infCount > 0
+        if (infCount > 0) {
+            const infRule = determineVertexVertexRuleFromCount((tag & VTag.InfSharp) ? vs : 0, infCount)
+            if (infRule === Rule.Crease) {
+                tag |= VTag.InfSharpCrease
+                if (!(tag & VTag.Xordinary) && !(tag & VTag.NonManifold)) {
+                    if (tag & VTag.Boundary) infIrregular = false
+                    else infIrregular = ((L.edgeTags[vEdges[0]] & ETag.InfSharp) !== 0) !== ((L.edgeTags[vEdges[2]] & ETag.InfSharp) !== 0)
+                }
+            } else if (infRule === Rule.Corner) {
+                if (infCount === vEdges.length && (vEdges.length > 2 || (tag & VTag.InfSharp))) infIrregular = false
+            }
+        }
+        if (infIrregular) tag |= VTag.InfIrregular
+        // vertices incident an irregular (non-quad) face
+        tag &= ~VTag.IncidIrregFace
+        const vFaces = L.getVertexFaces(v)
+        for (let i = 0; i < vFaces.length; i++) if (L.faceVerts.counts[vFaces[i]] !== 4) { tag |= VTag.IncidIrregFace; break }
         L.vertTags[v] = tag
     }
 }
 
-/** A refiner: the base level and each uniform refinement after it (`Far::TopologyRefiner::RefineUniform`). */
+/** `TopologyRefiner::AdaptiveOptions` as Blender sets them (`evaluator_impl.cc:447`). */
+export interface AdaptiveOptions {
+    isolationLevel: number
+    /** Blender: true. */
+    useInfSharpPatch: boolean
+    /** Blender: true when the mesh has UV maps. */
+    considerFVarChannels: boolean
+}
+
+/**
+ * A refiner: the base level and each refinement after it, uniform (`Far::TopologyRefiner::RefineUniform`) or
+ * feature-adaptive (`RefineAdaptive`), with face-varying channels refined along (`Refinement::subdivideFVarChannels`).
+ */
 export class TopologyRefiner {
     readonly levels: Level[]
     readonly refinements: QuadRefinement[] = []
+    /** Per refinement, the FVar refinement of each channel. */
+    readonly fvarRefinements: FVarRefinement[][] = []
     readonly options: SdcOptions
+    readonly regFaceSize = 4
+    /** Base faces that are not quads (`_hasIrregFaces`, `topologyRefinerFactory.cpp`). */
+    readonly hasIrregFaces: boolean
+    isUniform = true
+    adaptiveOptions: AdaptiveOptions | null = null
 
     constructor(base: Level, options: SdcOptions) {
         this.levels = [base]
         this.options = options
+        let irreg = false
+        for (let f = 0; f < base.numFaces; f++) if (base.faceVerts.counts[f] !== this.regFaceSize) { irreg = true; break }
+        this.hasIrregFaces = irreg
     }
 
     get maxLevel(): number { return this.levels.length - 1 }
+    get numFVarChannels(): number { return this.levels[0].fvarChannels.length }
+
+    /**
+     * Add a face-varying channel to the base level (`TopologyRefinerFactoryBase::prepareFaceVaryingChannels` with
+     * `completeFVarChannelTopology`), before refining. Returns the channel index.
+     */
+    addFVarChannel(cornerValues: Int32Array, numValues: number): number {
+        if (this.refinements.length) throw new Error('subdivision: FVar channels must be added before refinement')
+        const base = new FVarLevel(this.levels[0], this.options)
+        base.faceVertValues.set(cornerValues)
+        base.valueCount = numValues
+        base.completeTopologyFromFaceValues(2) // Catmark: regular boundary valence 4 / 2
+        this.levels[0].fvarChannels.push(base)
+        return this.levels[0].fvarChannels.length - 1
+    }
+
+    private appendRefinement(r: QuadRefinement, sparse: boolean): void {
+        r.refine(sparse)
+        // Refinement::subdivideFVarChannels (refinement.cpp:1062)
+        const frs: FVarRefinement[] = []
+        for (const pF of r.parent.fvarChannels) {
+            const fr = new FVarRefinement(r, pF)
+            r.child.fvarChannels.push(fr.apply())
+            frs.push(fr)
+        }
+        this.levels.push(r.child)
+        this.refinements.push(r)
+        this.fvarRefinements.push(frs)
+    }
 
     refineUniform(levels: number): void {
+        this.isUniform = true
         for (let i = this.maxLevel; i < levels; i++) {
-            const child = new Level()
-            const r = new QuadRefinement(this.levels[i], child, this.options)
-            r.refine()
-            this.levels.push(child)
-            this.refinements.push(r)
+            this.appendRefinement(new QuadRefinement(this.levels[i], new Level(), this.options), false)
+        }
+    }
+
+    /** `TopologyRefiner::RefineAdaptive` (`topologyRefiner.cpp:398`), Catmark. */
+    refineAdaptive(options: AdaptiveOptions): void {
+        if (this.refinements.length) throw new Error('subdivision: refinements already applied')
+        this.isUniform = false
+        this.adaptiveOptions = options
+        // secondaryLevel keeps its default (15), so every level uses the full feature set
+        const more = initializeFeatures(options)
+        if (more.selectFVarFeatures) {
+            let nonLinear = false
+            for (const c of this.levels[0].fvarChannels) nonLinear ||= !c.isLinear
+            if (!nonLinear) more.selectFVarFeatures = false
+        }
+        for (let i = 1; i <= options.isolationLevel; i++) {
+            const r = new QuadRefinement(this.levels[i - 1], new Level(), this.options)
+            const selector = new SparseSelector(r)
+            this.selectFeatureAdaptiveComponents(selector, more)
+            if (selector.isSelectionEmpty()) break
+            this.appendRefinement(r, true)
+        }
+    }
+
+    /** `TopologyRefiner::selectFeatureAdaptiveComponents` (`topologyRefiner.cpp:697`). */
+    private selectFeatureAdaptiveComponents(selector: SparseSelector, mask: FeatureMask): void {
+        const level = selector.refinement.parent
+        const numFVar = mask.selectFVarFeatures ? level.fvarChannels.length : 0
+        for (let f = 0; f < level.numFaces; f++) {
+            if (level.faceHole[f]) continue
+            let select = doesFaceHaveFeatures(level, f, mask, this.regFaceSize)
+            if (!select && mask.selectFVarFeatures) {
+                for (let c = 0; !select && c < numFVar; c++) {
+                    if (!level.doesFaceFVarTopologyMatch(f, c)) select = doesFaceHaveDistinctFaceVaryingFeatures(level, f, mask, c)
+                }
+            }
+            if (select) selector.selectFace(f)
         }
     }
 
@@ -188,6 +294,7 @@ export class TopologyRefiner {
         // interpFromFaces
         for (let f = 0; f < P.numFaces; f++) {
             const cv = r.faceChildVert[f]
+            if (cv < 0) continue
             const fv = P.getFaceVertices(f)
             computeFaceVertexMask(fv.length, mask)
             for (let i = 0; i < fv.length; i++) add(cv, src, fv[i], mask.vertex[i])
@@ -195,6 +302,7 @@ export class TopologyRefiner {
         // interpFromEdges
         for (let e = 0; e < P.numEdges; e++) {
             const cv = r.edgeChildVert[e]
+            if (cv < 0) continue
             const eFaces = P.getEdgeFaces(e)
             const sharp = P.edgeSharpness[e]
             const pRule = sharp > 0 ? Rule.Crease : Rule.Smooth
@@ -210,6 +318,7 @@ export class TopologyRefiner {
         const hood: VertexNeighborhood & {sharpnessPerEdge: number[]} = {numEdges: 0, numFaces: 0, sharpness: 0, sharpnessPerEdge: [], childSharpness: 0}
         for (let v = 0; v < P.numVertices; v++) {
             const cv = r.vertChildVert[v]
+            if (cv < 0) continue
             const vEdges = P.getVertexEdges(v), vFaces = P.getVertexFaces(v)
             hood.numEdges = vEdges.length
             hood.numFaces = vFaces.length

@@ -2,7 +2,8 @@ import {describe, expect, it} from 'vitest'
 import {MeshData} from '../MeshData'
 import {AttrDomain, AttrName} from '../constants'
 import {primitiveCube} from '../generate/primitives'
-import {Level} from './level'
+import {Level, VTag} from './level'
+import {createBaseLevel, TopologyRefiner} from './refiner'
 import {subdivisionSurface, subdivisionSurfaceEvaluate} from './subdivisionSurface'
 import {computeVertexVertexMask, Mask, Rule, CreasingMethod, FVarLinearInterpolation, VtxBoundaryInterpolation} from './sdc'
 
@@ -117,13 +118,28 @@ describe('subdivisionSurface', () => {
         expect(keep.facesNum).toBe(all.facesNum)
     })
 
-    it('a semi-sharp crease refines deeper for the limit surface, but never past quality', () => {
+    it('the limit surface isolates features adaptively up to quality; the output grid is the uniform refinement to levels', () => {
         const m = primitiveCube()
         const crease = m.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
-        crease[0] = 0.5 // sharpness 2.5: decays after 3 levels
-        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.refiner.maxLevel).toBe(3)
-        expect(subdivisionSurfaceEvaluate(m, {levels: 1, quality: 2})!.refiner.maxLevel).toBe(2)
-        expect(subdivisionSurfaceEvaluate(m, {levels: 1, useLimitSurface: false})!.refiner.maxLevel).toBe(1)
+        crease[0] = 0.5 // sharpness 2.5
+        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.refiner.maxLevel).toBe(1)
+        const options = OPTS
+        const adaptive = (quality: number) => {
+            const r = new TopologyRefiner(createBaseLevel(m, options, {useCreases: true, simple: false}).level, options)
+            r.refineAdaptive({isolationLevel: quality, useInfSharpPatch: true, considerFVarChannels: false})
+            return r
+        }
+        // the cube's valence-3 corners are extraordinary: isolated at every level up to quality, sparsely
+        const r3 = adaptive(3), r2 = adaptive(2)
+        expect(r3.maxLevel).toBe(3)
+        expect(r2.maxLevel).toBe(2)
+        expect(r3.levels[3].numFaces).toBeGreaterThan(0)
+        expect(r3.levels[3].numFaces).toBeLessThan(6 * 4 ** 3)
+        // every level-1 face touches a cube corner; from level 2 only those around the corners are refined further,
+        // with their neighbouring (incomplete) vertices
+        let incomplete = 0
+        for (let v = 0; v < r3.levels[3].numVertices; v++) if (r3.levels[3].vertTags[v] & VTag.Incomplete) incomplete++
+        expect(incomplete).toBeGreaterThan(0)
     })
 
     it('n-gons split into quads around a centre vertex; loose vertices are left out', () => {
