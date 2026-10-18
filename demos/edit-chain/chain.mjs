@@ -920,11 +920,25 @@ const exportChain = {
         {
             n: 2, title: 'export glb {objects: [gem]}, re-import, compare', target: 'gem',
             claimText: 'a file with gem only; re-imported, its topology equals gem\'s exactly. There is no import command: re-imported with viewer.load',
-            command: {op: 'export', format: 'glb', includeData: true, objects: ['gem']},
+            // The camera is part of the exported scene, so put it somewhere fixed first: the export is then
+            // a function of the document alone, and the second pass can compare it byte for byte.
+            command: [{op: 'camera', position: [6, 4, 6], target: [0, 0.5, 0]},
+                {op: 'export', format: 'glb', includeData: true, objects: ['gem']}],
             claim: {},
-            after: async ({run, page, pre, result}) => {
+            after: async ({run, page, pre, result, pass}) => {
                 const checks = []
                 checks.push(ck('export returned bytes', result.ok && result.data.bytes > 0, result.data?.bytes))
+                // Keep the file's JSON per pass, so a determinism failure can be diffed.
+                const glb = Buffer.from(result.data.base64, 'base64')
+                const jsonLength = glb.readUInt32LE(12)
+                const gltfJson = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8'))
+                const {writeFile: write, mkdir: mk} = await import('node:fs/promises')
+                await mk('tmp/edit-chain', {recursive: true})
+                await write(`tmp/edit-chain/export-pass-${pass}.gltf.json`, JSON.stringify(gltfJson, null, 1))
+                // The same export again in the same session: any difference here is not about sessions.
+                const again = await run({op: 'export', format: 'glb', includeData: true, objects: ['gem']})
+                checks.push(ck('a second export in the same session is byte-identical', again.ok && again.data.base64 === result.data.base64,
+                    `${again.data?.bytes} vs ${result.data.bytes} bytes`))
                 const hasImport = (await run({op: 'help'})).data.some(d => d.op === 'import' || d.op === 'load')
                 checks.push(ck('an API command can re-import the file', hasImport, hasImport ? 'yes' : 'no import/load command'))
                 // No API path, so through the viewer, as the editor's file menu would - without applying the

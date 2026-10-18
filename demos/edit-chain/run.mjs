@@ -29,7 +29,7 @@
  */
 
 import {createHash} from 'node:crypto'
-import {mkdir, writeFile, rm} from 'node:fs/promises'
+import {mkdir, readFile, writeFile, rm} from 'node:fs/promises'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {deflateSync} from 'node:zlib'
@@ -39,26 +39,53 @@ import {decodeMesh, localityDiff, measureMesh, meshDiffExact, query} from './top
 const HERE = dirname(fileURLToPath(import.meta.url))
 const CAPTURES = join(HERE, 'captures')
 
+/**
+ * `EDIT_CHAIN_PASSES=1`, `=2` or `=1,2` (the default) picks which passes this session runs. Each pass is
+ * saved to `tmp/edit-chain/pass-<n>.json` as it finishes and the report is assembled from whatever pass
+ * files exist, so on a loaded machine a pass that dies can be re-run alone. Both passes send the same
+ * commands; pass 2 runs in a freshly loaded page and does not write the captures.
+ */
+const PASS_DIR = resolve(HERE, '../../tmp/edit-chain')
+
 export default async (session) => {
     const {run, page, log} = session
     const started = Date.now()
-    await rm(CAPTURES, {recursive: true, force: true})
-    await mkdir(CAPTURES, {recursive: true})
+    const wanted = (process.env.EDIT_CHAIN_PASSES ?? '1,2').split(',').map(Number)
+    await mkdir(PASS_DIR, {recursive: true})
 
-    const passes = []
     let commandTable = null
-    for (let pass = 1; pass <= 2; pass++) {
-        if (pass === 2) await reloadPage(page)
-        // Read the command table inside each pass, so both passes send exactly the same commands.
+    let first = 0
+    for (const pass of wanted) {
+        if (first++) await reloadPage(page)
+        if (pass === 1) {
+            await rm(CAPTURES, {recursive: true, force: true})
+            await mkdir(CAPTURES, {recursive: true})
+        }
         commandTable = (await run({op: 'help'})).data
         const mutating = new Set(commandTable.filter(c => c.mutates).map(c => c.op))
         log(`\n=== pass ${pass} ===`)
-        passes.push(await runPass({run, page, log, pass, mutating}))
+        const records = await runPass({run, page, log, pass, mutating})
+        await writeFile(join(PASS_DIR, `pass-${pass}.json`), JSON.stringify({commandTable, records, at: new Date().toISOString()}))
     }
+    const load = async n => {
+        try {
+            return JSON.parse(await readFile(join(PASS_DIR, `pass-${n}.json`), 'utf8'))
+        } catch {
+            return null
+        }
+    }
+    const p1 = await load(1), p2 = await load(2)
+    if (!p1) {
+        log('no pass 1 on disk yet: run with EDIT_CHAIN_PASSES=1')
+        return
+    }
+    commandTable = p1.commandTable
+    const passes = [p1.records, p2?.records ?? []]
 
     // --- determinism: compare the two passes step by step ----------------------------------------
-    const [first, second] = passes
-    for (const rec of first) {
+    const [first1, second] = passes
+    const firstRecs = first1
+    for (const rec of firstRecs) {
         const twin = second.find(r => r.id === rec.id)
         if (!twin) {
             rec.checks.determinism = {status: 'UNVERIFIED', detail: 'the step did not run in pass 2'}
@@ -75,7 +102,7 @@ export default async (session) => {
 
     // --- coverage --------------------------------------------------------------------------------
     const coverage = commandTable.map(c => {
-        const steps = first.filter(r => r.commandOps.includes(c.op))
+        const steps = firstRecs.filter(r => r.commandOps.includes(c.op))
         const harness = HARNESS_OPS.includes(c.op)
         return {
             op: c.op, mutates: c.mutates,
@@ -88,7 +115,7 @@ export default async (session) => {
         }
     })
 
-    const summary = summarise(first)
+    const summary = summarise(firstRecs)
     const results = {
         generated: new Date().toISOString(),
         wallSeconds: Math.round((Date.now() - started) / 1000),
@@ -98,8 +125,9 @@ export default async (session) => {
         coverage,
         issues: ISSUES,
         chains: chains.map(c => ({id: c.id, name: c.name, steps: c.steps.length})),
-        steps: first,
+        steps: firstRecs,
         pass2: second.map(r => ({id: r.id, hash: r.hash, status: r.status})),
+        passFiles: {pass1: p1.at, pass2: p2?.at ?? null},
     }
     await writeFile(join(HERE, 'results.json'), JSON.stringify(results, null, 1))
     log(`\nsteps ${summary.steps}: ${JSON.stringify(summary.byStatus)}; controls detected ${summary.controls.detected}/${summary.controls.steps}`)
@@ -160,7 +188,7 @@ async function runStep({run, page, log, pass, mutating, chain, step, pre, histor
     rec.warnings = results.flatMap(r => r.warnings ?? [])
     rec.result = trimResult(result)
     let post = await dumpDocument(page)
-    const extra = step.after ? await step.after({run, page, pre, post, result, results, ctx}) : null
+    const extra = step.after ? await step.after({run, page, pre, post, result, results, ctx, pass}) : null
     // A hook that touched the page (the export re-import) cleans up after itself; score what is left.
     if (step.after) post = await dumpDocument(page)
 
@@ -280,7 +308,8 @@ async function runStep({run, page, log, pass, mutating, chain, step, pre, histor
         rec.notes.push('restored the pre-step document (invalid mesh) before continuing')
     }
 
-    // --- capture: run in both passes so the two do exactly the same thing; pass 1 keeps the files ----
+    // --- capture: both passes frame and render the same way (a render can move an orbiting camera,
+    // and the camera is part of what `export` writes); only pass 1 keeps the files ------------------
     if (step.capture !== false) {
         const fit = step.captureFit ?? (postEntry ? postEntry.name : '*')
         const exists = post.entries.some(e => e.name === fit) || fit === '*'
@@ -565,7 +594,9 @@ function hashResult(results) {
  */
 function stripVolatile(data) {
     return JSON.parse(JSON.stringify(data ?? null, (k, v) => {
-        if (k === 'dataUrl' || k === 'ms' || k === 'documentId' || k === 'uuid') return undefined
+        // `index` / `at` are the session's command counters, which differ because pass 2 sends no
+        // camera or capture commands; nothing about the document depends on them.
+        if (k === 'dataUrl' || k === 'ms' || k === 'documentId' || k === 'uuid' || k === 'index' || k === 'at') return undefined
         if (k === 'base64' && typeof v === 'string') return 'sha256:' + createHash('sha256').update(v).digest('hex').slice(0, 16)
         return v
     }))
