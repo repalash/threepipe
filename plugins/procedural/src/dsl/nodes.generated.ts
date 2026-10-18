@@ -48,6 +48,21 @@ interface Literals {
     TEXTURE: IDRef | null
 }
 
+/** `GeometryNodeAccumulateField` (Accumulate Field). */
+export interface AccumulateFieldArgs {
+    dataType?: "FLOAT" | "INT" | "FLOAT_VECTOR" | "TRANSFORM"
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    value?: (In<"FLOAT"> | In<"INT"> | In<"VECTOR"> | In<"MATRIX">)
+    groupIndex?: In<"INT">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type AccumulateFieldNode = NodeHandle & {
+    readonly leading: Socket<"FLOAT" | "INT" | "VECTOR" | "MATRIX">
+    readonly trailing: Socket<"FLOAT" | "INT" | "VECTOR" | "MATRIX">
+    readonly total: Socket<"FLOAT" | "INT" | "VECTOR" | "MATRIX">
+}
+
 /** `FunctionNodeAlignEulerToVector` (Align Euler to Vector). */
 export interface AlignEulerToVectorArgs {
     axis?: "X" | "Y" | "Z"
@@ -333,6 +348,22 @@ export type DistributePointsOnFacesNode = NodeHandle & {
     readonly rotation: Socket<"ROTATION">
 }
 
+/** `GeometryNodeAttributeDomainSize` (Domain Size). */
+export interface DomainSizeArgs {
+    component?: "MESH" | "POINTCLOUD" | "CURVE" | "INSTANCES" | "GREASEPENCIL"
+    geometry?: In<"GEOMETRY">
+    mute?: boolean
+}
+export type DomainSizeNode = NodeHandle & {
+    readonly pointCount: Socket<"INT">
+    readonly edgeCount: Socket<"INT">
+    readonly faceCount: Socket<"INT">
+    readonly faceCornerCount: Socket<"INT">
+    readonly splineCount: Socket<"INT">
+    readonly instanceCount: Socket<"INT">
+    readonly layerCount: Socket<"INT">
+}
+
 /** `GeometryNodeDuplicateElements` (Duplicate Elements). */
 export interface DuplicateElementsArgs {
     domain?: "POINT" | "EDGE" | "FACE" | "SPLINE" | "LAYER" | "INSTANCE"
@@ -393,6 +424,29 @@ export type EulerToRotationNode = NodeHandle & {
     readonly rotation: Socket<"ROTATION">
 }
 
+/** `GeometryNodeFieldAtIndex` (Evaluate at Index). */
+export interface EvaluateAtIndexArgs {
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
+    index?: In<"INT">
+    value?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    mute?: boolean
+}
+export type EvaluateAtIndexNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX">
+}
+
+/** `GeometryNodeFieldOnDomain` (Evaluate on Domain). */
+export interface EvaluateOnDomainArgs {
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
+    value?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    mute?: boolean
+}
+export type EvaluateOnDomainNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX">
+}
+
 /** `GeometryNodeExtrudeMesh` (Extrude Mesh). */
 export interface ExtrudeMeshArgs {
     mode?: "VERTICES" | "EDGES" | "FACES"
@@ -424,6 +478,48 @@ export interface FaceNeighborsArgs {
 export type FaceNeighborsNode = NodeHandle & {
     readonly vertexCount: Socket<"INT">
     readonly faceCount: Socket<"INT">
+}
+
+/** `GeometryNodeFieldAverage` (Field Average). */
+export interface FieldAverageArgs {
+    dataType?: "FLOAT" | "FLOAT_VECTOR"
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    value?: (In<"FLOAT"> | In<"VECTOR">)
+    groupIndex?: In<"INT">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type FieldAverageNode = NodeHandle & {
+    readonly mean: Socket<"FLOAT" | "VECTOR">
+    readonly median: Socket<"FLOAT" | "VECTOR">
+}
+
+/** `GeometryNodeFieldMinAndMax` (Field Min & Max). */
+export interface FieldMinMaxArgs {
+    dataType?: "FLOAT" | "INT" | "FLOAT_VECTOR"
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    value?: (In<"FLOAT"> | In<"INT"> | In<"VECTOR">)
+    groupIndex?: In<"INT">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type FieldMinMaxNode = NodeHandle & {
+    readonly min: Socket<"FLOAT" | "INT" | "VECTOR">
+    readonly max: Socket<"FLOAT" | "INT" | "VECTOR">
+}
+
+/** `GeometryNodeFieldVariance` (Field Variance). */
+export interface FieldVarianceArgs {
+    dataType?: "FLOAT" | "FLOAT_VECTOR"
+    domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
+    value?: (In<"FLOAT"> | In<"VECTOR">)
+    groupIndex?: In<"INT">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type FieldVarianceNode = NodeHandle & {
+    readonly standardDeviation: Socket<"FLOAT" | "VECTOR">
+    readonly variance: Socket<"FLOAT" | "VECTOR">
 }
 
 /** `ShaderNodeFloatCurve` (Float Curve). */
@@ -1580,6 +1676,7 @@ export type WhiteNoiseTextureNode = NodeHandle & {
 
 /** `n.*`: one constructor per ported node type. */
 export interface NodeConstructors {
+    AccumulateField(args?: AccumulateFieldArgs): AccumulateFieldNode
     AlignEulerToVector(args?: AlignEulerToVectorArgs): AlignEulerToVectorNode
     AlignRotationToVector(args?: AlignRotationToVectorArgs): AlignRotationToVectorNode
     AttributeStatistic(args?: AttributeStatisticArgs): AttributeStatisticNode
@@ -1602,15 +1699,21 @@ export interface NodeConstructors {
     CurveToMesh(args?: CurveToMeshArgs): CurveToMeshNode
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
+    DomainSize(args?: DomainSizeArgs): DomainSizeNode
     DuplicateElements(args?: DuplicateElementsArgs): DuplicateElementsNode
     EdgeAngle(args?: EdgeAngleArgs): EdgeAngleNode
     EdgeNeighbors(args?: EdgeNeighborsArgs): EdgeNeighborsNode
     EdgeVertices(args?: EdgeVerticesArgs): EdgeVerticesNode
     EndpointSelection(args?: EndpointSelectionArgs): EndpointSelectionNode
     EulerToRotation(args?: EulerToRotationArgs): EulerToRotationNode
+    EvaluateAtIndex(args?: EvaluateAtIndexArgs): EvaluateAtIndexNode
+    EvaluateOnDomain(args?: EvaluateOnDomainArgs): EvaluateOnDomainNode
     ExtrudeMesh(args?: ExtrudeMeshArgs): ExtrudeMeshNode
     FaceArea(args?: FaceAreaArgs): FaceAreaNode
     FaceNeighbors(args?: FaceNeighborsArgs): FaceNeighborsNode
+    FieldAverage(args?: FieldAverageArgs): FieldAverageNode
+    FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
+    FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
