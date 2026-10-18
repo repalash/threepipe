@@ -36,7 +36,7 @@ const ASSETS = [
 const page0 = a => `/examples/procedural-editor-assets/index.html?asset=${a}`
 const ready = () => document.body.classList.contains('_testFinish') && !!window.acceptance
 
-const film = await openFilm({out, page: page0('terrain'), ready, stage: false, accent: '#4f8cff', background: '#2b2d33'})
+const film = await openFilm({out, page: page0(ASSETS[0].asset), ready, stage: false, accent: '#4f8cff', background: '#2b2d33'})
 const page = film.page
 film.ticker(false)
 const metrics = {renderer: film.renderer, assets: {}}
