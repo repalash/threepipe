@@ -50,6 +50,7 @@ import {curvesBasicCases} from './cases/curvesBasic'
 import {curvesOpsCases} from './cases/curvesOps'
 import {distributeCases} from './cases/distribute'
 import {subdivMeshCases} from './cases/subdivMesh'
+import {meshPathCases} from './cases/meshPaths'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -90,6 +91,7 @@ SETS.meshSplit = meshSplitCases
 SETS.meshScale = meshScaleCases
 SETS.meshTriangulate = meshTriangulateCases
 SETS.meshDual = meshDualCases
+SETS.meshPaths = meshPathCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

@@ -479,6 +479,27 @@ export type EdgeNeighborsNode = NodeHandle & {
     readonly faceCount: Socket<"INT">
 }
 
+/** `GeometryNodeEdgePathsToCurves` (Edge Paths to Curves). */
+export interface EdgePathsToCurvesArgs {
+    mesh?: In<"GEOMETRY">
+    startVertices?: In<"BOOLEAN">
+    nextVertexIndex?: In<"INT">
+    mute?: boolean
+}
+export type EdgePathsToCurvesNode = NodeHandle & {
+    readonly curves: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeEdgePathsToSelection` (Edge Paths to Selection). */
+export interface EdgePathsToSelectionArgs {
+    startVertices?: In<"BOOLEAN">
+    nextVertexIndex?: In<"INT">
+    mute?: boolean
+}
+export type EdgePathsToSelectionNode = NodeHandle & {
+    readonly selection: Socket<"BOOLEAN">
+}
+
 /** `GeometryNodeEdgesOfCorner` (Edges of Corner). */
 export interface EdgesOfCornerArgs {
     cornerIndex?: In<"INT">
@@ -499,6 +520,15 @@ export interface EdgesOfVertexArgs {
 export type EdgesOfVertexNode = NodeHandle & {
     readonly edgeIndex: Socket<"INT">
     readonly total: Socket<"INT">
+}
+
+/** `GeometryNodeEdgesToFaceGroups` (Edges to Face Groups). */
+export interface EdgesToFaceGroupsArgs {
+    boundaryEdges?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type EdgesToFaceGroupsNode = NodeHandle & {
+    readonly faceGroupID: Socket<"INT">
 }
 
 /** `GeometryNodeInputMeshEdgeVertices` (Edge Vertices). */
@@ -576,6 +606,16 @@ export interface FaceAreaArgs {
 }
 export type FaceAreaNode = NodeHandle & {
     readonly area: Socket<"FLOAT">
+}
+
+/** `GeometryNodeMeshFaceSetBoundaries` (Face Group Boundaries). */
+export interface FaceGroupBoundariesArgs {
+    faceSet?: In<"INT">
+    faceGroupID?: In<"INT">
+    mute?: boolean
+}
+export type FaceGroupBoundariesNode = NodeHandle & {
+    readonly boundaryEdges: Socket<"BOOLEAN">
 }
 
 /** `GeometryNodeInputMeshFaceNeighbors` (Face Neighbors). */
@@ -1779,6 +1819,17 @@ export type SetSplineResolutionNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeInputShortestEdgePaths` (Shortest Edge Paths). */
+export interface ShortestEdgePathsArgs {
+    endVertex?: In<"BOOLEAN">
+    edgeCost?: In<"FLOAT">
+    mute?: boolean
+}
+export type ShortestEdgePathsNode = NodeHandle & {
+    readonly nextVertexIndex: Socket<"INT">
+    readonly totalCost: Socket<"FLOAT">
+}
+
 /** `GeometryNodeSortElements` (Sort Elements). */
 export interface SortElementsArgs {
     domain?: "POINT" | "EDGE" | "FACE" | "CURVE" | "INSTANCE"
@@ -2101,8 +2152,11 @@ export interface NodeConstructors {
     DuplicateElements(args?: DuplicateElementsArgs): DuplicateElementsNode
     EdgeAngle(args?: EdgeAngleArgs): EdgeAngleNode
     EdgeNeighbors(args?: EdgeNeighborsArgs): EdgeNeighborsNode
+    EdgePathsToCurves(args?: EdgePathsToCurvesArgs): EdgePathsToCurvesNode
+    EdgePathsToSelection(args?: EdgePathsToSelectionArgs): EdgePathsToSelectionNode
     EdgesOfCorner(args?: EdgesOfCornerArgs): EdgesOfCornerNode
     EdgesOfVertex(args?: EdgesOfVertexArgs): EdgesOfVertexNode
+    EdgesToFaceGroups(args?: EdgesToFaceGroupsArgs): EdgesToFaceGroupsNode
     EdgeVertices(args?: EdgeVerticesArgs): EdgeVerticesNode
     EndpointSelection(args?: EndpointSelectionArgs): EndpointSelectionNode
     EulerToRotation(args?: EulerToRotationArgs): EulerToRotationNode
@@ -2110,6 +2164,7 @@ export interface NodeConstructors {
     EvaluateOnDomain(args?: EvaluateOnDomainArgs): EvaluateOnDomainNode
     ExtrudeMesh(args?: ExtrudeMeshArgs): ExtrudeMeshNode
     FaceArea(args?: FaceAreaArgs): FaceAreaNode
+    FaceGroupBoundaries(args?: FaceGroupBoundariesArgs): FaceGroupBoundariesNode
     FaceNeighbors(args?: FaceNeighborsArgs): FaceNeighborsNode
     FaceOfCorner(args?: FaceOfCornerArgs): FaceOfCornerNode
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
@@ -2211,6 +2266,7 @@ export interface NodeConstructors {
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
     SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
+    ShortestEdgePaths(args?: ShortestEdgePathsArgs): ShortestEdgePathsNode
     SortElements(args?: SortElementsArgs): SortElementsNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplineResolution(args?: SplineResolutionArgs): SplineResolutionNode

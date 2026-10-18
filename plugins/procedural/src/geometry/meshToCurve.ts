@@ -43,7 +43,7 @@ function writeGathered(dst: AttributeAccessor, name: string, domain: AttrDomain,
 }
 
 /** `create_curve_from_vert_indices` (:33). */
-function createCurveFromVertIndices(src: AttributeAccessor, vertIndices: number[], curveOffsets: number[], cyclicStart: number,
+export function createCurveFromVertIndices(src: AttributeAccessor, vertIndices: number[], curveOffsets: number[], cyclicStart: number,
     skip: (name: string) => boolean): CurvesGeometry {
     const curves = new CurvesGeometry(vertIndices.length, curveOffsets.length)
     curves.curveOffsets.set(curveOffsets)
