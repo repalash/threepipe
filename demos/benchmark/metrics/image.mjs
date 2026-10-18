@@ -71,7 +71,7 @@ export function ssim(a, b, {K1 = 0.01, K2 = 0.03, L = 255, window = 11, sigma = 
     const k = gaussian1d(window, sigma)
     const C1 = (K1 * L) ** 2, C2 = (K2 * L) ** 2
     const n = a.data.length
-    const aa = new Float32Array(n), bb = new Float32Array(n), ab = new Float32Array(n)
+    const aa = new Float64Array(n), bb = new Float64Array(n), ab = new Float64Array(n)
     for (let i = 0; i < n; i++) { aa[i] = a.data[i] * a.data[i]; bb[i] = b.data[i] * b.data[i]; ab[i] = a.data[i] * b.data[i] }
     const img = d => ({w: a.w, h: a.h, data: d})
     const mu1 = filterValid(a, k), mu2 = filterValid(b, k)
