@@ -64,6 +64,7 @@ import {meshClusterCases} from './cases/meshCluster'
 import {listCases} from './cases/lists'
 import {transferCases} from './cases/transfer'
 import {meshIcoSphereCases} from './cases/meshIcoSphere'
+import {sampleUVSurfaceCases} from './cases/sampleUVSurface'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -118,6 +119,7 @@ SETS.meshCluster = meshClusterCases
 SETS.lists = listCases
 SETS.transfer = transferCases
 SETS.meshIcoSphere = meshIcoSphereCases
+SETS.sampleUVSurface = sampleUVSurfaceCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

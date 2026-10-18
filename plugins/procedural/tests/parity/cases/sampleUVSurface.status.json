@@ -1,0 +1,8 @@
+{
+ "uv-grid-position": "exact",
+ "uv-cube-types": "exact",
+ "uv-sphere-rotation-matrix": "pass (<= 16 ulp)",
+ "uv-overlap": "exact",
+ "uv-single-value": "exact",
+ "uv-no-faces": "exact"
+}

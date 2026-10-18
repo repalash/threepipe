@@ -299,7 +299,13 @@ def build_group(name, spec, groups, ident_maps):
         node = nodes[nspec["name"]]
         for ident, value in nspec.get("inputs", {}).items():
             sock = find_socket(node.inputs, remap(node, ident, node.inputs), f"{nspec['name']} inputs")
-            sock.default_value = resolve(value)
+            value = resolve(value)
+            # 2D vector sockets (`dimensions(2)`) hold two values; the DSL always writes three (z must be 0).
+            if isinstance(value, (list, tuple)) and len(value) == 3 and sock.type == "VECTOR" and len(sock.default_value) == 2:
+                if value[2] != 0:
+                    raise ValueError(f"{nspec['name']}.{ident}: a 2D vector socket given z = {value[2]}")
+                value = value[:2]
+            sock.default_value = value
         node.mute = bool(nspec.get("mute", False))
 
     # Reverse order: the last link created gets the highest multi-input sort id and is evaluated first.
