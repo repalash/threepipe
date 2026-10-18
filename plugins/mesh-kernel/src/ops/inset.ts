@@ -44,29 +44,7 @@ import {faceInterpFromFace} from '../bmesh/interp'
 import {ElemFlag} from '../constants'
 import {faceSelectSet, selectNone} from '../bmesh/marking'
 import {Vec3, v3add, v3cross, v3dot, v3mul, v3normalize, v3sub} from '../math'
-import {lenSquaredV3V3, shellV3V3MidNormalizedToDist} from '../math/geom'
-
-// region math_geom_inline.cc - shell thickness
-
-/**
- * `SMALL_NUMBER` from `math_geom_inline.cc:18`. The guard value below which the shell functions give
- * up and return 1 rather than dividing by a cosine that has collapsed.
- */
-const SMALL_NUMBER = 1e-8
-
-/**
- * How far along `a` you must travel for the result to sit at unit distance from the plane of `b`.
- *
- * Port of `shell_v3v3_normalized_to_dist` (`math_geom_inline.cc:133`), which the header documents as
- * `shell_angle_to_dist(angle_normalized_v3v3(a, b))`, i.e. `1 / |cos(angle)|`. Both inputs must be
- * unit length.
- */
-function shellV3V3NormalizedToDist(a: Vec3, b: Vec3): number {
-    const angleCos = Math.abs(v3dot(a, b))
-    return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
-}
-
-// endregion
+import {lenSquaredV3V3, shellV3V3MidNormalizedToDist, shellV3V3NormalizedToDist} from '../math/geom'
 
 // region small vector helpers over BMVert
 

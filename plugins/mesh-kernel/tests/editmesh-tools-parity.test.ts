@@ -30,6 +30,27 @@ import {edgeRotateSelection} from '../src/ops/rotateEdges'
 import {dissolveDegenerateSelection} from '../src/ops/dissolveDegenerate'
 import {selectHistoryStore} from '../src/bmesh/marking'
 import {setValue} from '../src/bmesh/customdata'
+import {solidifySelectionOperator} from '../src/ops/solidifyFaceRegion'
+import {extrudeDiscreteFacesSelection, extrudeEdgesIndivSelection, extrudeVertsIndivSelection} from '../src/ops/extrudeIndiv'
+
+/** `TRANSFORM_OT_translate` exec on the selected vertices (no proportional editing, identity object). */
+function translateSelected(bm: BMesh, value: number[]): void {
+    for (const v of bm.verts) if (v.hflag & ElemFlag.Select) v.setCo(v.x + value[0], v.y + value[1], v.z + value[2])
+}
+
+/**
+ * `TRANSFORM_OT_shrink_fatten` exec, for the face-select-mode case these fixtures use: each selected
+ * vertex moves by `value` along the normal of its selected faces (`BM_vert_calc_normal_ex(.., SELECT)`,
+ * `transform_convert_mesh.cc:1453`), times its shell factor with `use_even_offset`. After an
+ * individual-face extrude every moved vertex has exactly one selected face, so the normal is that
+ * face's and the shell factor is 1.
+ */
+function shrinkFattenSelectedFaces(bm: BMesh, value: number): void {
+    for (const f of bm.faces) {
+        if (!(f.hflag & ElemFlag.Select)) continue
+        for (const l of f.eachLoop()) l.v.setCo(l.v.x + f.nx * value, l.v.y + f.ny * value, l.v.z + f.nz * value)
+    }
+}
 import type {PokeCenterMode} from '../src/ops/poke'
 
 interface EditCase {
@@ -89,6 +110,22 @@ function run(bm: BMesh, c: EditCase): {ok: boolean} {
     case 'edge_collapse': return edgeCollapseSelection(bm)
     case 'edge_rotate': return edgeRotateSelection(bm, !!p.use_ccw)
     case 'dissolve_degenerate': return dissolveDegenerateSelection(bm, p.threshold ?? 1e-4)
+    case 'solidify': return solidifySelectionOperator(bm, p.thickness ?? 0.01)
+    case 'extrude_vertices_move': {
+        const r = extrudeVertsIndivSelection(bm)
+        if (r.ok) translateSelected(bm, p.TRANSFORM_OT_translate.value)
+        return r
+    }
+    case 'extrude_edges_move': {
+        const r = extrudeEdgesIndivSelection(bm, !!p.MESH_OT_extrude_edges_indiv?.use_normal_flip)
+        if (r.ok) translateSelected(bm, p.TRANSFORM_OT_translate.value)
+        return r
+    }
+    case 'extrude_faces_move': {
+        const r = extrudeDiscreteFacesSelection(bm)
+        if (r.ok) shrinkFattenSelectedFaces(bm, p.TRANSFORM_OT_shrink_fatten.value)
+        return r
+    }
     }
     throw new Error(`no wrapper for mesh.${c.op}`)
 }

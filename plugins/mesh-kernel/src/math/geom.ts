@@ -737,6 +737,34 @@ export function isectPlanePlanePlaneV3(planeA: Vec4, planeB: Vec4, planeC: Vec4)
 }
 
 /** `shell_v3v3_mid_normalized_to_dist` (`math_geom_inline.cc:148`); `a` and `b` unit length. */
+/**
+ * `shell_v3v3_normalized_to_dist` (`math_geom_inline.cc:133`): `1 / |cos(angle)|` between two unit
+ * vectors, 1 when they are (nearly) perpendicular.
+ */
+export function shellV3V3NormalizedToDist(a: V3Arg, b: V3Arg): number {
+    const angleCos = Math.abs(v3dot(a, b))
+    return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
+}
+
+/**
+ * `angle_poly_v3` (`math_vector.cc:464`): the interior angle at each corner of the polygon `verts`
+ * (`M_PI` minus the angle between the incoming and outgoing edge directions).
+ */
+export function anglePolyV3(verts: readonly V3Arg[]): number[] {
+    const len = verts.length
+    const angles = new Array<number>(len)
+    const vec: Vec3[] = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    vec[2] = [verts[len - 1][0] - verts[0][0], verts[len - 1][1] - verts[0][1], verts[len - 1][2] - verts[0][2]]
+    normalizeV3Len(vec[2])
+    for (let i = 0; i < len; i++) {
+        const a = verts[i % len], b = verts[(i + 1) % len]
+        vec[i % 3] = [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+        normalizeV3Len(vec[i % 3])
+        angles[i] = Math.PI - angleNormalizedV3V3(vec[(i + 2) % 3], vec[i % 3])
+    }
+    return angles
+}
+
 export function shellV3V3MidNormalizedToDist(a: V3Arg, b: V3Arg): number {
     const ab: Vec3 = [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
     const angleCos = normalizeV3Len(ab) !== 0 ? Math.abs(v3dot(a, ab)) : 0
