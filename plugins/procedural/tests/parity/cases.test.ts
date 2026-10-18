@@ -17,6 +17,7 @@ import {imageTextureCases} from './cases/imageTexture'
 import {zoneCases} from './cases/zones'
 import {proximityCases} from './cases/proximity'
 import {raycastCases} from './cases/raycast'
+import {demoCases} from './cases/demos'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -57,6 +58,7 @@ SETS.imageTexture = imageTextureCases
 SETS.zones = zoneCases
 SETS.proximity = proximityCases
 SETS.raycast = raycastCases
+SETS.demos = demoCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
@@ -95,6 +97,8 @@ for (const [set, generate] of Object.entries(SETS)) {
                 const evaluate = () => {
                     const ev = new GeometryNodesEvaluator(c.library, c.group, options)
                     if (c.input !== 'empty' && gt.input) ev.setInputGeometry(geometryFromDump(gt.input, resolver))
+                    // The modifier's input values, by interface socket name (`run_cases.py` sets them the same way).
+                    for (const [k, v] of Object.entries(c.inputs ?? {})) ev.setInput(k, v)
                     return ev.evaluate()
                 }
                 let diffs: string[]
