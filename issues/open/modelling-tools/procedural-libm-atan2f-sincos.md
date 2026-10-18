@@ -44,3 +44,19 @@ same effect through `angle_v3v3` -> `angle_normalized_v3v3` -> `safe_asinf`: App
 `0.6148042678833008`, correctly rounded `0.614804208278656`. With the platform's `asinf`, `tanf` and
 `__sincosf_stret` values substituted for the case's 8 / 7 / 7 inputs (same probe method) the case is bit-exact; `tanf`
 and the sin/cos pairs matched correctly rounded for those inputs.
+
+## Addendum (2026-10-18): a reusable proof, and `subdiv-matrix-ngons`
+
+The substitution proof is now a tool instead of a temporary probe:
+- `src/blender/libm.ts` routes `acosf`, `asinf`, `atan2f` and `sincosf` through `libmProof`, which can record the
+  arguments and substitute a measured table. `sincosf` is used wherever Blender takes the sine and cosine of one value
+  (axis angle, `pow(Quaternion)`, Euler to quaternion).
+- `LIBM_PROOF=<set>/<case> npm run test -- tests/parity/libmProof` records the arguments to
+  `tmp/libm-proof/<case>.inputs.json`.
+- Run `porting/blender/libm_eval.py` with the reference Blender on those arguments, then run the test again until no
+  argument lacks a platform result. The test requires the case to be bit-exact.
+
+`subdivMesh/subdiv-matrix-ngons` uses the float4x4 `mix2`: polar decomposition and quaternion slerp through `acosf`
+and `__sincosf_stret`, plus the expmap mixers.
+- Before: pq 2, pm 70, cq 10 and cm 134 values differ.
+- With 55 `acosf`, 613 `atan2f` and 623 `sincosf` platform results: **exact**, after two rounds.

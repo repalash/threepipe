@@ -10,7 +10,7 @@
 
 import {f32} from '../f32'
 import {normalizeAndGetLength3, Quat, Float3} from './quaternion'
-import {atan2f} from '../libm'
+import {atan2f, sincosf} from '../libm'
 
 /** 3x3, column major. */
 export type Float3x3 = Float32Array<ArrayBufferLike>
@@ -102,8 +102,7 @@ export function mat3ToEuler(m: ArrayLike<number>): Float3 {
 /** `to_quaternion(EulerXYZ)` (`BLI_math_euler.hh:50`). */
 export function eulerToQuat(e: ArrayLike<number>): Quat {
     const hi = f32(e[0] / 2), hj = f32(e[1] / 2), hk = f32(e[2] / 2)
-    const ci = f32(Math.cos(hi)), cj = f32(Math.cos(hj)), ck = f32(Math.cos(hk))
-    const si = f32(Math.sin(hi)), sj = f32(Math.sin(hj)), sk = f32(Math.sin(hk))
+    const [si, ci] = sincosf(hi), [sj, cj] = sincosf(hj), [sk, ck] = sincosf(hk)
     const cc = f32(ci * ck), cs = f32(ci * sk), sc = f32(si * ck), ss = f32(si * sk)
     return [
         f32(f32(cj * cc) + f32(sj * ss)),

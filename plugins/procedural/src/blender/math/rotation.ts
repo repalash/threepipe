@@ -9,7 +9,7 @@ import {quatToMat3} from './matrix'
 import {mulM3M3M3} from './matrixC'
 import {Quat} from './quaternion'
 import {normalize3} from './vec'
-import {acosf} from '../libm'
+import {acosf, sincosf} from '../libm'
 
 const PI_F = f32(Math.PI)
 
@@ -45,9 +45,9 @@ export function safeAcos(a: number): number {
 /** `math::pow(Quaternion, T)` (`BLI_math_quaternion.hh:204`). */
 export function quatPow(q: ArrayLike<number>, y: number): Quat {
     const halfAngle = f32(y * safeAcos(q[0]))
-    const s = f32(Math.sin(halfAngle))
+    const [s, c] = sincosf(halfAngle)
     const n = normalize3([q[1], q[2], q[3]])
-    return [f32(Math.cos(halfAngle)), f32(s * n[0]), f32(s * n[1]), f32(s * n[2])]
+    return [c, f32(s * n[0]), f32(s * n[1]), f32(s * n[2])]
 }
 
 /** `math::interpolate(Quaternion, Quaternion, T)` (`BLI_math_quaternion.hh:304`): slerp along the shortest arc. */
