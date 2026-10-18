@@ -1,6 +1,6 @@
 {
- "generated": "2026-10-16T14:16:40.259Z",
- "wallSeconds": 15,
+ "generated": "2026-10-18T07:02:33.316Z",
+ "wallSeconds": 6,
  "commands": 48,
  "commandList": [
   "applyTransform",
@@ -1016,9 +1016,9 @@
      "removed": 1
     }
    },
-   "wallMs": 65,
+   "wallMs": 8,
    "commandMs": [
-    1.7
+    0.6
    ],
    "hash": "b2012d684bad7f3f3bad8587f546f76a61668de79cdda1ac9499fdffd0c9583e",
    "resultHash": "ab912a460c8c5fb973e11987bb513875b44e78ae43b37972e49dacd40fa3add3",
@@ -1287,9 +1287,9 @@
     }
    },
    "capture": "captures/main-01.jpg",
-   "wallMs": 2830,
+   "wallMs": 652,
    "commandMs": [
-    18.9
+    2.9
    ],
    "hash": "d721e196b81765d80a3e608e8a34c4e98d8ceed21302551546be4d09d6122fea",
    "resultHash": "0cc6ba9cb9273d6aa949c6a17f6305fcf57f1b6dac5b2863c38fe2b350dd2059",
@@ -1499,9 +1499,9 @@
    },
    "collateral": [],
    "capture": "captures/main-02.jpg",
-   "wallMs": 189,
+   "wallMs": 76,
    "commandMs": [
-    2.3
+    0.2
    ],
    "hash": "a1895b17c72692a066f62cef68184b9e6cb27d35db376caa91b5e16af0172fb1",
    "resultHash": "8732d5861c9504aa400535dd23883016e5a019d4fa4c12e7425d6fb7fe77054b",
@@ -1765,9 +1765,9 @@
    },
    "collateral": [],
    "capture": "captures/main-03.jpg",
-   "wallMs": 90,
+   "wallMs": 40,
    "commandMs": [
-    12.4
+    4.7
    ],
    "hash": "195ec380fdc98b75201f042c6a4b0ea7c7be1b4594fa2e15b58517fd51d1fb55",
    "resultHash": "651b9f75836daea1e1fbe3aec59d60aa588073a227f3d15dc3f5511be3d8c74f",
@@ -2018,9 +2018,9 @@
    },
    "collateral": [],
    "capture": "captures/main-04.jpg",
-   "wallMs": 58,
+   "wallMs": 40,
    "commandMs": [
-    4
+    1.6
    ],
    "hash": "f71e2f0ded04161abf11cc1e0c522c43265c8692124f09cfb6c06c679fea713e",
    "resultHash": "b013c50098c6e0d497c37a19f012d818b595e1341248f6e45a68ff2bcb73ce87",
@@ -2309,9 +2309,9 @@
    },
    "collateral": [],
    "capture": "captures/main-05.jpg",
-   "wallMs": 97,
+   "wallMs": 37,
    "commandMs": [
-    6.3
+    2.9
    ],
    "hash": "8fe7243f9530a7dcb70e38373ab28da1956e6a406a7f6e61f54ef7420d775a00",
    "resultHash": "df2af57ab4b0f489798b69075e46ad5578eacb1784c19ee2dbbb743be043fb80",
@@ -2554,9 +2554,9 @@
    },
    "collateral": [],
    "capture": "captures/main-06.jpg",
-   "wallMs": 74,
+   "wallMs": 34,
    "commandMs": [
-    1.3
+    0.7
    ],
    "hash": "f15d7171a6eacccc16136a4350a83555d22944c064d04d86cb590c440b6cdc52",
    "resultHash": "c90198d837f168289d924089872af71eb9200d4ce8e9676ec89c0b8deb7c3bdf",
@@ -2798,9 +2798,9 @@
    },
    "collateral": [],
    "capture": "captures/main-07.jpg",
-   "wallMs": 43,
+   "wallMs": 36,
    "commandMs": [
-    0.8
+    0.6
    ],
    "hash": "e35b362acd171ef599da965b404e3dbc570129d4c69b3147230365e5289908a8",
    "resultHash": "c90198d837f168289d924089872af71eb9200d4ce8e9676ec89c0b8deb7c3bdf",
@@ -3088,9 +3088,9 @@
    },
    "collateral": [],
    "capture": "captures/main-08.jpg",
-   "wallMs": 44,
+   "wallMs": 37,
    "commandMs": [
-    2.3
+    1.9
    ],
    "hash": "9e4448e3bcd408a48e2e4bf9cf3e7da754296d4d5f92fd6643a2a978c491dbd6",
    "resultHash": "481f2922d32729391f9f9c3bc03d3816b887f35566dded4eff74514c1800b5e8",
@@ -3324,9 +3324,9 @@
    },
    "collateral": [],
    "capture": "captures/main-09.jpg",
-   "wallMs": 92,
+   "wallMs": 37,
    "commandMs": [
-    0.7
+    0.5
    ],
    "hash": "4c10aef9fbeaf1600bcaa83888545df2979a4a9172b38552d05af70ad019083f",
    "resultHash": "c90198d837f168289d924089872af71eb9200d4ce8e9676ec89c0b8deb7c3bdf",
@@ -3608,9 +3608,9 @@
    },
    "collateral": [],
    "capture": "captures/main-10.jpg",
-   "wallMs": 52,
+   "wallMs": 35,
    "commandMs": [
-    7.2
+    2.4
    ],
    "hash": "4a604e3eb7aa8483cb7a7ef91844536295fb77a05361c3f96996d99e1130ad94",
    "resultHash": "d112146126fe243b5a3fa146bbc953f3610941eb21524ed5d8389f563ecae662",
@@ -3838,9 +3838,9 @@
    },
    "collateral": [],
    "capture": "captures/main-11.jpg",
-   "wallMs": 49,
+   "wallMs": 36,
    "commandMs": [
-    0.7
+    1.2
    ],
    "hash": "38d845f081809472cdad81a5c9ab8eeae7f73a8148c483542034771c2ced5604",
    "resultHash": "c90198d837f168289d924089872af71eb9200d4ce8e9676ec89c0b8deb7c3bdf",
@@ -4144,9 +4144,9 @@
    },
    "collateral": [],
    "capture": "captures/main-12.jpg",
-   "wallMs": 71,
+   "wallMs": 62,
    "commandMs": [
-    25
+    14
    ],
    "hash": "d12d14c30c8d0140d92a5293d91957825b365397ff5cb080b92f9fb76bea5912",
    "resultHash": "57b63538a64b177757fd88a3a3094916537401d8180316f18640f852d6b6ad30",
@@ -4384,9 +4384,9 @@
    },
    "collateral": [],
    "capture": "captures/main-13.jpg",
-   "wallMs": 50,
+   "wallMs": 48,
    "commandMs": [
-    4.2
+    2.7
    ],
    "hash": "819679812293aa0f56ef29d8e71f6abceb150bff2a2943f1ad32c606b48acfb2",
    "resultHash": "ff46f5463d1380ea069aecb08e3f29540aa206c1986bbba513123f0e531a811b",
@@ -4615,9 +4615,9 @@
    },
    "collateral": [],
    "capture": "captures/main-14.jpg",
-   "wallMs": 61,
+   "wallMs": 62,
    "commandMs": [
-    2.1
+    1.9
    ],
    "hash": "51ff7bb707602f80fa9b3bc3af3f2334edd151e82803f0f186a76c70317e95f0",
    "resultHash": "6a2762236b49d4a2c53e1a851ffe5725406b8a752d4451d4fabf3b3365e02712",
@@ -4850,9 +4850,9 @@
    },
    "collateral": [],
    "capture": "captures/main-15.jpg",
-   "wallMs": 51,
+   "wallMs": 33,
    "commandMs": [
-    1.7
+    2.4
    ],
    "hash": "7d7019fdaf166a39701f70e1d914c3f3426e2ce1ff4f766cd88328ed314ab4bd",
    "resultHash": "442ec4d3386f709490427245d63830d4c46fbc9d987abf8a1e58ec824aad888f",
@@ -5182,9 +5182,9 @@
    },
    "collateral": [],
    "capture": "captures/main-16.jpg",
-   "wallMs": 53,
+   "wallMs": 48,
    "commandMs": [
-    4.4
+    9.9
    ],
    "hash": "710af226bb86552000fdeb6eedf7ddd36824387ccbdb1b773791ae87cf8036ac",
    "resultHash": "4d96a608feb730c1a8c6aceb5eccc510359dcf914d6da16afab8ecdedc5172b9",
@@ -5443,9 +5443,9 @@
    },
    "collateral": [],
    "capture": "captures/main-17.jpg",
-   "wallMs": 50,
+   "wallMs": 31,
    "commandMs": [
-    1.4
+    1.3
    ],
    "hash": "45926400db265d5876101b5474ca36de26efbb0faffaf9746e82255e83e03587",
    "resultHash": "e94240d4eb6cf0006830ac9f8b3d7df351235927f8ebd4ea6f22cd7d0309a810",
@@ -5735,9 +5735,9 @@
    },
    "collateral": [],
    "capture": "captures/main-18.jpg",
-   "wallMs": 88,
+   "wallMs": 35,
    "commandMs": [
-    2.2
+    2.1
    ],
    "hash": "08b71713580601d20902f9a90a2820e8ca1614fae28dc1f0f497b26d5b1ce2b5",
    "resultHash": "cf5ab68532d83bfded330743c46160b9a3e288828bedee8634bc6f2090e4eb81",
@@ -6028,9 +6028,9 @@
    },
    "collateral": [],
    "capture": "captures/main-19.jpg",
-   "wallMs": 83,
+   "wallMs": 36,
    "commandMs": [
-    5.2
+    2
    ],
    "hash": "d89f55d6577792031f13862a6f77b1c30d50c96bd011544c8d6f78d55d8a4cf6",
    "resultHash": "057218fc8bcecf89c2f5826abd727d053dba8f684b6a0b47058bd9a7a3e60da2",
@@ -6258,9 +6258,9 @@
    },
    "collateral": [],
    "capture": "captures/main-20.jpg",
-   "wallMs": 189,
+   "wallMs": 27,
    "commandMs": [
-    3.8
+    1.1
    ],
    "hash": "7802e856f5095e97762f1b31c4de6d10d9fd7cf3ed0fa1c7e10f3344a7703d7c",
    "resultHash": "4b7ae81d023f779ca22b41f64c655df2c82bcb4b4d51324b816b0331dfdbfab3",
@@ -6500,9 +6500,9 @@
    },
    "collateral": [],
    "capture": "captures/main-21.jpg",
-   "wallMs": 90,
+   "wallMs": 29,
    "commandMs": [
-    1.4
+    0.9
    ],
    "hash": "dde3643334bb2843ce3f2db5e38595f0696dc45e8b3fcbc42c9552dd68c30804",
    "resultHash": "f14b7e641603e166c937921ee5a3dfd96a1d70a9deac688f78aa64a53009771c",
@@ -6751,9 +6751,9 @@
    },
    "collateral": [],
    "capture": "captures/main-22.jpg",
-   "wallMs": 103,
+   "wallMs": 28,
    "commandMs": [
-    1.1
+    0.4
    ],
    "hash": "e09bb93cac5570f105cdf0aee34f45b52f07aad7a21228b399bbfa2032ca438c",
    "resultHash": "1c0c234e61e9b54077633eeeb1b08c11f7911197df3b14ea65f38f45a46e17b3",
@@ -7012,9 +7012,9 @@
    },
    "collateral": [],
    "capture": "captures/main-23.jpg",
-   "wallMs": 95,
+   "wallMs": 49,
    "commandMs": [
-    12.5
+    3.7
    ],
    "hash": "3fac2dc0448f3834fdf434c550bc5806127e50577e5dceb1a7ae45a344691000",
    "resultHash": "540ca6ffea7063083c202474409802648bba67c48e9843af6b947308ce46bdd8",
@@ -7245,9 +7245,9 @@
     }
    },
    "capture": "captures/main-24.jpg",
-   "wallMs": 98,
+   "wallMs": 46,
    "commandMs": [
-    0.6
+    0.5
    ],
    "hash": "e903a1a8d3d10a02f81f123e04bd1baa9e8298eb4c2996f1b336e8f7f98d46da",
    "resultHash": "e4abc7b1c552ea06e6de6568a39e0acdd52b27f89ea834ef61f58df33f3e0963",
@@ -7459,9 +7459,9 @@
    },
    "collateral": [],
    "capture": "captures/main-25.jpg",
-   "wallMs": 81,
+   "wallMs": 35,
    "commandMs": [
-    0.6
+    0.5
    ],
    "hash": "035a9df020ec97df1d2ebbdf367ee4955d2c74bc8c45eff68131d3bc070fad64",
    "resultHash": "8270a2f783a895e5a2cd8ca4a49d4ffc3e64efb3079558a20e6c03eef27e0f54",
@@ -7672,9 +7672,9 @@
    },
    "collateral": [],
    "capture": "captures/main-26.jpg",
-   "wallMs": 60,
+   "wallMs": 30,
    "commandMs": [
-    1.5
+    0.5
    ],
    "hash": "420d6bebcc8bba52e2780ecd5218d91e7f692aba0867aa024cc2bfa8e80c1069",
    "resultHash": "d62182cd99329b50842bd96a66358a8cd511ad7419462d8839fc243dab5ddc40",
@@ -7916,9 +7916,9 @@
     }
    },
    "capture": "captures/main-27.jpg",
-   "wallMs": 66,
+   "wallMs": 33,
    "commandMs": [
-    0.7
+    0.6
    ],
    "hash": "4b7b508a93583233bb56b4b7dd812fd08d133f5a67625405da15f9b29e535efd",
    "resultHash": "c0fa752b96595f5b1fdfa2c7e705c0fd8f79e5ecbd0974bb34eff4a9d98afff2",
@@ -8201,9 +8201,9 @@
    },
    "collateral": [],
    "capture": "captures/main-28.jpg",
-   "wallMs": 70,
+   "wallMs": 34,
    "commandMs": [
-    10.3
+    3.2
    ],
    "hash": "6e69b8f7feb9605ea769b47031d712478da0e623845f38ead234cafef0886d28",
    "resultHash": "84c93077c271412f2408c096adea57cab816797937a9f8b41e4d1bdd86e12335",
@@ -8426,9 +8426,9 @@
    },
    "collateral": [],
    "capture": "captures/main-29.jpg",
-   "wallMs": 118,
+   "wallMs": 31,
    "commandMs": [
-    4.3
+    1.3
    ],
    "hash": "284fa9da579ac8df07b8fe2d96d11c0754598979604ba49a94a6f9434a8b4382",
    "resultHash": "136cc5786cf19f3230b3f001755f2c00cfa689ba76f7714d6b6a2e1e25511327",
@@ -8671,9 +8671,9 @@
    },
    "collateral": [],
    "capture": "captures/main-30.jpg",
-   "wallMs": 131,
+   "wallMs": 51,
    "commandMs": [
-    4.6
+    2.3
    ],
    "hash": "11f4ce322da227692629e30a601ae4632b70a362fa3791a0410f7e01e3580333",
    "resultHash": "f6a6c8bc61734908035e682f228820489cf8177e30c004e0a667325f59bf8bfe",
@@ -8920,9 +8920,9 @@
     }
    },
    "capture": "captures/gen-01.jpg",
-   "wallMs": 96,
+   "wallMs": 34,
    "commandMs": [
-    6.9
+    2.7
    ],
    "hash": "4bb559eb63b56a954ae595aa0f74080490bf0585caa07c2ade8872ffcf552cf6",
    "resultHash": "914f6be28af5c6484924b1527c5ab928f89ca1933efdf1d7625a5e9484b37041",
@@ -9148,9 +9148,9 @@
     }
    },
    "capture": "captures/gen-02.jpg",
-   "wallMs": 130,
+   "wallMs": 31,
    "commandMs": [
-    4.7
+    1.4
    ],
    "hash": "8c1483f94a65cdbe3a3347706d690c2e3e9e0ff058d71920bde03ecaac03de59",
    "resultHash": "b71e74cd84619b963dccd11adc3ae854f99898502cd66c9d8e9d233e35890da6",
@@ -9383,9 +9383,9 @@
     }
    },
    "capture": "captures/gen-03.jpg",
-   "wallMs": 92,
+   "wallMs": 37,
    "commandMs": [
-    1.8
+    0.8
    ],
    "hash": "d2df28d42ad4c50fba79de7617542812e762f3bc26cb9abba706eae63cc4315c",
    "resultHash": "470a7c6ade1b4888ac51326411839e69d3f33c0a37a234fbdaf1eb14a6627c58",
@@ -9573,9 +9573,9 @@
     }
    },
    "capture": "captures/array-01.jpg",
-   "wallMs": 185,
+   "wallMs": 34,
    "commandMs": [
-    1
+    0.8
    ],
    "hash": "fa4405e2b75f05ad4838c218b23f7e33723f5fb6d7ec80e741dd3916bb3af9b2",
    "resultHash": "486e5b02c71a622c161b061860f9e27856c0718a36796cf7e51334a342a3bb24",
@@ -9802,9 +9802,9 @@
    },
    "collateral": [],
    "capture": "captures/array-02.jpg",
-   "wallMs": 103,
+   "wallMs": 36,
    "commandMs": [
-    2.7
+    1
    ],
    "hash": "c0713308df806de47e8be0a3194e75acdf88f308796f874f084b273f075b8453",
    "resultHash": "092cefae77b78ff00c343221c9781eb0201abc543528d31117c69012f5be9349",
@@ -10029,9 +10029,9 @@
    },
    "collateral": [],
    "capture": "captures/array-03.jpg",
-   "wallMs": 98,
+   "wallMs": 44,
    "commandMs": [
-    1.8
+    0.8
    ],
    "hash": "d4d1298a10e4907a8faaade9468a0959e3637e7441eda5dab8c529238726944a",
    "resultHash": "71a0490b39877e4ee952513ecefdb9baff57f5520ddba85ea1477ceef546d069",
@@ -10284,9 +10284,9 @@
    },
    "collateral": [],
    "capture": "captures/array-04.jpg",
-   "wallMs": 243,
+   "wallMs": 36,
    "commandMs": [
-    2.4
+    0.7
    ],
    "hash": "da8c1cbe8af04e15b1dd8ad1d025c05b0c67de01dc8fee054f066852c1ffa52c",
    "resultHash": "74cb226c900994121c7dc97ccb5c1b6acd717c5cbd5086805b86944e3c15469c",
@@ -10557,9 +10557,9 @@
    },
    "collateral": [],
    "capture": "captures/array-05.jpg",
-   "wallMs": 131,
+   "wallMs": 58,
    "commandMs": [
-    7.6
+    1.6
    ],
    "hash": "4a2eb677384314c4aaa679fbc6d4b228cb850bb13a31f68a32d870c607943278",
    "resultHash": "a74f8b4ba398a54a8e471c43047a4ff0e988939f19e95f5144c0b05923e49ae0",
@@ -10649,9 +10649,9 @@
      "removed": 2
     }
    },
-   "wallMs": 90,
+   "wallMs": 29,
    "commandMs": [
-    0.4
+    0.1
    ],
    "hash": "b42b07764e2b0d185e2b031c72371b2f404a00271e41bd88a0b872aa697b92f9",
    "resultHash": "cfe8f114802b08cf95076ba0b2199d2002ec4623162f123cb814cf72b776a417",
@@ -10829,9 +10829,9 @@
     }
    },
    "capture": "captures/mirror-01.jpg",
-   "wallMs": 149,
+   "wallMs": 46,
    "commandMs": [
-    2.5
+    0.6
    ],
    "hash": "14e50fae7a6a82a2e393b6b52be80a89aa19aec1c449e94d5fe53724e168e0cc",
    "resultHash": "3ba28164755db120c1cec81641dcd450cc935aca37dbbce172a91515904bc463",
@@ -11044,7 +11044,7 @@
     }
    },
    "capture": "captures/mirror-02.jpg",
-   "wallMs": 89,
+   "wallMs": 48,
    "commandMs": [
     0.4
    ],
@@ -11257,9 +11257,9 @@
    },
    "collateral": [],
    "capture": "captures/mirror-03.jpg",
-   "wallMs": 120,
+   "wallMs": 58,
    "commandMs": [
-    2.1
+    0.4
    ],
    "hash": "6427f1eaae55516d3c36b24946988148849f885185dea110027b36d2e4b626cf",
    "resultHash": "15c894e929fe3b3611c56be536e8644efe78b3fc64bc15f34d71324e2b32a2fe",
@@ -11475,9 +11475,9 @@
    },
    "collateral": [],
    "capture": "captures/mirror-04.jpg",
-   "wallMs": 160,
+   "wallMs": 62,
    "commandMs": [
-    0.8
+    1.4
    ],
    "hash": "42e80c84e719449fa705290980aa50f6a0fe2a1c31957323e935bbaa4813559c",
    "resultHash": "f92df6d4cc32efc6d883ae7d4e7f1af44dce5eaef85ffbc6c2154611aa7504dc",
@@ -11793,9 +11793,9 @@
    },
    "collateral": [],
    "capture": "captures/mirror-05.jpg",
-   "wallMs": 195,
+   "wallMs": 48,
    "commandMs": [
-    1.8
+    0.9
    ],
    "hash": "343ee6ab8b5e9efbedc9b83bbc6b7d631e41590bac028e78e82f8585596bebf9",
    "resultHash": "c1fcf60d3eb3ac6e994e2d99256a38bec6ca07f45b8d95579639e212e78b9dbc",
@@ -11985,9 +11985,9 @@
     }
    },
    "capture": "captures/join-01.jpg",
-   "wallMs": 220,
+   "wallMs": 64,
    "commandMs": [
-    17
+    2.3
    ],
    "hash": "8274b822e6613c90f6152ebf86b96ba71dc187dfea933a578315f0182acdee55",
    "resultHash": "6612d65cc28df3161b7a27caf5de9fc0dc138865c2ea83cfd1965bad304c7817",
@@ -12175,9 +12175,9 @@
     }
    },
    "capture": "captures/join-02.jpg",
-   "wallMs": 214,
+   "wallMs": 56,
    "commandMs": [
-    3
+    1.3
    ],
    "hash": "8ff0616ed31721b972d3f71653fbfe16476b4c5d09289c638ac24a99d75518cc",
    "resultHash": "fe910c92fe0a43702569e3ae735ad5e279e5e25b27b56f55172c65f42b632bd2",
@@ -12400,9 +12400,9 @@
    },
    "collateral": [],
    "capture": "captures/join-03.jpg",
-   "wallMs": 232,
+   "wallMs": 63,
    "commandMs": [
-    2.1
+    1.4
    ],
    "hash": "ec293520e5c3e037cf2dbeb445c8ca383c6b94c13015f4d98d98e21fcec9b9bf",
    "resultHash": "1bf5dc08200ee47fa7e6f4c194acc2965cc3a80d692f917874fc045eee6542ea",
@@ -12618,9 +12618,9 @@
    },
    "collateral": [],
    "capture": "captures/join-04.jpg",
-   "wallMs": 180,
+   "wallMs": 71,
    "commandMs": [
-    4.3
+    1.7
    ],
    "hash": "1a957676d6bedca2d6489ac70150c4355757b155916d4beb7b5341d461d9d410",
    "resultHash": "097593cac14b7383f28b257da588c70ac17eb9d2b8effd34706004eedbe86cd3",
@@ -12696,9 +12696,9 @@
      "removed": 1
     }
    },
-   "wallMs": 127,
+   "wallMs": 41,
    "commandMs": [
-    0.4
+    0.3
    ],
    "hash": "4be4c2100e38066cb6ac1cbac054d1f7d3b4ed52c982d1708974e14be00d88c0",
    "resultHash": "0ce3dd7cd8578f4abac4b241db93f87f62e65dd2136a3d09cb945252a753c786",
@@ -12902,9 +12902,9 @@
     }
    },
    "capture": "captures/ngon-01.jpg",
-   "wallMs": 134,
+   "wallMs": 50,
    "commandMs": [
-    3.3
+    1.1
    ],
    "hash": "4070ea256ee82d9631a5945a4f076f22a621533e61e5ffae690e720507c812bb",
    "resultHash": "11aa29ffdbbe4ffeaa1acceb4eaf6887d5b4892e9e8b20e6b9fcaf2f81e54f3f",
@@ -13231,9 +13231,9 @@
     }
    },
    "capture": "captures/ngon-02.jpg",
-   "wallMs": 86,
+   "wallMs": 52,
    "commandMs": [
-    1.7
+    1
    ],
    "hash": "58aab6e6a408034ab718a26952157d35552de033f9a4c0e5965d6629197ee69b",
    "resultHash": "eab1da6b38130b35a53ad17ebebab202b518b426b5f2271737e8e841bfd21fc5",
@@ -13545,9 +13545,9 @@
     }
    },
    "capture": "captures/ngon-03.jpg",
-   "wallMs": 123,
+   "wallMs": 47,
    "commandMs": [
-    2.6
+    1.8
    ],
    "hash": "1b419e2f0ee3875711809724a041f8badb258266edad66fbcee3215ce1c0b9de",
    "resultHash": "2d967d46531a357afcec2644720885b744d9dc5ef0d0efaec7eb5ac11b214c5b",
@@ -13743,9 +13743,9 @@
     }
    },
    "capture": "captures/bevel-01.jpg",
-   "wallMs": 107,
+   "wallMs": 46,
    "commandMs": [
-    1.6
+    0.6
    ],
    "hash": "9421f282cdb4ecc91b6c74a83f408a716b2ba7cf2ff7dbc6127cf5e0c726c7c4",
    "resultHash": "4193971c45eb546058f0122eb59cdbc51b1a6fbeffcc7fe63680e1a0fba34e1d",
@@ -13970,9 +13970,9 @@
    },
    "collateral": [],
    "capture": "captures/bevel-02.jpg",
-   "wallMs": 81,
+   "wallMs": 30,
    "commandMs": [
-    1.8
+    0.3
    ],
    "hash": "9421f282cdb4ecc91b6c74a83f408a716b2ba7cf2ff7dbc6127cf5e0c726c7c4",
    "resultHash": "e876e4217ee6b06b0e4d7042ed3673876606605a0e2c86bde176a17d2f0cec06",
@@ -14195,9 +14195,9 @@
    },
    "collateral": [],
    "capture": "captures/bevel-03.jpg",
-   "wallMs": 76,
+   "wallMs": 40,
    "commandMs": [
-    1.8
+    1
    ],
    "hash": "bc2df8286a892bf464ac371fce3cb21d7f2f10879c9459a71a09781201e66ca7",
    "resultHash": "be478bdb945255206b213b9941e7c4f72808b68fb3815c8c12d5e4e163d1d9d0",
@@ -14396,9 +14396,9 @@
     }
    },
    "capture": "captures/bridge-01.jpg",
-   "wallMs": 91,
+   "wallMs": 44,
    "commandMs": [
-    1.5
+    0.7
    ],
    "hash": "3d667276d108a0573ce1b806a614bb90306e289b6bfc46694e4f311291e130dc",
    "resultHash": "590a909590cc977ba601ef3015040e8811c1c5430fe563c49d9814dbe27de7c2",
@@ -14676,9 +14676,9 @@
    },
    "collateral": [],
    "capture": "captures/bridge-02.jpg",
-   "wallMs": 103,
+   "wallMs": 48,
    "commandMs": [
-    2.2
+    0.9
    ],
    "hash": "c6c7e61f0b85afa81470b7c8e98dac3fc6e13f548fc91db8dac73efab0972405",
    "resultHash": "bd9703c26bce11db4d99e69d5375c8d5e77fc91fa195c9cdb5f2735e79353cb3",
@@ -14917,9 +14917,9 @@
    },
    "collateral": [],
    "capture": "captures/bridge-03.jpg",
-   "wallMs": 84,
+   "wallMs": 49,
    "commandMs": [
-    1.1
+    0.6
    ],
    "hash": "3d522181891bd7bfdaf160c8b1fe5e7e82e1e0087a2142332a037107abceebd0",
    "resultHash": "b107c1d891b6ad99c41920f75b1fe05281002149110174f8b45a3f653e06116d",
@@ -15310,9 +15310,9 @@
    },
    "collateral": [],
    "capture": "captures/bridge-04.jpg",
-   "wallMs": 94,
+   "wallMs": 49,
    "commandMs": [
-    8.3
+    2.8
    ],
    "hash": "968fa84b1617bfc91c6f59565d7c191d49d97fca76b5536331a6e500f1df5f26",
    "resultHash": "6e85e55c3d889fbc2feb546c022f3257d7d1c5b48ec384b8ec8c8b7fd0df8e7a",
@@ -15504,9 +15504,9 @@
     }
    },
    "capture": "captures/grid-01.jpg",
-   "wallMs": 75,
+   "wallMs": 55,
    "commandMs": [
-    1
+    0.8
    ],
    "hash": "456c0730044169e02676b3426772dff35e7f86333fbea1bb684de8cea34f2e0f",
    "resultHash": "3e1e392c500cf7af9ce40cc97882d3d030c6ff5a30f382b9346dee92868d6df4",
@@ -15731,9 +15731,9 @@
    },
    "collateral": [],
    "capture": "captures/grid-02.jpg",
-   "wallMs": 71,
+   "wallMs": 50,
    "commandMs": [
-    0.5
+    0.4
    ],
    "hash": "820f6b5a78c62b347718e4b337be1211df33a41fd12a65e5a84c52ab993b789b",
    "resultHash": "213c21978fd94fdf5e450580cdbb507f7cd9945ede5146f1222208ace2c5a972",
@@ -16007,9 +16007,9 @@
    },
    "collateral": [],
    "capture": "captures/grid-03.jpg",
-   "wallMs": 123,
+   "wallMs": 48,
    "commandMs": [
-    1
+    0.7
    ],
    "hash": "c0e76cc51a26c4e1266741542f92caabe5565166d029c3d162bc1ec4ded0cca6",
    "resultHash": "d149db97fb08eaa3e1167acab4f1fc1cc5f98327855980847c8e681cfbbda726",
@@ -16204,9 +16204,9 @@
     }
    },
    "capture": "captures/connect-01.jpg",
-   "wallMs": 89,
+   "wallMs": 49,
    "commandMs": [
-    1.1
+    0.8
    ],
    "hash": "585199b10813b11f0e5841e8cc5c2d61aaa192a3c78f6ca8f84c08c4af18102d",
    "resultHash": "8fce49c84f0eb5bbf6738b8b1a3b90e770b77f4fc67e493eee887c9636e841dc",
@@ -16442,9 +16442,9 @@
    },
    "collateral": [],
    "capture": "captures/connect-02.jpg",
-   "wallMs": 115,
+   "wallMs": 43,
    "commandMs": [
-    0.6
+    0.3
    ],
    "hash": "6d42591aba162201ab69854160e132cab35e6290feb2aafe73eea739c4d3ccfc",
    "resultHash": "8685d8d4fe01b31a4e5dffb27ef1e96867bc2815117f9a05bf754d41157fa1ea",
@@ -16672,9 +16672,9 @@
    },
    "collateral": [],
    "capture": "captures/connect-03.jpg",
-   "wallMs": 97,
+   "wallMs": 41,
    "commandMs": [
-    0.6
+    0.4
    ],
    "hash": "68d840e4606094ac84c2be8779eb5bcc600d2b07ccfa4231cea233382cfbdc56",
    "resultHash": "5d5870c607a5f2fd1729e7cff4c4ece6a2e1f634d289da0deb26b37bdf4ef644",
@@ -16881,9 +16881,9 @@
    },
    "collateral": [],
    "capture": "captures/cut-01.jpg",
-   "wallMs": 145,
+   "wallMs": 64,
    "commandMs": [
-    0.7
+    0.6
    ],
    "hash": "2010ecadf1d46805dcd94dc0aa863237d5707ec0e662c5bd6d50766b311cdda9",
    "resultHash": "d03cc31376069a8b022c597d62e3c7bd5880962d72eb5ee2455c0bc5efdf3204",
@@ -17165,9 +17165,9 @@
    },
    "collateral": [],
    "capture": "captures/cut-02.jpg",
-   "wallMs": 186,
+   "wallMs": 70,
    "commandMs": [
-    21.7
+    3.4
    ],
    "hash": "1f6bda76c8d7b47f8b28194e05510a7e98f71c3d558048ad4cb77b69ad5f34fd",
    "resultHash": "520e004de728601a665a0a0380714964d22379185b0f0a809c073b8fc9961156",
@@ -17343,9 +17343,9 @@
     }
    },
    "capture": "captures/wire-01.jpg",
-   "wallMs": 160,
+   "wallMs": 76,
    "commandMs": [
-    0.9
+    0.5
    ],
    "hash": "91810234318873cedb9d408144da4edc5d76527bbf068714aff679b7e0187fa1",
    "resultHash": "08a5ee8303dca7592e2c0e468e99f12f84f65a608b3fbecb5b8d68de76b45a27",
@@ -17605,9 +17605,9 @@
     }
    },
    "capture": "captures/wire-02.jpg",
-   "wallMs": 120,
+   "wallMs": 53,
    "commandMs": [
-    1.1
+    0.7
    ],
    "hash": "4cd747c9bd5e1ebff14002ca2f2d5b8d2d279fe15d8134e38b04bc05a9b3bd6f",
    "resultHash": "b3afbc3325f5d94144a1bdf16c6cc65a0148a6def3710987dccb98b0877a9710",
@@ -17814,9 +17814,9 @@
     }
    },
    "capture": "captures/wire-03.jpg",
-   "wallMs": 116,
+   "wallMs": 69,
    "commandMs": [
-    7.3
+    1.7
    ],
    "hash": "68bd4a2e03567aa54a7a1a146f84a58a6a9954010070b1baeea14e7108936980",
    "resultHash": "63f114a042f6155aa914b85f77c2750873f8605c80189f96a3c0a956163af334",
@@ -17992,9 +17992,9 @@
     }
    },
    "capture": "captures/wire-04.jpg",
-   "wallMs": 108,
+   "wallMs": 80,
    "commandMs": [
-    0.9
+    0.5
    ],
    "hash": "15452c67ef10bad4a10af9f52f058c3d6f25902108bcf79d556a5bfecc43af34",
    "resultHash": "9261fcd03cf357f363fa6749eba0348805b347721b2fe7b2fe6562308aeb4240",
@@ -18240,9 +18240,9 @@
    },
    "collateral": [],
    "capture": "captures/wire-05.jpg",
-   "wallMs": 97,
+   "wallMs": 66,
    "commandMs": [
-    0.8
+    0.6
    ],
    "hash": "8096abdf22288588c9b76c34f05ac48c7200c5303b76a3c9031bb2319c1fe54d",
    "resultHash": "4265fc4322883f0da590a4e9852e3d59bf6360cd8cdcbec07e22d449cd25d2a5",
@@ -18501,9 +18501,9 @@
    },
    "collateral": [],
    "capture": "captures/wire-06.jpg",
-   "wallMs": 90,
+   "wallMs": 55,
    "commandMs": [
-    0.8
+    0.6
    ],
    "hash": "7d842f34826374299f9ad57af935804c40e53734deba969959e2b8f6f1922c27",
    "resultHash": "18c3cb29ae557ce84a07012f93669cbf9b795696b4f5ed741d51a35efc52e41a",
@@ -18707,9 +18707,9 @@
    },
    "collateral": [],
    "capture": "captures/wire-07.jpg",
-   "wallMs": 141,
+   "wallMs": 63,
    "commandMs": [
-    0.2
+    0.4
    ],
    "hash": "15452c67ef10bad4a10af9f52f058c3d6f25902108bcf79d556a5bfecc43af34",
    "resultHash": "08a2db289550160bfab83c9f6dc3d229044de0caede2fd42b0b6d63fe5e525a4",
@@ -18899,9 +18899,9 @@
     }
    },
    "capture": "captures/solid-01.jpg",
-   "wallMs": 157,
+   "wallMs": 65,
    "commandMs": [
-    1
+    0.7
    ],
    "hash": "3f41a4230eb450e5c2130171dae85973ded21a9ee1881f73e95cc6741bdd20de",
    "resultHash": "e62e8a8c1b7087270bdd2e2d2986c34462796f1c13bcc7991695409124f29184",
@@ -19134,9 +19134,9 @@
    },
    "collateral": [],
    "capture": "captures/solid-02.jpg",
-   "wallMs": 136,
+   "wallMs": 59,
    "commandMs": [
-    9.5
+    1.5
    ],
    "hash": "954d3fe0b98014b7d5203ee2a27c884913cd144af46789464ded773604b65736",
    "resultHash": "baa1755b8ab579a30d5ae4bca381c1a5d122ac206083645f525324e93398e309",
@@ -19317,9 +19317,9 @@
     }
    },
    "capture": "captures/apply-01.jpg",
-   "wallMs": 129,
+   "wallMs": 57,
    "commandMs": [
-    1
+    0.5
    ],
    "hash": "dfb6a3af6d8c75013d969dcad7ccb9b571c6291cca52c61a0450ab1f7d307fb8",
    "resultHash": "d3f2521188abc19e731a1edea87365dd0e3e151e1a3ad24216f4999ace70f1a5",
@@ -19519,9 +19519,9 @@
     }
    },
    "capture": "captures/apply-02.jpg",
-   "wallMs": 183,
+   "wallMs": 65,
    "commandMs": [
-    11.5
+    0.3
    ],
    "hash": "6e87ab3de271bdd0deb8f71a3ecbcbc77e86dc8099e0780288ce6e6b532397ed",
    "resultHash": "a5e5925b84282dd01a455113b853846b2b32619cf57cd63bb29d5073d6239b3b",
@@ -19778,9 +19778,9 @@
    },
    "collateral": [],
    "capture": "captures/apply-03.jpg",
-   "wallMs": 110,
+   "wallMs": 63,
    "commandMs": [
-    0.7
+    0.5
    ],
    "hash": "87bd2f32b67a8c4f776d2d2ca3d2af2130dfc60fc5b4fedd8c6d570547443522",
    "resultHash": "b077479166916421dba6d52c895d3648ed0f962f583350f4befa2209c22368b1",
@@ -19990,7 +19990,7 @@
     }
    },
    "capture": "captures/apply-04.jpg",
-   "wallMs": 97,
+   "wallMs": 55,
    "commandMs": [
     0.2
    ],
@@ -20183,9 +20183,9 @@
     }
    },
    "capture": "captures/export-01.jpg",
-   "wallMs": 111,
+   "wallMs": 79,
    "commandMs": [
-    3.3
+    1.4
    ],
    "hash": "d8c6ebe76fba784fc74c8efd648914d519ab1816d2dc0c96d26e8788d3ad533f",
    "resultHash": "553f56c35c736830a9d3d651848bb9843235e7ffe4bd420865bf80bbadbc22ae",
@@ -20445,18 +20445,18 @@
      "bytes": 277092,
      "format": "glb",
      "path": null,
-     "base64": "sha256:96d279461b86ac26"
+     "base64": "sha256:971b43cdcbf1ee66"
     }
    },
    "collateral": [],
    "capture": "captures/export-02.jpg",
-   "wallMs": 456,
+   "wallMs": 205,
    "commandMs": [
-    0.3,
-    59.9
+    0.2,
+    25.9
    ],
    "hash": "d8c6ebe76fba784fc74c8efd648914d519ab1816d2dc0c96d26e8788d3ad533f",
-   "resultHash": "4dd16c47a647f6ecaf23f12df33339dc707a4783f51636c44f5bc4421829417f",
+   "resultHash": "2170e38b1bd16a1d6dbf194b96b3808921d399a6f07773eb223f666f377699ff",
    "status": "FAIL"
   },
   {
@@ -20555,9 +20555,9 @@
     }
    },
    "capture": "captures/scene-01.jpg",
-   "wallMs": 56,
+   "wallMs": 34,
    "commandMs": [
-    0.8
+    0.7
    ],
    "hash": "af220925bfec890e377d662f20106f5b84fc8ce90d8cb4840d18523e316b7e04",
    "resultHash": "8b33ee137111c89c12c64ebe1328caa9c12792820dfb4dc7f0d8db2766f00784",
@@ -20653,7 +20653,7 @@
     }
    },
    "capture": "captures/scene-02.jpg",
-   "wallMs": 46,
+   "wallMs": 29,
    "commandMs": [
     0.1
    ],
@@ -20738,9 +20738,9 @@
     }
    },
    "capture": "captures/scene-03.jpg",
-   "wallMs": 69,
+   "wallMs": 38,
    "commandMs": [
-    0.2
+    0.4
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "1625824dff3d6f3b8604484fde450df62778730f1427bdf1c2c2c22f5d8e2f3b",
@@ -20840,9 +20840,9 @@
     }
    },
    "capture": "captures/scene-04.jpg",
-   "wallMs": 53,
+   "wallMs": 32,
    "commandMs": [
-    0.6
+    0.2
    ],
    "hash": "ec0767689631ddd63d23cbfe8c82c467017f2a43568d57ada29c83320c529cc0",
    "resultHash": "3cdb5f97e9bfda8aa72d3e59d585a617f454f1f658690d363e100419c384dc75",
@@ -21039,9 +21039,9 @@
    },
    "collateral": [],
    "capture": "captures/scene-05.jpg",
-   "wallMs": 106,
+   "wallMs": 67,
    "commandMs": [
-    0.4
+    0.2
    ],
    "hash": "59be419e5e2faf5d99cf95e357ab6c96d5ab4c02daa76fde1bbd462e76f85eb7",
    "resultHash": "8270a2f783a895e5a2cd8ca4a49d4ffc3e64efb3079558a20e6c03eef27e0f54",
@@ -21145,9 +21145,9 @@
     }
    },
    "capture": "captures/scene-06.jpg",
-   "wallMs": 43,
+   "wallMs": 26,
    "commandMs": [
-    0.1
+    0.2
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "cb29a73cc3f6186c873c4a3ae7bf6654921fb1ca162cdea9a2eb7a002607c12d",
@@ -21254,9 +21254,9 @@
     }
    },
    "capture": "captures/scene-07.jpg",
-   "wallMs": 59,
+   "wallMs": 30,
    "commandMs": [
-    6.2
+    4
    ],
    "hash": "70bca043b972018eabb6c362b81ef0f6e8b5f0bae20687ade9554596f8de629f",
    "resultHash": "f64ec7bbaea774b56dc9894cab41aba695546c77f867d20b6c83f3884f158d60",
@@ -21367,9 +21367,9 @@
      ]
     }
    },
-   "wallMs": 27,
+   "wallMs": 16,
    "commandMs": [
-    0.2
+    0
    ],
    "hash": "70bca043b972018eabb6c362b81ef0f6e8b5f0bae20687ade9554596f8de629f",
    "resultHash": "65e7a84ab724be7393d00738cc6916ccb1bf641ae70ce9be54156e692c029647",
@@ -21443,9 +21443,9 @@
      "removed": "ref"
     }
    },
-   "wallMs": 21,
+   "wallMs": 18,
    "commandMs": [
-    0.3
+    0.2
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "7378ea0fd5ac4198fcb155e9ef712045bcaf5fda3cbca5cbd3dfb8a3282b79b0",
@@ -21539,7 +21539,7 @@
      "fov": 50
     }
    },
-   "wallMs": 20,
+   "wallMs": 15,
    "commandMs": [
     0.3
    ],
@@ -21633,7 +21633,7 @@
      "fov": 50
     }
    },
-   "wallMs": 24,
+   "wallMs": 14,
    "commandMs": [
     0.3
    ],
@@ -21736,10 +21736,10 @@
      "fov": 50
     }
    },
-   "wallMs": 42,
+   "wallMs": 17,
    "commandMs": [
     2,
-    0.3
+    0.2
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "d48b12e4ad62a2c7fa731a7fb037d6e4420460b464c1636d9252f04a421bff02",
@@ -21821,9 +21821,9 @@
      "path": null
     }
    },
-   "wallMs": 52,
+   "wallMs": 37,
    "commandMs": [
-    18.1
+    19.5
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "ab65268d3fa8024e5fc327154cc67171f284f4dbba4f6c1770c37ef5461845ac",
@@ -21912,10 +21912,10 @@
      "selected": null
     }
    },
-   "wallMs": 35,
+   "wallMs": 25,
    "commandMs": [
-    1,
-    0.3
+    0.9,
+    0.2
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "e561f417f92979ce30c846f877de90922ab3488182a254f789da7d371d7ded5b",
@@ -22120,10 +22120,10 @@
      }
     }
    },
-   "wallMs": 30,
+   "wallMs": 17,
    "commandMs": [
     0.1,
-    0
+    0.1
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "f4b280d747ce4313825306b22dd4968c41c7d2f870c18a43a10a9e347105559f",
@@ -22651,9 +22651,9 @@
     }
    },
    "collateral": [],
-   "wallMs": 33,
+   "wallMs": 31,
    "commandMs": [
-    0.5
+    0.3
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "89e3da1d18013bccd03ff9a299f36feb2c8ab4bf6a83f78b031238417ec4b431",
@@ -22919,10 +22919,10 @@
     }
    },
    "collateral": [],
-   "wallMs": 36,
+   "wallMs": 20,
    "commandMs": [
     0.3,
-    0.2
+    0.3
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "318be50ace82afcfa7fcff83a91ecee0b7c8c78fdfefebb5e0e14acc18c81376",
@@ -23035,7 +23035,7 @@
      "checkpoints": []
     }
    },
-   "wallMs": 18,
+   "wallMs": 14,
    "commandMs": [
     0
    ],
@@ -23110,9 +23110,9 @@
      "name": "pre-nudge"
     }
    },
-   "wallMs": 18,
+   "wallMs": 13,
    "commandMs": [
-    0.2
+    0.1
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "7ec078dec74307499bb2bd5ce719381db06dfc8842d09989faef12d999dc3738",
@@ -23314,9 +23314,9 @@
    },
    "collateral": [],
    "capture": "captures/scene-20.jpg",
-   "wallMs": 241,
+   "wallMs": 163,
    "commandMs": [
-    0.2
+    0.1
    ],
    "hash": "56f41b55ff70dadbfe7585462b57aa5a99197a276b74c1873283b3a151445068",
    "resultHash": "d62182cd99329b50842bd96a66358a8cd511ad7419462d8839fc243dab5ddc40",
@@ -23395,9 +23395,9 @@
      "canUndo": true
     }
    },
-   "wallMs": 28,
+   "wallMs": 16,
    "commandMs": [
-    0.5
+    0.6
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "aa69772451b83f5e9297740d165a7a73d53d4233cf92931fc58b9d1150db61c0",
@@ -23475,7 +23475,7 @@
      "canRedo": false
     }
    },
-   "wallMs": 20,
+   "wallMs": 16,
    "commandMs": [
     0.4
    ],
@@ -23550,9 +23550,9 @@
      "canUndo": true
     }
    },
-   "wallMs": 29,
+   "wallMs": 14,
    "commandMs": [
-    0.4
+    0.2
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "aa69772451b83f5e9297740d165a7a73d53d4233cf92931fc58b9d1150db61c0",
@@ -23734,9 +23734,9 @@
      ]
     }
    },
-   "wallMs": 28,
+   "wallMs": 22,
    "commandMs": [
-    1.1
+    0.7
    ],
    "hash": "2fa2683cc92d5b9fd79a2f115f563c3ff944ff55d6d4639630691dada16fc67c",
    "resultHash": "50ad9c2fb6014bfa278720c8518207a425b66a29a4551051d1718be2c6b217e6",
@@ -23815,9 +23815,9 @@
      "removed": "key"
     }
    },
-   "wallMs": 25,
+   "wallMs": 15,
    "commandMs": [
-    0.2
+    0.1
    ],
    "hash": "a2c9ae8915cb9536fbb76f26cba9b7ee891e374058840768218f9be325b1a66f",
    "resultHash": "2270b572c93c2c32f4fa5dabe0dcc400975aad17cfd877a87b34a299ff017370",
@@ -24026,9 +24026,9 @@
    },
    "collateral": [],
    "capture": "captures/hazard-01.jpg",
-   "wallMs": 60,
+   "wallMs": 37,
    "commandMs": [
-    5.4
+    2.2
    ],
    "hash": "a2c9ae8915cb9536fbb76f26cba9b7ee891e374058840768218f9be325b1a66f",
    "resultHash": "c729f9b2c082e50f1b957a5fb7ddc7a8cea134974b7784a19ff6893217e2e3e6",
@@ -24558,9 +24558,9 @@
    },
    "collateral": [],
    "capture": "captures/hazard-02.jpg",
-   "wallMs": 66,
+   "wallMs": 39,
    "commandMs": [
-    4.6
+    1.9
    ],
    "hash": "a2c9ae8915cb9536fbb76f26cba9b7ee891e374058840768218f9be325b1a66f",
    "resultHash": "f3dd546248b5adbe8bc22db244c39fd1353d44cd6283d7c67df90e3f121c4717",
@@ -24758,9 +24758,9 @@
     "data": []
    },
    "collateral": [],
-   "wallMs": 34,
+   "wallMs": 19,
    "commandMs": [
-    0.2
+    0
    ],
    "hash": "a2c9ae8915cb9536fbb76f26cba9b7ee891e374058840768218f9be325b1a66f",
    "resultHash": "aab05aae6a33c49b4b08fc9b849f6d26111bbeed3443901c01dd13a7e29c7d42",
@@ -24964,9 +24964,9 @@
     "data": null
    },
    "collateral": [],
-   "wallMs": 41,
+   "wallMs": 20,
    "commandMs": [
-    0.4
+    0.5
    ],
    "hash": "a2c9ae8915cb9536fbb76f26cba9b7ee891e374058840768218f9be325b1a66f",
    "resultHash": "1f8ec78033b14803051f206e7cfa59cfbc0ebac16bf60fa3a5439ff07c5942b3",
@@ -25164,9 +25164,9 @@
    },
    "collateral": [],
    "capture": "captures/hazard-05.jpg",
-   "wallMs": 81,
+   "wallMs": 57,
    "commandMs": [
-    0.2
+    0.1
    ],
    "hash": "b362f52b50e3b009f64556d392b269f3ee53711a23089501f8019bb54131c9ea",
    "resultHash": "8270a2f783a895e5a2cd8ca4a49d4ffc3e64efb3079558a20e6c03eef27e0f54",
@@ -25365,7 +25365,7 @@
     "data": null
    },
    "collateral": [],
-   "wallMs": 33,
+   "wallMs": 18,
    "commandMs": [
     0.1
    ],
@@ -25486,9 +25486,9 @@
     }
    },
    "capture": "captures/hazard-07.jpg",
-   "wallMs": 81,
+   "wallMs": 56,
    "commandMs": [
-    0.2
+    0
    ],
    "hash": "a59681080a87a820a2efe81e48fddef16d977a3660edae3a43a759f0608b3689",
    "resultHash": "20833b9c66dac35c3521b6ce331edf7ef7a23af50fb1aef5696a6dc6509c3cbd",
@@ -25666,9 +25666,9 @@
     }
    },
    "capture": "captures/control-01.jpg",
-   "wallMs": 103,
+   "wallMs": 52,
    "commandMs": [
-    0.6
+    0.5
    ],
    "hash": "f21ca9e0f1b329352b83dcf39bb3423252ca538aa19c9f6fc177b40a17db6e70",
    "resultHash": "71b9c1e8b44ba8f6d351a6f9ccc759896d7e2f906de655df8da4c44866ff408e",
@@ -25914,9 +25914,9 @@
     }
    ],
    "capture": "captures/control-02.jpg",
-   "wallMs": 89,
+   "wallMs": 55,
    "commandMs": [
-    0.3
+    0.2
    ],
    "hash": "ce52badd05bf4134dbceed85e70340cee195a545d234bb3641fb0b0b71596d23",
    "resultHash": "09a76012007fb8c05c93aa90ddbed1e9e32824208e14383eea39bc843b6c7ca9",
@@ -26099,9 +26099,9 @@
     }
    },
    "capture": "captures/control-03.jpg",
-   "wallMs": 85,
+   "wallMs": 57,
    "commandMs": [
-    1.3
+    1
    ],
    "hash": "fa30578471c691f0a0c46ce299350863a79b9662d2efd6877f77ccee8cc6b113",
    "resultHash": "5aa92b50f9497628de5ac9bfc5c6d08ff3110a52f20ef61bb2103d1272b31a93",
@@ -26847,7 +26847,7 @@
     }
    ],
    "capture": "captures/control-04.jpg",
-   "wallMs": 100,
+   "wallMs": 56,
    "commandMs": [
     0.3
    ],
@@ -27029,9 +27029,9 @@
     }
    },
    "capture": "captures/control-05.jpg",
-   "wallMs": 89,
+   "wallMs": 55,
    "commandMs": [
-    0.6
+    0.4
    ],
    "hash": "2f0122b104148389ffdfc0a39a55a59cfa062d47bd5360228d08d6de06ca924d",
    "resultHash": "9945c4060f5b15755d66924f4f350dea5c7fe5e5f6cb6419c9ad9e808e038947",
@@ -27207,9 +27207,9 @@
     }
    },
    "capture": "captures/control-06.jpg",
-   "wallMs": 85,
+   "wallMs": 57,
    "commandMs": [
-    0.5
+    0.4
    ],
    "hash": "7571b5a0f566fc41866cb7f55763f4e1c961d0e5f5bca9667e428dd0b270685b",
    "resultHash": "141279522906c3e931eea5b5d57469d4bb5e517812267a9417849d67befee8ed",
@@ -27410,9 +27410,9 @@
    },
    "collateral": [],
    "capture": "captures/control-07.jpg",
-   "wallMs": 91,
+   "wallMs": 55,
    "commandMs": [
-    0.4
+    0.3
    ],
    "hash": "b9f0ead578514567abcb24c05cc72c34b5c25aacba8d171bf249d2846639ce50",
    "resultHash": "850292be375066eef5543b50f2ba94af0a0e2e0a961d78263f5de2865ed7c5d0",
@@ -27607,9 +27607,9 @@
     }
    },
    "capture": "captures/control-08.jpg",
-   "wallMs": 85,
+   "wallMs": 58,
    "commandMs": [
-    0.8
+    0.5
    ],
    "hash": "e6d65105147881252e39777696122e158355f65159ce14fd9d19c7038011cc49",
    "resultHash": "2ba2405ea00ef20b09f686499d76eb51ae44bb41bf81914fcaec782d00b83d08",
@@ -27695,7 +27695,7 @@
      "removed": 3
     }
    },
-   "wallMs": 65,
+   "wallMs": 39,
    "commandMs": [
     0.2
    ],
@@ -27706,7 +27706,7 @@
  ],
  "pass2": [],
  "passFiles": {
-  "pass1": "2026-10-16T14:16:40.249Z",
+  "pass1": "2026-10-18T07:02:33.308Z",
   "pass2": null
  }
 }
