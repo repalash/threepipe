@@ -21,7 +21,7 @@ const byId = new Map(inventory.nodes.map(x => [x.idname, x]))
 
 /** `NodeSocketFloatDistance` → `DISTANCE`, `NodeSocketVectorEuler` → `EULER`, `NodeSocketFloat` → `NONE`. */
 function subtypeOf(idname: string): string {
-    const rest = idname.replace(/^NodeSocket(Float|Int|Bool|Vector|Color|Rotation|Matrix|String|Menu|Geometry|Object|Collection|Material|Image|Texture)/, '')
+    const rest = idname.replace(/^NodeSocket(Float|Int|Bool|Vector|Color|Rotation|Matrix|String|Menu|Geometry|Object|Collection|Material|Image|Texture|Virtual)/, '')
     return rest ? rest.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase() : 'NONE'
 }
 

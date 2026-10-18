@@ -6,21 +6,13 @@
 import {describe, expect, it} from 'vitest'
 import {f32} from '../../blender/f32'
 import {hslToRgb, hsvToRgb, rampBlend, rgbToHsl, rgbToHsv} from '../../blender/math/color'
-import {DATA_TYPES} from '../../geometry/dataTypes'
-import {GVArray} from '../../geometry/varray'
-import {getNodeType, NodeInstance} from '../../runtime/registry'
 import type {JSONValue} from '../../runtime/types'
 import '../index'
+import {evalNode} from './testing'
 
-/** Run a node's multi-function once on single values (inputs in declaration order of available sockets). */
-export function runSingle(idname: string, properties: Record<string, JSONValue>, inputs: number[][]): number[][] {
-    const def = getNodeType(idname)!
-    const node = new NodeInstance({name: 'n', type: idname, properties}, def)
-    const fn = def.multiFunction!(node)
-    const ins = fn.inputs.map((t, i) => GVArray.fromSingle(t, 1, inputs[i]))
-    const outs = fn.outputs.map(t => new DATA_TYPES[t].array(DATA_TYPES[t].components))
-    fn.call(1, ins, outs)
-    return outs.map(o => Array.from(o))
+/** Evaluate a node on constant inputs (by socket identifier) through the evaluator; its first output. */
+function run(type: string, properties: Record<string, JSONValue>, inputs: Record<string, JSONValue>): number[] {
+    return Object.values(evalNode(type, {properties, inputs}))[0]
 }
 
 describe('colour models (blenlib/intern/math_color.cc)', () => {
@@ -51,35 +43,35 @@ describe('Map Range (nodes/shader/nodes/node_shader_map_range.cc)', () => {
     it('STEPPED clamps with clamp_range when Clamp is on (:262, audit M13)', () => {
         // factor 2 -> floor(2 * 5) / 4 = 2.5 -> 2.5, clamped to [0, 1].
         const props = {interpolation_type: 'STEPPED', data_type: 'FLOAT'}
-        expect(runSingle('ShaderNodeMapRange', {...props, clamp: true}, [[2], [0], [1], [0], [1], [4]])[0]).toEqual([1])
-        expect(runSingle('ShaderNodeMapRange', {...props, clamp: false}, [[2], [0], [1], [0], [1], [4]])[0]).toEqual([2.5])
+        expect(run('ShaderNodeMapRange', {...props, clamp: true}, {Value: 2, 'From Min': 0, 'From Max': 1, 'To Min': 0, 'To Max': 1, Steps: 4})).toEqual([1])
+        expect(run('ShaderNodeMapRange', {...props, clamp: false}, {Value: 2, 'From Min': 0, 'From Max': 1, 'To Min': 0, 'To Max': 1, Steps: 4})).toEqual([2.5])
     })
     it('clamp_range swaps reversed target bounds (:235)', () => {
         // 1 + 2 * (0 - 1) = -1, clamped to [0, 1] (To Min 1 > To Max 0).
-        expect(runSingle('ShaderNodeMapRange', {}, [[2], [0], [1], [1], [0]])[0]).toEqual([0])
+        expect(run('ShaderNodeMapRange', {}, {Value: 2, 'From Min': 0, 'From Max': 1, 'To Min': 1, 'To Max': 0})).toEqual([0])
     })
     it('SMOOTHSTEP ignores Clamp and clamps the factor instead (:412)', () => {
-        expect(runSingle('ShaderNodeMapRange', {interpolation_type: 'SMOOTHSTEP', clamp: true}, [[0.25], [0], [1], [10], [-10]])[0])
+        expect(run('ShaderNodeMapRange', {interpolation_type: 'SMOOTHSTEP', clamp: true}, {Value: 0.25, 'From Min': 0, 'From Max': 1, 'To Min': 10, 'To Max': -10}))
             .toEqual([f32(10 + f32(f32(f32(3 - 0.5) * f32(0.0625)) * -20))])
     })
 })
 
 describe('Vector Math (functions/intern/multi_function_common.cc)', () => {
     it('REFLECT normalises the normal (:395)', () => {
-        expect(runSingle('ShaderNodeVectorMath', {operation: 'REFLECT'}, [[1, -1, 0], [0, 2, 0]])[0]).toEqual([1, 1, 0])
+        expect(run('ShaderNodeVectorMath', {operation: 'REFLECT'}, {Vector: [1, -1, 0], Vector_001: [0, 2, 0]})).toEqual([1, 1, 0])
     })
     it('PROJECT onto a zero vector is zero (BLI_math_vector.hh:511)', () => {
-        expect(runSingle('ShaderNodeVectorMath', {operation: 'PROJECT'}, [[1, 2, 3], [0, 0, 0]])[0]).toEqual([0, 0, 0])
+        expect(run('ShaderNodeVectorMath', {operation: 'PROJECT'}, {Vector: [1, 2, 3], Vector_001: [0, 0, 0]})).toEqual([0, 0, 0])
     })
     it('WRAP takes (value, max, min) (:463)', () => {
         // wrapf(5, 2, 0) = 5 - 2 * floor(5 / 2) = 1.
-        expect(runSingle('ShaderNodeVectorMath', {operation: 'WRAP'}, [[5, 5, 5], [2, 2, 2], [0, 0, 0]])[0]).toEqual([1, 1, 1])
+        expect(run('ShaderNodeVectorMath', {operation: 'WRAP'}, {Vector: [5, 5, 5], Vector_001: [2, 2, 2], Vector_002: [0, 0, 0]})).toEqual([1, 1, 1])
     })
 })
 
 describe('Clamp (nodes/shader/nodes/node_shader_clamp.cc:53)', () => {
     it('MINMAX applies max then min; RANGE orders the bounds', () => {
-        expect(runSingle('ShaderNodeClamp', {clamp_type: 'MINMAX'}, [[0.5], [1], [0]])[0]).toEqual([0])
-        expect(runSingle('ShaderNodeClamp', {clamp_type: 'RANGE'}, [[0.5], [1], [0]])[0]).toEqual([0.5])
+        expect(run('ShaderNodeClamp', {clamp_type: 'MINMAX'}, {Value: 0.5, Min: 1, Max: 0})).toEqual([0])
+        expect(run('ShaderNodeClamp', {clamp_type: 'RANGE'}, {Value: 0.5, Min: 1, Max: 0})).toEqual([0.5])
     })
 })

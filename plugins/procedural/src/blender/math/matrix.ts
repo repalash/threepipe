@@ -267,8 +267,16 @@ export function mat4ToLocQuatScaleSafe(m: ArrayLike<number>, allowNegativeScale:
  * from a quaternion, Euler or axis angle.
  */
 export function mat4FromLocRot3Scale(loc: ArrayLike<number>, rot: ArrayLike<number>, scale: ArrayLike<number>, out: Float4x4 = new Float32Array(16)): Float4x4 {
+    // `float3x3 * float3x3` (`math_matrix.cc:74`): `result[c][r] = b[c][0]*a[0][r] + b[c][1]*a[1][r] + b[c][2]*a[2][r]`
+    // with `b = from_scale(scale)`. The zero entries of `b` give +-0 products whose sum decides the sign of a
+    // zero result, so all three terms are kept (multiplying `rot * scale` alone gives -0 where Blender has +0).
     for (let c = 0; c < 3; c++) {
-        for (let r = 0; r < 3; r++) out[c * 4 + r] = f32(rot[c * 3 + r] * scale[c])
+        for (let r = 0; r < 3; r++) {
+            const t0 = f32((c === 0 ? scale[0] : 0) * rot[r])
+            const t1 = f32((c === 1 ? scale[1] : 0) * rot[3 + r])
+            const t2 = f32((c === 2 ? scale[2] : 0) * rot[6 + r])
+            out[c * 4 + r] = f32(f32(t0 + t1) + t2)
+        }
         out[c * 4 + 3] = 0
     }
     out[12] = loc[0]

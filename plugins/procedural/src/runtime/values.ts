@@ -33,7 +33,8 @@ export function valueFromJSON(type: SocketType, v: JSONValue | undefined): Socke
             // Rotation sockets store an Euler (`bNodeSocketValueRotation::value_euler`).
             comps = comps.length === 4 ? comps : eulerToQuat(comps.length === 3 ? comps : [0, 0, 0])
         }
-        if (type === 'MATRIX' && comps.length !== 16) comps = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+        // A matrix socket has no stored value: unlinked it is the identity (`node_socket.cc:1419-1429`).
+        if (type === 'MATRIX' && (v === undefined || v === null || comps.length !== 16)) comps = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
         if (type === 'VECTOR' && comps.length === 2) comps = [comps[0], comps[1], 0]
         if (type === 'RGBA' && comps.length === 3) comps = [comps[0], comps[1], comps[2], 1]
         if (comps.length !== DATA_TYPES[dt].components) {

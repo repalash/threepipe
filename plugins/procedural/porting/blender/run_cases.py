@@ -18,7 +18,10 @@ Usage:
     "interface": [{"inOut": "INPUT"|"OUTPUT", "name", "socketType", "identifier", "default"?, "min_value"?,
                    "max_value"?, "subtype"?, "attribute_domain"?, ...}],
     "nodes": [{"name", "type", "properties"?: {}, "inputs"?: {identifier: value}, "items"?: {coll: [..]},
-               "pairedOutput"?: name, "group"?: name, "mute"?: bool}],
+               "pairedOutput"?: name, "group"?: name, "mute"?: bool,
+               "colorRamp"?: {"interpolation", "colorMode", "hueInterpolation", "elements": [{"position", "color"}]},
+               "curveMapping"?: {"clipMinX", "clipMinY", "clipMaxX", "clipMaxY", "useClip", "extend",
+                                 "curves": [{"points": [{"location": [x, y], "handleType"}]}]}}],
     "links": [{"from": [node, socket identifier], "to": [node, socket identifier]}]
   }
   ObjectSpec = {"name", "mesh": "cube"|"plane"|"empty"|{"positions","faces"}, "location"?, "rotation"?, "scale"?}
@@ -107,8 +110,34 @@ def set_properties(node, props):
         setattr(node, key, resolve(props[key]))
 
 
+def keep_switch_items(node, coll_name, entries):
+    """Index Switch / Menu Switch items: their socket identifiers are `Item_<identifier>` with identifiers handed
+    out by a per-node counter that `clear()` does not reset, so the node's initial items (identifiers 0, 1) are
+    kept and renamed, and the rest appended (2, 3, ...). Cases list items with identifiers 0..n-1 in order."""
+    coll = getattr(node, coll_name)
+    while len(coll) > max(len(entries), 1):
+        coll.remove(coll[len(coll) - 1])
+    for i, entry in enumerate(entries):
+        if i < len(coll):
+            item = coll[i]
+            if coll_name == "enum_items" and entry.get("name") is not None:
+                item.name = entry["name"]
+        else:
+            item = coll.new() if coll_name == "index_switch_items" else coll.new(entry.get("name") or "")
+        if "identifier" in entry and getattr(item, "identifier", entry["identifier"]) != entry["identifier"]:
+            raise ValueError(f"{node.name}: {coll_name}[{i}] has identifier {item.identifier}, the case expects {entry['identifier']}")
+        for key, value in entry.items():
+            if key in ("name", "identifier"):
+                continue
+            if hasattr(item, key):
+                setattr(item, key, resolve(value))
+
+
 def add_items(node, items):
     for coll_name, entries in items.items():
+        if coll_name in ("index_switch_items", "enum_items"):
+            keep_switch_items(node, coll_name, entries)
+            continue
         coll = getattr(node, coll_name)
         # Start from an empty list so the case fully decides the items.
         if hasattr(coll, "clear"):
@@ -129,6 +158,56 @@ def add_items(node, items):
                     continue
                 if hasattr(item, key):
                     setattr(item, key, resolve(value))
+
+
+def set_color_ramp(node, spec):
+    """`colorRamp` (the shape dump_blend.py writes). Setting an element's position does not re-sort the elements
+    (rna_ColorRamp_update only tags), so after making the count match, every element is assigned in the case's
+    order - the stored order Blender evaluates in."""
+    ramp = node.color_ramp
+    if "colorMode" in spec:
+        ramp.color_mode = spec["colorMode"]
+    if "interpolation" in spec:
+        ramp.interpolation = spec["interpolation"]
+    if "hueInterpolation" in spec:
+        ramp.hue_interpolation = spec["hueInterpolation"]
+    elements = spec.get("elements")
+    if elements is None:
+        return
+    while len(ramp.elements) < len(elements):
+        ramp.elements.new(0.5)
+    while len(ramp.elements) > len(elements):
+        ramp.elements.remove(ramp.elements[len(ramp.elements) - 1])
+    for element, e in zip(ramp.elements, elements):
+        element.position = e["position"]
+        element.color = tuple(e["color"])
+
+
+def set_curve_mapping(node, spec):
+    """`curveMapping` (the shape dump_blend.py writes). Points are set in the case's order and deselected (new
+    points are selected, and BKE_curvemapping_changed clamps selected points to the clip rectangle), then
+    `update()` (BKE_curvemapping_changed_all) rebuilds the tables, as loading a file does."""
+    mapping = node.mapping
+    for k, curve_spec in enumerate(spec.get("curves", [])):
+        curve = mapping.curves[k]
+        points = curve_spec["points"]
+        while len(curve.points) < len(points):
+            curve.points.new(0.5, 0.5)
+        while len(curve.points) > len(points):
+            curve.points.remove(curve.points[1])
+        for point, p in zip(curve.points, points):
+            point.location = tuple(p["location"])
+            point.handle_type = p.get("handleType", "AUTO")
+            point.select = False
+    # Widen the clip rectangle first: each bound's range is limited by the other (rna_color.cc:192-226).
+    mapping.clip_min_x, mapping.clip_max_x, mapping.clip_min_y, mapping.clip_max_y = -100.0, 100.0, -100.0, 100.0
+    for key, attr in (("clipMinX", "clip_min_x"), ("clipMaxX", "clip_max_x"), ("clipMinY", "clip_min_y"), ("clipMaxY", "clip_max_y")):
+        setattr(mapping, attr, spec.get(key, {"clipMinX": 0.0, "clipMaxX": 1.0, "clipMinY": 0.0, "clipMaxY": 1.0}[key]))
+    if "useClip" in spec:
+        mapping.use_clip = spec["useClip"]
+    if "extend" in spec:
+        mapping.extend = spec["extend"]
+    mapping.update()
 
 
 def find_socket(sockets, identifier, where):
@@ -163,6 +242,10 @@ def build_group(name, spec, groups):
         set_properties(node, nspec.get("properties", {}))
         if nspec.get("items"):
             add_items(node, nspec["items"])
+        if nspec.get("colorRamp"):
+            set_color_ramp(node, nspec["colorRamp"])
+        if nspec.get("curveMapping"):
+            set_curve_mapping(node, nspec["curveMapping"])
         nodes[nspec["name"]] = node
     for nspec in spec["nodes"]:
         if nspec.get("pairedOutput"):

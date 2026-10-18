@@ -3,12 +3,10 @@
   "status": "pass"
  },
  "attr-instance-position": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "attr-interp-byte-color": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "attr-interp-corner": {
   "status": "pass"
@@ -21,15 +19,13 @@
   "status": "pass"
  },
  "attr-interp-loose": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodePointsToVertices"
+  "status": "pass"
  },
  "attr-interp-point-to-all": {
   "status": "pass"
  },
  "attr-interp-quaternion": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeEulerToRotation, ShaderNodeCombineXYZ"
+  "status": "pass"
  },
  "attr-missing-read": {
   "status": "pass"
@@ -171,15 +167,13 @@
  },
  "collection-info-whole-realized": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeCollectionInfo"
  },
  "combine-basic": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeCombineXYZ"
+  "status": "pass"
  },
  "combine-linked-large": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeCombineXYZ"
+  "status": "pass"
  },
  "compare-coerce-op": {
   "status": "pass"
@@ -287,7 +281,7 @@
  },
  "edge-angle-grid-valleys": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, ShaderNodeCombineXYZ, ShaderNodeSeparateXYZ"
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
  },
  "edge-angle-icosphere": {
   "status": "skip",
@@ -301,15 +295,13 @@
   "status": "pass"
  },
  "eval-index-switch-out-of-range": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeIndexSwitch"
+  "status": "pass"
  },
  "eval-invalid-link": {
   "status": "pass"
  },
  "eval-link-conversion": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeCombineXYZ"
+  "status": "pass"
  },
  "eval-muted-math": {
   "status": "pass"
@@ -324,16 +316,13 @@
   "status": "pass"
  },
  "eval-switch-field": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "eval-switch-geometry-field-condition": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "eval-switch-single": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "eval-unlinked-defaults": {
   "status": "pass"
@@ -396,7 +385,7 @@
  },
  "extrude-vertices-loose-origin": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodePointsToVertices"
+  "reason": "not ported: GeometryNodeExtrudeMesh"
  },
  "fields-anonymous-lost": {
   "status": "skip",
@@ -413,15 +402,13 @@
   "status": "pass"
  },
  "fields-geometry-binding": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeVectorMath"
+  "status": "pass"
  },
  "fields-multi-component": {
   "status": "pass"
  },
  "fields-read-before-write": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeVectorMath"
+  "status": "pass"
  },
  "fields-selection": {
   "status": "pass"
@@ -451,8 +438,7 @@
   "status": "pass"
  },
  "grid-to-points-faces": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "grid-transformed": {
   "status": "pass"
@@ -480,12 +466,10 @@
   "status": "pass"
  },
  "gs-join-instance-references": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "gs-join-missing-fill": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCombineTransform, FunctionNodeEulerToRotation"
+  "status": "pass"
  },
  "gs-join-muted": {
   "status": "pass"
@@ -495,7 +479,7 @@
  },
  "gs-join-pointcloud-radius": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints, GeometryNodeRemoveAttribute"
+  "reason": "not ported: GeometryNodeRemoveAttribute"
  },
  "gs-join-type-promotion": {
   "status": "pass"
@@ -505,64 +489,49 @@
   "reason": "not ported: GeometryNodeVolumeCube"
  },
  "iop-attribute-propagation": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-component-order": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-empty-instance": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-face-attribute-to-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-line-cubes": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-pick-without-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-pick-wrap": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "iop-points-inside-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  },
  "iop-selection-rot-scale": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "is-edge-smooth-cube-default": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputEdgeSmooth"
+  "status": "pass"
  },
  "is-edge-smooth-partial-edges-and-faces": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputEdgeSmooth, GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "is-face-smooth-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputShadeSmooth"
+  "status": "pass"
  },
  "is-face-smooth-no-attribute": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputShadeSmooth"
+  "status": "pass"
  },
  "is-face-smooth-partial-on-edges": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "is-face-smooth-partial-on-points": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "join-attr-merge": {
   "status": "pass"
@@ -574,15 +543,13 @@
   "status": "pass"
  },
  "join-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "join-mesh-order": {
   "status": "pass"
  },
  "join-mixed-components": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "join-multi-input-order": {
   "status": "pass"
@@ -591,8 +558,7 @@
   "status": "pass"
  },
  "join-radius-kept": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "join-single-passthrough": {
   "status": "pass"
@@ -801,31 +767,25 @@
  },
  "mesh-to-points-builtins-skipped": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints, GeometryNodeSetMaterialIndex, GeometryNodeSetShadeSmooth"
+  "reason": "not ported: GeometryNodeSetMaterialIndex"
  },
  "mesh-to-points-corners-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "mesh-to-points-edges-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "mesh-to-points-empty-selection": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "mesh-to-points-faces-no-faces": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "mesh-to-points-faces-selection-radius-field": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "mesh-to-points-vertices-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshToPoints"
+  "status": "pass"
  },
  "object-info-as-instance": {
   "status": "skip",
@@ -880,8 +840,7 @@
   "reason": "not ported: GeometryNodeCurvePrimitiveLine"
  },
  "position-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "position-mesh-edge": {
   "status": "pass"
@@ -893,256 +852,196 @@
   "status": "pass"
  },
  "realize-attr-conflict": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "realize-curves-order": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
  },
  "realize-depth-one": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "realize-id-hash": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "realize-instance-attr-curves-domain": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
  },
  "realize-instance-attr-mesh": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "realize-mesh-order": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "realize-selection-kept-first": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
+  "status": "pass"
  },
  "rv-bool-default": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-bool-probability": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-face-domain-ignores-id": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-big-id": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-default": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-id-attribute": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-min-above-max": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-negative-id": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-float-range-seed": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-int-default": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-int-full-range": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-int-negative": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-int-swapped": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-into-single-constant": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-into-single-context": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-vector-default": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "rv-vector-range": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeRandomValue"
+  "status": "pass"
  },
  "separate-basic-x": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeSeparateXYZ"
+  "status": "pass"
  },
  "separate-basic-z": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeSeparateXYZ"
+  "status": "pass"
  },
  "separate-edge-domain-leaves-pointcloud": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-from-float": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeSeparateXYZ"
+  "status": "pass"
  },
  "separate-from-position": {
-  "status": "skip",
-  "reason": "not ported: ShaderNodeSeparateXYZ"
+  "status": "pass"
  },
  "separate-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-instances-unused-references": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-constant-false": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-edge-all-drops-loose-vertex": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodePointsToVertices, GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-edge-constant-true-keeps-loose": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodePointsToVertices, GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-edge-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-face-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-point-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-point-inverted-only": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-mesh-point-selection-only": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-point-inside-instances": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "separate-pointcloud-point": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry"
+  "status": "pass"
  },
  "set-shade-smooth-edge-keeps-unselected": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-edge-sharp-partial": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-face-defaults": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-face-field-all-true": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-face-partial": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-no-faces": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "set-shade-smooth-selection-false": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetShadeSmooth"
+  "status": "pass"
  },
  "switch-bool": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-color-default": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-field-condition": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-field-values": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-float-true": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-geometry": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-geometry-field-condition": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-int": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-new-node-float": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-rotation": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "switch-vector": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSwitch"
+  "status": "pass"
  },
  "transform-bezier-handles": {
   "status": "skip",
   "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment"
  },
  "transform-instances-top-level": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints"
+  "status": "pass"
  },
  "transform-matrix-mode": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCombineTransform"
+  "status": "pass"
  },
  "transform-pointcloud-radius": {
   "status": "pass"
@@ -1154,23 +1053,18 @@
   "status": "pass"
  },
  "translate-global": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  },
  "translate-local": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  },
  "translate-local-field": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  },
  "translate-nested-untouched": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  },
  "translate-selection": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
+  "status": "pass"
  }
 }
