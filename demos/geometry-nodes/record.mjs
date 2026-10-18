@@ -60,10 +60,10 @@ for (const a of ASSETS) {
     const pageMs = Date.now() - t0
     film.chapter(a.title)
     const loadMs = await page.evaluate(() => window.acceptance.loadMs)
-    await film.title(a.title, a.sub, {kicker: 'threepipe · geometry nodes', sec: 2.2})
+    await film.title(a.title, a.sub, {kicker: 'threepipe · geometry nodes', sec: 2.6})
     await film.caption(`${a.title}: loaded and evaluated in the browser (${Math.round(loadMs)} ms), as a modifier in the editor`)
     if (a.credit) await film.panel(['asset', [a.credit, '']])
-    await film.orbit({deg: 35, sec: 3})
+    await film.orbit({deg: 50, sec: 5})
     await film.panel(null)
     await film.still(`${a.asset}-loaded`)
 
@@ -85,8 +85,9 @@ for (const a of ASSETS) {
     const res = last.data.results.at(-1)
     const uiMs = Math.round(res?.ms ?? NaN)
     if (res?.op !== 'modifier' || !res.ok) throw new Error(`the panel edit did not land as a modifier update: ${JSON.stringify(res)}`)
+    film.record({op: 'modifier', object: a.object, index: 0, update: {inputs: {[a.field]: Number(a.value)}}, via: 'Properties > Modifiers (typed)'})
     await film.caption(`"${a.field}" = ${a.value}: one "modifier update", re-evaluated in ${uiMs} ms (in the page, GPU VM)`)
-    await film.orbit({deg: 50, sec: 4})
+    await film.orbit({deg: 70, sec: 6})
     await film.still(`${a.asset}-edited`)
 
     // The same command an agent sends, timed.
@@ -100,7 +101,7 @@ for (const a of ASSETS) {
         film.record({op: 'modifier', object: a.object, index: 0, update: {inputs}})
         runs.push({inputs, ...r})
         await film.caption(`modifier {update: {inputs: ${JSON.stringify(inputs)}}}  →  ${r.ok ? `${Math.round(r.ms)} ms` : r.error}`)
-        await film.orbit({deg: 18, sec: 1.4})
+        await film.orbit({deg: 30, sec: 2.6})
     }
     const info = await page.evaluate(object => {
         const entry = window.modelling.document.find(object)
