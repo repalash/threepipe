@@ -346,6 +346,69 @@ proportions and missing parts — the taller prism and hot shoe (top group 5.8 m
 4.6 mm), the rear dials and the left port doors' relief — which is R3 (parts library) and R4 (markings), plus
 better measurements, not surface quality. R2 is the prerequisite those need, not a score lever on its own.
 
+### 3.3 Measure, then block out: the camera re-blocked from public measurements (2026-10-18)
+
+Approved next step after 3.2. The reference GLB is the scorer only; nothing in the build reads it.
+
+- **Measurement set** `demos/benchmark/targets/canon-5d4-measure/measurements.json`: Canon's 150.7 x 116.4 x 75.9 mm,
+  EF mount (54 mm, flange 44 mm), ISO 518 shoe, and readings from three CC BY-SA Commons photos kept beside it
+  (front `body-mount.jpg`, rear `body-rear.jpg`, and a new top view, `body-top.jpg`, Dinkun Chen), each with source,
+  calibration and uncertainty. The front photo is near level (shoe top 116.5 vs 116.4 mm), so it carries heights and
+  the outline; the rear looks down (x only); the top view is close and oblique (top-plate z only, 0.47 mm/mm height
+  correction). Not measurable from public photos: a true side elevation, so the depth layout (rear 0, front 58,
+  flange 73, grip 75.9) stays as in the demo.
+- **Silhouette check** `demos/benchmark/scripts/silhouette.mjs` (build projected on a calibrated photo: IoU, top and
+  side profiles in mm, overlay). Front-photo IoU: demo 0.965, R2 0.963, re-block **0.990**.
+- **Cages** (`scripts/cage.mjs`, `scripts/camera-reblock.mjs`): a closed control polygon solved so its limit
+  points (OpenSubdiv's regular mask, 1/6 4/6 1/6) land on the measured outline, sampled with equal counts on
+  opposite sides so Grid Fill makes the caps quads (n-gon caps shaded as starbursts). Body: front outline extruded,
+  support loops 4 mm in. Grip: top-photo plan extruded, top on the measured shoulder and falling at the shutter's
+  35 degree tilt. Prism: measured flanks and 114 mm top, rims creased (a plane-cut loop twisted its kinked front).
+  Shoe at the measured 24.1 mm with ISO 518 rails. Controls moved to measured places: mode dial 7 mm back and
+  3.8 mm taller, main dial turned to roll front to back, top LCD 48 x 21 mm (was 34.6 x 19.6), four top buttons and
+  M-Fn added, shutter tilted, lugs 6 mm lower; R2's port doors had been cut on the grip side and are now on the far
+  side. Subsurf level 2 (62.5k triangles; level 3 gave 166k at the same scores).
+- **Scorer finding:** the reference shell is 122.8 mm tall against Canon's 116.4 mm (which includes the shoe), so a
+  build to published numbers loses several mm at the top in the default frame. `benchmark:score --spec-frame`
+  scores against the reference scaled to the spec (the ceiling's scaling, applied to the other side).
+
+Per-group completeness, mean mm / within 2 mm (`tmp/bench/{demo-camera, camera-r2, camera-reblock-final}`, spec
+frame `tmp/bench/spec-*`):
+
+| group | demo | R2 | re-block | | demo (spec) | R2 (spec) | re-block (spec) |
+| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
+| top | 5.97 / 15 % | 5.79 / 16 % | **4.63 / 19 %** | | 3.21 / 32 % | 3.34 / 31 % | **2.43 / 45 %** |
+| shell | 3.29 / 50 % | 3.25 / 50 % | 3.30 / 47 % | | 2.92 / 49 % | 2.94 / 49 % | 2.91 / 48 % |
+| screens | 2.31 / 68 % | 2.21 / 68 % | **1.60 / 71 %** | | 1.21 / 77 % | 1.26 / 76 % | **0.77 / 87 %** |
+| decals | 4.68 / 47 % | 4.59 / 47 % | **3.09 / 46 %** | | 3.89 / 24 % | 4.04 / 23 % | **2.57 / 37 %** |
+| rear-controls | 1.45 / 72 % | 1.45 / 72 % | 1.33 / 75 % | | 1.39 / 71 % | 1.37 / 73 % | 1.29 / 74 % |
+| eyepiece | 2.12 / 59 % | 2.27 / 58 % | 2.09 / 61 % | | 1.24 / 79 % | 1.36 / 74 % | 1.39 / 74 % |
+| mount | 2.66 / 49 % | 2.66 / 49 % | 2.64 / 47 % | | 2.62 / 49 % | 2.61 / 49 % | 2.59 / 48 % |
+| lens | 2.84 / 44 % | 2.89 / 44 % | 2.98 / 42 % | | 2.94 / 43 % | 2.90 / 43 % | 2.99 / 42 % |
+| other (lugs, front buttons) | 3.62 / 37 % | 3.60 / 37 % | 3.75 / 35 % | | 3.57 / 36 % | 3.57 / 36 % | 3.68 / 35 % |
+
+Whole model, default frame: Chamfer 2.81 / 2.82 / 2.84 mm, IoU 0.881 / 0.879 / 0.886, composite 56.6 / 58.1 / 57.7,
+faceting 85 / 47 / 46 %. Sheet `tmp/bench/camera-reblock-final/sheet-reblock.png` (reference, demo, R2, re-block),
+front silhouettes before/after `tmp/bench/camera-reblock-final/silhouette-front-before-after.png`.
+
+Reading: the controls the measurements moved are where the score moved (top, screens, decals). The shell did not
+move although its front outline now fits the photo to 0.99 IoU: with the front fixed, what is left of the shell
+error is depth and height, which no public photo here measures (no side elevation) and where the reference is off
+the published size. Target "top and shell < 2-3 mm": top reaches it in the spec frame (2.43), not in the default
+frame (4.63); shell does not (3.30 / 2.91). An earlier variant with 64-gon caps scored better (default top 4.59,
+shell 3.27; spec top 2.04, shell 2.74) because the fans pulled the prism front and grip top in; it shaded as
+starbursts and was not what the measurements say, so it was not kept. A top-photo reading of a curved prism front
+was tried and scored worse; it is recorded in the set as not used.
+
+Cost of the re-block (measurement set, tools, cages, eight scored iterations): 12:58 to 14:28 UTC, about 90 min
+wall time, about 150 tool calls, 157k output and 41M input tokens (mostly cache reads); the re-blocked transcript is
+223 commands, of which 44 are the new body, grip, prism and shoe blocks (the demo build: 308 commands, 189 active
+minutes, 262 tool calls, 160k output and 129M input tokens for the whole camera).
+
+Next for the shell: a side elevation (a CC photo, or Canon's own side product shot if that is acceptable as a public
+source) to fix the depth layout, the grip's front profile and the prism's front slope, which are the remaining
+unmeasured inputs.
+
 ### 3.1 R2c status (2026-10-18)
 
 - Kernel `meshBooleanManifold(api, meshes, op, transforms)` (`plugins/mesh-kernel/src/boolean/manifoldBoolean.ts`):
