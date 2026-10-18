@@ -3,7 +3,7 @@
  * (`StencilTableReal<float>`) and `far/stencilTableFactory.cpp` (`StencilTableFactoryReal<float>::Create`), Copyright
  * 2014 DreamWorks Animation LLC. Derivative weights, limit stencils and `AppendLocalPointStencilTable` are not
  * ported (uniform refinement has no local points).
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Float exactness: the products `weight * weightFactor` and the accumulations `_weights[i] += w` are separate
  * expressions (a function argument, then a compound assignment in another function), so clang does not fuse them.

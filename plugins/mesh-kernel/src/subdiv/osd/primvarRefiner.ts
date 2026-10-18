@@ -3,7 +3,7 @@
  * `InterpolateVarying`, `InterpolateFaceVarying`) and `opensubdiv/vtr/componentInterfaces.h` (Copyright 2014 DreamWorks
  * Animation LLC). The limit (`Limit`, `LimitFaceVarying`) and uniform-face interpolation are not ported (Blender
  * evaluates patches).
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Instantiated by `StencilTableFactory::Create` inside the OpenSubdiv library (clang `-ffp-contract=on`): the masks it
  * computes (`sdc.ts`) fuse where clang fuses; the `AddWithWeight` sinks decide their own arithmetic.

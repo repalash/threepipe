@@ -1,7 +1,7 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/vtr/fvarLevel.h` and `vtr/fvarLevel.cpp` (Copyright 2014 DreamWorks Animation
  * LLC): face-varying topology of one level. `validate` and `print` (debugging aids) are not ported.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {FVarLinearInterpolation, Options, Rule, VtxBoundaryInterpolation} from './sdc'

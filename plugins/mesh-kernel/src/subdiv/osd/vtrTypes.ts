@@ -1,7 +1,7 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/vtr/types.h` and `vtr/array.h` (Copyright 2014 DreamWorks Animation LLC), plus
  * the bit layout of `Vtr::internal::Level::VTag` / `ETag` / `FTag` (`vtr/level.h:76-150`).
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Tags are kept as integers with one bit per bit-field (the order of the C++ bit-fields), so copies, `memset` clears
  * and `BitwiseOr` are integer operations.

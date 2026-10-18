@@ -118,11 +118,12 @@ describe('subdivisionSurface', () => {
         expect(keep.facesNum).toBe(all.facesNum)
     })
 
-    it('the limit surface isolates features adaptively up to quality; the output grid is the uniform refinement to levels', () => {
+    it('the limit surface isolates features adaptively up to quality; the output grid is the resolution of levels', () => {
         const m = primitiveCube()
         const crease = m.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
         crease[0] = 0.5 // sharpness 2.5
-        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.refiner.maxLevel).toBe(1)
+        // `subdiv_to_mesh` at resolution (1 << levels) + 1, whatever the quality the limit surface is refined to
+        for (const quality of [1, 3]) expect(subdivisionSurfaceEvaluate(m, {levels: 1, quality})!.mesh.facesNum).toBe(24)
         const options = OPTS
         const adaptive = (quality: number) => {
             const r = new TopologyRefiner(createBaseLevel(m, options, {useCreases: true, simple: false}).level, options)
@@ -142,12 +143,12 @@ describe('subdivisionSurface', () => {
         expect(incomplete).toBeGreaterThan(0)
     })
 
-    it('n-gons split into quads around a centre vertex; loose vertices are left out', () => {
+    it('n-gons split into quads around a centre vertex; loose vertices are kept (subdiv_foreach_loose_vertices)', () => {
         const m = MeshData.fromFaces({positions: [0, 0, 0, 1, 0, 0, 1.5, 1, 0, 0.5, 1.6, 0, -0.5, 1, 0, 9, 9, 9], faces: [[0, 1, 2, 3, 4]]})
         const r = subdivisionSurface(m, {levels: 1, useLimitSurface: false})
         expect(r.facesNum).toBe(5)
-        expect(r.vertsNum).toBe(5 + 5 + 1)
-        expect(find(r, [9, 9, 9])).toBe(-1)
+        expect(r.vertsNum).toBe(5 + 5 + 1 + 1)
+        expect(find(r, [9, 9, 9])).toBeGreaterThanOrEqual(0)
     })
 
     it('level 0 is a copy', () => {

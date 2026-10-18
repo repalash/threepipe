@@ -3,7 +3,7 @@
  * `far/topologyRefinerFactory.h` and `far/topologyRefinerFactory.cpp` (Copyright 2014 DreamWorks Animation LLC).
  * Adaptive refinement (`RefineAdaptive`, `selectFeatureAdaptiveComponents`, `FeatureMask`) is not ported: Blender's
  * Subdivide Mesh refines uniformly (issue 15b, Phase A); it throws instead.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {Crease, FVarLinearInterpolation, isInfinite, isSemiSharp, isSharp, Options, Rule, SchemeType, SchemeTypeTraits, SHARPNESS_INFINITE, Split, VtxBoundaryInterpolation} from './sdc'

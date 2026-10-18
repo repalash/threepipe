@@ -1,7 +1,7 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/sdc/` (`types.h`, `typeTraits.cpp`, `options.h`, `crease.h`, `crease.cpp`,
  * `scheme.h`, `catmarkScheme.h`, `bilinearScheme.h`), Copyright 2014 DreamWorks Animation LLC.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Float exactness: `Weight` is `float` (the masks are instantiated by `Far::PrimvarRefinerReal<float>` inside the
  * OpenSubdiv library, which Blender's dependency build compiles with clang's default `-ffp-contract=on`), so

@@ -613,6 +613,19 @@ parity, reactive in the browser and in the modifier panel.
 ## 12. Progress (2026-10-18)
 
 Acceptance subplan (course correction 13:40): `15d-procedural-acceptance.md`.
+One subdivision port (approved 15:30, item 4): `15e-one-subdivision-port.md`.
+
+**Update 2026-10-18 17:30 (15e, phases 1 and 3):**
+- One subdivision implementation, in the kernel. The OpenSubdiv float pipeline is in `mesh-kernel/src/subdiv/osd/`,
+  `bke::subdiv` in `src/subdiv/bke/`, and the Blender support code they need in `src/blender/`. Procedural re-exports
+  that support code and its nodes import `bke::subdiv` from the kernel. `procedural/src/blender/opensubdiv/` is gone.
+- The editor's Subdivision Surface modifier (kernel `subdivisionSurface`) runs Blender's `subdiv_to_mesh`.
+  `tests/subsurf-parity.test.ts` is now index for index (34 cases):
+  - every case has Blender's order: vertex, edge and face i match Blender's;
+  - the 7 uniform cases (no limit surface) are bit-exact;
+  - the 27 limit-surface cases are within 1e-6 or 4 ulps, until the float adaptive port (15e phase 2).
+- Still to do: 15e phase 2, the exact limit surface (`RefineAdaptive`, the patch tables and Gregory end caps in
+  float).
 
 **Update 2026-10-18 14:30 (acceptance):**
 - Node coverage: 232 of the 319 geometry and function node types in Blender 5.2.2's inventory are ported, counting
@@ -629,7 +642,7 @@ Acceptance subplan (course correction 13:40): `15d-procedural-acceptance.md`.
   - The flower field matches within 1e-5, at its defaults and with Grass Density 0.5.
 - The editor's three acceptance assets have e2e tests (`examples/procedural-editor-assets`). The report and video are in
   `tmp/acceptance/`.
-- One OpenSubdiv port is still open: `procedural-subdiv-one-port.md`.
+- One OpenSubdiv port: in progress in `15e-one-subdivision-port.md` (see the 17:30 update).
 
 Numbers are test results in `plugins/procedural` (`npm run test`), statuses in `tests/parity/*.status.json`.
 

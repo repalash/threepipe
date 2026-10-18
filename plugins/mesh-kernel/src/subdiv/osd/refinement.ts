@@ -2,7 +2,7 @@
  * Port of OpenSubdiv v3_7_0 `opensubdiv/vtr/refinement.h` and `vtr/refinement.cpp` (Copyright 2014 DreamWorks
  * Animation LLC): the mapping between a parent level and its refined child level, shared by the quad and triangle
  * splits. `printParentToChildMapping` (debugging) is not ported.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {Crease, isSharp, Options, Rule, SHARPNESS_INFINITE, SHARPNESS_SMOOTH, Split} from './sdc'

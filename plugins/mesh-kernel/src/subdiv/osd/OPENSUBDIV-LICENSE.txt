@@ -1,4 +1,4 @@
-OpenSubdiv v3_7_0 (https://github.com/PixarAnimationStudios/OpenSubdiv/tree/v3_7_0) - source ported to TypeScript under src/blender/opensubdiv/.
+OpenSubdiv v3_7_0 (https://github.com/PixarAnimationStudios/OpenSubdiv/tree/v3_7_0) - source ported to TypeScript in this folder (@threepipe/mesh-kernel src/subdiv/osd/).
 Licensed under the Tomorrow Open Source Technology License 1.0 (below), with its NOTICE.txt.
 
 ===== LICENSE.txt =====

@@ -2,7 +2,7 @@
  * Port of OpenSubdiv v3_7_0 `opensubdiv/vtr/level.h` and `vtr/level.cpp` (Copyright 2014 DreamWorks Animation LLC):
  * the topology of one refinement level. `print` and `validateTopology` (debugging aids Blender does not call - it sets
  * `validateFullTopology = false`) are not ported.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {f32} from '../../blender/f32'

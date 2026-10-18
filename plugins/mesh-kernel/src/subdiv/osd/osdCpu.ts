@@ -5,7 +5,7 @@
  * (`OsdEvaluatePatchBasis`, `Osd_EvalBasisLinear`, `OsdPatchParamNormalize`), Copyright 2013-2018 Pixar.
  * The SIMD stencil kernels (`ComputeStencilKernel<4|8>`, used only for 4- and 8-float primvars - Blender's are 3 and 2
  * floats) and the cubic bases are not ported.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Float exactness: compiled in the OpenSubdiv library with clang `-ffp-contract=on`, so `dst[k] += src[k] * weight` is
  * `fmaf(src, weight, dst)` and `uv * fracInv - U` is `fmaf(uv, fracInv, -U)`.

@@ -7,7 +7,7 @@
  * - `internal/evaluator/evaluator_impl.cc` (`openSubdiv_createEvaluatorFromTopologyRefiner`, `EvalOutputAPI`),
  * - `internal/evaluator/eval_output.h` (`VolatileEvalOutput`, `FaceVaryingVolatileEval`) for the CPU evaluator
  *   (`eval_output_cpu.h`).
- * The OpenSubdiv code it drives is ported under this folder (TOST-1.0, see `porting/opensubdiv-LICENSE.txt`).
+ * The OpenSubdiv code it drives is ported under this folder (TOST-1.0, see `OPENSUBDIV-LICENSE.txt` in this folder).
  * Only uniform refinement is ported: adaptive refinement (`is_adaptive`, used by the Subdivision Surface modifier and
  * node) throws.
  */

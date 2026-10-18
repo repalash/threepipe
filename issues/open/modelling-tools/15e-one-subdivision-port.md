@@ -70,3 +70,35 @@ Done when:
   evaluator path).
 - Blender's adaptive evaluator refines to `level = quality` and evaluates at `(1 << levels) + 1` grid points per ptex
   face (`subdiv_mesh`).
+
+## Status (2026-10-18)
+
+- **Phase 1, done** (commit 0ade0037). The procedural port moved unchanged:
+  - `osd/`: Sdc, Vtr, Far stencils and patch tables, Osd CPU, and Blender's C API;
+  - `bke/`: converter, eval, foreach and mesh;
+  - `src/blender/`: f32, fma, libm, system, colour, math, attribute data types and mixers (`mix4` moved out of
+    `curvesEval`), mesh runtime and topology.
+
+  Five names that clashed with kernel exports are exported as `blender*` (`blenderMat4Multiply` and so on). The
+  procedural modules at the old paths re-export them. Procedural stays at 1892 passed and 15 skipped, with unchanged
+  statuses; the kernel at 2088.
+- **Phase 3, done.**
+  - `subdivisionSurface` runs `BKE_subsurf_modifier_settings_init`, then `subdiv_new_from_mesh`, then `subdiv_to_mesh`
+    at `(1 << levels) + 1`.
+  - The double limit evaluator moved to `limitEvaluator.ts`. For `simple` (bilinear) it uses all-infinitely-sharp
+    Catmark until phase 2.
+  - `gen-subsurf-fixtures.py` now records the input edges in Blender's order, the output edges, and exact floats
+    (no rounding).
+  - `subsurf-parity.test.ts` compares index for index:
+    - 34/34 pass;
+    - the uniform cases are bit-exact;
+    - the limit cases are within 1e-6 or 4 ulps.
+  - The kernel unit tests follow Blender in two places, and the old port differed from Blender in both:
+    - loose vertices are kept (`subdiv_foreach_loose_vertices`);
+    - output size follows `levels` at any `quality`.
+  - The unused `edgeCrease` / `vertexCrease` overrides were dropped from `SubdivisionSurfaceOptions`.
+  - The OpenSubdiv licence moved to `osd/OPENSUBDIV-LICENSE.txt`.
+- **Phase 4, partly done.** The procedural copies are gone. The kernel's double adaptive modules (`adaptive.ts`,
+  `patchBuilder.ts`, `patchTable.ts`, `gregory.ts`, `refiner.ts`, ...) are deleted once phase 2 replaces them.
+- **Phase 2, open.** This is the exact limit surface. Once it lands, `subsurf-parity.test.ts`'s `TOLERANCE` becomes
+  exact for every case.

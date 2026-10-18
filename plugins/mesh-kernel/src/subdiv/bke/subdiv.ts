@@ -2,13 +2,13 @@
  * `bke::subdiv` setup and evaluation (Blender 5.2.2): `blenkernel/intern/subdiv.cc` (`new_from_mesh`,
  * `face_ptex_offset_get`, the settings conversions), `subdiv_converter.cc`, `subdiv_converter_mesh.cc` (the mesh to
  * OpenSubdiv converter), `subdiv_eval.cc` (`eval_begin_from_mesh`, limit and face-varying evaluation) and
- * `BKE_mesh_uv_vert_map_create` (`mesh_mapping.cc:39`). The OpenSubdiv side is `src/blender/opensubdiv/`.
+ * `BKE_mesh_uv_vert_map_create` (`mesh_mapping.cc:39`). The OpenSubdiv side is `../osd/`.
  *
  * Displacement (multires) and orco/cloth orco vertex data are not part of a procedural mesh and are not ported.
  */
 
 import {AttrDomain} from '../../constants'
-import {createSubdivLimitEvaluator, SubdivLimitEvaluator} from '../subdivisionSurface'
+import {createSubdivLimitEvaluator, SubdivLimitEvaluator} from '../limitEvaluator'
 import {MeshData} from '../../MeshData'
 import {f32} from '../../blender/f32'
 import {createEvaluatorFromTopologyRefiner, createTopologyRefinerFromConverter, OpenSubdivConverter, OpenSubdivEvaluator, TopologyRefinerImpl} from '../osd/blenderOpenSubdiv'
@@ -415,7 +415,7 @@ export function evalBeginFromMesh(subdiv: Subdiv, mesh: MeshData): boolean {
         const s = subdiv.settings
         if (s.vtxBoundaryInterpolation === SubdivVtxBoundaryInterpolation.NONE) throw new Error('subdiv: VTX_BOUNDARY_NONE is not supported by the limit evaluator')
         subdiv.limitEvaluator = createSubdivLimitEvaluator(mesh, {
-            quality: s.level, useCreases: s.useCreases,
+            quality: s.level, simple: s.isSimple, useCreases: s.useCreases,
             boundarySmooth: BOUNDARY_SMOOTH[s.vtxBoundaryInterpolation] ?? 'ALL',
             uvSmooth: UV_SMOOTH[s.fvarLinearInterpolation],
             uvMaps: meshUvMapNames(mesh).map(name => mesh.attributes.get(name)!.data),

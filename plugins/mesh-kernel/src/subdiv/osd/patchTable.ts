@@ -4,7 +4,7 @@
  * and `BuildUniformPolygons`) and `far/patchBuilder.cpp` (`ComputePatchParam`), Copyright 2013-2018 Pixar /
  * DreamWorks Animation LLC. Adaptive patches (`BuildPatches`, end caps, local points, the patch builders' basis
  * conversions) are not ported: Blender's Subdivide Mesh builds a uniform table (issue 15b, Phase A).
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {SchemeType, SchemeTypeTraits} from './sdc'

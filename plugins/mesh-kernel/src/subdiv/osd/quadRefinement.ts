@@ -1,7 +1,7 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/vtr/quadRefinement.h` and `vtr/quadRefinement.cpp` (Copyright 2014 DreamWorks
  * Animation LLC): the quad split (Catmark, Bilinear) - every face becomes one quad per corner.
- * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
+ * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
 import {Options, Split} from './sdc'

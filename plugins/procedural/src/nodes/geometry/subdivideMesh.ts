@@ -1,7 +1,7 @@
 /**
  * Subdivide Mesh (`nodes/geometry/nodes/node_geo_mesh_subdivide.cc`, Blender 5.2.2): `bke::subdiv` with the simple
- * scheme at OpenSubdiv level 1, meshed at resolution `(1 << level) + 1` (`src/geometry/subdiv*.ts`,
- * `@threepipe/mesh-kernel` `src/subdiv/`).
+ * scheme at OpenSubdiv level 1, meshed at resolution `(1 << level) + 1` (`@threepipe/mesh-kernel` `src/subdiv/bke/`
+ * on the OpenSubdiv port in `src/subdiv/osd/`).
  */
 
 import {foreachRealGeometry} from '../../geometry/joinGeometries'

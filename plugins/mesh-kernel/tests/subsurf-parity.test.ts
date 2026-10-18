@@ -1,38 +1,53 @@
 /**
- * Subdivision Surface against Blender 5.2.2 (`fixtures/subsurf.json`, written by `gen-subsurf-fixtures.py`).
- *
- * Geometry is compared as in the other parity suites (`parity-util.ts` `compareMeshes`): every Blender vertex
- * paired with one of ours within the tolerance, faces as cyclic vertex sequences. UVs are compared per face corner after mapping faces through the vertex pairing.
+ * Subdivision Surface against Blender 5.2.2 (`fixtures/subsurf.json`, written by `gen-subsurf-fixtures.py`), index for
+ * index: the input is rebuilt with Blender's edge order (`subdiv_foreach` numbers the output by coarse edge), and
+ * vertex i, edge i, face i and corner i's UV must equal Blender's. Positions and UVs are compared in float32 ulps.
  */
 
 import {describe, expect, it} from 'vitest'
 import {MeshData} from '../src/MeshData'
 import {AttrDomain, AttrName} from '../src/constants'
 import {subdivisionSurface} from '../src/subdiv'
-import {bmFromMesh, bmToMesh} from '../src/bmesh/convert'
-import {compareMeshes, loadFixture} from './parity-util'
+import {loadFixture} from './parity-util'
 
 interface SubsurfCase {
     name: string
-    input: {positions: number[][], faces: number[][], looseEdges: number[][], edgeCrease: [number[], number][], vertCrease: number[][], uv: boolean}
+    input: {positions: number[][], faces: number[][], edges: number[][], looseEdges: number[][], edgeCrease: [number[], number][], vertCrease: number[][], uv: boolean}
     modifier: {levels: number, quality: number, useLimitSurface: boolean, useCreases: boolean, boundarySmooth: 'ALL' | 'PRESERVE_CORNERS', uvSmooth: string, type: 'CATMULL_CLARK' | 'SIMPLE'}
     positions: number[][]
+    edges: number[][]
     faces: number[][]
     looseEdges: number[][]
     uv?: number[][]
 }
 
 const fixture = loadFixture<SubsurfCase>('subsurf.json')
-const TOL = 2e-4
 
+/**
+ * Allowed difference. Uniform refinement is OpenSubdiv's float stencil pipeline and must be bit-exact. The limit
+ * surface (`use_limit_surface`) is still evaluated by the double adaptive patch evaluator until the float
+ * `RefineAdaptive` / patch-table port (subplan 15e phase 2): Blender's float evaluation leaves roundoff such as 1e-8
+ * where the double result is 0 (ulps mean nothing near 0), and a few ulps elsewhere: a value passes within either
+ * bound. Phase 2 sets this to exact.
+ */
+const TOLERANCE = (c: SubsurfCase): Tolerance => c.modifier.useLimitSurface ? {abs: 1e-6, ulps: 4} : {abs: 0, ulps: 0}
+interface Tolerance { abs: number, ulps: number }
+
+const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer)
+/** Ordered float32 bits: the ulp distance is the difference. */
+function ordered(x: number): number {
+    f32[0] = x
+    const i = i32[0]
+    return i < 0 ? -2147483648 - i : i
+}
+const ulps = (a: number, b: number) => Math.abs(ordered(a) - ordered(b))
+
+/** The input as Blender built it: positions, faces, and the edges in Blender's order (loose edges included). */
 function build(c: SubsurfCase): MeshData {
-    let m = MeshData.fromFaces({positions: c.input.positions.flat(), faces: c.input.faces})
-    if (c.input.looseEdges.length) {
-        const bm = bmFromMesh(m)
-        const verts = Array.from(bm.verts)
-        for (const [a, b] of c.input.looseEdges) bm.edgeCreate(verts[a], verts[b], undefined, {noDouble: true})
-        m = bmToMesh(bm)
-    }
+    const m = MeshData.fromFaces({positions: c.input.positions.flat(), faces: c.input.faces})
+    m.resize({edges: c.input.edges.length})
+    m.edgeVerts.set(c.input.edges.flat())
+    m.calculateCornerEdges()
     if (c.input.edgeCrease.length) {
         const layer = m.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
         const want = new Map(c.input.edgeCrease.map(([p, v]) => [p[0] < p[1] ? `${p[0]}-${p[1]}` : `${p[1]}-${p[0]}`, v]))
@@ -46,7 +61,8 @@ function build(c: SubsurfCase): MeshData {
         for (const [i, v] of c.input.vertCrease) layer[i] = v
     }
     if (c.input.uv) {
-        // the generator's layout: corner k of face f at (1.5 f + 0.5 + 0.5 cos a, 0.5 + 0.5 sin a), a = 2 pi k / n
+        // the generator's layout: corner k of face f at (1.5 f + 0.5 + 0.5 cos a, 0.5 + 0.5 sin a), a = 2 pi k / n,
+        // computed in double and stored as float (`MLoopUV`)
         const uv = m.attributes.ensure('UVMap', AttrDomain.Corner, 'float2').data as Float32Array
         for (let f = 0; f < m.facesNum; f++) {
             const s = m.faceOffsets[f], n = m.faceOffsets[f + 1] - s
@@ -60,6 +76,36 @@ function build(c: SubsurfCase): MeshData {
     return m
 }
 
+/** Index-for-index differences: counts, topology, and values beyond the tolerance; plus the largest differences seen. */
+function compare(out: MeshData, c: SubsurfCase, tol: Tolerance): {errors: string[], worst: number, worstAbs: number} {
+    const errors: string[] = []
+    let worst = 0, worstAbs = 0
+    const check = (what: string, got: number, want: number) => {
+        const d = ulps(got, want), a = Math.abs(got - want)
+        worst = Math.max(worst, d)
+        worstAbs = Math.max(worstAbs, a)
+        if (a > tol.abs && d > tol.ulps && errors.length < 40) errors.push(`${what}: ${got}, Blender ${want} (${d} ulps)`)
+    }
+    const counts = [['vertex', out.vertsNum, c.positions.length], ['edge', out.edgesNum, c.edges.length], ['face', out.facesNum, c.faces.length]] as const
+    for (const [what, got, want] of counts) if (got !== want) errors.push(`${what} count ${got}, Blender ${want}`)
+    if (errors.length) return {errors, worst, worstAbs}
+    for (let v = 0; v < out.vertsNum; v++) for (let k = 0; k < 3; k++) check(`vertex ${v}.${k}`, out.positions[3 * v + k], c.positions[v][k])
+    for (let e = 0; e < out.edgesNum; e++) {
+        const a = out.edgeVerts[2 * e], b = out.edgeVerts[2 * e + 1]
+        if (a !== c.edges[e][0] || b !== c.edges[e][1]) { errors.push(`edge ${e}: [${a}, ${b}], Blender [${c.edges[e]}]`); break }
+    }
+    for (let f = 0; f < out.facesNum; f++) {
+        const got = Array.from(out.cornerVerts.subarray(out.faceOffsets[f], out.faceOffsets[f + 1]))
+        if (got.join() !== c.faces[f].join()) { errors.push(`face ${f}: [${got}], Blender [${c.faces[f]}]`); break }
+    }
+    if (c.uv) {
+        const uv = out.attributes.get('UVMap')?.data
+        if (!uv) errors.push('no UVMap')
+        else for (let i = 0; i < c.uv.length; i++) for (let k = 0; k < 2; k++) check(`corner ${i} uv.${k}`, uv[2 * i + k], c.uv[i][k])
+    }
+    return {errors, worst, worstAbs}
+}
+
 describe(`subsurf parity with Blender ${fixture.blender}`, () => {
     for (const c of fixture.cases) {
         it(c.name, () => {
@@ -68,46 +114,9 @@ describe(`subsurf parity with Blender ${fixture.blender}`, () => {
                 useCreases: c.modifier.useCreases, boundarySmooth: c.modifier.boundarySmooth,
                 uvSmooth: c.modifier.uvSmooth as never, scheme: c.modifier.type,
             })
-            // Blender keeps loose edges (subdivided); the port does not carry them yet (16b S7), so compare the
-            // face-bound geometry only
-            const used = new Set(c.faces.flat())
-            const keep = c.positions.map((_, i) => used.has(i))
-            const remap = new Map<number, number>()
-            const wantPositions: number[][] = []
-            c.positions.forEach((p, i) => { if (keep[i]) { remap.set(i, wantPositions.length); wantPositions.push(p) } })
-            const want = {positions: wantPositions, faces: c.faces.map(f => f.map(i => remap.get(i)!))}
-            const got = {positions: Array.from({length: out.vertsNum}, (_, v) => [out.positions[3 * v], out.positions[3 * v + 1], out.positions[3 * v + 2]]),
-                faces: Array.from({length: out.facesNum}, (_, f) => Array.from(out.cornerVerts.subarray(out.faceOffsets[f], out.faceOffsets[f + 1])))}
-            expect(compareMeshes(got, want, {edges: false, tol: TOL})).toEqual([])
-
-            if (c.uv) {
-                // corner UVs: match each Blender face to ours by its vertex positions, then compare corner by corner
-                const ouv = out.attributes.get('UVMap')!.data
-                // Blender vertex -> ours: the nearest within the tolerance (as compareMeshes pairs them)
-                const ourOf = c.positions.map(p => {
-                    let best = -1, bd = TOL
-                    got.positions.forEach((q, v) => {
-                        const d = Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2]))
-                        if (d < bd) { bd = d; best = v }
-                    })
-                    return best
-                })
-                const ourFace = new Map<string, number>()
-                for (let f = 0; f < out.facesNum; f++) ourFace.set([...got.faces[f]].sort((a, b) => a - b).join(','), f)
-                let corner = 0, bad = 0
-                for (const f of c.faces) {
-                    const verts = f.map(i => ourOf[i])
-                    const of = ourFace.get([...verts].sort((a, b) => a - b).join(','))
-                    if (of === undefined) { bad++; corner += f.length; continue }
-                    const s = out.faceOffsets[of]
-                    for (let k = 0; k < f.length; k++, corner++) {
-                        const ck = s + got.faces[of].indexOf(verts[k])
-                        const w = c.uv[corner]
-                        if (Math.abs(ouv[2 * ck] - w[0]) > TOL || Math.abs(ouv[2 * ck + 1] - w[1]) > TOL) bad++
-                    }
-                }
-                expect(bad).toBe(0)
-            }
+            const {errors, worst, worstAbs} = compare(out, c, TOLERANCE(c))
+            if (worst) console.log(`${c.name}: largest difference ${worstAbs.toExponential(2)} (${worst} ulps)`)
+            expect(errors).toEqual([])
         })
     }
 })

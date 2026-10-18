@@ -1,7 +1,8 @@
 /**
  * Subdivision Surface (`nodes/geometry/nodes/node_geo_subdivision_surface.cc`, Blender 5.2.2): `bke::subdiv` with
  * Catmull-Clark, adaptive (limit surface) to Quality or uniform to Level, meshed at resolution `(1 << level) + 1`
- * (`src/geometry/subdiv*.ts`). The limit surface is evaluated by the kernel's OpenSubdiv port (see `Subdiv.limitEvaluator`).
+ * (`@threepipe/mesh-kernel` `src/subdiv/bke/`). The limit surface is evaluated by `Subdiv.limitEvaluator` until the
+ * float adaptive port (subplan 15e phase 2).
  */
 
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
