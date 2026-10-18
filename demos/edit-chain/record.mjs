@@ -43,6 +43,15 @@ for (const s of main) {
         if (c.op === 'rename') name = c.name
     }
     if (s.n === 25) await film.clay(false)
+    if (s.n === 26) {
+        // the rook now stands on the ground: lift the camera and its target with it, keep orbiting
+        const b = (await film.stage({op: 'measure', object: name, mode: 'bounds'})).data[0]
+        const dy = (b.min[1] + b.max[1]) / 2 - 0.05
+        await film.stopMove()
+        const c = await film.page.evaluate(() => window.__film.getCamera())
+        await film.glide({position: [c.position[0], c.position[1] + dy, c.position[2]], target: [c.target[0], c.target[1] + dy, c.target[2]]}, 0.8)
+        await film.move({deg: 330 * 5 / 30, rise: 0.4 * 5 / 30, steps: 5 * 54})
+    }
     if (s.n < 25) await film.cage(name, '#ffb347', {occlude: true, width: 1.4})
     else await film.cage(null)
     const ch = s.checks
@@ -57,8 +66,12 @@ await film.caption('')
 await film.step('')
 film.ticker(false)
 film.chapter('Result')
-// the rook now stands on the ground (step 26): frame it there
-await film.glide({position: [2.3, 1.9, 2.7], target: [0, 0.75, 0], fov: 32}, 1.2)
+// frame the finished rook: where `camera {fit}` would put the camera, reached by a glide
+const here = await film.page.evaluate(() => window.__film.getCamera())
+await film.stage({op: 'camera', fit: name, padding: 1.25})
+const fit = await film.page.evaluate(() => window.__film.getCamera())
+await film.camera(here)
+await film.glide(fit, 1.2)
 await film.still('hero')
 const stats = await film.stats()
 const frameMs = await film.frameMs(60)
