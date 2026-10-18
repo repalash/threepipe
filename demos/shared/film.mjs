@@ -129,8 +129,9 @@ export async function openFilm(o = {}) {
             for (let i = 0; i < frames; i++) { await page.evaluate(() => window.__film.step()); await shoot(1) }
             return r
         },
-        /** Note a command the film carried out itself (an eased camera move) in the transcript. */
-        record(cmd) { transcript.push({command: cmd, ok: true, ms: 0, film: true}) },
+        /** Note a command in the transcript that did not go through `run`: one the film carried out itself (an eased camera
+         *  move; `film: true`), or a model command sent another way (`{film: false, ms, ok}`). */
+        record(cmd, extra = {}) { transcript.push({command: cmd, ok: true, ms: 0, film: true, ...extra}); if (extra.film === false) commandMs += extra.ms ?? 0 },
         /** A read-only command for the film itself (camera, reference, display): not in the transcript. */
         stage: cmd => page.evaluate(c => window.modelling.run(c), cmd),
         /** Set the camera now. */

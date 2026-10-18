@@ -85,7 +85,7 @@ for (const a of ASSETS) {
     const res = last.data.results.at(-1)
     const uiMs = Math.round(res?.ms ?? NaN)
     if (res?.op !== 'modifier' || !res.ok) throw new Error(`the panel edit did not land as a modifier update: ${JSON.stringify(res)}`)
-    film.record({op: 'modifier', object: a.object, index: 0, update: {inputs: {[a.field]: Number(a.value)}}, via: 'Properties > Modifiers (typed)'})
+    film.record({op: 'modifier', object: a.object, index: 0, update: {inputs: {[a.field]: Number(a.value)}}, via: 'Properties > Modifiers (typed)'}, {film: false, ok: true, ms: res.ms})
     await film.caption(`"${a.field}" = ${a.value}: one "modifier update", re-evaluated in ${uiMs} ms (in the page, GPU VM)`)
     await film.orbit({deg: 70, sec: 6})
     await film.still(`${a.asset}-edited`)
@@ -98,7 +98,7 @@ for (const a of ASSETS) {
             const r = await m.run({op: 'modifier', object, index: 0, update: {inputs: {...spec.inputs, ...inputs}}})
             return {ok: r.ok, ms: r.ms, error: r.error}
         }, {object: a.object, inputs})
-        film.record({op: 'modifier', object: a.object, index: 0, update: {inputs}})
+        film.record({op: 'modifier', object: a.object, index: 0, update: {inputs}}, {film: false, ok: r.ok, ms: r.ms})
         runs.push({inputs, ...r})
         await film.caption(`modifier {update: {inputs: ${JSON.stringify(inputs)}}}  →  ${r.ok ? `${Math.round(r.ms)} ms` : r.error}`)
         await film.orbit({deg: 30, sec: 2.6})
