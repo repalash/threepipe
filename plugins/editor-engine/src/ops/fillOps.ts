@@ -5,8 +5,7 @@
  * Each one is a *session* operator over the kernel's port of the matching Blender edit-mode exec
  * (`editors/mesh/editmesh_tools.cc` `edbm_*_exec`): the kernel function reads the BMesh selection,
  * runs the ported `bmo_*` operator with the RNA props, and leaves the selection as Blender leaves it.
- * Here we only snapshot, call it, and commit one labelled undo step - so the redo-last panel re-runs
- * it exactly (pop the step, `exec(newProps)`, push), as Blender's `ED_undo_operator_repeat` does.
+ * `session.ts` snapshots, calls it, and commits one labelled undo step, so redo-last re-runs it exactly.
  *
  * Props carry Blender's RNA identifiers in camelCase, Blender's defaults and descriptions. Every exec
  * reports back the full prop set it ran with, so the panel shows the values, not blanks.
@@ -31,55 +30,18 @@ import {
     vertConnectSelection,
 } from '@threepipe/mesh-kernel'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
-import type {EditorContext, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
-import {onlyInEditMessage, notModalMessage} from './messages'
-
-/** A session operator's kernel call: change `bm` in place, say what happened. */
-type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
-    {ok: true, label?: string, message?: string, props?: Record<string, unknown>} | {ok: false, error: string}
+import type {OperatorDescriptor, PropSchema} from '../registry'
+import {onlyInEditMessage} from './messages'
+import {sessionOps} from './session'
 
 export function registerFillOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
-    const notModal = () => notModalMessage(engine)
     const editing = () => me.isEditing || onlyInEditMessage(engine)
-    const ready = (poll: (ctx: EditorContext) => boolean | string) => (ctx: EditorContext) => {
-        const p = poll(ctx)
-        return p === true ? notModal() : p
-    }
+    const {ready, runSession} = sessionOps(engine)
     const hasVerts = (n: number, what: string) => () => {
         if (!me.state) return onlyInEditMessage(engine)
         return me.state.bm.totvertsel >= n || what
     }
-
-    /** Fill `props` from the schema defaults, so redo-last shows (and re-runs with) every value. */
-    const withDefaults = (schema: PropSchema | undefined, props: Record<string, unknown> | undefined) => {
-        const out: Record<string, unknown> = {}
-        for (const [k, def] of Object.entries(schema?.properties ?? {})) if (def.default !== undefined) out[k] = def.default
-        return {...out, ...props}
-    }
-
-    /**
-     * Snapshot, run, commit one undo step. A refused run changes nothing (the kernel functions return
-     * before touching the mesh where Blender does); a run that failed after changing the mesh is
-     * rolled back from the snapshot, as Blender's `EDBM_op_finish(.., false)` / redo-state restore do.
-     */
-    const runSession = (label: string, schema: PropSchema | undefined, run: KernelRun) =>
-        (ctx: EditorContext, p?: Record<string, unknown>): OperatorResult => {
-            const before = me.snapshot()
-            if (!before || !me.state) return {ok: false, error: onlyInEditMessage(engine)}
-            const props = withDefaults(schema, p)
-            // Grid Fill, Bridge and Edge-Ring's surface blend read the normals: the session keeps them
-            // current (`EditMeshState.update` after each commit, Blender's `EDBM_update`).
-            const r = run(props, ctx)
-            if (!r.ok) {
-                me.revert(before)
-                return {ok: false, error: r.error}
-            }
-            me.commit(before, r.label ?? label)
-            if (r.message) engine.message('info', r.message)
-            // Props the operator worked out itself (Grid Fill's span) are what the panel shows and redo reuses.
-            return {ok: true, props: {...props, ...r.props}}
-        }
 
     // --- Merge by Distance (`MESH_OT_remove_doubles`, editmesh_tools.cc:3746) ----------------------
     const mergeByDistanceProps: PropSchema = {type: 'object', properties: {
@@ -271,7 +233,8 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             // `MESH_OT_edge_face_add` (editmesh_tools.cc:1016): no props, so nothing to adjust afterwards.
-            id: 'mesh.fill', label: 'Make Edge/Face', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
+            // Blender's `mesh.fill` is the triangle fill (Alt+F), in `editmeshToolOps.ts`.
+            id: 'mesh.edge_face_add', label: 'Make Edge/Face', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
             description: 'Make an edge between two vertices, or a face from the selected vertices or edges - closed loops and edge nets fill, a lone vertex or edge on a border extends round the corner (Blender\'s F; press again to keep going).',
             flags: {undo: true, register: true},
             poll: ready(() => !me.state ? onlyInEditMessage(engine) : (me.state.bm.totvertsel > 0) || 'Select vertices or edges to make an edge or face from'),

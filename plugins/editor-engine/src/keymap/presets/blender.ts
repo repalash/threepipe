@@ -93,7 +93,7 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},                     // VIEW3D_MT_edit_mesh_merge :5618
         {keys: 'y', id: 'mesh.split', mode: 'edit'},                     // mesh.split :5624
         {keys: 'p', id: 'mesh.separate', mode: 'edit'},                  // mesh.separate :5623
-        {keys: 'f', id: 'mesh.fill', mode: 'edit', repeat: true},        // mesh.edge_face_add :5620
+        {keys: 'f', id: 'mesh.edge_face_add', mode: 'edit', repeat: true}, // :5620
         {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},         // mesh.vert_connect_path :5625
         {keys: 'shift+d', id: 'mesh.duplicate', mode: 'edit'},           // mesh.duplicate_move :5621
         {keys: 'x', id: 'mesh.delete', mode: 'edit'},                    // VIEW3D_MT_edit_mesh_delete :5634
@@ -110,5 +110,12 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'ctrl+alt+click', id: 'mesh.select_ring', mode: 'edit'},  // mesh.edgering_select :5567
         {keys: 'shift+v', id: 'mesh.vert_slide', mode: 'edit'},          // transform.vert_slide :5628
         {keys: 'ctrl+r', id: 'mesh.loopcut_slide', mode: 'edit'},        // mesh.loopcut_slide :5539
+        {keys: 'ctrl+numpadadd', id: 'mesh.select_more', mode: 'edit', repeat: true},      // :5579
+        {keys: 'ctrl+numpadsubtract', id: 'mesh.select_less', mode: 'edit', repeat: true}, // :5580
+        {keys: 'shift+n', id: 'mesh.normals_make_consistent', mode: 'edit', props: {inside: false}},     // :5595
+        {keys: 'ctrl+shift+n', id: 'mesh.normals_make_consistent', mode: 'edit', props: {inside: true}}, // :5597
+        {keys: 'alt+f', id: 'mesh.fill', mode: 'edit'},                  // :5604
+        {keys: 'ctrl+t', id: 'mesh.quads_convert_to_tris', mode: 'edit', props: {quadMethod: 'BEAUTY', ngonMethod: 'BEAUTY'}}, // :5605
+        {keys: 'ctrl+shift+t', id: 'mesh.quads_convert_to_tris', mode: 'edit', props: {quadMethod: 'FIXED', ngonMethod: 'CLIP'}}, // :5607
     ],
 }

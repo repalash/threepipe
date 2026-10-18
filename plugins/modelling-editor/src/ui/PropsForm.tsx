@@ -113,7 +113,7 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
 }
 
 export function PropsForm({schema, values, onChange, disabled}: PropsFormProps) {
-    const entries = Object.entries(schema.properties ?? {})
+    const entries = Object.entries(schema.properties ?? {}).filter(([, def]) => !def.hidden)
     if (!entries.length) return <div className="me-props-empty">No parameters.</div>
     return <div className="me-props-form">
         {entries.map(([name, def]) => <Field

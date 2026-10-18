@@ -93,7 +93,7 @@ export const designPreset: KeymapPreset = {
         // The IC keymap binds no key for these (its right-click context menu carries them, as ours does);
         // J is Blender's and free here, P is Modo's "Make Polygon" (free in edit mode: P parents in object mode).
         {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},
-        {keys: 'p', id: 'mesh.fill', mode: 'edit', repeat: true},
+        {keys: 'p', id: 'mesh.edge_face_add', mode: 'edit', repeat: true},
         {keys: 'ctrl+h', id: 'mesh.hide', mode: 'edit', props: {unselected: false}},  // mesh.hide :3100
         {keys: 'shift+h', id: 'mesh.hide', mode: 'edit', props: {unselected: true}},  // :3102
         {keys: 'alt+h', id: 'mesh.reveal', mode: 'edit'},                // mesh.reveal :3104

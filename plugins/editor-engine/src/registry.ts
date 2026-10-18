@@ -35,6 +35,11 @@ export interface PropDef {
     maxItems?: number
     /** `oneOf` object references from `plugin-modelling`; rendered as text. */
     oneOf?: unknown[]
+    /**
+     * Blender's `PROP_HIDDEN`: part of the props (a menu entry or key sets it, redo re-runs with it) but
+     * not drawn in the redo panel, e.g. Mark Seam's `clear` (`editmesh_tools.cc:1104`).
+     */
+    hidden?: boolean
 }
 
 export interface OperatorResult {

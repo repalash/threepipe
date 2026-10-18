@@ -323,7 +323,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             },
         },
         // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.
-        // `mesh.fill` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
+        // `mesh.edge_face_add` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
         // `mesh.subdivide` (`bmo_subdivide_edges`, all patterns) is registered by loopOps.ts.
         // --- topology: document commands ------------------------------------------------------
         {

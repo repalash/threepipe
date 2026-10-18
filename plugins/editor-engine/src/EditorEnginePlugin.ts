@@ -60,6 +60,7 @@ import {registerFileOperators} from './ops/fileOps'
 import {registerObjectOperators} from './ops/objectOps'
 import {registerMeshOperators} from './ops/meshOps'
 import {registerFillOperators} from './ops/fillOps'
+import {registerEditmeshToolOperators} from './ops/editmeshToolOps'
 import {registerLoopOperators} from './ops/loopOps'
 import {registerModellingOperators} from './ops/modellingOps'
 import {registerTools} from './tools/tools'
@@ -202,6 +203,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             registerObjectOperators(this)
             registerMeshOperators(this)
             registerFillOperators(this)
+            registerEditmeshToolOperators(this)
             registerLoopOperators(this)
             registerModellingOperators(this)
             registerTools(this)

@@ -51,7 +51,7 @@ const byLabel = (menu: ResolvedMenu, label: string) => menu.items.find(i => 'lab
 
 const ENGINE_OPS = ['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.duplicate', 'mesh.extrude', 'mesh.merge', 'mesh.remove_doubles',
     'mesh.split', 'mesh.separate', 'mesh.bisect', 'mesh.knife', 'mesh.delete', 'mesh.dissolve_verts', 'mesh.dissolve_edges',
-    'mesh.dissolve_faces', 'mesh.dissolve_limited', 'mesh.bevel', 'mesh.fill', 'mesh.vert_connect_path', 'mesh.vert_connect',
+    'mesh.dissolve_faces', 'mesh.dissolve_limited', 'mesh.bevel', 'mesh.edge_face_add', 'mesh.vert_connect_path', 'mesh.vert_connect',
     'mesh.vert_slide', 'mesh.edge_slide', 'mesh.subdivide', 'mesh.subdivide_edgering', 'mesh.bridge_edge_loops', 'mesh.loopcut_slide',
     'mesh.inset', 'mesh.fill_grid', 'mesh.hide', 'mesh.reveal', 'mesh.select_all', 'mesh.select_none', 'mesh.select_invert',
     'mesh.select_linked', 'mesh.vertices_menu', 'mesh.edges_menu', 'mesh.faces_menu', 'add.menu', 'add.cube']

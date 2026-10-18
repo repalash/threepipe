@@ -4744,7 +4744,7 @@ test('modelling-editor-fill', async({page}) => {
     await page.keyboard.press('KeyF')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
     s = await state()
-    expect(s.lastOp).toBe('mesh.fill')
+    expect(s.lastOp).toBe('mesh.edge_face_add')
     expect(s.history.at(-1)).toBe('Make Face')
     expect(s.sel).toEqual([4, 4, 1])                         // the new face is selected
     // Nothing more to make: F says so and changes nothing.
