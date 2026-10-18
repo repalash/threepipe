@@ -155,7 +155,9 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         if (!tree) return undefined
         const properties: Record<string, unknown> = {}
         const values: Record<string, unknown> = {}
+        const identifierOf: Record<string, string> = {}
         for (const s of tree.interface.filter(isInterfaceSocket).filter(i => i.inOut === 'INPUT')) {
+            identifierOf[s.name] = s.identifier
             const type = socketTypeFromIdname(s.socketType)
             // An input reading an attribute is not a value to edit here.
             if (isAttributeInput(spec.inputs?.[s.name] ?? spec.inputs?.[s.identifier])) continue
@@ -180,7 +182,10 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
                 const inputs: Record<string, ModifierInputValue> = {...(spec.inputs ?? {})}
                 for (const [k, v] of Object.entries(next)) {
                     const d = (properties[k] as {default?: unknown}).default
-                    if (k in inputs || JSON.stringify(v) !== JSON.stringify(d)) inputs[k] = v as JSONValue
+                    // A spec keyed by identifier (a Blender file's modifier, `Input_6`) keeps that key: the evaluation
+                    // reads the identifier first, so a value written under the name would be shadowed.
+                    const key = identifierOf[k] !== undefined && identifierOf[k] in inputs ? identifierOf[k] : k
+                    if (key in inputs || JSON.stringify(v) !== JSON.stringify(d)) inputs[key] = v as JSONValue
                 }
                 return {inputs}
             },
