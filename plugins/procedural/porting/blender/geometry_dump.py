@@ -220,6 +220,16 @@ def serialize_value(value):
         return str(value)
 
 
+def output_group(mod, identifier):
+    """The generated property group of one modifier output (`mod.properties.outputs.<identifier>`, with
+    `attribute_name`), or None (geometry outputs have none)."""
+    props = getattr(mod, "properties", None)
+    outputs = getattr(props, "outputs", None) if props is not None else None
+    if outputs is None:
+        return None
+    return getattr(outputs, identifier, None)
+
+
 def input_group(mod, identifier):
     """The generated property group of one modifier input (5.x: `mod.properties.inputs.<identifier>`,
     `nodes/intern/geometry_nodes_srna.cc:110`), or None (geometry sockets have none)."""

@@ -34,6 +34,7 @@ import type {SceneProvider} from '../runtime/context'
 import {newMeshData} from './components'
 import {meshCachedMaxMaterialIndex, meshEnsureMaxMaterialIndex} from './meshRuntime'
 import {copyMesh, meshTagPositionsChanged} from './meshRuntime'
+import {meshNormalsDomain} from './meshNormals'
 
 export interface RealizeInstancesOptions {
     /** Keep ids of the original geometry instead of mixing in instance ids (Join Geometry uses this). */
@@ -328,6 +329,39 @@ interface MeshInfo {
     attributes: (GVArray | undefined)[]
     storedVertIds?: GVArray
     materialIndices: GVArray
+    /** `MeshRealizeInfo::custom_normal` for corner-fan output: the mesh's `short2` corner normals, if it has them. */
+    cornerFanNormals?: ArrayLike<number>
+}
+
+/** `bke::mesh::NormalJoinInfo` (`BKE_mesh.hh:259`, `mesh_normals.cc:1739-1791`). */
+class NormalJoinInfo {
+    resultType: 'None' | 'CornerFan' | 'Free' = 'None'
+    resultDomain: AttrDomain | undefined
+
+    private addDomain(domain: AttrDomain): void {
+        // Any combination of point/face domains puts the result normals on the corner domain.
+        if (this.resultDomain !== undefined) {
+            if (this.resultDomain !== domain) this.resultDomain = AttrDomain.Corner
+        } else this.resultDomain = domain
+    }
+
+    addMesh(mesh: MeshData): void {
+        const layer = mesh.attributes.get('custom_normal')
+        if (!layer || (layer.type === 'float3' && layer.domain === AttrDomain.Edge)) {
+            // `add_no_custom_normals(mesh.normals_domain())`.
+            const d = meshNormalsDomain(mesh)
+            this.addDomain(d === 'point' ? AttrDomain.Point : d === 'face' ? AttrDomain.Face : AttrDomain.Corner)
+            return
+        }
+        if (layer.type === 'float3') {
+            this.addDomain(layer.domain)
+            this.resultType = 'Free'
+        } else if (layer.type === 'int16x2' && layer.domain === AttrDomain.Corner) {
+            // `CORNER_FAN_META_DATA`.
+            this.addDomain(AttrDomain.Corner)
+            if (this.resultType === 'None') this.resultType = 'CornerFan'
+        }
+    }
 }
 
 interface CurveInfo {
@@ -421,8 +455,13 @@ export function realizeInstances(geometry: GeometrySet, options: RealizeInstance
     const addMaterial = (m: string | null) => {
         if (!materials.includes(m)) materials.push(m)
     }
+    // `preprocess_meshes` (:1563): the normals every mesh brings.
+    const normalJoin = new NormalJoinInfo()
+    for (const mesh of meshes) normalJoin.addMesh(mesh)
+    if (normalJoin.resultType === 'Free') {
+        throw new Error('procedural: realizing meshes with free (float3) custom normals is not ported yet (math::transform_normals, corner normals)')
+    }
     for (const mesh of meshes) {
-        if (mesh.attributes.has('custom_normal')) throw new Error('procedural: realizing meshes with custom normals is not ported yet')
         if (mesh.materials.length === 0) addMaterial(null)
         else mesh.materials.forEach(m => addMaterial(m || null))
     }
@@ -435,6 +474,8 @@ export function realizeInstances(geometry: GeometrySet, options: RealizeInstance
             attributes: meshOrder.names.map((n, i) => acc.contains(n) ? acc.lookupOrDefault(n, meshOrder.kinds[i].domain, meshOrder.kinds[i].type) : undefined),
             storedVertIds: meshFlags.id && acc.lookupMeta('id')?.domain === AttrDomain.Point && acc.lookupMeta('id')?.type === 'int32' ? acc.lookup('id') : undefined,
             materialIndices: acc.lookupOrDefault('material_index', AttrDomain.Face, 'int32', [0]),
+            cornerFanNormals: normalJoin.resultType === 'CornerFan' && mesh.attributes.get('custom_normal')?.type === 'int16x2'
+                && mesh.attributes.get('custom_normal')?.domain === AttrDomain.Corner ? mesh.attributes.get('custom_normal')!.data : undefined,
         }
     })
     let curvesRadius = false
@@ -560,7 +601,7 @@ export function realizeInstances(geometry: GeometrySet, options: RealizeInstance
     result.name = geometry.name
     executeInstancesTasks(instToMerge, instOrder, result)
     executePointCloudTasks(o, pcTasks, pcOrder, offsets.pc, pcFlags, result)
-    executeMeshTasks(o, meshTasks, meshOrder, offsets, meshFlags, materials, meshInfos, result)
+    executeMeshTasks(o, meshTasks, meshOrder, offsets, {...meshFlags, cornerFanNormals: normalJoin.resultType === 'CornerFan'}, materials, meshInfos, result)
     executeCurveTasks(o, curveTasks, curveOrder, offsets, curveFlags, curvesRadius, curvesHandles, result)
     return result
 }
@@ -783,7 +824,7 @@ function executePointCloudTasks(
 function executeMeshTasks(
     o: Required<RealizeInstancesOptions>, tasks: Task<MeshInfo>[], order: Ordered,
     offsets: {vert: number, edge: number, face: number, corner: number},
-    flags: {id: boolean, materialIndex: boolean}, materials: (string | null)[], infos: MeshInfo[], result: GeometrySet,
+    flags: {id: boolean, materialIndex: boolean, cornerFanNormals?: boolean}, materials: (string | null)[], infos: MeshInfo[], result: GeometrySet,
 ): void {
     if (!tasks.length) return
     if (tasks.length === 1) {
@@ -809,6 +850,8 @@ function executeMeshTasks(
     dst.materials = slots
     const acc = new MeshAccessor(dst)
     if (flags.id) acc.add('id', AttrDomain.Point, 'int32')
+    // `custom_normals` (:2073): corner-fan normals are copied per mesh, zero where a mesh has none.
+    const fanLayer = flags.cornerFanNormals ? dst.attributes.add({name: 'custom_normal', domain: AttrDomain.Corner, type: 'int16x2'}) : undefined
     order.names.forEach((n, i) => acc.add(n, order.kinds[i].domain, order.kinds[i].type))
     const pos = dst.positions
     const ev = dst.edgeVerts
@@ -832,6 +875,11 @@ function executeMeshTasks(
             ce[sc + i] = sce[i] + se
         }
         for (let i = 0; i < m.facesNum; i++) fo[sf + i] = m.faceOffsets[i] + sc
+        if (fanLayer) {
+            const fan = t.info.cornerFanNormals
+            if (fan) fanLayer.data.set(fan, sc * 2)
+            else fanLayer.data.fill(0, sc * 2, (sc + m.cornersNum) * 2)
+        }
         if (flags.id) createResultIds(o.keepOriginalIds, t.info.storedVertIds, t.id, (dst.attributes.get('id')!.data as Int32Array).subarray(sv, sv + m.vertsNum))
         copyGenericAttributes(t.info.attributes, t.fallbacks, order, d => {
             switch (d) {

@@ -15,6 +15,14 @@ import type {ExpectedGeometry} from '../testing/compareGeometry'
 import type {DumpReferenced} from './geometryFromDump'
 
 /** A modifier input as dumped (`mod.properties.inputs.<identifier>`). */
+/** A nodes modifier's output attribute (`dump_blend.py` `modifier_outputs`): the attribute an output is stored as. */
+export interface DumpModifierOutput {
+    name: string
+    socketType: string
+    attribute_name: string
+    attribute_domain: string
+}
+
 export interface DumpModifierInput {
     name: string
     socketType?: string
@@ -95,7 +103,7 @@ export interface DumpV2 {
         name: string
         type?: string
         matrix_world?: number[]
-        modifiers: {name: string, type: string, enabled: boolean, nodeGroup: string | null, inputs: Record<string, DumpModifierInput> | null}[]
+        modifiers: {name: string, type: string, enabled: boolean, nodeGroup: string | null, inputs: Record<string, DumpModifierInput> | null, outputs?: Record<string, DumpModifierOutput> | null}[]
         /** Geometry entering the first enabled nodes modifier (`geometry_dump.py` format). */
         input_geometry?: ExpectedGeometry | null
         /** The evaluated object (all modifiers applied). */

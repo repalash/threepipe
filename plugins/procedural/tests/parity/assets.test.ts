@@ -10,7 +10,7 @@ import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator, GeometrySet} from '../../src'
 import {DumpV2, dumpTime, importBlenderDump} from '../../src/io/importBlenderDump'
-import {applyModifierInputs, BinResolver, binResolver, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
+import {applyModifierInputs, applyModifierOutputs, BinResolver, binResolver, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
 import {getNodeType} from '../../src/runtime/registry'
 import type {NodeGroupLibrary} from '../../src/runtime/types'
@@ -59,6 +59,7 @@ function evaluateObject(dump: DumpV2, resolve: BinResolver, library: NodeGroupLi
     for (const m of enabled.slice(enabled.findIndex(m => m.type === 'NODES'))) {
         const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name, time: dumpTime(dump)})
         applyModifierInputs(ev, m.inputs ?? {})
+        applyModifierOutputs(ev, m.outputs ?? {})
         ev.setInputGeometry(geometry)
         geometry = ev.evaluate().geometry ?? new GeometrySet()
     }
@@ -114,7 +115,9 @@ describe.skipIf(!bundled.length)('runtime bundles', () => {
             const bundle = JSON.parse(readFileSync(join(BUNDLES, asset, 'bundle.json'), 'utf8')) as DumpV2
             expect(bundle.format).toBe('threepipe-procedural-bundle/1')
             expect(bundle.objects.every(o => !('output_geometry' in o))).toBe(true)
-            const fromDump = binResolver({'dump.bin': readFileSync(join(ROOT, asset, 'dump.bin'))})
+            // A dump whose arrays all fit inline has no dump.bin.
+            const dumpBin = join(ROOT, asset, 'dump.bin')
+            const fromDump = binResolver(existsSync(dumpBin) ? {'dump.bin': readFileSync(dumpBin)} : {})
             const fromBundle = binResolver({'bundle.bin': readFileSync(join(BUNDLES, asset, 'bundle.bin'))})
             const bundleLibrary = importBlenderDump(bundle).library
             for (const object of dump.objects) {

@@ -10,7 +10,7 @@ import {GeometrySet} from '../geometry/GeometrySet'
 import {CurvesGeometry, InstanceReference, Instances, PointCloud} from '../geometry/components'
 import type {ExpectedAttribute, ExpectedGeometry, ExpectedReference} from '../testing/compareGeometry'
 import type {SceneProvider, SceneObject, SceneCollection, SceneImage} from '../runtime/context'
-import type {DumpModifierInput} from './importBlenderDump'
+import type {DumpModifierInput, DumpModifierOutput} from './importBlenderDump'
 import type {GeometryNodesEvaluator} from '../runtime/evaluator'
 import {GField} from '../fields/field'
 import {AttributeFieldInput} from '../fields/inputs'
@@ -245,6 +245,11 @@ export function applyModifierInputs(ev: GeometryNodesEvaluator, inputs: Record<s
         }
         if (input.value !== undefined) ev.setInput(identifier, input.value as JSONValue)
     }
+}
+
+/** A nodes modifier's output attribute names (`store_output_attributes`), from a dump. */
+export function applyModifierOutputs(ev: GeometryNodesEvaluator, outputs: Record<string, DumpModifierOutput>): void {
+    for (const [identifier, output] of Object.entries(outputs)) ev.setOutputAttribute(identifier, output.attribute_name)
 }
 
 export {DATA_TYPES}

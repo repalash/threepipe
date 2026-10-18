@@ -81,8 +81,13 @@ def main():
     src, dst = sys.argv[1], sys.argv[2]
     with open(os.path.join(src, "dump.json"), encoding="utf8") as handle:
         dump = json.load(handle)
-    with open(os.path.join(src, "dump.bin"), "rb") as handle:
-        packer = Packer(handle.read())
+    # A dump whose arrays all fit inline has no dump.bin.
+    bin_path = os.path.join(src, "dump.bin")
+    if os.path.exists(bin_path):
+        with open(bin_path, "rb") as handle:
+            packer = Packer(handle.read())
+    else:
+        packer = Packer(b"")
 
     images = dump["referenced"].get("images", {})
     packed_images = {}

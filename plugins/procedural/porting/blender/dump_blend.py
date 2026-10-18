@@ -32,7 +32,7 @@ import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from geometry_dump import BinWriter, input_group, matrix_list, read_geometry, serialize_value  # noqa: E402
+from geometry_dump import BinWriter, input_group, matrix_list, output_group, read_geometry, serialize_value  # noqa: E402
 
 FORBIDDEN = frozenset([
     "bl_idname", "bl_label", "bl_subtype_label", "bl_static_type", "bl_description", "bl_icon",
@@ -264,6 +264,21 @@ def modifier_inputs(mod):
     return values
 
 
+def modifier_outputs(mod):
+    """The output attributes a nodes modifier stores (`store_output_attributes`, geometry_nodes_execute.cc:511):
+    each interface output with a non-empty `attribute_name`, with its domain."""
+    outputs = {}
+    for item in mod.node_group.interface.items_tree:
+        if item.item_type != "SOCKET" or item.in_out != "OUTPUT":
+            continue
+        group = output_group(mod, item.identifier)
+        name = getattr(group, "attribute_name", "") if group is not None else ""
+        if name:
+            outputs[item.identifier] = {"name": item.name, "socketType": item.bl_socket_idname,
+                                        "attribute_name": name, "attribute_domain": item.attribute_domain}
+    return outputs
+
+
 def apply_sets(sets):
     applied = []
     for spec in sets:
@@ -388,6 +403,7 @@ def main():
                 "enabled": m.show_viewport,
                 "nodeGroup": m.node_group.name if m.type == "NODES" and m.node_group else None,
                 "inputs": modifier_inputs(m) if m.type == "NODES" and m.node_group else None,
+                "outputs": modifier_outputs(m) if m.type == "NODES" and m.node_group else None,
             } for m in obj.modifiers],
             "input_geometry": input_geometry(obj, writer),
             "output_geometry": geometry_of(obj, writer),

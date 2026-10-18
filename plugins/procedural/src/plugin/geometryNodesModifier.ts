@@ -29,6 +29,11 @@ export interface GeometryNodesModifierSpec {
      * can read a mesh attribute instead: `{attribute: 'UVMap'}`.
      */
     inputs?: Record<string, ModifierInputValue>
+    /**
+     * Output attributes by interface output name or identifier: the attribute name each field output is stored as on
+     * the result, on the output's domain (Blender's modifier output attribute names).
+     */
+    outputs?: Record<string, string>
     [key: string]: unknown
 }
 
@@ -127,14 +132,21 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
     properties: {
         group: {type: 'string', description: 'Node group name (see `nodeGroup`).'},
         inputs: {type: 'object', description: 'Input values by interface socket name or identifier.'},
+        outputs: {type: 'object', description: 'Attribute names to store field outputs as, by output socket name or identifier.'},
     },
     read(raw) {
-        return {type: 'geometryNodes', group: raw.group as string, inputs: {...(raw.inputs as Record<string, ModifierInputValue> ?? {})}}
+        const spec: GeometryNodesModifierSpec = {type: 'geometryNodes', group: raw.group as string, inputs: {...(raw.inputs as Record<string, ModifierInputValue> ?? {})}}
+        if (raw.outputs) spec.outputs = {...raw.outputs as Record<string, string>}
+        return spec
     },
     check(spec) {
         if (typeof spec.group !== 'string' || !spec.group) throw new Error('a geometryNodes modifier needs a `group` name')
         if (spec.inputs !== undefined && (typeof spec.inputs !== 'object' || Array.isArray(spec.inputs))) {
             throw new Error('a geometryNodes modifier `inputs` must be an object of values by socket name')
+        }
+        if (spec.outputs !== undefined && (typeof spec.outputs !== 'object' || Array.isArray(spec.outputs)
+            || Object.values(spec.outputs).some(v => typeof v !== 'string'))) {
+            throw new Error('a geometryNodes modifier `outputs` must be an object of attribute names by output socket name')
         }
     },
     // The group's interface inputs (not the geometry) as fields; an edit updates `inputs` by socket name.
@@ -214,6 +226,15 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         for (const k of Object.keys(given)) {
             if (!ev.interfaceInputs.some(s => s.identifier === k || s.name === k)) {
                 throw new Error(`node group "${spec.group}" has no input "${k}" (inputs: ${ev.interfaceInputs.map(s => s.name).join(', ')})`)
+            }
+        }
+        for (const o of ev.interfaceOutputs.filter(isInterfaceSocket)) {
+            if (o.socketType.startsWith('NodeSocketGeometry')) continue
+            ev.setOutputAttribute(o.identifier, spec.outputs?.[o.identifier] ?? spec.outputs?.[o.name] ?? '')
+        }
+        for (const k of Object.keys(spec.outputs ?? {})) {
+            if (!ev.interfaceOutputs.some(o => o.identifier === k || o.name === k)) {
+                throw new Error(`node group "${spec.group}" has no output "${k}" (outputs: ${ev.interfaceOutputs.map(o => o.name).join(', ')})`)
             }
         }
         // The stack passes the whole geometry down (Blender's geometry set): what an earlier geometry-nodes modifier

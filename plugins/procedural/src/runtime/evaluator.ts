@@ -37,6 +37,8 @@ import {
 import type {EvalOptions} from './context'
 import {executeForeach, ForeachHost} from './foreachZone'
 import {executeMultiFunctionOnLists, GList} from './list'
+import {OutputAttributeInfo, outputField, storeOutputAttributes} from './outputAttributes'
+import {domainFromRNA} from '../nodes/attributeTypes'
 
 /** An error raised by a node, with the node and tree it happened in. Thrown once, not re-wrapped upstream. */
 export class NodeEvaluationError extends Error {}
@@ -985,6 +987,8 @@ export class GeometryNodesEvaluator {
     private readonly tree: TreeEval
     private readonly inputs = new Map<string, SocketValue>()
     private readonly externalVersions = new Map<string, number | string>()
+    /** Output identifier -> attribute name the modifier stores the output under (`store_output_attributes`). */
+    private readonly outputAttributes = new Map<string, string>()
 
     constructor(library: NodeGroupLibrary, groupName: string, options: EvalOptions = {}) {
         const tree = library[groupName]
@@ -1036,6 +1040,17 @@ export class GeometryNodesEvaluator {
         this.inputs.set(s.identifier, v)
     }
 
+    /**
+     * Store a field output under an attribute name on the output geometry, on the output's `attribute_domain`, as a
+     * nodes modifier does with its output attribute names (`store_output_attributes`). An empty name stores nothing.
+     */
+    setOutputAttribute(nameOrIdentifier: string, attributeName: string): void {
+        const s = this.tree.outputs.find(o => o.identifier === nameOrIdentifier) ?? this.tree.outputs.find(o => o.name === nameOrIdentifier)
+        if (!s) throw new Error(`procedural: node group '${this.tree.tree.name}' has no output '${nameOrIdentifier}' (outputs: ${this.tree.outputs.map(o => o.name).join(', ')})`)
+        if (attributeName) this.outputAttributes.set(s.identifier, attributeName)
+        else this.outputAttributes.delete(s.identifier)
+    }
+
     /** The object's geometry, fed to the first geometry input (`modifyGeometry` input). */
     setInputGeometry(geometry: GeometrySet): void {
         const s = this.tree.inputs.find(i => socketTypeFromIdname(i.socketType) === 'GEOMETRY')
@@ -1076,10 +1091,19 @@ export class GeometryNodesEvaluator {
         for (const o of this.tree.outputs) {
             const v = this.tree.groupOutput(o.identifier)
             outputs[o.identifier] = v
-            if (!geometry && v instanceof GeometrySet) {
-                geometry = v.copy()
-                geometry.removeAnonymousAttributes()
+            if (!geometry && v instanceof GeometrySet) geometry = v.copy()
+        }
+        if (geometry) {
+            // `store_output_attributes` (geometry_nodes_execute.cc:651), before the anonymous attributes the fields
+            // may read are removed.
+            const infos: OutputAttributeInfo[] = []
+            for (const o of this.tree.outputs.slice(1)) {
+                const name = this.outputAttributes.get(o.identifier)
+                const field = name ? outputField(outputs[o.identifier]) : undefined
+                if (name && field) infos.push({name, field, domain: domainFromRNA(o.attribute_domain ?? 'POINT')})
             }
+            if (infos.length) geometry = storeOutputAttributes(geometry, infos, this.root.options.scene)
+            geometry.removeAnonymousAttributes()
         }
         return {outputs, geometry, stats: this.root.stats, warnings: this.root.warnings}
     }
