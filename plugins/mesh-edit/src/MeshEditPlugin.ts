@@ -935,6 +935,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         })
         faceMaterial.toneMapped = false
         faceMaterial.depthTest = !this.xray
+        // Widgets keep their own material under the viewport's Solid / Wireframe shading (`overlayMaterials.ts`).
+        ;(faceMaterial as any).allowOverride = false
         this._faceHighlight = new Mesh2(new BufferGeometry2(), faceMaterial)
         this._faceHighlight.renderOrder = 98
         this._faceHighlight.frustumCulled = false
@@ -946,6 +948,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         })
         preMaterial.toneMapped = false
         preMaterial.depthTest = !this.xray
+        ;(preMaterial as any).allowOverride = false
         this._facePreselect = new Mesh2(new BufferGeometry2(), preMaterial)
         this._facePreselect.renderOrder = 97
         this._facePreselect.frustumCulled = false
