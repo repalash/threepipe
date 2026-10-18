@@ -92,6 +92,7 @@ registerNodeType({
     label: 'Wave Texture',
     // `node_shader_init_tex_wave` (:76).
     properties: {wave_type: 'BANDS', bands_direction: 'X', rings_direction: 'X', wave_profile: 'SIN'},
+    enums: {wave_type: ['BANDS', 'RINGS'], bands_direction: ['X', 'Y', 'Z', 'DIAGONAL'], rings_direction: ['X', 'Y', 'Z', 'SPHERICAL'], wave_profile: ['SIN', 'SAW', 'TRI']},
     declare(b) {
         b.input('VECTOR', 'Vector').implicit('POSITION')
         b.input('FLOAT', 'Scale').default(5).min(-1000).max(1000)

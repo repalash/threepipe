@@ -64,6 +64,7 @@ registerNodeType({
     label: 'Gradient Texture',
     // `node_shader_init_tex_gradient` (:36): `SHD_BLEND_LINEAR`.
     properties: {gradient_type: 'LINEAR'},
+    enums: {gradient_type: ['LINEAR', 'QUADRATIC', 'EASING', 'DIAGONAL', 'SPHERICAL', 'QUADRATIC_SPHERE', 'RADIAL']},
     declare(b) {
         b.input('VECTOR', 'Vector').implicit('POSITION')
         b.output('RGBA', 'Color')

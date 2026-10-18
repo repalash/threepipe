@@ -2,3 +2,5 @@ These reference cases are Blender 5.2.2 LTS (build d13f752e3b9c) output for smal
 collected by geonodes-kit (https://github.com/vibegameengine/geonodes-kit, MIT, see LICENSE in this
 folder), commit 16226b8e1c9b7998fa25d673041b3dca3173dcd4 Tue Sep 29 12:12:26 2026 +0300, directory reference/cases/. They are data, used here only as parity fixtures;
 no geonodes-kit code is used. cases.json is the list the cases were generated from.
+coverage/nodes-5.2.2.json is geonodes-kit's inventory of Blender 5.2.2's node declarations (same commit,
+directory coverage/), used by tests/parity/registry.test.ts to check every ported declaration.

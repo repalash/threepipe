@@ -9,7 +9,7 @@
 
 import {f32} from '../../blender/f32'
 import {dot3, length3} from '../../blender/math/vec'
-import {MultiFunction} from '../../fields/field'
+import {GField, MultiFunction} from '../../fields/field'
 import {registerNodeType} from '../../runtime/registry'
 import type {IDRef, SocketType} from '../../runtime/types'
 import {colormanagementLuminance, elementwiseBool} from '../util'
@@ -160,6 +160,13 @@ registerNodeType({
     label: 'Compare',
     // `node_init` (:95-102).
     properties: {operation: 'GREATER_THAN', data_type: 'FLOAT', mode: 'ELEMENT'},
+    // node_fn_compare.cc:756-826. `operation` items depend on the data type (:764); this is their union,
+    // and compareOperation() applies data_type_update's coercion.
+    enums: {
+        operation: ['LESS_THAN', 'LESS_EQUAL', 'GREATER_THAN', 'GREATER_EQUAL', 'EQUAL', 'NOT_EQUAL', 'BRIGHTER', 'DARKER'],
+        data_type: ['FLOAT', 'INT', 'VECTOR', 'RGBA', 'STRING', 'OBJECT', 'IMAGE', 'COLLECTION', 'MATERIAL', 'FONT', 'SOUND'],
+        mode: ['ELEMENT', 'LENGTH', 'AVERAGE', 'DOT_PRODUCT', 'DIRECTION'],
+    },
     declare(b, node) {
         // :44-83.
         const dataType = node.prop<string>('data_type')
@@ -179,6 +186,13 @@ registerNodeType({
         if (isVector && mode === 'DIRECTION') b.input('FLOAT', 'Angle').default(0.0872665).subtype('ANGLE')
         if (FLOAT_TYPES.has(dataType) && (operation === 'EQUAL' || operation === 'NOT_EQUAL')) b.input('FLOAT', 'Epsilon').default(0.001)
         b.output('BOOLEAN', 'Result')
+    },
+    singleValueFunction(node) {
+        const dataType = node.prop<string>('data_type')
+        if (dataType !== 'STRING' && !DATA_BLOCK_TYPES.has(dataType)) return undefined
+        const operation = node.prop<string>('operation')
+        // SI2_SO<std::string, std::string, bool> / SI2_SO<T *, T *, bool> (:638-685).
+        return ([a, b]) => [GField.constant('bool', [compareSingleValues(dataType, operation, a as string | IDRef | null, b as string | IDRef | null) ? 1 : 0])]
     },
     multiFunction(node) {
         return compareFunction(node.prop<string>('data_type'), node.prop<string>('operation'), node.prop<string>('mode'))

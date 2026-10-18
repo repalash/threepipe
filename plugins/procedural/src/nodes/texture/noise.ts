@@ -94,6 +94,7 @@ registerNodeType({
     label: 'Noise Texture',
     // `node_shader_init_tex_noise` (:123): 3D (geometry/shader trees), fBM, normalize on.
     properties: {noise_dimensions: '3D', noise_type: 'FBM', normalize: true},
+    enums: {noise_dimensions: ['1D', '2D', '3D', '4D'], noise_type: ['MULTIFRACTAL', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL', 'FBM', 'HETERO_TERRAIN']},
     declare(b, node) {
         const dimensions = texDimensions(node.prop<string>('noise_dimensions'))
         const type = noiseType(node.prop<string>('noise_type'))

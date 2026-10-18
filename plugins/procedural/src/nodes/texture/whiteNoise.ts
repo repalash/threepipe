@@ -68,6 +68,7 @@ registerNodeType({
     label: 'White Noise Texture',
     // `node_shader_init_tex_white_noise` (:54): `custom1 = 3` outside the compositor.
     properties: {noise_dimensions: '3D'},
+    enums: {noise_dimensions: ['1D', '2D', '3D', '4D']},
     declare(b, node) {
         const dimensions = texDimensions(node.prop<string>('noise_dimensions'))
         b.input('VECTOR', 'Vector').min(-10000).max(10000).implicit('POSITION').available(dimensions !== 1)

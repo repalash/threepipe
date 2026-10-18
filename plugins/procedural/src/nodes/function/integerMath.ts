@@ -55,6 +55,8 @@ registerNodeType({
     idname: 'FunctionNodeIntegerMath',
     label: 'Integer Math',
     properties: {operation: 'ADD'},
+    // rna_enum_node_integer_math_items (node_fn_integer_math.cc:272).
+    enums: {operation: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE', 'MULTIPLY_ADD', 'ABSOLUTE', 'NEGATE', 'POWER', 'MINIMUM', 'MAXIMUM', 'SIGN', 'DIVIDE_ROUND', 'DIVIDE_FLOOR', 'DIVIDE_CEIL', 'FLOORED_MODULO', 'MODULO', 'GCD', 'LCM']},
     declare(b, node) {
         const op = node.prop<string>('operation')
         b.input('INT', 'Value')

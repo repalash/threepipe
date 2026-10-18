@@ -9,6 +9,7 @@ import {describe, expect, it} from 'vitest'
 import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {CaseJSON, compareGeometry, ExpectedGeometry, GeometryNodesEvaluator, getNodeType, importCase} from '../../src'
+import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
 
 const dir = join(__dirname, 'geonodes-kit')
 const files = readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'cases.json').sort()
@@ -18,7 +19,8 @@ interface Status {
     reason?: string
 }
 
-const BUILTIN = new Set(['NodeReroute', 'NodeGroupInput', 'NodeGroupOutput', 'NodeFrame', 'GeometryNodeGroup'])
+// Structural nodes the runtime evaluates itself.
+const BUILTIN = BUILTIN_TYPES
 const results: Record<string, Status> = {}
 
 function missingTypes(c: CaseJSON): string[] {
