@@ -13,6 +13,14 @@
  * Focus-aware: keys typed into an input, textarea, select or contenteditable belong to it; Space and
  * Enter on a focused button activate the button. The host can add its own veto through `filter`
  * (the shell vetoes while a dialog is open) and can `suspend` the router outright.
+ *
+ * The viewport takes the keys back when the pointer is over it, as Blender sends key events to the
+ * area under the pointer (`wm_event_system.cc:4400`, `wm_event_inside_rect(event, &area->totrct)`)
+ * and only a text field being edited keeps them (its handler is the window's modal one). So when the
+ * pointer moves over the canvas, a focused panel control that is not a text field - a checkbox, a
+ * toggle button, a select - lets go of the focus. Text fields keep it until Enter, Esc or a click
+ * elsewhere (the redo panel's number fields end their editing on Enter and Esc).
+ * See `issues/open/modelling-tools/ux-keys-after-redo-panel.md`.
  */
 
 import type {EditorMode, InputApi, KeyBinding} from '../registry'
@@ -38,6 +46,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
     return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
 }
 
+/** An element that takes typed text: a text-like input, a textarea, a contenteditable. */
+function isTextEntry(el: Element | null): boolean {
+    const h = el as HTMLElement | null
+    if (!h || !h.tagName) return false
+    if (h.tagName === 'TEXTAREA' || h.isContentEditable) return true
+    if (h.tagName !== 'INPUT') return false
+    const type = ((h as HTMLInputElement).type || 'text').toLowerCase()
+    return ['text', 'number', 'search', 'email', 'url', 'tel', 'password'].includes(type)
+}
+
 function isButtonActivation(event: KeyboardEvent): boolean {
     const el = event.target as HTMLElement | null
     if (!el || !el.tagName) return false
@@ -59,6 +77,7 @@ export class InputRouter implements InputApi {
         window.addEventListener('blur', this._onBlur)
         _host.canvas.addEventListener('pointermove', this._onPointerMove)
         _host.canvas.addEventListener('pointerdown', this._onPointerMove)
+        _host.canvas.addEventListener('pointerenter', this._onPointerEnter)
     }
 
     dispose(): void {
@@ -67,6 +86,7 @@ export class InputRouter implements InputApi {
         window.removeEventListener('blur', this._onBlur)
         this._host.canvas.removeEventListener('pointermove', this._onPointerMove)
         this._host.canvas.removeEventListener('pointerdown', this._onPointerMove)
+        this._host.canvas.removeEventListener('pointerenter', this._onPointerEnter)
         if (this._spaceDown) this._setSpace(false)
     }
 
@@ -125,6 +145,13 @@ export class InputRouter implements InputApi {
         this.route(event)
     }
 
+    /** The pointer is over the viewport: a focused control that is not a text field lets go of the keys. */
+    private _onPointerEnter = (): void => {
+        const el = document.activeElement as HTMLElement | null
+        if (!el || el === document.body || el === this._host.canvas || isTextEntry(el)) return
+        el.blur?.()
+    }
+
     private _onKeyUp = (event: KeyboardEvent): void => {
         if (event.code === 'Space' && this._spaceDown) this._setSpace(false)
     }
@@ -141,5 +168,7 @@ export class InputRouter implements InputApi {
     private _onPointerMove = (event: PointerEvent): void => {
         this.pointer.clientX = event.clientX
         this.pointer.clientY = event.clientY
+        // Also on move: the focus can change while the pointer is already over the viewport.
+        if (event.type === 'pointermove' && document.activeElement && document.activeElement !== document.body) this._onPointerEnter()
     }
 }

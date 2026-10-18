@@ -4239,7 +4239,9 @@ test('modelling-editor-engine', async({page}) => {
     await page.locator('[data-operator-panel="mesh.inset"] .me-operator-title').click()
     const thickness = page.locator('[data-operator-panel="mesh.inset"] #me-prop-thickness')
     await expect(thickness).toBeVisible()
+    // A typed value applies on Enter, as in Blender's number fields (not on every keystroke).
     await thickness.fill('0.3')
+    await thickness.press('Enter')
     await expect.poll(async() => JSON.stringify(await selectedVerts())).not.toBe(JSON.stringify(thin))
     s = await state()
     expect(s.counts).toEqual([12, 20, 10])
@@ -4943,6 +4945,7 @@ test('modelling-loop-tools', async({page}) => {
     const factor = page.locator('[data-operator-panel="mesh.edge_slide"] #me-prop-value')
     await expect(factor).toBeVisible()
     await factor.fill('-0.5')
+    await factor.press('Enter')
     await expect.poll(async() => JSON.stringify(await slid())).toBe(JSON.stringify(wentDown ? across(0.5) : down(0.5)))
     s = await state()
     expect(s.lastProps?.value).toBe(-0.5)
@@ -5008,6 +5011,7 @@ test('modelling-loop-tools', async({page}) => {
     const cuts = page.locator('[data-operator-panel="mesh.subdivide"] #me-prop-cuts')
     await expect(cuts).toBeVisible()
     await cuts.fill('2')
+    await cuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([56, 108, 54])
     expect((await state()).lastProps?.cuts).toBe(2)
     expect((await state()).history.filter(h => h.startsWith('Subdivide')).length).toBe(1)
@@ -5053,6 +5057,7 @@ test('modelling-loop-tools', async({page}) => {
     const ringCuts = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-numberCuts')
     await expect(ringCuts).toBeVisible()
     await ringCuts.fill('2')
+    await ringCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
     await page.mouse.click(empty.x, empty.y)
     await page.keyboard.press('Control+KeyZ')
@@ -5114,6 +5119,7 @@ test('modelling-loop-tools', async({page}) => {
     const lcCuts = page.locator('[data-operator-panel="mesh.loopcut_slide"] #me-prop-cuts')
     await expect(lcCuts).toBeVisible()
     await lcCuts.fill('2')
+    await lcCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
     expect((await state()).history.filter(h => h.startsWith('Loop Cut')).length).toBe(1)
     await page.mouse.click(empty.x, empty.y)
@@ -5482,4 +5488,92 @@ test('modelling-editor-inset-bevel', async({page}) => {
     expect(s.counts![2]).toBe(9)
     expect(s.toasts).toBe(0)
     expect(s.selectMode).toBe('edge')
+})
+
+test('modelling-editor-panel-keys', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Panel Keys')
+    await page.waitForFunction(() => (window as any).engine?.operators.get('mesh.scale'))
+
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        let max = 0
+        const selectMode = e.selectMode as string
+        if (bm) for (const v of bm.verts) max = Math.max(max, Math.abs(v.x))
+        return {
+            mode: e.mode as string,
+            transform: !!e.meshEdit.activeTransform,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as Record<string, any> | null,
+            halfWidth: Math.round(max * 1e4) / 1e4,
+            selectMode,
+            focus: (document.activeElement?.tagName ?? null) as string | null,
+            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+        }
+    })
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const over = {x: vp.x + vp.width / 2 + 40, y: vp.y + vp.height / 2 - 40}
+
+    // Tab, A, S 2 Enter: the Scale panel.
+    await page.mouse.move(over.x, over.y)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('KeyS')
+    await page.keyboard.type('2')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).halfWidth).toBe(1)
+    const panel = page.locator('[data-operator-panel="mesh.scale"]')
+    await expect(panel).toBeVisible()
+    if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
+
+    // 1. Type 1.5 into X key by key: nothing re-runs while typing (each keystroke used to re-run the
+    // scale), Enter applies it once and ends the editing, as Blender's number fields do.
+    const x = panel.locator('.me-vec3 input').first()
+    await x.click()
+    await page.keyboard.press('Control+KeyA')
+    await page.keyboard.type('1.5', {delay: 60})
+    expect((await state()).halfWidth).toBe(1)
+    expect((await state()).focus).toBe('INPUT')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).halfWidth).toBe(0.75)
+    let s = await state()
+    expect(s.lastProps?.value?.[0]).toBe(1.5)
+    expect(s.focus).not.toBe('INPUT')
+    expect(s.history.filter(h => h === 'Scale').length).toBe(1)
+
+    // 2. Back over the viewport - no click, which would change the selection - G moves.
+    await page.mouse.move(over.x, over.y, {steps: 4})
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(async() => (await state()).transform).toBe(false)
+
+    // 3. The same after tabbing through the panel's fields to a menu (a select): a focused control that
+    // is not a text field used to keep every key, wherever the pointer was.
+    await page.keyboard.press('KeyS')
+    await page.keyboard.type('2')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).halfWidth).toBe(1.5)
+    if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
+    await x.click()
+    for (let i = 0; i < 6 && await page.evaluate(() => document.activeElement?.id) !== 'me-prop-orientation'; i++) await page.keyboard.press('Tab')
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('me-prop-orientation')
+    expect((await state()).focus).toBe('SELECT')
+    await page.mouse.move(over.x, over.y, {steps: 4})
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect.poll(async() => (await state()).transform).toBe(false)
+
+    // 4. A text field that is being typed into keeps the keys, wherever the pointer is: 3 is typed into
+    // it, not taken as Blender's face select mode.
+    await x.click()
+    await page.keyboard.press('Control+KeyA')
+    await page.mouse.move(over.x, over.y, {steps: 4})
+    await page.keyboard.type('3')
+    expect((await state()).selectMode).toBe('vertex')
+    expect(await x.inputValue()).toBe('3')
+    await page.keyboard.press('Escape')
+    expect((await state()).focus).not.toBe('INPUT')
 })
