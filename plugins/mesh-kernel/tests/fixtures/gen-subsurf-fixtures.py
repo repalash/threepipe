@@ -46,6 +46,14 @@ def fins():
     return co, [[0, 2, 3, 1], [1, 5, 4, 0], [0, 6, 7, 1]]
 
 
+def cylinder(n=8):
+    # an n-gon capped prism: n-gons, valence-3 rims
+    co = [[math.cos(2 * math.pi * i / n), math.sin(2 * math.pi * i / n), z] for z in (-1, 1) for i in range(n)]
+    faces = [[i, (i + 1) % n, n + (i + 1) % n, n + i] for i in range(n)]
+    faces += [list(reversed(range(n))), [n + i for i in range(n)]]
+    return co, faces
+
+
 def run(name, data, mod, edge_crease=None, vert_crease=None, loose_edges=(), uv=False):
     co, faces = data
     for ob in list(bpy.data.objects):
@@ -125,6 +133,13 @@ cases = [
     run('fins-l2-limit', fins(), {'levels': 2}),
     run('loose-edge-l1', ([*C[0], [2, 2, 2]], C[1]), {'levels': 1}, loose_edges=[(6, 8)]),
     run('simple-l2', C, {'levels': 2, 'type': 'SIMPLE'}),
+    # harder mixes, added after the adaptive-patch port (S6b)
+    run('cylinder-ngon-caps-creased-uv-l2', cylinder(), {'levels': 2}, edge_crease=[((i, (i + 1) % 8), 1.0) for i in range(8)], uv=True),
+    run('cylinder-ngon-caps-semi-l2-q2', cylinder(), {'levels': 2, 'quality': 2}, edge_crease=[((8 + i, 8 + (i + 1) % 8), 0.6) for i in range(8)]),
+    run('panel-semi-uv-l2', panel(), {'levels': 2, 'uv_smooth': 'SMOOTH_ALL'}, edge_crease=[((1, 2), 0.7), ((2, 3), 0.4)], uv=True),
+    run('panel-l3-q1', panel(), {'levels': 3, 'quality': 1}),
+    run('cube-uv-islands-l2', C, {'levels': 2, 'uv_smooth': 'PRESERVE_CORNERS'}, vert_crease=[(0, 0.5)], uv=True),
+    run('fins-crease-l2', fins(), {'levels': 2, 'boundary': 'PRESERVE_CORNERS'}, edge_crease=[((0, 1), 0.5)]),
 ] + [
     run(f'uv-{mode.lower()}', ([[-1, -1, 0], [0, -1, 0.2], [1, -1, 0], [-1, 0, 0.1], [0, 0, 0.4], [1, 0, 0], [-1, 1, 0], [0, 1, 0.1], [1, 1, 0]],
                                 [[0, 1, 4, 3], [1, 2, 5, 4], [3, 4, 7, 6], [4, 5, 8, 7]]),

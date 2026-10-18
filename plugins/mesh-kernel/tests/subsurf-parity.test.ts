@@ -83,19 +83,25 @@ describe(`subsurf parity with Blender ${fixture.blender}`, () => {
             if (c.uv) {
                 // corner UVs: match each Blender face to ours by its vertex positions, then compare corner by corner
                 const ouv = out.attributes.get('UVMap')!.data
-                const key = (p: number[]) => p.map(x => Math.round(x / TOL)).join(',')
-                const ourVert = new Map<string, number>()
-                for (let v = 0; v < out.vertsNum; v++) ourVert.set(key(got.positions[v]), v)
+                // Blender vertex -> ours: the nearest within the tolerance (as compareMeshes pairs them)
+                const ourOf = c.positions.map(p => {
+                    let best = -1, bd = TOL
+                    got.positions.forEach((q, v) => {
+                        const d = Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]), Math.abs(p[2] - q[2]))
+                        if (d < bd) { bd = d; best = v }
+                    })
+                    return best
+                })
                 const ourFace = new Map<string, number>()
                 for (let f = 0; f < out.facesNum; f++) ourFace.set([...got.faces[f]].sort((a, b) => a - b).join(','), f)
                 let corner = 0, bad = 0
                 for (const f of c.faces) {
-                    const verts = f.map(i => ourVert.get(key(c.positions[i])))
-                    const of = ourFace.get([...verts].sort((a, b) => a! - b!).join(','))
+                    const verts = f.map(i => ourOf[i])
+                    const of = ourFace.get([...verts].sort((a, b) => a - b).join(','))
                     if (of === undefined) { bad++; corner += f.length; continue }
                     const s = out.faceOffsets[of]
                     for (let k = 0; k < f.length; k++, corner++) {
-                        const ck = s + got.faces[of].indexOf(verts[k]!)
+                        const ck = s + got.faces[of].indexOf(verts[k])
                         const w = c.uv[corner]
                         if (Math.abs(ouv[2 * ck] - w[0]) > TOL || Math.abs(ouv[2 * ck + 1] - w[1]) > TOL) bad++
                     }
