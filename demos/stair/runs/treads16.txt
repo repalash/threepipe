@@ -1,0 +1,41 @@
+
+> threepipe@0.5.1 modelling:session
+> node scripts/modelling-session.mjs demos/stair/build.mjs --port 9373 --url http://127.0.0.1:9373/examples/modelling-api/index.html --no-serve --width 1000 --height 700 --command-timeout 600000 --out /tmp/stair-out/t16
+
+opening http://127.0.0.1:9373/examples/modelling-api/index.html
+running demos/stair/build.mjs
+  stair: 16 treads a turn, 2 turns, rise 6.00"
+  📷 001-column-one-lathe.png  column, one lathe
+  📷 002-tread-blank-on-the-polar-grid.png  tread blank on the polar grid
+  📷 003-tread-pierced-solidified-openings-rounded.png  tread pierced, solidified, openings rounded
+  📷 004-one-tread-with-its-collar.png  one tread with its collar
+  📷 005-the-array-grows-the-flight-2-treads.png  the array grows the flight: 2 treads
+  📷 006-the-array-grows-the-flight-4-treads.png  the array grows the flight: 4 treads
+  📷 007-the-array-grows-the-flight-11-treads.png  the array grows the flight: 11 treads
+  📷 008-the-array-grows-the-flight-16-treads.png  the array grows the flight: 16 treads
+  📷 009-the-array-grows-the-flight-31-treads.png  the array grows the flight: 31 treads
+  📷 010-balusters-landing-and-handrail.png  balusters, landing and handrail
+    ok   stair diameter (outside of the treads), x: 1.3462 m (reference 1.3462, 0.00%)
+    ok   stair diameter (outside of the treads), z: 1.3462 m (reference 1.3462, 0.00%)
+    ok   floor to landing (top of the landing plate): 4.8768 m (reference 4.8768, 0.00%)
+    ok   risers per full turn (tread copies + landing, / turns): 16.0000 treads (reference 16.0000, 0.00%)
+    ok   rise per step (catalogue 8" at 12 a turn): 0.1524 m (reference 0.1524, 0.00%)
+    ok   handrail centre above the first tread (spindle + half the bar): 0.8572 m (reference 0.8572, 0.00%)
+    ok   balcony spindle height above the landing: 0.8509 m (reference 0.8509, 0.00%)
+    ok   column above the landing (newel): 0.9398 m (reference 0.9398, 0.00%)
+  REPORT {"params":{"TREADS_PER_TURN":16,"TURNS":2,"BAYS":4,"RISE":0.15239999999999998,"FLOOR_TO_LANDING":4.876799999999999},"checks":[{"what":"stair diameter (outside of the treads), x","got":1.3462,"want":1.3462,"err":0,"ok":true,"unit":"m"},{"what":"stair diameter (outside of the treads), z","got":1.3462,"want":1.3462,"err":0,"ok":true,"unit":"m"},{"what":"floor to landing (top of the landing plate)","got":4.8768,"want":4.8768,"err":0,"ok":true,"unit":"m"},{"what":"risers per full turn (tread copies + landing, / turns)","got":16,"want":16,"err":0,"ok":true,"unit":"treads"},{"what":"rise per step (catalogue 8\" at 12 a turn)","got":0.1524,"want":0.1524,"err":0,"ok":true,"unit":"m"},{"what":"handrail centre above the first tread (spindle + half the bar)","got":0.8572,"want":0.8572,"err":0,"ok":true,"unit":"m"},{"what":"balcony spindle height above the landing","got":0.8509,"want":0.8509,"err":0,"ok":true,"unit":"m"},{"what":"column above the landing (newel)","got":0.9398,"want":0.9398,"err":0,"ok":true,"unit":"m"}],"topology":[{"name":"column","verts":410,"edges":840,"faces":432,"quads":384,"tris":48,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":410},{"name":"tread","verts":1072,"edges":2276,"faces":1166,"quads":526,"tris":480,"ngons":160,"boundary":48,"nonManifold":0,"modifiers":["array radial ×31, 698° about [0, 1, 0], step [0, 0.15239999999999998, 0]"],"evaluatedVerts":33232},{"name":"baluster","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array radial ×31, 698° about [0, 1, 0], step [0, 0.15239999999999998, 0]"],"evaluatedVerts":4092},{"name":"landing","verts":226,"edges":512,"faces":256,"quads":256,"tris":0,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":226},{"name":"balcony-a","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×6, step [0.0551125065075728, 0, -0.12003223744666573]"],"evaluatedVerts":792},{"name":"balcony-b","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×6, step [-0.12003223744666573, 0, -0.05511250650757279]"],"evaluatedVerts":792},{"name":"handrail","verts":1128,"edges":2244,"faces":1118,"quads":1116,"tris":0,"ngons":2,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":1128},{"name":"landing-rail","verts":36,"edges":60,"faces":26,"quads":24,"tris":0,"ngons":2,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":36}]}
+  selftest: 8 objects, 0 failed
+
+{
+  "url": "http://127.0.0.1:9373/examples/modelling-api/index.html",
+  "build": "demos/stair/build.mjs",
+  "commands": 76,
+  "failed": 0,
+  "captures": 10,
+  "medianMs": 0.9,
+  "p90Ms": 90.3,
+  "maxMs": 1080.2,
+  "pageErrors": []
+}
+
+transcript and captures: /tmp/stair-out/t16
