@@ -42,6 +42,12 @@ operations: commands.map(t => ({command: t.command, ok: t.ok, ms: t.ms, ...(t.er
 const opCounts = {}
 for (const t of commands) opCounts[t.command.op] = (opCounts[t.command.op] ?? 0) + 1
 
+// dimension checks the build measured off the model (haussmann: film.report.checks, stair: film.result.checks)
+const fc = film.report?.checks ?? film.result?.checks
+if (!R.checks && fc?.length) R.checks = [['check', 'reference', 'model', 'off', ''], ...fc.map(c => [c.what, c.want, c.got,
+    c.delta !== undefined ? c.delta : `${c.err}%`, c.ok ? 'PASS' : 'FAIL'])]
+if (fc?.length) (R.metrics ??= []).push(['dimension checks', `${fc.filter(c => c.ok).length} / ${fc.length}`, R.checksNote ?? 'measured off the finished model against the drawings; a miss over 2 % fails the build'])
+
 // ------------------------------------------------------------------------------------------- page
 // Measured by the film on the GPU, then the demo's own (build wall time, agent cost, checks).
 const st = film.stats ?? {}
@@ -122,4 +128,8 @@ ${R.credits ? `<h2>Credits</h2><p>${R.credits}</p>` : ''}
 </body></html>
 `
 writeFileSync(join(dir, 'index.html'), html)
+// The overview page (demos/index.html, demos/shared/overview.mjs) reads this: one hero and one metrics line per demo.
+writeFileSync(join(dir, 'summary.json'), JSON.stringify({title: R.title, blurb: R.blurb ?? '', hero: R.hero ? `shots/${typeof R.hero === 'string' ? R.hero : R.hero.file}.jpg` : null,
+    line: R.line ?? [`${nCmd} commands, ${nFail} failed`, st.tris ? `${st.tris.toLocaleString('en')} triangles` : null, `${fmtS(film.seconds)} film`, film.frameMs ? `${film.frameMs.median} ms/frame` : null].filter(Boolean).join(' · '),
+    renderer: film.renderer, seconds: film.seconds, generated: new Date().toISOString().slice(0, 10)}, null, 1))
 console.log(JSON.stringify({page: join(dir, 'index.html'), shots: shots.length, commands: commands.length}))

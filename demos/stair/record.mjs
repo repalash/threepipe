@@ -23,7 +23,7 @@ const credit = t => `<div style="position:absolute;right:16px;bottom:12px;font:1
 
 film.chapter('Open')
 film.ticker(false)
-await film.layer(`<div style="position:absolute;inset:0;background:#f4f1ea url(${REF}habs-ny-ascension-sheet8-interior-elevation.png) center/contain no-repeat"></div>${credit('HABS NY-1259, Church of the Ascension, New York - Library of Congress, public domain')}`, 1)
+await film.layer(`<div style="position:absolute;inset:0;background:#f4f1ea url(${REF}habs-ny-ascension-sheet8-interior-elevation.png) center/contain no-repeat"></div>${credit('HABS NY,31-NEYO,95- (sheet 8), Church of the Ascension, New York - public domain')}`, 1)
 await film.hold(1)
 await film.title('Cast iron and stone', 'A spiral stair and a Gothic arcade, built live by JSON commands', {kicker: 'threepipe · modelling', sec: 2.2})
 await film.caption('The arcade is read off HABS sheet 8 at its scale bar; the stair off a dealer\'s catalogue numbers (53" diameter, 8" rise)')

@@ -1,0 +1,43 @@
+{
+ "title": "Cast iron and stone",
+ "kicker": "threepipe modelling demo · stair",
+ "accent": "#c8a25a",
+ "blurb": "A cast-iron spiral stair and a Gothic arcade, built live by JSON commands, then a realism pass.",
+ "intro": "Two pieces built live through the modelling command API. A cast-iron spiral stair to a dealer's catalogue numbers (53\" diameter, 8\" rise, 12 treads a turn): one lathed column, one hand-made tread repeated by a live radial array, balusters on the same array, a handrail swept along the computed helix. A Gothic arcade from HABS drawings of the Church of the Ascension, New York: a pointed arch from two arcs, a clustered pier, a rib vault, bays on live linear arrays and a live mirror for the far side. Then a realism pass with the realism kit.",
+ "recordCommand": "node demos/stair/record.mjs",
+ "hero": {"file": "21-hero-both-pieces", "caption": "Both pieces"},
+ "compareTitle": "Realism pass: before and after",
+ "compareIntro": "No geometry rebuilt (30-minute budget). Cast iron: the <code>metal-dark</code> preset (roughness 0.55) with a cast-surface relief at a 3 cm tile; the stair was painted off-white before. Arcade: limestone with a tooled relief at a 0.5 m tile (the kit has no stone pattern yet: <code>grain</code> stands in), the darker stone on bases, abaci, string course and ribs. Aisle floor: 0.9 m flagstone joints as <code>groove</code> strips - the floor is a plane, so <code>cut: false</code> lays the strips without the boolean.",
+ "compare": [
+  [{"file": "17-before-the-realism-pass-flat-colours", "caption": "Before"}, {"file": "18-after-cast-iron-tooled-limestone-flagstone-joint", "caption": "After: cast iron, tooled limestone, flagstone joints"}]
+ ],
+ "stills": [
+  {"file": "01-column-one-lathe", "caption": "The column: one lathe"},
+  {"file": "03-tread-pierced-solidified-openings-rounded", "caption": "One tread: polar grid, pierced, solidified, openings rounded"},
+  {"file": "05-the-array-grows-the-flight", "caption": "The flight: one live radial array"},
+  {"file": "06-balusters-landing-and-handrail", "caption": "Balusters, landing and the swept handrail"},
+  {"file": "08-the-ring-bevelled-into-a-moulding", "caption": "The arch ring bevelled into a moulding"},
+  {"file": "10-a-clustered-pier-lathes-a-radial-array-a-bridged", "caption": "A clustered pier: lathes, a radial array, bridged neckings"},
+  {"file": "12-mirrored-across-the-aisle-the-far-arcade-vaulted", "caption": "Mirrored across the aisle, vaulted between"},
+  {"file": "15-orthographic-over-habs-sheet-8-at-its-scale-bar", "caption": "Orthographic, over HABS sheet 8 at its scale bar"},
+  {"file": "19-hero-the-stair", "caption": "The stair"},
+  {"file": "22-inside-the-aisle-under-the-ribs", "caption": "Inside the aisle, under the ribs"},
+  {"file": "23-looking-up-the-stair-from-its-foot", "caption": "Up the stair from its foot"},
+  {"file": "24-detail-treads-collars-and-balusters", "caption": "Treads, collars and balusters"}
+ ],
+ "metricsFirst": [
+  ["build wall time (Node)", "2.8 s", "297 commands headless in Node (no film), 0 failed, 15/15 checks"]
+ ],
+ "metrics": [
+  ["agent (original demo)", "212 min", "claude-opus-5-5 · 315 tool calls · 201k output / 180M input tokens"],
+  ["realism pass", "≈ 15 min", "this session (demos-gpu)"]
+ ],
+ "how": "<p><code>build.mjs</code> is the demo's session build script (catalogue and HABS readings, then the build, then measured checks). The realism pass is a block in its finale (<code>session.realism</code>, on by default). <code>record.mjs</code> runs it unchanged in <code>examples/modelling-api</code> on the GPU VM through <code>demos/shared/session.mjs</code> and <code>demos/shared/film.mjs</code> (every frame rendered and captured; camera jumps eased; captures held with their captions). The sun's shadow camera is sized by the film.</p><p>Re-run: <code>node demos/stair/record.mjs</code> then <code>node demos/shared/report.mjs demos/stair</code>. Only the public-domain HABS drawings appear on screen; the dealer's photographs of the stair (all rights reserved) were local modelling references and are not shown.</p>",
+ "weak": [
+  "The stair's tread casting is a pierced grid, not the catalogue's ornamental pattern; balusters are plain lathes.",
+  "The arcade has no wall behind it, no clerestory, no capitals' foliage: the mouldings are bevels, not profiles from a moulding library (R3 is not built yet).",
+  "Stone relief is the plastic-grain pattern at a large tile; no ashlar coursing on the piers or spandrels.",
+  "Cast iron reads as dark metal; a painted cast-iron preset (low metalness, semi-gloss) would be closer."
+ ],
+ "credits": "Historic American Buildings Survey, HABS NY,31-NEYO,95-, Church of the Ascension, Fifth Avenue and Tenth Street, New York (Columbia University for HABS, 1968), sheets 3, 7 and 8 via Wikimedia Commons - public domain."
+}
