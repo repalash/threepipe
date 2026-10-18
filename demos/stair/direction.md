@@ -9,9 +9,10 @@ Format: 1280×720, ≤ 3 min, WebM. Everything on screen is the live viewer
 DOM overlays drawn by `record.mjs`. The command chip (top left) always shows the JSON of the command
 that just ran, so the viewer sees that it is commands all the way down.
 
-Camera language: the build's own camera views. `record.mjs` turns each jump into a 0.9 s eased move
-(one `camera` command a frame) and holds each captured shot for about 1.2 s with its caption, so the
-cut list below is the build's capture list.
+Camera language: the build's own camera views. `record.mjs` turns each jump into a 0.8 s eased move
+(one `camera` command a frame; `camera {duration}` only animates saved views, see
+`issues/open/modelling-tools/command-camera-duration-saved-views-only.md`) and holds each captured
+shot for 1.4 s with its caption, so the cut list below is the build's capture list.
 
 | # | Scene | What happens | Camera | Why | Time |
 | --- | --- | --- | --- | --- | --- |
@@ -27,12 +28,14 @@ cut list below is the build's capture list.
 | 10 | Over the drawing | Orthographic, registered to HABS sheet 8 by its scale bar | square, orthographic | The check you can see | 3 s |
 | 11 | Heroes | The stair, the arcade, both, inside the aisle under the ribs, up the stair from its foot, a tread detail | six stills, eased between | Look at it | 14 s |
 | 12 | Wireframe and x-ray | Same frames as the heroes in wireframe, then x-ray | stair, arcade | Shows the topology: quads, copies, loop cuts | 8 s |
-| 13 | Turntable | Both pieces, one slow orbit | 360° at 17 m, 16 s | | 16 s |
+| 13 | Turntable | Both pieces, one slow orbit | 360° at 17 m | | 12 s |
 | 14 | Split with references | Left half the catalogue photo, right half the model; then HABS sheet 8 and the arcade | two splits | Ends where it started | 12 s |
 | 15 | End card | The command list | — | | 3 s |
 
-Running total ≈ 2 min 15 s of directed time plus the live command time (the build's commands run in
-real time; under SwiftShader that adds 20–40 s). `record.mjs` prints the real duration.
+As recorded on SwiftShader (2026-10-18): **2 min 08 s**, 13.1 MB, 0 failed commands
+(`runs/record.txt`). The holds are 1.4 s per shot, the eased moves 0.8 s, section cards 1.6 s, the
+turntable 12 s, each reference split 6 s. Page load (3.8 s) is trimmed off the front by `record.mjs`
+with ffmpeg, so the film opens on the title card.
 
 ## Notes for a GPU re-take
 

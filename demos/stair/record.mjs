@@ -15,7 +15,8 @@
  */
 
 import {chromium} from 'playwright'
-import {mkdir, rm, stat} from 'node:fs/promises'
+import {copyFile, mkdir, rm, stat} from 'node:fs/promises'
+import {spawnSync} from 'node:child_process'
 import {dirname, resolve, join} from 'node:path'
 import {tmpdir} from 'node:os'
 import build from './build.mjs'
@@ -42,10 +43,26 @@ const videoDir = join(tmpdir(), 'stair-record-' + Date.now())
 const context = await browser.newContext({viewport: {width, height}, deviceScaleFactor: 1,
     recordVideo: {dir: videoDir, size: {width, height}}})
 const page = await context.newPage()
+const videoStart = Date.now()
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
 const started = Date.now()
 
+// The video starts with the page, so the loading screen and the example's own UI would open the
+// film. A curtain goes up before any of the page's content and comes down once the overlays exist.
+await page.addInitScript(() => {
+    const curtain = () => {
+        if (document.getElementById('rec-curtain')) return
+        const c = document.createElement('div')
+        c.id = 'rec-curtain'
+        c.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#16181c;color:#f2efe8;display:flex;'
+            + 'align-items:center;justify-content:center;font:600 44px Georgia,serif'
+        c.textContent = 'Cast iron and stone'
+        document.documentElement.appendChild(c)
+    }
+    if (document.documentElement) curtain()
+    document.addEventListener('DOMContentLoaded', curtain)
+})
 await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 120000})
 await page.waitForFunction(() => !!window.modelling, null, {timeout: 180000})
 
@@ -79,6 +96,8 @@ await page.evaluate(({origin}) => {
       #rec-refs h2 { position: absolute; top: 16px; left: 28px; margin: 0; color: #f2efe8; font: 600 26px Georgia, serif; }
       body.rec-split #canvas-container { position: fixed !important; left: 50% !important; top: 0; width: 50% !important;
         height: 100% !important; }
+      /* threepipe's loading screen comes back whenever a command loads something; the cards say it all. */
+      div:has(> .loadingScreenLoadingElement) { display: none !important; }
       #rec-splitref { position: fixed; left: 0; top: 0; width: 50%; height: 100%; z-index: 30; display: none;
         background: #fff; object-fit: contain; }
     `
@@ -176,7 +195,8 @@ const session = {
     },
     async capture(label) {
         await ui.caption(label)
-        await sleep(1000)
+        // SwiftShader can be a frame or two behind the command; hold long enough to see the result.
+        await sleep(1400)
         return label
     },
     async inspect(object) {
@@ -207,7 +227,11 @@ const session = {
 }
 
 // --- scene 1: the references ----------------------------------------------------------------------
-await ui.card('Cast iron and stone', 'a spiral staircase and a Gothic arcade, to scale, from JSON modelling commands', 2600)
+await ui.card('Cast iron and stone', 'a spiral staircase and a Gothic arcade, to scale, from JSON modelling commands', 0)
+await page.evaluate(() => document.getElementById('rec-curtain')?.remove())
+// Everything before this moment is page load; the film starts here (trimmed off below).
+const filmStart = (Date.now() - videoStart) / 1000
+await sleep(2600)
 await page.evaluate(() => {
     const r = document.getElementById('rec-refs')
     const fig = (src, cap) => `<figure><img src="${window.__recOrigin}/demos/stair/refs/${src}"><figcaption>${cap}</figcaption></figure>`
@@ -243,7 +267,7 @@ await page.evaluate(() => {
 await ui.uncard()
 await session.run({op: 'camera', projection: 'perspective', fov: 50, position: [3.2, 2.6, 6.8], target: [0, 2.9, 0]})
 await ui.caption('catalogue photograph | the model')
-await sleep(4500)
+await sleep(6000)
 await page.evaluate(() => {
     document.getElementById('rec-splitref').src = `${window.__recOrigin}/demos/stair/refs/habs-ascension-nave-bay-elevation.png`
 })
@@ -252,7 +276,7 @@ await page.evaluate(async() => {
 })
 await session.run({op: 'camera', projection: 'perspective', fov: 40, position: [3.4 + 4.34, 5.6, -4.8 + 22], target: [3.4 + 4.34, 5.6, -4.8]})
 await ui.caption('HABS sheet 8 | the model')
-await sleep(4500)
+await sleep(6000)
 await page.evaluate(() => {
     document.body.classList.remove('rec-split')
     document.getElementById('rec-splitref').style.display = 'none'
@@ -264,11 +288,19 @@ const video = page.video()
 await context.close()
 await mkdir(dirname(out), {recursive: true})
 await rm(out, {force: true})
-await video.saveAs(out)
+const raw = join(videoDir, 'raw.webm')
+await video.saveAs(raw)
+// Cut the page-load lead-in. Re-encoded (VP8, as Playwright writes it) so the cut is frame-accurate.
+const ff = spawnSync('ffmpeg', ['-v', 'error', '-y', '-ss', filmStart.toFixed(2), '-i', raw, '-c:v', 'libvpx',
+    '-b:v', '1400k', '-crf', '12', '-an', out], {stdio: 'inherit'})
+if (ff.status !== 0) {
+    console.error('ffmpeg failed; keeping the untrimmed recording')
+    await copyFile(raw, out)
+}
 await browser.close()
 await rm(videoDir, {recursive: true, force: true}).catch(() => {})
 const size = (await stat(out)).size
-console.log(JSON.stringify({out, seconds: Math.round((Date.now() - started) / 1000), bytes: size, failures,
+console.log(JSON.stringify({out, seconds: Math.round((Date.now() - started) / 1000), trimmedLeadIn: +filmStart.toFixed(2), bytes: size, failures,
     buildError: buildError?.message ?? null, pageErrors: errors.slice(0, 5)}, null, 2))
 process.exit(buildError || failures ? 1 : 0)
 

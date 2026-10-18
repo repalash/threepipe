@@ -1,0 +1,28 @@
+  stair: 12 treads a turn, 2 turns, rise 8.00"
+    ok   stair diameter (outside of the treads), x: 1.3462 m (reference 1.3462, 0.00%)
+    ok   stair diameter (outside of the treads), z: 1.3462 m (reference 1.3462, 0.00%)
+    ok   floor to landing (top of the landing plate): 4.8768 m (reference 4.8768, 0.00%)
+    ok   risers per full turn (tread copies + landing, / turns): 12.0000 treads (reference 12.0000, 0.00%)
+    ok   rise per step (catalogue 8" at 12 a turn): 0.2032 m (reference 0.2032, 0.00%)
+    ok   handrail centre above the first tread (spindle + half the bar): 0.8572 m (reference 0.8572, 0.00%)
+    ok   balcony spindle height above the landing: 0.8509 m (reference 0.8509, 0.00%)
+    ok   column above the landing (newel): 0.9398 m (reference 0.9398, 0.00%)
+  arcade: 4 bays of 14.25 ft
+    arch: span 3.441 m, rise 2.771 m, radius 3.091 m, centres 1.370 m past the middle
+    ok   arch: floor to the intrados at the crown (as built): 9.2751 m (reference 9.2751, 0.00%)
+    ok   arch: intrados span at the springing: 3.4412 m (reference 3.4412, 0.00%)
+    ok   pier: across the clustered shafts: 0.8169 m (reference 0.8169, 0.00%)
+    ok   pier: floor to the top of the capital (springing): 6.5044 m (reference 6.5044, 0.00%)
+    ok   vault: floor to the crown (aisle ceiling, sheet 7): 9.6774 m (reference 9.6774, 0.00%)
+    ok   arcade: pier centre to pier centre (from the arrayed piers): 4.3434 m (reference 4.3434, 0.00%)
+    ok   arcade: aisle, pier centre to pier centre across (mirror): 4.6025 m (reference 4.6025, 0.00%)
+  selftest: 17 objects, 0 failed
+{
+  "out": "/tmp/stair-out/video.webm",
+  "seconds": 163,
+  "trimmedLeadIn": 3.75,
+  "bytes": 13057292,
+  "failures": 0,
+  "buildError": null,
+  "pageErrors": []
+}

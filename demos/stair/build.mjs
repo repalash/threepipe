@@ -283,7 +283,9 @@ export default async function build(session) {
         // the column the way the castings do.
         await must({op: 'lathe', name: 'collar', segments: 24, color: PAINT, profile: [
             [STAIR.pole, 0], [STAIR.hub, 0], [STAIR.hub + 0.3 * IN, 0.4 * IN], [STAIR.hub, 0.8 * IN],
-            [STAIR.hub, RISE], [STAIR.pole, RISE]]})
+            [STAIR.hub, RISE], [STAIR.pole, RISE]],
+            // Closed: the profile's last point joins its first, so the sleeve has its bore and is solid.
+            closed: true})
         await must({op: 'join', objects: ['tread', 'collar'], name: 'tread'})
         await stairView('one tread with its collar', [0.95, 0.75, 0.75], [0.3, RISE * 0.6, -0.1], 38)
 
@@ -453,10 +455,11 @@ export default async function build(session) {
             await must({op: 'vertices', object: 'arc-arch', verts: d.vertices.map(([x, , z], i) =>
                 [i, ...arcPoint(Math.round((x + 0.5) * N), z > 0 ? arch.R + ARC.ring : arch.R), 0])})
         }
-        // A wall-thick solid: the surface in the wall's middle plane, given the wall's thickness.
-        await must({op: 'solidify', object: 'arc-arch', thickness: w, offset: 0})
+        // Mirror the half-ring surface first, welding the crown edge, then give the whole ring the wall's
+        // thickness: solidifying first would leave the two halves' crown caps face to face inside.
         await must({op: 'mirror', object: 'arc-arch', axis: 'x', center: [mid, 0, 0]})
-        await view('one pointed arch: two arcs, solidified, mirrored', [mid + 2.4, ys + 1.0, 7.5], [mid, ys + 1.5, 0], 40)
+        await must({op: 'solidify', object: 'arc-arch', thickness: w, offset: 0})
+        await view('one pointed arch: two arcs, mirrored, solidified', [mid + 2.4, ys + 1.0, 7.5], [mid, ys + 1.5, 0], 40)
         {
             // The computed profile, before the moulding rounds its arrises.
             const d = await inspectAll('arc-arch')

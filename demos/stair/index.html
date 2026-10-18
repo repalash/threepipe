@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cast iron and stone — a spiral staircase and a Gothic arcade from modelling commands</title>
+<style>
+  :root { --ink: #1d1f22; --muted: #6b6760; --paper: #f6f3ee; --rule: #ddd6cb; --ok: #2f6b3a; --bad: #9b2c1f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 Georgia, 'Times New Roman', serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 40px 28px 80px; }
+  h1 { font-size: 40px; line-height: 1.15; margin: 0 0 8px; font-weight: 600; }
+  h2 { font-size: 26px; margin: 56px 0 6px; font-weight: 600; border-top: 1px solid var(--rule); padding-top: 22px; }
+  h3 { font-size: 18px; margin: 26px 0 8px; }
+  p.lede { font-size: 19px; color: #3a3833; max-width: 860px; }
+  .meta { color: var(--muted); font: 14px/1.5 ui-monospace, Menlo, monospace; }
+  .meta a { color: inherit; }
+  code { font: 0.88em ui-monospace, Menlo, monospace; background: #ebe5da; padding: 1px 4px; border-radius: 2px; }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; background: #5b6068; border-radius: 2px; }
+  figure.ref img { background: #fff; object-fit: contain; aspect-ratio: 3 / 2; }
+  figcaption { font-size: 14px; color: var(--muted); padding-top: 5px; }
+  .hero { margin-top: 26px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; background: #ece6dc; }
+  td:nth-child(n+3) { font-variant-numeric: tabular-nums; }
+  tr.ok td:last-child { color: var(--ok); font-weight: 600; }
+  tr.bad td:last-child { color: var(--bad); font-weight: 700; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; background: #dfe9dc; color: var(--ok); font: 600 13px ui-monospace, Menlo, monospace; }
+  video { width: 100%; background: #111; border-radius: 2px; }
+  ul.tight li { margin-bottom: 6px; }
+  .pair figcaption b { color: var(--ink); }
+  @media (max-width: 800px) { .g3, .g4 { grid-template-columns: repeat(2, 1fr); } .g2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Cast iron and stone</h1>
+<p class="lede">A cast-iron spiral staircase and a short Gothic arcade, each to the dimensions of a real reference,
+built entirely through <code>@threepipe/plugin-modelling</code>'s JSON commands. One tread and one bay are
+made by hand; <code>lathe</code>, <code>sweep</code>, live radial and linear <code>array</code>s and a live
+<code>mirror</code> make the rest, and every piece stays editable topology.</p>
+<p class="meta">
+build <a href="build.mjs">build.mjs</a> · transcript <a href="transcript.json">transcript.json</a> ·
+models <a href="stair.glb">stair.glb</a>, <a href="arcade.glb">arcade.glb</a> ·
+direction <a href="direction.md">direction.md</a> · recorder <a href="record.mjs">record.mjs</a> · sources <a href="refs/SOURCES.md">refs/SOURCES.md</a><br>
+main run: 260 commands, 0 failed · 12 treads a turn, 2 turns,
+rise 8.00" · 4 bays · dimension checks: <span class="pill">37 / 37 within 2 %</span>
+</p>
+
+<div class="grid g2 hero">
+<figure class=""><a href="shots/024-hero-the-stair.jpg"><img src="shots/024-hero-the-stair.jpg" alt="The stair: 23 treads and a landing, two turns, 53" diameter" loading="lazy"></a><figcaption>The stair: 23 treads and a landing, two turns, 53" diameter</figcaption></figure>
+<figure class=""><a href="shots/025-hero-the-arcade.jpg"><img src="shots/025-hero-the-arcade.jpg" alt="The arcade: four bays at 14'-3", mirrored across a 15'-1" aisle, rib-vaulted" loading="lazy"></a><figcaption>The arcade: four bays at 14'-3", mirrored across a 15'-1" aisle, rib-vaulted</figcaption></figure>
+</div>
+<div class="grid g3" style="margin-top:14px">
+<figure class=""><a href="shots/034-hero-both-pieces-final.jpg"><img src="shots/034-hero-both-pieces-final.jpg" alt="Both pieces" loading="lazy"></a><figcaption>Both pieces</figcaption></figure>
+<figure class=""><a href="shots/027-inside-the-aisle-under-the-ribs.jpg"><img src="shots/027-inside-the-aisle-under-the-ribs.jpg" alt="inside the aisle under the ribs" loading="lazy"></a><figcaption>inside the aisle under the ribs</figcaption></figure>
+<figure class=""><a href="shots/028-looking-up-the-stair-from-its-foot.jpg"><img src="shots/028-looking-up-the-stair-from-its-foot.jpg" alt="looking up the stair from its foot" loading="lazy"></a><figcaption>looking up the stair from its foot</figcaption></figure>
+</div>
+
+<h2>The film</h2>
+<p>Recorded live by <a href="record.mjs">record.mjs</a> on SwiftShader (13.1 MB). The command chip in the corner is the JSON that just ran.</p>
+<video src="video.webm" controls preload="metadata"></video>
+
+<h2>Reference and result</h2>
+<h3>The staircase: Safety Stairways Ltd, UK Architectural Antiques listing 24019</h3>
+<p>53" diameter (26½" pole centre to tread edge), 8" rise (13 rises over 104"), 12 treads to a turn
+(counted on the top view), 33½" spindles, 37" newel above the landing. Two turns is the demo's brief.</p>
+<div class="grid g4 pair">
+<figure class="ref"><a href="refs/ukaa-24019-safety-stairways-elevation.jpg"><img src="refs/ukaa-24019-safety-stairways-elevation.jpg" alt="Catalogue photograph (not committed: all rights reserved)" loading="lazy"></a><figcaption>Catalogue photograph (not committed: all rights reserved)</figcaption></figure>
+<figure class=""><a href="shots/024-hero-the-stair.jpg"><img src="shots/024-hero-the-stair.jpg" alt="The model, same scale" loading="lazy"></a><figcaption>The model, same scale</figcaption></figure>
+<figure class="ref"><a href="refs/ukaa-24019-safety-stairways-top.jpg"><img src="refs/ukaa-24019-safety-stairways-top.jpg" alt="Treads from above: pierced 30° castings" loading="lazy"></a><figcaption>Treads from above: pierced 30° castings</figcaption></figure>
+<figure class=""><a href="shots/029-detail-treads-collars-and-balusters.jpg"><img src="shots/029-detail-treads-collars-and-balusters.jpg" alt="The model: polar grid, openings, collars, balusters" loading="lazy"></a><figcaption>The model: polar grid, openings, collars, balusters</figcaption></figure>
+</div>
+<h3>The arcade: HABS, Church of the Ascension, New York (Upjohn, 1840–41), sheet 8</h3>
+<p>Read off the measured drawing at its own scale bar (39.6 px/ft), cross-checked against the plan:
+bay 14'-3", springing 21'-4", intrados crown 30'-5", span 11'-3½"; the aisle ceiling (vault crown) is
+dimensioned 31'-9" on sheet 7. The orthographic render below has the drawing registered behind it by
+the scale bar and the first pier's centre and floor line.</p>
+<div class="grid g3 pair">
+<figure class="ref"><a href="refs/habs-ascension-nave-bay-elevation.png"><img src="refs/habs-ascension-nave-bay-elevation.png" alt="HABS NY, sheet 8 (public domain)" loading="lazy"></a><figcaption>HABS NY, sheet 8 (public domain)</figcaption></figure>
+<figure class=""><a href="shots/022-orthographic-over-habs-sheet-8-at-its-scale-bar.jpg"><img src="shots/022-orthographic-over-habs-sheet-8-at-its-scale-bar.jpg" alt="Orthographic, over the drawing at its scale bar" loading="lazy"></a><figcaption>Orthographic, over the drawing at its scale bar</figcaption></figure>
+<figure class=""><a href="shots/023-orthographic-model-only.jpg"><img src="shots/023-orthographic-model-only.jpg" alt="Orthographic, model only" loading="lazy"></a><figcaption>Orthographic, model only</figcaption></figure>
+</div>
+
+<h2>How it is built</h2>
+<p>One line per step; each image is the session's own capture after that step.</p>
+<div class="grid g4">
+<figure class=""><a href="shots/001-column-one-lathe.jpg"><img src="shots/001-column-one-lathe.jpg" alt="column one lathe" loading="lazy"></a><figcaption>column one lathe</figcaption></figure>
+<figure class=""><a href="shots/002-tread-blank-on-the-polar-grid.jpg"><img src="shots/002-tread-blank-on-the-polar-grid.jpg" alt="tread blank on the polar grid" loading="lazy"></a><figcaption>tread blank on the polar grid</figcaption></figure>
+<figure class=""><a href="shots/003-tread-pierced-solidified-openings-rounded.jpg"><img src="shots/003-tread-pierced-solidified-openings-rounded.jpg" alt="tread pierced solidified openings rounded" loading="lazy"></a><figcaption>tread pierced solidified openings rounded</figcaption></figure>
+<figure class=""><a href="shots/004-one-tread-with-its-collar.jpg"><img src="shots/004-one-tread-with-its-collar.jpg" alt="one tread with its collar" loading="lazy"></a><figcaption>one tread with its collar</figcaption></figure>
+<figure class=""><a href="shots/005-the-array-grows-the-flight-2-treads.jpg"><img src="shots/005-the-array-grows-the-flight-2-treads.jpg" alt="the array grows the flight 2 treads" loading="lazy"></a><figcaption>the array grows the flight 2 treads</figcaption></figure>
+<figure class=""><a href="shots/006-the-array-grows-the-flight-4-treads.jpg"><img src="shots/006-the-array-grows-the-flight-4-treads.jpg" alt="the array grows the flight 4 treads" loading="lazy"></a><figcaption>the array grows the flight 4 treads</figcaption></figure>
+<figure class=""><a href="shots/007-the-array-grows-the-flight-8-treads.jpg"><img src="shots/007-the-array-grows-the-flight-8-treads.jpg" alt="the array grows the flight 8 treads" loading="lazy"></a><figcaption>the array grows the flight 8 treads</figcaption></figure>
+<figure class=""><a href="shots/008-the-array-grows-the-flight-12-treads.jpg"><img src="shots/008-the-array-grows-the-flight-12-treads.jpg" alt="the array grows the flight 12 treads" loading="lazy"></a><figcaption>the array grows the flight 12 treads</figcaption></figure>
+<figure class=""><a href="shots/009-the-array-grows-the-flight-23-treads.jpg"><img src="shots/009-the-array-grows-the-flight-23-treads.jpg" alt="the array grows the flight 23 treads" loading="lazy"></a><figcaption>the array grows the flight 23 treads</figcaption></figure>
+<figure class=""><a href="shots/010-balusters-landing-and-handrail.jpg"><img src="shots/010-balusters-landing-and-handrail.jpg" alt="balusters landing and handrail" loading="lazy"></a><figcaption>balusters landing and handrail</figcaption></figure>
+<figure class=""><a href="shots/011-one-pointed-arch-two-arcs-solidified-mirrored.jpg"><img src="shots/011-one-pointed-arch-two-arcs-solidified-mirrored.jpg" alt="one pointed arch two arcs solidified mirrored" loading="lazy"></a><figcaption>one pointed arch two arcs solidified mirrored</figcaption></figure>
+<figure class=""><a href="shots/012-the-ring-bevelled-into-a-moulding.jpg"><img src="shots/012-the-ring-bevelled-into-a-moulding.jpg" alt="the ring bevelled into a moulding" loading="lazy"></a><figcaption>the ring bevelled into a moulding</figcaption></figure>
+<figure class=""><a href="shots/013-spandrel-and-a-loop-cut-string-course.jpg"><img src="shots/013-spandrel-and-a-loop-cut-string-course.jpg" alt="spandrel and a loop cut string course" loading="lazy"></a><figcaption>spandrel and a loop cut string course</figcaption></figure>
+<figure class=""><a href="shots/014-a-clustered-pier-lathes-a-radial-array-a-bridged.jpg"><img src="shots/014-a-clustered-pier-lathes-a-radial-array-a-bridged.jpg" alt="a clustered pier lathes a radial array a bridged" loading="lazy"></a><figcaption>a clustered pier lathes a radial array a bridged</figcaption></figure>
+<figure class=""><a href="shots/015-the-arcade-grows-by-array-1-bay.jpg"><img src="shots/015-the-arcade-grows-by-array-1-bay.jpg" alt="the arcade grows by array 1 bay" loading="lazy"></a><figcaption>the arcade grows by array 1 bay</figcaption></figure>
+<figure class=""><a href="shots/016-the-arcade-grows-by-array-2-bays.jpg"><img src="shots/016-the-arcade-grows-by-array-2-bays.jpg" alt="the arcade grows by array 2 bays" loading="lazy"></a><figcaption>the arcade grows by array 2 bays</figcaption></figure>
+<figure class=""><a href="shots/017-the-arcade-grows-by-array-3-bays.jpg"><img src="shots/017-the-arcade-grows-by-array-3-bays.jpg" alt="the arcade grows by array 3 bays" loading="lazy"></a><figcaption>the arcade grows by array 3 bays</figcaption></figure>
+<figure class=""><a href="shots/018-the-arcade-grows-by-array-4-bays.jpg"><img src="shots/018-the-arcade-grows-by-array-4-bays.jpg" alt="the arcade grows by array 4 bays" loading="lazy"></a><figcaption>the arcade grows by array 4 bays</figcaption></figure>
+<figure class=""><a href="shots/019-mirrored-across-the-aisle-the-far-arcade-vaulted.jpg"><img src="shots/019-mirrored-across-the-aisle-the-far-arcade-vaulted.jpg" alt="mirrored across the aisle the far arcade vaulted" loading="lazy"></a><figcaption>mirrored across the aisle the far arcade vaulted</figcaption></figure>
+<figure class=""><a href="shots/020-live-3-bays-from-the-same-masters.jpg"><img src="shots/020-live-3-bays-from-the-same-masters.jpg" alt="live 3 bays from the same masters" loading="lazy"></a><figcaption>live 3 bays from the same masters</figcaption></figure>
+<figure class=""><a href="shots/021-live-5-bays-from-the-same-masters.jpg"><img src="shots/021-live-5-bays-from-the-same-masters.jpg" alt="live 5 bays from the same masters" loading="lazy"></a><figcaption>live 5 bays from the same masters</figcaption></figure>
+<figure class=""><a href="shots/022-orthographic-over-habs-sheet-8-at-its-scale-bar.jpg"><img src="shots/022-orthographic-over-habs-sheet-8-at-its-scale-bar.jpg" alt="orthographic over habs sheet 8 at its scale bar" loading="lazy"></a><figcaption>orthographic over habs sheet 8 at its scale bar</figcaption></figure>
+<figure class=""><a href="shots/023-orthographic-model-only.jpg"><img src="shots/023-orthographic-model-only.jpg" alt="orthographic model only" loading="lazy"></a><figcaption>orthographic model only</figcaption></figure>
+</div>
+
+<h2>Reactivity</h2>
+<p>The same build re-run with different parameters (<code>STAIR_TREADS=16</code>, <code>ARCADE_BAYS=3</code> / <code>5</code>):
+the floor-to-landing height is the catalogue's and stays fixed, so 16 treads a turn means a 6" rise and 22½° treads.
+All of those runs' checks are in the table below. The last pair is the main run changing one number on live modifiers.</p>
+<div class="grid g2 pair">
+<figure class=""><a href="shots/010-balusters-landing-and-handrail.jpg"><img src="shots/010-balusters-landing-and-handrail.jpg" alt="12 treads a turn (catalogue): 23 treads + landing, 8" rise" loading="lazy"></a><figcaption>12 treads a turn (catalogue): 23 treads + landing, 8" rise</figcaption></figure>
+<figure class=""><a href="shots/react-treads16-010-balusters-landing-and-handrail.jpg"><img src="shots/react-treads16-010-balusters-landing-and-handrail.jpg" alt="16 treads a turn: 31 treads + landing, 6" rise" loading="lazy"></a><figcaption>16 treads a turn: 31 treads + landing, 6" rise</figcaption></figure>
+<figure class=""><a href="shots/react-bays3-001-one-pointed-arch-two-arcs-solidified-mirrored.jpg"><img src="shots/react-bays3-001-one-pointed-arch-two-arcs-solidified-mirrored.jpg" alt="ARCADE_BAYS=3" loading="lazy"></a><figcaption>ARCADE_BAYS=3</figcaption></figure>
+<figure class=""><a href="shots/react-bays5-001-one-pointed-arch-two-arcs-solidified-mirrored.jpg"><img src="shots/react-bays5-001-one-pointed-arch-two-arcs-solidified-mirrored.jpg" alt="ARCADE_BAYS=5" loading="lazy"></a><figcaption>ARCADE_BAYS=5</figcaption></figure>
+<figure class=""><a href="shots/020-live-3-bays-from-the-same-masters.jpg"><img src="shots/020-live-3-bays-from-the-same-masters.jpg" alt="live, in one session: 3 bays (one modifier update per arrayed object)" loading="lazy"></a><figcaption>live, in one session: 3 bays (one modifier update per arrayed object)</figcaption></figure>
+<figure class=""><a href="shots/021-live-5-bays-from-the-same-masters.jpg"><img src="shots/021-live-5-bays-from-the-same-masters.jpg" alt="live: 5 bays, same masters" loading="lazy"></a><figcaption>live: 5 bays, same masters</figcaption></figure>
+</div>
+
+<h2>Wireframe and x-ray</h2>
+<div class="grid g4">
+<figure class=""><a href="shots/030-wireframe-the-stair.jpg"><img src="shots/030-wireframe-the-stair.jpg" alt="wireframe the stair" loading="lazy"></a><figcaption>wireframe the stair</figcaption></figure>
+<figure class=""><a href="shots/031-wireframe-the-arcade.jpg"><img src="shots/031-wireframe-the-arcade.jpg" alt="wireframe the arcade" loading="lazy"></a><figcaption>wireframe the arcade</figcaption></figure>
+<figure class=""><a href="shots/032-x-ray-the-stair.jpg"><img src="shots/032-x-ray-the-stair.jpg" alt="x ray the stair" loading="lazy"></a><figcaption>x ray the stair</figcaption></figure>
+<figure class=""><a href="shots/033-x-ray-the-arcade.jpg"><img src="shots/033-x-ray-the-arcade.jpg" alt="x ray the arcade" loading="lazy"></a><figcaption>x ray the arcade</figcaption></figure>
+</div>
+<p class="meta">The wireframe is three.js's <code>material.wireframe</code>, so quads show their render diagonals — see the issue below.</p>
+
+<h2>Dimension checks</h2>
+<p>Measured from the finished model by the build itself (bounds via <code>measure</code>, positions via
+<code>inspect</code>), against the reference values; the build throws if any is off by more than 2 %.</p>
+<table>
+<thead><tr><th>run</th><th>check</th><th>reference</th><th>model</th><th>error</th><th></th></tr></thead>
+<tbody>
+<tr class="ok"><td>main (12 / 4)</td><td>stair diameter (outside of the treads), x</td><td>1.3462</td><td>1.3462</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>stair diameter (outside of the treads), z</td><td>1.3462</td><td>1.3462</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>floor to landing (top of the landing plate)</td><td>4.8768</td><td>4.8768</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>risers per full turn (tread copies + landing, / turns)</td><td>12</td><td>12</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>rise per step (catalogue 8" at 12 a turn)</td><td>0.2032</td><td>0.2032</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>handrail centre above the first tread (spindle + half the bar)</td><td>0.8572</td><td>0.8572</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>balcony spindle height above the landing</td><td>0.8509</td><td>0.8509</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>column above the landing (newel)</td><td>0.9398</td><td>0.9398</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>arch: floor to the intrados at the crown (as built)</td><td>9.2751</td><td>9.2751</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>arch: intrados span at the springing</td><td>3.4412</td><td>3.4412</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>pier: across the clustered shafts</td><td>0.8169</td><td>0.8169</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>pier: floor to the top of the capital (springing)</td><td>6.5044</td><td>6.5044</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>vault: floor to the crown (aisle ceiling, sheet 7)</td><td>9.6774</td><td>9.6774</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>arcade: pier centre to pier centre (from the arrayed piers)</td><td>4.3434</td><td>4.3434</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>main (12 / 4)</td><td>arcade: aisle, pier centre to pier centre across (mirror)</td><td>4.6025</td><td>4.6025</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>stair diameter (outside of the treads), x</td><td>1.3462</td><td>1.3462</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>stair diameter (outside of the treads), z</td><td>1.3462</td><td>1.3462</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>floor to landing (top of the landing plate)</td><td>4.8768</td><td>4.8768</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>risers per full turn (tread copies + landing, / turns)</td><td>16</td><td>16</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>rise per step (catalogue 8" at 12 a turn)</td><td>0.1524</td><td>0.1524</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>handrail centre above the first tread (spindle + half the bar)</td><td>0.8572</td><td>0.8572</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>balcony spindle height above the landing</td><td>0.8509</td><td>0.8509</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>16 treads</td><td>column above the landing (newel)</td><td>0.9398</td><td>0.9398</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>arch: floor to the intrados at the crown (as built)</td><td>9.2751</td><td>9.2751</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>arch: intrados span at the springing</td><td>3.4412</td><td>3.4412</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>pier: across the clustered shafts</td><td>0.8169</td><td>0.8169</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>pier: floor to the top of the capital (springing)</td><td>6.5044</td><td>6.5044</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>vault: floor to the crown (aisle ceiling, sheet 7)</td><td>9.6774</td><td>9.6774</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>arcade: pier centre to pier centre (from the arrayed piers)</td><td>4.3434</td><td>4.3434</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>3 bays</td><td>arcade: aisle, pier centre to pier centre across (mirror)</td><td>4.6025</td><td>4.6025</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>arch: floor to the intrados at the crown (as built)</td><td>9.2751</td><td>9.2751</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>arch: intrados span at the springing</td><td>3.4412</td><td>3.4412</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>pier: across the clustered shafts</td><td>0.8169</td><td>0.8169</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>pier: floor to the top of the capital (springing)</td><td>6.5044</td><td>6.5044</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>vault: floor to the crown (aisle ceiling, sheet 7)</td><td>9.6774</td><td>9.6774</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>arcade: pier centre to pier centre (from the arrayed piers)</td><td>4.3434</td><td>4.3434</td><td>0.00 %</td><td>pass</td></tr>
+<tr class="ok"><td>5 bays</td><td>arcade: aisle, pier centre to pier centre across (mirror)</td><td>4.6025</td><td>4.6025</td><td>0.00 %</td><td>pass</td></tr>
+</tbody>
+</table>
+
+<h2>Counts</h2>
+<p>Per object, the editable master (what vertex and edge indices address) and its live stack. Face sizes and
+edge use are tallied from <code>inspect {detail}</code>. Masters total 7005 vertices, 14244 edges,
+7193 faces, 86.7 % quads; the evaluated meshes
+total 59230 vertices.</p>
+<table>
+<thead><tr><th>object</th><th>verts</th><th>edges</th><th>faces</th><th>quads</th><th>tris / n-gons</th><th>topology</th><th>live modifiers</th><th>evaluated verts</th></tr></thead>
+<tbody>
+<tr><td>column</td><td>410</td><td>840</td><td>432</td><td>88.9 %</td><td>48 / 0</td><td>closed, manifold</td><td>—</td><td>410</td></tr>
+<tr><td>tread</td><td>1072</td><td>2276</td><td>1166</td><td>45.1 %</td><td>480 / 160</td><td>manifold, 48 open edges</td><td>array radial ×23, 690° about [0, 1, 0], step [0, 0.20319999999999996, 0]</td><td>24656</td></tr>
+<tr><td>baluster</td><td>132</td><td>270</td><td>140</td><td>85.7 %</td><td>20 / 0</td><td>closed, manifold</td><td>array radial ×23, 690° about [0, 1, 0], step [0, 0.20319999999999996, 0]</td><td>3036</td></tr>
+<tr><td>landing</td><td>226</td><td>512</td><td>256</td><td>100.0 %</td><td>0 / 0</td><td>closed, manifold</td><td>—</td><td>226</td></tr>
+<tr><td>balcony-a</td><td>132</td><td>270</td><td>140</td><td>85.7 %</td><td>20 / 0</td><td>closed, manifold</td><td>array linear ×6, step [0.07030836227193019, 0, -0.11181171939756145]</td><td>792</td></tr>
+<tr><td>balcony-b</td><td>132</td><td>270</td><td>140</td><td>85.7 %</td><td>20 / 0</td><td>closed, manifold</td><td>array linear ×6, step [-0.11181171939756145, 0, -0.07030836227193019]</td><td>792</td></tr>
+<tr><td>handrail</td><td>1116</td><td>2220</td><td>1106</td><td>99.8 %</td><td>0 / 2</td><td>closed, manifold</td><td>—</td><td>1116</td></tr>
+<tr><td>landing-rail</td><td>36</td><td>60</td><td>26</td><td>92.3 %</td><td>0 / 2</td><td>closed, manifold</td><td>—</td><td>36</td></tr>
+<tr><td>arc-arch</td><td>1776</td><td>3552</td><td>1779</td><td>99.5 %</td><td>8 / 1</td><td>16 non-manifold edges</td><td>array linear ×4, step [4.3434, 0, 0]; mirror z</td><td>14196</td></tr>
+<tr><td>arc-spandrel</td><td>68</td><td>132</td><td>66</td><td>100.0 %</td><td>0 / 0</td><td>closed, manifold</td><td>array linear ×4, step [4.3434, 0, 0]; mirror z</td><td>520</td></tr>
+<tr><td>arc-course</td><td>16</td><td>28</td><td>14</td><td>100.0 %</td><td>0 / 0</td><td>closed, manifold</td><td>array linear ×4, step [4.3434, 0, 0]; mirror z</td><td>80</td></tr>
+<tr><td>arc-pier</td><td>977</td><td>2064</td><td>1080</td><td>82.2 %</td><td>192 / 0</td><td>closed, manifold</td><td>array linear ×5, step [4.3434, 0, 0]; mirror z</td><td>9770</td></tr>
+<tr><td>arc-vault</td><td>338</td><td>672</td><td>336</td><td>100.0 %</td><td>0 / 0</td><td>closed, manifold</td><td>array linear ×4, step [4.3434, 0, 0]</td><td>1286</td></tr>
+<tr><td>arc-rib-diagonal</td><td>348</td><td>684</td><td>340</td><td>98.8 %</td><td>0 / 4</td><td>closed, manifold</td><td>array linear ×4, step [4.3434, 0, 0]</td><td>1392</td></tr>
+<tr><td>arc-rib-transverse</td><td>174</td><td>342</td><td>170</td><td>98.8 %</td><td>0 / 2</td><td>closed, manifold</td><td>array linear ×5, step [4.3434, 0, 0]</td><td>870</td></tr>
+<tr><td>arc-floor</td><td>4</td><td>4</td><td>1</td><td>100.0 %</td><td>0 / 0</td><td>manifold, 4 open edges</td><td>—</td><td>4</td></tr>
+<tr><td>stair-floor</td><td>48</td><td>48</td><td>1</td><td>0.0 %</td><td>0 / 1</td><td>manifold, 48 open edges</td><td>—</td><td>48</td></tr>
+</tbody>
+</table>
+<p class="meta">Where faces are not quads: lathe profiles that end on the axis close in triangle fans (Blender's Spin does the same),
+sweep and lathe caps and the polar tread's openings are n-gons, and the bevel's corner patches are triangles.
+"Open edges" are where a part is not closed by design (the floor, a joined lathe's apex).</p>
+
+<h2>What the API lacked</h2>
+<h3>Fixed in this branch</h3>
+<ul class="tight">
+<li><a href="../../issues/open/modelling-tools/command-sweep-profile-orientation.md"><code>command-sweep-profile-orientation.md</code></a> — Fixed: `sweep` now converts to the kernel's Z-up, so a section faces the same way on any vertical plane and `zUp` keeps it level (commit 5d24f63).</li>
+<li><a href="../../issues/open/modelling-tools/command-no-edge-listing.md"><code>command-no-edge-listing.md</code></a> — Fixed: `inspect {detail}` lists `edgeVerts`, so `bevel`/`subdivide` edges are picked by position (commit 8abc599).</li>
+<li>(new) radial array `step` — Added: a radial array takes a per-copy offset (Blender Constant + Object Offset), the rise of the stair (commit 141e7c2).</li>
+</ul>
+<h3>Filed</h3>
+<ul class="tight">
+<li><a href="../../issues/open/modelling-tools/command-export-ignores-objects.md"><code>command-export-ignores-objects.md</code></a> — `export {objects}` is accepted and ignored: one GLB per piece needed delete, export, undo.</li>
+<li><a href="../../issues/open/modelling-tools/command-display-wireframe-shows-triangles.md"><code>command-display-wireframe-shows-triangles.md</code></a> — Wireframe display draws render triangles, not mesh edges; no x-ray mode (faked with opacity).</li>
+<li><a href="../../issues/open/modelling-tools/command-inspect-bounds-are-master-only.md"><code>command-inspect-bounds-are-master-only.md</code></a> — `inspect` describes the master, not the arrayed result; evaluated sizes come from `measure`.</li>
+<li><a href="../../issues/open/modelling-tools/command-sweep-tilt-free-normals.md"><code>command-sweep-tilt-free-normals.md</code></a> — Curve tilt and Free normals are not ported; `zUp` was enough here.</li>
+<li><a href="../../issues/open/modelling-tools/session-out-dir-reloads-vite.md"><code>session-out-dir-reloads-vite.md</code></a> — A session writing captures inside the vite root reloads its own page mid-build.</li>
+<li><a href="../../issues/open/modelling-tools/command-camera-duration-saved-views-only.md"><code>command-camera-duration-saved-views-only.md</code></a> — `camera {duration}` only animates to saved views; explicit moves jump.</li>
+</ul>
+</main>
+</body>
+</html>
