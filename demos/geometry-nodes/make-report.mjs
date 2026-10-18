@@ -3,7 +3,8 @@
  * report page. Buildify and flower-field stills are written to shots/ for a local look but are gitignored (third-party
  * assets); the hero and the committed stills are the terrain's.
  *
- *     node demos/geometry-nodes/make-report.mjs     # after record.mjs, with the film pulled to demos/geometry-nodes/film/
+ *     node demos/geometry-nodes/make-report.mjs [--local]   # after record.mjs, the film pulled to demos/geometry-nodes/film/;
+ *                                                          # --local adds the Buildify / flower stills (never commit that page)
  */
 import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {execFileSync} from 'node:child_process'
@@ -28,7 +29,8 @@ const report = {
     stills: [
         {file: 'terrain-loaded', caption: 'Terrain: the DSL group on a plane, as loaded'},
         {file: 'terrain-final', caption: 'Terrain after four more input changes (resolution, seed)'},
-        ...['buildify-loaded', 'buildify-edited', 'flowers-loaded', 'flowers-edited'].filter(f => existsSync(`demos/geometry-nodes/film/stills/${f}.jpg`))
+        // third-party asset renders only in a local page (`--local`); the committed page shows ours
+        ...['buildify-loaded', 'buildify-edited', 'flowers-loaded', 'flowers-edited'].filter(f => process.argv.includes('--local') && existsSync(`demos/geometry-nodes/film/stills/${f}.jpg`))
             .map(f => ({file: f, caption: `${f.startsWith('buildify') ? 'Buildify 1.0' : 'Flower field'}, ${f.endsWith('loaded') ? 'as loaded' : 'after the panel edit'} (local only: third-party asset)`})),
     ],
     commandsNote: 'the input changes the film timed',
