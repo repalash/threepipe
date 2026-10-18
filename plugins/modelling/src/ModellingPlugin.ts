@@ -143,21 +143,20 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this._connectMeshEdit(viewer)
         this._connectUndoManager(viewer)
         this._registerGltfExtension(viewer)
-        this.commands.registerAll([
-            ...createCommands,
-            ...editCommands,
-            ...fillCommands,
-            ...sceneCommands,
-            ...sessionCommands,
-            ...referenceCommands,
-            ...modifierCommands,
-            ...shapeCommands,
-            ...loopCommands,
-            ...cutCommands,
-            lookCommand,
-            ...checkCommands,
-            importCommand,
-        ])
+        // Grouped for progressive disclosure: an MCP client sees a group's commands when it asks for them.
+        this.commands.registerAll(createCommands, 'create')
+        this.commands.registerAll(editCommands, 'edit')
+        this.commands.registerAll(shapeCommands, 'shape')
+        this.commands.registerAll(loopCommands, 'loop')
+        this.commands.registerAll(cutCommands, 'cut')
+        this.commands.registerAll(fillCommands, 'fill')
+        this.commands.registerAll(modifierCommands, 'modifiers')
+        this.commands.registerAll(sceneCommands, 'scene')
+        this.commands.registerAll(referenceCommands, 'reference')
+        this.commands.registerAll(sessionCommands, 'session')
+        this.commands.registerAll([lookCommand], 'look')
+        this.commands.registerAll(checkCommands, 'checks')
+        this.commands.registerAll([importCommand], 'import')
     }
 
     /**
@@ -409,13 +408,13 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
      * Generated from the same definitions the dispatcher runs, so a command cannot exist without
      * being described, and a description cannot describe a command that is not there.
      */
-    describeCommands(): {name: string, description: string, inputSchema: unknown}[] {
+    describeCommands(): {name: string, description: string, inputSchema: unknown, group: string, mutates: boolean}[] {
         return this.commands.describe()
     }
 
     /** Add a command of your own. It gains validation, undo and the tool list for free. */
-    addCommand(def: CommandDefinition): void {
-        this.commands.register(def)
+    addCommand(def: CommandDefinition, group?: string): void {
+        this.commands.register(def, group)
     }
 
     // endregion

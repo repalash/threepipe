@@ -1,0 +1,35 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "allowJs": false,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "isolatedModules": true,
+        "module": "es2022",
+        "noImplicitAny": true,
+        "declaration": true,
+        "declarationMap": true,
+        "outDir": "dist",
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "moduleResolution": "bundler",
+        "sourceMap": true,
+        "target": "ES2022",
+        "strictNullChecks": true,
+        "allowImportingTsExtensions": true,
+        "lib": ["es2022", "esnext", "dom", "dom.iterable"],
+        "types": ["node"],
+        "typeRoots": ["./node_modules/@types", "../modelling-cli/node_modules/@types", "../../node_modules/@types"],
+        "paths": {
+            "threepipe": ["../../dist/index.d.ts"],
+            "@threepipe/mesh-kernel": ["../mesh-kernel/src/index.ts"],
+            "@threepipe/plugin-modelling/agent-protocol": ["../modelling/src/agent/protocol.ts"],
+            "@threepipe/plugin-modelling": ["../modelling/src/index.ts"],
+            "@threepipe/modelling-cli": ["../modelling-cli/src/index.ts"]
+        }
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "**/*.test.ts", "dist"]
+}

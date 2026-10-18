@@ -814,14 +814,23 @@ export const helpCommand: CommandDefinition = {
         + 'The parameter is `command`, not `op`: a command object already has an `op` key, so '
         + '`{op: "help", op: "lathe"}` is not expressible in JSON.',
     mutates: false,
-    schema: schema({command: S.string('A command name. Omit for the list.')}),
+    schema: schema({
+        command: S.string('A command name. Omit for the list.'),
+        group: S.string('List only this group (`create`, `edit`, `shape`, ...).'),
+    }),
 
     run(p: Record<string, unknown>, ctx) {
+        const registry = ctx.plugin.commands
         if (p.command === undefined) {
+            const groups = registry.groups()
+            if (p.group !== undefined && !groups[p.group as string]) {
+                throw new Error(`no group "${p.group}" - have: ${Object.keys(groups).join(', ')}`)
+            }
             return {
-                data: ctx.plugin.commands.all()
+                data: registry.all()
+                    .filter(d => p.group === undefined || registry.groupOf(d.op) === p.group)
                     .sort((a, b) => a.op.localeCompare(b.op))
-                    .map(d => ({op: d.op, summary: d.summary, mutates: d.mutates})),
+                    .map(d => ({op: d.op, summary: d.summary, mutates: d.mutates, group: registry.groupOf(d.op)})),
             }
         }
         const def = ctx.plugin.commands.get(p.command as string)
@@ -835,6 +844,7 @@ export const helpCommand: CommandDefinition = {
                 summary: def.summary,
                 description: def.description ?? null,
                 mutates: def.mutates,
+                group: registry.groupOf(def.op),
                 inputSchema: def.schema,
             },
         }
