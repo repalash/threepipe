@@ -1,0 +1,143 @@
+import {describe, expect, it} from 'vitest'
+import {MeshData} from '../MeshData'
+import {AttrDomain, AttrName} from '../constants'
+import {primitiveCube} from '../generate/primitives'
+import {Level} from './level'
+import {subdivisionSurface, subdivisionSurfaceEvaluate} from './subdivisionSurface'
+import {computeVertexVertexMask, Mask, Rule, CreasingMethod, FVarLinearInterpolation, VtxBoundaryInterpolation} from './sdc'
+
+const cube = () => MeshData.fromFaces({
+    positions: [-1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1],
+    faces: [[0, 3, 2, 1], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]],
+})
+const point = (m: MeshData, v: number) => [m.positions[3 * v], m.positions[3 * v + 1], m.positions[3 * v + 2]]
+const near = (a: number[], b: number[], eps = 1e-6) => a.every((x, i) => Math.abs(x - b[i]) < eps)
+const find = (m: MeshData, p: number[], eps = 1e-6) => { for (let v = 0; v < m.vertsNum; v++) if (near(point(m, v), p, eps)) return v; return -1 }
+const OPTS = {vtxBoundaryInterpolation: VtxBoundaryInterpolation.EdgeOnly, fvarLinearInterpolation: FVarLinearInterpolation.Boundaries, creasingMethod: CreasingMethod.Uniform}
+
+describe('OpenSubdiv port: Vtr level', () => {
+    it('rebuilds edges and orders a cube vertex\'s faces and edges counter-clockwise', () => {
+        const m = cube()
+        const L = Level.fromFaceVertices(8, [4, 4, 4, 4, 4, 4], Array.from(m.cornerVerts))
+        expect(L.numEdges).toBe(12)
+        for (let v = 0; v < 8; v++) {
+            const faces = L.getVertexFaces(v), edges = L.getVertexEdges(v)
+            expect(faces.length).toBe(3)
+            expect(edges.length).toBe(3)
+            // interleaved: edge i lies between face i-1 and face i
+            for (let i = 0; i < 3; i++) {
+                const ef = Array.from(L.getEdgeFaces(edges[i]))
+                expect(ef).toContain(faces[i])
+                expect(ef).toContain(faces[(i + 2) % 3])
+            }
+        }
+    })
+
+    it('tags a fin edge (three faces) and its vertices non-manifold', () => {
+        const L = Level.fromFaceVertices(8, [4, 4, 4], [0, 2, 3, 1, 1, 5, 4, 0, 0, 6, 7, 1])
+        const e = L.findEdge(0, 1)
+        expect(L.isEdgeNonManifold(e)).toBe(true)
+        expect(L.getEdgeFaces(e).length).toBe(3)
+    })
+})
+
+describe('OpenSubdiv port: masks', () => {
+    it('a smooth valence-3 vertex gets (n-2)/n, 1/n^2 on edges and face centres', () => {
+        const m = new Mask()
+        computeVertexVertexMask(OPTS, {numEdges: 3, numFaces: 3, sharpness: 0, sharpnessPerEdge: [0, 0, 0], childSharpness: 0}, m, Rule.Smooth, Rule.Smooth)
+        expect(m.vertex[0]).toBeCloseTo(1 / 3, 15)
+        expect(m.edge.slice(0, 3)).toEqual([1 / 9, 1 / 9, 1 / 9])
+        expect(m.face.slice(0, 3)).toEqual([1 / 9, 1 / 9, 1 / 9])
+    })
+
+    it('a semi-sharp crease of 0.5 blends the crease and smooth masks half and half', () => {
+        const m = new Mask()
+        computeVertexVertexMask(OPTS, {numEdges: 4, numFaces: 4, sharpness: 0, sharpnessPerEdge: [0.5, 0, 0.5, 0], childSharpness: 0}, m)
+        // crease: v 3/4, e 1/8 on the two sharp edges; smooth: v 1/2, e 1/16, f 1/16
+        expect(m.vertex[0]).toBeCloseTo(0.5 * 0.75 + 0.5 * 0.5, 15)
+        expect(m.edge[0]).toBeCloseTo(0.5 * 0.125 + 0.5 / 16, 15)
+        expect(m.edge[1]).toBeCloseTo(0.5 / 16, 15)
+        expect(m.face[0]).toBeCloseTo(0.5 / 16, 15)
+    })
+})
+
+describe('subdivisionSurface', () => {
+    it('level 1 of a cube without the limit: 26 vertices, 24 quads, the textbook Catmull-Clark points', () => {
+        const r = subdivisionSurface(cube(), {levels: 1, useLimitSurface: false})
+        expect(r.vertsNum).toBe(26)
+        expect(r.facesNum).toBe(24)
+        expect(find(r, [5 / 9, 5 / 9, 5 / 9])).toBeGreaterThanOrEqual(0) // corner (Q + 2R)/3
+        expect(find(r, [0.75, 0.75, 0])).toBeGreaterThanOrEqual(0) // edge point
+        expect(find(r, [1, 0, 0])).toBeGreaterThanOrEqual(0) // face point
+        expect(r.validate()).toEqual([])
+    })
+
+    it('level 2 counts, and every face a quad with consistent winding (closed and manifold)', () => {
+        const r = subdivisionSurface(cube(), {levels: 2, useLimitSurface: false})
+        expect(r.vertsNum).toBe(98)
+        expect(r.facesNum).toBe(96)
+        expect(r.edgesNum).toBe(192)
+        expect(r.validate()).toEqual([])
+    })
+
+    it('the limit of a cube corner is the limit mask of the refined corner', () => {
+        const lim = subdivisionSurface(cube(), {levels: 1})
+        const ref = subdivisionSurface(cube(), {levels: 1, useLimitSurface: false})
+        // smooth valence 3 limit mask: v 1 - n(e+f), e = 4/(n(n+5)), f = 1/(n(n+5)) on the opposite quad corner
+        const n = 3, fw = 1 / (n * (n + 5)), ew = 4 * fw, vw = 1 - n * (ew + fw)
+        const c = 5 / 9, e = 0.75
+        // at level 1 a corner's edge neighbours are edge points (0.75, 0.75, 0)-like, opposite quad corners are face points
+        const x = vw * c + ew * (e + e + 0) + fw * (1 + 0 + 0)
+        expect(find(lim, [x, x, x], 1e-6)).toBeGreaterThanOrEqual(0)
+        expect(ref.vertsNum).toBe(lim.vertsNum)
+    })
+
+    it('a fully creased cube stays a cube; Simple subdivision never moves a vertex off the cage', () => {
+        const m = cube()
+        const crease = m.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
+        crease.fill(1)
+        const r = subdivisionSurface(m, {levels: 2})
+        for (let v = 0; v < r.vertsNum; v++) expect(Math.max(...point(r, v).map(Math.abs))).toBeCloseTo(1, 6)
+        expect(find(r, [1, 1, 1])).toBeGreaterThanOrEqual(0)
+        const s = subdivisionSurface(cube(), {levels: 2, scheme: 'SIMPLE'})
+        for (let v = 0; v < s.vertsNum; v++) expect(Math.max(...point(s, v).map(Math.abs))).toBeCloseTo(1, 6)
+    })
+
+    it('boundary: ALL rounds a grid corner, PRESERVE_CORNERS keeps it', () => {
+        const pos: number[] = [], faces: number[][] = []
+        for (let y = 0; y <= 3; y++) for (let x = 0; x <= 3; x++) pos.push(-1 + 2 * x / 3, -1 + 2 * y / 3, 0)
+        for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) faces.push([y * 4 + x, y * 4 + x + 1, (y + 1) * 4 + x + 1, (y + 1) * 4 + x])
+        const g = MeshData.fromFaces({positions: pos, faces})
+        const corner = [1, 1, 0]
+        const keep = subdivisionSurface(g, {levels: 1, boundarySmooth: 'PRESERVE_CORNERS'})
+        const all = subdivisionSurface(g, {levels: 1, boundarySmooth: 'ALL'})
+        expect(find(keep, corner)).toBeGreaterThanOrEqual(0)
+        expect(find(all, corner)).toBe(-1)
+        // ALL treats the corner as a crease vertex along the boundary: limit 2/3 v + 1/6 each neighbour
+        expect(keep.facesNum).toBe(all.facesNum)
+    })
+
+    it('a semi-sharp crease refines deeper for the limit surface, but never past quality', () => {
+        const m = primitiveCube()
+        const crease = m.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
+        crease[0] = 0.5 // sharpness 2.5: decays after 3 levels
+        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.refiner.maxLevel).toBe(3)
+        expect(subdivisionSurfaceEvaluate(m, {levels: 1, quality: 2})!.refiner.maxLevel).toBe(2)
+        expect(subdivisionSurfaceEvaluate(m, {levels: 1, useLimitSurface: false})!.refiner.maxLevel).toBe(1)
+    })
+
+    it('n-gons split into quads around a centre vertex; loose vertices are left out', () => {
+        const m = MeshData.fromFaces({positions: [0, 0, 0, 1, 0, 0, 1.5, 1, 0, 0.5, 1.6, 0, -0.5, 1, 0, 9, 9, 9], faces: [[0, 1, 2, 3, 4]]})
+        const r = subdivisionSurface(m, {levels: 1, useLimitSurface: false})
+        expect(r.facesNum).toBe(5)
+        expect(r.vertsNum).toBe(5 + 5 + 1)
+        expect(find(r, [9, 9, 9])).toBe(-1)
+    })
+
+    it('level 0 is a copy', () => {
+        const m = cube()
+        const r = subdivisionSurface(m, {levels: 0})
+        expect(r).not.toBe(m)
+        expect(Array.from(r.positions)).toEqual(Array.from(m.positions))
+    })
+})
