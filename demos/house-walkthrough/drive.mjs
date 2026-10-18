@@ -473,7 +473,8 @@ async function runKeymap(browser, keymap) {
             // the inset face stays selected: right-click it
             const q = await faceAt('f.sel')
             await clickAt(q ?? p, {button: 'right'}); await sleep(700)
-            await page.locator('.me-context-menu').getByRole('menuitem', {name: /^Extrude/}).click(); await sleep(500)
+            // by operator id: the Face menu now has three Extrude entries (faces, along normals, individual)
+            await page.locator('.me-context-menu [data-menu-item="mesh.extrude"]').click(); await sleep(500)
             await type('-0.05'); await press('Enter', 700)
             const s = await waitFor('window 1', s => s.lastOp === 'mesh.extrude' && !s.modal)
             return {counts: s.counts}
