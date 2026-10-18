@@ -84,3 +84,29 @@ export function wordmark(o: WordmarkOptions): string {
     const t = lines.map(([s, y, k]) => `<text x="${W / 2}" y="${(H * y).toFixed(2)}" text-anchor="middle" dominant-baseline="central" ${style} font-size="${(H * k).toFixed(1)}" textLength="${(W * 0.96).toFixed(1)}" lengthAdjust="spacingAndGlyphs">${esc(s)}</text>`)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${t.join('')}</svg>`
 }
+
+export interface RingTextOptions {
+    size: number
+    text: string
+    /** Text baseline circle radius as a fraction of half the size. Default 0.85. */
+    radius?: number
+    /** Where the text is centred, degrees clockwise from the top. Default 0. */
+    at?: number
+    color?: string
+    fontScale?: number
+    fontFamily?: string
+    letterSpacing?: number
+}
+
+/** Text running round a circle, reading clockwise from outside (the front ring of a lens). */
+export function ringText(o: RingTextOptions): string {
+    const S = o.size, c = S / 2, r = (o.radius ?? 0.85) * c, fs = (o.fontScale ?? 0.045) * S
+    const a = ((o.at ?? 0) - 180) * Math.PI / 180
+    // a full circle starting opposite `at`, so the text centred at 50 % of its length lands on `at`
+    const x0 = c + r * Math.sin(a), y0 = c - r * Math.cos(a), x1 = c - r * Math.sin(a), y1 = c + r * Math.cos(a)
+    const d = `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 1 1 ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 1 1 ${x0.toFixed(2)} ${y0.toFixed(2)}`
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">`
+        + `<defs><path id="ring" d="${d}" fill="none"/></defs>`
+        + `<text font-family="${esc(o.fontFamily ?? 'Helvetica, Arial, sans-serif')}" font-size="${fs.toFixed(1)}" fill="${esc(o.color ?? '#ffffff')}"${o.letterSpacing ? ` letter-spacing="${o.letterSpacing * fs}"` : ''}>`
+        + `<textPath href="#ring" xlink:href="#ring" startOffset="50%" text-anchor="middle">${esc(o.text)}</textPath></text></svg>`
+}
