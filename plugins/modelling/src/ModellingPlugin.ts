@@ -39,6 +39,7 @@ import {referenceCommands, ReferencePlaneState} from './commands/reference'
 import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
+import {shadingCommands} from './commands/shading'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
 import {lookCommand} from './commands/look'
@@ -147,6 +148,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this.commands.registerAll(createCommands, 'create')
         this.commands.registerAll(editCommands, 'edit')
         this.commands.registerAll(shapeCommands, 'shape')
+        this.commands.registerAll(shadingCommands, 'shading')
         this.commands.registerAll(loopCommands, 'loop')
         this.commands.registerAll(cutCommands, 'cut')
         this.commands.registerAll(fillCommands, 'fill')
