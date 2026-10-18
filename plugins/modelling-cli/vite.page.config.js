@@ -12,6 +12,7 @@ export default defineConfig({
         alias: {
             'threepipe': path.resolve(__dirname, '../../dist/index.mjs'),
             '@threepipe/mesh-kernel': path.resolve(__dirname, '../mesh-kernel/src/index.ts'),
+            '@threepipe/modelling-parts': path.resolve(__dirname, '../modelling-parts/src/index.ts'),
             '@threepipe/plugin-modelling': path.resolve(__dirname, '../modelling/src/index.ts'),
         },
     },

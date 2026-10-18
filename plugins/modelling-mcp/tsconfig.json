@@ -25,6 +25,7 @@
         "paths": {
             "threepipe": ["../../dist/index.d.ts"],
             "@threepipe/mesh-kernel": ["../mesh-kernel/src/index.ts"],
+            "@threepipe/modelling-parts": ["../modelling-parts/src/index.ts"],
             "@threepipe/plugin-modelling/agent-protocol": ["../modelling/src/agent/protocol.ts"],
             "@threepipe/plugin-modelling": ["../modelling/src/index.ts"],
             "@threepipe/modelling-cli": ["../modelling-cli/src/index.ts"]

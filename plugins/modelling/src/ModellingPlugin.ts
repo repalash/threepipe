@@ -41,6 +41,7 @@ import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {shadingCommands} from './commands/shading'
 import {decalCommands} from './commands/decal'
+import {partCommands} from './commands/part'
 import {booleanCommands} from './commands/boolean'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
@@ -148,6 +149,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this._registerGltfExtension(viewer)
         // Grouped for progressive disclosure: an MCP client sees a group's commands when it asks for them.
         this.commands.registerAll(createCommands, 'create')
+        this.commands.registerAll(partCommands, 'create')
         this.commands.registerAll(editCommands, 'edit')
         this.commands.registerAll(shapeCommands, 'shape')
         this.commands.registerAll(shadingCommands, 'shading')

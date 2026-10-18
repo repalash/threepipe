@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "skipLibCheck": true,
+        "isolatedModules": true,
+        "module": "es2020",
+        "noImplicitAny": true,
+        "noEmit": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "moduleResolution": "node",
+        "target": "ES2021",
+        "strictNullChecks": true,
+        "allowImportingTsExtensions": true,
+        "lib": ["es2020", "esnext"],
+        "paths": {
+            "@threepipe/mesh-kernel": ["../mesh-kernel/dist/index.d.ts"]
+        }
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "**/*.test.ts"]
+}

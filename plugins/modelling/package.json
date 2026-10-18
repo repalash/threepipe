@@ -6,6 +6,7 @@
     "dependencies": {
         "threepipe": "file:./../../src/",
         "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/",
+        "@threepipe/modelling-parts": "file:./../modelling-parts/",
         "manifold-3d": "3.5.3"
     },
     "peerDependencies": {

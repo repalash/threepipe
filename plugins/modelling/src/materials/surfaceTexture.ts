@@ -12,7 +12,8 @@ export function reliefNormalTexture(pattern: SurfacePattern, size = 256, seed = 
     let t = cache.get(key)
     if (t) return t
     const maps = surfaceMaps(pattern, size, seed)
-    t = new DataTexture(maps.normal, size, size, RGBAFormat, UnsignedByteType)
+    // (cast: three types the data as BufferSource, which a Uint8Array over ArrayBufferLike does not satisfy in newer TS libs)
+    t = new DataTexture(maps.normal as never, size, size, RGBAFormat, UnsignedByteType)
     t.name = `relief-${pattern}`
     t.wrapS = t.wrapT = RepeatWrapping
     t.magFilter = LinearFilter
