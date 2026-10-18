@@ -2,7 +2,7 @@
 // the same set-up the side-by-side in issues/open/modelling-tools/16-realism.md was judged in.
 // ../render.mjs drives it through `window.bench`; one model and one style per page load.
 
-import {Color, DRACOLoader2, Matrix4, PhysicalMaterial, SRGBColorSpace, ThreeViewer} from 'threepipe'
+import {Color, DRACOLoader2, Matrix4, PhysicalMaterial, SRGBColorSpace, ThreeViewer, UnlitMaterial} from 'threepipe'
 
 // The decoder three ships, served from this repo, instead of the CDN default.
 DRACOLoader2.DRACO_LIBRARY_PATH = new URL('../../../node_modules/three/examples/jsm/libs/draco/', import.meta.url).href
@@ -11,7 +11,9 @@ const HDRI = 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'
 
 const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas'), msaa: true, renderScale: 1})
 const envPending = viewer.setEnvironmentMap(HDRI)
-viewer.scene.backgroundColor = null
+/** The page and render background; `mask` renders white on black instead. */
+const BACKGROUND = '#e9e9e9'
+viewer.scene.backgroundColor = new Color(BACKGROUND)
 
 const glob = p => new RegExp('^' + p.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$')
 
@@ -49,7 +51,7 @@ async function frames(n) {
 window.bench = {
     /**
      * @param {string} url GLB url
-     * @param {{matrix?: number[], exclude?: string[], style?: 'full'|'notex'|'clay'}} opts
+     * @param {{matrix?: number[], exclude?: string[], style?: 'full'|'notex'|'clay'|'mask'}} opts
      */
     async load(url, opts = {}) {
         await envPending
@@ -65,6 +67,10 @@ window.bench = {
         const exclude = (opts.exclude ?? []).map(glob)
         const clay = new PhysicalMaterial({color: '#8c8c8c', roughness: 0.55, metalness: 0})
         const style = opts.style ?? 'full'
+        const mask = new UnlitMaterial({color: '#ffffff'})
+        if (style === 'mask') {
+            viewer.scene.backgroundColor = new Color('#000000')
+        }
         const hide = [], done = new Set()
         root.traverse(o => {
             if (!o.isMesh) return
@@ -75,6 +81,7 @@ window.bench = {
             if (mats.some(isDecal)) info.decals++
             if (style === 'full') return
             if (style === 'clay') { o.material = clay; return }
+            if (style === 'mask') { o.material = mask; return }
             // notex: each colour texture folded into its material as the texture's mean colour and alpha (so a
             // label that is mostly transparent fades out, a screen keeps its average tone); every other map dropped.
             for (const m of mats) {

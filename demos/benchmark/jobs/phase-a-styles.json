@@ -37,7 +37,8 @@
  "styles": [
   "full",
   "notex",
-  "clay"
+  "clay",
+  "mask"
  ],
  "views": [
   {
