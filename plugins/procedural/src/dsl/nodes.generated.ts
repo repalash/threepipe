@@ -1534,6 +1534,21 @@ export type SampleNearestSurfaceNode = NodeHandle & {
     readonly isValid: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeScaleElements` (Scale Elements). */
+export interface ScaleElementsArgs {
+    domain?: "FACE" | "EDGE"
+    geometry?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    scale?: In<"FLOAT">
+    center?: In<"VECTOR">
+    scaleMode?: In<"MENU">
+    axis?: In<"VECTOR">
+    mute?: boolean
+}
+export type ScaleElementsNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeScaleInstances` (Scale Instances). */
 export interface ScaleInstancesArgs {
     instances?: In<"GEOMETRY">
@@ -1754,6 +1769,19 @@ export type SetSplineResolutionNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSortElements` (Sort Elements). */
+export interface SortElementsArgs {
+    domain?: "POINT" | "EDGE" | "FACE" | "CURVE" | "INSTANCE"
+    geometry?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    groupID?: In<"INT">
+    sortWeight?: In<"FLOAT">
+    mute?: boolean
+}
+export type SortElementsNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSplineLength` (Spline Length). */
 export interface SplineLengthArgs {
     mute?: boolean
@@ -1779,6 +1807,19 @@ export interface SplitEdgesArgs {
 }
 export type SplitEdgesNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSplitToInstances` (Split to Instances). */
+export interface SplitToInstancesArgs {
+    domain?: "POINT" | "EDGE" | "FACE" | "CURVE" | "INSTANCE" | "LAYER"
+    geometry?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type SplitToInstancesNode = NodeHandle & {
+    readonly instances: Socket<"GEOMETRY">
+    readonly groupID: Socket<"INT">
 }
 
 /** `GeometryNodeStoreNamedAttribute` (Store Named Attribute). */
@@ -1861,6 +1902,18 @@ export interface TranslateInstancesArgs {
 }
 export type TranslateInstancesNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeTriangulate` (Triangulate). */
+export interface TriangulateArgs {
+    mesh?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    quadMethod?: In<"MENU">
+    nGonMethod?: In<"MENU">
+    mute?: boolean
+}
+export type TriangulateNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeTrimCurve` (Trim Curve). */
@@ -2127,6 +2180,7 @@ export interface NodeConstructors {
     SampleIndex(args?: SampleIndexArgs): SampleIndexNode
     SampleNearest(args?: SampleNearestArgs): SampleNearestNode
     SampleNearestSurface(args?: SampleNearestSurfaceArgs): SampleNearestSurfaceNode
+    ScaleElements(args?: ScaleElementsArgs): ScaleElementsNode
     ScaleInstances(args?: ScaleInstancesArgs): ScaleInstancesNode
     SceneTime(args?: SceneTimeArgs): SceneTimeNode
     SelfObject(args?: SelfObjectArgs): SelfObjectNode
@@ -2146,9 +2200,11 @@ export interface NodeConstructors {
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
     SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
+    SortElements(args?: SortElementsArgs): SortElementsNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplineResolution(args?: SplineResolutionArgs): SplineResolutionNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
+    SplitToInstances(args?: SplitToInstancesArgs): SplitToInstancesNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
@@ -2156,6 +2212,7 @@ export interface NodeConstructors {
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
     TransformPoint(args?: TransformPointArgs): TransformPointNode
     TranslateInstances(args?: TranslateInstancesArgs): TranslateInstancesNode
+    Triangulate(args?: TriangulateArgs): TriangulateNode
     TrimCurve(args?: TrimCurveArgs): TrimCurveNode
     Value(args?: ValueArgs): ValueNode
     Vector(args?: VectorArgs): VectorNode
