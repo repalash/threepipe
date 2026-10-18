@@ -36,6 +36,7 @@ import {
 } from './types'
 import type {EvalOptions} from './context'
 import {executeForeach, ForeachHost} from './foreachZone'
+import {executeMultiFunctionOnLists, GList} from './list'
 
 /** An error raised by a node, with the node and tree it happened in. Thrown once, not re-wrapped upstream. */
 export class NodeEvaluationError extends Error {}
@@ -710,12 +711,20 @@ class TreeEval {
         if (inputs.length !== fn.inputs.length || outputs.length !== fn.outputs.length) {
             throw new Error(`procedural: ${n.json.type} '${n.json.name}': function ${fn.name} has ${fn.inputs.length}/${fn.outputs.length} params, node has ${inputs.length}/${outputs.length} sockets`)
         }
-        const fields = inputs.map((d, i) => {
+        const values = inputs.map((d, i) => {
             const v = this.inputValue(n, d.identifier, cache.deps)
-            if (!(v instanceof GField)) throw new Error(`procedural: ${n.json.type} input ${d.identifier} is not a value`)
-            if (v.type !== fn.inputs[i]) throw new Error(`procedural: ${n.json.type} input ${d.identifier} is ${v.type}, function expects ${fn.inputs[i]}`)
+            if (!(v instanceof GField) && !(v instanceof GList)) throw new Error(`procedural: ${n.json.type} input ${d.identifier} is not a value`)
+            const t = v instanceof GList ? v.dataType : v.type
+            if (t !== fn.inputs[i]) throw new Error(`procedural: ${n.json.type} input ${d.identifier} is ${t}, function expects ${fn.inputs[i]}`)
             return v
         })
+        // `execute_multi_function_on_value_variant` (`geometry_nodes_lazy_function.cc:502`): lists first, then fields.
+        if (values.some(v => v instanceof GList)) {
+            const lists = executeMultiFunctionOnLists(fn, values)
+            outputs.forEach((d, i) => cache.outputs.set(d.identifier, lists[i]))
+            return
+        }
+        const fields = values as GField[]
         if (fields.every(f => !f.dependsOnInput)) {
             // `execute_multi_function_on_value_variant__single`: run once on the values.
             const singles = fields.map(f => GVArray.fromSingle(f.type, 1, singleOf(f.type, f)))

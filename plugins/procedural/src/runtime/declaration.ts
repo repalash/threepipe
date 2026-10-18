@@ -13,7 +13,7 @@ import type {SocketType} from './types'
 export type ImplicitInput = 'POSITION' | 'INDEX' | 'ID_OR_INDEX' | 'NORMAL' | 'INSTANCE_TRANSFORM' | 'HANDLE_LEFT' | 'HANDLE_RIGHT'
 
 /** Blender's structure type of a socket value: single value only, field allowed, or inferred. */
-export type Structure = 'single' | 'field' | 'dynamic' | 'geometry'
+export type Structure = 'single' | 'field' | 'dynamic' | 'geometry' | 'list'
 
 export interface SocketDecl {
     identifier: string
@@ -130,6 +130,12 @@ export class SocketBuilder {
     /** Only a single value is accepted (`StructureType::Single`, e.g. counts, seeds of some nodes). */
     single(): this {
         this.s.structure = 'single'
+        return this
+    }
+
+    /** A list (`StructureType::List`): unlinked, there is no list. */
+    list(): this {
+        this.s.structure = 'list'
         return this
     }
 

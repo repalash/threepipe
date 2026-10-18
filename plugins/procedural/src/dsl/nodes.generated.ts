@@ -809,6 +809,19 @@ export type FieldMinMaxNode = NodeHandle & {
     readonly max: Socket<"FLOAT" | "INT" | "VECTOR">
 }
 
+/** `GeometryNodeFieldToList` (Field to List). */
+export interface FieldToListArgs {
+    activeIndex?: number
+    count?: In<"INT">
+    extend?: In<"CUSTOM">
+    ""?: In<"CUSTOM">
+    mute?: boolean
+}
+export type FieldToListNode = NodeHandle & {
+    readonly extend: Socket<"CUSTOM">
+    readonly "": Socket<"CUSTOM">
+}
+
 /** `GeometryNodeFieldVariance` (Field Variance). */
 export interface FieldVarianceArgs {
     dataType?: "FLOAT" | "FLOAT_VECTOR"
@@ -846,6 +859,18 @@ export interface FilletCurveArgs {
 }
 export type FilletCurveNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeFilterList` (Filter List). */
+export interface FilterListArgs {
+    socketType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL"
+    list?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX"> | In<"STRING"> | In<"MENU"> | In<"OBJECT"> | In<"IMAGE"> | In<"GEOMETRY"> | In<"COLLECTION"> | In<"MATERIAL">)
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type FilterListNode = NodeHandle & {
+    readonly selection: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL">
+    readonly inverted: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL">
 }
 
 /** `FunctionNodeFindInString` (Find in String). */
@@ -916,6 +941,19 @@ export type GeometryToInstanceNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeGetAttributeNames` (Get Attribute Names). */
+export interface GetAttributeNamesArgs {
+    geometry?: In<"GEOMETRY">
+    filterDataType?: In<"BOOLEAN">
+    dataType?: In<"MENU">
+    filterDomain?: In<"BOOLEAN">
+    domain?: In<"MENU">
+    mute?: boolean
+}
+export type GetAttributeNamesNode = NodeHandle & {
+    readonly names: Socket<"STRING">
+}
+
 /** `GeometryNodeGetGeometryComponent` (Get Geometry Component). */
 export interface GetGeometryComponentArgs {
     geometry?: In<"GEOMETRY">
@@ -927,6 +965,18 @@ export type GetGeometryComponentNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
     readonly component: Socket<"GEOMETRY">
     readonly exists: Socket<"BOOLEAN">
+}
+
+/** `GeometryNodeListGetItem` (Get List Item). */
+export interface GetListItemArgs {
+    socketType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL"
+    structureType?: "AUTO" | "DYNAMIC" | "FIELD" | "GRID" | "LIST" | "SINGLE"
+    list?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX"> | In<"STRING"> | In<"MENU"> | In<"OBJECT"> | In<"IMAGE"> | In<"GEOMETRY"> | In<"COLLECTION"> | In<"MATERIAL">)
+    index?: In<"INT">
+    mute?: boolean
+}
+export type GetListItemNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL">
 }
 
 /** `ShaderNodeTexGradient` (Gradient Texture). */
@@ -1212,6 +1262,16 @@ export interface JoinStringsArgs {
 }
 export type JoinStringsNode = NodeHandle & {
     readonly string: Socket<"STRING">
+}
+
+/** `GeometryNodeListLength` (List Length). */
+export interface ListLengthArgs {
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL"
+    list?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX"> | In<"STRING"> | In<"MENU"> | In<"OBJECT"> | In<"IMAGE"> | In<"GEOMETRY"> | In<"COLLECTION"> | In<"MATERIAL">)
+    mute?: boolean
+}
+export type ListLengthNode = NodeHandle & {
+    readonly length: Socket<"INT">
 }
 
 /** `ShaderNodeMapRange` (Map Range). */
@@ -2373,6 +2433,19 @@ export type SortElementsNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSortList` (Sort List). */
+export interface SortListArgs {
+    socketType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL"
+    list?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX"> | In<"STRING"> | In<"MENU"> | In<"OBJECT"> | In<"IMAGE"> | In<"GEOMETRY"> | In<"COLLECTION"> | In<"MATERIAL">)
+    selection?: In<"BOOLEAN">
+    groupID?: In<"INT">
+    sortWeight?: In<"FLOAT">
+    mute?: boolean
+}
+export type SortListNode = NodeHandle & {
+    readonly list: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL">
+}
+
 /** `FunctionNodeInputSpecialCharacters` (Special Characters). */
 export interface SpecialCharactersArgs {
     mute?: boolean
@@ -2431,6 +2504,16 @@ export interface SplitEdgesArgs {
 }
 export type SplitEdgesNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
+}
+
+/** `FunctionNodeSplitString` (Split String). */
+export interface SplitStringArgs {
+    string?: In<"STRING">
+    separator?: In<"STRING">
+    mute?: boolean
+}
+export type SplitStringNode = NodeHandle & {
+    readonly list: Socket<"STRING">
 }
 
 /** `GeometryNodeSplitToInstances` (Split to Instances). */
@@ -2871,16 +2954,20 @@ export interface NodeConstructors {
     FaceOfCorner(args?: FaceOfCornerArgs): FaceOfCornerNode
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
     FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
+    FieldToList(args?: FieldToListArgs): FieldToListNode
     FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
     FillCurve(args?: FillCurveArgs): FillCurveNode
     FilletCurve(args?: FilletCurveArgs): FilletCurveNode
+    FilterList(args?: FilterListArgs): FilterListNode
     FindInString(args?: FindInStringArgs): FindInStringNode
     FlipFaces(args?: FlipFacesArgs): FlipFacesNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
     FloatToInteger(args?: FloatToIntegerArgs): FloatToIntegerNode
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
+    GetAttributeNames(args?: GetAttributeNamesArgs): GetAttributeNamesNode
     GetGeometryComponent(args?: GetGeometryComponentArgs): GetGeometryComponentNode
+    GetListItem(args?: GetListItemArgs): GetListItemNode
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
     HandleTypeSelection(args?: HandleTypeSelectionArgs): HandleTypeSelectionNode
     HashValue(args?: HashValueArgs): HashValueNode
@@ -2909,6 +2996,7 @@ export interface NodeConstructors {
     IsViewport(args?: IsViewportArgs): IsViewportNode
     JoinGeometry(args?: JoinGeometryArgs): JoinGeometryNode
     JoinStrings(args?: JoinStringsArgs): JoinStringsNode
+    ListLength(args?: ListLengthArgs): ListLengthNode
     MapRange(args?: MapRangeArgs): MapRangeNode
     MatchString(args?: MatchStringArgs): MatchStringNode
     Material(args?: MaterialArgs): MaterialNode
@@ -3002,12 +3090,14 @@ export interface NodeConstructors {
     ShortestEdgePaths(args?: ShortestEdgePathsArgs): ShortestEdgePathsNode
     SliceString(args?: SliceStringArgs): SliceStringNode
     SortElements(args?: SortElementsArgs): SortElementsNode
+    SortList(args?: SortListArgs): SortListNode
     SpecialCharacters(args?: SpecialCharactersArgs): SpecialCharactersNode
     Spiral(args?: SpiralArgs): SpiralNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplineParameter(args?: SplineParameterArgs): SplineParameterNode
     SplineResolution(args?: SplineResolutionArgs): SplineResolutionNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
+    SplitString(args?: SplitStringArgs): SplitStringNode
     SplitToInstances(args?: SplitToInstancesArgs): SplitToInstancesNode
     Star(args?: StarArgs): StarNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode

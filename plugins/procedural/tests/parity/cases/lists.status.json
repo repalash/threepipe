@@ -1,0 +1,6 @@
+{
+ "field-to-list": "exact",
+ "list-functions": "exact",
+ "sort-filter": "exact",
+ "strings": "exact"
+}

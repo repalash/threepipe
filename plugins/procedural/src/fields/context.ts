@@ -26,6 +26,16 @@ export class FieldContext {
         return c
     }
 
+    /** `ListFieldContext` (`list_function_eval.hh`): `size` list elements; only Index and ID have values (the index). */
+    static forList(size: number): FieldContext {
+        const c = FieldContext.forSize(size)
+        c.isList = true
+        return c
+    }
+
+    /** {@link forList}. */
+    isList = false
+
     /** `GeometryFieldContext(other, domain)`. */
     withDomain(domain: AttrDomain): FieldContext {
         const c = new FieldContext(this.type, this.component, domain)
