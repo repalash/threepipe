@@ -7,8 +7,9 @@
  */
 
 import {cornerTriFaces, cornerTrisCalc, MeshData} from '@threepipe/mesh-kernel'
-import {BVHTree, BVHTreeNearest, NearestPointCallback} from '../blender/kdopbvh'
-import {closestOnTriToPointV3, closestToLineSegmentV3, lenSquaredV3V3} from '../blender/math/geom'
+import {BVHTree, BVHTreeNearest, BVHTreeRayHit, isectRayTriWatertight, NearestPointCallback, RayCastCallback} from '../blender/kdopbvh'
+import {closestOnTriToPointV3, closestToLineSegmentV3, lenSquaredV3V3, normalTriV3} from '../blender/math/geom'
+import {f32} from '../blender/f32'
 import type {PointCloud} from './components'
 import {meshRuntime} from './meshRuntime'
 
@@ -178,3 +179,49 @@ export function bvhFindNearest(data: BVHTreeFromMesh, co: readonly number[], nea
     if (!data.tree) return nearest.index
     return data.tree.findNearest(co, nearest, data.callback)
 }
+
+/** `bvhtree_from_mesh_verts_init(mesh, verts_mask)` (:788): the cached full tree when every vertex is in the mask. */
+export function meshBVHVertsForMask(mesh: MeshData, verts: readonly number[]): BVHTreeFromMesh {
+    if (verts.length === mesh.vertsNum) return meshBVHVerts(mesh)
+    return {tree: treeFromVerts(mesh.positions, verts, verts.length)}
+}
+
+/** `bvhtree_from_mesh_edges_init(mesh, edges_mask)` (:780) with `create_tree_from_edges` (:459). */
+export function meshBVHEdgesForMask(mesh: MeshData, edges: readonly number[]): BVHTreeFromMesh {
+    if (edges.length === mesh.edgesNum) return meshBVHEdges(mesh)
+    const positions = mesh.positions, ev = mesh.edgeVerts
+    const tree = newTree(edges.length)
+    if (tree) {
+        for (const e of edges) tree.insert(e, [...pos3(positions, ev[e * 2]), ...pos3(positions, ev[e * 2 + 1])], 2)
+        tree.balance()
+    }
+    return {tree, callback: edgesNearestCallback(mesh)}
+}
+
+/** `bvhtree_from_pointcloud_get(pointcloud, points_mask)` (:829). */
+export function pointCloudBVHForMask(pc: PointCloud, points: readonly number[]): BVHTreeFromMesh {
+    if (points.length === pc.pointsNum) return pointCloudBVH(pc)
+    return {tree: treeFromVerts(pc.positions, points, points.length)}
+}
+
+/**
+ * `mesh_corner_tris_spherecast` (:184) for rays without a radius: `bvhtree_ray_tri_intersection` (:30, watertight)
+ * and, for a nearer hit, the hit point `origin + direction * dist` and the triangle's normal (`normal_tri_v3`).
+ */
+export function trisRayCastCallback(mesh: MeshData): RayCastCallback {
+    const tris = meshCornerTris(mesh)
+    const positions = mesh.positions, cv = mesh.cornerVerts
+    return (index, ray, hit: BVHTreeRayHit) => {
+        const a = pos3(positions, cv[tris[index * 3]]), b = pos3(positions, cv[tris[index * 3 + 1]]), c = pos3(positions, cv[tris[index * 3 + 2]])
+        const dist = isectRayTriWatertight(ray.origin, ray.isectPrecalc, a, b, c) ?? FLT_MAX
+        if (dist >= 0 && dist < hit.dist) {
+            hit.index = index
+            hit.dist = dist
+            const o = ray.origin, d = ray.direction
+            hit.co = [f32(o[0] + f32(d[0] * dist)), f32(o[1] + f32(d[1] * dist)), f32(o[2] + f32(d[2] * dist))]
+            hit.no = normalTriV3(a, b, c)
+        }
+    }
+}
+
+const FLT_MAX = 3.4028234663852886e38

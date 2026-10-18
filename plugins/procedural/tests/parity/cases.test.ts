@@ -15,6 +15,8 @@ import type {EvalOptions, SceneProvider} from '../../src/runtime/context'
 import {CaseImage, ParityCase} from './cases/types'
 import {imageTextureCases} from './cases/imageTexture'
 import {zoneCases} from './cases/zones'
+import {proximityCases} from './cases/proximity'
+import {raycastCases} from './cases/raycast'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -53,6 +55,8 @@ SETS.meshSample = meshSampleCases
 SETS.meshMaterial = meshMaterialCases
 SETS.imageTexture = imageTextureCases
 SETS.zones = zoneCases
+SETS.proximity = proximityCases
+SETS.raycast = raycastCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
