@@ -47,6 +47,23 @@ describe('geometryNodes modifier', () => {
         expect(geometryNodesModifierType.describe(spec)).toBe('geometry nodes "Grid Heights" (Vertices=4, Height=0.5)')
     })
 
+    it('edits fields of a spec keyed by identifier (a Blender file\'s modifier) under the identifier', () => {
+        const doc = fakeDocument()
+        const ctx = {doc, index: 0, state: new Map(), warn: () => undefined} as unknown as ModifierContext
+        nodeGroupCommand.run({library: grid.toJSON()}, {doc} as never)
+        const tree = (doc.getData('nodeGroups') as Record<string, {interface: {name: string, identifier: string}[]}>)['Grid Heights']
+        const vertices = tree.interface.find(i => i.name === 'Vertices')!.identifier
+        const spec = geometryNodesModifierType.read!({type: 'geometryNodes', group: 'Grid Heights', inputs: {[vertices]: 4}})
+        const fields = geometryNodesModifierType.fields!(spec, doc)!
+        expect(fields.values.Vertices).toBe(4)
+        const next = fields.update({Vertices: 6})
+        // Written under the identifier, not shadowed by it.
+        expect(next).toEqual({inputs: {[vertices]: 6}})
+        const input = MeshData.fromFaces({positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], faces: [[0, 1, 2]]})
+        const out = geometryNodesModifierType.evaluate(input, {...spec, ...next}, ctx) as {mesh: MeshData}
+        expect(out.mesh.vertsNum).toBe(3 + 36)
+    })
+
     it('fails with useful messages', () => {
         const doc = fakeDocument()
         const ctx = {doc, index: 0, state: new Map()} as unknown as ModifierContext
