@@ -34,7 +34,8 @@ export class FieldEvaluation {
             const key = node.key()
             let v = this.inputResults.get(key)
             if (!v) {
-                v = (this.context ? node.getVArray(this.context) : undefined) ?? GVArray.fromDefault(node.type, this.size)
+                const inList = this.context?.isList
+                v = (this.context && (!inList || node.indexInList) ? node.getVArray(this.context) : undefined) ?? GVArray.fromDefault(node.type, this.size)
                 if (v.size !== this.size) {
                     throw new Error(`procedural: field input '${node.debugName}' returned ${v.size} values for a domain of ${this.size}`)
                 }

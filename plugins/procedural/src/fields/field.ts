@@ -61,6 +61,9 @@ export abstract class FieldInput extends FieldNode {
         super()
     }
 
+    /** `ListFieldContext::get_varray_for_input` (`list_function_eval.cc:14`): Index and ID read as the list index there. */
+    readonly indexInList: boolean = false
+
     /** Equal keys mean equal values in the same context. Defaults to identity. */
     key(): string {
         return `#${this.id}`

@@ -22,6 +22,8 @@ export function indexVArray(size: number): GVArray {
 }
 
 export class IndexFieldInput extends FieldInput {
+    readonly indexInList = true
+
     constructor() {
         super('int32', 'Index')
     }
@@ -89,6 +91,8 @@ export class AttributeExistsFieldInput extends FieldInput {
 
 /** `get_random_id_attribute_name` (`geometry_fields.cc:521`): "id" on points and instances only. */
 export class IDAttributeFieldInput extends FieldInput {
+    readonly indexInList = true
+
     constructor() {
         super('int32', 'ID / Index')
     }

@@ -12,8 +12,9 @@ import {AttributeFieldInput, IDAttributeFieldInput, IndexFieldInput, NormalField
 import {eulerToQuat} from '../blender/math/matrix'
 import {ImplicitInput, SocketDecl, socketDataType} from './declaration'
 import type {IDRef, JSONValue, SocketType} from './types'
+import {executeMultiFunctionOnLists, GList} from './list'
 
-export type SocketValue = GField | GeometrySet | string | IDRef | null
+export type SocketValue = GField | GeometrySet | string | IDRef | GList | null
 
 export function isField(v: unknown): v is GField {
     return v instanceof GField
@@ -69,6 +70,8 @@ export function implicitField(kind: ImplicitInput): GField {
 /** The value of an unlinked input socket: its implicit field, its stored value, or its declared default. */
 export function unlinkedInputValue(decl: SocketDecl, stored: JSONValue | undefined): SocketValue {
     if (decl.implicitInput) return implicitField(decl.implicitInput)
+    // An unlinked list socket holds no list (`GListPtr` null).
+    if (decl.structure === 'list') return null
     return valueFromJSON(decl.type, stored !== undefined ? stored : decl.default as JSONValue | undefined)
 }
 
@@ -128,6 +131,11 @@ export function convertLinkValue(value: SocketValue, from: SocketType, to: Socke
     if (a && b && value instanceof GField) {
         if (!isConvertible(a, b)) return undefined
         return convertField(value, b)
+    }
+    // Lists convert element by element (`implicitly_convert_socket_value` through the list path).
+    if (a && b && value instanceof GList) {
+        if (!isConvertible(a, b)) return undefined
+        return executeMultiFunctionOnLists(conversionFn(a, b), [value])[0]
     }
     if ((from === 'MENU' && to === 'STRING') || (from === 'STRING' && to === 'MENU')) return undefined
     return undefined
