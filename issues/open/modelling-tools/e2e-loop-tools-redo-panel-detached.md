@@ -38,3 +38,14 @@ time the press landed but the edit did not: after `fill('2')` + Enter the counts
 `[20, 36, 18]` for 15 s instead of `[16, 28, 14]` (line 5130). Same symptom from the other side: the field the edit
 was typed into is not the one that commits - the panel re-mounted between `fill` and Enter. 2 of 4 full runs today.
 demos-gpu changes no editor UI code (its only plugin change is `light {target}` in plugin-modelling, unused here).
+
+## A concrete candidate (read, not yet reproduced)
+
+`OperatorPanel.tsx` renders the form inside `<Collapse isOpen={open} keepChildrenMounted={false}>`, and `open` is
+derived from state set asynchronously by events: `autoOpenFor` (set in the `lastOperationChanged` handler from
+`store.redoPanelOpen` at that moment) or `forcedFor`, or `store.redoPanelOpen`. Any render in which `open` is briefly
+false unmounts the PropsForm, and the next render mounts a new input: exactly "detached, retrying" (first failure) and
+"the typed value never commits" (second). The test opens the panel by clicking the title (`store.setRedoPanel`), while
+the loop-cut operation that just finished also fires `lastOperationChanged` / `store.noteOperation()`; the order of the
+two updates decides `open`. Next step: reproduce with CDP CPU throttling (`Emulation.setCPUThrottlingRate` 4-6x) on
+this test, log `open` per render, then make `open` a single source of truth (or keep the children mounted).
