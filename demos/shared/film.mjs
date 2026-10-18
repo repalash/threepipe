@@ -259,7 +259,7 @@ async function installStage({accent, background}) {
     let cage = null
     const esc = s => String(s).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'})[c])
     const f = window.__film = {
-        T: {...T, clay: new T.PhysicalMaterial({color: '#a9abae', roughness: 0.6, metalness: 0})},
+        T: {...T, clay: new T.PhysicalMaterial({color: '#7f8287', roughness: 0.5, metalness: 0})},
         async frame() {
             f.drawCage()
             viewer.setDirty()
