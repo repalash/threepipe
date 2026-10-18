@@ -78,7 +78,7 @@ export function filmSession(film, o = {}) {
             await film.step(`${chapterNo} / ${total}  ${title}`)
             await film.title(title, sub ?? '', {kicker: `${chapterNo} / ${total}`, sec: 1.5})
         },
-        hold: sec => film.hold(sec ?? captureHold),
+        hold: t => film.hold(t === undefined ? captureHold : o.holdMs ? t / 1000 : t),
         /** One orbit round `center` at `radius` and `height` above it, in `seconds`. */
         async orbit({center, radius, height, seconds = 12, deg = 360}) {
             await film.glide({position: [center[0] + radius, center[1] + height, center[2]], target: center}, glide)
