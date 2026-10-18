@@ -237,7 +237,7 @@ if (mode !== 'none') {
         const tr = Date.now()
         const log = vm.run(root, `rm -rf ${runRel}/renders && npm run benchmark:render -- ${runRel}/job.json 2>&1 | tail -3 && tar czf ${runRel}/renders.tgz -C ${runRel} renders`)
         console.log(log.trim().split('\n').slice(-3).join('\n'))
-        vm.pull(root, `${runRel}/renders.tgz`, join(out, 'renders.tgz'))
+        await vm.pull(root, `${runRel}/renders.tgz`, join(out, 'renders.tgz'))
         execFileSync('tar', ['xzf', join(out, 'renders.tgz'), '-C', out])
         timings.vmRenderMs = Date.now() - tr
     } else if (mode === 'local') {

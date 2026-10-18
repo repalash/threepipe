@@ -319,6 +319,33 @@ mount flanges); the reference's rib rings are 78 % split as well.
 
 Order: shading (immediately visible, tiny), subsurf + crease, booleans, custom normals.
 
+### 3.2 R2 measured on the camera (2026-10-18)
+
+The demo transcript with the body and the prism rebuilt as subdivision cages on bisect support loops (level 3,
+limit surface), the rear and top LCD recesses and two side port doors cut by `boolean`, `weightedNormal` (weight
+100, keep sharp) on the six hard-surface bevel parts, and `shade byAngle` on everything
+(`demos/benchmark/scripts/camera-r2.mjs`; 214 commands, 0 failed). Same dimensions as the demo, so this measures
+the tools, not new measurements. Scored on the VM (`tmp/bench/camera-r2`, sheet
+`tmp/bench/camera-r2/sheet-r2-before-after.png`):
+
+| | baseline | + shade byAngle | R2 rebuild |
+| --- | ---: | ---: | ---: |
+| Chamfer / Hausdorff95 (mm) | 2.81 / 8.93 | 2.82 / 8.99 | 2.82 / 8.87 |
+| F@1 / 2 / 5 mm | 0.301 / 0.517 / 0.835 | 0.303 / 0.516 / 0.834 | 0.301 / 0.516 / 0.832 |
+| silhouette IoU | 0.881 | 0.879 | 0.879 |
+| SSIM full / clay | 0.502 / 0.613 | 0.503 / 0.618 | 0.501 / 0.619 |
+| edge-SSIM full / clay | 0.430 / 0.544 | 0.432 / 0.552 | 0.429 / 0.550 |
+| faceting of large parts | 85 % | 50 % | 47 % |
+| group completeness, mm: shell / top / screens / decals | 3.29 / 5.97 / 2.31 / 4.69 | 3.29 / 5.98 / 2.31 / 4.68 | 3.25 / 5.79 / 2.21 / 4.59 |
+| triangles | 28,976 | 28,976 | 41,948 |
+| composite (ranking aid) | 56.6 | 57.9 | 58.1 |
+
+Conclusion: the high-poly tools work (the shell reads as one continuous surface, the recesses are crisp, the hard
+parts shade flat), but they move the benchmark by noise-level amounts. The distance to the reference is
+proportions and missing parts — the taller prism and hot shoe (top group 5.8 mm), the printed markings (decals
+4.6 mm), the rear dials and the left port doors' relief — which is R3 (parts library) and R4 (markings), plus
+better measurements, not surface quality. R2 is the prerequisite those need, not a score lever on its own.
+
 ### 3.1 R2c status (2026-10-18)
 
 - Kernel `meshBooleanManifold(api, meshes, op, transforms)` (`plugins/mesh-kernel/src/boolean/manifoldBoolean.ts`):

@@ -5,9 +5,9 @@
 // 900 kB parts (`ij write`) and are reassembled and md5-checked on the VM. A file whose md5 already matches
 // on the VM is not sent again.
 
-import {execFileSync} from 'node:child_process'
+import {execFile, execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
-import {readFileSync} from 'node:fs'
+import {readFileSync, writeFileSync} from 'node:fs'
 import {homedir} from 'node:os'
 
 export const TPVM = process.env.TPVM ?? '/Users/palash/Projects/threepipe/.repos/tools/tpvm'
@@ -49,16 +49,49 @@ export function push(cwd, local, rel) {
 export function run(cwd, cmd, timeoutSec = 1800) { return sh(TPVM, ['run', '-t', String(timeoutSec), cmd], {cwd}) }
 
 /**
- * Copy `<vm worktree>/<rel>` back to `local`, checked against the VM's md5 and retried: a relay notice or a
- * dropped slice in `tpvm pull` otherwise yields a silently corrupt file.
+ * Copy `<vm worktree>/<rel>` back to `local`, checked against the VM's md5 and retried. The file is base64'd on
+ * the VM and fetched in 30 kB slices (the relay caps a command's output), 6 at a time. Only base64 lines are kept
+ * from each slice: the relay can add notices ("rules changed: ...") to any output, which broke `tpvm pull`'s
+ * size parse and could otherwise corrupt a slice.
  */
-export function pull(cwd, rel, local, attempts = 3) {
-    const want = md5Of(ij(`md5 -q ${q(`${vmPath(cwd)}/${rel}`)}`))
-    for (let i = 1; i <= attempts; i++) {
-        sh(TPVM, ['pull', rel, local], {cwd})
-        const got = md5(local)
-        if (got === want) return {md5: got, attempts: i}
-        console.warn(`vm pull ${rel}: md5 ${got}, expected ${want} (attempt ${i} of ${attempts})`)
+export async function pull(cwd, rel, local, attempts = 3) {
+    const src = `${vmPath(cwd)}/${rel}`
+    const want = md5Of(ij(`md5 -q ${q(src)}`))
+    const key = `/tmp/bench-pull-${process.pid}-${Date.now()}`
+    const sizeOut = ij(`base64 -i ${q(src)} | tr -d '\\n' > ${key}.b64 && wc -c < ${key}.b64`)
+    const n = Number(sizeOut.split('\n').map(l => l.trim()).filter(l => /^\d+$/.test(l)).pop())
+    if (!Number.isFinite(n) || n <= 0) throw new Error(`vm pull ${rel}: cannot size ${src} (${sizeOut})`)
+    const SLICE = 30000
+    const chunks = Math.ceil(n / SLICE)
+    const b64Line = /^[A-Za-z0-9+/=]+$/
+    const fetchOnce = i => new Promise((res, rej) => execFile(IJ, ['-h', HOST, `dd if=${key}.b64 bs=${SLICE} skip=${i} count=1 2>/dev/null`],
+        {encoding: 'utf8', maxBuffer: 1 << 20}, (err, out) => err ? rej(err) : res(out.split('\n').map(l => l.trim()).filter(l => b64Line.test(l)).join(''))))
+    // a single relay call can fail transiently (exit 255); retry a slice a few times before giving up
+    const fetch = async i => {
+        for (let t = 1; ; t++) {
+            try { return await fetchOnce(i) } catch (e) {
+                if (t >= 5) throw e
+                await new Promise(r => setTimeout(r, 500 * t))
+            }
+        }
+    }
+    try {
+        for (let a = 1; a <= attempts; a++) {
+            const parts = new Array(chunks)
+            let next = 0
+            const worker = async() => { while (next < chunks) { const i = next++; parts[i] = await fetch(i) } }
+            await Promise.all(Array.from({length: Math.min(4, chunks)}, worker))
+            const b64 = parts.join('')
+            const buf = Buffer.from(b64, 'base64')
+            const got = createHash('md5').update(buf).digest('hex')
+            if (got === want && b64.length === n) {
+                writeFileSync(local, buf)
+                return {md5: got, attempts: a}
+            }
+            console.warn(`vm pull ${rel}: md5 ${got} (${b64.length} of ${n} base64 bytes), expected ${want} (attempt ${a} of ${attempts})`)
+        }
+    } finally {
+        ij(`rm -f ${key}.b64`)
     }
     throw new Error(`vm pull ${rel}: still corrupt after ${attempts} attempts`)
 }
