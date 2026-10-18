@@ -1,0 +1,9 @@
+{
+ "title": "30 edits, one mesh",
+ "blurb": "A cylinder edited into a chess rook with Blender's edit-mode operators, every step scored.",
+ "hero": "shots/hero.jpg",
+ "line": "30 commands, 0 failed · 460 triangles · 1:15 film · 16.7 ms/frame",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)",
+ "seconds": 74.8,
+ "generated": "2026-10-18"
+}
