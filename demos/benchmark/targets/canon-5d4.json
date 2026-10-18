@@ -316,7 +316,9 @@
     "dial-main",
     "btn-shutter",
     "shoe",
-    "shoe-contact"
+    "shoe-contact",
+    "btn-top*",
+    "btn-mfn"
    ]
   },
   "other": {

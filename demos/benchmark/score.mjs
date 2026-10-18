@@ -2,7 +2,7 @@
  * Score a build against a target's ground truth (issues/open/modelling-tools/16-realism.md §2).
  *
  *     npm run benchmark:score -- --target canon-5d4 --glb <build.glb> [--transcript transcript.json]
- *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name]
+ *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name] [--spec-frame]
  *     npm run benchmark:score -- --target canon-5d4 --ceiling      # the reference, scaled to spec, vs itself
  *
  * Writes <out>/score.json (every metric, inputs' hashes, renderer) and <out>/index.html (sheets per view,
@@ -87,6 +87,16 @@ function transformParts(parts, m) {
 
 // --- frames: everything in the reference's frame, in mm ------------------------------------------
 const refToMm = new Matrix4().makeScale(S, S, S)
+// `--spec-frame`: score in the published frame - the reference scaled per axis to the spec (target.spec.refScaleToSpec,
+// about its bounding-box centre) - for a candidate built to published dimensions; the default scores against the
+// reference as it is. Image renders are of the unscaled reference, so use it with `--renders none`.
+const specFrame = !!flags['spec-frame']
+if (specFrame) {
+    const b = new Box3()
+    for (const p of refParts) for (let i = 0; i < p.position.length; i += 3) b.expandByPoint(new Vector3().fromArray(p.position, i).multiplyScalar(S))
+    const c = b.getCenter(new Vector3())
+    refToMm.premultiply(new Matrix4().makeTranslation(c.x, c.y, c.z).multiply(new Matrix4().makeScale(...target.spec.refScaleToSpec)).multiply(new Matrix4().makeTranslation(-c.x, -c.y, -c.z)))
+}
 const refMm = transformParts(refParts, refToMm)
 const unit = cand.units === 'ref' ? S : cand.units === 'm' ? 1000 : cand.units === 'cm' ? 10 : 1
 const D = Math.PI / 180
@@ -127,6 +137,7 @@ const tilt = m => {
 const free = alignMode === 'similarity' ? icpRes : icp(icpSource, refBVH, init, {mode: 'similarity', keep: 0.9})
 const alignment = {
     mode: alignMode, initialRotationDeg: cand.rotation, units: cand.units, prescale: cand.prescale ?? null,
+    referenceFrame: specFrame ? {spec: target.spec.refScaleToSpec} : 'as-is',
     scale: scl.x / unit, rotationResidualDeg: tilt(A).deg,
     translationMm: pos.toArray(), iterations: icpRes.iterations, rmsMm: icpRes.rms, rmsHistory: icpRes.history,
     matrix: A.toArray(),
