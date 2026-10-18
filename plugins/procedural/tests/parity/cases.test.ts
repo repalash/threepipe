@@ -33,6 +33,10 @@ import {meshPathCases} from './cases/meshPaths'
 import {functionMiscCases} from './cases/functionMisc'
 import {geometryUtilCases} from './cases/geometryUtil'
 import {zonesForeachCases} from './cases/zonesForeach'
+import {meshClusterCases} from './cases/meshCluster'
+import {listCases} from './cases/lists'
+import {transferCases} from './cases/transfer'
+import {functionMatrixSvdCases} from './cases/functionMatrixSvd'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -60,12 +64,9 @@ import {curvesEditingCases} from './cases/curvesEditing'
 import {curvesFillCases} from './cases/curvesFill'
 import {curvesFilletCases} from './cases/curvesFillet'
 import {meshConvexHullCases} from './cases/meshConvexHull'
-import {meshClusterCases} from './cases/meshCluster'
-import {listCases} from './cases/lists'
-import {transferCases} from './cases/transfer'
 import {meshIcoSphereCases} from './cases/meshIcoSphere'
 import {sampleUVSurfaceCases} from './cases/sampleUVSurface'
-import {functionMatrixSvdCases} from './cases/functionMatrixSvd'
+import {uvPackCases} from './cases/uvPack'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -106,6 +107,9 @@ SETS.curvesEditing = curvesEditingCases
 SETS.curvesFill = curvesFillCases
 SETS.curvesFillet = curvesFilletCases
 SETS.meshConvexHull = meshConvexHullCases
+SETS.meshIcoSphere = meshIcoSphereCases
+SETS.sampleUVSurface = sampleUVSurfaceCases
+SETS.uvPack = uvPackCases
 SETS.meshFieldOps = meshFieldOpCases
 SETS.meshReorder = meshReorderCases
 SETS.meshSplit = meshSplitCases
@@ -119,8 +123,6 @@ SETS.zonesForeach = zonesForeachCases
 SETS.meshCluster = meshClusterCases
 SETS.lists = listCases
 SETS.transfer = transferCases
-SETS.meshIcoSphere = meshIcoSphereCases
-SETS.sampleUVSurface = sampleUVSurfaceCases
 SETS.functionMatrixSvd = functionMatrixSvdCases
 
 for (const [set, generate] of Object.entries(SETS)) {
