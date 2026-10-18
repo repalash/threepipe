@@ -5,6 +5,7 @@
  */
 
 import {f32} from '../f32'
+import {powf} from '../libm'
 
 const ACOS_C0 = f32(1.5707963267)
 const ACOS_C1 = f32(-0.213300989)
@@ -48,7 +49,7 @@ export function safeDivideF(a: number, b: number): number {
 
 /** `safe_powf` (`math_base_safe_inline.cc:61`). */
 export function safePowf(base: number, exponent: number): number {
-    return base < 0 && exponent !== Math.trunc(exponent) ? 0 : f32(Math.pow(base, exponent))
+    return base < 0 && exponent !== Math.trunc(exponent) ? 0 : powf(base, exponent)
 }
 
 /** `fractf` (`math_base_inline.cc:265`) / `math::fract` (`BLI_math_base.hh:148`). */

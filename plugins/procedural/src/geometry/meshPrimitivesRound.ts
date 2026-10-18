@@ -7,11 +7,10 @@
 
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
 import {f32} from '../blender/f32'
+import {cosf, sincosf, sinf} from '../blender/libm'
 import {createLineMesh, meshSmoothSet, newMesh} from './meshPrimitives'
 import {boundsRadialPrimitive, meshBoundsSetEager} from './meshBounds'
 
-const cosf = (x: number) => f32(Math.cos(x))
-const sinf = (x: number) => f32(Math.sin(x))
 
 export type CircleFillType = 'NONE' | 'NGON' | 'TRIANGLE_FAN'
 
@@ -30,8 +29,9 @@ export function createCircleMesh(radius: number, vertsNum: number, fill: CircleF
     const angleDelta = f32(2 * (Math.PI / vertsNum))
     for (let i = 0; i < vertsNum; i++) {
         const angle = f32(i * angleDelta)
-        positions[i * 3] = f32(cosf(angle) * radius)
-        positions[i * 3 + 1] = f32(sinf(angle) * radius)
+        const [sin, cos] = sincosf(angle)
+        positions[i * 3] = f32(cos * radius)
+        positions[i * 3 + 1] = f32(sin * radius)
         positions[i * 3 + 2] = 0
     }
     if (fan) positions.fill(0, vertsNum * 3, vertsNum * 3 + 3)
@@ -156,8 +156,9 @@ function coneVerts(c: ConeConfig, positions: Float32Array): void {
     const angleDelta = f32(2 * (Math.PI / cs))
     let angle = 0
     for (let i = 0; i < cs; i++) {
-        circle[i * 2] = cosf(angle)
-        circle[i * 2 + 1] = sinf(angle)
+        const [sin, cos] = sincosf(angle)
+        circle[i * 2] = cos
+        circle[i * 2 + 1] = sin
         angle = f32(angle + angleDelta)
     }
     let v = 0
@@ -316,8 +317,9 @@ function coneUVs(c: ConeConfig, mesh: MeshData, uvMapId: string): void {
     // `2.0f * std::numbers::pi / float(circle_segments)`.
     const angleDelta = f32((2 * Math.PI) / cs)
     for (let i = 0; i < cs; i++) {
-        circle[i * 2] = f32(cosf(angle) * f32(0.225))
-        circle[i * 2 + 1] = f32(sinf(angle) * f32(0.225))
+        const [sin, cos] = sincosf(angle)
+        circle[i * 2] = f32(cos * f32(0.225))
+        circle[i * 2 + 1] = f32(sin * f32(0.225))
         angle = f32(angle + angleDelta)
     }
     let corner = 0
@@ -450,8 +452,8 @@ export function createUVSphereMesh(radius: number, segments: number, rings: numb
     let v = 1
     for (let ring = 1; ring < rings; ring++) {
         const theta = f32(ring * deltaTheta)
-        const sinTheta = sinf(theta)
-        const z = cosf(theta)
+        // `std::sin(theta)` and `std::cos(theta)` in one block: one `__sincosf_stret` call.
+        const [sinTheta, z] = sincosf(theta)
         for (let s = 1; s <= segments; s++) {
             const x = f32(sinTheta * cosines[s]), y = f32(sinTheta * sines[s])
             positions[v * 3] = f32(x * radius)

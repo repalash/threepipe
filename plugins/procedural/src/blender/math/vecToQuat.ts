@@ -2,7 +2,7 @@
 
 import {f32} from '../f32'
 import {quatToMat3} from './matrix'
-import {acosf, atan2f} from '../libm'
+import {acosf, atan2f, sincosf} from '../libm'
 
 /** C `normalize_v3` (`math_vector_inline.cc:872`): reciprocal times components; zero below 1e-35. */
 function normalizeV3C(v: number[]): void {
@@ -65,7 +65,7 @@ export function vecToQuat(vec: ArrayLike<number>, axisIn: number, upflag: number
     normalizeV3C(nor)
     // `axis_angle_normalized_to_quat` (:1065) with C `safe_acosf` = `acosf(clamp(a, -1, 1))` (math_base_safe_inline.cc:55).
     const phi = f32(0.5 * acosf(co < -1 ? -1 : co > 1 ? 1 : co))
-    const si = f32(Math.sin(phi)), cs = f32(Math.cos(phi))
+    const [si, cs] = sincosf(phi)
     q = [cs, f32(nor[0] * si), f32(nor[1] * si), f32(nor[2] * si)]
     if (axis !== upflag) {
         const mat = quatToMat3(q)
@@ -74,8 +74,8 @@ export function vecToQuat(vec: ArrayLike<number>, axisIn: number, upflag: number
         if (axis === 0) angle = upflag === 1 ? f32(0.5 * atan2f(fp[2], fp[1])) : f32(-0.5 * atan2f(fp[1], fp[2]))
         else if (axis === 1) angle = upflag === 0 ? f32(-0.5 * atan2f(fp[2], fp[0])) : f32(0.5 * atan2f(fp[0], fp[2]))
         else angle = upflag === 0 ? f32(0.5 * atan2f(-fp[1], -fp[0])) : f32(-0.5 * atan2f(-fp[0], -fp[1]))
-        const c2 = f32(Math.cos(angle))
-        const s2 = f32(f32(Math.sin(angle)) / len)
+        const [sinAngle, c2] = sincosf(angle)
+        const s2 = f32(sinAngle / len)
         const q2 = [c2, f32(tvec[0] * s2), f32(tvec[1] * s2), f32(tvec[2] * s2)]
         q = mulQtQtQt(q2, q)
     }
