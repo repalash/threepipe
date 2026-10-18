@@ -79,8 +79,13 @@ for (const a of ASSETS) {
     for (const ch of a.value) { await field.press(ch); await film.hold(0.15) }
     const before = await rev(a.object)
     await field.press('Enter')
-    const uiMs = await settle(a.object, before)
-    await film.caption(`"${a.field}" = ${a.value}: re-evaluated in ${uiMs} ms (wall time in the page, GPU VM)`)
+    await settle(a.object, before)
+    // the panel's edit is a `modifier update` in the history; its own time is the re-evaluation
+    const last = await page.evaluate(() => window.modelling.run({op: 'history', limit: 1, results: true}))
+    const res = last.data.results.at(-1)
+    const uiMs = Math.round(res?.ms ?? NaN)
+    if (res?.op !== 'modifier' || !res.ok) throw new Error(`the panel edit did not land as a modifier update: ${JSON.stringify(res)}`)
+    await film.caption(`"${a.field}" = ${a.value}: one "modifier update", re-evaluated in ${uiMs} ms (in the page, GPU VM)`)
     await film.orbit({deg: 50, sec: 4})
     await film.still(`${a.asset}-edited`)
 
