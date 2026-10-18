@@ -180,9 +180,12 @@ export async function openFilm(o = {}) {
         cage: (name, color, opts) => page.evaluate(([n, c, o]) => window.__film.cage(n, c, o), [name, color ?? '#c0101c', opts ?? {}]),
         cageOpacity: o => page.evaluate(o => window.__film.cageOpacity(o), o),
         /** Save the current frame as a still (full size JPEG) under <out>/stills. */
-        async still(name) {
+        async still(name, {overlays = false} = {}) {
             await page.evaluate(() => window.__film.frame())
+            // the report's stills are the picture only; the film keeps its captions and chips
+            if (!overlays) await page.evaluate(() => { for (const id of ['film-chip', 'film-panel', 'film-ticker', 'film-caption']) document.getElementById(id).style.visibility = 'hidden' })
             await grab(join(out, 'stills', `${name}.jpg`))
+            if (!overlays) await page.evaluate(() => { for (const id of ['film-chip', 'film-panel', 'film-ticker', 'film-caption']) document.getElementById(id).style.visibility = '' })
         },
         /** Counts over the document: objects, verts, faces, triangles (evaluated). */
         stats: () => page.evaluate(() => window.__film.stats()),

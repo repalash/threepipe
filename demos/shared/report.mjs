@@ -4,7 +4,7 @@
  *     node demos/shared/report.mjs demos/<name> [--film <dir with film.json, transcript.json, stills/>]
  *
  * Reads `demos/<name>/report.json` (written by hand or by the demo's scripts: title, intro, stills to show, metrics,
- * notes) and the film's `film.json` + `transcript.json`; writes `shots/*.jpg` (1280 px stills, small enough to
+ * notes) and the film's `film.json` + `transcript.json`; writes `shots/*.jpg` (1600 px stills, small enough to
  * commit), `transcript.json` (the commands the film ran) and `index.html`. The video (`video.mp4`) is not committed;
  * the page plays it when it is next to it, with chapter links that seek.
  */
@@ -30,7 +30,7 @@ for (const s of [R.hero, ...(R.stills ?? []), ...(R.compare ?? []).flat()].filte
     const src = join(filmDir, 'stills', `${file}.jpg`)
     if (!existsSync(src)) { console.warn('missing still', src); continue }
     const dst = join(dir, 'shots', `${file}.jpg`)
-    await sharp(src).resize({width: 1280}).jpeg({quality: 80, mozjpeg: true}).toFile(dst)
+    await sharp(src).resize({width: 1600}).jpeg({quality: 86, mozjpeg: true}).toFile(dst)
     shots.push(dst)
 }
 
@@ -43,7 +43,18 @@ const opCounts = {}
 for (const t of commands) opCounts[t.command.op] = (opCounts[t.command.op] ?? 0) + 1
 
 // ------------------------------------------------------------------------------------------- page
-const m = R.metrics ?? []
+// Measured by the film on the GPU, then the demo's own (build wall time, agent cost, checks).
+const st = film.stats ?? {}
+const nCmd = commands.length, nFail = commands.filter(t => !t.ok).length
+const m = [
+    ...(R.metricsFirst ?? []),
+    ['commands', `${nCmd}`, `${nFail} failed${R.commandsNote ? ' · ' + R.commandsNote : ''}`],
+    ...(st.tris ? [['triangles', st.tris.toLocaleString('en'), `${st.objects} objects · ${(st.verts ?? 0).toLocaleString('en')} verts evaluated`]] : []),
+    ['command time (GPU page)', `${(film.commandMs / 1000).toFixed(2)} s`, 'sum of the commands\' own ms in the browser'],
+    ...(film.frameMs ? [['frame (GPU)', `${film.frameMs.median} ms`, `median of 60 forced renders + gl.finish; p90 ${film.frameMs.p90} ms`]] : []),
+    ['video', fmtS(film.seconds), `${film.width}×${film.height}, ${film.fps} fps, H.264`],
+    ...(R.metrics ?? []),
+]
 const metric = ([k, v, note]) => `<div class="m"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${note ? `<div class="n">${esc(note)}</div>` : ''}</div>`
 const still = s => {
     const file = typeof s === 'string' ? s : s.file
@@ -83,7 +94,7 @@ ${R.hero ? `<div class="hero"><img src="shots/${typeof R.hero === 'string' ? R.h
 
 <h2>The film</h2>
 <video id="v" src="video.mp4" controls preload="metadata" ${R.hero ? `poster="shots/${typeof R.hero === 'string' ? R.hero : R.hero.file}.jpg"` : ''} onerror="this.style.display='none';document.getElementById('nv').style.display='block'"></video>
-<div class="novideo" id="nv">video.mp4 is not committed - record it with <code>${esc(R.recordCommand ?? 'record.mjs')}</code> (see direction.md).</div>
+<div class="novideo" id="nv">video.mp4 is not here (it is not committed), or this browser cannot play H.264 - record it with <code>${esc(R.recordCommand ?? 'record.mjs')}</code> (see direction.md).</div>
 <div class="chapters">${chapters}</div>
 <p class="renderer">${fmtS(film.seconds)} · ${film.width}×${film.height} · ${film.fps} fps · H.264, faststart · rendered frame by frame on <b>${esc(film.renderer)}</b></p>
 
