@@ -3,7 +3,7 @@
     "description": "Blender geometry nodes for threepipe, ported from Blender 5.2 LTS source - evaluated live in the browser and in Node on mesh-kernel's MeshData, as a modifier and as a typed graph API",
     "version": "0.1.0",
     "devDependencies": {
-        "three": "npm:three-modded@0.168.10006"
+        "three": "npm:three-modded@0.168.10007"
     },
     "dependencies": {
         "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/"
