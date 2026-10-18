@@ -1,0 +1,8 @@
+# Local only: the film, exported models and the reference images (refs/SOURCES.md lists them; the dealer's
+# photographs are all rights reserved). Restore the drawings with `git archive demo-stair demos/stair/refs | tar x`.
+video.mp4
+*.webm
+*.glb
+refs/*.jpg
+refs/*.png
+film/

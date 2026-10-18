@@ -50,9 +50,10 @@
 </head>
 <body>
 <main>
+<a href="../index.html" style="color:#888;text-decoration:none;font-size:14px">← all demos</a>
 <h1>House walkthrough</h1>
 <p class="sub">threepipe modelling editor, used as a newcomer would: a low-poly house from the start cube, with real keyboard and
-mouse input only (Playwright), once with the Blender keymap and once with the Design keymap. Branch <code>demo-house-walkthrough</code> at <code>7599f955</code>.
+mouse input only (Playwright), once with the Blender keymap and once with the Design keymap. Branch <code>demo-house-walkthrough</code> at <code>5249ce67</code>.
 Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">ux-findings.md</a>.</p>
 
 <section class="summary">
@@ -62,16 +63,16 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
 
 <h2>Videos</h2>
 <div class="videos">
-  <figure class="video wide"><video controls preload="metadata" src="video-side-by-side.webm"></video>
-      <figcaption>Blender keymap (left) and Design keymap (right), side by side · 182 s · 23.4 MB · <a href="video-side-by-side.webm">video-side-by-side.webm</a></figcaption></figure>
-  <figure class="video"><video controls preload="metadata" src="video-blender.webm"></video>
-      <figcaption>Blender keymap · 170 s · 13.4 MB · <a href="video-blender.webm">video-blender.webm</a></figcaption></figure>
-  <figure class="video"><video controls preload="metadata" src="video-design.webm"></video>
-      <figcaption>Design keymap (Figma / trackpad) · 181 s · 13.7 MB · <a href="video-design.webm">video-design.webm</a></figcaption></figure>
+  <figure class="video"><video controls preload="metadata" src="video.mp4"></video>
+      <figcaption>Blender keymap · 2:41 (0.45 s of holds over 1.5 s cut from 161.6 s) · <a href="video.mp4">video.mp4</a></figcaption></figure>
+  <figure class="video"><video controls preload="metadata" src="video-design.mp4"></video>
+      <figcaption>Design keymap (Figma / trackpad) · 2:54 (0.99 s of holds over 1.5 s cut from 174.7 s) · <a href="video-design.mp4">video-design.mp4</a></figcaption></figure>
 </div>
-<p class="sub">Recorded with Playwright in headless Chromium on SwiftShader (no GPU), 1280x720; the cursor dot, key chips and title
-cards are overlays drawn by the driver, not part of the editor. <code>drive.mjs --ws &lt;endpoint&gt;</code> re-records on a GPU
-browser. Videos are not committed: run <code>drive.mjs</code> and <code>compose-videos.mjs</code> to make them.</p>
+<p class="sub">Recorded on the GPU VM in Chromium on <b>ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)</b>, 1280x720, as a CDP screencast encoded to
+H.264 (faststart); real time, with holds over 1.5 s cut. The cursor dot, key chips and title cards are overlays drawn by
+the driver, not part of the editor. Videos are not committed: run <code>drive.mjs</code> to make them.</p>
+<p class="sub">Agent that wrote the walkthrough and its findings: claude-opus-5-5, 261 active minutes, 333 tool calls,
+233k output / 180M input tokens (mostly cache reads).</p>
 
 <h2>Result and glb round trip</h2>
 <table>
@@ -79,10 +80,10 @@ browser. Videos are not committed: run <code>drive.mjs</code> and <code>compose-
   <tr><td>blender</td><td>26 / 26</td><td>88 verts · 166 edges · 80 faces</td>
     <td><code>house-blender.glb</code>, 21756 bytes</td>
     <td>88 verts · 166 edges · 80 faces <span class="same">same</span></td>
-    <td>170 s</td></tr><tr><td>design</td><td>26 / 26</td><td>88 verts · 166 edges · 80 faces</td>
+    <td>163 s</td></tr><tr><td>design</td><td>26 / 26</td><td>88 verts · 166 edges · 80 faces</td>
     <td><code>house-design.glb</code>, 21756 bytes</td>
     <td>88 verts · 166 edges · 80 faces <span class="same">same</span></td>
-    <td>180 s</td></tr>
+    <td>175 s</td></tr>
 </table>
 
 <h2>Step by step</h2>

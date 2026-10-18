@@ -168,5 +168,5 @@ and where in the editor it comes from. The report page is `index.html` (`/demos/
 
 | keymap | steps ok | final mesh (verts, edges, faces) | glb re-opened | seconds |
 |---|---|---|---|---|
-| blender | 26/26 | [88,166,80] | [88,166,80] (same) | 170 |
-| design | 26/26 | [88,166,80] | [88,166,80] (same) | 180 |
+| blender | 26/26 | [88,166,80] | [88,166,80] (same) | 163 |
+| design | 26/26 | [88,166,80] | [88,166,80] (same) | 175 |

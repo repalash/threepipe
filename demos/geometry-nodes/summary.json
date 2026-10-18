@@ -1,0 +1,9 @@
+{
+ "title": "Geometry nodes, edited live",
+ "blurb": "Buildify, a flower field and a DSL terrain as geometry-nodes modifiers, edited live in the editor.",
+ "hero": "shots/terrain-edited.jpg",
+ "line": "Buildify 21 ms · flowers 496 ms · terrain 396 ms per input change (mean of 4, GPU VM)",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)",
+ "seconds": 82.8,
+ "generated": "2026-10-18"
+}

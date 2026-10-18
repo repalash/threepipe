@@ -1,0 +1,8 @@
+# Local only: the film, large renders, and the Commons photographs (CC BY-SA; listed in refs/SOURCES.md,
+# restored with `git archive demo-camera demos/camera/refs | tar x`).
+video.mp4
+*.webm
+*.glb
+refs/*.jpg
+refs/*.png
+film/
