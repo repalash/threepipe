@@ -61,11 +61,14 @@ export function filmSession(film, o = {}) {
         async runAll(cmds) { const out = []; for (const c of cmds) out.push(await session.run(c)); return out },
         async inspect(object, detail = true) { return film.run({op: 'inspect', object, detail, limit: 1000000}, {frames: 0, show: false}) },
         async capture(label, opts = {}) {
-            if (opts.view || opts.fit) await camera({op: 'camera', ...opts})
+            // a capture that frames something else (view / fit) is a cut-away: come back to the build's camera after it
+            const back = opts.view || opts.fit ? await film.page.evaluate(() => window.__film.getCamera()) : null
+            if (back) await camera({op: 'camera', ...opts})
             await film.caption(label)
             await film.hold(captureHold)
             await film.still(`${String(++shot).padStart(2, '0')}-${slug(label)}`)
             await film.caption('')
+            if (back) await film.glide(back, glide)
             return null
         },
         async beat(name, data) {
