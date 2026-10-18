@@ -15,6 +15,7 @@ import {
     PointLight2,
     safeSetProperty,
     SpotLight2,
+    Vector3,
 } from 'threepipe'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readTargets, readVec3} from './params'
@@ -185,7 +186,7 @@ export const lightCommand: CommandDefinition = {
         name: S.string('Name of the light. An existing light with this name is updated in place.'),
         type: S.enum('Light type. Required when creating.', LIGHT_TYPES),
         position: S.vec3('World position.'),
-        target: S.vec3('Point a directional or spot light aims at.'),
+        target: S.vec3('World point a directional or spot light aims at (the light turns to face it).'),
         color: S.string('Any CSS colour string.'),
         intensity: S.number('Light intensity.'),
         distance: S.number('Point and spot falloff distance. 0 means no limit.'),
@@ -225,8 +226,17 @@ export const lightCommand: CommandDefinition = {
 
         if (p.position !== undefined) light.position.set(...readVec3(p.position, [0, 0, 0], 'position'))
         if (p.target !== undefined && light.target) {
-            light.target.position.set(...readVec3(p.target, [0, 0, 0], 'target'))
-            light.target.updateMatrixWorld?.()
+            light.userData.__modellingTarget = readVec3(p.target, [0, 0, 0], 'target')
+        }
+        // threepipe's directional and spot lights keep their target as a child at (0, 0, -1), as glTF's
+        // KHR_lights_punctual does: the light shines down its own -z. So `target` (a world point) turns the light to
+        // face it, rather than moving the child - which would put a world point in the light's local space. A light
+        // that was aimed keeps aiming at the same point when only its position changes.
+        const aim = light.userData.__modellingTarget as [number, number, number] | undefined
+        if (aim && light.target && (p.target !== undefined || p.position !== undefined)) {
+            light.updateMatrixWorld?.(true)
+            light.lookAt(new Vector3(...aim))
+            light.updateMatrixWorld?.(true)
         }
         if (p.color !== undefined) light.color = new Color(p.color as string)
         if (p.intensity !== undefined) light.intensity = p.intensity as number
