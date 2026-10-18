@@ -16,6 +16,7 @@
 
 import {MeshData} from './MeshData'
 import {AttrDomain, AttrName} from './constants'
+import {meshFaceNormalsCustom} from './normals'
 
 const f = Math.fround
 
@@ -40,8 +41,9 @@ function crossDiff(P: Float32Array, a: number, b: number, c: number, d: number, 
 }
 
 /**
- * Face normals as Blender's `Mesh::face_normals()` computes them (`face_normal_calc`): quads by the cross of
- * their diagonals, triangles by `normal_tri_v3`, n-gons by Newell's sum; a degenerate face gets +Z.
+ * Geometric face normals as `bke::mesh::face_normal_calc` (`mesh_normals.cc:143`) computes them: quads by the
+ * cross of their diagonals, triangles by `normal_tri_v3`, n-gons by Newell's sum; a degenerate face gets +Z. (What
+ * `MeshPolygon.normal` and the boolean's corner interpolation use; `Mesh::face_normals()` is `meshFaceNormalsCustom`.)
  */
 export function meshFaceNormals(mesh: MeshData): Float32Array {
     const P = mesh.positions, CV = mesh.cornerVerts, O = mesh.faceOffsets
@@ -97,7 +99,8 @@ export function meshSharpEdgesSetFromAngle(mesh: MeshData, angle: number, keepSh
     if (!keepSharpEdges) mesh.attributes.remove(AttrName.sharpEdge)
     const sharpEdges = mesh.attributes.ensure(AttrName.sharpEdge, AttrDomain.Edge, 'bool').data as Uint8Array
     const sharpFaces = mesh.attributes.get(AttrName.sharpFace)?.data as Uint8Array | undefined
-    edgesSharpFromAngleSet(mesh, meshFaceNormals(mesh), sharpFaces, angle, sharpEdges)
+    // mesh.face_normals(): Newell normals for every face, or the ones custom normals give (mesh_normals.cc:415)
+    edgesSharpFromAngleSet(mesh, meshFaceNormalsCustom(mesh), sharpFaces, angle, sharpEdges)
 }
 
 /**

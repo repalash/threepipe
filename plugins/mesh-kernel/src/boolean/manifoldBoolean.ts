@@ -136,7 +136,10 @@ export function joinMeshesWithTransforms(meshes: MeshData[], transforms: Mat4[])
     const seen = new Map<string, AttributeLayer>()
     meshes.forEach((m, i) => {
         for (const layer of m.attributes.layers()) {
-            if (TOPOLOGY.has(layer.name) || layer.name === AttrName.materialIndex) continue
+            // custom normals: realize_instances joins them through NormalJoinInfo (converting fan-encoded ones to
+            // float3) and the boolean flips them on mirrored faces; not ported, so they are left out rather than
+            // mixed as raw int16 data (issues/open/modelling-tools/kernel-boolean-custom-normals.md)
+            if (TOPOLOGY.has(layer.name) || layer.name === AttrName.materialIndex || layer.name === AttrName.customNormal) continue
             let dst = seen.get(layer.name)
             if (!dst) {
                 if (joined.attributes.get(layer.name)) continue

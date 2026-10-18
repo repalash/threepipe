@@ -39,8 +39,11 @@ export function propagateAttributes(
     refiner: TopologyRefiner, levels: number, mesh: MeshData, baseToMesh: Int32Array, out: MeshData, warnings: string[],
 ): void {
     const base = refiner.levels[0]
-    // UV maps go through face-varying subdivision (fvarRefiner.ts), not linear mixing
-    const layers = mesh.attributes.layers().filter(l => !TOPOLOGY.has(l.name) && !isUVMapLayer(l))
+    // UV maps go through face-varying subdivision (fvarRefiner.ts), not linear mixing; corner custom normals are
+    // skipped as subdiv_mesh.cc:916 skips them (the modifier's use_custom_normals option, which carries them as
+    // CD_NORMAL and re-encodes them, is not ported)
+    const layers = mesh.attributes.layers().filter(l => !TOPOLOGY.has(l.name) && !isUVMapLayer(l)
+        && !(l.name === AttrName.customNormal && l.domain === AttrDomain.Corner))
     if (!layers.length) return
 
     // base-level values
