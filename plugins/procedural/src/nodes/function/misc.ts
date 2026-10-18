@@ -7,6 +7,7 @@
 
 import {f32, roundHalfAway} from '../../blender/f32'
 import {eigenDeterminant4} from '../../blender/math/eigen'
+import {jacobiSvdSquare} from '../../blender/math/jacobiSvd'
 import {mat3ToQuat} from '../../blender/math/matrix'
 import {cross3, isZero3, normalize3} from '../../blender/math/vec'
 import {elementwise, MultiFunction} from '../../fields/field'
@@ -221,6 +222,33 @@ registerNodeType({
         b.output('FLOAT', 'Determinant')
     },
     multiFunction: () => matrixDeterminant,
+})
+
+/**
+ * Matrix SVD (`node_fn_matrix_svd.cc:41`): `BLI_svd_m3` of the matrix's 3x3 part; U and V become 4x4 matrices with
+ * the identity around them (`float4x4(float3x3)`).
+ */
+const matrixSvd = elementwise('Matrix SVD', ['float4x4'], ['float4x4', 'float3', 'float4x4'], ([m], [u, s, v]) => {
+    const m3 = new Float32Array(9)
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) m3[c * 3 + r] = m[c * 4 + r]
+    const res = jacobiSvdSquare(m3, 3)
+    for (const [out, src] of [[u, res.u], [v, res.v]] as const) {
+        for (let k = 0; k < 16; k++) out[k] = k % 5 === 0 ? 1 : 0
+        for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) out[c * 4 + r] = src[c * 3 + r]
+    }
+    for (let k = 0; k < 3; k++) s[k] = res.s[k]
+})
+
+registerNodeType({
+    idname: 'FunctionNodeMatrixSVD',
+    label: 'Matrix SVD',
+    declare(b) {
+        b.input('MATRIX', 'Matrix')
+        b.output('MATRIX', 'U')
+        b.output('VECTOR', 'S')
+        b.output('MATRIX', 'V')
+    },
+    multiFunction: () => matrixSvd,
 })
 
 /**

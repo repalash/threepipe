@@ -1368,6 +1368,17 @@ export type MatrixDeterminantNode = NodeHandle & {
     readonly determinant: Socket<"FLOAT">
 }
 
+/** `FunctionNodeMatrixSVD` (Matrix SVD). */
+export interface MatrixSVDArgs {
+    matrix?: In<"MATRIX">
+    mute?: boolean
+}
+export type MatrixSVDNode = NodeHandle & {
+    readonly u: Socket<"MATRIX">
+    readonly s: Socket<"VECTOR">
+    readonly v: Socket<"MATRIX">
+}
+
 /** `GeometryNodeMenuSwitch` (Menu Switch). */
 export interface MenuSwitchArgs {
     dataType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE" | "FONT" | "SOUND"
@@ -3068,6 +3079,7 @@ export interface NodeConstructors {
     MaterialSelection(args?: MaterialSelectionArgs): MaterialSelectionNode
     Math(args?: MathArgs): MathNode
     MatrixDeterminant(args?: MatrixDeterminantArgs): MatrixDeterminantNode
+    MatrixSVD(args?: MatrixSVDArgs): MatrixSVDNode
     MenuSwitch(args?: MenuSwitchArgs): MenuSwitchNode
     MergeByDistance(args?: MergeByDistanceArgs): MergeByDistanceNode
     MergePoints(args?: MergePointsArgs): MergePointsNode
