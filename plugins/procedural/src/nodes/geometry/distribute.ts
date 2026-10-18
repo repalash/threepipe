@@ -118,12 +118,7 @@ function attributeOutputs(mesh: MeshData, pc: PointCloud, tris: Int32Array, triF
     if (!acc.contains('id')) acc.add('id', AttrDomain.Point, 'int32')
     const ids = acc.layerForWrite('id')!.data
     for (let i = 0; i < n; i++) ids[i] = hash2(hashFloat3(s.bary[i * 3], s.bary[i * 3 + 1], s.bary[i * 3 + 2]), s.tris[i]) | 0
-    if (!normalId) {
-        // Blender creates the rotation attribute but fills it only from the normals (:458-473): without the Normal
-        // output it keeps its default-constructed value.
-        if (rotationId) acc.add(rotationId, AttrDomain.Point, 'quaternion')
-        return
-    }
+    if (!normalId) return
     const normals = new Float32Array(n * 3)
     if (legacyNormal) {
         // `normal_tri_v3` of the triangle (:410).
@@ -210,7 +205,9 @@ registerNodeType({
         const seed = Math.imul(p.int('Seed'), 5383843)
         const legacyNormal = p.node.prop<boolean>('use_legacy_normal')
         const rotationId = p.outputUsed('Rotation') ? p.anonymousName('Rotation') : undefined
-        const normalId = p.outputUsed('Normal') ? p.anonymousName('Normal') : undefined
+        // `get_output_anonymous_attribute_id_if_needed("Normal", bool(rotation_id))` (:647): the rotation is
+        // computed from the normals, so they are made whenever the rotation is.
+        const normalId = p.outputUsed('Normal') || rotationId ? p.anonymousName('Normal') : undefined
         const poisson = p.node.prop<string>('distribute_method') === 'POISSON'
         const nonNegative = (id: string) => new FieldOperation(maxZero, [p.field(id), GField.constant('float', [0])]).output(0)
         const keepPointCloud = (g: Parameters<Parameters<typeof foreachRealGeometry>[1]>[0], pc: PointCloud | undefined) => {
@@ -285,7 +282,7 @@ registerNodeType({
             }, p.options.scene)
         }
         p.set('Points', out)
-        if (normalId) p.set('Normal', GField.fromInput(new AttributeFieldInput(normalId, 'float3')))
+        if (normalId && p.outputUsed('Normal')) p.set('Normal', GField.fromInput(new AttributeFieldInput(normalId, 'float3')))
         if (rotationId) p.set('Rotation', GField.fromInput(new AttributeFieldInput(rotationId, 'quaternion')))
     },
 })

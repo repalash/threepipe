@@ -7,10 +7,11 @@
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
 import {f32} from '../blender/f32'
 import {meshCalcEdges} from './meshCalcEdges'
+import {newMeshData} from './components'
 
 /** `BKE_mesh_new_nomain(verts, edges, faces, corners)`. */
 export function newMesh(verts: number, edges: number, faces: number, corners: number): MeshData {
-    const m = new MeshData()
+    const m = newMeshData()
     m.resize({verts, edges, faces, corners})
     return m
 }

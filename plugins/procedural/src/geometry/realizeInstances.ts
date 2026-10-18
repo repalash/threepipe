@@ -31,6 +31,7 @@ import {
 } from './components'
 import {AttributeAccessor, BuiltinAttribute} from './attributeAccessor'
 import type {SceneProvider} from '../runtime/context'
+import {newMeshData} from './components'
 
 export interface RealizeInstancesOptions {
     /** Keep ids of the original geometry instead of mixing in instance ids (Join Geometry uses this). */
@@ -791,7 +792,7 @@ function executeMeshTasks(
         result.setMesh(mesh)
         return
     }
-    const dst = new MeshData()
+    const dst = newMeshData()
     dst.resize({verts: offsets.vert, edges: offsets.edge, faces: offsets.face, corners: offsets.corner})
     dst.materials = materials.map(m => m ?? '')
     const acc = new MeshAccessor(dst)

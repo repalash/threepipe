@@ -9,7 +9,7 @@
 
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
 import {AttributeAccessor} from './attributeAccessor'
-import {CurvesGeometry, Instances, MeshAccessor, PointCloud} from './components'
+import {BLENDER_MESH_TABLE, CurvesGeometry, Instances, MeshAccessor, PointCloud} from './components'
 
 export type ComponentType = 'mesh' | 'pointcloud' | 'curves' | 'instances'
 
@@ -97,6 +97,8 @@ export class GeometrySet {
      * mesh also lives elsewhere, so the first write clones it.
      */
     setMesh(mesh: MeshData | undefined, shared = false): void {
+        // A mesh this set owns may be written by the nodes: give it Blender's built-in table.
+        if (mesh && !shared && mesh.attributes.builtins !== BLENDER_MESH_TABLE) mesh.attributes.setBuiltins(BLENDER_MESH_TABLE)
         this._mesh = mesh
         this.own('mesh', !!mesh && !shared)
     }

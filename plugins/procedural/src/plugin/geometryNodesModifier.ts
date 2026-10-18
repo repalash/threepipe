@@ -13,7 +13,7 @@ import {MeshData} from '@threepipe/mesh-kernel'
 import type {ModifierContext, ModifierType, ModellingDocument} from '@threepipe/plugin-modelling'
 import {
     GeometryNodesEvaluator, GeometrySet, isInterfaceSocket, JSONValue, NodeGroupLibrary, realizeInstances,
-    SceneProvider,
+    newMeshData, SceneProvider, socketTypeFromIdname,
 } from '@threepipe/plugin-procedural'
 
 export const NODE_GROUPS_KEY = 'nodeGroups'
@@ -70,6 +70,41 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
             throw new Error('a geometryNodes modifier `inputs` must be an object of values by socket name')
         }
     },
+    // The group's interface inputs (not the geometry) as fields; an edit updates `inputs` by socket name.
+    fields(spec, doc) {
+        const tree = doc ? documentNodeGroups(doc)[spec.group] : undefined
+        if (!tree) return undefined
+        const properties: Record<string, unknown> = {}
+        const values: Record<string, unknown> = {}
+        for (const s of tree.interface.filter(isInterfaceSocket).filter(i => i.inOut === 'INPUT')) {
+            const type = socketTypeFromIdname(s.socketType)
+            const def: Record<string, unknown> = {description: s.description || undefined, default: s.default}
+            if (type === 'FLOAT' || type === 'INT') {
+                def.type = type === 'INT' ? 'integer' : 'number'
+                if (s.min_value !== undefined && Math.abs(s.min_value) < 1e30) def.minimum = s.min_value
+                if (s.max_value !== undefined && Math.abs(s.max_value) < 1e30) def.maximum = s.max_value
+            } else if (type === 'BOOLEAN') def.type = 'boolean'
+            else if (type === 'VECTOR' || type === 'ROTATION') Object.assign(def, {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3})
+            else if (type === 'STRING' || type === 'MENU') def.type = 'string'
+            else continue
+            properties[s.name] = def
+            const v = spec.inputs?.[s.name] ?? spec.inputs?.[s.identifier]
+            values[s.name] = v ?? s.default
+        }
+        return {
+            schema: {type: 'object', properties},
+            values,
+            // Only inputs already set or now differing from their default are written, so the spec stays minimal.
+            update: next => {
+                const inputs: Record<string, JSONValue> = {...(spec.inputs ?? {})}
+                for (const [k, v] of Object.entries(next)) {
+                    const d = (properties[k] as {default?: unknown}).default
+                    if (k in inputs || JSON.stringify(v) !== JSON.stringify(d)) inputs[k] = v as JSONValue
+                }
+                return {inputs}
+            },
+        }
+    },
     describe(spec) {
         const inputs = Object.entries(spec.inputs ?? {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ')
         return `geometry nodes "${spec.group}"${inputs ? ` (${inputs})` : ''}`
@@ -107,6 +142,6 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         const result = ev.evaluate()
         const geometry = result.geometry ?? new GeometrySet()
         const realized = realizeInstances(geometry, {scene: documentScene(ctx.doc)})
-        return {mesh: realized.mesh ?? new MeshData(), geometry}
+        return {mesh: realized.mesh ?? newMeshData(), geometry}
     },
 }
