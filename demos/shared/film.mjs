@@ -171,7 +171,7 @@ export async function openFilm(o = {}) {
         /** Clay: every surface in one matte grey (scene.overrideMaterial) - the form, without the materials. */
         clay: on => page.evaluate(on => window.__film.clay(on), on),
         /** Draw an object's master-mesh edges (the subdivision cage) as lines; `null` clears them. */
-        cage: (name, color) => page.evaluate(([n, c]) => window.__film.cage(n, c), [name, color ?? '#c0101c']),
+        cage: (name, color, opts) => page.evaluate(([n, c, o]) => window.__film.cage(n, c, o), [name, color ?? '#c0101c', opts ?? {}]),
         cageOpacity: o => page.evaluate(o => window.__film.cageOpacity(o), o),
         /** Save the current frame as a still (full size JPEG) under <out>/stills. */
         async still(name) {
@@ -354,7 +354,7 @@ async function installStage({accent, background}) {
         },
         /** The cage: an object's master-mesh edges (as `inspect {detail}` reports them), drawn as lines on a 2D
          *  overlay projected from the camera every frame - so it is unaffected by clay and draws through the surface. */
-        async cage(name, color = '#c0101c') {
+        async cage(name, color = '#c0101c', opts = {}) {
             cage = null
             if (!name) { f.drawCage(); return 0 }
             const r = await window.modelling.run({op: 'inspect', object: name, detail: true, limit: 1000000})
@@ -362,7 +362,7 @@ async function installStage({accent, background}) {
             const obj = window.modelling.document.require(name).object
             obj.updateMatrixWorld(true)
             const world = vertices.map(v => new f.T.Vector3(...v).applyMatrix4(obj.matrixWorld))
-            cage = {world, edges: edgeVerts, color, opacity: 1}
+            cage = {world, edges: edgeVerts, color, opacity: 1, obj, ...opts}
             f.drawCage()
             return edgeVerts.length
         },
@@ -375,17 +375,34 @@ async function installStage({accent, background}) {
             const c = cam()
             c.updateMatrixWorld(true)
             const p = cage.world.map(v => { const q = v.clone().project(c); return [(q.x + 1) / 2 * W, (1 - q.y) / 2 * H, q.z] })
-            ctx.globalAlpha = cage.opacity
-            ctx.strokeStyle = cage.color
-            ctx.lineWidth = 1.6
-            ctx.beginPath()
-            for (const [a, b] of cage.edges) {
-                if (p[a][2] > 1 || p[b][2] > 1) continue
-                ctx.moveTo(p[a][0], p[a][1]); ctx.lineTo(p[b][0], p[b][1])
+            // hidden vertices (behind the surface, by a ray from the eye) draw their edges faint, as Blender's
+            // edit-mode overlay does without x-ray
+            let seen = null
+            if (cage.occlude) {
+                const ray = new f.T.Raycaster(), eye = c.getWorldPosition(new f.T.Vector3())
+                seen = cage.world.map(v => {
+                    const dir = v.clone().sub(eye), d = dir.length()
+                    ray.set(eye, dir.normalize())
+                    ray.far = d
+                    const hit = ray.intersectObject(cage.obj, true)[0]
+                    return !hit || hit.distance > d - Math.max(1e-4, d * 2e-3)
+                })
             }
-            ctx.stroke()
+            ctx.lineWidth = cage.width ?? 1.6
+            ctx.strokeStyle = cage.color
+            for (const pass of seen ? [false, true] : [true]) {
+                ctx.globalAlpha = cage.opacity * (pass ? 1 : 0.18)
+                ctx.beginPath()
+                for (const [a, b] of cage.edges) {
+                    if (p[a][2] > 1 || p[b][2] > 1) continue
+                    if (seen && (seen[a] && seen[b]) !== pass) continue
+                    ctx.moveTo(p[a][0], p[a][1]); ctx.lineTo(p[b][0], p[b][1])
+                }
+                ctx.stroke()
+            }
             ctx.fillStyle = cage.color
-            for (const q of p) if (q[2] <= 1) ctx.fillRect(q[0] - 2, q[1] - 2, 4, 4)
+            ctx.globalAlpha = cage.opacity
+            p.forEach((q, i) => { if (q[2] <= 1 && (!seen || seen[i])) ctx.fillRect(q[0] - 2, q[1] - 2, 4, 4) })
         },
         stats() {
             let objects = 0, verts = 0, faces = 0, tris = 0

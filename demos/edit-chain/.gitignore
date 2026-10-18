@@ -1,0 +1,7 @@
+*.webm
+.video-raw/
+*.glb
+video.mp4
+film/
+# the harness's per-step captures (SwiftShader, local); the report uses the GPU film's stills in shots/
+captures/
