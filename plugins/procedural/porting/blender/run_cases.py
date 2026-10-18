@@ -116,7 +116,12 @@ def build_scene(case):
 def set_properties(node, props):
     keys = sorted(props.keys(), key=lambda k: PROPERTY_ORDER.index(k) if k in PROPERTY_ORDER else len(PROPERTY_ORDER))
     for key in keys:
-        setattr(node, key, resolve(props[key]))
+        value = resolve(props[key])
+        # Enum-flag properties (e.g. Set Handle Type's `mode`) take a set of item names.
+        rna = node.bl_rna.properties.get(key)
+        if rna is not None and rna.type == "ENUM" and rna.is_enum_flag:
+            value = {value} if isinstance(value, str) else set(value)
+        setattr(node, key, value)
 
 
 def keep_switch_items(node, coll_name, entries):

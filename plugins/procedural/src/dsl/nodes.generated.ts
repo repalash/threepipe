@@ -89,6 +89,28 @@ export type AlignRotationToVectorNode = NodeHandle & {
     readonly rotation: Socket<"ROTATION">
 }
 
+/** `GeometryNodeCurveArc` (Arc). */
+export interface ArcArgs {
+    mode?: "POINTS" | "RADIUS"
+    resolution?: In<"INT">
+    start?: In<"VECTOR">
+    middle?: In<"VECTOR">
+    end?: In<"VECTOR">
+    offsetAngle?: In<"FLOAT">
+    connectCenter?: In<"BOOLEAN">
+    invertArc?: In<"BOOLEAN">
+    radius?: In<"FLOAT">
+    startAngle?: In<"FLOAT">
+    sweepAngle?: In<"FLOAT">
+    mute?: boolean
+}
+export type ArcNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+    readonly center: Socket<"VECTOR">
+    readonly normal: Socket<"VECTOR">
+    readonly radius: Socket<"FLOAT">
+}
+
 /** `GeometryNodeAttributeStatistic` (Attribute Statistic). */
 export interface AttributeStatisticArgs {
     dataType?: "FLOAT" | "FLOAT_VECTOR"
@@ -349,6 +371,25 @@ export type CurveCircleNode = NodeHandle & {
     readonly center: Socket<"VECTOR">
 }
 
+/** `GeometryNodeInputCurveHandlePositions` (Curve Handle Positions). */
+export interface CurveHandlePositionsArgs {
+    relative?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type CurveHandlePositionsNode = NodeHandle & {
+    readonly left: Socket<"VECTOR">
+    readonly right: Socket<"VECTOR">
+}
+
+/** `GeometryNodeCurveLength` (Curve Length). */
+export interface CurveLengthArgs {
+    curve?: In<"GEOMETRY">
+    mute?: boolean
+}
+export type CurveLengthNode = NodeHandle & {
+    readonly length: Socket<"FLOAT">
+}
+
 /** `GeometryNodeCurvePrimitiveLine` (Curve Line). */
 export interface CurveLineArgs {
     mode?: "POINTS" | "DIRECTION"
@@ -372,6 +413,14 @@ export type CurveOfPointNode = NodeHandle & {
     readonly indexInCurve: Socket<"INT">
 }
 
+/** `GeometryNodeInputTangent` (Curve Tangent). */
+export interface CurveTangentArgs {
+    mute?: boolean
+}
+export type CurveTangentNode = NodeHandle & {
+    readonly tangent: Socket<"VECTOR">
+}
+
 /** `GeometryNodeInputCurveTilt` (Curve Tilt). */
 export interface CurveTiltArgs {
     mute?: boolean
@@ -390,6 +439,21 @@ export interface CurveToMeshArgs {
 }
 export type CurveToMeshNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeCurveToPoints` (Curve to Points). */
+export interface CurveToPointsArgs {
+    mode?: "EVALUATED" | "COUNT" | "LENGTH"
+    curve?: In<"GEOMETRY">
+    count?: In<"INT">
+    length?: In<"FLOAT">
+    mute?: boolean
+}
+export type CurveToPointsNode = NodeHandle & {
+    readonly points: Socket<"GEOMETRY">
+    readonly tangent: Socket<"VECTOR">
+    readonly normal: Socket<"VECTOR">
+    readonly rotation: Socket<"ROTATION">
 }
 
 /** `GeometryNodeDeleteGeometry` (Delete Geometry). */
@@ -735,6 +799,16 @@ export type GradientTextureNode = NodeHandle & {
     readonly color: Socket<"RGBA">
     readonly fac: Socket<"FLOAT">
     readonly factor: Socket<"FLOAT">
+}
+
+/** `GeometryNodeCurveHandleTypeSelection` (Handle Type Selection). */
+export interface HandleTypeSelectionArgs {
+    handleType?: "FREE" | "AUTO" | "VECTOR" | "ALIGN"
+    mode?: "LEFT" | "RIGHT"
+    mute?: boolean
+}
+export type HandleTypeSelectionNode = NodeHandle & {
+    readonly selection: Socket<"BOOLEAN">
 }
 
 /** `FunctionNodeHashValue` (Hash Value). */
@@ -1336,6 +1410,17 @@ export type PointsOfCurveNode = NodeHandle & {
     readonly total: Socket<"INT">
 }
 
+/** `GeometryNodePointsToCurves` (Points to Curves). */
+export interface PointsToCurvesArgs {
+    points?: In<"GEOMETRY">
+    curveGroupID?: In<"INT">
+    weight?: In<"FLOAT">
+    mute?: boolean
+}
+export type PointsToCurvesNode = NodeHandle & {
+    readonly curves: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodePointsToVertices` (Points to Vertices). */
 export interface PointsToVerticesArgs {
     points?: In<"GEOMETRY">
@@ -1352,6 +1437,38 @@ export interface PositionArgs {
 }
 export type PositionNode = NodeHandle & {
     readonly position: Socket<"VECTOR">
+}
+
+/** `GeometryNodeCurveQuadraticBezier` (Quadratic Bézier). */
+export interface QuadraticBezierArgs {
+    resolution?: In<"INT">
+    start?: In<"VECTOR">
+    middle?: In<"VECTOR">
+    end?: In<"VECTOR">
+    mute?: boolean
+}
+export type QuadraticBezierNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeCurvePrimitiveQuadrilateral` (Quadrilateral). */
+export interface QuadrilateralArgs {
+    mode?: "RECTANGLE" | "PARALLELOGRAM" | "TRAPEZOID" | "KITE" | "POINTS"
+    width?: In<"FLOAT">
+    height?: In<"FLOAT">
+    offset?: In<"FLOAT">
+    bottomWidth?: In<"FLOAT">
+    topWidth?: In<"FLOAT">
+    bottomHeight?: In<"FLOAT">
+    topHeight?: In<"FLOAT">
+    point1?: In<"VECTOR">
+    point2?: In<"VECTOR">
+    point3?: In<"VECTOR">
+    point4?: In<"VECTOR">
+    mute?: boolean
+}
+export type QuadrilateralNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
 }
 
 /** `FunctionNodeQuaternionToRotation` (Quaternion to Rotation). */
@@ -1456,6 +1573,16 @@ export type ResampleCurveNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeReverseCurve` (Reverse Curve). */
+export interface ReverseCurveArgs {
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type ReverseCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `FunctionNodeRotateEuler` (Rotate Euler). */
 export interface RotateEulerArgs {
     rotationType?: "AXIS_ANGLE" | "EULER"
@@ -1542,6 +1669,25 @@ export type RotationToQuaternionNode = NodeHandle & {
     readonly x: Socket<"FLOAT">
     readonly y: Socket<"FLOAT">
     readonly z: Socket<"FLOAT">
+}
+
+/** `GeometryNodeSampleCurve` (Sample Curve). */
+export interface SampleCurveArgs {
+    mode?: "FACTOR" | "LENGTH"
+    useAllCurves?: boolean
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
+    curves?: In<"GEOMETRY">
+    value?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    factor?: In<"FLOAT">
+    curveIndex?: In<"INT">
+    length?: In<"FLOAT">
+    mute?: boolean
+}
+export type SampleCurveNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX">
+    readonly position: Socket<"VECTOR">
+    readonly tangent: Socket<"VECTOR">
+    readonly normal: Socket<"VECTOR">
 }
 
 /** `GeometryNodeSampleIndex` (Sample Index). */
@@ -1690,6 +1836,18 @@ export type SeparateXYZNode = NodeHandle & {
     readonly z: Socket<"FLOAT">
 }
 
+/** `GeometryNodeSetCurveNormal` (Set Curve Normal). */
+export interface SetCurveNormalArgs {
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mode?: In<"MENU">
+    normal?: In<"VECTOR">
+    mute?: boolean
+}
+export type SetCurveNormalNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSetCurveRadius` (Set Curve Radius). */
 export interface SetCurveRadiusArgs {
     curve?: In<"GEOMETRY">
@@ -1709,6 +1867,31 @@ export interface SetCurveTiltArgs {
     mute?: boolean
 }
 export type SetCurveTiltNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetCurveHandlePositions` (Set Handle Positions). */
+export interface SetHandlePositionsArgs {
+    mode?: "LEFT" | "RIGHT"
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    position?: In<"VECTOR">
+    offset?: In<"VECTOR">
+    mute?: boolean
+}
+export type SetHandlePositionsNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeCurveSetHandles` (Set Handle Type). */
+export interface SetHandleTypeArgs {
+    handleType?: "FREE" | "AUTO" | "VECTOR" | "ALIGN"
+    mode?: "LEFT" | "RIGHT"
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type SetHandleTypeNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
@@ -1754,6 +1937,28 @@ export interface SetMaterialIndexArgs {
 }
 export type SetMaterialIndexNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetNURBSOrder` (Set NURBS Order). */
+export interface SetNURBSOrderArgs {
+    curves?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    order?: In<"INT">
+    mute?: boolean
+}
+export type SetNURBSOrderNode = NodeHandle & {
+    readonly curves: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetNURBSWeight` (Set NURBS Weight). */
+export interface SetNURBSWeightArgs {
+    curves?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    weight?: In<"FLOAT">
+    mute?: boolean
+}
+export type SetNURBSWeightNode = NodeHandle & {
+    readonly curves: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeSetPointRadius` (Set Point Radius). */
@@ -1819,6 +2024,17 @@ export type SetSplineResolutionNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeCurveSplineType` (Set Spline Type). */
+export interface SetSplineTypeArgs {
+    splineType?: "CATMULL_ROM" | "POLY" | "BEZIER" | "NURBS"
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type SetSplineTypeNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeInputShortestEdgePaths` (Shortest Edge Paths). */
 export interface ShortestEdgePathsArgs {
     endVertex?: In<"BOOLEAN">
@@ -1843,6 +2059,20 @@ export type SortElementsNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeCurveSpiral` (Spiral). */
+export interface SpiralArgs {
+    resolution?: In<"INT">
+    rotations?: In<"FLOAT">
+    startRadius?: In<"FLOAT">
+    endRadius?: In<"FLOAT">
+    height?: In<"FLOAT">
+    reverse?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type SpiralNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSplineLength` (Spline Length). */
 export interface SplineLengthArgs {
     mute?: boolean
@@ -1850,6 +2080,16 @@ export interface SplineLengthArgs {
 export type SplineLengthNode = NodeHandle & {
     readonly length: Socket<"FLOAT">
     readonly pointCount: Socket<"INT">
+}
+
+/** `GeometryNodeSplineParameter` (Spline Parameter). */
+export interface SplineParameterArgs {
+    mute?: boolean
+}
+export type SplineParameterNode = NodeHandle & {
+    readonly factor: Socket<"FLOAT">
+    readonly length: Socket<"FLOAT">
+    readonly index: Socket<"INT">
 }
 
 /** `GeometryNodeInputSplineResolution` (Spline Resolution). */
@@ -1883,6 +2123,19 @@ export type SplitToInstancesNode = NodeHandle & {
     readonly groupID: Socket<"INT">
 }
 
+/** `GeometryNodeCurveStar` (Star). */
+export interface StarArgs {
+    points?: In<"INT">
+    innerRadius?: In<"FLOAT">
+    outerRadius?: In<"FLOAT">
+    twist?: In<"FLOAT">
+    mute?: boolean
+}
+export type StarNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+    readonly outerPoints: Socket<"BOOLEAN">
+}
+
 /** `GeometryNodeStoreNamedAttribute` (Store Named Attribute). */
 export interface StoreNamedAttributeArgs {
     dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4" | "INT8" | "FLOAT2" | "FLOAT4" | "BYTE_COLOR"
@@ -1895,6 +2148,16 @@ export interface StoreNamedAttributeArgs {
 }
 export type StoreNamedAttributeNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSubdivideCurve` (Subdivide Curve). */
+export interface SubdivideCurveArgs {
+    curve?: In<"GEOMETRY">
+    cuts?: In<"INT">
+    mute?: boolean
+}
+export type SubdivideCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeSubdivideMesh` (Subdivide Mesh). */
@@ -2120,6 +2383,7 @@ export interface NodeConstructors {
     AccumulateField(args?: AccumulateFieldArgs): AccumulateFieldNode
     AlignEulerToVector(args?: AlignEulerToVectorArgs): AlignEulerToVectorNode
     AlignRotationToVector(args?: AlignRotationToVectorArgs): AlignRotationToVectorNode
+    Arc(args?: ArcArgs): ArcNode
     AttributeStatistic(args?: AttributeStatisticArgs): AttributeStatisticNode
     AxisAngleToRotation(args?: AxisAngleToRotationArgs): AxisAngleToRotationNode
     BezierSegment(args?: BezierSegmentArgs): BezierSegmentNode
@@ -2141,10 +2405,14 @@ export interface NodeConstructors {
     CornersOfFace(args?: CornersOfFaceArgs): CornersOfFaceNode
     CornersOfVertex(args?: CornersOfVertexArgs): CornersOfVertexNode
     CurveCircle(args?: CurveCircleArgs): CurveCircleNode
+    CurveHandlePositions(args?: CurveHandlePositionsArgs): CurveHandlePositionsNode
+    CurveLength(args?: CurveLengthArgs): CurveLengthNode
     CurveLine(args?: CurveLineArgs): CurveLineNode
     CurveOfPoint(args?: CurveOfPointArgs): CurveOfPointNode
+    CurveTangent(args?: CurveTangentArgs): CurveTangentNode
     CurveTilt(args?: CurveTiltArgs): CurveTiltNode
     CurveToMesh(args?: CurveToMeshArgs): CurveToMeshNode
+    CurveToPoints(args?: CurveToPointsArgs): CurveToPointsNode
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
     DomainSize(args?: DomainSizeArgs): DomainSizeNode
@@ -2175,6 +2443,7 @@ export interface NodeConstructors {
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
+    HandleTypeSelection(args?: HandleTypeSelectionArgs): HandleTypeSelectionNode
     HashValue(args?: HashValueArgs): HashValueNode
     ID(args?: IDArgs): IDNode
     Image(args?: ImageArgs): ImageNode
@@ -2225,8 +2494,11 @@ export interface NodeConstructors {
     OffsetPointInCurve(args?: OffsetPointInCurveArgs): OffsetPointInCurveNode
     Points(args?: PointsArgs): PointsNode
     PointsOfCurve(args?: PointsOfCurveArgs): PointsOfCurveNode
+    PointsToCurves(args?: PointsToCurvesArgs): PointsToCurvesNode
     PointsToVertices(args?: PointsToVerticesArgs): PointsToVerticesNode
     Position(args?: PositionArgs): PositionNode
+    QuadraticBezier(args?: QuadraticBezierArgs): QuadraticBezierNode
+    Quadrilateral(args?: QuadrilateralArgs): QuadrilateralNode
     QuaternionToRotation(args?: QuaternionToRotationArgs): QuaternionToRotationNode
     Radius(args?: RadiusArgs): RadiusNode
     RandomValue(args?: RandomValueArgs): RandomValueNode
@@ -2235,6 +2507,7 @@ export interface NodeConstructors {
     RemoveNamedAttribute(args?: RemoveNamedAttributeArgs): RemoveNamedAttributeNode
     ReplaceMaterial(args?: ReplaceMaterialArgs): ReplaceMaterialNode
     ResampleCurve(args?: ResampleCurveArgs): ResampleCurveNode
+    ReverseCurve(args?: ReverseCurveArgs): ReverseCurveNode
     RotateEuler(args?: RotateEulerArgs): RotateEulerNode
     RotateInstances(args?: RotateInstancesArgs): RotateInstancesNode
     RotateRotation(args?: RotateRotationArgs): RotateRotationNode
@@ -2243,6 +2516,7 @@ export interface NodeConstructors {
     RotationToAxisAngle(args?: RotationToAxisAngleArgs): RotationToAxisAngleNode
     RotationToEuler(args?: RotationToEulerArgs): RotationToEulerNode
     RotationToQuaternion(args?: RotationToQuaternionArgs): RotationToQuaternionNode
+    SampleCurve(args?: SampleCurveArgs): SampleCurveNode
     SampleIndex(args?: SampleIndexArgs): SampleIndexNode
     SampleNearest(args?: SampleNearestArgs): SampleNearestNode
     SampleNearestSurface(args?: SampleNearestSurfaceArgs): SampleNearestSurfaceNode
@@ -2255,24 +2529,34 @@ export interface NodeConstructors {
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
     SeparateXYZ(args?: SeparateXYZArgs): SeparateXYZNode
+    SetCurveNormal(args?: SetCurveNormalArgs): SetCurveNormalNode
     SetCurveRadius(args?: SetCurveRadiusArgs): SetCurveRadiusNode
     SetCurveTilt(args?: SetCurveTiltArgs): SetCurveTiltNode
+    SetHandlePositions(args?: SetHandlePositionsArgs): SetHandlePositionsNode
+    SetHandleType(args?: SetHandleTypeArgs): SetHandleTypeNode
     SetID(args?: SetIDArgs): SetIDNode
     SetInstanceTransform(args?: SetInstanceTransformArgs): SetInstanceTransformNode
     SetMaterial(args?: SetMaterialArgs): SetMaterialNode
     SetMaterialIndex(args?: SetMaterialIndexArgs): SetMaterialIndexNode
+    SetNURBSOrder(args?: SetNURBSOrderArgs): SetNURBSOrderNode
+    SetNURBSWeight(args?: SetNURBSWeightArgs): SetNURBSWeightNode
     SetPointRadius(args?: SetPointRadiusArgs): SetPointRadiusNode
     SetPosition(args?: SetPositionArgs): SetPositionNode
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
     SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
+    SetSplineType(args?: SetSplineTypeArgs): SetSplineTypeNode
     ShortestEdgePaths(args?: ShortestEdgePathsArgs): ShortestEdgePathsNode
     SortElements(args?: SortElementsArgs): SortElementsNode
+    Spiral(args?: SpiralArgs): SpiralNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
+    SplineParameter(args?: SplineParameterArgs): SplineParameterNode
     SplineResolution(args?: SplineResolutionArgs): SplineResolutionNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
     SplitToInstances(args?: SplitToInstancesArgs): SplitToInstancesNode
+    Star(args?: StarArgs): StarNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
+    SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
     TransformDirection(args?: TransformDirectionArgs): TransformDirectionNode

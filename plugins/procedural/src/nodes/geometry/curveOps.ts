@@ -1,5 +1,6 @@
 /**
- * Curve operations: Resample Curve (`node_geo_curve_resample.cc`) and Trim Curve (`node_geo_curve_trim.cc`).
+ * Curve operations: Resample Curve (`node_geo_curve_resample.cc`), Trim Curve (`node_geo_curve_trim.cc`) and Reverse Curve
+ * (`node_geo_curve_reverse.cc`).
  */
 
 import {AttrDomain} from '@threepipe/mesh-kernel'
@@ -9,6 +10,8 @@ import {CurvesEvaluator} from '../../geometry/curvesEval'
 import {foreachRealGeometry} from '../../geometry/joinGeometries'
 import {countFromLength, resampleToEvaluated, resampleToUniform} from '../../geometry/resampleCurves'
 import {trimCurves} from '../../geometry/trimCurves'
+import {reverseCurves} from '../../geometry/curvesEdit'
+import {subdivideCurves} from '../../geometry/subdivideCurves'
 import {registerNodeType} from '../../runtime/registry'
 
 registerNodeType({
@@ -102,6 +105,51 @@ registerNodeType({
             if (selection.length === 0) return
             const dst = trimCurves(src, selection, starts, ends, factor)
             dst.materials = src.materials.slice()
+            g.setCurves(dst)
+        }, p.options.scene))
+    },
+})
+
+registerNodeType({
+    idname: 'GeometryNodeReverseCurve',
+    label: 'Reverse Curve',
+    declare(b) {
+        b.input('GEOMETRY', 'Curve')
+        b.output('GEOMETRY', 'Curve')
+        b.input('BOOLEAN', 'Selection').default(true).hideValue().field()
+    },
+    // `node_geo_exec` (`node_geo_curve_reverse.cc:57`) with `reverse_curve` (:25).
+    execute(p) {
+        const selectionField = p.field('Selection')
+        p.set('Curve', foreachRealGeometry(p.geometry('Curve'), g => {
+            const src = g.curves
+            if (!src) return
+            const sel = new FieldEvaluation(new FieldContext('curves', src, AttrDomain.Curve), src.curvesNum).evaluate(selectionField)
+            const mask: number[] = []
+            for (let i = 0; i < src.curvesNum; i++) if (sel.get(i)) mask.push(i)
+            if (!mask.length) return
+            reverseCurves(g.curvesForWrite()!, mask)
+        }, p.options.scene))
+    },
+})
+
+registerNodeType({
+    idname: 'GeometryNodeSubdivideCurve',
+    label: 'Subdivide Curve',
+    declare(b) {
+        b.input('GEOMETRY', 'Curve')
+        b.output('GEOMETRY', 'Curve')
+        b.input('INT', 'Cuts').default(1).min(0).max(1000).field()
+    },
+    // `node_geo_exec` (`node_geo_curve_subdivide.cc:79`) with `subdivide_curves` (:28).
+    execute(p) {
+        const cutsField = p.field('Cuts')
+        p.set('Curve', foreachRealGeometry(p.geometry('Curve'), g => {
+            const src = g.curves
+            if (!src) return
+            const cuts = new FieldEvaluation(new FieldContext('curves', src, AttrDomain.Point), src.pointsNum).evaluate(cutsField)
+            if (cuts.isSingle && cuts.get(0) < 1) return
+            const dst = subdivideCurves(src, cuts.isSingle ? new Int32Array(src.pointsNum).fill(cuts.get(0)) : cuts.materialize())
             g.setCurves(dst)
         }, p.options.scene))
     },

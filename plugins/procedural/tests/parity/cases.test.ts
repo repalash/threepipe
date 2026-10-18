@@ -29,6 +29,7 @@ import {meshSplitCases} from './cases/meshSplit'
 import {meshScaleCases} from './cases/meshScale'
 import {meshTriangulateCases} from './cases/meshTriangulate'
 import {meshDualCases} from './cases/meshDual'
+import {meshPathCases} from './cases/meshPaths'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -50,7 +51,9 @@ import {curvesBasicCases} from './cases/curvesBasic'
 import {curvesOpsCases} from './cases/curvesOps'
 import {distributeCases} from './cases/distribute'
 import {subdivMeshCases} from './cases/subdivMesh'
-import {meshPathCases} from './cases/meshPaths'
+import {curvesQueryCases} from './cases/curvesQuery'
+import {curvesGenerateCases} from './cases/curvesGenerate'
+import {curvesEditingCases} from './cases/curvesEditing'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -85,6 +88,9 @@ SETS.meshMerge = meshMergeCases
 SETS.curvesBasic = curvesBasicCases
 SETS.curvesOps = curvesOpsCases
 SETS.subdivMesh = subdivMeshCases
+SETS.curvesQuery = curvesQueryCases
+SETS.curvesGenerate = curvesGenerateCases
+SETS.curvesEditing = curvesEditingCases
 SETS.meshFieldOps = meshFieldOpCases
 SETS.meshReorder = meshReorderCases
 SETS.meshSplit = meshSplitCases
