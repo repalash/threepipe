@@ -60,11 +60,9 @@ describe('meshBooleanManifold (mesh_boolean_manifold.cc)', () => {
 
     it('a cylinder through a cube: face attributes follow their source faces, point attributes their source points', () => {
         const a = primitiveCube({size: 2})
-        const mat = a.attributes.ensure(AttrName.materialIndex, AttrDomain.Face, 'int32').data as Int32Array
-        mat.fill(0)
+        a.materials = ['body']
         const cyl = primitiveCone({segments: 16, radiusBottom: 0.4, radiusTop: 0.4, depth: 4})
-        const cm = cyl.attributes.ensure(AttrName.materialIndex, AttrDomain.Face, 'int32').data as Int32Array
-        cm.fill(1)
+        cyl.materials = ['bore'] // realize_instances joins the slots: body 0, bore 1
         const w = a.attributes.ensure('w', AttrDomain.Point, 'float').data as Float32Array
         w.fill(0.5)
         const r = meshBooleanManifold(api, [a, cyl], 'DIFFERENCE')

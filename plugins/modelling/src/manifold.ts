@@ -1,6 +1,6 @@
 /**
- * The Manifold library for booleans (D6: Blender's own Manifold solver since 4.5; `manifold-3d@3.4.1`, the version
- * Blender pins). Loaded on first use, because it is a 500 kB WebAssembly module most sessions never need.
+ * The Manifold library for booleans (D6: Blender's own Manifold solver since 4.5; `manifold-3d@3.5.3`, the npm
+ * release nearest Blender 5.2.2's pinned v3.5.2, which differs from it only in a Windows ARM64 fix). Loaded on first use, because it is a 500 kB WebAssembly module most sessions never need.
  *
  * `loadManifold()` resolves the `manifold-3d` package; a page that serves the module from elsewhere can pass
  * `locateFile` for the `.wasm`, and a host that already has an instance can hand it over with `setManifold()`.

@@ -3,8 +3,9 @@ Ground truth for `meshBooleanManifold` (`src/boolean/`), written by Blender's Bo
 
     blender --background --factory-startup --python plugins/mesh-kernel/tests/fixtures/gen-boolean-fixtures.py
 
-Each case builds a target and one or more operand objects from explicit data (`Mesh.from_pydata`), with a face
-attribute (`material_index`), a point float attribute (`w`) and a UV map on every input, places the operands with a
+Each case builds a target and one or more operand objects from explicit data (`Mesh.from_pydata`), with material
+slots (target: A, B with faces alternating; operands: B only, so the Index Based remap sends them to the target's slot
+1), a face float attribute (`fw`), a point float attribute (`w`) and a UV map on every input, places the operands with a
 location / rotation / scale, adds a Boolean modifier (solver MANIFOLD; OBJECT operand, or COLLECTION for several),
 evaluates it and records the result: positions, faces (vertex indices, winding order), and the attributes per
 domain. The TypeScript side compares geometry and attributes as multisets keyed by position.
@@ -46,9 +47,14 @@ def make(name, data, mat, loc=(0, 0, 0), rot=(0, 0, 0), scale=(1, 1, 1)):
     me = bpy.data.meshes.new(name)
     me.from_pydata(co, [], faces)
     me.update()
+    for slot in (['A', 'B'] if mat == 0 else ['B']):
+        me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
     m = me.attributes.new('material_index', 'INT', 'FACE')
     for f in me.polygons:
-        m.data[f.index].value = mat
+        m.data[f.index].value = f.index % 2 if mat == 0 else 0
+    fw = me.attributes.new('fw', 'FLOAT', 'FACE')
+    for f in me.polygons:
+        fw.data[f.index].value = mat + 0.01 * f.index
     w = me.attributes.new('w', 'FLOAT', 'POINT')
     for v in me.vertices:
         w.data[v.index].value = 0.1 * mat + 0.01 * v.index
@@ -71,6 +77,8 @@ def run(name, target, operands, operation):
         bpy.data.objects.remove(ob)
     for c in list(bpy.data.collections):
         bpy.data.collections.remove(c)
+    for me in list(bpy.data.meshes):
+        bpy.data.meshes.remove(me)
     t, tin = make(name + '-target', target, 0)
     ins = []
     obs = []
@@ -82,6 +90,7 @@ def run(name, target, operands, operation):
     mod = t.modifiers.new('Boolean', 'BOOLEAN')
     mod.solver = 'MANIFOLD'
     mod.operation = operation
+    mod.material_mode = 'INDEX'
     if len(obs) == 1:
         mod.operand_type = 'OBJECT'
         mod.object = obs[0]
@@ -106,6 +115,9 @@ def run(name, target, operands, operation):
     }
     if 'material_index' in out.attributes:
         res['material_index'] = [d.value for d in out.attributes['material_index'].data]
+    if 'fw' in out.attributes:
+        res['fw'] = [d.value for d in out.attributes['fw'].data]
+    res['materials'] = [m.name if m else None for m in out.materials]
     if 'w' in out.attributes:
         res['w'] = [d.value for d in out.attributes['w'].data]
     if out.uv_layers:

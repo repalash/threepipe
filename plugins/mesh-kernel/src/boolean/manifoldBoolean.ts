@@ -3,8 +3,10 @@
  * `geometry/intern/mesh_boolean_manifold.cc` (Blender 5.2.2, the "Manifold" solver of the Boolean modifier and
  * the Mesh Boolean node) with the helpers it uses from `mesh_boolean.cc`.
  *
- * The kernel stays dependency-free: the caller passes the initialised `manifold-3d` module (Blender pins
- * Manifold 3.4.1; `plugins/mesh-kernel` tests against `manifold-3d@3.4.1`).
+ * The kernel stays dependency-free: the caller passes the initialised `manifold-3d` module. Blender 5.2.2 pins
+ * Manifold v3.5.2 (`build_files/build_environment/cmake/versions.cmake:354`), which is not on npm; `manifold-3d@3.5.3`
+ * adds only a Windows ARM64 sine fix and CI changes. 3.4.1 triangulated one coplanar union differently, which changed
+ * how faces merged back (`tests/boolean-parity.test.ts`, box-union-three).
  *
  * The pipeline:
  * 1. join the inputs with their transforms (`join_meshes_with_transforms`, `mesh_boolean.cc:282`), keeping a
@@ -103,8 +105,12 @@ function meshIdForFace(face: number, o: MeshOffsets): number {
 const TOPOLOGY = new Set<string>([AttrName.position, AttrName.edgeVerts, AttrName.cornerVert, AttrName.cornerEdge])
 
 /**
- * `join_meshes_with_transforms` (`mesh_boolean.cc:282`): the inputs concatenated in order, positions transformed,
- * every attribute of any input present on the result (default where an input lacks it).
+ * `join_meshes_with_transforms` (`mesh_boolean.cc:282`), which is `realize_instances`: the inputs concatenated in
+ * order, positions transformed, every attribute of any input present on the result (default where an input lacks
+ * it). Materials are joined as `realize_instances.cc` does (`preprocess_meshes` :1542, `join_mesh_material_indices`
+ * :1927): the result's list is the ordered union of the inputs' lists (an input without slots contributes one empty
+ * slot, here `''`), face indices are remapped into it, and `material_index` exists only when that union has more
+ * than one entry.
  */
 export function joinMeshesWithTransforms(meshes: MeshData[], transforms: Mat4[]): MeshData {
     const positions: number[] = [], faces: number[][] = []
@@ -130,7 +136,7 @@ export function joinMeshesWithTransforms(meshes: MeshData[], transforms: Mat4[])
     const seen = new Map<string, AttributeLayer>()
     meshes.forEach((m, i) => {
         for (const layer of m.attributes.layers()) {
-            if (TOPOLOGY.has(layer.name)) continue
+            if (TOPOLOGY.has(layer.name) || layer.name === AttrName.materialIndex) continue
             let dst = seen.get(layer.name)
             if (!dst) {
                 if (joined.attributes.get(layer.name)) continue
@@ -153,8 +159,56 @@ export function joinMeshesWithTransforms(meshes: MeshData[], transforms: Mat4[])
             }
         }
     })
-    joined.materials = [...(meshes[0]?.materials ?? [])]
+    joinMaterialIndices(meshes, joined, o)
     return joined
+}
+
+/** `realize_instances.cc` material joining: union of slots, remapped `material_index` (see above). */
+function joinMaterialIndices(meshes: MeshData[], joined: MeshData, o: MeshOffsets): void {
+    const union: string[] = []
+    const indexOf = (m: string) => {
+        let i = union.indexOf(m)
+        if (i < 0) { i = union.length; union.push(m) }
+        return i
+    }
+    // gather_meshes_to_realize skips meshes without vertices
+    const maps = meshes.map(m => m.vertsNum > 0 ? (m.materials.length ? m.materials.map(indexOf) : [indexOf('')]) : null)
+    joined.materials = union
+    if (union.length <= 1) return
+    const dst = joined.attributes.ensure(AttrName.materialIndex, AttrDomain.Face, 'int32').data
+    meshes.forEach((m, i) => {
+        const map = maps[i]
+        if (!map) return
+        const src = m.attributes.get(AttrName.materialIndex)?.data
+        const totcol = m.materials.length
+        for (let f = 0; f < m.facesNum; f++) {
+            // get_mapped_material_index (:1858) / the span branch (:1966): out-of-range indices go to the first slot,
+            // or to 0 for a mesh with slots and a per-face array
+            const idx = src ? src[f] : 0
+            dst[o.faceStart[i] + f] = totcol === 0 ? map[0] : idx >= 0 && idx < totcol ? map[idx] : src ? 0 : map[0]
+        }
+    })
+}
+
+/**
+ * `get_material_remap_index_based` (`MOD_boolean.cc:366`) with `BKE_object_material_remap_calc`
+ * (`material.cc:1281`): the Boolean modifier's default "Index Based" materials. Operand slot `i` keeps index `i`
+ * when the target has that many slots (else 0), unless its material sits elsewhere in the target's list.
+ */
+export function materialRemapIndexBased(target: string[], operand: string[]): number[] {
+    const n = operand.length
+    if (n <= 0) return [0]
+    const remap = new Array<number>(n).fill(0)
+    const map = new Map<string, number>()
+    target.forEach((m, i) => { if (!map.has(m)) map.set(m, i) })
+    if (target.length >= n) for (let i = 0; i < n; i++) remap[i] = i
+    else for (let i = 0; i < target.length; i++) remap[i] = i
+    for (let i = 0; i < n; i++) {
+        if (i < target.length && operand[i] === target[i]) continue
+        const j = map.get(operand[i])
+        if (j !== undefined) remap[i] = j
+    }
+    return remap
 }
 
 /** `mesh_calc_tessellation_for_face_impl` (`mesh_tessellate.cc:38`): corner triples for one face. */
@@ -227,8 +281,14 @@ const statusToError = (status: string): BooleanError =>
 /**
  * Blender's Manifold boolean of `meshes` (each placed by `transforms[i]`): `UNION`, `INTERSECT`, or `DIFFERENCE`
  * (the first minus all the others).
+ *
+ * `materialRemaps` is `mesh_boolean`'s `material_remaps`: empty to keep the joined `material_index`, or one map per
+ * input (operand slot -> result slot; `[]` for "unchanged"), as the Boolean modifier passes them (target `[]`,
+ * operands from {@link materialRemapIndexBased}).
  */
-export function meshBooleanManifold(api: ManifoldApi, meshes: MeshData[], operation: BooleanOperation, transforms: Mat4[] = []): BooleanResult {
+export function meshBooleanManifold(
+    api: ManifoldApi, meshes: MeshData[], operation: BooleanOperation, transforms: Mat4[] = [], materialRemaps: number[][] = [],
+): BooleanResult {
     const fail = (error: BooleanError, nonManifoldMeshIndices: number[] = []): BooleanResult => ({mesh: null, error, nonManifoldMeshIndices, intersectingEdges: []})
     if (!meshes.length) return fail('UNKNOWN')
     const joined = joinMeshesWithTransforms(meshes, transforms)
@@ -275,7 +335,7 @@ export function meshBooleanManifold(api: ManifoldApi, meshes: MeshData[], operat
         for (const m of manifolds) m?.delete()
     }
     cleanMeshGL(mgl)
-    return meshglToMesh(mgl, joined, o)
+    return meshglToMesh(mgl, joined, o, meshes, materialRemaps)
 }
 
 /** `clean_meshgl` (`mesh_boolean_manifold.cc:383`): drop triangles with out-of-range or repeated vertices. */
@@ -428,7 +488,7 @@ function dissolveValence2Verts(faces: OutFace[], pos: Float32Array): Float32Arra
 // endregion
 
 /** `meshgl_to_mesh` (`:1618`). */
-function meshglToMesh(mgl: ManifoldMeshGL, joined: MeshData, o: MeshOffsets): BooleanResult {
+function meshglToMesh(mgl: ManifoldMeshGL, joined: MeshData, o: MeshOffsets, meshes: MeshData[], materialRemaps: number[][]): BooleanResult {
     if (!mgl.vertProperties.length || !mgl.triVerts.length) {
         const empty = MeshData.fromFaces({positions: [], faces: []})
         empty.materials = [...joined.materials]
@@ -450,7 +510,7 @@ function meshglToMesh(mgl: ManifoldMeshGL, joined: MeshData, o: MeshOffsets): Bo
 
     const out = MeshData.fromFaces({positions: pos, faces: faces.map(f => f.verts)})
     out.materials = [...joined.materials]
-    transferAttributes(out, joined, faces, o)
+    transferAttributes(out, joined, faces, o, meshes, materialRemaps)
     return {mesh: out, error: 'NONE', nonManifoldMeshIndices: [], intersectingEdges: intersectingEdges(out, faces, o)}
 }
 
@@ -469,7 +529,7 @@ function intersectingEdges(out: MeshData, faces: OutFace[], o: MeshOffsets): num
 }
 
 /** `OutToInMaps` (`:439-825`) and the attribute copies of `meshgl_to_mesh`. */
-function transferAttributes(out: MeshData, joined: MeshData, faces: OutFace[], o: MeshOffsets): void {
+function transferAttributes(out: MeshData, joined: MeshData, faces: OutFace[], o: MeshOffsets, meshes: MeshData[], materialRemaps: number[][]): void {
     const faceMap = Int32Array.from(faces, f => f.faceId)
     const inPos = joined.positions, outPos = out.positions
     const inCV = joined.cornerVerts, outCV = out.cornerVerts
@@ -545,7 +605,7 @@ function transferAttributes(out: MeshData, joined: MeshData, faces: OutFace[], o
     // copy point / edge / face attributes through the maps; corners copied or interpolated
     const cornerLayers: AttributeLayer[] = []
     for (const layer of joined.attributes.layers()) {
-        if (TOPOLOGY.has(layer.name)) continue
+        if (TOPOLOGY.has(layer.name) || layer.name === AttrName.materialIndex) continue
         if (layer.domain === AttrDomain.Corner) { cornerLayers.push(layer); continue }
         const comps = ATTR_TYPE_INFO[layer.type].components
         const dst = out.attributes.ensure(layer.name, layer.domain, layer.type).data
@@ -553,6 +613,22 @@ function transferAttributes(out: MeshData, joined: MeshData, faces: OutFace[], o
         for (let i = 0; i < map.length; i++) {
             if (map[i] < 0) continue // value_initialize: the type's default (0)
             for (let k = 0; k < comps; k++) dst[i * comps + k] = layer.data[map[i] * comps + k]
+        }
+    }
+    // material_index (meshgl_to_mesh :1762): copied through the face map, or set_material_from_map
+    // (mesh_boolean.cc:257) from the inputs' own indices when remaps are given
+    const joinedMat = joined.attributes.get(AttrName.materialIndex)
+    if (joinedMat) {
+        const dst = out.attributes.ensure(AttrName.materialIndex, AttrDomain.Face, 'int32').data
+        if (!materialRemaps.length) {
+            for (let f = 0; f < faceMap.length; f++) dst[f] = joinedMat.data[faceMap[f]]
+        } else {
+            for (let f = 0; f < faceMap.length; f++) {
+                const inF = faceMap[f], mesh = meshIdForFace(inF, o)
+                const orig = meshes[mesh].attributes.get(AttrName.materialIndex)?.data[inF - o.faceStart[mesh]] ?? 0
+                const map = materialRemaps[mesh] ?? []
+                dst[f] = orig >= 0 && orig < map.length ? map[orig] : orig
+            }
         }
     }
     if (!cornerLayers.length) return

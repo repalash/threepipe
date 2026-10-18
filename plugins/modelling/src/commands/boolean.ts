@@ -3,12 +3,13 @@
  *
  * The cutters are placed by their world transforms relative to the target (as the Boolean modifier places its
  * operand objects), their evaluated meshes are used (modifiers included), and the result replaces the target's
- * master mesh, through the kernel's port of `mesh_boolean_manifold.cc`. Material indices are kept as they are
- * (the modifier's default "Index Based" material mode).
+ * master mesh, through the kernel's port of `mesh_boolean_manifold.cc`. Materials follow the modifier's default
+ * "Index Based" mode: cutter faces take the target's slot with the same index, or the target's slot holding the same
+ * material.
  */
 
 import {Matrix4} from 'threepipe'
-import {meshBooleanManifold, Mat4} from '@threepipe/mesh-kernel'
+import {materialRemapIndexBased, meshBooleanManifold, Mat4} from '@threepipe/mesh-kernel'
 import type {BooleanOperation} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget} from './params'
@@ -49,7 +50,10 @@ export const booleanCommand: CommandDefinition = {
             c.object.updateMatrixWorld(true)
             transforms.push(new Matrix4().multiplyMatrices(toLocal, c.object.matrixWorld as Matrix4).toArray())
         }
-        const result = meshBooleanManifold(api, [target.mesh, ...cutters.map(c => c.evaluated)], operation, transforms)
+        const meshes = [target.mesh, ...cutters.map(c => c.evaluated)]
+        // the modifier's default "Index Based" materials (MOD_boolean.cc:442)
+        const remaps = [[], ...cutters.map(c => materialRemapIndexBased(target.mesh.materials, c.evaluated.materials))]
+        const result = meshBooleanManifold(api, meshes, operation, transforms, remaps)
         if (result.error !== 'NONE' || !result.mesh) {
             const which = result.nonManifoldMeshIndices.map(i => i === 0 ? target.name : cutters[i - 1].name)
             throw new Error(result.error === 'NON_MANIFOLD'
