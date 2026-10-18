@@ -38,7 +38,8 @@ export const MATERIAL_PRESETS: Record<string, MaterialPreset> = {
     'metal-satin': {color: grey(0.45), roughness: 0.35, metalness: 1},
     'gold-contact': {color: '#e5b75a', roughness: 0.25, metalness: 1},
     'glass': {color: '#ffffff', roughness: 0, metalness: 0, transmission: 1, ior: 1.5, thickness: 2},
-    'glass-coated': {color: '#c8d4e0', roughness: 0.02, metalness: 0, transmission: 0.9, ior: 1.6, thickness: 4},
+    // a coated optical element: clear, a faint cool tint; what shows is its reflection and the dark lens behind it
+    'glass-coated': {color: '#e6eef5', roughness: 0.02, metalness: 0, transmission: 1, ior: 1.6, thickness: 4},
     'screen-glass': {color: '#0b0d10', roughness: 0.14, metalness: 0, transmission: 0.58, ior: 1.5},
     'accent-red': {color: '#e74533', roughness: 0.5, metalness: 0},
     'gap-black': {color: '#000000', roughness: 1, metalness: 0},

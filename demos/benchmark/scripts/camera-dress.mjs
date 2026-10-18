@@ -83,9 +83,8 @@ const surfaces = [
     mat('shoe-contact', 'gold-contact'),
     mat('lens-red-ring', 'accent-red'),
     mat('mount-index', 'accent-red'),
-    mat('lens-front-element', 'glass-coated', {color: '#8fa3b6', transmission: 0.55, roughness: 0.04}),
+    mat(['lens-front-element', 'lens-inner-element'], 'glass-coated'),
     mat('lens-baffle', 'matte-black'),
-    mat('lens-inner-element', 'glass-coated', {color: '#5d7488', transmission: 0.3, roughness: 0.05}),
     // the monitor shows its screen as a print over an opaque glossy panel: on a transmissive one the print vanished
     mat('lcd-screen', 'plastic-gloss-black', {roughness: 0.1}),
     mat('top-lcd-glass', 'screen-glass'),
@@ -152,8 +151,9 @@ const prints = [
         content: {svg: wordmark({width: 672, height: 156, text: 'Canon', color: '#d83a2e'})}, segments: [24, 2], preset: 'accent-red'}),
     decal('decal-lens-focal', {mode: 'wrap', at: [LENS[0], LENS[1] + 41, 141.7], up: [0, 0, 1], size: [52, 3.2], wrap: {axis: [0, 0, 1], center: [...LENS, 0]},
         content: {svg: scaleLabels({width: 1248, height: 77, marks: [[0.06, '105'], [0.3, '70'], [0.52, '50'], [0.73, '35'], [0.93, '24']], color: '#ffffff', fontScale: 0.62})}, segments: [24, 1]}),
-    decal('decal-lens-front', {mode: 'plane', at: [...LENS, 180.06], normal: [0, 0, 1], up: [0, 1, 0], size: [83.4, 83.4],
-        content: {svg: ringText({size: 1668, text: 'CANON ZOOM LENS EF 24-105mm 1:4 L IS USM   Ø77mm', radius: 0.885, fontScale: 0.034, letterSpacing: 0.12, at: 180})}, offset: 0.02}),
+    // the front legend sits on the bezel that slopes from the rim down to the front element (r 33.6 to 38.5)
+    decal('decal-lens-front', {mode: 'project', object: 'lens-barrel', at: [...LENS, 181], normal: [0, 0, 1], up: [0, 1, 0], size: [78, 78],
+        content: {svg: ringText({size: 1560, text: 'CANON ZOOM LENS EF 24-105mm 1:4 L IS USM   \u00d877mm', radius: 0.9, fontScale: 0.042, letterSpacing: 0.06, at: 180})}, offset: 0.04, segments: [64, 64]}),
 ]
 
 const finish = [
