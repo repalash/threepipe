@@ -5549,15 +5549,15 @@ test('modelling-editor-panel-keys', async({page}) => {
     await page.keyboard.press('Escape')
     await expect.poll(async() => (await state()).transform).toBe(false)
 
-    // 3. The same after tabbing through the panel's fields to a menu (a select): a focused control that
-    // is not a text field used to keep every key, wherever the pointer was.
+    // 3. The same after opening a menu (a select) in the panel and closing it with Esc: a focused control
+    // that is not a text field used to keep every key, wherever the pointer was.
     await page.keyboard.press('KeyS')
     await page.keyboard.type('2')
     await page.keyboard.press('Enter')
     await expect.poll(async() => (await state()).halfWidth).toBe(1.5)
     if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
-    await x.click()
-    for (let i = 0; i < 6 && await page.evaluate(() => document.activeElement?.id) !== 'me-prop-orientation'; i++) await page.keyboard.press('Tab')
+    await panel.locator('select#me-prop-orientation').click()
+    await page.keyboard.press('Escape')
     expect(await page.evaluate(() => document.activeElement?.id)).toBe('me-prop-orientation')
     expect((await state()).focus).toBe('SELECT')
     await page.mouse.move(over.x, over.y, {steps: 4})
