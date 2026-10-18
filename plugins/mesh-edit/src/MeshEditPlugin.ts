@@ -63,7 +63,7 @@ import {
     SubdFalloff,
 } from '@threepipe/mesh-kernel'
 import {Matrix4, Quaternion} from 'threepipe'
-import {EditMeshState} from './EditMeshState'
+import {EDIT_UPDATE_NONE, EDIT_UPDATE_NORMALS, EditMeshState, EditMeshUpdateParams} from './EditMeshState'
 import {ModalTransform, TransformMode, TransformSavedProps} from './transform'
 import {
     buildEdgeOverlay,
@@ -1498,7 +1498,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             return false
         }
         this._preselect = null
-        this._commitTopologyChange(before, 'Hide')
+        // `edbm_hide_exec`: `params.calc_normals = false` (`editmesh_tools.cc:2579`).
+        this._commitTopologyChange(before, 'Hide', EDIT_UPDATE_NONE)
         this.dispatchEvent({type: 'elementSelectionChanged', state})
         return true
     }
@@ -1509,7 +1510,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         if (!state) return false
         const before = this._snapshot()
         if (!meshReveal(state.bm, select)) return false
-        this._commitTopologyChange(before, 'Reveal')
+        // `edbm_reveal_exec`: `params.calc_normals = false` (`editmesh_tools.cc:2633`).
+        this._commitTopologyChange(before, 'Reveal', EDIT_UPDATE_NONE)
         this.dispatchEvent({type: 'elementSelectionChanged', state})
         return true
     }
@@ -1546,6 +1548,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._notice('Select something to extrude first.')
             return false
         }
+        // The extrude half of the macro ends with `EDBM_update` before the move starts.
+        state.update(EDIT_UPDATE_NORMALS)
         state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
@@ -1592,6 +1596,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             this._notice('Select something to duplicate first.')
             return false
         }
+        state.update(EDIT_UPDATE_NORMALS)
         state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
@@ -1705,8 +1710,13 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return true
     }
 
-    private _commitTopologyChange(before: MeshData, label: string): void {
+    /**
+     * The end of every operator that changed the session: `EDBM_update` with the operator's params (the
+     * normals, `EditMeshState.update`), the bake, the overlays, one labelled undo step.
+     */
+    private _commitTopologyChange(before: MeshData, label: string, params: EditMeshUpdateParams = EDIT_UPDATE_NORMALS): void {
         const state = this.state!
+        state.update(params)
         state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
@@ -1724,10 +1734,14 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return this.state ? this._snapshot() : null
     }
 
-    /** Bake a change made directly to `state.bm`, refresh overlays and record one undo step from `before`. */
-    commit(before: MeshData, label: string): void {
+    /**
+     * Bake a change made directly to `state.bm`, refresh overlays and record one undo step from `before`.
+     * `params` is what the operator says went stale (Blender's `EDBMUpdate_Params`); by default the
+     * normals, recomputed once here, so the next operator starts with current ones.
+     */
+    commit(before: MeshData, label: string, params: EditMeshUpdateParams = EDIT_UPDATE_NORMALS): void {
         if (!this.state) return
-        this._commitTopologyChange(before, label)
+        this._commitTopologyChange(before, label, params)
     }
 
     /**
@@ -1965,6 +1979,8 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._transform = null
         this._endTransformInput()
         cancelAnimationFrame(this._liveFrame)
+        // Once, when the transform ends: the per-frame bake below (`_scheduleLiveUpdate`) leaves them be.
+        this.state.update(EDIT_UPDATE_NORMALS)
         this.state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()
@@ -1989,6 +2005,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         this._endTransformInput()
         cancelAnimationFrame(this._liveFrame)
         if (this.state) {
+            this.state.update(EDIT_UPDATE_NORMALS)
             this.state.syncFromBMesh()
             this.applyToObject()
         }
@@ -2089,6 +2106,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const cut: LoopCutCutProps = {cuts: lc.numberCuts, smoothness: lc.smoothness, falloff: lc.falloff, edgeIndex: [...bm.edges].indexOf(lc.edge)}
         const before = this._snapshot()
         editMeshLoopCut(bm, lc.edge, {numberCuts: cut.cuts, smoothness: cut.smoothness, falloff: cut.falloff, isMacro: true})
+        state.update(EDIT_UPDATE_NORMALS)
         state.syncFromBMesh()
         this.applyToObject()
         this.refreshOverlays()

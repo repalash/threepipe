@@ -22,9 +22,6 @@ import {faceNormalUpdate} from '../bmesh/polygon'
  *
  * Divergences from Blender, all deliberate and all local to this file:
  *
- * - **Normals are recomputed on entry.** `bmo_inset` reads `f->no` and `v->no` throughout and edit
- *   mode guarantees they are current. Nothing in this kernel maintains them, so {@link normalsUpdate}
- *   (`BM_mesh_normals_update`) runs first. It is a real side effect on the whole mesh.
  * - **`BMesh.vertCreate` / `edgeCreate` / `faceCreate` do not reproduce `BM_elem_attrs_copy`'s header
  *   rules.** Blender keeps `BM_ELEM_TAG` when copying from an example and drops the select bit; the
  *   kernel does the opposite. This operator depends on both (tags propagate to separated edges, and a
@@ -110,65 +107,6 @@ function edgeCalcLength(e: BMEdge): number {
 // endregion
 
 // region bmesh_polygon.cc / bmesh_mesh_normals.cc - normals
-
-/**
- * Port of `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`): each adjacent face normal weighted
- * by the corner angle it subtends at `v`.
- *
- * Blender computes the corner angle from the two *edge* vectors, which are oriented `v1 -> v2` rather
- * than away from the vertex, and flips the sign of the dot product when exactly one of the two edges
- * runs backwards relative to its loop. Reproduced literally - getting that XOR wrong silently weights
- * some corners by their supplement.
- */
-function vertNormalUpdate(v: BMVert): void {
-    let n: Vec3 = [0, 0, 0]
-    if (v.e) {
-        for (const eIter of diskEdges(v)) {
-            const lFirst = eIter.l
-            if (!lFirst) continue
-            const e2diff = v3normalize(v3sub(co(eIter.v1), co(eIter.v2)))
-            let lIter: BMLoop = lFirst
-            do {
-                if (lIter.v === v) {
-                    const ePrev = lIter.prev.e!
-                    const e1diff = v3normalize(v3sub(co(ePrev.v1), co(ePrev.v2)))
-                    let dotprod = v3dot(e1diff, e2diff)
-                    if ((lIter.prev.e!.v1 === lIter.prev.v) !== (lIter.e!.v1 === lIter.v)) {
-                        dotprod = -dotprod
-                    }
-                    // `math::safe_acos_approx(-dotprod)` - the approximation is for speed only.
-                    const fac = Math.acos(Math.min(1, Math.max(-1, -dotprod)))
-                    n = v3add(n, v3mul([lIter.f.nx, lIter.f.ny, lIter.f.nz], fac))
-                }
-                lIter = lIter.radialNext!
-            } while (lIter !== lFirst)
-        }
-        const len = v3len(n)
-        if (len !== 0) {
-            v.nx = n[0] / len
-            v.ny = n[1] / len
-            v.nz = n[2] / len
-            return
-        }
-    }
-    // Blender's fallback: point away from the origin.
-    const fallback = v3normalize(co(v))
-    v.nx = fallback[0]
-    v.ny = fallback[1]
-    v.nz = fallback[2]
-}
-
-/**
- * Port of `BM_mesh_normals_update`. Faces first, then vertices, because the vertex pass reads face
- * normals.
- *
- * Edit mode runs this after every operator, so `bmo_inset` simply assumes `f->no` and `v->no` are
- * current. Nothing in this kernel does, so the inset operators run it themselves.
- */
-function normalsUpdate(bm: BMesh): void {
-    for (const f of bm.faces) faceNormalUpdate(f)
-    for (const v of bm.verts) vertNormalUpdate(v)
-}
 
 // endregion
 
@@ -847,8 +785,6 @@ export function insetIndividual(bm: BMesh, faces: BMFace[], opts: InsetOptions =
 
     if (!faces.length) return {faces: [], verts: [], edges: []}
 
-    normalsUpdate(bm)
-
     // Only tag faces in the slot. Nothing in the individual path reads the tag, but Blender sets it
     // and an operator that leaves stale tags behind is a trap for the next one.
     for (const f of bm.faces) f.hflag &= ~ElemFlag.Tag
@@ -1069,8 +1005,6 @@ export function insetRegion(
      * uses; a map keyed by the face is the same thing. */
     const useInterpolate = options.useInterpolate
     const ifaceMap = new Map<BMFace, InterpFace>()
-
-    normalsUpdate(bm)
 
     if (!useOutset) {
         for (const f of bm.faces) f.hflag &= ~ElemFlag.Tag

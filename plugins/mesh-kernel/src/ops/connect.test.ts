@@ -15,7 +15,7 @@ import {vertSelectSet} from '../bmesh/marking'
 import {diskEdgeExists} from '../bmesh/structure'
 import {ElemFlag} from '../constants'
 import {Vec3, v3cross, v3dot, v3normalize, v3sub} from '../math'
-import {normalsUpdate} from './bevel-bmquery'
+import {meshNormalsUpdate} from '../bmesh/normals'
 import {
     LoopPair, connectVerts, faceSplitsCheckLegal, vertConnectPathSelection, vertConnectSelection,
     vertPairShareFaceByAngle,
@@ -28,7 +28,7 @@ function mesh(positions: number[][], faces: number[][]) {
     const bm = new BMesh()
     const verts = positions.map(p => bm.vertCreate(p[0], p[1], p[2]))
     const fs = faces.map(f => bm.faceCreate(f.map(i => verts[i])))
-    normalsUpdate(bm)
+    meshNormalsUpdate(bm)
     return {bm, verts, faces: fs}
 }
 
@@ -253,7 +253,7 @@ describe('vert_connect_path, current-source behaviour', () => {
         // 3.4.1's normals for the second pair: recalculated after the first cut 0-11.
         const ref = build()
         connectVertPair(ref.bm, [ref.verts[0], ref.verts[11]])
-        normalsUpdate(ref.bm)
+        meshNormalsUpdate(ref.bm)
         const n11After = vertNormal(ref.verts[11])
         const n21After = vertNormal(ref.verts[21])
 

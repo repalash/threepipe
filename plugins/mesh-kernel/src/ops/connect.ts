@@ -29,7 +29,6 @@ import {diskEdgeExists, diskEdges, radialLoops} from '../bmesh/structure'
 import {edgeSelectSet, selectModeFlush} from '../bmesh/marking'
 import {elemsHflagEnable} from '../bmesh/hflag'
 import {faceEdgeShareLoop} from '../bmesh/euler'
-import {normalsUpdate} from './bevel-bmquery'
 import {loopsOfVert} from './dissolve'
 import {bmeshEditEnd} from './bmo'
 import {ElemFlag, ElemType} from '../constants'
@@ -120,7 +119,7 @@ export function vertCalcNormal(v: BMVert): {no: Vec3, ok: boolean} {
 /**
  * `BM_vert_normal_update` (`bmesh_polygon.cc:819`): `BM_vert_calc_normal(v, v->no)`. Unlike the
  * whole-mesh update there is no fallback: a vertex without faces gets the zero normal. (Named apart
- * from `bevel-bmquery`'s `vertNormalUpdate`, which is `bm_vert_calc_normals_impl` with the
+ * from `bmesh/normals.ts`'s `vertCalcNormalsImpl`, which is `bm_vert_calc_normals_impl` with the
  * normalised-position fallback of the whole-mesh update.)
  */
 export function bmVertNormalUpdate(v: BMVert): void {
@@ -676,8 +675,6 @@ function edbmConnectVertPair(bm: BMesh): {len: number, edges: BMEdge[], restored
         isPair = false
     }
 
-    // Edit mode keeps normals current; the kernel does not, so make them so (`BM_mesh_normals_update`).
-    normalsUpdate(bm)
 
     let result: ConnectVertsResult
     if (isPair) {
@@ -970,8 +967,6 @@ export function vertConnectPathSelection(bm: BMesh): VertConnectResult {
         }
     }
 
-    // Edit mode keeps normals current; the kernel does not, so make them so (`BM_mesh_normals_update`).
-    normalsUpdate(bm)
 
     const edges: BMEdge[] = []
     let ok: boolean

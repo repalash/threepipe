@@ -10,6 +10,7 @@
 import {
     bevelEdges,
     bevelVerts,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     insetIndividual,
@@ -73,7 +74,7 @@ export const insetCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to inset`)
 
@@ -140,7 +141,7 @@ export const solidifyCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to solidify`)
 
@@ -209,7 +210,7 @@ export const bevelCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
 
         const opts = {
             offset: (p.offset as number) ?? 0.1,
@@ -290,7 +291,7 @@ export const pokeCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to poke`)
 
@@ -380,7 +381,7 @@ export const wireframeCommand: CommandDefinition = {
             }
         }
 
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to wireframe`)
 

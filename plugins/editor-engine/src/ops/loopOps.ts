@@ -6,7 +6,7 @@
  * is registered, so the redo-last panel re-runs it with edited props (Blender's F9 panel).
  */
 
-import {editMeshSubdivide, meshNormalsUpdate} from '@threepipe/mesh-kernel'
+import {editMeshSubdivide} from '@threepipe/mesh-kernel'
 import type {SubdFalloff, SubdQuadCornerType} from '@threepipe/mesh-kernel'
 import type {LoopCutCutProps, ModalTransform, SlideSavedProps, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
@@ -105,8 +105,7 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
                 // so the panel shows what ran.
                 if (!ngon && quadCorner === 'straightCut') quadCorner = 'innerVert'
 
-                // Edit mode keeps vertex normals current (`EDBM_update`); the smoothing reads them.
-                meshNormalsUpdate(state.bm)
+                // The smoothing reads vertex normals, which the session keeps current (`EDBM_update`).
                 const done = editMeshSubdivide(state.bm, {numberCuts: cuts, smoothness, ngon, quadcorner: quadCorner})
                 if (!done) return {ok: false, error: 'Select some edges or faces first'}
                 me.commit(before, 'Subdivide')

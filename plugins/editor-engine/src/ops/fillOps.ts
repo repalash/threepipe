@@ -26,7 +26,6 @@ import {
     gridFillSelection,
     mergeByDistanceSelection,
     MERGE_BY_DISTANCE_DEFAULTS,
-    meshNormalsUpdate,
     subdivideEdgeringSelection,
     vertConnectPathSelection,
     vertConnectSelection,
@@ -69,10 +68,8 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
             const before = me.snapshot()
             if (!before || !me.state) return {ok: false, error: onlyInEditMessage(engine)}
             const props = withDefaults(schema, p)
-            // Blender's edit mesh has current normals on entry to every operator (`EDBM_update` after
-            // each one); Grid Fill, Bridge and Edge-Ring's surface blend read them. The session does not
-            // keep them up to date (issues/open/modelling-tools/mesh-edit-normals-current.md).
-            meshNormalsUpdate(me.state.bm)
+            // Grid Fill, Bridge and Edge-Ring's surface blend read the normals: the session keeps them
+            // current (`EditMeshState.update` after each commit, Blender's `EDBM_update`).
             const r = run(props, ctx)
             if (!r.ok) {
                 me.revert(before)
