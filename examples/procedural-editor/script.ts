@@ -22,6 +22,17 @@ const studs = geometryNodes('Studs', g => {
     g.output.geometry('Geometry', n.JoinGeometry({geometry: [geometry, n.RealizeInstances({geometry: studs.instances}).geometry]}).geometry)
 })
 
+// Cones scattered on the object as instances: drawn as instanced meshes, realized only when the stack is applied.
+const scatter = geometryNodes('Scatter', g => {
+    const geometry = g.input.geometry('Geometry')
+    const density = g.input.float('Density', {default: 6, min: 0, max: 40})
+    const seed = g.input.int('Seed', {default: 0, min: 0, max: 100})
+    const points = n.DistributePointsOnFaces({mesh: geometry, density, seed})
+    const cone = n.MeshCone({vertices: 8, radiusTop: 0, radiusBottom: 0.06, depth: 0.25})
+    const cones = n.InstanceOnPoints({points: points.points, instance: cone.mesh, rotation: points.rotation})
+    g.output.geometry('Geometry', n.JoinGeometry({geometry: [geometry, cones.instances]}).geometry)
+})
+
 async function init() {
     const editor = createModellingEditor({
         container: document.getElementById('editor')!,
@@ -34,14 +45,14 @@ async function init() {
     const {viewer, engine} = editor
     const modelling = viewer.getPlugin(ModellingPlugin)!
 
-    await modelling.run({op: 'nodeGroup', library: studs.toJSON()})
+    await modelling.run({op: 'nodeGroup', library: {...studs.json, ...scatter.json}})
     await engine.run('add.cube')
     const cube = modelling.document.entries[0]
     await modelling.run({op: 'modifier', object: cube.name, add: {type: 'geometryNodes', group: 'Studs', inputs: {}}})
     viewer.getPlugin(PickingPlugin)?.setSelectedObject(cube.object, false, false)
     engine.file.markClean()
 
-    Object.assign(window as never, {viewer, editor, engine, modelling})
+    Object.assign(window as never, {viewer, editor, engine, modelling, procedural: viewer.getPlugin(ProceduralPlugin)})
 }
 
 _testStart()

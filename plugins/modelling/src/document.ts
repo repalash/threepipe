@@ -46,6 +46,8 @@ export interface ModellingEntry {
      * `geometryNodes` modifier). Opaque here; the registering package draws it.
      */
     evaluatedGeometry?: unknown
+    /** {@link ModifierResult.realize} of the stack: what applying it bakes from {@link evaluated}. */
+    evaluatedRealize?: (mesh: MeshData) => MeshData
     /** Per-entry state modifier types keep between evaluations (see `ModifierContext.state`). */
     modifierState?: Map<string, unknown>
     /** Bumped on every topology or position change, so callers can tell what is stale. */
@@ -493,6 +495,7 @@ export class ModellingDocument {
         const result = evaluateModifierStack(entry.mesh, entry.modifiers, {doc: this, entry, state: entry.modifierState})
         entry.evaluated = result.mesh
         entry.evaluatedGeometry = result.geometry
+        entry.evaluatedRealize = result.realize
         const {data} = bakeGeometry(entry.evaluated, {includeNormals: true})
         const geometry = geometryDataToBufferGeometry<BufferGeometry2>(data, {
             BufferGeometry: BufferGeometry2,

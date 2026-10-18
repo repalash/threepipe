@@ -36,7 +36,8 @@ test('procedural-terrain', async({page}, testInfo) => {
     expect(s.verts).toBe(96 * 96)
     expect(s.faces).toBe(95 * 95)
     expect(s.modifiers).toEqual([{type: 'geometryNodes', group: 'Terrain', inputs: {}}])
-    expect(s.hasGeometry).toBe(true)
+    // The terrain is a mesh only: nothing besides the evaluated mesh to draw (instances would be in `evaluatedGeometry`).
+    expect(s.hasGeometry).toBe(false)
     await screenshotMatch(page, testInfo, 'terrain-default')
 
     // An input change is one undoable command; the grid follows Resolution.
@@ -124,6 +125,25 @@ test('procedural-editor', async({page}, testInfo) => {
     // Undo returns to the default input and the same mesh.
     await page.evaluate(() => (window as any).modelling.run({op: 'undo'}))
     await expect.poll(async() => (await state()).verts).toBe(before.verts)
+
+    // A group that makes instances: the evaluated mesh stays the plane, the cones are drawn as instances, and
+    // applying the stack realizes them into the mesh (as Blender's apply does).
+    const run = (c: Record<string, unknown>) => page.evaluate(cmd => (window as any).modelling.run(cmd), c)
+    expect((await run({op: 'primitive', type: 'plane', name: 'ground', size: 3})).ok).toBe(true)
+    expect((await run({op: 'modifier', object: 'ground', add: {type: 'geometryNodes', group: 'Scatter', inputs: {Density: 4}}})).ok).toBe(true)
+    const ground = async() => page.evaluate(() => {
+        const e = (window as any).modelling.document.find('ground')
+        return {verts: e.evaluated.vertsNum, master: e.mesh.vertsNum, drawn: (window as any).procedural.drawn('ground')}
+    })
+    const scattered = await ground()
+    expect(scattered.verts).toBe(scattered.master)
+    expect(scattered.drawn.draws).toBeGreaterThan(5)
+    expect(scattered.drawn.instancedMeshes).toBeGreaterThan(0)
+    await screenshotMatch(page, testInfo, 'instances')
+    expect((await run({op: 'modifier', object: 'ground', apply: true})).ok).toBe(true)
+    const applied = await ground()
+    expect(applied.drawn).toBeUndefined()
+    expect(applied.master).toBeGreaterThan(scattered.master + (scattered.drawn.draws - 1) * 5)
 })
 
 // The bundle is made locally from the maintainer's .blend (porting/blender/bundle_dump.py); it is not in git.

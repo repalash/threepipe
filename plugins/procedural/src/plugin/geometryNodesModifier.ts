@@ -137,11 +137,30 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
                 throw new Error(`node group "${spec.group}" has no input "${k}" (inputs: ${ev.interfaceInputs.map(s => s.name).join(', ')})`)
             }
         }
-        // The master can be edited in place between evaluations, so the input geometry is always new.
-        ev.setInputGeometry(GeometrySet.fromMesh(copyMesh(mesh)))
+        // The stack passes the whole geometry down (Blender's geometry set): what an earlier geometry-nodes modifier
+        // made besides the mesh, with the mesh as the modifiers in between left it. The master can be edited in
+        // place between evaluations, so the input mesh is always a copy.
+        const previous = ctx.previous?.geometry
+        const input = previous instanceof GeometrySet ? previous.copy() : new GeometrySet()
+        input.setMesh(copyMesh(mesh))
+        ev.setInputGeometry(input)
         const result = ev.evaluate()
         const geometry = result.geometry ?? new GeometrySet()
-        const realized = realizeInstances(geometry, {scene: documentScene(ctx.doc)})
-        return {mesh: realized.mesh ?? newMeshData(), geometry}
+        // The evaluated mesh is the mesh component, as Blender's evaluated mesh; instances, points and curves stay in
+        // `geometry` for the renderer (ProceduralPlugin draws them) and are realized only when the stack is applied
+        // (Blender's apply realizes instances).
+        const rest = geometry.copy()
+        rest.remove('mesh')
+        const scene = documentScene(ctx.doc)
+        const hasRest = !rest.isEmpty
+        return {
+            mesh: geometry.mesh ?? newMeshData(),
+            geometry: hasRest ? rest : undefined,
+            realize: hasRest ? (final: MeshData) => {
+                const g = rest.copy()
+                g.setMesh(copyMesh(final))
+                return realizeInstances(g, {scene}).mesh ?? newMeshData()
+            } : undefined,
+        }
     },
 }
