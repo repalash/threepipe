@@ -5474,4 +5474,40 @@ test('modelling-editor-agent', async({page}) => {
     } finally {
         await relay.stop()
     }
+
+    // The MCP server (npm run build:modelling-mcp): an MCP client's tool call reaches this editor through
+    // the server's own agent socket and lands in its undo history.
+    const sdk = '../plugins/modelling-mcp/node_modules/@modelcontextprotocol/sdk/dist/esm/client/'
+    const {Client} = await import(sdk + 'index.js')
+    const {StdioClientTransport} = await import(sdk + 'stdio.js')
+    const transport = new StdioClientTransport({
+        command: 'node', args: ['plugins/modelling-mcp/dist/server.mjs', '--port', '0', '--headless', 'node', '--token', 'mcp-e2e'],
+        stderr: 'pipe',
+    })
+    let stderr = ''
+    transport.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    const mcp = new Client({name: 'e2e', version: '1.0.0'})
+    await mcp.connect(transport)
+    try {
+        await expect.poll(() => /agent socket: (ws:\/\/\S+)/.exec(stderr)?.[1] ?? null).not.toBeNull()
+        const socketUrl = /agent socket: (ws:\/\/\S+)/.exec(stderr)![1]
+        // Open the editor already pointed at the server, as its connect hint says.
+        await page.goto(`${page.url().split('?')[0]}?agent=${encodeURIComponent(socketUrl)}&agentToken=mcp-e2e`)
+        await page.waitForFunction(() => (window as any).agentSocket?.status === 'connected', null, {timeout: 60000})
+        await expect(page.locator('[data-agent-indicator="connected"]')).toContainText('MCP agent')
+        const help = await mcp.callTool({name: 'help', arguments: {}})
+        expect(JSON.parse(help.content[0].text).target.kind).toBe('editor')
+        const r = await mcp.callTool({name: 'run', arguments: {command: {op: 'primitive', type: 'cylinder', name: 'post', segments: 8}}})
+        expect(r.isError).toBeFalsy()
+        expect(JSON.parse(r.content[0].text)).toMatchObject({ok: true, objects: ['post']})
+        const v = await mcp.callTool({name: 'validate', arguments: {object: 'post'}})
+        expect(JSON.parse(v.content[0].text).data.verdict).toBe('PASS')
+        await expect.poll(() => page.evaluate(() => (window as any).engine.history.entries().map((x: any) => x.label))).toEqual(['Add Cylinder'])
+        await expect(page.locator('[data-agent-last]')).toContainText('validate post')
+        const look = await mcp.callTool({name: 'look', arguments: {view: 'iso', size: 320}})
+        expect(look.content.map((c: any) => c.type)).toEqual(['text', 'image'])
+        expect(look.content[1].mimeType).toBe('image/jpeg')
+    } finally {
+        await mcp.close()
+    }
 })
