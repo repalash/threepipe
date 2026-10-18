@@ -47,6 +47,7 @@ const report = {
     weak: [
         'Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.',
         'The editor viewport lighting is the editor default; the flower field\'s grass reads as flat colour at 1080p.',
+        'The editor frames each asset with its own frame-all, so the terrain sits small in the viewport, and the selection box (red) stays on throughout, because the modifier panel needs the object selected.',
     ],
     credits: 'Buildify 1.0 by Pavel Oliva (free for commercial use, not for resale of the graph). flower_scattering.blend by Simon Thommes and Andy Goralczyk, Blender Studio (CC0). See plugins/procedural/tests/fixtures/ASSETS.md.',
 }

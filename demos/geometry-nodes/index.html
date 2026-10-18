@@ -66,7 +66,7 @@ ul { padding-left: 20px } li { margin: 4px 0 } .renderer { font: 13px ui-monospa
 {&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Seed&quot;:0}}}
 …</pre>
 
-<h2>What still looks weak</h2><ul><li>Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.</li><li>The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p.</li></ul>
+<h2>What still looks weak</h2><ul><li>Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.</li><li>The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p.</li><li>The editor frames each asset with its own frame-all, so the terrain sits small in the viewport, and the selection box (red) stays on throughout, because the modifier panel needs the object selected.</li></ul>
 <h2>Credits</h2><p>Buildify 1.0 by Pavel Oliva (free for commercial use, not for resale of the graph). flower_scattering.blend by Simon Thommes and Andy Goralczyk, Blender Studio (CC0). See plugins/procedural/tests/fixtures/ASSETS.md.</p>
 </main>
 <script>function seek(t){const v=document.getElementById('v');v.currentTime=t;v.play()}</script>

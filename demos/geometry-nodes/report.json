@@ -87,7 +87,8 @@
  "how": "<p><code>record.mjs</code> opens <code>examples/procedural-editor-assets</code> once per asset on the GPU VM, clicks the Modifiers tab, types the new value into the field and presses Enter (real Playwright input), waits for the object's evaluated mesh to change and records that time, then sends four timed <code>modifier update</code> commands. <code>demos/shared/film.mjs</code> renders and captures every frame, so an evaluation that takes seconds shows as its number on screen rather than a frozen picture. Times are wall time in the page on the VM (6 cores, Apple Paravirtual GPU).</p><p>Re-run: put the bundles in <code>tmp/bundles/</code> (<code>plugins/procedural/tests/fixtures/ASSETS.md</code>), <code>node demos/geometry-nodes/record.mjs</code>, pull <code>tmp/demo/geometry-nodes/film/</code> to <code>demos/geometry-nodes/film/</code>, <code>node demos/geometry-nodes/make-report.mjs</code>. The track-2 acceptance record (<code>scripts/procedural-acceptance-video.mjs</code>) is the same run in real time.</p>",
  "weak": [
   "Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.",
-  "The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p."
+  "The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p.",
+  "The editor frames each asset with its own frame-all, so the terrain sits small in the viewport, and the selection box (red) stays on throughout, because the modifier panel needs the object selected."
  ],
  "credits": "Buildify 1.0 by Pavel Oliva (free for commercial use, not for resale of the graph). flower_scattering.blend by Simon Thommes and Andy Goralczyk, Blender Studio (CC0). See plugins/procedural/tests/fixtures/ASSETS.md."
 }
