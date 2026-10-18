@@ -5365,7 +5365,11 @@ test('modelling-editor-menus', async({page}) => {
             history: e.history.entries().filter((x: any) => !x.undone).map((x: any) => x.label) as string[],
         }
     })
-    const shot = (name: string) => page.screenshot({path: `tmp/menus/${name}.png`})
+    // After the popovers' open transitions, so a menu is not caught half faded in.
+    const shot = async(name: string) => {
+        await page.waitForFunction(() => !document.querySelector('[class*="-enter-active"], [class*="-exit-active"]'))
+        await page.screenshot({path: `tmp/menus/${name}.png`})
+    }
     const header = (label: string) => page.locator(`[role="menubar"] [data-menu="${label}"]`)
     const menu = (id: string) => page.locator(`ul[data-menu-id="${id}"]`)
     const entry = (id: string, label: string) => menu(id).locator(`[data-menu-label="${label}"]`)
@@ -5764,8 +5768,8 @@ test('modelling-edit-normals', async({page}) => {
         }, [png, points] as const)
     }
 
-    // Solid shading: flat grey lit by the normal, so equal normals give equal colours.
-    await page.locator('[data-shading="solid"]').click()
+    // Material preview (the default): faces in one plane shade alike. (Solid shading draws edit mode
+    // wrongly under SwiftShader: issues/open/modelling-tools/editor-solid-shading-edit-mode.md.)
     const vp = (await page.locator('[data-viewport]').boundingBox())!
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
     await page.keyboard.press('Tab')
