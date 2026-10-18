@@ -307,6 +307,8 @@
     .me-modifier-type { font-weight: 600; text-transform: capitalize; font-size: var(--me-font-size-small); }
   }
   .me-modifier-add { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 4px; }
+  .me-modifier-summary { margin-left: 6px; color: var(--me-text-muted, #8b8b98); font-size: var(--me-font-size-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me-modifier-code { margin: 0; padding: 6px 8px; max-height: 260px; overflow: auto; font-size: 11px; white-space: pre; border-top: 1px solid var(--me-border); }
 }
 
 // ------------------------------------------------------------------ operator panel

@@ -88,3 +88,37 @@ test('procedural-terrain', async({page}, testInfo) => {
     expect(s.modifiers).toEqual([])
     expect(s.master).toBe(40 * 40)
 })
+
+test('procedural-editor', async({page}, testInfo) => {
+    await expect(page).toHaveTitle('Procedural editor (geometry nodes)')
+    const state = async() => page.evaluate(() => {
+        const e = (window as any).modelling.document.entries[0]
+        return {verts: e.evaluated.vertsNum, modifiers: e.modifiers.map((m: any) => ({type: m.type, group: m.group, inputs: m.inputs}))}
+    })
+    const before = await state()
+    expect(before.modifiers).toEqual([{type: 'geometryNodes', group: 'Studs', inputs: {}}])
+    expect(before.verts).toBeGreaterThan(8)
+
+    // Properties > Modifiers lists the group's inputs as fields.
+    await page.getByRole('tab', {name: 'Modifiers'}).click()
+    const modifier = page.locator('.me-modifier[data-modifier-index="0"]')
+    await expect(modifier.locator('.me-modifier-summary')).toHaveText('Studs')
+    for (const label of ['Density', 'Size', 'Seed']) await expect(modifier.getByText(label, {exact: true})).toBeVisible()
+    await screenshotMatch(page, testInfo, 'modifiers-panel')
+
+    // Editing a field is a `modifier update` command: the stack and the evaluated mesh follow.
+    const density = modifier.locator('#me-prop-Density')
+    await density.fill('30')
+    await density.press('Enter')
+    await expect.poll(async() => (await state()).modifiers[0].inputs.Density).toBe(30)
+    const after = await state()
+    expect(after.verts).toBeGreaterThan(before.verts)
+
+    // The node group as code.
+    await modifier.getByTitle('Show the node group as code').click()
+    await expect(modifier.locator('.me-modifier-code')).toContainText('geometryNodes("Studs"')
+
+    // Undo returns to the default input and the same mesh.
+    await page.evaluate(() => (window as any).modelling.run({op: 'undo'}))
+    await expect.poll(async() => (await state()).verts).toBe(before.verts)
+})
