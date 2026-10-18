@@ -3,7 +3,7 @@
  "kicker": "threepipe modelling demo · geometry nodes",
  "accent": "#4f8cff",
  "blurb": "Buildify, a flower field and a DSL terrain as geometry-nodes modifiers, edited live in the editor.",
- "line": "Buildify 27 ms · flowers 581 ms · terrain 646 ms per input change, on the GPU VM",
+ "line": "Buildify 21 ms · flowers 496 ms · terrain 396 ms per input change (mean of 4, GPU VM)",
  "intro": "Blender 5.2.2 geometry-nodes groups evaluated in TypeScript on the mesh kernel, as modifiers in the threepipe modelling editor. Buildify 1.0's building generator and Blender Studio's flower field come from their .blend files through the <code>blendAsset</code> command (node groups, inputs and the objects they read - nothing Blender evaluated); the terrain is a group written in the TypeScript DSL. Each is edited twice: in Properties > Modifiers with the mouse and keyboard, and through the <code>modifier update</code> command an agent sends - every edit one undo step, re-running only what it reaches.",
  "recordCommand": "node demos/geometry-nodes/record.mjs",
  "hero": {

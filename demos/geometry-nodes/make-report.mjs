@@ -12,6 +12,7 @@ import {execFileSync} from 'node:child_process'
 const read = (p, d) => existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : d
 const M = read('demos/geometry-nodes/film/metrics.json', {assets: {}})
 const assets = read('plugins/procedural/tests/parity/assets.status.json', {})
+const mean = k => A[k] ? Math.round(A[k].runs.reduce((s, r) => s + r.ms, 0) / A[k].runs.length) : '-'
 const exact = o => Object.values(o ?? {}).filter(v => v === 'exact').length
 const A = M.assets
 const fmt = a => a ? `load ${Math.round(a.loadMs)} ms · panel edit ${a.uiEdit.ms} ms · updates ${a.runs.map(r => Math.round(r.ms)).join(' / ')} ms · ${a.verts.toLocaleString('en')} verts` : 'not recorded'
@@ -22,7 +23,7 @@ const report = {
     kicker: 'threepipe modelling demo · geometry nodes',
     accent: '#4f8cff',
     blurb: 'Buildify, a flower field and a DSL terrain as geometry-nodes modifiers, edited live in the editor.',
-    line: A.buildify ? `Buildify ${Math.round(A.buildify.runs[0].ms)} ms · flowers ${Math.round(A.flowers?.runs[0].ms ?? 0)} ms · terrain ${Math.round(A.terrain?.runs[0].ms ?? 0)} ms per input change, on the GPU VM` : undefined,
+    line: A.buildify ? `Buildify ${mean('buildify')} ms · flowers ${mean('flowers')} ms · terrain ${mean('terrain')} ms per input change (mean of 4, GPU VM)` : undefined,
     intro: 'Blender 5.2.2 geometry-nodes groups evaluated in TypeScript on the mesh kernel, as modifiers in the threepipe modelling editor. Buildify 1.0\'s building generator and Blender Studio\'s flower field come from their .blend files through the <code>blendAsset</code> command (node groups, inputs and the objects they read - nothing Blender evaluated); the terrain is a group written in the TypeScript DSL. Each is edited twice: in Properties > Modifiers with the mouse and keyboard, and through the <code>modifier update</code> command an agent sends - every edit one undo step, re-running only what it reaches.',
     recordCommand: 'node demos/geometry-nodes/record.mjs',
     hero: {file: 'terrain-edited', caption: 'The DSL terrain after its Height was typed into the modifier panel'},

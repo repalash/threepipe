@@ -1,7 +1,7 @@
 {
   "keymap": "design",
   "url": "http://127.0.0.1:9374/examples/modelling-editor/",
-  "started": "2026-10-18T09:09:24.113Z",
+  "started": "2026-10-18T19:49:35.387Z",
   "steps": [
     {
       "n": 1,
@@ -11,7 +11,7 @@
       "note": null,
       "finding": null,
       "ok": true,
-      "ms": 5081,
+      "ms": 5157,
       "state": {
         "mode": "object",
         "selectMode": "vertex",
@@ -31,7 +31,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "Nothing selected: click an object to select it, then Enter or double-click to edit it. · LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 0/1 · Verts 24 · Tris 12",
+        "status": "Nothing selected: click an object to select it, then Enter or double-click to edit it. · LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 0/1 · Verts 8 · Tris 12",
         "fileName": null,
         "dirty": false
       },
@@ -49,7 +49,7 @@
       "check": {
         "preset": "design"
       },
-      "ms": 857,
+      "ms": 897,
       "state": {
         "mode": "object",
         "selectMode": "vertex",
@@ -69,7 +69,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "Nothing selected: click an object to select it, then Enter or double-click to edit it. · LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 0/1 · Verts 24 · Tris 12",
+        "status": "Nothing selected: click an object to select it, then Enter or double-click to edit it. · LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 0/1 · Verts 8 · Tris 12",
         "fileName": null,
         "dirty": false
       },
@@ -84,7 +84,7 @@
       "note": null,
       "finding": null,
       "ok": true,
-      "ms": 676,
+      "ms": 673,
       "state": {
         "mode": "object",
         "selectMode": "vertex",
@@ -105,7 +105,7 @@
         "selectedObjects": [
           "cube"
         ],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 24 · Tris 12",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 8 · Tris 12",
         "fileName": null,
         "dirty": true
       },
@@ -127,7 +127,7 @@
           6
         ]
       },
-      "ms": 880,
+      "ms": 920,
       "state": {
         "mode": "edit",
         "selectMode": "vertex",
@@ -154,7 +154,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
         "fileName": null,
         "dirty": true
       },
@@ -215,7 +215,7 @@
           }
         }
       },
-      "ms": 8917,
+      "ms": 8196,
       "state": {
         "mode": "edit",
         "selectMode": "vertex",
@@ -283,7 +283,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
         "fileName": null,
         "dirty": true
       },
@@ -303,7 +303,7 @@
         "afterWheel": 7.510659092250159,
         "afterFrame": 3.4667350151836063
       },
-      "ms": 2847,
+      "ms": 2929,
       "state": {
         "mode": "edit",
         "selectMode": "vertex",
@@ -371,7 +371,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
         "fileName": null,
         "dirty": true
       },
@@ -393,7 +393,7 @@
           14
         ]
       },
-      "ms": 3014,
+      "ms": 2433,
       "state": {
         "mode": "edit",
         "selectMode": "edge",
@@ -425,7 +425,7 @@
               388.359130859375
             ],
             "direction": null,
-            "edgeIndex": 4
+            "edgeIndex": 5
           }
         },
         "history": [
@@ -439,7 +439,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "Cuts: 1, Smoothness: 0.00 · LMB · Confirm · RMB · Cancel · Move · Select ring · Wheel / PageUp / PageDown · Number of cuts · Alt+Wheel · Smoothness · 0-9 · Type the cuts · Edit · Edge · Verts 8/16 · Edges 8/28 · Faces 0/14",
+        "status": "Cuts: 1, Smoothness: 0.00 · LMB · Confirm · RMB · Cancel · Move · Select ring · Wheel / PageUp / PageDown · Number of cuts · ⌥Wheel · Smoothness · 0-9 · Type the cuts · Edit · Edge · Verts 8/16 · Edges 8/28 · Faces 0/14",
         "fileName": null,
         "dirty": true
       },
@@ -461,7 +461,7 @@
           22
         ]
       },
-      "ms": 2319,
+      "ms": 1807,
       "state": {
         "mode": "edit",
         "selectMode": "edge",
@@ -493,7 +493,7 @@
               461.3306884765625
             ],
             "direction": null,
-            "edgeIndex": 2
+            "edgeIndex": 3
           }
         },
         "history": [
@@ -508,7 +508,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 8/24 · Edges 8/44 · Faces 0/22",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 8/24 · Edges 8/44 · Faces 0/22",
         "fileName": null,
         "dirty": true
       },
@@ -565,7 +565,7 @@
           }
         }
       },
-      "ms": 7400,
+      "ms": 6483,
       "state": {
         "mode": "edit",
         "selectMode": "edge",
@@ -636,7 +636,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
         "fileName": null,
         "dirty": true
       },
@@ -651,7 +651,7 @@
       "note": null,
       "finding": null,
       "ok": true,
-      "ms": 1691,
+      "ms": 1779,
       "state": {
         "mode": "edit",
         "selectMode": "edge",
@@ -722,7 +722,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
         "fileName": null,
         "dirty": true
       },
@@ -784,7 +784,7 @@
           }
         }
       },
-      "ms": 9847,
+      "ms": 9656,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -858,7 +858,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/32 · Edges 4/60 · Faces 1/30",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/32 · Edges 4/60 · Faces 1/30",
         "fileName": null,
         "dirty": true
       },
@@ -880,7 +880,7 @@
           38
         ]
       },
-      "ms": 7998,
+      "ms": 7721,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -956,7 +956,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/40 · Edges 4/76 · Faces 1/38",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/40 · Edges 4/76 · Faces 1/38",
         "fileName": null,
         "dirty": true
       },
@@ -978,7 +978,7 @@
           46
         ]
       },
-      "ms": 5006,
+      "ms": 4779,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1056,7 +1056,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
         "fileName": null,
         "dirty": true
       },
@@ -1071,7 +1071,7 @@
       "note": null,
       "finding": null,
       "ok": true,
-      "ms": 3304,
+      "ms": 3216,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1149,7 +1149,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
         "fileName": null,
         "dirty": true
       },
@@ -1177,7 +1177,7 @@
           -0.05
         ]
       },
-      "ms": 8263,
+      "ms": 8072,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1257,7 +1257,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/56 · Edges 4/108 · Faces 1/54",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/56 · Edges 4/108 · Faces 1/54",
         "fileName": null,
         "dirty": true
       },
@@ -1284,7 +1284,7 @@
           55
         ]
       },
-      "ms": 4852,
+      "ms": 4469,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1326,7 +1326,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/60 · Edges 4/113 · Faces 1/55",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/60 · Edges 4/113 · Faces 1/55",
         "fileName": null,
         "dirty": true
       },
@@ -1348,7 +1348,7 @@
           59
         ]
       },
-      "ms": 3096,
+      "ms": 3077,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1386,11 +1386,11 @@
               [
                 0,
                 1,
-                -6.033820976323241e-17
+                6.03382097632324e-17
               ],
               [
                 0,
-                6.033820976323241e-17,
+                -6.03382097632324e-17,
                 1
               ],
               [
@@ -1430,7 +1430,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
         "fileName": null,
         "dirty": true
       },
@@ -1452,7 +1452,7 @@
           0
         ]
       },
-      "ms": 4035,
+      "ms": 4287,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1490,11 +1490,11 @@
               [
                 0,
                 1,
-                -6.033820976323241e-17
+                6.03382097632324e-17
               ],
               [
                 0,
-                6.033820976323241e-17,
+                -6.03382097632324e-17,
                 1
               ],
               [
@@ -1534,7 +1534,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
         "fileName": null,
         "dirty": true
       },
@@ -1596,7 +1596,7 @@
           }
         }
       },
-      "ms": 4978,
+      "ms": 4799,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1680,7 +1680,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/72 · Edges 4/137 · Faces 1/67",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 4/72 · Edges 4/137 · Faces 1/67",
         "fileName": null,
         "dirty": true
       },
@@ -1707,7 +1707,7 @@
           "segments": 3
         }
       },
-      "ms": 6291,
+      "ms": 5853,
       "state": {
         "mode": "edit",
         "selectMode": "edge",
@@ -1756,7 +1756,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Edge · Verts 20/88 · Edges 32/166 · Faces 13/80",
         "fileName": null,
         "dirty": true
       },
@@ -1779,7 +1779,7 @@
           80
         ]
       },
-      "ms": 6423,
+      "ms": 6376,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1825,7 +1825,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
         "fileName": null,
         "dirty": true
       },
@@ -1843,10 +1843,11 @@
       "check": {
         "paletteResults": [
           "SubdivideCut each selected edge into equal parts and split the faces between them. Set the number of cuts and the smoothness in the panel.Mesh",
-          "Subdivide Edge-RingCut the faces between selected edge rings, with a smooth or shaped profile (Blender's Edge > Subdivide Edge-Ring).Mesh"
+          "Subdivide Edge-RingCut the faces between selected edge rings, with a smooth or shaped profile (Blender's Edge > Subdivide Edge-Ring).Mesh",
+          "ShadeOnly in Object mode: leave Edit mode first (4)Mesh"
         ]
       },
-      "ms": 3730,
+      "ms": 3621,
       "state": {
         "mode": "edit",
         "selectMode": "face",
@@ -1892,7 +1893,7 @@
           "cube"
         ],
         "selectedObjects": [],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
         "fileName": null,
         "dirty": true
       },
@@ -1914,7 +1915,7 @@
           80
         ]
       },
-      "ms": 1451,
+      "ms": 1469,
       "state": {
         "mode": "object",
         "selectMode": "face",
@@ -1954,7 +1955,7 @@
         "selectedObjects": [
           "cube"
         ],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 88 · Tris 172",
         "fileName": null,
         "dirty": true
       },
@@ -1973,7 +1974,7 @@
         "file": "house-design.glb",
         "bytes": 21756
       },
-      "ms": 3709,
+      "ms": 3770,
       "state": {
         "mode": "object",
         "selectMode": "face",
@@ -2013,12 +2014,11 @@
         "selectedObjects": [
           "cube"
         ],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 88 · Tris 172",
         "fileName": "house-design",
         "dirty": false
       },
       "toasts": [
-        "Saved house-design.glb to your downloads. It re-opens editable with File > Open (Ctrl+O).",
         "Saved house-design.glb to your downloads. It re-opens editable with File > Open (Ctrl+O)."
       ],
       "shot": "shots/design-24-save.jpg"
@@ -2044,7 +2044,7 @@
         ],
         "same": true
       },
-      "ms": 3763,
+      "ms": 3734,
       "state": {
         "mode": "object",
         "selectMode": "face",
@@ -2062,7 +2062,7 @@
         "selectedObjects": [
           "cube"
         ],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 88 · Tris 172",
         "fileName": "house-design",
         "dirty": false
       },
@@ -2077,7 +2077,7 @@
       "note": null,
       "finding": null,
       "ok": true,
-      "ms": 7107,
+      "ms": 7550,
       "state": {
         "mode": "object",
         "selectMode": "face",
@@ -2095,7 +2095,7 @@
         "selectedObjects": [
           "cube"
         ],
-        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · Alt+Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "status": "LMB · Select (Shift: extend) · RMB · Orbit / context menu · Two fingers · Pan (Shift: orbit) · Pinch · Zoom · ⌥Drag · Orbit · Space+Drag · Pan · Object · Objects 1/1 · Verts 88 · Tris 172",
         "fileName": "house-design",
         "dirty": false
       },
@@ -2105,6 +2105,7 @@
   ],
   "errors": [],
   "crashed": false,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)",
   "roundTrip": {
     "saved": [
       88,
@@ -2123,7 +2124,13 @@
     166,
     80
   ],
-  "finished": "2026-10-18T09:12:24.407Z",
-  "seconds": 180,
-  "video": "video-design.webm"
+  "finished": "2026-10-18T19:52:30.636Z",
+  "seconds": 175,
+  "video": "video-design.mp4",
+  "videoInfo": {
+    "seconds": 173.85,
+    "deadTimeCut": 0.99,
+    "frames": 4575,
+    "wallSeconds": 174.7
+  }
 }
