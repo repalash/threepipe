@@ -21,6 +21,8 @@
 import {getNodeType, NodeInstance, NodeTypeDef, registeredNodeTypes} from '../runtime/registry'
 import {SocketDecl, socketDataType} from '../runtime/declaration'
 import {isConvertible} from '../geometry/typeConversions'
+import type {ConvertibleTo, NodeConstructors} from './nodes.generated'
+import {toCode} from './toCode'
 import type {InterfaceSocketJSON, JSONValue, LinkJSON, NodeGroupLibrary, NodeJSON, NodeTreeJSON, SocketType} from '../runtime/types'
 
 /** camelCase key of a socket or property: `Size X` → `sizeX`, `Value_001` → `value1`, `noise_dimensions` → `noiseDimensions`. */
@@ -61,13 +63,18 @@ function storedValue(d: SocketDecl, v: JSONValue, where: string): JSONValue {
     throw new Error(`${where}: expected ${len} numbers for a ${d.type} socket, got ${JSON.stringify(v)}`)
 }
 
-/** A node output (or group input) a value can be linked from. */
-export class Socket {
-    constructor(readonly builder: TreeBuilder, readonly node: string, readonly identifier: string, readonly type: SocketType) {}
+/** What a socket helper accepts as its other operand: a socket or a plain value. */
+type Operand = Socket | number | number[]
+/** Math on a vector stays a vector (Vector Math); on anything else it is a float (Math). */
+type MathOut<T extends SocketType> = T extends 'VECTOR' ? Socket<'VECTOR'> : Socket<'FLOAT'>
+
+/** A node output (or group input) a value can be linked from. `T` is its socket type. */
+export class Socket<T extends SocketType = SocketType> {
+    constructor(readonly builder: TreeBuilder, readonly node: string, readonly identifier: string, readonly type: T) {}
 
     // Math helpers create ShaderNodeMath / ShaderNodeVectorMath / FunctionNodeCompare / FunctionNodeBooleanMath
     // nodes. Vectors use Vector Math; everything else Math.
-    private math(op: string, ...others: (Socket | number | number[])[]): Socket {
+    private math(op: string, ...others: Operand[]): Socket {
         if (this.type === 'VECTOR') {
             const keys = ['vector', 'vector1', 'vector2']
             const args: Record<string, unknown> = {operation: op, vector: this}
@@ -81,43 +88,43 @@ export class Socket {
         return this.builder.node('ShaderNodeMath', args).outputs.value
     }
 
-    add(b: Socket | number | number[]): Socket { return this.math('ADD', b) }
-    sub(b: Socket | number | number[]): Socket { return this.math('SUBTRACT', b) }
-    mul(b: Socket | number | number[]): Socket { return this.math('MULTIPLY', b) }
-    div(b: Socket | number | number[]): Socket { return this.math('DIVIDE', b) }
-    pow(b: Socket | number): Socket { return this.math('POWER', b) }
-    min(b: Socket | number | number[]): Socket { return this.math('MINIMUM', b) }
-    max(b: Socket | number | number[]): Socket { return this.math('MAXIMUM', b) }
-    abs(): Socket { return this.math('ABSOLUTE') }
-    floor(): Socket { return this.math('FLOOR') }
-    dot(b: Socket | number[]): Socket { return this.math('DOT_PRODUCT', b) }
-    cross(b: Socket | number[]): Socket { return this.math('CROSS_PRODUCT', b) }
-    length(): Socket { return this.math('LENGTH') }
-    normalize(): Socket { return this.math('NORMALIZE') }
-    scale(s: Socket | number): Socket {
+    add(b: Operand): MathOut<T> { return this.math('ADD', b) as MathOut<T> }
+    sub(b: Operand): MathOut<T> { return this.math('SUBTRACT', b) as MathOut<T> }
+    mul(b: Operand): MathOut<T> { return this.math('MULTIPLY', b) as MathOut<T> }
+    div(b: Operand): MathOut<T> { return this.math('DIVIDE', b) as MathOut<T> }
+    pow(b: Socket | number): Socket<'FLOAT'> { return this.math('POWER', b) as Socket<'FLOAT'> }
+    min(b: Operand): MathOut<T> { return this.math('MINIMUM', b) as MathOut<T> }
+    max(b: Operand): MathOut<T> { return this.math('MAXIMUM', b) as MathOut<T> }
+    abs(): MathOut<T> { return this.math('ABSOLUTE') as MathOut<T> }
+    floor(): MathOut<T> { return this.math('FLOOR') as MathOut<T> }
+    dot(b: Socket | number[]): Socket<'FLOAT'> { return this.math('DOT_PRODUCT', b) as Socket<'FLOAT'> }
+    cross(b: Socket | number[]): Socket<'VECTOR'> { return this.math('CROSS_PRODUCT', b) as Socket<'VECTOR'> }
+    length(): Socket<'FLOAT'> { return this.math('LENGTH') as Socket<'FLOAT'> }
+    normalize(): Socket<'VECTOR'> { return this.math('NORMALIZE') as Socket<'VECTOR'> }
+    scale(s: Socket | number): Socket<'VECTOR'> {
         if (this.type !== 'VECTOR') throw new Error('scale() is for vectors')
-        return this.builder.node('ShaderNodeVectorMath', {operation: 'SCALE', vector: this, scale: s}).outputs.vector
+        return this.builder.node('ShaderNodeVectorMath', {operation: 'SCALE', vector: this, scale: s}).outputs.vector as Socket<'VECTOR'>
     }
 
-    private compare(op: string, b: Socket | number): Socket {
+    private compare(op: string, b: Socket | number): Socket<'BOOLEAN'> {
         const dataType = this.type === 'INT' ? 'INT' : this.type === 'VECTOR' ? 'VECTOR' : 'FLOAT'
-        return this.builder.node('FunctionNodeCompare', {dataType, operation: op, a: this, b}).outputs.result
+        return this.builder.node('FunctionNodeCompare', {dataType, operation: op, a: this, b}).outputs.result as Socket<'BOOLEAN'>
     }
 
-    gt(b: Socket | number): Socket { return this.compare('GREATER_THAN', b) }
-    lt(b: Socket | number): Socket { return this.compare('LESS_THAN', b) }
-    ge(b: Socket | number): Socket { return this.compare('GREATER_EQUAL', b) }
-    le(b: Socket | number): Socket { return this.compare('LESS_EQUAL', b) }
-    eq(b: Socket | number): Socket { return this.compare('EQUAL', b) }
+    gt(b: Socket | number): Socket<'BOOLEAN'> { return this.compare('GREATER_THAN', b) }
+    lt(b: Socket | number): Socket<'BOOLEAN'> { return this.compare('LESS_THAN', b) }
+    ge(b: Socket | number): Socket<'BOOLEAN'> { return this.compare('GREATER_EQUAL', b) }
+    le(b: Socket | number): Socket<'BOOLEAN'> { return this.compare('LESS_EQUAL', b) }
+    eq(b: Socket | number): Socket<'BOOLEAN'> { return this.compare('EQUAL', b) }
 
-    and(b: Socket | boolean): Socket { return this.builder.node('FunctionNodeBooleanMath', {operation: 'AND', boolean: this, boolean1: b}).outputs.boolean }
-    or(b: Socket | boolean): Socket { return this.builder.node('FunctionNodeBooleanMath', {operation: 'OR', boolean: this, boolean1: b}).outputs.boolean }
-    not(): Socket { return this.builder.node('FunctionNodeBooleanMath', {operation: 'NOT', boolean: this}).outputs.boolean }
+    and(b: Socket | boolean): Socket<'BOOLEAN'> { return this.builder.node('FunctionNodeBooleanMath', {operation: 'AND', boolean: this, boolean1: b}).outputs.boolean as Socket<'BOOLEAN'> }
+    or(b: Socket | boolean): Socket<'BOOLEAN'> { return this.builder.node('FunctionNodeBooleanMath', {operation: 'OR', boolean: this, boolean1: b}).outputs.boolean as Socket<'BOOLEAN'> }
+    not(): Socket<'BOOLEAN'> { return this.builder.node('FunctionNodeBooleanMath', {operation: 'NOT', boolean: this}).outputs.boolean as Socket<'BOOLEAN'> }
 
     /** Components of a vector (`ShaderNodeSeparateXYZ`). */
-    get x(): Socket { return this.separate().x }
-    get y(): Socket { return this.separate().y }
-    get z(): Socket { return this.separate().z }
+    get x(): Socket<'FLOAT'> { return this.separate().x as Socket<'FLOAT'> }
+    get y(): Socket<'FLOAT'> { return this.separate().y as Socket<'FLOAT'> }
+    get z(): Socket<'FLOAT'> { return this.separate().z as Socket<'FLOAT'> }
 
     private separated?: Record<string, Socket>
 
@@ -128,9 +135,16 @@ export class Socket {
     }
 }
 
+/**
+ * A socket whose type is only known at run time: outputs of `g.node(idname)` and `g.group(...)`, which the
+ * generated typings cannot describe. The builder still checks the link when it is made.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnySocket = Socket<any>
+
 /** A node in a tree being built: its outputs by DSL key. */
 export class NodeHandle {
-    constructor(readonly name: string, readonly type: string, readonly outputs: Record<string, Socket>) {}
+    constructor(readonly name: string, readonly type: string, readonly outputs: Record<string, AnySocket>) {}
 }
 
 export interface InterfaceOptions {
@@ -309,13 +323,32 @@ export class NodeGroup {
     toJSON(): NodeGroupLibrary {
         return this.library
     }
+
+    /** {@link toJSON}: `{op: 'nodeGroup', library: group.json}`. */
+    get json(): NodeGroupLibrary {
+        return this.library
+    }
+
+    /** The group back as DSL code (the same text `toCode` gives for an imported Blender tree). */
+    toCode(): string {
+        return toCode(this.library, this.name)
+    }
 }
 
-type InputFn = (name: string, o?: InterfaceOptions) => Socket
+type InputFn<T extends SocketType> = (name: string, o?: InterfaceOptions) => Socket<T>
+type OutputFn<T extends SocketType> = (name: string, s: Socket<ConvertibleTo[T]>) => void
 
 export interface GroupBuilder {
-    input: {float: InputFn, int: InputFn, bool: InputFn, vector: InputFn, color: InputFn, rotation: InputFn, matrix: InputFn, string: InputFn, menu: InputFn, geometry: (name: string) => Socket, object: InputFn, collection: InputFn, material: InputFn, image: InputFn}
-    output: {geometry: (name: string, s: Socket) => void, float: (name: string, s: Socket) => void, int: (name: string, s: Socket) => void, bool: (name: string, s: Socket) => void, vector: (name: string, s: Socket) => void, color: (name: string, s: Socket) => void}
+    input: {
+        float: InputFn<'FLOAT'>, int: InputFn<'INT'>, bool: InputFn<'BOOLEAN'>, vector: InputFn<'VECTOR'>, color: InputFn<'RGBA'>,
+        rotation: InputFn<'ROTATION'>, matrix: InputFn<'MATRIX'>, string: InputFn<'STRING'>, menu: InputFn<'MENU'>,
+        geometry: (name: string) => Socket<'GEOMETRY'>, object: InputFn<'OBJECT'>, collection: InputFn<'COLLECTION'>,
+        material: InputFn<'MATERIAL'>, image: InputFn<'IMAGE'>,
+    }
+    output: {
+        geometry: OutputFn<'GEOMETRY'>, float: OutputFn<'FLOAT'>, int: OutputFn<'INT'>, bool: OutputFn<'BOOLEAN'>,
+        vector: OutputFn<'VECTOR'>, color: OutputFn<'RGBA'>,
+    }
     /** Add a node by `bl_idname` (what the typed `n.*` calls do). */
     node(idname: string, args?: Record<string, unknown>): NodeHandle
     /** Use another node group. */
@@ -330,13 +363,13 @@ export function geometryNodes(name: string, fn: (g: GroupBuilder) => void): Node
     const prev = current
     current = b
     try {
-        const input = (t: SocketType): InputFn => (n, o) => b.addInput(t, n, o)
+        const input = <T extends SocketType>(t: T): InputFn<T> => (n, o) => b.addInput(t, n, o) as Socket<T>
         const output = (t: SocketType) => (n: string, s: Socket) => b.addOutput(t, n, s)
         fn({
             input: {
                 float: input('FLOAT'), int: input('INT'), bool: input('BOOLEAN'), vector: input('VECTOR'), color: input('RGBA'),
                 rotation: input('ROTATION'), matrix: input('MATRIX'), string: input('STRING'), menu: input('MENU'),
-                geometry: n => b.addInput('GEOMETRY', n), object: input('OBJECT'), collection: input('COLLECTION'),
+                geometry: n => b.addInput('GEOMETRY', n) as Socket<'GEOMETRY'>, object: input('OBJECT'), collection: input('COLLECTION'),
                 material: input('MATERIAL'), image: input('IMAGE'),
             },
             output: {
@@ -358,10 +391,10 @@ function builder(): TreeBuilder {
 }
 
 /**
- * Node constructors by DSL class name, for every registered node type: `n.SetPosition({...})`.
- * Typed declarations for these are generated by `npm run generate:dsl` (`src/dsl/nodes.generated.ts`).
+ * Node constructors by DSL class name, for every registered node type: `n.SetPosition({...})`. Their types
+ * (`NodeConstructors`) are generated from the registry into `nodes.generated.ts` (`npm run generate:dsl`).
  */
-export const n: Record<string, (args?: Record<string, unknown>) => NodeHandle & Record<string, Socket>> = new Proxy({}, {
+export const n: NodeConstructors = new Proxy({}, {
     get(_t, key: string) {
         const def = registeredNodeTypes().find(d => dslClassName(d) === key)
         if (!def) throw new Error(`n.${key}: no ported node type has that name`)

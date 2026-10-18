@@ -37,8 +37,12 @@ describe('DSL', () => {
     })
 
     it('rejects unknown inputs, bad enum values and impossible links, naming them', () => {
+        // The typings reject these at compile time too; the runtime check is for untyped callers (JSON, agents).
+        // @ts-expect-error unknown input
         expect(() => geometryNodes('X', () => { n.MeshGrid({sizeZ: 1}) })).toThrow(/Grid has no input or property 'sizeZ'/)
+        // @ts-expect-error not an operation
         expect(() => geometryNodes('X', () => { n.Math({operation: 'NOPE'}) })).toThrow(/operation must be one of ADD/)
+        // @ts-expect-error geometry into a float input
         expect(() => geometryNodes('X', () => { n.Math({value: n.MeshGrid().mesh}) })).toThrow(/cannot link GEOMETRY/)
         expect(() => n.MeshGrid()).toThrow(/inside geometryNodes/)
     })
@@ -68,6 +72,8 @@ describe('DSL', () => {
             g.output.geometry('Geometry', n.StoreNamedAttribute({geometry: grid.mesh, name: 'h', value: y.add(size)}).geometry)
         })
         const code = toCode(group.toJSON(), 'Outer')
+        expect(group.toCode()).toBe(code)
+        expect(group.json).toBe(group.toJSON())
         expect(code).toContain('const double = geometryNodes("Double"')
         // verticesX: 3 is the socket default, so it is not printed.
         expect(code).toContain('n.MeshGrid({sizeX: size, verticesY: 2})')

@@ -28,6 +28,14 @@ export function tagPositionsChanged(mesh: MeshData): void {
     caches.delete(mesh)
 }
 
+/**
+ * `bke::mesh_vert_normals_assign` (`blenkernel/intern/mesh_normals.cc:56`): vertex normals a primitive already knows
+ * (UV Sphere), used instead of computing them until the positions change.
+ */
+export function meshVertNormalsAssign(mesh: MeshData, normals: Float32Array): void {
+    cache(mesh).vert = normals
+}
+
 function cache(mesh: MeshData): NormalsCache {
     let c = caches.get(mesh)
     if (!c) caches.set(mesh, c = {})

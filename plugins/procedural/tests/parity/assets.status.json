@@ -5,7 +5,7 @@
   "Building 3": "exact"
  },
  "buildify_1.0": {
-  "building_base": "skip (not ported: GeometryNodeAttributeStatistic, GeometryNodeCaptureAttribute, GeometryNodeCurveEndpointSelection, GeometryNodeCurveToMesh, GeometryNodeDuplicateElements, GeometryNodeExtrudeMesh, GeometryNodeInputMeshEdgeNeighbors, GeometryNodeInputMeshFaceArea, GeometryNodeInputMeshIsland, GeometryNodeInstancesToPoints, GeometryNodeMeshToCurve, GeometryNodeResampleCurve, GeometryNodeSampleIndex, GeometryNodeSampleNearest, GeometryNodeSampleNearestSurface, GeometryNodeSetID, GeometryNodeSetMaterial, GeometryNodeSplineLength, GeometryNodeSplitEdges, GeometryNodeSubdivideMesh, GeometryNodeTrimCurve)",
+  "building_base": "skip (not ported: GeometryNodeCurveEndpointSelection, GeometryNodeCurveToMesh, GeometryNodeMeshToCurve, GeometryNodeResampleCurve, GeometryNodeSplineLength, GeometryNodeSubdivideMesh, GeometryNodeTrimCurve)",
   "antenna_a": "exact",
   "antenna_b": "exact",
   "ground_floor_wall_01": "exact",
@@ -22,17 +22,17 @@
   "trimm": "exact"
  },
  "candy_bounce": {
-  "geonodes_floor": "skip (not ported: GeometryNodeProximity, GeometryNodeSetMaterial, GeometryNodeSubdivisionSurface)",
-  "geonodes_jumpers": "skip (not ported: GeometryNodeDistributePointsOnFaces, GeometryNodeRotateInstances)",
-  "geonodes_well": "skip (not ported: GeometryNodeRotateInstances)"
+  "geonodes_floor": "skip (not ported: GeometryNodeProximity, GeometryNodeSubdivisionSurface)",
+  "geonodes_jumpers": "pass (within 1e-5, not bit-exact)",
+  "geonodes_well": "pass (within 1e-5, not bit-exact)"
  },
  "flower_scattering": {
-  "EN-ground_plane_NEW": "skip (not ported: GeometryNodeDistributePointsOnFaces, GeometryNodeImageTexture)"
+  "EN-ground_plane_NEW": "skip (not ported: GeometryNodeImageTexture)"
  },
  "pebble_scattering": {
-  "GEO-ground": "skip (not ported: GeometryNodeDistributePointsOnFaces)"
+  "GEO-ground": "pass (within 1e-5, not bit-exact)"
  },
  "repeat_zone_flower_by_MiRA": {
-  "Rose": "skip (not ported: GeometryNodeBoundBox, GeometryNodeInputSceneTime, GeometryNodeMeshCircle, GeometryNodeRepeatInput, GeometryNodeRepeatOutput, GeometryNodeSampleIndex, GeometryNodeSampleNearest, GeometryNodeSetMaterial, GeometryNodeSubdivisionSurface)"
+  "Rose": "skip (not ported: GeometryNodeInputSceneTime, GeometryNodeRepeatInput, GeometryNodeRepeatOutput, GeometryNodeSubdivisionSurface)"
  }
 }

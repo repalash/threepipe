@@ -46,7 +46,9 @@
         "test": "vitest run",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test:watch": "vitest",
-        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking",
+        "generate:dsl": "UPDATE_DSL_TYPES=1 vitest run tests/dslTypes.test.ts",
+        "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
     },
     "author": "repalash <palash@shaders.app>",
     "license": "Apache-2.0",

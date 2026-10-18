@@ -13,7 +13,8 @@ Usage:
     "inputs": {"<interface socket name>": value},    // modifier inputs (IDs by name)
     "input": "empty" | "cube" | "plane" | {"positions": [x,y,z,...], "faces": [[i,j,k,...], ...]},
     "scene": [{"collection": "C", "objects": [ObjectSpec], "instanceOffset"?: [x,y,z], "parent"?: "B"}],
-    "objects": [ObjectSpec], "location"?, "rotation"?, "scale"? (the modified object's transform)
+    "objects": [ObjectSpec], "location"?, "rotation"?, "scale"? (the modified object's transform),
+    "materials"?: ["<name>", ...]                    // materials created before the node groups ({"_ref": "MATERIAL"})
   }
   NodeTreeJSON = {
     "interface": [{"inOut": "INPUT"|"OUTPUT", "name", "socketType", "identifier", "default"?, "min_value"?,
@@ -326,6 +327,8 @@ def read_scene(depsgraph, writer, self_name):
 
 def evaluate(case, writer):
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    for name in case.get("materials", []):
+        bpy.data.materials.new(name)
     build_scene(case)
     library, main = case_tree(case)
     groups = {name: bpy.data.node_groups.new(name, "GeometryNodeTree") for name in library}

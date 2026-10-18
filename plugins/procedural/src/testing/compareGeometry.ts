@@ -27,10 +27,12 @@ export interface ExpectedGeometry {
         faceSizes?: number[]
         faceOffsets?: number[]
         cornerVertices?: number[]
+        /** Material slots by name, `null` for an empty slot (`porting/blender/geometry_dump.py`). */
+        materials?: (string | null)[]
         attributes: ExpectedAttribute[]
     }
-    pointcloud?: {points: number, attributes: ExpectedAttribute[]}
-    curves?: {curves: number, points: number, curveOffsets?: number[], attributes: ExpectedAttribute[]}
+    pointcloud?: {points: number, materials?: (string | null)[], attributes: ExpectedAttribute[]}
+    curves?: {curves: number, points: number, curveOffsets?: number[], materials?: (string | null)[], attributes: ExpectedAttribute[]}
     instances?: {count: number, attributes: ExpectedAttribute[], references: ExpectedReference[]}
 }
 
@@ -166,6 +168,18 @@ function compareAttributes(
     }
 }
 
+/**
+ * Material slots, when the export lists them (`geometry_dump.py` does; geonodes-kit's exporter does not). An empty
+ * slot is `null` in the export and `''` here.
+ */
+function compareMaterials(where: string, actual: readonly string[], expected: (string | null)[] | undefined, out: string[]): void {
+    if (!expected) return
+    const want = expected.map(m => m ?? '')
+    if (actual.length !== want.length || actual.some((m, i) => m !== want[i])) {
+        out.push(`${where}: materials [${actual.map(m => JSON.stringify(m)).join(', ')}], expected [${want.map(m => JSON.stringify(m)).join(', ')}]`)
+    }
+}
+
 function compareMesh(m: MeshData | undefined, e: NonNullable<ExpectedGeometry['mesh']>, o: ResolvedOptions, where: string, out: string[]): void {
     if (!m) {
         out.push(`${where}: missing mesh (${e.vertices} vertices expected)`)
@@ -179,6 +193,7 @@ function compareMesh(m: MeshData | undefined, e: NonNullable<ExpectedGeometry['m
         out.push(`${where}: face offsets differ (${m.facesNum} faces, expected ${offsets.length - 1})`)
     }
     if (out.length) return
+    compareMaterials(where, m.materials, e.materials, out)
     compareAttributes(where, m.attributes, e.attributes, o, undefined, out)
 }
 
@@ -219,7 +234,10 @@ export function compareGeometry(actual: GeometrySet, expected: ExpectedGeometry,
         if (!pc) out.push(`${where}: missing point cloud`)
         else {
             if (pc.pointsNum !== expected.pointcloud.points) out.push(`${where}.pointcloud: ${pc.pointsNum} points, expected ${expected.pointcloud.points}`)
-            else compareAttributes(`${where}.pointcloud`, pc.attributes, expected.pointcloud.attributes, o, undefined, out)
+            else {
+                compareMaterials(`${where}.pointcloud`, pc.materials, expected.pointcloud.materials, out)
+                compareAttributes(`${where}.pointcloud`, pc.attributes, expected.pointcloud.attributes, o, undefined, out)
+            }
         }
     } else if (pc && pc.pointsNum) out.push(`${where}: unexpected point cloud (${pc.pointsNum} points)`)
     const cv: CurvesGeometry | undefined = actual.curves
@@ -229,6 +247,7 @@ export function compareGeometry(actual: GeometrySet, expected: ExpectedGeometry,
             out.push(`${where}.curves: ${cv.curvesNum} curves / ${cv.pointsNum} points, expected ${expected.curves.curves} / ${expected.curves.points}`)
         } else {
             if (expected.curves.curveOffsets && expected.curves.curveOffsets.some((v, i) => cv.curveOffsets[i] !== v)) out.push(`${where}.curves: curve offsets differ`)
+            compareMaterials(`${where}.curves`, cv.materials, expected.curves.materials, out)
             compareAttributes(`${where}.curves`, cv.attributes, expected.curves.attributes, o, undefined, out)
         }
     } else if (cv && cv.curvesNum) out.push(`${where}: unexpected curves (${cv.curvesNum})`)

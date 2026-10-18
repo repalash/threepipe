@@ -1,0 +1,22 @@
+{
+ "sample-index-every-type": "exact",
+ "sample-index-every-type-clamp": "exact",
+ "sample-index-edge": "exact",
+ "sample-index-face": "exact",
+ "sample-index-corner": "exact",
+ "sample-index-single": "exact",
+ "sample-index-instances-points": "exact",
+ "sample-nearest-point": "exact",
+ "sample-nearest-grid-point": "exact",
+ "sample-nearest-edge": "exact",
+ "sample-nearest-grid-edge": "exact",
+ "sample-nearest-face": "exact",
+ "sample-nearest-grid-face": "exact",
+ "sample-nearest-corner": "exact",
+ "sample-nearest-grid-corner": "exact",
+ "sample-nearest-pointcloud": "exact",
+ "sample-nearest-surface-every-type": "pass (<= 4 ulp)",
+ "sample-nearest-surface-groups": "exact",
+ "sample-nearest-surface-grid-ties": "exact",
+ "sample-nearest-surface-single": "exact"
+}

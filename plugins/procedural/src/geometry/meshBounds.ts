@@ -1,0 +1,121 @@
+/**
+ * Bounds of geometry components as Blender's `bounds_min_max()` computes them: `Mesh::bounds_min_max`
+ * (`blenkernel/intern/mesh.cc:1923`, the eager bounds a primitive set, else the min/max of the positions),
+ * `PointCloud::bounds_min_max` (`pointcloud.cc:251`, padded by the radius), and
+ * `GeometrySet::compute_boundbox_without_instances` (`geometry_set.cc:179`).
+ *
+ * Eager bounds (`Mesh::bounds_set_eager`, `mesh.cc:1944`) live in a cache per mesh object, like
+ * `Mesh::runtime->bounds_cache`; they are not carried into copies yet (see agent question / issue).
+ */
+
+import {MeshData} from '@threepipe/mesh-kernel'
+import {f32} from '../blender/f32'
+import type {GeometrySet} from './GeometrySet'
+
+export interface Bounds3 {
+    min: [number, number, number]
+    max: [number, number, number]
+}
+
+const eager = new WeakMap<MeshData, Bounds3>()
+
+/** `Mesh::bounds_set_eager`. */
+export function meshBoundsSetEager(mesh: MeshData, bounds: Bounds3): void {
+    eager.set(mesh, {min: [...bounds.min], max: [...bounds.max]})
+}
+
+/** `bke::mesh_translate` (`mesh.cc:2045`) keeps cached bounds, shifted by the translation. */
+export function meshBoundsTranslate(mesh: MeshData, t: ArrayLike<number>): void {
+    const b = eager.get(mesh)
+    if (!b) return
+    for (let k = 0; k < 3; k++) {
+        b.min[k] = f32(b.min[k] + t[k])
+        b.max[k] = f32(b.max[k] + t[k])
+    }
+}
+
+/** Drop cached bounds after editing positions (`tag_positions_changed`). */
+export function tagBoundsChanged(mesh: MeshData): void {
+    eager.delete(mesh)
+}
+
+/** `bounds::min_max` over flat xyz triples (`BLI_bounds.hh`). */
+function minMax(positions: ArrayLike<number>, count: number): Bounds3 | undefined {
+    if (!count) return undefined
+    const b: Bounds3 = {min: [positions[0], positions[1], positions[2]], max: [positions[0], positions[1], positions[2]]}
+    for (let i = 1; i < count; i++) {
+        for (let k = 0; k < 3; k++) {
+            const v = positions[i * 3 + k]
+            if (v < b.min[k]) b.min[k] = v
+            if (v > b.max[k]) b.max[k] = v
+        }
+    }
+    return b
+}
+
+/** `bounds::merge`. */
+export function mergeBounds(a: Bounds3 | undefined, b: Bounds3 | undefined): Bounds3 | undefined {
+    if (!a) return b
+    if (!b) return a
+    return {
+        min: [Math.min(a.min[0], b.min[0]), Math.min(a.min[1], b.min[1]), Math.min(a.min[2], b.min[2])],
+        max: [Math.max(a.max[0], b.max[0]), Math.max(a.max[1], b.max[1]), Math.max(a.max[2], b.max[2])],
+    }
+}
+
+/** `Mesh::bounds_min_max` (`mesh.cc:1923`). */
+export function meshBoundsMinMax(mesh: MeshData): Bounds3 | undefined {
+    if (mesh.vertsNum === 0) return undefined
+    return eager.get(mesh) ?? minMax(mesh.positions, mesh.vertsNum)
+}
+
+/**
+ * `calculate_bounds_radial_primitive` (`geometry/intern/mesh_primitive_uv_sphere.cc:17`): analytic bounds of the
+ * round primitives, `std::cos`/`std::sin` of floats.
+ */
+export function boundsRadialPrimitive(radiusTop: number, radiusBottom: number, segments: number, height: number): Bounds3 {
+    const radius = radiusTop < radiusBottom ? radiusBottom : radiusTop
+    const deltaPhi = f32((2 * Math.PI) / segments)
+    const roundf = (x: number) => (x < 0 ? -Math.round(-x) : Math.round(x))
+    const xMax = radius
+    const xMin = f32(f32(Math.cos(f32(roundf(f32(0.5 * segments)) * deltaPhi))) * radius)
+    const yMax = f32(f32(Math.sin(f32(roundf(f32(0.25 * segments)) * deltaPhi))) * radius)
+    return {min: [xMin, -yMax, -height], max: [xMax, yMax, height]}
+}
+
+/**
+ * `GeometrySet::compute_boundbox_without_instances(use_radius)` (`geometry_set.cc:179`): point cloud, mesh and
+ * curves bounds merged (volumes and grease pencil are not components here).
+ */
+export function computeBoundboxWithoutInstances(g: GeometrySet, useRadius: boolean): Bounds3 | undefined {
+    let bounds: Bounds3 | undefined
+    const pc = g.pointCloud
+    if (pc && pc.pointsNum) {
+        let b = minMax(pc.positions, pc.pointsNum)!
+        if (useRadius) {
+            const layer = pc.attributes.get('radius')
+            if (!layer) {
+                // `PointCloud::radius()` is the single default 0.01 (`pointcloud.cc:205`): `Bounds::pad`.
+                const r = f32(0.01)
+                b = {min: b.min.map(v => f32(v - r)) as [number, number, number], max: b.max.map(v => f32(v + r)) as [number, number, number]}
+            } else {
+                // `bounds::min_max_with_radii` (`BLI_bounds.hh:119`): starts from the first position itself.
+                const p = pc.positions, r = layer.data
+                b = {min: [p[0], p[1], p[2]], max: [p[0], p[1], p[2]]}
+                for (let i = 0; i < pc.pointsNum; i++) {
+                    for (let k = 0; k < 3; k++) {
+                        const lo = f32(p[i * 3 + k] - r[i]), hi = f32(p[i * 3 + k] + r[i])
+                        if (lo < b.min[k]) b.min[k] = lo
+                        if (b.max[k] < hi) b.max[k] = hi
+                    }
+                }
+            }
+        }
+        bounds = mergeBounds(bounds, b)
+    }
+    if (g.mesh) bounds = mergeBounds(bounds, meshBoundsMinMax(g.mesh))
+    if (g.curves && g.curves.curvesNum) {
+        throw new Error('procedural: curve bounds need evaluated curve positions (CurvesGeometry::bounds_min_max), not ported yet')
+    }
+    return bounds
+}

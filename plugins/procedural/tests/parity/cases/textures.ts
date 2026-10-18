@@ -9,14 +9,14 @@ import {geometryNodes, n, NodeHandle, Socket} from '../../../src/dsl/builder'
 import type {NodeGroupLibrary} from '../../../src/runtime/types'
 import {ParityCase} from './types'
 
-const ATTR_TYPE: Record<string, string> = {FLOAT: 'FLOAT', RGBA: 'FLOAT_COLOR', VECTOR: 'FLOAT_VECTOR', INT: 'INT'}
+const ATTR_TYPE: Record<string, 'FLOAT' | 'FLOAT_COLOR' | 'FLOAT_VECTOR' | 'INT'> = {FLOAT: 'FLOAT', RGBA: 'FLOAT_COLOR', VECTOR: 'FLOAT_VECTOR', INT: 'INT'}
 
 function textureCase(id: string, description: string, idname: string, args: Record<string, unknown>, usesW: boolean): ParityCase {
     const group = geometryNodes(id, g => {
         const grid = n.MeshGrid({sizeX: 7.3, sizeY: 7.3, verticesX: 9, verticesY: 9})
         const cloudPos = g.node('ShaderNodeTexWhiteNoise', {noiseDimensions: '1D', w: n.Index().index.mul(0.731)}).outputs.color
         const cloud = n.Points({count: 64, position: cloudPos, radius: 0.05})
-        let geometry: Socket = n.JoinGeometry({geometry: [grid.mesh, cloud.geometry]}).geometry
+        let geometry: Socket<'GEOMETRY'> = n.JoinGeometry({geometry: [grid.mesh, cloud.geometry]}).geometry
         const w = usesW ? {w: n.Index().index.mul(0.173).sub(9.6)} : {}
         const tex: NodeHandle = g.node(idname, {...args, ...w})
         const seen = new Set<Socket>()

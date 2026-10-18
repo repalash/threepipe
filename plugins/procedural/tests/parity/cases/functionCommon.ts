@@ -10,7 +10,7 @@
  * function once on single values.
  */
 
-import {geometryNodes, GroupBuilder, Socket} from '../../../src/dsl/builder'
+import {AnySocket, geometryNodes, GroupBuilder, Socket} from '../../../src/dsl/builder'
 import type {NodeGroupLibrary, SocketType} from '../../../src/runtime/types'
 import {ParityCase} from './types'
 
@@ -67,7 +67,7 @@ export class Inputs {
  */
 export function pointsCase(id: string, description: string, count: number, body: (v: Inputs, g: GroupBuilder) => Record<string, Socket>): ParityCase {
     const group = geometryNodes(id, g => {
-        let geometry: Socket = g.node('GeometryNodePoints', {count}).outputs.geometry
+        let geometry: AnySocket = g.node('GeometryNodePoints', {count}).outputs.geometry
         const outputs = body(new Inputs(g), g)
         for (const [name, socket] of Object.entries(outputs)) {
             const dataType = ATTRIBUTE_TYPE[socket.type]

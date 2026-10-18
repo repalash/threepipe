@@ -1,0 +1,11 @@
+{
+ "merge-all-grid-columns": "exact",
+ "merge-all-large-distance": "exact",
+ "merge-all-selection": "exact",
+ "merge-connected-grid-columns": "exact",
+ "merge-connected-large-distance": "exact",
+ "merge-connected-selection": "exact",
+ "merge-all-duplicate-faces": "exact",
+ "merge-all-nothing": "exact",
+ "merge-points": "exact"
+}
