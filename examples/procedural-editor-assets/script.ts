@@ -2,7 +2,7 @@ import {_testFinish, _testStart, LoadingScreenPlugin, PickingPlugin} from 'three
 import {createModellingEditor} from '@threepipe/plugin-modelling-editor'
 import {ModellingPlugin} from '@threepipe/plugin-modelling'
 import {ProceduralPlugin} from '@threepipe/plugin-procedural/plugin'
-import {terrain} from '../procedural-terrain/terrain'
+import {terrain} from '../procedural-terrain/terrain.js'
 
 /**
  * Three geometry-nodes assets in the modelling editor, each as a `geometryNodes` modifier whose inputs are editable in

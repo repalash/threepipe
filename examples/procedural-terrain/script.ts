@@ -1,6 +1,6 @@
 import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 import {ModellingPlugin} from '@threepipe/plugin-modelling'
-import {terrain} from './terrain'
+import {terrain} from './terrain.js'
 import {ProceduralPlugin} from '@threepipe/plugin-procedural/plugin'
 
 /**
