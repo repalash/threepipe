@@ -50,7 +50,7 @@ export interface VariedDepthOptions {
     depths?: Int32Array
 }
 
-const MAX_DEPTH = -1
+export const MAX_DEPTH = -1
 
 type Kind = {domain: AttrDomain, type: DataType}
 

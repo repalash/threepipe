@@ -51,7 +51,7 @@ describe('geonodes-kit reference cases (Blender 5.2.2)', () => {
                 const out = ev.evaluate()
                 const geometry = out.outputs['Geometry']
                 if (!geometry || typeof geometry !== 'object' || !('describe' in geometry)) throw new Error('no geometry output')
-                diffs = compareGeometry(out.geometry!, data.geometry)
+                diffs = compareGeometry(out.geometry!, data.geometry, {noneAsEmptyGeometry: true})
             } catch (e) {
                 diffs = [`error: ${(e as Error).message}`]
             }

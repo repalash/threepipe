@@ -216,10 +216,13 @@ export type InstanceReference =
     | {type: 'collection', name: string}
     | {type: 'geometry', geometry: GeometrySet}
 
-/** `operator==(InstanceReference)` (`instances.cc:151`): geometry by identity, IDs by name. */
+/**
+ * `operator==(InstanceReference)` (`instances.cc:151`): geometry sets by their component pointers and name
+ * (`GeometrySet::operator==`), IDs by name.
+ */
 export function instanceReferenceEquals(a: InstanceReference, b: InstanceReference): boolean {
     if (a.type !== b.type) return false
-    if (a.type === 'geometry') return a.geometry === (b as typeof a).geometry
+    if (a.type === 'geometry') return a.geometry.equals((b as typeof a).geometry)
     if (a.type === 'none') return true
     return a.name === (b as typeof a).name
 }

@@ -6,7 +6,7 @@
 import {AttrDomain} from '@threepipe/mesh-kernel'
 import {DATA_TYPES, DataType} from './dataTypes'
 import {GeometrySet, ComponentType} from './GeometrySet'
-import {Instances, InstanceReference} from './components'
+import {Instances, InstanceReference, instanceReferenceEquals} from './components'
 import {realizeInstances, ensureGeometryInstances} from './realizeInstances'
 import type {SceneProvider} from '../runtime/context'
 
@@ -67,7 +67,7 @@ function joinInstances(src: Instances[], allowMerging: boolean, result: Geometry
             }
             // `lookup_or_add_cb(src_reference)` keys on equality, then `add_new_reference`.
             for (const [k, h] of cache) {
-                if (k.type === r.type && (k.type === 'geometry' ? k.geometry === (r as typeof k).geometry : k.type === 'none' || (k as {name: string}).name === (r as {name: string}).name)) return h
+                if (instanceReferenceEquals(k, r)) return h
             }
             dst.references.push(r)
             cache.set(r, dst.references.length - 1)
@@ -124,35 +124,51 @@ export function joinGeometries(geometries: GeometrySet[], options: {allowMerging
 }
 
 /**
- * `foreach_real_geometry` (`foreach_geometry.cc:63`): run `fn` on the non-instance part of the
+ * `foreach_real_geometry` (`foreach_geometry.cc:70`): run `fn` once per distinct non-instance part of the
  * geometry and of every geometry instanced by it (object and collection references become geometry
- * references first, `ensure_geometry_instances`), then put the results back.
+ * references first, `ensure_geometry_instances`), then join each result back at every place it came
+ * from. Distinct means `GeometrySet::operator==` (same components and name), so shared geometry is
+ * processed once and stays shared, as in Blender. Empty parts are passed to `fn` too.
  */
 export function foreachRealGeometry(geometry: GeometrySet, fn: (g: GeometrySet) => void, scene: SceneProvider | undefined): GeometrySet {
-    const visit = (g: GeometrySet): GeometrySet => {
-        const real = g.copy()
-        real.remove('instances')
-        const hasReal = !real.isEmpty
-        let out: GeometrySet
-        if (g.instances) {
-            const inst = g.instancesForWrite()!
-            ensureGeometryInstances(inst, scene)
-            inst.references = inst.references.map(r => r.type === 'geometry' ? {type: 'geometry', geometry: visit(r.geometry)} : r)
-            out = new GeometrySet()
-            out.name = g.name
-            out.setInstances(inst)
-        } else {
-            out = new GeometrySet()
-            out.name = g.name
-        }
-        if (hasReal) {
-            fn(real)
-            // `reinsert_modified_geometry_recursive`: join with the instances part, old geometry first.
-            const joined = joinGeometries([out, real], {allowMergingInstanceReferences: false, scene})
-            joined.name = g.name
-            return joined
-        }
-        return out
+    const root = geometry.copy()
+    const real: {geometry: GeometrySet, paths: number[][]}[] = []
+    // `extract_real_geometries_recursive` (:13).
+    const extract = (g: GeometrySet, path: number[]) => {
+        const r = g.copy()
+        r.remove('instances')
+        for (const t of ['mesh', 'pointcloud', 'curves'] as ComponentType[]) g.remove(t)
+        const entry = real.find(e => e.geometry.equals(r))
+        if (entry) entry.paths.push(path.slice())
+        else real.push({geometry: r, paths: [path.slice()]})
+        const inst = g.instancesForWrite()
+        if (!inst) return
+        ensureGeometryInstances(inst, scene)
+        inst.references.forEach((ref, i) => {
+            if (ref.type !== 'geometry') return
+            // `references_for_write()`: the sub-geometry is edited in place.
+            const sub = ref.geometry.copy()
+            inst.references[i] = {type: 'geometry', geometry: sub}
+            path.push(i)
+            extract(sub, path)
+            path.pop()
+        })
     }
-    return visit(geometry.copy())
+    extract(root, [])
+    for (const e of real) fn(e.geometry)
+    // `reinsert_modified_geometry_recursive` (:41).
+    const reinsert = (g: GeometrySet, insert: GeometrySet, path: number[]): GeometrySet => {
+        if (!path.length) {
+            // Old geometry first so the instance reference paths stay valid; no reference merging.
+            return joinGeometries([g, insert], {allowMergingInstanceReferences: false, scene})
+        }
+        const inst = g.instancesForWrite()!
+        const ref = inst.references[path[0]]
+        if (ref.type !== 'geometry') throw new Error('procedural: foreach_real_geometry: path does not lead to geometry')
+        inst.references[path[0]] = {type: 'geometry', geometry: reinsert(ref.geometry, insert, path.slice(1))}
+        return g
+    }
+    let out = root
+    for (const e of real) for (const path of e.paths) out = reinsert(out, e.geometry, path)
+    return out
 }
