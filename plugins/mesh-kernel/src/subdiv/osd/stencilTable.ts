@@ -9,7 +9,7 @@
  * expressions (a function argument, then a compound assignment in another function), so clang does not fuse them.
  */
 
-import {f32} from '../f32'
+import {f32} from '../../blender/f32'
 import type {PrimvarBuffer, PrimvarElement} from './primvarRefiner'
 import {PrimvarRefiner} from './primvarRefiner'
 import type {TopologyRefiner} from './topologyRefiner'

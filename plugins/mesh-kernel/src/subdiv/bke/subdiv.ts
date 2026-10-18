@@ -7,11 +7,13 @@
  * Displacement (multires) and orco/cloth orco vertex data are not part of a procedural mesh and are not ported.
  */
 
-import {AttrDomain, createSubdivLimitEvaluator, MeshData, SubdivLimitEvaluator} from '@threepipe/mesh-kernel'
-import {f32} from '../blender/f32'
-import {createEvaluatorFromTopologyRefiner, createTopologyRefinerFromConverter, OpenSubdivConverter, OpenSubdivEvaluator, TopologyRefinerImpl} from '../blender/opensubdiv/blenderOpenSubdiv'
-import {FVarLinearInterpolation, SchemeType, VtxBoundaryInterpolation} from '../blender/opensubdiv/sdc'
-import {looseEdges, vertsNoFace} from './meshTopology'
+import {AttrDomain} from '../../constants'
+import {createSubdivLimitEvaluator, SubdivLimitEvaluator} from '../subdivisionSurface'
+import {MeshData} from '../../MeshData'
+import {f32} from '../../blender/f32'
+import {createEvaluatorFromTopologyRefiner, createTopologyRefinerFromConverter, OpenSubdivConverter, OpenSubdivEvaluator, TopologyRefinerImpl} from '../osd/blenderOpenSubdiv'
+import {FVarLinearInterpolation, SchemeType, VtxBoundaryInterpolation} from '../osd/sdc'
+import {looseEdges, vertsNoFace} from '../../blender/mesh/meshTopology'
 
 /** `VtxBoundaryInterpolation` (`BKE_subdiv.hh:24`). */
 export const enum SubdivVtxBoundaryInterpolation {

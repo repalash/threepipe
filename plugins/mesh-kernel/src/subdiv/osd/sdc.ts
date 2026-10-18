@@ -9,8 +9,8 @@
  * product is fused first; `a - b * c` fuses as `fma(-b, c, a)`).
  */
 
-import {f32} from '../f32'
-import {fmaf} from '../fma'
+import {f32} from '../../blender/f32'
+import {fmaf} from '../../blender/fma'
 
 // region types.h / typeTraits.cpp
 

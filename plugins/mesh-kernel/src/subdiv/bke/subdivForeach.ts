@@ -7,8 +7,8 @@
  * The `use_optimal_display` setting only tags edges (`subdiv_mesh.cc`) and is not used here.
  */
 
-import {MeshData} from '@threepipe/mesh-kernel'
-import {f32} from '../blender/f32'
+import {MeshData} from '../../MeshData'
+import {f32} from '../../blender/f32'
 import type {Subdiv} from './subdiv'
 import {facePtexOffsetGet} from './subdiv'
 

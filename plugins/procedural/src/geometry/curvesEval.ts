@@ -8,15 +8,15 @@
  * unchanged `CurvesGeometry` (make a new one after changing the curves).
  */
 
-import {f32, roundHalfAway} from '../blender/f32'
-import {mat3FromMat4, mat3ToQuat, mat4FromLocQuatScale, mat4ToScale} from '../blender/math/matrix'
+import {f32} from '../blender/f32'
 import {angleSignedOnAxisV3V3V3} from '../blender/math/matrixC'
-import {quatFromExpmap, quatToExpmap} from '../blender/math/quaternion'
 import {add3, angleNormalizedV3V3, cross3, dot3, isZero3, length3, normalize3, scale3, sub3, V3} from '../blender/math/vec'
 import {CurvesGeometry} from './components'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
-import {createDefaultMixer, mix2} from './mixers'
+import {createDefaultMixer, mix2, mix4} from './mixers'
 import {sincosf} from '../blender/libm'
+
+export {mix4}
 
 // region enums (`makesdna/DNA_curves_types.h:34-94`)
 export const CURVE_TYPE_CATMULL_ROM = 0
@@ -82,56 +82,7 @@ export function catmullRomBasis(parameter: number): [number, number, number, num
 }
 
 /** `w.x * a + w.y * b + w.z * c + w.w * d`, left to right in float. */
-const sum4 = (w: ArrayLike<number>, a: number, b: number, c: number, d: number) =>
-    f32(f32(f32(f32(w[0] * a) + f32(w[1] * b)) + f32(w[2] * c)) + f32(w[3] * d))
 
-/**
- * `attribute_math::mix4(weights, v0, v1, v2, v3)` (`BKE_attribute_math.hh:217-310`, `attribute_math.cc:35`, :64)
- * for element `o` of `out`, from elements `i0..i3` of `src`.
- */
-export function mix4(type: DataType, w: ArrayLike<number>, src: ArrayLike<number>, i0: number, i1: number, i2: number, i3: number,
-    out: TypedArray, o: number): void {
-    const c = DATA_TYPES[type].components
-    const g = (i: number, k: number) => src[i * c + k]
-    switch (type) {
-    case 'bool':
-        out[o] = sum4(w, g(i0, 0), g(i1, 0), g(i2, 0), g(i3, 0)) >= 0.5 ? 1 : 0
-        return
-    case 'int8': case 'int32':
-        out[o] = roundHalfAway(sum4(w, f32(g(i0, 0)), f32(g(i1, 0)), f32(g(i2, 0)), f32(g(i3, 0))))
-        return
-    case 'int16x2': case 'int32x2':
-        for (let k = 0; k < c; k++) out[o * c + k] = Math.trunc(sum4(w, f32(g(i0, k)), f32(g(i1, k)), f32(g(i2, k)), f32(g(i3, k))))
-        return
-    case 'float': case 'float2': case 'float3': case 'float4':
-        for (let k = 0; k < c; k++) out[o * c + k] = sum4(w, g(i0, k), g(i1, k), g(i2, k), g(i3, k))
-        return
-    case 'byteColor':
-        // `interp_v4_v4v4v4v4` on the byte values as floats, `uint8_t(mixed)` truncates.
-        for (let k = 0; k < 4; k++) out[o * 4 + k] = Math.trunc(sum4(w, g(i0, k), g(i1, k), g(i2, k), g(i3, k))) & 0xff
-        return
-    case 'quaternion': {
-        // `attribute_math.cc:35`: mix the exponential maps.
-        const e = [i0, i1, i2, i3].map(i => quatToExpmap([g(i, 0), g(i, 1), g(i, 2), g(i, 3)]))
-        const q = quatFromExpmap([0, 1, 2].map(k => sum4(w, e[0][k], e[1][k], e[2][k], e[3][k])))
-        for (let k = 0; k < 4; k++) out[o * 4 + k] = q[k]
-        return
-    }
-    case 'float4x4': {
-        // `attribute_math.cc:64`: location, `to_quaternion(float4x4)` (of the unnormalised 3x3) and `to_scale`.
-        const m = [i0, i1, i2, i3].map(i => Array.from({length: 16}, (_, k) => g(i, k)))
-        const loc = [0, 1, 2].map(k => sum4(w, m[0][12 + k], m[1][12 + k], m[2][12 + k], m[3][12 + k]))
-        const e = m.map(x => quatToExpmap(mat3ToQuat(mat3FromMat4(x))))
-        const rot = quatFromExpmap([0, 1, 2].map(k => sum4(w, e[0][k], e[1][k], e[2][k], e[3][k])))
-        const s = m.map(x => mat4ToScale(x, false))
-        const scale = [0, 1, 2].map(k => sum4(w, s[0][k], s[1][k], s[2][k], s[3][k]))
-        out.set(mat4FromLocQuatScale(loc, rot, scale), o * 16)
-        return
-    }
-    default:
-        throw new Error(`attribute_math::mix4 for '${type as string}' is not ported`)
-    }
-}
 
 /** `catmull_rom::interpolate<T>` (`BKE_curves.hh:842`). */
 function catmullRomInterpolate(type: DataType, src: ArrayLike<number>, a: number, b: number, c: number, d: number, parameter: number,

@@ -9,8 +9,8 @@
  * computes (`sdc.ts`) fuse where clang fuses; the `AddWithWeight` sinks decide their own arithmetic.
  */
 
-import {f32} from '../f32'
-import {fmaf} from '../fma'
+import {f32} from '../../blender/f32'
+import {fmaf} from '../../blender/fma'
 import {Crease, EdgeNeighborhood, FaceNeighborhood, Mask, Rule, Scheme, SchemeType, VertexNeighborhood} from './sdc'
 import type {Level} from './level'
 import type {TopologyRefiner} from './topologyRefiner'

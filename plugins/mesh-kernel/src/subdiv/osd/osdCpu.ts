@@ -11,8 +11,8 @@
  * `fmaf(src, weight, dst)` and `uv * fracInv - U` is `fmaf(uv, fracInv, -U)`.
  */
 
-import {f32} from '../f32'
-import {fmaf} from '../fma'
+import {f32} from '../../blender/f32'
+import {fmaf} from '../../blender/fma'
 import {PatchParam, PatchTable, PatchType, patchNumControlVertices} from './patchTable'
 import type {StencilTable} from './stencilTable'
 

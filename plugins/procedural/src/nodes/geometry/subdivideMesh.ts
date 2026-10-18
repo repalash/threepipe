@@ -1,13 +1,12 @@
 /**
  * Subdivide Mesh (`nodes/geometry/nodes/node_geo_mesh_subdivide.cc`, Blender 5.2.2): `bke::subdiv` with the simple
  * scheme at OpenSubdiv level 1, meshed at resolution `(1 << level) + 1` (`src/geometry/subdiv*.ts`,
- * `src/blender/opensubdiv/`).
+ * `@threepipe/mesh-kernel` `src/subdiv/`).
  */
 
 import {foreachRealGeometry} from '../../geometry/joinGeometries'
 import {GeometrySet} from '../../geometry/GeometrySet'
-import {fvarInterpolationFromUvSmooth, subdivNewFromMesh, SubdivSettings, vtxBoundaryInterpolationFromSubsurf} from '../../geometry/subdiv'
-import {subdivToMesh} from '../../geometry/subdivMesh'
+import {fvarInterpolationFromUvSmooth, subdivNewFromMesh, SubdivSettings, subdivToMesh, vtxBoundaryInterpolationFromSubsurf} from '@threepipe/mesh-kernel'
 import {registerNodeType} from '../../runtime/registry'
 import type {MeshData} from '@threepipe/mesh-kernel'
 

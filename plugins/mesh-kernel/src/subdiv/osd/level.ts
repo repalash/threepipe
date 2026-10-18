@@ -5,7 +5,7 @@
  * Licensed under the Tomorrow Open Source Technology License 1.0 - see `porting/opensubdiv-LICENSE.txt`.
  */
 
-import {f32} from '../f32'
+import {f32} from '../../blender/f32'
 import {Rule} from './sdc'
 import type {Options} from './sdc'
 import type {FVarLevel} from './fvarLevel'

@@ -9,17 +9,15 @@
  * of with `mix_deform_verts`.
  */
 
-import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
-import {f32} from '../blender/f32'
-import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
-import {mix4} from './curvesEval'
-import {mix2} from './mixers'
-import {mixIndicesWeighted} from './mixIndices'
-import {meshBoundsMinMax} from './meshBounds'
-import {meshRuntime} from './meshRuntime'
-import {newMesh} from './meshPrimitives'
-import {GroupedIndices, looseEdges, vertToEdgeMap} from './meshTopology'
-import {keyCurvePositionWeights} from '../blender/math/colorband'
+import {AttrDomain} from '../../constants'
+import {MeshData} from '../../MeshData'
+import {f32} from '../../blender/f32'
+import {DATA_TYPES, DataType, TypedArray} from '../../blender/attributes/dataTypes'
+import {mix2, mix4} from '../../blender/attributes/mixers'
+import {mixIndicesWeighted} from '../../blender/attributes/mixIndices'
+import {meshBoundsMinMax, meshRuntime} from '../../blender/mesh/meshRuntime'
+import {GroupedIndices, looseEdges, vertToEdgeMap} from '../../blender/mesh/meshTopology'
+import {keyCurvePositionWeights} from '../../blender/math/colorband'
 import {evalBeginFromMesh, evalFaceVarying, evalFinalPoint, evalLimitPoint, meshUvMapNames, Subdiv} from './subdiv'
 import {foreachSubdivGeometry, ForeachContext, ORIGINDEX_NONE, ToMeshSettings} from './subdivForeach'
 
@@ -147,7 +145,10 @@ class SubdivMeshContext {
     /** `subdiv_mesh_topology_info` (:855). */
     topologyInfo(numVertices: number, numEdges: number, numLoops: number, numFaces: number): boolean {
         const coarse = this.coarse
-        const mesh = newMesh(numVertices, numEdges, numFaces, numLoops)
+        // `BKE_mesh_new_nomain_from_template`: the result takes the coarse mesh's built-in attribute table.
+        const mesh = new MeshData()
+        mesh.attributes.setBuiltins(coarse.attributes.builtins)
+        mesh.resize({verts: numVertices, edges: numEdges, faces: numFaces, corners: numLoops})
         this.subdivMesh = mesh
         // `BKE_mesh_copy_parameters_for_eval`.
         mesh.materials = coarse.materials.slice()

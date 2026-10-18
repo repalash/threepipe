@@ -12,14 +12,13 @@
 import {MeshData} from '@threepipe/mesh-kernel'
 import {f32} from '../blender/f32'
 import type {GeometrySet} from './GeometrySet'
-import {meshRuntime} from './meshRuntime'
+import {Bounds3, meshBoundsMinMax, meshRuntime, positionsMinMax as minMax} from './meshRuntime'
+
+export {meshBoundsMinMax}
+export type {Bounds3}
 import type {CurvesGeometry} from './components'
 import {CURVE_TYPE_POLY, CurvesEvaluator, curveTypes} from './curvesEval'
 
-export interface Bounds3 {
-    min: [number, number, number]
-    max: [number, number, number]
-}
 
 /** `Mesh::bounds_set_eager` (`mesh.cc:1944`): `bounds_cache.ensure` - kept when bounds are already cached. */
 export function meshBoundsSetEager(mesh: MeshData, bounds: Bounds3): void {
@@ -33,18 +32,6 @@ export function meshCachedBounds(mesh: MeshData): Bounds3 | undefined {
 }
 
 /** `bounds::min_max` over flat xyz triples (`BLI_bounds.hh`). */
-function minMax(positions: ArrayLike<number>, count: number): Bounds3 | undefined {
-    if (!count) return undefined
-    const b: Bounds3 = {min: [positions[0], positions[1], positions[2]], max: [positions[0], positions[1], positions[2]]}
-    for (let i = 1; i < count; i++) {
-        for (let k = 0; k < 3; k++) {
-            const v = positions[i * 3 + k]
-            if (v < b.min[k]) b.min[k] = v
-            if (v > b.max[k]) b.max[k] = v
-        }
-    }
-    return b
-}
 
 /** `bounds::merge`. */
 export function mergeBounds(a: Bounds3 | undefined, b: Bounds3 | undefined): Bounds3 | undefined {
@@ -56,12 +43,6 @@ export function mergeBounds(a: Bounds3 | undefined, b: Bounds3 | undefined): Bou
     }
 }
 
-/** `Mesh::bounds_min_max` (`mesh.cc:1923`): `bounds_cache.ensure(min_max(positions))`. */
-export function meshBoundsMinMax(mesh: MeshData): Bounds3 | undefined {
-    if (mesh.vertsNum === 0) return undefined
-    const r = meshRuntime(mesh)
-    return r.bounds ??= minMax(mesh.positions, mesh.vertsNum)
-}
 
 /**
  * `calculate_bounds_radial_primitive` (`geometry/intern/mesh_primitive_uv_sphere.cc:17`): analytic bounds of the
