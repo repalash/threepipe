@@ -56,6 +56,7 @@ import {curvesGenerateCases} from './cases/curvesGenerate'
 import {curvesEditingCases} from './cases/curvesEditing'
 import {functionMiscCases} from './cases/functionMisc'
 import {geometryUtilCases} from './cases/geometryUtil'
+import {zonesForeachCases} from './cases/zonesForeach'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -102,6 +103,7 @@ SETS.meshDual = meshDualCases
 SETS.meshPaths = meshPathCases
 SETS.functionMisc = functionMiscCases
 SETS.geometryUtil = geometryUtilCases
+SETS.zonesForeach = zonesForeachCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

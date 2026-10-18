@@ -110,7 +110,23 @@ def item_collections(node):
                 entry["identifier"] = item.identifier
             items.append(entry)
         out[prop.identifier] = items
+    foreach_item_identifiers(node, out)
     return out
+
+
+def foreach_item_identifiers(node, out):
+    """For Each Geometry Element items do not expose their identifiers; their sockets do (`<Prefix>_<identifier>`,
+    in item order): input items on the paired input node's inputs, main and generation items on the output node's."""
+    if node.bl_idname != "GeometryNodeForeachGeometryElementOutput":
+        return
+    tree = node.id_data
+    input_node = next((n for n in tree.nodes if getattr(n, "paired_output", None) == node), None)
+    for coll, prefix, sockets in (("input_items", "Input_", input_node.inputs if input_node else []),
+                                  ("main_items", "Main_", node.inputs),
+                                  ("generation_items", "Generation_", node.inputs)):
+        idents = [int(s.identifier[len(prefix):]) for s in sockets if s.identifier.startswith(prefix)]
+        for entry, ident in zip(out.get(coll, []), idents):
+            entry["identifier"] = ident
 
 
 def socket_info(socket):

@@ -35,6 +35,7 @@ import {
     socketTypeFromIdname,
 } from './types'
 import type {EvalOptions} from './context'
+import {executeForeach, ForeachHost} from './foreachZone'
 
 /** An error raised by a node, with the node and tree it happened in. Thrown once, not re-wrapped upstream. */
 export class NodeEvaluationError extends Error {}
@@ -55,7 +56,7 @@ class Lazy {
     }
 }
 
-interface Dep {
+export interface Dep {
     socket: string
     multi: boolean
     value: SocketValue | SocketValue[]
@@ -68,15 +69,24 @@ interface Dep {
 }
 
 /**
- * A repeat zone (`bNodeTreeZone`, `blenkernel/intern/node_tree_zones.cc`): the nodes between a Repeat Input and its
- * paired Repeat Output. Its body runs once per iteration (`LazyFunctionForRepeatZone`,
- * `nodes/intern/geometry_nodes_repeat_zone.cc`), each iteration in its own compute context.
+ * A zone (`bNodeTreeZone`, `blenkernel/intern/node_tree_zones.cc`): the nodes between a zone input node and its
+ * paired output. A repeat zone's body runs once per iteration (`LazyFunctionForRepeatZone`,
+ * `nodes/intern/geometry_nodes_repeat_zone.cc`), a For Each Geometry Element zone's once per selected element
+ * (`LazyFunctionForForeachGeometryElementZone`, `geometry_nodes_foreach_geometry_element_zone.cc`), each run in its
+ * own compute context.
  */
-interface Zone {
+export interface Zone {
+    kind: 'repeat' | 'foreach'
     input: CNode
     output: CNode
     parent?: Zone
-    items: {identifier: string, type: SocketType}[]
+    /** Repeat items, or the For Each zone's input items (`Input_<id>`). */
+    items: ZoneItem[]
+    /** For Each: the main items (`Main_<id>`) and generation items (`Generation_<id>`, with their capture domains). */
+    mainItems?: ZoneItem[]
+    generationItems?: ZoneItem[]
+    /** For Each: the current element's geometry (the Element output). */
+    element?: SocketValue
     /** Execution state while the body runs. */
     running: boolean
     iteration: number
@@ -90,7 +100,7 @@ interface External {
     version: number | string
 }
 
-interface NodeCache {
+export interface NodeCache {
     outputs: Map<string, SocketValue | Lazy>
     deps: Dep[]
     externals: External[]
@@ -102,12 +112,12 @@ interface LinkSource {
     socket: string
 }
 
-interface CNode {
+export interface CNode {
     json: NodeJSON
     /** Undefined for the built-in group input/output, reroute and frame nodes. */
     def?: NodeTypeDef
     inst?: NodeInstance
-    kind: 'node' | 'group-input' | 'group-output' | 'reroute' | 'frame' | 'group' | 'repeat-input' | 'repeat-output'
+    kind: 'node' | 'group-input' | 'group-output' | 'reroute' | 'frame' | 'group' | 'repeat-input' | 'repeat-output' | 'foreach-input' | 'foreach-output'
     inputDecls: Map<string, SocketDecl>
     outputDecls: Map<string, SocketDecl>
     inputLinks: Map<string, LinkSource[]>
@@ -119,7 +129,7 @@ interface CNode {
     sub?: TreeEval
     /** The innermost zone the node is in (its inputs are read inside it); for zone input/output nodes, the zone around theirs. */
     zone?: Zone
-    /** The zone a Repeat Input / Repeat Output node opens / closes. */
+    /** The zone a zone input / output node opens / closes. */
     ownZone?: Zone
 }
 
@@ -147,7 +157,30 @@ interface Root {
 }
 
 const BUILTIN_TYPES = new Set(['NodeGroupInput', 'NodeGroupOutput', 'NodeReroute', 'NodeFrame', 'GeometryNodeGroup',
-    'GeometryNodeRepeatInput', 'GeometryNodeRepeatOutput'])
+    'GeometryNodeRepeatInput', 'GeometryNodeRepeatOutput', 'GeometryNodeForeachGeometryElementInput', 'GeometryNodeForeachGeometryElementOutput'])
+
+const isZoneInput = (n: CNode) => n.kind === 'repeat-input' || n.kind === 'foreach-input'
+const isZoneOutput = (n: CNode) => n.kind === 'repeat-output' || n.kind === 'foreach-output'
+
+export interface ZoneItem {
+    identifier: string
+    name: string
+    type: SocketType
+    /** Generation items: the capture domain (`NodeForeachGeometryElementGenerationItem::domain`). */
+    domain?: string
+}
+
+/** `ForeachGeometryElement{Input,Main,Generation}ItemsAccessor::socket_identifier_for_item`: `<Prefix>_<identifier>`. */
+function foreachItems(output: NodeJSON | undefined, collection: 'input_items' | 'main_items' | 'generation_items'): ZoneItem[] {
+    const prefix = collection === 'input_items' ? 'Input' : collection === 'main_items' ? 'Main' : 'Generation'
+    const items = output?.items?.[collection] ?? []
+    return items.map((item, i) => ({
+        identifier: `${prefix}_${typeof item.identifier === 'number' ? item.identifier : i}`,
+        name: String(item.name ?? ''),
+        type: String(item.socket_type) as SocketType,
+        domain: item.domain === undefined ? undefined : String(item.domain),
+    }))
+}
 
 /** `RepeatItemsAccessor::socket_identifier_for_item` (`NOD_geo_repeat.hh`): `Item_<identifier>`. */
 function repeatItems(output: NodeJSON | undefined): {identifier: string, name: string, type: SocketType}[] {
@@ -255,10 +288,14 @@ class TreeEval {
     private findZones(): void {
         const zones: Zone[] = []
         for (const out of this.nodes.values()) {
-            if (out.kind !== 'repeat-output') continue
-            const input = [...this.nodes.values()].find(n => n.kind === 'repeat-input' && n.json.pairedOutput === out.json.name)
-            if (!input) throw new Error(`procedural: Repeat Output '${out.json.name}' in '${this.tree.name}' has no paired Repeat Input`)
-            const zone: Zone = {input, output: out, items: repeatItems(out.json), running: false, iteration: 0, state: [], iterationValue: null, border: []}
+            if (!isZoneOutput(out)) continue
+            const inKind = out.kind === 'repeat-output' ? 'repeat-input' : 'foreach-input'
+            const input = [...this.nodes.values()].find(n => n.kind === inKind && n.json.pairedOutput === out.json.name)
+            if (!input) throw new Error(`procedural: zone output '${out.json.name}' in '${this.tree.name}' has no paired input node`)
+            const zone: Zone = out.kind === 'repeat-output'
+                ? {kind: 'repeat', input, output: out, items: repeatItems(out.json), running: false, iteration: 0, state: [], iterationValue: null, border: []}
+                : {kind: 'foreach', input, output: out, items: foreachItems(out.json, 'input_items'), mainItems: foreachItems(out.json, 'main_items'),
+                    generationItems: foreachItems(out.json, 'generation_items'), running: false, iteration: 0, state: [], iterationValue: null, border: []}
             input.ownZone = out.ownZone = zone
             zones.push(zone)
         }
@@ -271,7 +308,7 @@ class TreeEval {
             if (stack.has(n)) throw new Error(`procedural: '${this.tree.name}' has a link cycle through '${n.json.name}'`)
             stack.add(n)
             for (const links of n.inputLinks.values()) for (const l of links) visit(l.node, stack)
-            if (n.kind === 'repeat-output') visit(n.ownZone!.input, stack)
+            if (isZoneOutput(n)) visit(n.ownZone!.input, stack)
             stack.delete(n)
             seen.add(n)
             order.push(n)
@@ -287,9 +324,9 @@ class TreeEval {
                     dependsOnOutput.get(l.node)!.forEach(z => dOut.add(z))
                 }
             }
-            if (n.kind === 'repeat-input') {
+            if (isZoneInput(n)) {
                 dIn.add(n.ownZone!)
-            } else if (n.kind === 'repeat-output') {
+            } else if (isZoneOutput(n)) {
                 const z = n.ownZone!
                 dependsOnInput.get(z.input)!.forEach(x => dIn.add(x))
                 dependsOnOutput.get(z.input)!.forEach(x => dOut.add(x))
@@ -374,6 +411,32 @@ class TreeEval {
             }
             return n
         }
+        case 'GeometryNodeForeachGeometryElementInput': {
+            // `node_geo_foreach_geometry_element.cc:40`: Index, Element (not for corners), the input items.
+            const n: CNode = {...base, kind: 'foreach-input'}
+            const output = this.tree.nodes.find(x => x.name === json.pairedOutput)
+            const domain = String(output?.properties?.domain ?? 'POINT')
+            n.outputDecls.set('Index', itemDecl('Index', 'Index', 'INT'))
+            n.outputDecls.set('Element', {...itemDecl('Element', 'Element', 'GEOMETRY'), available: domain !== 'CORNER'})
+            n.inputDecls.set('Geometry', itemDecl('Geometry', 'Geometry', 'GEOMETRY'))
+            n.inputDecls.set('Selection', {...itemDecl('Selection', 'Selection', 'BOOLEAN'), default: true, structure: 'field'})
+            for (const item of foreachItems(output, 'input_items')) {
+                n.inputDecls.set(item.identifier, {...itemDecl(item.identifier, item.name, item.type), structure: 'field'})
+                n.outputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+            }
+            return n
+        }
+        case 'GeometryNodeForeachGeometryElementOutput': {
+            // `node_geo_foreach_geometry_element.cc:264`: Geometry, the main items, then the generation items.
+            const n: CNode = {...base, kind: 'foreach-output'}
+            n.outputDecls.set('Geometry', itemDecl('Geometry', 'Geometry', 'GEOMETRY'))
+            for (const item of [...foreachItems(json, 'main_items'), ...foreachItems(json, 'generation_items')]) {
+                n.inputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+                n.outputDecls.set(item.identifier, item.type === 'GEOMETRY' ? itemDecl(item.identifier, item.name, item.type)
+                    : {...itemDecl(item.identifier, item.name, item.type), structure: 'field'})
+            }
+            return n
+        }
         case 'GeometryNodeGroup': {
             const groupName = json.group ?? (json.properties?.node_tree as {name?: string} | undefined)?.name
             const group = groupName ? this.root.library[groupName] : undefined
@@ -420,6 +483,15 @@ class TreeEval {
         }
         case 'reroute':
             return this.inputValue(n, 'Input', undefined)
+        case 'foreach-input': {
+            // Inside the zone: the current element's index, geometry and evaluated input items.
+            const z = n.ownZone!
+            if (!z.running) throw new Error(`procedural: '${src.socket}' of For Each input '${n.json.name}' read outside its zone`)
+            if (src.socket === 'Index') return z.iterationValue
+            if (src.socket === 'Element') return z.element ?? new GeometrySet()
+            const k = z.items.findIndex(i => i.identifier === src.socket)
+            return z.state[k]
+        }
         case 'repeat-input': {
             // Inside the zone: the current iteration's values (`LazyFunctionForRepeatZone` body inputs).
             const z = n.ownZone!
@@ -518,7 +590,7 @@ class TreeEval {
      * result is reused on the next evaluation only while they are unchanged.
      */
     private recordBorder(n: CNode, src: LinkSource, raw: SocketValue): void {
-        for (let z = n.kind === 'repeat-output' ? n.ownZone : n.zone; z; z = z.parent) {
+        for (let z = isZoneOutput(n) ? n.ownZone : n.zone; z; z = z.parent) {
             if (!z.running) continue
             if (!this.inZone(n, z) || this.inZone(src.node, z) || src.node === z.input) continue
             if (!z.border.some(d => d.src!.node === src.node && d.src!.socket === src.socket)) z.border.push({socket: src.socket, multi: false, value: raw, src})
@@ -578,9 +650,13 @@ class TreeEval {
         case 'repeat-output':
             this.executeRepeat(n, cache)
             return
+        case 'foreach-output':
+            executeForeach(this.foreachHost(), n, cache)
+            return
         case 'frame':
         case 'group-output':
         case 'repeat-input':
+        case 'foreach-input':
             return
         default:
             break
@@ -718,6 +794,28 @@ class TreeEval {
         }
         cache.deps.push(...z.border)
         z.items.forEach((item, k) => cache.outputs.set(item.identifier, state[k]))
+    }
+
+    /** What the For Each Geometry Element zone executor (`foreachZone.ts`) needs from this tree evaluation. */
+    private foreachHost(): ForeachHost {
+        return {
+            options: this.root.options,
+            readOutside: (zone, id, deps) => {
+                const rec: Dep[] = []
+                const v = this.inputValue(zone.input, id, rec)
+                for (const d of rec) deps.push({...d, node: zone.input})
+                return v
+            },
+            readBody: (n, id) => this.inputValue(n, id, undefined),
+            nextPass: () => {
+                this.root.revision++
+            },
+            anonymousName: (n, id, deps) => {
+                this.recordIterations(n, deps)
+                return `.a_${this.path}${this.zonePath(n)}${n.json.name}_${id}`
+            },
+            warn: (n, message) => this.root.warnings.push({path: this.path, node: n.json.name, message}),
+        }
     }
 
     /** `LazyFunctionForGroupNode` (`geometry_nodes_lazy_function.cc:1140`). */
