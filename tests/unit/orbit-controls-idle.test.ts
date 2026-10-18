@@ -1,5 +1,6 @@
 /**
- * An idle `OrbitControls3.update()` leaves the camera exactly where it was (Node).
+ * An idle `OrbitControls3.update()` leaves the camera exactly where it was (Node). Fixed in three-modded
+ * (repalash/three.js-modded#3); this test needs the three-modded release that contains it.
  */
 import {beforeAll, describe, expect, it} from 'vitest'
 import {PerspectiveCamera} from 'three'

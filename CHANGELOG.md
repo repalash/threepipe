@@ -21,7 +21,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- `OrbitControls3`: an update with no pending input (no rotate, pan or dolly, no auto-rotate) no longer moves the camera by floating-point rounding. `OrbitControls.update` rebuilds the position from spherical coordinates every frame, so a camera set to `[6, 4, 6]` read `[6, 4, 6.000000000000001]` after one frame and every export with viewer config changed after a render. Limits still apply to an idle camera.
+- `OrbitControls`: an update with nothing to apply (no rotate, pan or dolly, no auto-rotate, within limits) no longer moves the camera by floating-point rounding; fixed in `three-modded` (repalash/three.js-modded#3). A camera set to `[6, 4, 6]` read `[6, 4, 6.000000000000001]` after one frame, so every export with viewer config changed after a render. Limits still apply to an idle camera.
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
