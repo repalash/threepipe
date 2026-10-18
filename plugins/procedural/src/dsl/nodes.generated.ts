@@ -859,6 +859,19 @@ export type GeometryToInstanceNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeGetGeometryComponent` (Get Geometry Component). */
+export interface GetGeometryComponentArgs {
+    geometry?: In<"GEOMETRY">
+    type?: In<"MENU">
+    remove?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type GetGeometryComponentNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+    readonly component: Socket<"GEOMETRY">
+    readonly exists: Socket<"BOOLEAN">
+}
+
 /** `ShaderNodeTexGradient` (Gradient Texture). */
 export interface GradientTextureArgs {
     gradientType?: "LINEAR" | "QUADRATIC" | "EASING" | "DIAGONAL" | "SPHERICAL" | "QUADRATIC_SPHERE" | "RADIAL"
@@ -956,6 +969,16 @@ export interface IndexSwitchArgs {
 }
 export type IndexSwitchNode = NodeHandle & {
     readonly output: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE">
+}
+
+/** `GeometryNodeInputInstanceBounds` (Instance Bounds). */
+export interface InstanceBoundsArgs {
+    useRadius?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type InstanceBoundsNode = NodeHandle & {
+    readonly min: Socket<"VECTOR">
+    readonly max: Socket<"VECTOR">
 }
 
 /** `GeometryNodeInstanceOnPoints` (Instance on Points). */
@@ -1658,6 +1681,19 @@ export type RemoveNamedAttributeNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeRenameAttribute` (Rename Attribute). */
+export interface RenameAttributeArgs {
+    geometry?: In<"GEOMETRY">
+    mode?: In<"MENU">
+    old?: In<"STRING">
+    new?: In<"STRING">
+    overwrite?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type RenameAttributeNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeReplaceMaterial` (Replace Material). */
 export interface ReplaceMaterialArgs {
     geometry?: In<"GEOMETRY">
@@ -2022,6 +2058,16 @@ export interface SetCurveTiltArgs {
 }
 export type SetCurveTiltNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetGeometryName` (Set Geometry Name). */
+export interface SetGeometryNameArgs {
+    geometry?: In<"GEOMETRY">
+    name?: In<"STRING">
+    mute?: boolean
+}
+export type SetGeometryNameNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeSetCurveHandlePositions` (Set Handle Positions). */
@@ -2582,6 +2628,17 @@ export type VoronoiTextureNode = NodeHandle & {
     readonly position: Socket<"VECTOR">
 }
 
+/** `GeometryNodeWarning` (Warning). */
+export interface WarningArgs {
+    warningType?: "ERROR" | "WARNING" | "INFO"
+    show?: In<"BOOLEAN">
+    message?: In<"STRING">
+    mute?: boolean
+}
+export type WarningNode = NodeHandle & {
+    readonly show: Socket<"BOOLEAN">
+}
+
 /** `ShaderNodeTexWave` (Wave Texture). */
 export interface WaveTextureArgs {
     waveType?: "BANDS" | "RINGS"
@@ -2684,6 +2741,7 @@ export interface NodeConstructors {
     FloatToInteger(args?: FloatToIntegerArgs): FloatToIntegerNode
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
+    GetGeometryComponent(args?: GetGeometryComponentArgs): GetGeometryComponentNode
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
     HandleTypeSelection(args?: HandleTypeSelectionArgs): HandleTypeSelectionNode
     HashValue(args?: HashValueArgs): HashValueNode
@@ -2693,6 +2751,7 @@ export interface NodeConstructors {
     Index(args?: IndexArgs): IndexNode
     IndexOfNearest(args?: IndexOfNearestArgs): IndexOfNearestNode
     IndexSwitch(args?: IndexSwitchArgs): IndexSwitchNode
+    InstanceBounds(args?: InstanceBoundsArgs): InstanceBoundsNode
     InstanceOnPoints(args?: InstanceOnPointsArgs): InstanceOnPointsNode
     InstanceRotation(args?: InstanceRotationArgs): InstanceRotationNode
     InstanceScale(args?: InstanceScaleArgs): InstanceScaleNode
@@ -2751,6 +2810,7 @@ export interface NodeConstructors {
     Raycast(args?: RaycastArgs): RaycastNode
     RealizeInstances(args?: RealizeInstancesArgs): RealizeInstancesNode
     RemoveNamedAttribute(args?: RemoveNamedAttributeArgs): RemoveNamedAttributeNode
+    RenameAttribute(args?: RenameAttributeArgs): RenameAttributeNode
     ReplaceMaterial(args?: ReplaceMaterialArgs): ReplaceMaterialNode
     ReplaceString(args?: ReplaceStringArgs): ReplaceStringNode
     ResampleCurve(args?: ResampleCurveArgs): ResampleCurveNode
@@ -2781,6 +2841,7 @@ export interface NodeConstructors {
     SetCurveNormal(args?: SetCurveNormalArgs): SetCurveNormalNode
     SetCurveRadius(args?: SetCurveRadiusArgs): SetCurveRadiusNode
     SetCurveTilt(args?: SetCurveTiltArgs): SetCurveTiltNode
+    SetGeometryName(args?: SetGeometryNameArgs): SetGeometryNameNode
     SetHandlePositions(args?: SetHandlePositionsArgs): SetHandlePositionsNode
     SetHandleType(args?: SetHandleTypeArgs): SetHandleTypeNode
     SetID(args?: SetIDArgs): SetIDNode
@@ -2829,6 +2890,7 @@ export interface NodeConstructors {
     VertexNeighbors(args?: VertexNeighborsArgs): VertexNeighborsNode
     VertexOfCorner(args?: VertexOfCornerArgs): VertexOfCornerNode
     VoronoiTexture(args?: VoronoiTextureArgs): VoronoiTextureNode
+    Warning(args?: WarningArgs): WarningNode
     WaveTexture(args?: WaveTextureArgs): WaveTextureNode
     WhiteNoiseTexture(args?: WhiteNoiseTextureArgs): WhiteNoiseTextureNode
 }
