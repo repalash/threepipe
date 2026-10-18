@@ -137,6 +137,16 @@ export function HeaderSlots() {
     </div>
 }
 
+/** The header's feedback button: Help > Send Feedback…, shown when the app has the cloud plugin. */
+export function FeedbackButton() {
+    const {engine} = useEditor()
+    useEngineVersion('registryChanged')
+    if (!engine.operators.get('help.send_feedback')) return null
+    return <IconButton icon="chat" size="small" label="Feedback" description="Report a problem or send an idea to the threepipe team."
+        data-feedback-button
+        onClick={() => engine.run('help.send_feedback')} />
+}
+
 /** The document's name and an unsaved-changes dot, as a desktop app's title bar shows them. */
 export function DocumentName() {
     const {engine} = useEditor()
@@ -162,6 +172,7 @@ export function Header({title}: {title?: string}) {
         <ModeSwitch />
         <SelectModeButtons />
         <span className="me-spacer" />
+        <FeedbackButton />
         <AgentIndicator />
         <HeaderSlots />
     </header>

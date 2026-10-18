@@ -23,7 +23,7 @@
  *
  * Not Blender's: a "Commands" submenu at the end of Object (the `plugin-modelling` commands, which have no
  * place in Blender's menus), edit-mode Discard Edits / Apply to Object at the end of Edit, File > Connect
- * Agent… and View > Look (Agent View) (the agent socket), Add > Lathe / Sweep.
+ * Agent… and View > Look (Agent View) (the agent socket), Add > Lathe / Sweep, Help > Send Feedback… (the cloud plugin).
  */
 
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
@@ -74,6 +74,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
 
     // --- context helpers (what Blender's `draw` functions read) -----------------------------------
     const edit: MenuPredicate = ctx => ctx.mode === 'edit'
+    const hasOp = (id: string): MenuPredicate => () => !!engine.operators.get(id)
     const selCounts = () => {
         const bm = me.state?.bm
         return bm ? {v: bm.totvertsel, e: bm.totedgesel, f: bm.totfacesel} : {v: 0, e: 0, f: 0}
@@ -190,6 +191,10 @@ export function registerMenus(engine: EditorEnginePlugin): void {
             id: 'TOPBAR_MT_help', label: 'Help', source: 'space_topbar.py:601',
             items: [
                 op('help.docs', 'Threepipe Documentation', {blender: 'wm.url_open_preset MANUAL'}),
+                // Blender's Report a Bug (`wm.url_open_preset BUG`), as a dialog that sends the report; with Send
+                // Feedback, only when the app has the cloud plugin (`@threepipe/plugin-cloud`), which registers both.
+                op('help.report_problem', 'Report a Problem…', {blender: 'wm.url_open_preset BUG', visible: hasOp('help.report_problem')}),
+                op('help.send_feedback', 'Send Feedback…', {visible: hasOp('help.send_feedback')}),
                 sep,
                 op('help.shortcuts', 'Keyboard Shortcuts', {blender: 'wm.operator_cheat_sheet'}),
                 op('ui.command_palette', 'Search Commands…', {blender: 'wm.search_operator'}),
