@@ -235,4 +235,26 @@ edit_case('degenerate nothing', GRID, 'VERT', 'dissolve_degenerate', {}, {'verts
 SLIVER_CO = [[0, 0, 0], [2, 0, 0], [1, 0.00003, 0], [1, 1, 0]]
 edit_case('degenerate sliver ear', (SLIVER_CO, [[0, 1, 3], [0, 2, 1]], []), 'VERT', 'dissolve_degenerate', {}, {'verts': [0, 1, 2, 3]})
 
+# --- batch 3 ------------------------------------------------------------------------------------------
+# --- mesh.solidify (MESH_OT_solidify, editmesh_tools.cc:4167) --------------------------------------
+edit_case('solidify grid all', GRID, 'FACE', 'solidify', {'thickness': 0.1}, ALL_GRID)
+edit_case('solidify grid two negative', GRID, 'FACE', 'solidify', {'thickness': -0.2}, {'faces': [1, 4]})
+edit_case('solidify cube face default', CUBE, 'FACE', 'solidify', {}, {'faces': [0]})
+
+# --- the extrude-and-move macros (mesh_ops.cc:302-327), with their transform's value ---------------
+MOVE = {'value': (0.2, 0.3, 0.5)}
+edit_case('extrude vertices one', GRID, 'VERT', 'extrude_vertices_move', {'TRANSFORM_OT_translate': MOVE}, {'verts': [5]})
+edit_case('extrude vertices wire end', LOOSE, 'VERT', 'extrude_vertices_move', {'TRANSFORM_OT_translate': MOVE}, {'verts': [7, 4]})
+edit_case('extrude vertices two', GRID, 'VERT', 'extrude_vertices_move', {'TRANSFORM_OT_translate': MOVE}, {'verts': [0, 11]})
+edit_case('extrude edges boundary', GRID, 'EDGE', 'extrude_edges_move', {'TRANSFORM_OT_translate': MOVE}, {'edges': [[0, 1], [1, 2]]})
+edit_case('extrude edges boundary uvs', GRID, 'EDGE', 'extrude_edges_move', {'TRANSFORM_OT_translate': MOVE}, {'edges': [[8, 9]]}, {'uv': GRID_UV})
+edit_case('extrude edges wire', LOOSE, 'EDGE', 'extrude_edges_move', {'TRANSFORM_OT_translate': MOVE}, {'edges': [[5, 6], [6, 7]]})
+edit_case('extrude edges inner flip', GRID, 'EDGE', 'extrude_edges_move',
+          {'MESH_OT_extrude_edges_indiv': {'use_normal_flip': True}, 'TRANSFORM_OT_translate': MOVE}, {'edges': [[5, 6]]})
+FATTEN = {'value': 0.5}
+edit_case('extrude faces cube one', CUBE, 'FACE', 'extrude_faces_move', {'TRANSFORM_OT_shrink_fatten': FATTEN}, {'faces': [0]})
+edit_case('extrude faces grid two uvs', GRID, 'FACE', 'extrude_faces_move', {'TRANSFORM_OT_shrink_fatten': FATTEN}, {'faces': [0, 4]}, {'uv': GRID_UV})
+edit_case('extrude faces grid even', GRID, 'FACE', 'extrude_faces_move',
+          {'TRANSFORM_OT_shrink_fatten': {'value': 0.3, 'use_even_offset': True}}, {'faces': [1, 2]})
+
 write(__file__, 'editmesh-tools.json', cases)
