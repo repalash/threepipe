@@ -1,7 +1,7 @@
 /**
  * Subdivision Surface against Blender 5.2.2 (`fixtures/subsurf.json`, written by `gen-subsurf-fixtures.py`), index for
  * index: the input is rebuilt with Blender's edge order (`subdiv_foreach` numbers the output by coarse edge), and
- * vertex i, edge i, face i and corner i's UV must equal Blender's. Positions and UVs are compared in float32 ulps.
+ * vertex i, edge i, face i and corner i's UV must equal Blender's. Positions and UVs are compared bit for bit.
  */
 
 import {describe, expect, it} from 'vitest'
@@ -24,13 +24,11 @@ interface SubsurfCase {
 const fixture = loadFixture<SubsurfCase>('subsurf.json')
 
 /**
- * Allowed difference. Uniform refinement is OpenSubdiv's float stencil pipeline and must be bit-exact. The limit
- * surface (`use_limit_surface`) is still evaluated by the double adaptive patch evaluator until the float
- * `RefineAdaptive` / patch-table port (subplan 15e phase 2): Blender's float evaluation leaves roundoff such as 1e-8
- * where the double result is 0 (ulps mean nothing near 0), and a few ulps elsewhere: a value passes within either
- * bound. Phase 2 sets this to exact.
+ * Allowed difference: none. Uniform refinement is OpenSubdiv's float stencil pipeline, and the limit surface
+ * (`use_limit_surface`) its float adaptive refinement, Gregory end-cap local points and patch evaluation, as Blender runs
+ * them. The tolerance stays a parameter for diagnosis.
  */
-const TOLERANCE = (c: SubsurfCase): Tolerance => c.modifier.useLimitSurface ? {abs: 1e-6, ulps: 4} : {abs: 0, ulps: 0}
+const TOLERANCE = (_c: SubsurfCase): Tolerance => ({abs: 0, ulps: 0})
 interface Tolerance { abs: number, ulps: number }
 
 const f32 = new Float32Array(1), i32 = new Int32Array(f32.buffer)

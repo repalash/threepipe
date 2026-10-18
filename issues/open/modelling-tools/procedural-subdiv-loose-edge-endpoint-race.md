@@ -17,3 +17,14 @@ values differ in the last bits, and the result is whichever thread writes last.
 The port is not wrong. Blender's result depends on scheduling. Options:
 1. Accept 1 ulp on such vertices. This is the current status.
 2. Report it upstream: the end points should be skipped, or written once.
+
+**Update 2026-10-18 (15e phase 2).** The float adaptive limit surface made the limit-surface cases exact. The only
+position differences left in `subdivSurface` are single values on shared loose-edge end points:
+- `ss-uniform-l2`: vertex 27, 1 ulp.
+- `ss-uv-none`: vertex 27, 1 ulp.
+- `ss-uv-keep-corners-junctions`: vertex 27, 1 ulp.
+- `ss-uv-keep-boundaries`: vertex 27, 1 ulp.
+- `ss-uv-all`: vertex 35, `0` here and `-1.49e-8` in Blender. This fits the same race (a different smooth-UV scene).
+  The vertex has not yet been traced to its edges.
+
+In each case one value differs and every other value is bit-exact.

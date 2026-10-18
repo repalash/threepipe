@@ -5,7 +5,7 @@ libm_eval.py - the reference platform's results for the float trig arguments a p
 Usage: "$BLENDER" --background --factory-startup --python libm_eval.py -- <inputs.json> <apple.json>
 (any Python on the reference machine works; Blender's is the one the worker has). Calls libSystem through ctypes:
 acosf, asinf, atan2f, sinf, cosf, tanf, powf, __sincosf_stret (clang's combination of sinf/cosf of one value on Darwin),
-and the double __sincos_stret and atan2.
+and the double __sincos_stret, sin, cos and atan2.
 Output: {name: {argument key: [result, ...]}}, keys as recorded (`String(x)` / `"y,x"`).
 """
 import ctypes
@@ -39,6 +39,9 @@ class SinCosD(ctypes.Structure):
 sincos_d = libm.__sincos_stret
 sincos_d.restype = SinCosD
 sincos_d.argtypes = [ctypes.c_double]
+for name in ("sin", "cos"):
+    getattr(libm, name).restype = ctypes.c_double
+    getattr(libm, name).argtypes = [ctypes.c_double]
 libm.atan2.restype = ctypes.c_double
 libm.atan2.argtypes = [ctypes.c_double, ctypes.c_double]
 
@@ -54,6 +57,8 @@ out = {
     "tanf": {k: [libm.tanf(float(k))] for k in inputs.get("tanf", [])},
     "powf": {k: [libm.powf(*map(float, k.split(",")))] for k in inputs.get("powf", [])},
     "sincos": {k: [sincos_d(float(k)).s, sincos_d(float(k)).c] for k in inputs.get("sincos", [])},
+    "sin": {k: [libm.sin(float(k))] for k in inputs.get("sin", [])},
+    "cos": {k: [libm.cos(float(k))] for k in inputs.get("cos", [])},
     "atan2": {k: [libm.atan2(*map(float, k.split(",")))] for k in inputs.get("atan2", [])},
 }
 with open(args[1], "w", encoding="utf8") as handle:

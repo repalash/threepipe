@@ -1,8 +1,8 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/far/stencilBuilder.h/.cpp` (scalar weights), `far/stencilTable.h/.cpp`
- * (`StencilTableReal<float>`) and `far/stencilTableFactory.cpp` (`StencilTableFactoryReal<float>::Create`), Copyright
- * 2014 DreamWorks Animation LLC. Derivative weights, limit stencils and `AppendLocalPointStencilTable` are not
- * ported (uniform refinement has no local points).
+ * (`StencilTableReal<float>`) and `far/stencilTableFactory.cpp` (`StencilTableFactoryReal<float>::Create`,
+ * `AppendLocalPointStencilTable` / `...FaceVarying`), Copyright 2014 DreamWorks Animation LLC. Derivative weights and
+ * limit stencils are not ported (Blender's evaluator does not build them).
  * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Float exactness: the products `weight * weightFactor` and the accumulations `_weights[i] += w` are separate
@@ -91,6 +91,8 @@ export class StencilBuilder {
     }
 
     setCoarseVertCount(n: number) { this.table.coarseVertCount = n }
+    /** `GetNumVertsInStencil` (`stencilBuilder.cpp:421`). */
+    getNumVertsInStencil(stencilIndex: number) { return stencilIndex > this.table.sizes.length - 1 ? 0 : this.table.sizes[stencilIndex] }
     getStencilOffsets() { return this.table.indices }
     getStencilSizes() { return this.table.sizes }
     getStencilSources() { return this.table.sources }
@@ -108,11 +110,30 @@ export class StencilIndex implements PrimvarElement<StencilIndex> {
     getOffset() { return this.index }
     clear(): void {}
 
-    /** `Index::AddWithWeight(Index const&, REAL)` (`stencilBuilder.cpp:513`): zero weights are skipped. */
+    /** `Index::AddWithWeight(Index const&, REAL)` (`stencilBuilder.cpp:494`): zero weights are skipped. */
     addWithWeight(src: StencilIndex, weight: number): void {
         if (weight === 0) return
         this.owner.table.addWithWeight(src.index, this.index, weight)
     }
+
+    /** `Index::AddWithWeight(StencilReal const&, REAL)` (`stencilBuilder.cpp:504`). */
+    addWithWeightStencil(src: Stencil, weight: number): void {
+        if (weight === 0) return
+        for (let i = 0; i < src.size; ++i) {
+            const w = src.table.weights[src.offset + i]
+            if (w === 0) continue
+            const srcIndex = src.table.indices[src.offset + i]
+            // `REAL wgt = weight * w`.
+            this.owner.table.addWithWeight(srcIndex, this.index, f32(weight * w))
+        }
+    }
+}
+
+/** `StencilReal<float>` (`stencilTable.h:40`): one stencil of a table. */
+export interface Stencil {
+    table: StencilTable
+    size: number
+    offset: number
 }
 
 /** `StencilTableReal<float>` (`stencilTable.h:110`). */
@@ -125,6 +146,23 @@ export class StencilTable {
 
     getNumStencils() { return this.sizes.length }
     getNumControlVertices() { return this.numControlVertices }
+
+    /** `GetStencil(i)` (`stencilTable.h:705`). */
+    getStencil(i: number): Stencil {
+        if (i < 0 || i >= this.sizes.length) throw new Error(`StencilTable::GetStencil: no stencil ${i}`)
+        return {table: this, size: this.sizes[i], offset: this.offsets[i]}
+    }
+
+    /** A copy (`StencilTableReal(StencilTableReal const&)`). */
+    clone(): StencilTable {
+        const t = new StencilTable()
+        t.numControlVertices = this.numControlVertices
+        t.sizes = this.sizes.slice()
+        t.offsets = this.offsets.slice()
+        t.indices = this.indices.slice()
+        t.weights = this.weights.slice()
+        return t
+    }
 
     /** `StencilTableReal(numControlVerts, offsets, sizes, sources, weights, includeCoarseVerts, firstOffset)` (`stencilTable.cpp:30-118`). */
     static fromBuilder(numControlVerts: number, offsets: number[], sizes: number[], sources: number[], weights: number[],
@@ -214,5 +252,68 @@ export function createStencilTable(refiner: TopologyRefiner, options: StencilTab
     if (!options.generateIntermediateLevels) firstOffset = srcIndex.getOffset()
     const result = StencilTable.fromBuilder(numControlVertices, builder.getStencilOffsets(), builder.getStencilSizes(), builder.getStencilSources(),
         builder.getStencilWeights(), options.generateControlVerts, firstOffset)
+    return result
+}
+
+/**
+ * `StencilTableFactoryReal<float>::appendLocalPointStencilTable` (`stencilTableFactory.cpp:241`), with the
+ * `AppendLocalPointStencilTable` (channel -1) and `AppendLocalPointStencilTableFaceVarying` entry points: the base
+ * stencils, then the local points' stencils factorized onto the control points. Undefined when there are no local
+ * points.
+ */
+export function appendLocalPointStencilTable(refiner: TopologyRefiner, baseStencilTable: StencilTable | undefined,
+    localPointStencilTable: StencilTable | undefined, channel = -1, factorize = true): StencilTable | undefined {
+    if (!localPointStencilTable || localPointStencilTable.getNumStencils() === 0) return undefined
+    const nControlVerts = channel < 0 ? refiner.getLevel(0).getNumVertices() : refiner.getLevel(0).getNumFVarValues(channel)
+    if (!baseStencilTable || baseStencilTable.getNumStencils() === 0) {
+        const result = localPointStencilTable.clone()
+        result.numControlVertices = nControlVerts
+        return result
+    }
+    let controlVertsIndexOffset = 0
+    const nBaseStencils = baseStencilTable.getNumStencils()
+    const nBaseStencilsElements = baseStencilTable.indices.length
+    {
+        const nverts = channel < 0 ? refiner.getNumVerticesTotal() : refiner.getNumFVarValuesTotal(channel)
+        if (nBaseStencils === nverts) controlVertsIndexOffset = 0
+        else if (nBaseStencils === nverts - nControlVerts) controlVertsIndexOffset = nControlVerts
+        else throw new Error('StencilTableFactory::appendLocalPointStencilTable: the base stencils do not match the refiner')
+    }
+    const nLocalPointStencils = localPointStencilTable.getNumStencils()
+    let nLocalPointStencilsElements = 0
+    const builder = new StencilBuilder(nControlVerts, false, factorize)
+    const origin = new StencilIndex(builder, 0)
+    for (let i = 0; i < nLocalPointStencils; ++i) {
+        const src = localPointStencilTable.getStencil(i)
+        const dst = origin.at(i)
+        for (let j = 0; j < src.size; ++j) {
+            const index = localPointStencilTable.indices[src.offset + j]
+            const weight = localPointStencilTable.weights[src.offset + j]
+            if (weight === 0) continue
+            if (factorize) {
+                dst.addWithWeightStencil(baseStencilTable.getStencil(index - controlVertsIndexOffset), weight)
+            } else {
+                dst.addWithWeight(origin.at(index + controlVertsIndexOffset), weight)
+            }
+        }
+        nLocalPointStencilsElements += builder.getNumVertsInStencil(i)
+    }
+    const result = new StencilTable()
+    result.numControlVertices = nControlVerts
+    result.sizes = baseStencilTable.sizes.slice(0, nBaseStencils)
+    result.indices = baseStencilTable.indices.slice(0, nBaseStencilsElements)
+    const weights = Array.from(baseStencilTable.weights.subarray(0, nBaseStencilsElements))
+    for (let i = 0; i < nLocalPointStencils; ++i) {
+        const size = builder.getNumVertsInStencil(i)
+        const idx = builder.getStencilOffsets()[i]
+        for (let j = 0; j < size; ++j) {
+            result.indices.push(builder.getStencilSources()[idx + j])
+            weights.push(builder.getStencilWeights()[idx + j])
+        }
+        result.sizes.push(size)
+    }
+    if (result.indices.length !== nBaseStencilsElements + nLocalPointStencilsElements) throw new Error('appendLocalPointStencilTable: size mismatch')
+    result.weights = Float32Array.from(weights)
+    result.generateOffsets()
     return result
 }

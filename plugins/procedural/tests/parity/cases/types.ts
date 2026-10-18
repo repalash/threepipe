@@ -49,6 +49,11 @@ export interface ParityCase {
     materials?: string[]
     /** Images `run_cases.py` creates before building the node groups ({"_ref": "IMAGE"}). */
     images?: CaseImage[]
+    /**
+     * A per-test timeout in ms for cases that are heavy by nature (the default is the suite's 20 s), with the reason
+     * next to the case. Only the TypeScript side reads it.
+     */
+    timeoutMs?: number
     /** The modified object's transform. */
     location?: Vec3
     rotation?: Vec3

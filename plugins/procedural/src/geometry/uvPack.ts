@@ -630,6 +630,13 @@ class Occupancy {
     readonly bitmapRadix = 800
     bitmapScaleReciprocal = 1
     private readonly bitmap: Float32Array
+    /**
+     * Per bitmap row, the range of columns a write has touched (`rowMin > rowMax` when none). Every other pixel still
+     * holds `terminal`, which a read always skips (`*hotspot > epsilon`), so reads visit only this range - the same
+     * pixels in the same order that matter, without walking the empty ones (13e9 skipped pixels in `pack-convex`).
+     */
+    private readonly rowMin: Int32Array
+    private readonly rowMax: Int32Array
     private witnessX = -1
     private witnessY = -1
     private witnessDistance = 0
@@ -638,6 +645,8 @@ class Occupancy {
 
     constructor(initialScale: number) {
         this.bitmap = new Float32Array(this.bitmapRadix * this.bitmapRadix)
+        this.rowMin = new Int32Array(this.bitmapRadix)
+        this.rowMax = new Int32Array(this.bitmapRadix)
         this.increaseScale()
         this.bitmapScaleReciprocal = f32(this.bitmapRadix / initialScale)
     }
@@ -649,6 +658,8 @@ class Occupancy {
 
     clear(): void {
         this.bitmap.fill(this.terminal)
+        this.rowMin.fill(this.bitmapRadix)
+        this.rowMax.fill(-1)
         this.witnessX = -1
         this.witnessY = -1
         this.witnessDistance = 0
@@ -696,7 +707,15 @@ class Occupancy {
         for (let y = iy1 - 1; y >= iy0; y--) {
             const row = y * radix
             const d0y = fr(y - s0y), d1y = fr(y - s1y), d2y = fr(y - s2y)
-            for (let x = ix1 - 1; x >= ix0; x--) {
+            let xStart = ix1 - 1, xEnd = ix0
+            if (write) {
+                if (ix0 < this.rowMin[y]) this.rowMin[y] = ix0
+                if (ix1 - 1 > this.rowMax[y]) this.rowMax[y] = ix1 - 1
+            } else {
+                if (this.rowMax[y] < xStart) xStart = this.rowMax[y]
+                if (this.rowMin[y] > xEnd) xEnd = this.rowMin[y]
+            }
+            for (let x = xStart; x >= xEnd; x--) {
                 const h = row + x
                 const hot = bitmap[h]
                 if (!write && hot > epsilon) continue

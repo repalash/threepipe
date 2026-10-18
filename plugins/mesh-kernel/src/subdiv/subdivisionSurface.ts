@@ -4,19 +4,16 @@
  * on the OpenSubdiv port (`osd/`) and `subdiv_to_mesh` at resolution `(1 << levels) + 1`. The output is in Blender's
  * `subdiv_foreach` order with Blender's attribute interpolation; loose edges and vertices are kept.
  *
- * Without the limit surface the uniform refinement is OpenSubdiv's float stencil pipeline, bit-exact with Blender.
- * With it (`is_adaptive`, refined to `quality`) the patches are evaluated by the double adaptive evaluator
- * (`limitEvaluator.ts`) until the float port (`issues/open/modelling-tools/15e-one-subdivision-port.md` phase 2).
+ * Everything runs in float as Blender's CPU evaluator does: uniform refinement through stencils, and the limit
+ * surface (`is_adaptive`, refined to `quality`) through adaptive refinement, B-spline and Gregory patches with their
+ * local points (`issues/open/modelling-tools/15e-one-subdivision-port.md`).
  */
 import {MeshData} from '../MeshData'
 import {fvarInterpolationFromUvSmooth, subdivNewFromMesh, SubdivSettings, vtxBoundaryInterpolationFromSubsurf} from './bke/subdiv'
 import {subdivToMesh} from './bke/subdivMesh'
 import type {SubdivBoundarySmooth, SubdivUVSmooth} from './options'
 
-export {fvarInterpolationFromUVSmooth} from './options'
 export type {SubdivBoundarySmooth, SubdivUVSmooth} from './options'
-export {createSubdivLimitEvaluator} from './limitEvaluator'
-export type {SubdivLimitEvaluator, SubdivLimitEvaluatorOptions} from './limitEvaluator'
 
 export interface SubdivisionSurfaceOptions {
     /** Subdivision levels. Default 1. */

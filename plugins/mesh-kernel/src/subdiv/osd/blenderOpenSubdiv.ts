@@ -7,16 +7,17 @@
  * - `internal/evaluator/evaluator_impl.cc` (`openSubdiv_createEvaluatorFromTopologyRefiner`, `EvalOutputAPI`),
  * - `internal/evaluator/eval_output.h` (`VolatileEvalOutput`, `FaceVaryingVolatileEval`) for the CPU evaluator
  *   (`eval_output_cpu.h`).
- * The OpenSubdiv code it drives is ported under this folder (TOST-1.0, see `OPENSUBDIV-LICENSE.txt` in this folder).
- * Only uniform refinement is ported: adaptive refinement (`is_adaptive`, used by the Subdivision Surface modifier and
- * node) throws.
+ * The OpenSubdiv code it drives is ported under this folder (TOST-1.0, see `OPENSUBDIV-LICENSE.txt` in this folder):
+ * uniform refinement (Subdivide Mesh, Simple) and adaptive refinement with Gregory end caps (the limit surface of the
+ * Subdivision Surface modifier and node).
  */
 
 import {cpuEvalPatches, cpuEvalStencils, CpuPatchTable, PatchCoord, PatchHandle} from './osdCpu'
-import {createPatchTable, PatchTable, PatchType, patchNumControlVertices, patchTableOptions} from './patchTable'
+import {EndCapType, PatchTable, PatchType, patchNumControlVertices, patchTableOptions} from './patchTable'
+import {createPatchTable} from './patchTableFactory'
 import {FVarLinearInterpolation, Options, SchemeType, SHARPNESS_INFINITE, VtxBoundaryInterpolation, CreasingMethod} from './sdc'
-import {createStencilTable, InterpolationMode, StencilTable, stencilTableOptions} from './stencilTable'
-import {TopologyRefiner, TopologyRefinerFactory, TopologyRefinerFactoryMesh, uniformOptions} from './topologyRefiner'
+import {appendLocalPointStencilTable, createStencilTable, InterpolationMode, StencilTable, stencilTableOptions} from './stencilTable'
+import {adaptiveOptions, TopologyRefiner, TopologyRefinerFactory, TopologyRefinerFactoryMesh, uniformOptions} from './topologyRefiner'
 import {INDEX_INVALID} from './vtrTypes'
 
 /**
@@ -286,6 +287,12 @@ export class PatchMap {
 
 // region evaluator_impl.cc / eval_output.h
 
+/** `is_adaptive(CpuPatchTable)` (`eval_output.cc:10`): `PatchDescriptor::IsAdaptive` of the first patch array. */
+function isAdaptive(patchTable: CpuPatchTable): boolean {
+    const t = patchTable.patchArrays[0].regType
+    return t >= PatchType.LOOP
+}
+
 /** `FaceVaryingVolatileEval` (`eval_output.h:186`) with the CPU evaluator. */
 class FaceVaryingVolatileEval {
     readonly numCoarseFaceVaryingVertices: number
@@ -312,9 +319,10 @@ class FaceVaryingVolatileEval {
 
     /** `evalPatches` (:243). */
     evalPatches(coords: PatchCoord[], out: Float32Array): void {
-        // `get_src_varying_desc` (:285): uniform tables index face-varying values from the first refined value.
+        // `get_src_varying_desc` (:285): uniform tables index face-varying values from the first refined value;
+        // adaptive ones (`is_adaptive`, `eval_output.cc:10`: the first patch array's type is adaptive) from the coarse ones.
         const srcDesc = {...this.srcFaceVaryingDesc}
-        srcDesc.offset += this.numCoarseFaceVaryingVertices * this.srcFaceVaryingDesc.stride
+        if (!isAdaptive(this.patchTable)) srcDesc.offset += this.numCoarseFaceVaryingVertices * this.srcFaceVaryingDesc.stride
         const t = this.patchTable
         // `CpuEvaluator::EvalPatchesFaceVarying` (`cpuEvaluator.h:1019`).
         cpuEvalPatches(this.srcFaceVaryingData, srcDesc, out, {offset: 0, length: 2, stride: 2}, coords,
@@ -427,13 +435,20 @@ export function createEvaluatorFromTopologyRefiner(topologyRefiner: TopologyRefi
     const isAdaptive = topologyRefiner.settings.isAdaptive
     const stencilGenerateIntermediateLevels = isAdaptive
     const stencilGenerateOffsets = true
-    if (isAdaptive) throw new Error('OpenSubdiv: adaptive refinement (TopologyRefiner::RefineAdaptive) is not ported')
-    refiner.refineUniform(uniformOptions(level))
+    const useInfSharpPatch = true
+    if (isAdaptive) {
+        const options = adaptiveOptions(level)
+        options.considerFVarChannels = hasFaceVaryingData
+        options.useInfSharpPatch = useInfSharpPatch
+        refiner.refineAdaptive(options)
+    } else {
+        refiner.refineUniform(uniformOptions(level))
+    }
 
     const vertexOptions = stencilTableOptions()
     vertexOptions.generateOffsets = stencilGenerateOffsets
     vertexOptions.generateIntermediateLevels = stencilGenerateIntermediateLevels
-    const vertexStencils = createStencilTable(refiner, vertexOptions)
+    let vertexStencils = createStencilTable(refiner, vertexOptions)
 
     const allFaceVaryingStencils: StencilTable[] = []
     for (let channel = 0; channel < numFaceVaryingChannels; ++channel) {
@@ -446,15 +461,24 @@ export function createEvaluatorFromTopologyRefiner(topologyRefiner: TopologyRefi
     }
 
     // `PatchTableFactory::Options patch_options(level)`, ENDCAP_GREGORY_BASIS, `useInfSharpPatch`, FVar tables,
-    // no legacy linear FVar patches. A uniform table has no local points, so the `Append*LocalPointStencilTable*`
-    // calls (:508-541) return the stencil tables unchanged.
+    // no legacy linear FVar patches.
     const patchOptions = patchTableOptions(level)
-    patchOptions.useInfSharpPatch = true
+    patchOptions.endCapType = EndCapType.GREGORY_BASIS
+    patchOptions.useInfSharpPatch = useInfSharpPatch
     patchOptions.generateFVarTables = hasFaceVaryingData
     patchOptions.generateFVarLegacyLinearPatches = false
     const patchTable = createPatchTable(refiner, patchOptions)
-    if (patchTable.getLocalPointStencilTable() !== undefined) throw new Error('OpenSubdiv: local point stencils are not ported')
-    if (patchTable.patchArrays.some(a => a.type !== PatchType.QUADS)) throw new Error('OpenSubdiv: only uniform QUADS patch tables are ported')
+    // Append the local points' stencils (:508-541); no varying data.
+    const localPointStencilTable = patchTable.getLocalPointStencilTable()
+    if (localPointStencilTable) {
+        const table = appendLocalPointStencilTable(refiner, vertexStencils, localPointStencilTable)
+        if (!table) throw new Error('OpenSubdiv evaluator: appending the local point stencils failed')
+        vertexStencils = table
+    }
+    for (let channel = 0; channel < numFaceVaryingChannels; ++channel) {
+        const table = appendLocalPointStencilTable(refiner, allFaceVaryingStencils[channel], patchTable.getLocalPointFaceVaryingStencilTable(channel), channel)
+        if (table) allFaceVaryingStencils[channel] = table
+    }
 
     // `face_varying_width = 2` (`evaluator_impl.cc:545`).
     const evalOutput = new CpuEvalOutput(vertexStencils, allFaceVaryingStencils, 2, patchTable)

@@ -624,8 +624,11 @@ One subdivision port (approved 15:30, item 4): `15e-one-subdivision-port.md`.
   - every case has Blender's order: vertex, edge and face i match Blender's;
   - the 7 uniform cases (no limit surface) are bit-exact;
   - the 27 limit-surface cases are within 1e-6 or 4 ulps, until the float adaptive port (15e phase 2).
-- Still to do: 15e phase 2, the exact limit surface (`RefineAdaptive`, the patch tables and Gregory end caps in
-  float).
+- 15e phase 2 is also done: the limit surface is ported in float (adaptive refinement, B-spline and Gregory patches,
+  local points).
+  - Kernel `subsurf-parity`: 34/34 bit-exact.
+  - Procedural `subdivSurface`: every limit case is exact.
+  - The double subdivision modules are deleted.
 
 **Update 2026-10-18 14:30 (acceptance):**
 - Node coverage: 232 of the 319 geometry and function node types in Blender 5.2.2's inventory are ported, counting
@@ -694,6 +697,8 @@ bundles are local, see below). e2e: `tests/procedural.spec.ts`.
   stack there and add adaptive refinement to it. The GN Subdivision Surface node then calls it.
 - Vertex groups (`procedural-vertex-groups.md`) and single-value attributes (`procedural-single-value-attribute-
   storage.md`): two kernel data-model additions that exact parity needs.
-- Asset bundles are derived from third-party .blend files (Buildify, flower/pebble scatter, candy bounce): they
-  stay out of git (`tmp/bundles`) until their licences and hosting are decided ([A6]); the flower bundle is 40 MB.
+- Asset licences are decided (2026-10-18): the maintainer cleared the six third-party .blend files for commercial and
+  non-commercial use. Sources, authors and exact licences are in `plugins/procedural/tests/fixtures/ASSETS.md`.
+  - The .blend files (about 60 MB) and the large bundles stay out of git; tests skip without them.
+  - Small derived dumps go in git, gzipped. The first is the flower v1 dump, 16 KB.
 - Eigen (float4x4 interpolate / invert / determinant): licence decision in `procedural-eigen-port-licence.md`.

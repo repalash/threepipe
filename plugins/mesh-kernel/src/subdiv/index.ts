@@ -1,7 +1,6 @@
 // Public surface of the OpenSubdiv port; the Sdc / Vtr / Far internals stay module-private.
-export {subdivisionSurface, subdivisionSurfaceEvaluate, fvarInterpolationFromUVSmooth, createSubdivLimitEvaluator} from './subdivisionSurface'
-export type {SubdivisionSurfaceOptions, SubdivisionResult, SubdivBoundarySmooth, SubdivUVSmooth, SubdivLimitEvaluator, SubdivLimitEvaluatorOptions} from './subdivisionSurface'
-export {creaseToSharpness} from './refiner'
+export {subdivisionSurface, subdivisionSurfaceEvaluate} from './subdivisionSurface'
+export type {SubdivisionSurfaceOptions, SubdivisionResult, SubdivBoundarySmooth, SubdivUVSmooth} from './subdivisionSurface'
 // Blender's `bke::subdiv` on the OpenSubdiv float pipeline (`bke/`, `osd/`): Blender's output order and attribute
 // interpolation, used by the geometry-nodes Subdivide Mesh / Subdivision Surface nodes.
 export {

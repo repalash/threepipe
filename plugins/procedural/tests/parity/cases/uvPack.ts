@@ -30,8 +30,13 @@ export function uvPackCases(): ParityCase[] {
     for (const method of ['Bounding Box', 'Convex Hull', 'Exact Shape'] as const) {
         for (const rotate of [true, false]) {
             const m = method.split(' ')[0].toLowerCase()
-            add(`pack-${m}${rotate ? '' : '-norotate'}`, `Pack UV Islands (${method}${rotate ? ', rotate' : ''}) of five disjoint pieces with an n-gon, a fan and a hole`, {},
-                () => packed(pieces(), {method, rotate}))
+            // Heavy by nature with rotation: xatlas packing (`pack_island_xatlas`) on an 800 x 800 occupancy bitmap
+            // grows the scale 8 times; `pack-convex` evaluates the fat-triangle distance about 1.1e9 times in about
+            // 220000 `trace_triangle` calls, the same work as Blender's algorithm. That takes 10 s alone and up to 30 s
+            // when other suites run in parallel.
+            const heavy = rotate && method !== 'Bounding Box'
+            add(`pack-${m}${rotate ? '' : '-norotate'}`, `Pack UV Islands (${method}${rotate ? ', rotate' : ''}) of five disjoint pieces with an n-gon, a fan and a hole`,
+                heavy ? {timeoutMs: 90000} : {}, () => packed(pieces(), {method, rotate}))
         }
     }
     add('pack-bounds-margin', 'Pack UV Islands into custom bounds (aspect 2) with a large margin', {}, () =>
