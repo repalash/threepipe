@@ -1,0 +1,77 @@
+
+> threepipe@0.5.1 modelling:session
+> node scripts/modelling-session.mjs demos/stair/build.mjs --out /tmp/stair-out/full --port 9373 --url http://127.0.0.1:9373/examples/modelling-api/index.html --no-serve --width 1000 --height 700 --command-timeout 600000
+
+opening http://127.0.0.1:9373/examples/modelling-api/index.html
+running demos/stair/build.mjs
+  stair: 12 treads a turn, 2 turns, rise 8.00"
+  📷 001-column-one-lathe.png  column, one lathe
+  📷 002-tread-blank-on-the-polar-grid.png  tread blank on the polar grid
+  📷 003-tread-pierced-solidified-openings-rounded.png  tread pierced, solidified, openings rounded
+  📷 004-one-tread-with-its-collar.png  one tread with its collar
+  📷 005-the-array-grows-the-flight-2-treads.png  the array grows the flight: 2 treads
+  📷 006-the-array-grows-the-flight-4-treads.png  the array grows the flight: 4 treads
+  📷 007-the-array-grows-the-flight-8-treads.png  the array grows the flight: 8 treads
+  📷 008-the-array-grows-the-flight-12-treads.png  the array grows the flight: 12 treads
+  📷 009-the-array-grows-the-flight-23-treads.png  the array grows the flight: 23 treads
+  📷 010-balusters-landing-and-handrail.png  balusters, landing and handrail
+    ok   stair diameter (outside of the treads), x: 1.3462 m (reference 1.3462, 0.00%)
+    ok   stair diameter (outside of the treads), z: 1.3462 m (reference 1.3462, 0.00%)
+    ok   floor to landing (top of the landing plate): 4.8768 m (reference 4.8768, 0.00%)
+    ok   risers per full turn (tread copies + landing, / turns): 12.0000 treads (reference 12.0000, 0.00%)
+    ok   rise per step (catalogue 8" at 12 a turn): 0.2032 m (reference 0.2032, 0.00%)
+    ok   handrail centre above the first tread (spindle + half the bar): 0.8572 m (reference 0.8572, 0.00%)
+    ok   balcony spindle height above the landing: 0.8509 m (reference 0.8509, 0.00%)
+    ok   column above the landing (newel): 0.9398 m (reference 0.9398, 0.00%)
+  arcade: 4 bays of 14.25 ft
+    arch: span 3.441 m, rise 2.771 m, radius 3.091 m, centres 1.370 m past the middle
+  📷 011-one-pointed-arch-two-arcs-solidified-mirrored.png  one pointed arch: two arcs, solidified, mirrored
+    ok   arch: floor to the intrados at the crown (as built): 9.2751 m (reference 9.2751, 0.00%)
+    ok   arch: intrados span at the springing: 3.4412 m (reference 3.4412, 0.00%)
+  📷 012-the-ring-bevelled-into-a-moulding.png  the ring bevelled into a moulding
+  📷 013-spandrel-and-a-loop-cut-string-course.png  spandrel and a loop-cut string course
+  📷 014-a-clustered-pier-lathes-a-radial-array-a-bridged.png  a clustered pier: lathes, a radial array, a bridged necking
+    ok   pier: across the clustered shafts: 0.8169 m (reference 0.8169, 0.00%)
+    ok   pier: floor to the top of the capital (springing): 6.5044 m (reference 6.5044, 0.00%)
+    ok   vault: floor to the crown (aisle ceiling, sheet 7): 9.6774 m (reference 9.6774, 0.00%)
+  📷 015-the-arcade-grows-by-array-1-bay.png  the arcade grows by array: 1 bay
+  📷 016-the-arcade-grows-by-array-2-bays.png  the arcade grows by array: 2 bays
+  📷 017-the-arcade-grows-by-array-3-bays.png  the arcade grows by array: 3 bays
+  📷 018-the-arcade-grows-by-array-4-bays.png  the arcade grows by array: 4 bays
+  📷 019-mirrored-across-the-aisle-the-far-arcade-vaulted.png  mirrored across the aisle: the far arcade, vaulted between
+    ok   arcade: pier centre to pier centre (from the arrayed piers): 4.3434 m (reference 4.3434, 0.00%)
+    ok   arcade: aisle, pier centre to pier centre across (mirror): 4.6025 m (reference 4.6025, 0.00%)
+  📷 020-live-3-bays-from-the-same-masters.png  live: 3 bays from the same masters
+  📷 021-live-5-bays-from-the-same-masters.png  live: 5 bays from the same masters
+  📷 022-orthographic-over-habs-sheet-8-at-its-scale-bar.png  orthographic, over HABS sheet 8 at its scale bar
+  📷 023-orthographic-model-only.png  orthographic, model only
+  📷 024-hero-the-stair.png  hero: the stair
+  📷 025-hero-the-arcade.png  hero: the arcade
+  📷 026-hero-both-pieces.png  hero: both pieces
+  📷 027-inside-the-aisle-under-the-ribs.png  inside the aisle, under the ribs
+  📷 028-looking-up-the-stair-from-its-foot.png  looking up the stair from its foot
+  📷 029-detail-treads-collars-and-balusters.png  detail: treads, collars and balusters
+  📷 030-wireframe-the-stair.png  wireframe: the stair
+  📷 031-wireframe-the-arcade.png  wireframe: the arcade
+  📷 032-x-ray-the-stair.png  x-ray: the stair
+  📷 033-x-ray-the-arcade.png  x-ray: the arcade
+  📷 034-hero-both-pieces-final.png  hero: both pieces (final)
+  REPORT {"params":{"TREADS_PER_TURN":12,"TURNS":2,"BAYS":4,"RISE":0.20319999999999996,"FLOOR_TO_LANDING":4.876799999999999},"checks":[{"what":"stair diameter (outside of the treads), x","got":1.3462,"want":1.3462,"err":0,"ok":true,"unit":"m"},{"what":"stair diameter (outside of the treads), z","got":1.3462,"want":1.3462,"err":0,"ok":true,"unit":"m"},{"what":"floor to landing (top of the landing plate)","got":4.8768,"want":4.8768,"err":0,"ok":true,"unit":"m"},{"what":"risers per full turn (tread copies + landing, / turns)","got":12,"want":12,"err":0,"ok":true,"unit":"treads"},{"what":"rise per step (catalogue 8\" at 12 a turn)","got":0.2032,"want":0.2032,"err":0,"ok":true,"unit":"m"},{"what":"handrail centre above the first tread (spindle + half the bar)","got":0.8572,"want":0.8572,"err":0,"ok":true,"unit":"m"},{"what":"balcony spindle height above the landing","got":0.8509,"want":0.8509,"err":0,"ok":true,"unit":"m"},{"what":"column above the landing (newel)","got":0.9398,"want":0.9398,"err":0,"ok":true,"unit":"m"},{"what":"arch: floor to the intrados at the crown (as built)","got":9.2751,"want":9.2751,"err":0,"ok":true,"unit":"m"},{"what":"arch: intrados span at the springing","got":3.4412,"want":3.4412,"err":0,"ok":true,"unit":"m"},{"what":"pier: across the clustered shafts","got":0.8169,"want":0.8169,"err":0,"ok":true,"unit":"m"},{"what":"pier: floor to the top of the capital (springing)","got":6.5044,"want":6.5044,"err":0,"ok":true,"unit":"m"},{"what":"vault: floor to the crown (aisle ceiling, sheet 7)","got":9.6774,"want":9.6774,"err":0,"ok":true,"unit":"m"},{"what":"arcade: pier centre to pier centre (from the arrayed piers)","got":4.3434,"want":4.3434,"err":0,"ok":true,"unit":"m"},{"what":"arcade: aisle, pier centre to pier centre across (mirror)","got":4.6025,"want":4.6025,"err":0,"ok":true,"unit":"m"}],"topology":[{"name":"column","verts":410,"edges":840,"faces":432,"quads":384,"tris":48,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":410},{"name":"tread","verts":1072,"edges":2276,"faces":1166,"quads":526,"tris":480,"ngons":160,"boundary":48,"nonManifold":0,"modifiers":["array radial ×23, 690° about [0, 1, 0], step [0, 0.20319999999999996, 0]"],"evaluatedVerts":24656},{"name":"baluster","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array radial ×23, 690° about [0, 1, 0], step [0, 0.20319999999999996, 0]"],"evaluatedVerts":3036},{"name":"landing","verts":226,"edges":512,"faces":256,"quads":256,"tris":0,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":226},{"name":"balcony-a","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×6, step [0.07030836227193019, 0, -0.11181171939756145]"],"evaluatedVerts":792},{"name":"balcony-b","verts":132,"edges":270,"faces":140,"quads":120,"tris":20,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×6, step [-0.11181171939756145, 0, -0.07030836227193019]"],"evaluatedVerts":792},{"name":"handrail","verts":1116,"edges":2220,"faces":1106,"quads":1104,"tris":0,"ngons":2,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":1116},{"name":"landing-rail","verts":36,"edges":60,"faces":26,"quads":24,"tris":0,"ngons":2,"boundary":0,"nonManifold":0,"modifiers":[],"evaluatedVerts":36},{"name":"arc-arch","verts":1776,"edges":3552,"faces":1779,"quads":1770,"tris":8,"ngons":1,"boundary":0,"nonManifold":16,"modifiers":["array linear ×4, step [4.3434, 0, 0]","mirror z"],"evaluatedVerts":14196},{"name":"arc-spandrel","verts":68,"edges":132,"faces":66,"quads":66,"tris":0,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×4, step [4.3434, 0, 0]","mirror z"],"evaluatedVerts":520},{"name":"arc-course","verts":16,"edges":28,"faces":14,"quads":14,"tris":0,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×4, step [4.3434, 0, 0]","mirror z"],"evaluatedVerts":80},{"name":"arc-pier","verts":977,"edges":2064,"faces":1080,"quads":888,"tris":192,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×5, step [4.3434, 0, 0]","mirror z"],"evaluatedVerts":9770},{"name":"arc-vault","verts":338,"edges":672,"faces":336,"quads":336,"tris":0,"ngons":0,"boundary":0,"nonManifold":0,"modifiers":["array linear ×4, step [4.3434, 0, 0]"],"evaluatedVerts":1286},{"name":"arc-rib-diagonal","verts":348,"edges":684,"faces":340,"quads":336,"tris":0,"ngons":4,"boundary":0,"nonManifold":0,"modifiers":["array linear ×4, step [4.3434, 0, 0]"],"evaluatedVerts":1392},{"name":"arc-rib-transverse","verts":174,"edges":342,"faces":170,"quads":168,"tris":0,"ngons":2,"boundary":0,"nonManifold":0,"modifiers":["array linear ×5, step [4.3434, 0, 0]"],"evaluatedVerts":870},{"name":"arc-floor","verts":4,"edges":4,"faces":1,"quads":1,"tris":0,"ngons":0,"boundary":4,"nonManifold":0,"modifiers":[],"evaluatedVerts":4},{"name":"stair-floor","verts":48,"edges":48,"faces":1,"quads":0,"tris":0,"ngons":1,"boundary":48,"nonManifold":0,"modifiers":[],"evaluatedVerts":48}]}
+  💾 /tmp/stair-out/glb/stair.glb  4064524 bytes
+  💾 /tmp/stair-out/glb/arcade.glb  3659340 bytes
+  after the exports and undos: 17 objects (arc-arch, arc-spandrel, arc-course, arc-pier, arc-vault, arc-rib-diagonal, arc-rib-transverse, column, tread, baluster, landing, balcony-a, balcony-b, handrail, landing-rail, arc-floor, stair-floor)
+  selftest: 17 objects, 0 failed
+
+{
+  "url": "http://127.0.0.1:9373/examples/modelling-api/index.html",
+  "build": "demos/stair/build.mjs",
+  "commands": 260,
+  "failed": 0,
+  "captures": 34,
+  "medianMs": 0.8,
+  "p90Ms": 139.1,
+  "maxMs": 1500.3,
+  "pageErrors": []
+}
+
+transcript and captures: /tmp/stair-out/full

@@ -1,5 +1,5 @@
 /**
- * Write `demos/stair/index.html` from the session logs in `demos/stair/runs/` and the images in
+ * Write `demos/stair/index.html` from the session logs (`demos/stair/runs/*.txt`, the session's stdout) and the images in
  * `demos/stair/shots/`. Every number on the page is read from a log line the build printed (its
  * `REPORT {...}` line and its check lines), so the page cannot drift from the runs it describes.
  *
@@ -14,7 +14,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const shots = (await readdir(join(here, 'shots'))).filter(f => f.endsWith('.jpg')).sort()
 
 async function report(run) {
-    const text = await readFile(join(here, 'runs', run + '.log'), 'utf8')
+    const text = await readFile(join(here, 'runs', run + '.txt'), 'utf8')
     const line = text.split('\n').find(l => l.includes('REPORT {'))
     const summary = text.slice(text.lastIndexOf('\n{')).match(/"commands": (\d+),\s*"failed": (\d+)/)
     return {
