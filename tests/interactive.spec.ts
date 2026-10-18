@@ -5972,11 +5972,11 @@ test('modelling-editor-menus', async({page}) => {
     await expect(entry('VIEW3D_MT_mesh_add', 'Cube')).toHaveAttribute('aria-disabled', 'true')
     await expect(entry('VIEW3D_MT_mesh_add', 'Cube')).toHaveAttribute('title', /Not available yet: adding a primitive into the mesh being edited/)
     await closeHeaderMenu('Add', 'VIEW3D_MT_mesh_add')
-    // UV: none of it exists yet, and it says so.
+    // UV: only Mark / Clear Seam exist yet (the edge flag); the unwraps and projections say they do not.
     await header('UV').click()
-    const uvDisabled = await menu('VIEW3D_MT_uv_map').locator('[data-menu-label]').evaluateAll(els => els.map(e => e.getAttribute('aria-disabled')))
-    expect(uvDisabled.length).toBeGreaterThan(10)
-    expect(uvDisabled.every(d => d === 'true')).toBe(true)
+    const uvEntries = await menu('VIEW3D_MT_uv_map').locator('[data-menu-label]').evaluateAll(els => els.map(e => [(e as HTMLElement).dataset.menuLabel, e.getAttribute('title') ?? '']))
+    expect(uvEntries.length).toBeGreaterThan(10)
+    expect(uvEntries.filter(([, t]) => !/^Not available yet/.test(t)).map(([l]) => l)).toEqual(['Mark Seam', 'Clear Seam'])
     await closeHeaderMenu('UV', 'VIEW3D_MT_uv_map')
 
     // Select > All.
@@ -6022,9 +6022,9 @@ test('modelling-editor-menus', async({page}) => {
     await page.keyboard.up('Shift')
     await expect.poll(async() => (await state()).sel).toEqual([2, 0, 0])
     await header('Vertex').click()
-    // Extrude Vertices (`extrude_vert_indiv`) is not ported yet: shown, disabled, and it says so.
-    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices')).toHaveAttribute('aria-disabled', 'true')
-    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices')).toHaveAttribute('title', /Not available yet/)
+    // Extrude Vertices is there (`MESH_OT_extrude_vertices_move`); Rip is not, and says so.
+    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices')).not.toHaveAttribute('aria-disabled', 'true')
+    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Rip Vertices')).toHaveAttribute('title', /Not available yet/)
     await entry('VIEW3D_MT_edit_mesh_vertices', 'Connect Vertex Path').click()
     await expect.poll(async() => (await state()).counts).toEqual([8, 13, 7])
     expect((await state()).lastOp).toBe('mesh.vert_connect_path')
@@ -6267,4 +6267,331 @@ test('modelling-edit-normals', async({page}) => {
     const [below, extruded, topColour] = await colourAt(pts)
     for (let k = 0; k < 3; k++) expect(Math.abs(below[k] - extruded[k])).toBeLessThan(12)
     expect(Math.abs(topColour[0] - below[0]) + Math.abs(topColour[1] - below[1]) + Math.abs(topColour[2] - below[2])).toBeGreaterThan(15)
+})
+
+test('modelling-editor-ops', async({page}) => {
+    // The edit-mode operators that port Blender's MESH_OT_* over the kernel (poke, triangulate, beautify,
+    // wireframe, solidify, the extrude macros, seams, sharp edges, edge split, normals, merge, collapse,
+    // rotate edge, delete loose, degenerate dissolve, fill, select more/less, shrink/fatten, spin,
+    // separate), each through its menu entry or key, on the editor's cube (Blender's default cube, half size: corners at +-0.5). Counts are Blender
+    // 5.2.2's for the same input (mesh-kernel tests/fixtures/editmesh-tools.json) or follow from the
+    // operator's definition where noted.
+    test.setTimeout(600000)
+    await expect(page).toHaveTitle('Modelling Editor Ops')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+    await page.waitForTimeout(300)
+
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        const faces = bm ? [...bm.faces] as any[] : []
+        // Faces whose stored normal points away from the cube's centre (the origin).
+        const outward = faces.filter(f => {
+            const vs = [...f.eachLoop()].map((l: any) => l.v)
+            const c = vs.reduce((a: number[], v: any) => [a[0] + v.x, a[1] + v.y, a[2] + v.z], [0, 0, 0])
+            return c[0] * f.nx + c[1] * f.ny + c[2] * f.nz > 0
+        }).length
+        const edges = bm ? [...bm.edges] as any[] : []
+        return {
+            mode: e.mode as string,
+            objects: e.stats().objects as number,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            seams: edges.filter(x => x.hflag & 4).length,
+            sharp: edges.filter(x => !(x.hflag & 8)).length,
+            outward,
+            maxY: bm ? Math.max(...[...bm.verts].map((v: any) => v.y)) : 0,
+            transform: !!e.meshEdit.activeTransform,
+            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
+            lastProps: (e.lastOperation?.props ?? null) as any,
+            history: e.history.entries().filter((x: any) => !x.undone).map((x: any) => x.label) as string[],
+        }
+    })
+    const shot = async(name: string) => {
+        await page.waitForFunction(() => !document.querySelector('[class*="-enter-active"], [class*="-exit-active"]'))
+        await page.screenshot({path: `tmp/ops/${name}.png`})
+    }
+    const header = (label: string) => page.locator(`[role="menubar"] [data-menu="${label}"]`)
+    const menu = (id: string) => page.locator(`ul[data-menu-id="${id}"]`)
+    const entry = (id: string, label: string) => menu(id).locator(`[data-menu-label="${label}"]`)
+    // A menu a key opened (`wm.call_menu`) is the popup at the pointer.
+    const popMenu = (id: string) => page.locator(`.me-popup-menu[data-menu-id="${id}"]`)
+    const popEntry = (id: string, label: string) => popMenu(id).locator(`[data-menu-label="${label}"]`)
+    const hoverSub = async(parent: string, label: string, sub: string) => {
+        await entry(parent, label).hover()
+        await expect(menu(sub)).toBeVisible()
+    }
+    /** A header menu's entry (through submenus `path`), clicked. */
+    const fromHeader = async(label: string, id: string, ...path: [string, string][]) => {
+        await header(label).click()
+        await expect(menu(id)).toBeVisible()
+        let parent = id
+        for (const [sub, subId] of path.slice(0, -1)) {
+            await hoverSub(parent, sub, subId)
+            parent = subId
+        }
+        const [last] = path.slice(-1)
+        await expect(entry(parent, last[0])).not.toHaveAttribute('aria-disabled', 'true')
+        await entry(parent, last[0]).click()
+    }
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    const cx = vp.x + vp.width / 2
+    const cy = vp.y + vp.height / 2
+    /** Select (only) the elements of a domain matching `test`, a function of the element, as a click would. */
+    const select = (kind: 'vertex' | 'edge' | 'face', test: string) => page.evaluate(([kind, test]) => {
+        const me = (window as any).engine.meshEdit
+        const bm = me.state.bm
+        const pool = kind === 'vertex' ? [...bm.verts] : kind === 'edge' ? [...bm.edges] : [...bm.faces]
+        const f = new Function('el', `return ${test}`)
+        me.selectElements(kind, pool.map((el: any, i: number) => f(el) ? i : -1).filter((i: number) => i >= 0))
+    }, [kind, test] as const)
+    const TOP = 'el.ny > 0.9'
+    const CUBE = [8, 12, 6]
+    const undoToCube = async() => {
+        await page.mouse.move(cx, cy)
+        for (let i = 0; i < 6 && JSON.stringify((await state()).counts) !== JSON.stringify(CUBE); i++) await page.keyboard.press('Control+KeyZ')
+        await expect.poll(async() => (await state()).counts).toEqual(CUBE)
+    }
+    const modeKey = async(k: '1' | '2' | '3') => {
+        await page.mouse.move(cx, cy)
+        await page.keyboard.press(k)
+    }
+
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    await modeKey('3')
+
+    // ── Face > Poke Faces (MESH_OT_poke), then the redo panel's offset. ──
+    await select('face', TOP)
+    await fromHeader('Face', 'VIEW3D_MT_edit_mesh_faces', ['Poke Faces', ''])
+    await expect.poll(async() => (await state()).counts).toEqual([9, 16, 9])
+    let s = await state()
+    expect(s.lastOp).toBe('mesh.poke')
+    expect(s.lastProps).toMatchObject({offset: 0, useRelativeOffset: false, centerMode: 'MEDIAN_WEIGHTED'})
+    const panel = page.locator('[data-operator-panel="mesh.poke"]')
+    await expect(panel).toBeVisible()
+    if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
+    const offset = panel.locator('input#me-prop-offset, #me-prop-offset input').first()
+    await offset.click()
+    await page.keyboard.press('Control+KeyA')
+    await page.keyboard.type('0.5')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).maxY).toBeCloseTo(1, 5)
+    expect((await state()).counts).toEqual([9, 16, 9])
+    await shot('poke-offset')
+    await undoToCube()
+
+    // ── Triangulate Faces (Ctrl+T) and Face > Beautify Faces. ──
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('Control+KeyT')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 18, 12])
+    expect((await state()).history.at(-1)).toBe('Triangulate Faces')
+    await fromHeader('Face', 'VIEW3D_MT_edit_mesh_faces', ['Beautify Faces', ''])
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.beautify_fill')
+    expect((await state()).counts).toEqual([8, 18, 12])
+    await undoToCube()
+
+    // ── Ctrl+F > Wireframe (MESH_OT_wireframe): the cube's 12 edges become struts. ──
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('Control+KeyF')
+    await expect(popMenu('VIEW3D_MT_edit_mesh_faces')).toBeVisible()
+    await popEntry('VIEW3D_MT_edit_mesh_faces', 'Wireframe').click()
+    await expect.poll(async() => (await state()).counts).toEqual([40, 96, 48])
+    await shot('wireframe')
+    await undoToCube()
+
+    // ── Face > Solidify Faces (MESH_OT_solidify) on the top face. ──
+    await select('face', TOP)
+    await fromHeader('Face', 'VIEW3D_MT_edit_mesh_faces', ['Solidify Faces', ''])
+    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 11])
+    expect((await state()).sel![2]).toBe(1)
+    await undoToCube()
+
+    // ── Alt+E > Extrude Individual Faces: extrude, then Shrink/Fatten along the face normal; a click confirms. ──
+    await select('face', TOP)
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Alt+KeyE')
+    await expect(popMenu('VIEW3D_MT_edit_mesh_extrude')).toBeVisible()
+    await popEntry('VIEW3D_MT_edit_mesh_extrude', 'Extrude Individual Faces').click()
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.mouse.move(cx, cy - 40, {steps: 4})
+    await page.mouse.move(cx, cy - 120, {steps: 6})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe(false)
+    s = await state()
+    expect(s.counts).toEqual([12, 20, 10])
+    expect(s.maxY).toBeGreaterThan(0.55)
+    expect(s.lastOp).toBe('mesh.extrude_faces_move')
+    expect(s.history.at(-1)).toBe('Extrude Individual Faces and Move')
+    expect(typeof s.lastProps.value).toBe('number')
+    await shot('extrude-individual-faces')
+    await undoToCube()
+
+    // ── Edge > Extrude Edges and Vertex > Extrude Vertices (the _move macros): a click confirms the move. ──
+    await modeKey('2')
+    await select('edge', 'el.v1.y > 0.4 && el.v2.y > 0.4 && el.v1.z > 0.4 && el.v2.z > 0.4')
+    await fromHeader('Edge', 'VIEW3D_MT_edit_mesh_edges', ['Extrude Edges', ''])
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.mouse.move(cx + 30, cy - 60, {steps: 6})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).counts).toEqual([10, 15, 7])
+    expect((await state()).lastOp).toBe('mesh.extrude_edges_move')
+    await undoToCube()
+    await modeKey('1')
+    await select('vertex', 'el.x > 0.4 && el.y > 0.4 && el.z > 0.4')
+    await fromHeader('Vertex', 'VIEW3D_MT_edit_mesh_vertices', ['Extrude Vertices', ''])
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.mouse.move(cx + 40, cy - 40, {steps: 6})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).counts).toEqual([9, 13, 6])
+    expect((await state()).lastOp).toBe('mesh.extrude_vertices_move')
+    // ── Mesh > Clean Up > Delete Loose with everything selected removes that wire edge and its end. ──
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyA')
+    await fromHeader('Mesh', 'VIEW3D_MT_edit_mesh', ['Clean Up', 'VIEW3D_MT_edit_mesh_clean'], ['Delete Loose', ''])
+    await expect.poll(async() => (await state()).counts).toEqual(CUBE)
+    expect((await state()).sel).toEqual([0, 0, 0])
+    // ── Clean Up > Degenerate Dissolve: nothing degenerate on a cube, nothing changes. ──
+    await page.keyboard.press('KeyA')
+    await fromHeader('Mesh', 'VIEW3D_MT_edit_mesh', ['Clean Up', 'VIEW3D_MT_edit_mesh_clean'], ['Degenerate Dissolve', ''])
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.dissolve_degenerate')
+    expect((await state()).counts).toEqual(CUBE)
+    await undoToCube()
+
+    // ── Ctrl+E > Mark Seam / Clear Seam, Mark Sharp (edge flags, uv_seam / sharp_edge). ──
+    await modeKey('3')
+    await select('face', TOP)
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Control+KeyE')
+    await popEntry('VIEW3D_MT_edit_mesh_edges', 'Mark Seam').click()
+    await expect.poll(async() => (await state()).seams).toBe(4)
+    await fromHeader('Edge', 'VIEW3D_MT_edit_mesh_edges', ['Clear Seam', ''])
+    await expect.poll(async() => (await state()).seams).toBe(0)
+    await fromHeader('Edge', 'VIEW3D_MT_edit_mesh_edges', ['Mark Sharp', ''])
+    await expect.poll(async() => (await state()).sharp).toBe(4)
+    expect((await state()).history.slice(-3)).toEqual(['Mark Seam', 'Clear Seam', 'Mark Sharp'])
+
+    // ── Mesh > Split > Faces by Edges (MESH_OT_edge_split): the top face comes away. ──
+    await fromHeader('Mesh', 'VIEW3D_MT_edit_mesh', ['Split', 'VIEW3D_MT_edit_mesh_split'], ['Faces by Edges', ''])
+    await expect.poll(async() => (await state()).counts).toEqual([12, 16, 6])
+    await undoToCube()
+
+    // ── Mesh > Normals > Flip, then Shift+N (Recalculate Outside) and Ctrl+Shift+N (Inside). ──
+    await select('face', TOP)
+    expect((await state()).outward).toBe(6)
+    await fromHeader('Mesh', 'VIEW3D_MT_edit_mesh', ['Normals', 'VIEW3D_MT_edit_mesh_normals'], ['Flip', ''])
+    await expect.poll(async() => (await state()).outward).toBe(5)
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('Shift+KeyN')
+    await expect.poll(async() => (await state()).outward).toBe(6)
+    await page.keyboard.press('Control+Shift+KeyN')
+    await expect.poll(async() => (await state()).outward).toBe(0)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).outward).toBe(6)
+
+    // ── M > At Cursor (the cursor is at the origin) and M > Collapse; Delete > Collapse Edges & Faces. ──
+    await select('face', TOP)
+    await modeKey('1')
+    await page.keyboard.press('KeyM')
+    await expect(popMenu('VIEW3D_MT_edit_mesh_merge')).toBeVisible()
+    await popEntry('VIEW3D_MT_edit_mesh_merge', 'At Cursor').click()
+    await expect.poll(async() => (await state()).counts).toEqual([5, 8, 5])
+    expect((await state()).maxY).toBeCloseTo(0, 5) // the merged vertex is at the origin, the base at y = -0.5
+    expect((await state()).lastProps).toEqual({type: 'CURSOR', uvs: false})
+    await undoToCube()
+    await modeKey('3')
+    await select('face', TOP)
+    await page.keyboard.press('KeyM')
+    await popEntry('VIEW3D_MT_edit_mesh_merge', 'Collapse').click()
+    await expect.poll(async() => (await state()).counts).toEqual([5, 8, 5])
+    expect((await state()).maxY).toBeCloseTo(0.5, 5) // at the face's centre
+    await undoToCube()
+    await select('face', TOP)
+    await page.keyboard.press('KeyX')
+    await popEntry('VIEW3D_MT_edit_mesh_delete', 'Collapse Edges & Faces').click()
+    await expect.poll(async() => (await state()).counts).toEqual([5, 8, 5])
+    await undoToCube()
+
+    // ── Edge > Rotate Edge CW: the diagonal of a triangulated face turns to the other corners. ──
+    await select('face', TOP)
+    await page.keyboard.press('Control+KeyT')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 13, 7])
+    const diagonal = () => page.evaluate(() => {
+        const e = [...(window as any).engine.meshEdit.state.bm.edges].find((x: any) => x.v1.y > 0.4 && x.v2.y > 0.4 && x.v1.x !== x.v2.x && x.v1.z !== x.v2.z) as any
+        return [e.v1.x, e.v1.z, e.v2.x, e.v2.z].map(Math.sign).join(',')
+    })
+    const before = await diagonal()
+    await fromHeader('Edge', 'VIEW3D_MT_edit_mesh_edges', ['Rotate Edge CW', ''])
+    await expect.poll(diagonal).not.toBe(before)
+    expect((await state()).counts).toEqual([8, 13, 7])
+    expect((await state()).lastOp).toBe('mesh.edge_rotate')
+    await undoToCube()
+
+    // ── Fill (Alt+F): open the top face (Delete > Only Faces), then fill its rim with triangles. ──
+    await select('face', TOP)
+    await page.keyboard.press('KeyX')
+    await popEntry('VIEW3D_MT_edit_mesh_delete', 'Only Faces').click()
+    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 5])
+    await modeKey('2')
+    await select('edge', 'el.v1.y > 0.4 && el.v2.y > 0.4')
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Alt+KeyF')
+    await expect.poll(async() => (await state()).counts).toEqual([8, 13, 7])
+    expect((await state()).lastOp).toBe('mesh.fill')
+    await undoToCube()
+
+    // ── Select > More/Less (Ctrl+Numpad +/-): from the top face, a face step reaches the four sides. ──
+    await modeKey('3')
+    await select('face', TOP)
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Control+NumpadAdd')
+    await expect.poll(async() => (await state()).sel![2]).toBe(5)
+    await page.keyboard.press('Control+NumpadSubtract')
+    await expect.poll(async() => (await state()).sel![2]).toBe(1)
+
+    // ── Shrink/Fatten (Alt+S) on everything: dragging up fattens the cube along its normals. ──
+    await page.keyboard.press('KeyA')
+    await page.keyboard.press('Alt+KeyS')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.mouse.move(cx, cy - 60, {steps: 6})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).transform).toBe(false)
+    s = await state()
+    expect(s.lastOp).toBe('transform.shrink_fatten')
+    expect(s.maxY).toBeGreaterThan(0.55)
+    expect(s.counts).toEqual(CUBE)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).maxY).toBeCloseTo(0.5, 5)
+
+    // ── Mesh > Extrude > Spin: the top face swept a full turn about the view axis. ──
+    await select('face', TOP)
+    await fromHeader('Mesh', 'VIEW3D_MT_edit_mesh', ['Extrude', 'VIEW3D_MT_edit_mesh_extrude'], ['Spin', ''])
+    await expect.poll(async() => (await state()).lastOp).toBe('mesh.spin')
+    s = await state()
+    expect(s.lastProps).toMatchObject({steps: 12, angle: 360})
+    expect(s.counts![2]).toBeGreaterThan(6)
+    await shot('spin')
+    await undoToCube()
+
+    // ── P > By Loose Parts: a duplicated face is its own part, and becomes its own object. ──
+    await select('face', TOP)
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('Shift+KeyD')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.mouse.move(cx, cy - 80, {steps: 6})
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect.poll(async() => (await state()).counts).toEqual([12, 16, 7])
+    await page.keyboard.press('KeyP')
+    await expect(popMenu('MESH_OT_separate.type')).toBeVisible()
+    await shot('separate-menu')
+    await popEntry('MESH_OT_separate.type', 'By Loose Parts').click()
+    await expect.poll(async() => (await state()).objects).toBe(2)
+    expect((await state()).counts).toEqual(CUBE)
 })
