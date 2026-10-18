@@ -38,11 +38,27 @@ export function binResolver(files: Record<string, ArrayBuffer | Uint8Array>): Bi
     }
 }
 
+function isBinRef(v: unknown): v is BinRef {
+    return !!v && typeof v === 'object' && 'bin' in v && 'dtype' in v && 'offset' in v
+}
+
+/** A copy of `value` with every {@link BinRef} replaced by its numbers (what the comparator reads). */
+export function inlineBinRefs<T>(value: T, resolve: BinResolver): T {
+    if (isBinRef(value)) return Array.from(resolve(value)) as T
+    if (Array.isArray(value)) return value.map(v => inlineBinRefs(v, resolve)) as T
+    if (value && typeof value === 'object') {
+        const out: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(value)) out[k] = inlineBinRefs(v, resolve)
+        return out as T
+    }
+    return value
+}
+
 function values(v: unknown, resolve: BinResolver | undefined): ArrayLike<number> {
     if (Array.isArray(v)) return v.map(x => (x === null ? NaN : x))
-    if (v && typeof v === 'object' && 'bin' in v) {
+    if (isBinRef(v)) {
         if (!resolve) throw new Error('procedural: dump has binary arrays but no resolver was given')
-        return resolve(v as BinRef)
+        return resolve(v)
     }
     return []
 }
@@ -117,9 +133,31 @@ export function geometryFromDump(g: ExpectedGeometry, resolve?: BinResolver): Ge
 }
 
 export interface DumpReferenced {
-    objects: Record<string, {type: string, matrix_world: number[], parent: string | null, geometry: ExpectedGeometry | null}>
+    objects: Record<string, {
+        type: string, matrix_world: number[], parent: string | null, geometry: ExpectedGeometry | null
+        /** Empties: the collection they instance (`Object::instance_collection`). */
+        instance_collection?: string | null
+    }>
     collections: Record<string, {objects: string[], children: string[], instance_offset: number[]}>
     images: Record<string, {size: [number, number], channels: number, pixels: unknown}>
+}
+
+/**
+ * `object_get_evaluated_geometry_set` (geometry_set_instances.cc:42): the evaluated geometry; for an Empty
+ * instancing a collection one identity instance of it (:63); otherwise - including objects the depsgraph
+ * did not evaluate (:44), dumped with `geometry: null` - an empty set.
+ */
+function objectGeometry(d: DumpReferenced['objects'][string], resolve: BinResolver | undefined): GeometrySet {
+    if (d.geometry) return geometryFromDump(d.geometry, resolve)
+    if (d.type === 'EMPTY' && d.instance_collection) {
+        const instances = new Instances(1)
+        instances.referenceHandles[0] = instances.addReference({type: 'collection', name: d.instance_collection})
+        instances.transforms.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+        const g = new GeometrySet()
+        g.setInstances(instances)
+        return g
+    }
+    return new GeometrySet()
 }
 
 /** A {@link SceneProvider} over a dump's referenced objects, collections and images. */
@@ -132,7 +170,7 @@ export function sceneFromDump(ref: DumpReferenced, resolve?: BinResolver): Scene
             if (!o) {
                 const d = ref.objects[name]
                 if (!d) return undefined
-                o = {transform: Float32Array.from(d.matrix_world), geometry: d.geometry ? geometryFromDump(d.geometry, resolve) : new GeometrySet()}
+                o = {transform: Float32Array.from(d.matrix_world), geometry: objectGeometry(d, resolve)}
                 objects.set(name, o)
             }
             return o
