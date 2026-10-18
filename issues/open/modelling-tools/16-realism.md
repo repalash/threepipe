@@ -400,8 +400,8 @@ shell 3.27; spec top 2.04, shell 2.74) because the fans pulled the prism front a
 starbursts and was not what the measurements say, so it was not kept. A top-photo reading of a curved prism front
 was tried and scored worse; it is recorded in the set as not used.
 
-Cost of the re-block (measurement set, tools, cages, eight scored iterations): 12:58 to 14:28 UTC, about 90 min
-wall time, about 150 tool calls, 157k output and 41M input tokens (mostly cache reads); the re-blocked transcript is
+Cost of the re-block (measurement set, tools, cages, eight scored iterations): 12:58 to 14:24 UTC, 86 min
+wall time, 161 tool calls, 165k output and 44M input tokens (mostly cache reads); the re-blocked transcript is
 223 commands, of which 44 are the new body, grip, prism and shoe blocks (the demo build: 308 commands, 189 active
 minutes, 262 tool calls, 160k output and 129M input tokens for the whole camera).
 
