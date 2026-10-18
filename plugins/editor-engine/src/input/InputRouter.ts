@@ -14,6 +14,15 @@
  * Enter on a focused button activate the button. The host can add its own veto through `filter`
  * (the shell vetoes while a dialog is open) and can `suspend` the router outright.
  *
+ * Belonging to the field also means no other listener treats the key as a shortcut. The router lets
+ * such a key through to the field (stopping it in the capture phase would starve the field), then
+ * stops it on the root element on its way back up, before the document-level listeners - the one that
+ * matters is `JSUndoManager`'s Ctrl+Z / Ctrl+Shift+Z, which `UndoManagerPlugin` binds on the document
+ * with no off switch and no text-field check, so Ctrl+Z typed in a redo-panel field undid the scene.
+ * Blender's text field keeps Ctrl+Z for its own text (`ui_do_but_textedit`). Only keys the keymap
+ * binds are stopped: those are the shortcuts another listener could act on.
+ * See `issues/open/modelling-tools/e2e-loop-tools-redo-panel-detached.md`.
+ *
  * The viewport takes the keys back when the pointer is over it, as Blender sends key events to the
  * area under the pointer (`wm_event_system.cc:4400`, `wm_event_inside_rect(event, &area->totrct)`)
  * and only a text field being edited keeps them (its handler is the window's modal one). So when the
@@ -68,6 +77,8 @@ function isButtonActivation(event: KeyboardEvent): boolean {
 export class InputRouter implements InputApi {
     private _suspenders = new Set<unknown>()
     private _spaceDown = false
+    /** Where `_onFieldKeyDown` listens; null without a DOM. */
+    private _root: HTMLElement | null = null
     readonly pointer = {clientX: 0, clientY: 0}
     filter: ((event: KeyboardEvent) => boolean) | null = null
 
@@ -75,6 +86,9 @@ export class InputRouter implements InputApi {
         window.addEventListener('keydown', this._onKeyDown, true)
         window.addEventListener('keyup', this._onKeyUp, true)
         window.addEventListener('blur', this._onBlur)
+        // Bubble phase on the root element: after the focused field had the key, before the document.
+        this._root = typeof document !== 'undefined' ? document.documentElement : null
+        this._root?.addEventListener('keydown', this._onFieldKeyDown)
         _host.canvas.addEventListener('pointermove', this._onPointerMove)
         _host.canvas.addEventListener('pointerdown', this._onPointerMove)
         _host.canvas.addEventListener('pointerenter', this._onPointerEnter)
@@ -84,6 +98,7 @@ export class InputRouter implements InputApi {
         window.removeEventListener('keydown', this._onKeyDown, true)
         window.removeEventListener('keyup', this._onKeyUp, true)
         window.removeEventListener('blur', this._onBlur)
+        this._root?.removeEventListener('keydown', this._onFieldKeyDown)
         this._host.canvas.removeEventListener('pointermove', this._onPointerMove)
         this._host.canvas.removeEventListener('pointerdown', this._onPointerMove)
         this._host.canvas.removeEventListener('pointerenter', this._onPointerEnter)
@@ -141,8 +156,25 @@ export class InputRouter implements InputApi {
         return binding
     }
 
+    /**
+     * A key typed into a form control, on its way back up from the control: if it is a viewport
+     * shortcut, stop it so no document-level listener acts on it (the control already had it, and its
+     * default action - typing, the field's own undo - still happens). Returns whether it was stopped.
+     * Split from the listener so it can be driven without a DOM.
+     */
+    fieldKey(event: KeyboardEvent): boolean {
+        if (!isTypingTarget(event.target)) return false
+        if (!this._host.keymap().lookup(event, this._host.mode())) return false
+        event.stopPropagation()
+        return true
+    }
+
     private _onKeyDown = (event: KeyboardEvent): void => {
         this.route(event)
+    }
+
+    private _onFieldKeyDown = (event: KeyboardEvent): void => {
+        this.fieldKey(event)
     }
 
     /** The pointer is over the viewport: a focused control that is not a text field lets go of the keys. */

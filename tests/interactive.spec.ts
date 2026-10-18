@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test'
+import {test, expect, type Page} from '@playwright/test'
 import {setupTestHooks, screenshotMatch, downloadFileMatch, btnClick} from './helpers'
 
 setupTestHooks()
@@ -4203,7 +4203,9 @@ test('modelling-editor-engine', async({page}) => {
     const vp = (await page.locator('[data-viewport]').boundingBox())!
     const cx = vp.x + vp.width / 2
     const cy = vp.y + vp.height / 2
-    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+    // Empty viewport space, away from the redo panel at the bottom left (a click there can land on the
+    // panel's fields).
+    const empty = {x: vp.x + vp.width - 60, y: vp.y + vp.height - 60}
 
     // 1. Keymap: the Blender preset is active and every shortcut shown comes from it.
     let s = await state()
@@ -4251,6 +4253,7 @@ test('modelling-editor-engine', async({page}) => {
     expect(s.lastProps?.thickness).toBe(0.3)
     expect(s.history).toEqual(['Add Cube', 'Inset cube'])
     // Leave the text field (a click on empty space deselects, which is not an undo step) and undo.
+    expect(await page.evaluate(({x, y}) => document.elementFromPoint(x, y)?.tagName, empty)).toBe('CANVAS')
     await page.mouse.click(empty.x, empty.y)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
@@ -4608,6 +4611,14 @@ test('modelling-editor-fill', async({page}) => {
         await expect(panel(id)).toBeVisible()
         if (!await panel(id).locator('.me-operator-body').isVisible()) await panel(id).locator('.me-operator-title').click()
     }
+    // A click on empty viewport space (leaves a panel field), away from the redo panel at the bottom
+    // left: a click there landed on the panel's labels and put the focus in a field, where Ctrl+Z is the
+    // field's, not the scene's.
+    const clickEmpty = async() => {
+        const empty = {x: vp.x + vp.width - 60, y: vp.y + vp.height - 60}
+        expect(await page.evaluate(({x, y}) => document.elementFromPoint(x, y)?.tagName, empty)).toBe('CANVAS')
+        await page.mouse.click(empty.x, empty.y)
+    }
 
     // ── 1. Merge by Distance: M > By Distance, then the redo panel's Unselected and Merge Distance. ──
     await page.mouse.move(cx, cy)
@@ -4645,7 +4656,7 @@ test('modelling-editor-fill', async({page}) => {
     expect(s.lastProps?.threshold).toBe(0.05)
     expect(s.history.slice(-2)).toEqual(['Duplicate', 'Merge by Distance'])
     // One Ctrl+Z takes back the merge, whatever the panel did to it.
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
 
@@ -4717,7 +4728,7 @@ test('modelling-editor-fill', async({page}) => {
     // Same counts, but the grid's corner moved one vertex round the rim: the inner vertices move.
     expect((await state()).counts).toEqual([121, 220, 100])
     expect(JSON.stringify(await selectedPositions())).not.toBe(JSON.stringify(filled))
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
 
@@ -4811,7 +4822,7 @@ test('modelling-editor-fill', async({page}) => {
     await panel('mesh.dissolve').locator('label:has(#me-prop-useVerts) .bp5-control-indicator').click()
     await expect.poll(async() => (await state()).counts).toEqual([8, 11, 5])
     expect((await state()).lastProps?.useVerts).toBe(false)
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -4876,12 +4887,17 @@ test('modelling-editor-fill', async({page}) => {
     await expect.poll(async() => (await state()).counts).toEqual([24, 48, 24])
     expect((await state()).lastProps?.numberCuts).toBe(2)
     expect((await state()).history.at(-1)).toBe('Bridge Edge Loops')
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
 })
 
-test('modelling-loop-tools', async({page}) => {
+/**
+ * `modelling-loop-tools`, as a function so it also runs on a slowed CPU (below): the redo panel's open
+ * transition and the command palette's exit are then still running when the next input arrives, which
+ * is when this test used to fail (`issues/open/modelling-tools/e2e-loop-tools-redo-panel-detached.md`).
+ */
+async function modellingLoopTools(page: Page) {
     await expect(page).toHaveTitle('Modelling Loop Tools')
     await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
 
@@ -4908,7 +4924,23 @@ test('modelling-loop-tools', async({page}) => {
     const vp = (await page.locator('[data-viewport]').boundingBox())!
     const cx = vp.x + vp.width / 2
     const cy = vp.y + vp.height / 2
-    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+    // Empty viewport space, away from the cube and from the redo panel, which opens over the
+    // viewport's bottom-left corner (a click there used to land on the panel's fields: a toggled
+    // Flipped re-ran the slide, a label put the focus in a text field).
+    const empty = {x: vp.x + vp.width - 60, y: vp.y + vp.height - 60}
+    /** A click on that empty space - leaves a panel field, deselects; nothing may cover the point. */
+    const clickEmpty = async() => {
+        expect(await page.evaluate(({x, y}) => document.elementFromPoint(x, y)?.tagName, empty)).toBe('CANVAS')
+        await page.mouse.click(empty.x, empty.y)
+    }
+    const focused = () => page.evaluate(() => {
+        const a = document.activeElement as HTMLElement | null
+        return a ? a.tagName + (a.id ? '#' + a.id : '') + (typeof a.className === 'string' && a.className ? '.' + a.className.split(' ')[0] : '') : null
+    })
+    // The redo panel's title is a toggle, and the panel remembers the user's choice
+    // (`OnboardingStore.setRedoPanel`): opened once, it opens by itself for every later operation, so
+    // a click on the title then closes it.
+    const panelTitle = (id: string) => page.locator(`[data-operator-panel="${id}"] .me-operator-title`)
 
     // ── Edge slide with G G (`transform.cc:1117`), a typed factor, the redo panel, undo ──
     // Tab into edit mode, face mode, click the face under the centre, then edge mode: its four edges
@@ -4948,8 +4980,11 @@ test('modelling-loop-tools', async({page}) => {
     const wentDown = JSON.stringify(first) === JSON.stringify(down(0.5))
     expect(wentDown || JSON.stringify(first) === JSON.stringify(across(0.5)), JSON.stringify(first)).toBe(true)
 
-    // The redo panel re-runs it with -0.5: the other side.
-    await page.locator('[data-operator-panel="mesh.edge_slide"] .me-operator-title').click()
+    // The redo panel re-runs it with -0.5: the other side. It starts closed (onboarding is off); this
+    // click opens it, for this and every later operation.
+    await expect(panelTitle('mesh.edge_slide')).toHaveAttribute('data-open', 'false')
+    await panelTitle('mesh.edge_slide').click()
+    await expect(panelTitle('mesh.edge_slide')).toHaveAttribute('data-open', 'true')
     const factor = page.locator('[data-operator-panel="mesh.edge_slide"] #me-prop-value')
     await expect(factor).toBeVisible()
     await factor.fill('-0.5')
@@ -4959,7 +4994,7 @@ test('modelling-loop-tools', async({page}) => {
     expect(s.lastProps?.value).toBe(-0.5)
     expect(s.history.filter(h => h.startsWith('Edge Slide')).length).toBe(1)
     // Undo puts the cube back.
-    await page.mouse.click(empty.x, empty.y)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
     expect((await state()).history.at(-1)).toBe('Edge Slide *')
@@ -5014,7 +5049,8 @@ test('modelling-loop-tools', async({page}) => {
     s = await state()
     expect(s.lastOp).toBe('mesh.subdivide')
     expect(s.history.at(-1)).toBe('Subdivide')
-    await page.locator('[data-operator-panel="mesh.subdivide"] .me-operator-title').click()
+    // Open by itself: the user opened the panel at the edge slide.
+    await expect(panelTitle('mesh.subdivide')).toHaveAttribute('data-open', 'true')
     const cuts = page.locator('[data-operator-panel="mesh.subdivide"] #me-prop-cuts')
     await expect(cuts).toBeVisible()
     await cuts.fill('2')
@@ -5022,7 +5058,7 @@ test('modelling-loop-tools', async({page}) => {
     await expect.poll(async() => (await state()).counts).toEqual([56, 108, 54])
     expect((await state()).lastProps?.cuts).toBe(2)
     expect((await state()).history.filter(h => h.startsWith('Subdivide')).length).toBe(1)
-    await page.mouse.click(empty.x, empty.y)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -5060,13 +5096,26 @@ test('modelling-loop-tools', async({page}) => {
     s = await state()
     expect(s.lastOp).toBe('mesh.subdivide_edgering')
     expect(s.history.at(-1)).toBe('Subdivide Edge-Ring')
-    await page.locator('[data-operator-panel="mesh.subdivide_edgering"] .me-operator-title').click()
+    await expect(panelTitle('mesh.subdivide_edgering')).toHaveAttribute('data-open', 'true')
     const ringCuts = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-numberCuts')
     await expect(ringCuts).toBeVisible()
     await ringCuts.fill('2')
     await ringCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
-    await page.mouse.click(empty.x, empty.y)
+    // Ctrl+Z typed in a panel field is the field's (Blender's text editing keeps it), not the scene's:
+    // the result behind the panel stays. JSUndoManager's own Ctrl+Z on the document used to undo it.
+    const ringSmoothness = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-smoothness')
+    await ringSmoothness.click()
+    await expect(ringSmoothness).toBeFocused()
+    await page.keyboard.press('Control+KeyZ')
+    s = await state()
+    expect(s.counts).toEqual([16, 28, 14])
+    expect(s.lastProps?.numberCuts).toBe(2)
+    expect(s.history.at(-1)).toBe('Subdivide Edge-Ring')
+    // Esc leaves the field without applying anything.
+    await page.keyboard.press('Escape')
+    expect((await state()).counts).toEqual([16, 28, 14])
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -5076,10 +5125,12 @@ test('modelling-loop-tools', async({page}) => {
         return lc ? {cuts: lc.numberCuts, lines: lc.preview.edges.length, status: lc.status, edge: !!lc.edge} : null
     })
     await page.mouse.move(edgeMid.x, edgeMid.y)
+    const focusAtCtrlR = await focused()
     await page.keyboard.press('Control+KeyR')
-    // The editor's state comes along so a failure says what the key did instead.
-    await expect.poll(async() => ({loopCut: await loopCut(), state: await state(), focus: await page.evaluate(() => document.activeElement?.tagName)}))
-        .toMatchObject({loopCut: {cuts: 1, edge: true, lines: 4}})
+    // A failure says what the key did instead: the editor's state, and where the focus was.
+    await expect.poll(loopCut).toMatchObject({cuts: 1, edge: true, lines: 4}).catch(async(e: Error) => {
+        throw new Error(`${e.message}\nfocus at Ctrl+R: ${focusAtCtrlR}, now: ${await focused()}\nstate: ${JSON.stringify(await state())}`)
+    })
     // The ring of a cube edge is the four edges parallel to it: one loop of four segments.
     await page.mouse.move(edgeMid.x + 1, edgeMid.y + 1)
     await page.mouse.down()
@@ -5122,14 +5173,14 @@ test('modelling-loop-tools', async({page}) => {
     // No context menu from that right click.
     await expect(page.locator('.me-context-menu')).toHaveCount(0)
     // The redo panel re-cuts with two.
-    await page.locator('[data-operator-panel="mesh.loopcut_slide"] .me-operator-title').click()
+    await expect(panelTitle('mesh.loopcut_slide')).toHaveAttribute('data-open', 'true')
     const lcCuts = page.locator('[data-operator-panel="mesh.loopcut_slide"] #me-prop-cuts')
     await expect(lcCuts).toBeVisible()
     await lcCuts.fill('2')
     await lcCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
     expect((await state()).history.filter(h => h.startsWith('Loop Cut')).length).toBe(1)
-    await page.mouse.click(empty.x, empty.y)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -5161,6 +5212,18 @@ test('modelling-loop-tools', async({page}) => {
     await expect.poll(tool).toBe('select')
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
+}
+
+test('modelling-loop-tools', async({page}) => {
+    await modellingLoopTools(page)
+    // Again, from a fresh page (and a fresh redo-panel choice), on a CPU slowed 6x: inputs then arrive
+    // while the redo panel is still opening and the palette still closing.
+    await page.evaluate(() => localStorage.clear())
+    await page.reload()
+    await page.waitForSelector('body._testFinish', {state: 'attached'})
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', {rate: 6})
+    await modellingLoopTools(page)
 })
 
 test('modelling-editor-cut', async({page}) => {
