@@ -2669,6 +2669,22 @@ export type SubdivideMeshNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSubdivisionSurface` (Subdivision Surface). */
+export interface SubdivisionSurfaceArgs {
+    mesh?: In<"GEOMETRY">
+    level?: In<"INT">
+    edgeCrease?: In<"FLOAT">
+    vertexCrease?: In<"FLOAT">
+    limitSurface?: In<"BOOLEAN">
+    quality?: In<"INT">
+    uVSmooth?: In<"MENU">
+    boundarySmooth?: In<"MENU">
+    mute?: boolean
+}
+export type SubdivisionSurfaceNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSwitch` (Switch). */
 export interface SwitchArgs {
     inputType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE" | "FONT" | "SOUND"
@@ -3210,6 +3226,7 @@ export interface NodeConstructors {
     StringToValue(args?: StringToValueArgs): StringToValueNode
     SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
+    SubdivisionSurface(args?: SubdivisionSurfaceArgs): SubdivisionSurfaceNode
     Switch(args?: SwitchArgs): SwitchNode
     TagFilter(args?: TagFilterArgs): TagFilterNode
     ThreepipeErosion(args?: ThreepipeErosionArgs): ThreepipeErosionNode

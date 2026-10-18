@@ -55,7 +55,7 @@ export function buildColorBand(json: ColorRampJSON | undefined): ColorBand {
 }
 
 /** `key_curve_position_weights` (`key.cc:307`) for KEY_CARDINAL / KEY_BSPLINE. */
-function keyCurvePositionWeights(t: number, cardinal: boolean): [number, number, number, number] {
+export function keyCurvePositionWeights(t: number, cardinal: boolean): [number, number, number, number] {
     const t2 = f32(t * t)
     const t3 = f32(t2 * t)
     if (cardinal) {

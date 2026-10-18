@@ -112,14 +112,8 @@ export function subdivisionSurfaceEvaluate(mesh: MeshData, opts: SubdivisionSurf
     let limitEval: LimitEvaluator | null = null
     let grid: PtexGrid | null = null
     if (limited) {
-        const aBase = createBaseLevel(mesh, options, {useCreases: opts.useCreases ?? true, simple, edgeCrease: opts.edgeCrease, vertexCrease: opts.vertexCrease})
-        const adaptive = new TopologyRefiner(aBase.level, options)
-        const aUV = uvLayers.map(layer => {
-            const {cornerValues, values} = uvValuesFromCorners(mesh, layer.data)
-            return {values, channel: adaptive.addFVarChannel(cornerValues, values.length / 2)}
-        })
-        adaptive.refineAdaptive({isolationLevel: quality, useInfSharpPatch: true, considerFVarChannels: aUV.length > 0})
-        limitEval = new LimitEvaluator(adaptive, basePos, aUV.map(u => ({channel: u.channel, values: u.values})))
+        limitEval = adaptiveLimitEvaluator(mesh, options, {useCreases: opts.useCreases ?? true, simple, edgeCrease: opts.edgeCrease, vertexCrease: opts.vertexCrease},
+            quality, basePos, uvLayers.map(l => l.data))
         grid = ptexGrid(refiner, levels)
         finalPos = new Float64Array(outLevel.numVertices * 3)
         for (let v = 0; v < outLevel.numVertices; v++) {
@@ -263,6 +257,66 @@ function ptexGrid(refiner: TopologyRefiner, levels: number): PtexGrid {
         }
     }
     return {facePtex, cornerU: cu, cornerV: cv, vertFace, vertU, vertV}
+}
+
+/** An adaptive refiner of `mesh` to `quality` with its patch table: Blender's limit-surface evaluator. */
+function adaptiveLimitEvaluator(mesh: MeshData, options: SdcOptions, settings: Parameters<typeof createBaseLevel>[2], quality: number,
+    basePositions: Float64Array, uvMaps: ArrayLike<number>[]): LimitEvaluator {
+    const aBase = createBaseLevel(mesh, options, settings)
+    const adaptive = new TopologyRefiner(aBase.level, options)
+    const aUV = uvMaps.map(uv => {
+        const {cornerValues, values} = uvValuesFromCorners(mesh, uv)
+        return {values, channel: adaptive.addFVarChannel(cornerValues, values.length / 2)}
+    })
+    adaptive.refineAdaptive({isolationLevel: quality, useInfSharpPatch: true, considerFVarChannels: aUV.length > 0})
+    return new LimitEvaluator(adaptive, basePositions, aUV.map(u => ({channel: u.channel, values: u.values})))
+}
+
+/** Options of {@link createSubdivLimitEvaluator}: {@link SubdivisionSurfaceOptions}' surface settings and the UV maps. */
+export interface SubdivLimitEvaluatorOptions {
+    quality?: number
+    useCreases?: boolean
+    edgeCrease?: ArrayLike<number> | null
+    vertexCrease?: ArrayLike<number> | null
+    boundarySmooth?: SubdivBoundarySmooth
+    uvSmooth?: SubdivUVSmooth
+    /** Per-corner float2 UV maps, one face-varying channel each, in this order. */
+    uvMaps?: ArrayLike<number>[]
+}
+
+/** Blender's limit surface of a mesh (`is_adaptive`), evaluated at ptex coordinates (`Far::PtexIndices`). */
+export interface SubdivLimitEvaluator {
+    /** `evaluateLimit`: the position at (u, v) of ptex face `ptexFace`. */
+    evaluateLimit(ptexFace: number, u: number, v: number, out: Float64Array, offset?: number): void
+    /** `evaluateFaceVarying`: UV map `channel` at the same place (the patch found through the vertex patch map). */
+    evaluateFaceVarying(channel: number, ptexFace: number, u: number, v: number, out: Float64Array, offset?: number): void
+}
+
+/**
+ * The limit-surface evaluator Blender's subdivision builds with `is_adaptive` (`evaluator_impl.cc:439-505`): an
+ * adaptive refiner to `quality` and its patch table. For callers that mesh the result themselves (the geometry-nodes
+ * Subdivision Surface node, which follows `subdiv_mesh.cc`'s output order). Null for a mesh without faces.
+ */
+export function createSubdivLimitEvaluator(mesh: MeshData, opts: SubdivLimitEvaluatorOptions = {}): SubdivLimitEvaluator | null {
+    if (mesh.facesNum === 0) return null
+    const options: SdcOptions = {
+        vtxBoundaryInterpolation: (opts.boundarySmooth ?? 'ALL') === 'PRESERVE_CORNERS' ? VtxBoundaryInterpolation.EdgeAndCorner : VtxBoundaryInterpolation.EdgeOnly,
+        fvarLinearInterpolation: fvarInterpolationFromUVSmooth(opts.uvSmooth ?? 'PRESERVE_BOUNDARIES'),
+        creasingMethod: CreasingMethod.Uniform,
+    }
+    const settings = {useCreases: opts.useCreases ?? true, simple: false, edgeCrease: opts.edgeCrease, vertexCrease: opts.vertexCrease}
+    const base = createBaseLevel(mesh, options, settings)
+    const P0 = mesh.positions
+    const basePos = new Float64Array(base.level.numVertices * 3)
+    for (let bv = 0; bv < base.level.numVertices; bv++) {
+        const mv = base.baseToMesh[bv]
+        basePos[3 * bv] = P0[3 * mv]; basePos[3 * bv + 1] = P0[3 * mv + 1]; basePos[3 * bv + 2] = P0[3 * mv + 2]
+    }
+    const ev = adaptiveLimitEvaluator(mesh, options, settings, opts.quality ?? 3, basePos, opts.uvMaps ?? [])
+    return {
+        evaluateLimit: (f, u, v, out, o = 0) => ev.evaluate(f, u, v, out, o),
+        evaluateFaceVarying: (c, f, u, v, out, o = 0) => ev.evaluateFVar(c, f, u, v, out, o),
+    }
 }
 
 /** The patch table of an adaptive refiner with its resolved points, evaluated at ptex coordinates. */
