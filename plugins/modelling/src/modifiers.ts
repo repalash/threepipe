@@ -23,9 +23,10 @@ import {
     mirrorGeometry,
     subdivisionSurface,
     Vec3,
+    weightedNormal,
     wireframe,
 } from '@threepipe/mesh-kernel'
-import type {SubdivBoundarySmooth, SubdivUVSmooth} from '@threepipe/mesh-kernel'
+import type {SubdivBoundarySmooth, SubdivUVSmooth, WeightedNormalMode} from '@threepipe/mesh-kernel'
 import type {MeshData} from '@threepipe/mesh-kernel'
 
 export interface ArrayModifierSpec {
@@ -100,7 +101,21 @@ export interface SubsurfModifierSpec {
     subdivisionType?: 'CATMULL_CLARK' | 'SIMPLE'
 }
 
-export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec | SubsurfModifierSpec
+/**
+ * Blender's Weighted Normal modifier (`MOD_weighted_normal.cc`), through the kernel's port: custom normals that
+ * mix each vertex's (or smooth fan's) face normals by area and/or corner angle, so big faces stay flat and bevels
+ * take the bend. Defaults are `WeightedNormalModifierData`'s: face area, weight 50, threshold 0.01.
+ */
+export interface WeightedNormalModifierSpec {
+    type: 'weightedNormal'
+    mode?: WeightedNormalMode
+    weight?: number
+    threshold?: number
+    keepSharp?: boolean
+    useFaceInfluence?: boolean
+}
+
+export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec | SubsurfModifierSpec | WeightedNormalModifierSpec
 
 /**
  * Run a master mesh through its stack.
@@ -123,6 +138,16 @@ export function evaluateModifiers(mesh: MeshData, modifiers: ModifierSpec[]): Me
                 boundarySmooth: modifier.boundarySmooth ?? 'ALL',
                 uvSmooth: modifier.uvSmooth ?? 'PRESERVE_BOUNDARIES',
                 scheme: modifier.subdivisionType ?? 'CATMULL_CLARK',
+            })
+            continue
+        }
+        if (modifier.type === 'weightedNormal') {
+            current = weightedNormal(current, {
+                mode: modifier.mode ?? 'FACE_AREA',
+                weight: modifier.weight ?? 50,
+                threshold: modifier.threshold ?? 0.01,
+                keepSharp: modifier.keepSharp ?? false,
+                useFaceInfluence: modifier.useFaceInfluence ?? false,
             })
             continue
         }
@@ -202,6 +227,15 @@ export function checkModifier(spec: ModifierSpec): void {
         if (!Number.isInteger(levels) || levels < 0 || levels > 6) throw new Error('a subsurf modifier needs whole `levels` from 0 to 6')
         const quality = spec.quality ?? 3
         if (!Number.isInteger(quality) || quality < 1 || quality > 10) throw new Error('a subsurf modifier `quality` must be a whole number from 1 to 10')
+    } else if (spec.type === 'weightedNormal') {
+        const w = spec.weight ?? 50
+        if (!Number.isInteger(w) || w < 1 || w > 100) throw new Error('a weightedNormal modifier `weight` must be a whole number from 1 to 100')
+        if (spec.mode && !['FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE'].includes(spec.mode)) {
+            throw new Error('a weightedNormal modifier `mode` is FACE_AREA, CORNER_ANGLE or FACE_AREA_WITH_ANGLE')
+        }
+        if (spec.threshold !== undefined && (!Number.isFinite(spec.threshold) || spec.threshold < 0)) {
+            throw new Error('a weightedNormal modifier `threshold` must be a number of 0 or more')
+        }
     } else if (spec.type === 'wireframe') {
         if (spec.thickness !== undefined && (!Number.isFinite(spec.thickness) || spec.thickness < 0)) {
             throw new Error('a wireframe modifier `thickness` must be a number of 0 or more')
@@ -226,6 +260,7 @@ export function describeModifier(spec: ModifierSpec): string {
         return `array ${spec.mode} ×${spec.count}, ${detail}`
     }
     if (spec.type === 'wireframe') return `wireframe ${spec.thickness ?? 0.02}`
+    if (spec.type === 'weightedNormal') return `weighted normal ${(spec.mode ?? 'FACE_AREA').toLowerCase().replace(/_/g, ' ')}, weight ${spec.weight ?? 50}${spec.keepSharp ? ', keep sharp' : ''}`
     if (spec.type === 'subsurf') return `subsurf ${spec.subdivisionType === 'SIMPLE' ? 'simple ' : ''}level ${spec.levels ?? 1}${spec.useLimitSurface === false ? ', no limit surface' : ''}`
     return `mirror ${spec.axis}`
 }

@@ -100,7 +100,7 @@ const cornerPrev = (mesh: MeshData, face: number, c: number) => (c === mesh.face
 const cornerNext = (mesh: MeshData, face: number, c: number) => (c === mesh.faceOffsets[face + 1] - 1 ? mesh.faceOffsets[face] : c + 1)
 
 /** `normals_calc_verts` (`:194`): angle-weighted face normals; a vertex without faces gets its normalised position. */
-function vertNormalsFromFaces(mesh: MeshData, map: {offsets: Int32Array, faces: Int32Array}, faceNormals: ArrayLike<number>): Float32Array {
+export function vertNormalsFromFaces(mesh: MeshData, map: {offsets: Int32Array, faces: Int32Array}, faceNormals: ArrayLike<number>): Float32Array {
     const P = mesh.positions
     const out = new Float32Array(mesh.vertsNum * 3)
     for (let v = 0; v < mesh.vertsNum; v++) {
@@ -505,8 +505,12 @@ export function meshSetCustomNormals(mesh: MeshData, normals: Float32Array, {fro
     customNormalsSet(mesh, map, vertNormals, faceNormals, sharpFaces, fromVertices, normals, sharpEdges, clnors)
 }
 
-/** `mesh_normals_corner_custom_set` (`mesh_normals.cc:1409`). */
-function customNormalsSet(
+/**
+ * `mesh_normals_corner_custom_set` (`mesh_normals.cc:1409`), the core of `normals_corner_custom_set[_from_verts]`:
+ * `custom` (per corner, or per vertex with `useVertices`) is encoded into `clnors`, adding to `sharpEdges` where a
+ * fan has to split. Zero vectors take the automatic normal.
+ */
+export function customNormalsSet(
     mesh: MeshData, map: {offsets: Int32Array, faces: Int32Array}, vertNormals: Float32Array, faceNormals: Float32Array,
     sharpFaces: ArrayLike<number> | null, useVertices: boolean, custom: Float32Array, sharpEdges: Uint8Array,
     clnors: Int16Array,

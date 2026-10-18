@@ -68,3 +68,30 @@ describe('crease and the subsurf modifier', () => {
         expect(() => creaseCommand.run({object: 'cube', edges: [99]}, ctx)).toThrow(/does not exist/)
     })
 })
+
+describe('the weightedNormal modifier', () => {
+    it('weight 100 on a beveled box: corners on the big faces shade with the face normal', async() => {
+        const {evaluateModifiers, checkModifier} = await import('../modifiers')
+        const {meshCornerNormals, bmFromMesh, bmToMesh, bevelEdges, primitiveCube} = await import('@threepipe/mesh-kernel')
+        expect(validateParams((await import('./modifiers')).modifierCommand, {object: 'b', add: {type: 'weightedNormal', mode: 'FACE_AREA', weight: 100}})).toEqual([])
+        const bm = bmFromMesh(primitiveCube({size: 2}))
+        bevelEdges(bm, [...bm.edges], {offset: 0.1, segments: 2})
+        const box = bmToMesh(bm)
+        box.attributes.remove(AttrName.sharpFace) // smooth, as after shade smooth
+        checkModifier({type: 'weightedNormal', weight: 100})
+        expect(() => checkModifier({type: 'weightedNormal', weight: 0})).toThrow()
+        const out = evaluateModifiers(box, [{type: 'weightedNormal', weight: 100}])
+        expect(out.attributes.get(AttrName.customNormal)?.type).toBe('int16x2')
+        const n = meshCornerNormals(out)
+        // a corner of the +Z face (all its vertices have z = 1) takes (0, 0, 1)
+        let checked = 0
+        for (let f = 0; f < out.facesNum; f++) {
+            const s = out.faceOffsets[f], e = out.faceOffsets[f + 1]
+            let top = true
+            for (let c = s; c < e; c++) if (Math.abs(out.positions[3 * out.cornerVerts[c] + 2] - 1) > 1e-6) top = false
+            if (!top) continue
+            for (let c = s; c < e; c++) { expect(n[3 * c + 2]).toBeCloseTo(1, 4); checked++ }
+        }
+        expect(checked).toBeGreaterThan(0)
+    })
+})
