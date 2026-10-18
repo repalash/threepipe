@@ -205,6 +205,8 @@ export const bevelCommand: CommandDefinition = {
         miterInner: S.enum('How an inner corner is finished.', ['sharp', 'arc']),
         spread: S.number('Distance between the arms of an arc miter.'),
         materialIndex: S.integer('Material slot for the new faces. -1 keeps the neighbours\'.'),
+        hardenNormals: S.boolean('Harden Normals: custom normals so the flat faces keep shading flat and only the bevel bends (Blender\'s option).'),
+        faceStrength: S.enum('Face strength for the weightedNormal modifier\'s face influence: NONE (default), NEW, AFFECTED or ALL.', ['NONE', 'NEW', 'AFFECTED', 'ALL']),
     }),
 
     run(p: Record<string, unknown>, ctx) {
@@ -224,6 +226,8 @@ export const bevelCommand: CommandDefinition = {
             miterInner: p.miterInner as 'sharp' | 'arc' | undefined,
             spread: p.spread as number | undefined,
             materialIndex: p.materialIndex as number | undefined,
+            hardenNormals: p.hardenNormals as boolean | undefined,
+            faceStrengthMode: p.faceStrength as 'NONE' | 'NEW' | 'AFFECTED' | 'ALL' | undefined,
         }
 
         const byVerts = p.verts !== undefined
