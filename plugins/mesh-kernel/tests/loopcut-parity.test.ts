@@ -41,8 +41,8 @@ const FALLOFF: Record<string, SubdFalloff> = {
 function build(input: Case['input']) {
     const bm = new BMesh()
     const verts = input.positions.map(c => bm.vertCreate(c[0], c[1], c[2]))
-    // Blender's edge order and direction (issues/open/mesh-kernel-face-create-edge-order.md), loose
-    // edges included.
+    // The generator's mesh is `Mesh.from_pydata`, which orders the edges its own way, loose edges
+    // included; create them first, in its order and direction, and let `faceCreate` reuse them.
     for (const [a, b] of input.meshEdges) bm.edgeCreate(verts[a], verts[b])
     for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
     meshNormalsUpdate(bm)

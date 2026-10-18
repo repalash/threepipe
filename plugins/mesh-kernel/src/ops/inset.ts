@@ -1,4 +1,3 @@
-import {faceNormalUpdate} from '../bmesh/polygon'
 /**
  * Inset operators.
  *
@@ -22,9 +21,6 @@ import {faceNormalUpdate} from '../bmesh/polygon'
  *
  * Divergences from Blender, all deliberate and all local to this file:
  *
- * - **Normals are recomputed on entry.** `bmo_inset` reads `f->no` and `v->no` throughout and edit
- *   mode guarantees they are current. Nothing in this kernel maintains them, so {@link normalsUpdate}
- *   (`BM_mesh_normals_update`) runs first. It is a real side effect on the whole mesh.
  * - **`BMesh.vertCreate` / `edgeCreate` / `faceCreate` do not reproduce `BM_elem_attrs_copy`'s header
  *   rules.** Blender keeps `BM_ELEM_TAG` when copying from an example and drops the select bit; the
  *   kernel does the opposite. This operator depends on both (tags propagate to separated edges, and a
@@ -47,43 +43,8 @@ import {BMCustomDataLayout, copyElemAttrs, copyElemHeader, getValue, setValue} f
 import {faceInterpFromFace} from '../bmesh/interp'
 import {ElemFlag} from '../constants'
 import {faceSelectSet, selectNone} from '../bmesh/marking'
-import {Vec3, v3add, v3cross, v3dot, v3len, v3mul, v3normalize, v3sub} from '../math'
-
-// region math_geom_inline.cc - shell thickness
-
-/**
- * `SMALL_NUMBER` from `math_geom_inline.cc:18`. The guard value below which the shell functions give
- * up and return 1 rather than dividing by a cosine that has collapsed.
- */
-const SMALL_NUMBER = 1e-8
-
-/**
- * How far along `a` you must travel for the result to sit at unit distance from the plane of `b`.
- *
- * Port of `shell_v3v3_normalized_to_dist` (`math_geom_inline.cc:133`), which the header documents as
- * `shell_angle_to_dist(angle_normalized_v3v3(a, b))`, i.e. `1 / |cos(angle)|`. Both inputs must be
- * unit length.
- */
-function shellV3V3NormalizedToDist(a: Vec3, b: Vec3): number {
-    const angleCos = Math.abs(v3dot(a, b))
-    return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
-}
-
-/**
- * The same correction for the *bisector* of `a` and `b`: `1 / |cos(angle / 2)|`.
- *
- * Port of `shell_v3v3_mid_normalized_to_dist` (`math_geom_inline.cc:148`). This one function is the
- * whole of `use_even_offset` for a mid-corner. Walking the normalized bisector by `thickness` leaves
- * a sharp corner far short of `thickness` from either edge; multiplying by this puts it at exactly
- * `thickness` from both, which is what "Offset Even" means in the tool header.
- */
-function shellV3V3MidNormalizedToDist(a: Vec3, b: Vec3): number {
-    const ab = v3normalize(v3add(a, b))
-    const angleCos = v3len(ab) !== 0 ? Math.abs(v3dot(a, ab)) : 0
-    return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
-}
-
-// endregion
+import {Vec3, v3add, v3cross, v3dot, v3mul, v3normalize, v3sub} from '../math'
+import {lenSquaredV3V3, shellV3V3MidNormalizedToDist, shellV3V3NormalizedToDist} from '../math/geom'
 
 // region small vector helpers over BMVert
 
@@ -96,12 +57,6 @@ function vertMadd(v: BMVert, dir: Vec3, fac: number): void {
     v.z += dir[2] * fac
 }
 
-/** `len_squared_v3v3` - the squared distance between two vectors read as points. */
-function lenSquaredV3V3(a: Vec3, b: Vec3): number {
-    const d = v3sub(a, b)
-    return v3dot(d, d)
-}
-
 /** `BM_edge_calc_length`. */
 function edgeCalcLength(e: BMEdge): number {
     return Math.hypot(e.v1.x - e.v2.x, e.v1.y - e.v2.y, e.v1.z - e.v2.z)
@@ -110,65 +65,6 @@ function edgeCalcLength(e: BMEdge): number {
 // endregion
 
 // region bmesh_polygon.cc / bmesh_mesh_normals.cc - normals
-
-/**
- * Port of `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`): each adjacent face normal weighted
- * by the corner angle it subtends at `v`.
- *
- * Blender computes the corner angle from the two *edge* vectors, which are oriented `v1 -> v2` rather
- * than away from the vertex, and flips the sign of the dot product when exactly one of the two edges
- * runs backwards relative to its loop. Reproduced literally - getting that XOR wrong silently weights
- * some corners by their supplement.
- */
-function vertNormalUpdate(v: BMVert): void {
-    let n: Vec3 = [0, 0, 0]
-    if (v.e) {
-        for (const eIter of diskEdges(v)) {
-            const lFirst = eIter.l
-            if (!lFirst) continue
-            const e2diff = v3normalize(v3sub(co(eIter.v1), co(eIter.v2)))
-            let lIter: BMLoop = lFirst
-            do {
-                if (lIter.v === v) {
-                    const ePrev = lIter.prev.e!
-                    const e1diff = v3normalize(v3sub(co(ePrev.v1), co(ePrev.v2)))
-                    let dotprod = v3dot(e1diff, e2diff)
-                    if ((lIter.prev.e!.v1 === lIter.prev.v) !== (lIter.e!.v1 === lIter.v)) {
-                        dotprod = -dotprod
-                    }
-                    // `math::safe_acos_approx(-dotprod)` - the approximation is for speed only.
-                    const fac = Math.acos(Math.min(1, Math.max(-1, -dotprod)))
-                    n = v3add(n, v3mul([lIter.f.nx, lIter.f.ny, lIter.f.nz], fac))
-                }
-                lIter = lIter.radialNext!
-            } while (lIter !== lFirst)
-        }
-        const len = v3len(n)
-        if (len !== 0) {
-            v.nx = n[0] / len
-            v.ny = n[1] / len
-            v.nz = n[2] / len
-            return
-        }
-    }
-    // Blender's fallback: point away from the origin.
-    const fallback = v3normalize(co(v))
-    v.nx = fallback[0]
-    v.ny = fallback[1]
-    v.nz = fallback[2]
-}
-
-/**
- * Port of `BM_mesh_normals_update`. Faces first, then vertices, because the vertex pass reads face
- * normals.
- *
- * Edit mode runs this after every operator, so `bmo_inset` simply assumes `f->no` and `v->no` are
- * current. Nothing in this kernel does, so the inset operators run it themselves.
- */
-function normalsUpdate(bm: BMesh): void {
-    for (const f of bm.faces) faceNormalUpdate(f)
-    for (const v of bm.verts) vertNormalUpdate(v)
-}
 
 // endregion
 
@@ -847,8 +743,6 @@ export function insetIndividual(bm: BMesh, faces: BMFace[], opts: InsetOptions =
 
     if (!faces.length) return {faces: [], verts: [], edges: []}
 
-    normalsUpdate(bm)
-
     // Only tag faces in the slot. Nothing in the individual path reads the tag, but Blender sets it
     // and an operator that leaves stale tags behind is a trap for the next one.
     for (const f of bm.faces) f.hflag &= ~ElemFlag.Tag
@@ -1069,8 +963,6 @@ export function insetRegion(
      * uses; a map keyed by the face is the same thing. */
     const useInterpolate = options.useInterpolate
     const ifaceMap = new Map<BMFace, InterpFace>()
-
-    normalsUpdate(bm)
 
     if (!useOutset) {
         for (const f of bm.faces) f.hflag &= ~ElemFlag.Tag

@@ -116,7 +116,7 @@ export class ModalTransform {
      * Switch to another mode mid-transform (`G` then `R`). Either slide mode asks for
      * `VERT_EDGE_SLIDE`: edge slide, or vertex slide when the selection is not edge loops (`G G`).
      */
-    switchMode(mode: TransformMode): void {
+    switchMode(mode: Exclude<TransformMode, 'shrinkFatten'>): void {
         this.handleModal(mode === 'edgeSlide' || mode === 'vertSlide' ? 'vertEdgeSlide' : mode)
     }
 

@@ -129,7 +129,7 @@ cases = []
 def op_case(name, co, faces, pairs, params):
     bm = build(co, faces)
     # `faces.new` creates each face's edges starting from (last, first); record the order and
-    # direction so the TypeScript build matches it (issues/open/mesh-kernel-face-create-edge-order.md).
+    # direction, which the TypeScript test checks `faceCreate` reproduces.
     mesh_edges = all_pairs(bm)
     edges = edges_of(bm, pairs)
     case = {

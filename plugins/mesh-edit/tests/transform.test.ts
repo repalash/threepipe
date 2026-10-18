@@ -10,6 +10,7 @@ import {describe, expect, it} from 'vitest'
 import {OrthographicCamera, PerspectiveCamera} from 'three'
 import {
     BMesh,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     ElemFlag,
     faceSelectSet,
@@ -40,7 +41,7 @@ import {CON_AXIS0, CON_AXIS2, T_PROP_EDIT} from '../src/transform/types'
 import {SnapContext} from '../src/snap/snap'
 import {snapTargetFromBMesh, snapTargetFromGeometry} from '../src/snap/targets'
 import {getTransformOrientationMatrix} from '../src/transform/orientation'
-import {meshNormalsUpdate} from '../src/transform/bmeshQuery'
+import {meshNormalsUpdate} from '@threepipe/mesh-kernel'
 import {TransInfo} from '../src/transform/TransInfo'
 import {geodesicDistancePropagateAcrossTriangle} from '../src/transform/math'
 import {propFalloffText} from '../src/transform/proportional'
@@ -68,9 +69,12 @@ function perspView(): TransformView {
     return TransformView.fromCamera(cam, 800, 600)
 }
 
-/** Blender's default cube: vertices at +-1. */
+/**
+ * Blender's default cube: vertices at +-1, with the current normals an edit session keeps
+ * (`EditMeshState`; the transform reads `v->no` / `f->no` for the normal orientation).
+ */
 function cube(): BMesh {
-    return bmFromMesh(primitiveCube())
+    return bmFromMesh(primitiveCube(), BM_FROM_MESH_NORMALS)
 }
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

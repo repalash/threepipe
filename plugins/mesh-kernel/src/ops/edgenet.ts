@@ -27,15 +27,14 @@ import {faceCalcCenterMedianWeighted} from './poke'
 import {Vec3} from '../math'
 import {
     addNewellCrossV3V3V3,
-    angleSignedOnAxisV3V3V3,
     angleSignedOnAxisV3V3V3V3,
+    FLT_EPSILON,
+    FLT_MAX,
     maddV3V3Fl,
     normalizeV3Len,
 } from '../math/geom'
 import {faceAttributeFill} from './faceAttributeFill'
 
-const FLT_EPSILON = 1.1920928955078125e-7
-const FLT_MAX = 3.4028234663852886e38
 
 const co = (v: BMVert): Vec3 => [v.x, v.y, v.z]
 
@@ -375,6 +374,28 @@ function f32NormalQuad(v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3): {n: Vec3, len: n
     const n = f32Cross(f32Sub(v1, v3), f32Sub(v2, v4))
     return {n, len: f32Normalize(n)}
 }
+/**
+ * `angle_signed_on_axis_v3v3_v3` (`math_vector.cc:379`) with `angle_v3v3` (:276) and
+ * `angle_normalized_v3v3` (:336), in `float`. The refine below sorts by it, and vertices that are
+ * collinear with the centre once projected give *exactly* equal angles in `float` - a tie the sort
+ * keeps in index order - where double precision splits them by an ulp either way. (`asinf` is
+ * `Math.asin` rounded once, which can differ from C's by an ulp.)
+ */
+function f32AngleSignedOnAxisV3V3V3(v1: Vec3, v2: Vec3, axis: Vec3): number {
+    const v1Proj = f32ProjectPlaneNormalized(v1, axis)
+    const v2Proj = f32ProjectPlaneNormalized(v2, axis)
+    const a: Vec3 = [v1Proj[0], v1Proj[1], v1Proj[2]]
+    const b: Vec3 = [v2Proj[0], v2Proj[1], v2Proj[2]]
+    f32Normalize(a)
+    f32Normalize(b)
+    const safeAsinF = (f: number) => f <= -1 ? F(-Math.PI / 2) : f >= 1 ? F(Math.PI / 2) : F(Math.asin(f))
+    const lenV3V3 = (p: Vec3, q: Vec3) => { const d = f32Sub(p, q); return F(Math.sqrt(f32Dot(d, d))) }
+    let angle = f32Dot(a, b) >= 0
+        ? F(2 * safeAsinF(F(lenV3V3(a, b) / 2)))
+        : F(F(Math.PI) - F(2 * safeAsinF(F(lenV3V3(a, [F(-b[0]), F(-b[1]), F(-b[2])]) / 2))))
+    if (f32Dot(f32Cross(v2Proj, v1Proj), axis) < 0) angle = F(F(Math.PI * 2) - angle)
+    return angle
+}
 /** `add_newell_cross_v3_v3v3` (`math_vector_inline.cc`). */
 function f32AddNewellCross(n: Vec3, a: Vec3, b: Vec3): void {
     n[0] = F(n[0] + F(F(a[1] - b[1]) * F(a[2] + b[2])))
@@ -477,7 +498,7 @@ export function vertsCalcNormalFromCloudEx(varr: readonly BMVert[]): {normal: Ve
         const angles: number[] = new Array(varrLen)
         for (let i = 0; i < varrLen; i++) {
             order[i] = i
-            angles[i] = angleSignedOnAxisV3V3V3(dirA, f32Sub(cos[i], center), rNormal)
+            angles[i] = f32AngleSignedOnAxisV3V3V3(dirA, f32Sub(cos[i], center), rNormal)
         }
         // "This order ensures the normal doesn't flip when refining." (`std::ranges::sort` is not
         // stable; equal angles may order differently here.)

@@ -42,11 +42,9 @@
  *
  * Stated here rather than stubbed silently, as the brief requires:
  *
- * - **`bevel_harden_normals` (`:3006`) and `bevel_set_weighted_normal_face_strength` (`:3135`).**
- *   Both operate on `CD_CUSTOMLOOPNORMAL` through `BM_lnorspace_update` and the loop-normal space
- *   machinery, none of which exists in this kernel. `BevelOptions` has no `hardenNormals` or
- *   `faceStrengthMode` as a result. `bevel_edges_sharp_boundary` (`:2971`) *is* ported, in
- *   `bevel-boundary.ts`, because it only sets the edge smooth flag.
+ * - (Ported since: `bevel_harden_normals` (`:3006`) and `bevel_set_weighted_normal_face_strength`
+ *   (`:3135`) are in `bevel-harden.ts`, encoding the hardened normals in the fan spaces of the mesh the
+ *   BMesh converts to; see that file and issues/open/modelling-tools/kernel-bmesh-mempool-order.md.)
  * - **Vertex-group and bevel-weight offsets.** `BM_mesh_bevel`'s `dvert`, `vertex_group`,
  *   `use_weights`, `bweight_offset_vert` and `bweight_offset_edge` are absent. There is no
  *   deform-vertex domain here, and the bevel-weight attributes exist but nothing maintains them.
@@ -68,9 +66,6 @@
  *
  * ## Divergences from Blender, all deliberate
  *
- * - **Normals are recomputed on entry.** Bevel reads `f->no` and `v->no` throughout and edit mode
- *   keeps them current; nothing in this kernel does, so `normalsUpdate` runs first. Same deliberate
- *   whole-mesh side effect as `ops/inset.ts`.
  * - **`VERT_OUT` / `EDGE_OUT` are sets, not an operator flag layer.** The kernel has no `BMO_*_flag`
  *   layer; `BevelParams.outVerts` / `outEdges` have exactly the same lifetime and meaning.
  * - **`BM_elem_attrs_copy`'s header rule is applied by hand.** See `bevel-create.ts`; this is the
@@ -88,10 +83,10 @@ import {
     PRO_CIRCLE_R, PRO_LINE_R, PRO_SQUARE_IN_R, PRO_SQUARE_R, findBevVert, getFaceKind,
     newProfileSpacing,
 } from './bevel-types'
-import {normalsUpdate} from './bevel-bmquery'
 import {findProfileFullness, setProfileSpacing} from './bevel-profile'
 import {bevelExtendEdgeData, buildBoundary, mathLayerInfoInit} from './bevel-boundary'
 import {bevelMergeUvs, determineUvVertConnectivity, uvVertMapInit, uvVertMapPop} from './bevel-create'
+import {BevelFaceStrengthMode, bevelHardenNormals, bevelSetWeightedNormalFaceStrength} from './bevel-harden'
 import {bevelVertConstruct} from './bevel-construct'
 import {buildVmesh} from './bevel-vmesh'
 import {adjustOffsets, regularizeProfileOrientation} from './bevel-adjust'
@@ -150,6 +145,10 @@ export interface BevelOptions {
     spread?: number
     /** How to fill the corner between profiles. Default `'adjacent'`. */
     vmeshMethod?: 'adjacent' | 'cutoff'
+    /** `harden_normals`: custom normals that keep the flat faces flat-shaded (`bevel_harden_normals`). */
+    hardenNormals?: boolean
+    /** `face_strength_mode`: write face strengths for the Weighted Normal modifier. Default `NONE`. */
+    faceStrengthMode?: BevelFaceStrengthMode
     /** Select the result and deselect everything else. Default true. */
     selectResult?: boolean
 }
@@ -211,6 +210,8 @@ function makeParams(opts: BevelOptions, affectType: number): BevelParams {
         miterInner: opts.miterInner === 'arc' ? BEVEL_MITER.ARC : BEVEL_MITER.SHARP,
         vmeshMethod: opts.vmeshMethod === 'cutoff' ? BEVEL_VMESH.CUTOFF : BEVEL_VMESH.ADJ,
         spread: opts.spread ?? 0.1,
+        hardenNormals: opts.hardenNormals ?? false,
+        faceStrengthMode: opts.faceStrengthMode ?? 'NONE',
         mathLayerNames: [],
         uvLayerNames: [],
         outVerts: new Set(),
@@ -352,6 +353,9 @@ function meshBevel(bm: BMesh, bp: BevelParams): void {
 
     bevelMergeUvs(bp, bm)
 
+    if (bp.hardenNormals) bevelHardenNormals(bp, bm)
+    if (bp.faceStrengthMode !== 'NONE') bevelSetWeightedNormalFaceStrength(bm, bp, bp.faceStrengthMode)
+
     /* Clear the long-loop tags, which were only set on some edges of F_EDGE faces. Blender does this
      * over every face in the mesh, testing the face kind; reproduced. */
     for (const f of bm.faces) {
@@ -433,9 +437,6 @@ function run(
     if (bp.offset <= 0) {
         return {faces: [], verts: [], edges: []}
     }
-    /* Bevel reads `f->no` and `v->no` everywhere and nothing here maintains them; see the file
-     * header. This is a side effect on the whole mesh, not just the beveled part. */
-    normalsUpdate(bm)
     tagInput(bm, verts, edges)
     meshBevel(bm, bp)
     const res = collectResult(bm, bp)

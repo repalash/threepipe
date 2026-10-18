@@ -33,3 +33,14 @@ the Triangulate modifier and `MESH_OT_quads_convert_to_tris` to be parity-testab
 
 `MESH_OT_quads_convert_to_tris` (Ctrl+T) and the Triangulate modifier, when they are ported; any
 operator that triangulates arbitrary input faces.
+
+## Update 2026-10-18 (track0-followups)
+
+`MESH_OT_quads_convert_to_tris` (Face > Triangulate Faces, Ctrl+T) is now wired in the editor over
+`quadsConvertToTrisSelection` (`src/ops/editmeshTools.ts`), so an n-gon in the selection now reaches
+this branch from the UI: the editor reports the error and changes nothing. Track 2 has ported
+`BLI_polyfill_calc_arena` / `BLI_polyfill_beautify` in `src/math/polyfill2d.ts` and
+`polyfill2dBeautify.ts` (`track2-procedural`, f6a32af5), not merged into modelling-editor yet. Once it
+is, the `else` branch above only needs those calls; `tests/editmesh-tools-parity.test.ts` has two
+Blender 5.2.2 n-gon cases (`triangulate ngon BEAUTY` / `CLIP`) marked `it.fails` that will then flip
+and must be moved back to plain `it`.

@@ -52,13 +52,9 @@ import {BMesh} from '../bmesh/BMesh'
 import {BMEdge, BMFace, BMVert} from '../bmesh/types'
 import {MeshData} from '../MeshData'
 import {AttrDomain, AttrName, ElemFlag} from '../constants'
+import {safeAsin} from '../math/geom'
 
 // region blenlib math the frame code needs
-
-/** `safe_asinf` (`blenlib/intern/math_base_safe_inline.cc:49`) - `asin` with the argument clamped. */
-function safeAsin(a: number): number {
-    return Math.asin(a < -1 ? -1 : a > 1 ? 1 : a)
-}
 
 /**
  * `math::is_zero` (`blenlib/BLI_math_vector.hh:779`) - every component within `epsilon` of zero.

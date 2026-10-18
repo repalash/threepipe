@@ -82,17 +82,18 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
             },
         })),
         {
-            id: 'add.menu', label: 'Add…', icon: 'plus', category: 'Add', modes: ['object'], hidden: true,
+            id: 'add.menu', label: 'Add…', icon: 'plus', category: 'Add', hidden: true,
             description: 'Open the Add menu at the cursor (Blender\'s Shift+A).',
-            exec: () => {
-                engine.requestMenu('Add', engine.operators.list(o => o.id.startsWith('add.') && o.id !== 'add.menu').map(o => ({id: o.id})))
+            // `op_menu("VIEW3D_MT_add")` in object mode, `"VIEW3D_MT_mesh_add"` in edit mode
+            // (blender_default.py:4559, :5622).
+            exec: ctx => {
+                engine.callMenu(ctx.mode === 'edit' ? 'VIEW3D_MT_mesh_add' : 'VIEW3D_MT_add')
                 return {ok: true}
             },
         },
         // --- Object -------------------------------------------------------------------------
         {
             id: 'object.enter_edit', label: 'Edit Mode', icon: 'edit', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Edit the selected mesh\'s vertices, edges and faces.',
             poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Click a mesh to select it first, or double-click it',
             exec: () => ({ok: engine.setMode('edit')}),
@@ -122,7 +123,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.delete', label: 'Delete', icon: 'trash', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Delete the selected objects.',
             flags: {undo: true},
             poll: needsSelection,
@@ -138,7 +138,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.duplicate', label: 'Duplicate', icon: 'duplicate', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Copy the selected objects in place, and select the copies.',
             flags: {undo: true, register: true},
             props: commandSchema('duplicate'),
@@ -158,7 +157,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.join', label: 'Join', icon: 'merge-links', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Merge the selected objects into one mesh; the active (last selected) object survives.',
             flags: {undo: true, register: true},
             poll: ctx => {
@@ -178,7 +176,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.separate', label: 'Separate by Loose Parts', icon: 'split-columns', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Split the selected object into one object per disconnected piece.',
             flags: {undo: true, register: true},
             poll: ctx => {
@@ -195,7 +192,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.hide', label: 'Hide', icon: 'eye-off', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Hide the selected objects.',
             flags: {undo: true},
             poll: needsSelection,
@@ -209,7 +205,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.parent', label: 'Parent to Active', icon: 'diagram-tree', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Make the last-selected object the parent of the other selected objects, keeping their placement.',
             flags: {undo: true},
             poll: ctx => ctx.selectedObjects.length >= 2 || 'Select the children, then the parent last',
@@ -254,7 +249,6 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'object.apply_transform', label: 'Apply Transform', icon: 'tick-circle', category: 'Object', modes: ['object'],
-            contextMenu: ['object'],
             description: 'Bake the object\'s location, rotation and/or scale into its mesh and reset them (Blender\'s Ctrl+A).',
             flags: {undo: true, register: true},
             props: {
@@ -267,14 +261,9 @@ export function registerObjectOperators(engine: EditorEnginePlugin): void {
             },
             poll: ctx => ctx.selectedObjects.some(o => !!o.geometry) || 'Click a mesh to select it first',
             async exec(ctx, props) {
+                // No props: Ctrl+A, `op_menu("VIEW3D_MT_object_apply")` (blender_default.py:4560).
                 if (!props) {
-                    engine.requestMenu('Apply', [
-                        {id: 'object.apply_transform', label: 'Location', props: {location: true, rotation: false, scale: false}},
-                        {id: 'object.apply_transform', label: 'Rotation', props: {location: false, rotation: true, scale: false}},
-                        {id: 'object.apply_transform', label: 'Scale', props: {location: false, rotation: false, scale: true}},
-                        {id: 'object.apply_transform', label: 'All Transforms', props: {location: true, rotation: true, scale: true}},
-                        {id: 'object.apply_transform', label: 'Rotation & Scale', props: {location: false, rotation: true, scale: true}},
-                    ])
+                    engine.callMenu('VIEW3D_MT_object_apply')
                     return {ok: true}
                 }
                 const which = {location: props.location !== false, rotation: props.rotation !== false, scale: props.scale !== false}

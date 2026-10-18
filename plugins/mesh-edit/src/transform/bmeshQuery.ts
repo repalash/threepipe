@@ -14,7 +14,6 @@ import {
     ElemFlag,
     faceCalcCenterMedian,
     faceCalcTangentAuto,
-    meshNormalsUpdate,
 } from '@threepipe/mesh-kernel'
 import {
     addV3,
@@ -37,8 +36,6 @@ export const faceNo = (f: BMFace): Vec3 => [f.nx, f.ny, f.nz]
 export function edgeCalcLengthSquared(e: BMEdge): number {
     return lenSquaredV3(subV3(vertCo(e.v1), vertCo(e.v2)))
 }
-
-export {meshNormalsUpdate}
 
 // region edit selection (`bmesh_marking.cc`)
 

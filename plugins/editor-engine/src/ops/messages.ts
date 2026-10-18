@@ -12,8 +12,9 @@ export function onlyInEditMessage(engine: EditorEnginePlugin): string {
 
 /**
  * `true` when no modal operation (a transform, loop cut, knife, line gesture or a property drag) is
- * running; otherwise why an operator has to wait.
+ * running; otherwise why an operator has to wait. A property drag re-runs its own operator on every
+ * change (the inset and bevel modals): those re-runs are its own and pass.
  */
 export function notModalMessage(engine: EditorEnginePlugin): true | string {
-    return !engine.meshEdit.isModal && !engine.propDrag || 'Finish the current operation first: click or Enter confirms it, Esc cancels'
+    return !engine.meshEdit.isModal && (!engine.propDrag || engine.propDrag.applying) || 'Finish the current operation first: click or Enter confirms it, Esc cancels'
 }

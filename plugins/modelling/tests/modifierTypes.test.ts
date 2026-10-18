@@ -55,7 +55,9 @@ describe('modifier types', () => {
             unregisterModifierType('scaleX')
         }
         const add = modifierCommand.schema.properties.add as {properties: Record<string, {enum?: string[]}>}
-        expect(add.properties.type.enum).toEqual(['array', 'mirror', 'wireframe'])
+        expect(add.properties.type.enum).toEqual(['array', 'mirror', 'wireframe', 'subsurf', 'weightedNormal'])
+        // A field two types share keeps both enums (array's and weightedNormal's `mode`).
+        expect(add.properties.mode.enum).toEqual(['linear', 'radial', 'curve', 'FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE'])
     })
 
     it('passes extra geometry down the stack and realizes it on apply', () => {

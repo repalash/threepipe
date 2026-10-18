@@ -80,9 +80,9 @@ export const designPreset: KeymapPreset = {
         {keys: 'ctrl+i', id: 'mesh.select_invert', mode: 'edit'},        // INVERT :3092
         {keys: 'ctrl+l', id: 'mesh.select_linked', mode: 'edit'},        // mesh.select_linked :3095
         {keys: 'ctrl+e', id: 'mesh.extrude', mode: 'edit'},              // view3d.edit_mesh_extrude_move_normal (IC Ctrl+E)
-        {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset (IC I)
+        {keys: 'i', id: 'mesh.inset', mode: 'edit', tool: true},         // mesh.inset (IC I): the interactive modal, as in Blender's preset
         {keys: 'k', id: 'mesh.knife', mode: 'edit', tool: true},         // builtin.knife (IC K, industry_compatible_data.py:3120)
-        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel (IC Ctrl+B)
+        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit', tool: true},    // mesh.bevel (IC Ctrl+B): the interactive modal
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},
         {keys: 'ctrl+d', id: 'mesh.duplicate', mode: 'edit'},            // mesh.duplicate_move :3106
         {keys: 'delete', id: 'mesh.delete', mode: 'edit'},               // VIEW3D_MT_edit_mesh_delete :3108
@@ -93,7 +93,10 @@ export const designPreset: KeymapPreset = {
         // The IC keymap binds no key for these (its right-click context menu carries them, as ours does);
         // J is Blender's and free here, P is Modo's "Make Polygon" (free in edit mode: P parents in object mode).
         {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},
-        {keys: 'p', id: 'mesh.fill', mode: 'edit', repeat: true},
+        {keys: 'p', id: 'mesh.edge_face_add', mode: 'edit', repeat: true},
+        {keys: 'ctrl+h', id: 'mesh.hide', mode: 'edit', props: {unselected: false}},  // mesh.hide :3100
+        {keys: 'shift+h', id: 'mesh.hide', mode: 'edit', props: {unselected: true}},  // :3102
+        {keys: 'alt+h', id: 'mesh.reveal', mode: 'edit'},                // mesh.reveal :3104
         {keys: 'dblclick', id: 'mesh.select_loop', mode: 'edit'},        // mesh.loop_select DOUBLE_CLICK :3070 (informative; S wires the pointer)
         {keys: 'alt+dblclick', id: 'mesh.select_ring', mode: 'edit'},    // mesh.edgering_select :3077
     ],

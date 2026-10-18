@@ -25,6 +25,8 @@ export const modifierCommand: CommandDefinition = {
     schema: schema({
         object: S.objectRef('The object whose stack to work on.'),
         objects: S.objectRef('Alias for `object`.'),
+        // Replaced below by a getter built from the registered types; declared here to keep its place in the schema.
+        add: {type: 'object'},
         index: S.integer('Which modifier `update`, `remove` or `move` refers to.', {minimum: 0}),
         update: {type: 'object', description: 'Fields to change on the modifier at `index`.'},
         remove: S.boolean('Remove the modifier at `index`.'),
@@ -116,7 +118,14 @@ export const modifierCommand: CommandDefinition = {
 function addSchema(): Record<string, unknown> {
     const types = getModifierTypes()
     const properties: Record<string, unknown> = {type: {type: 'string', enum: types.map(t => t.type)}}
-    for (const t of types) Object.assign(properties, t.properties ?? {})
+    for (const t of types) {
+        for (const [key, prop] of Object.entries(t.properties ?? {})) {
+            // Types sharing a field name (`mode` of array and weightedNormal) share one entry: their enums join.
+            const prev = properties[key] as {enum?: unknown[]} | undefined
+            const next = prop as {enum?: unknown[]}
+            properties[key] = prev?.enum && next.enum ? {...prev, enum: [...new Set([...prev.enum, ...next.enum])]} : prop
+        }
+    }
     return {
         type: 'object',
         description: 'A modifier to append: '

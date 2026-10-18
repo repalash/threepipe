@@ -39,7 +39,7 @@ import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
 import {ElemFlag, SelectMode} from '../src/constants'
 import {selectCountsRecalc} from '../src/bmesh/marking'
 import {diskEdgeExists} from '../src/bmesh/structure'
-import {normalsUpdate} from '../src/ops/bevel-bmquery'
+import {meshNormalsUpdate} from '../src/bmesh/normals'
 import {connectVerts, vertConnectPathSelection, vertConnectSelection} from '../src/ops/connect'
 import {connectVertPair} from '../src/ops/connectPair'
 
@@ -152,7 +152,7 @@ describe(`connect_verts / connect_vert_pair match Blender ${fixture.blender}`, (
         it(`${c.op}: ${c.name}`, () => {
             const {bm, verts, faces} = buildInput(c.input)
             // `build` refreshes normals (`bm.normal_update()`), as edit mode keeps them.
-            normalsUpdate(bm)
+            meshNormalsUpdate(bm)
             const vs = c.verts.map(i => verts[i])
             const r = c.op === 'connect_verts'
                 ? connectVerts(bm, vs, {checkDegenerate: !!c.params.check_degenerate, facesExclude: c.facesExclude.map(i => faces[i])})
@@ -179,6 +179,8 @@ describe(`vert_connect / vert_connect_path match Blender ${fixture.blender}`, ()
         if (c.kind !== 'edit') continue
         it(`${c.op}: ${c.name}`, () => {
             const {bm, verts, faces} = buildInput({...c.input, select: undefined})
+            // Edit mode has current normals when the operator runs (`EDBM_update` after every operator).
+            meshNormalsUpdate(bm)
             bm.selectMode = MODE[c.mode]
             setRawState(bm, verts, faces, c.entered, c.enteredHidden)
             bm.selectHistory = c.enteredHistory.map(h => ({

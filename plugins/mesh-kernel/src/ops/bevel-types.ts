@@ -432,6 +432,10 @@ export interface BevelParams {
     vmeshMethod: number
     /** Amount to spread when doing an inside miter. */
     spread: number
+    /** `harden_normals` (`:405`). */
+    hardenNormals: boolean
+    /** `face_strength_mode` (`:416`). */
+    faceStrengthMode: 'NONE' | 'NEW' | 'AFFECTED' | 'ALL'
     /** The loop layers that interpolate like UVs, resolved once. See {@link MathLayerInfo}. */
     mathLayerNames: string[]
     /** The UV (float2) loop layer names, in order, one entry per {@link uvVertMaps} slot. */

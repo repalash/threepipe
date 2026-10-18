@@ -53,15 +53,22 @@ const CORNER: Record<string, SubdQuadCornerType> = {
     INNER_VERT: 'innerVert', INNERVERT: 'innerVert', PATH: 'path', FAN: 'fan', STRAIGHT_CUT: 'straightCut',
 }
 
-function build(input: Case['input']) {
+function build(input: Case['input'], kind: Case['kind']) {
     const bm = new BMesh()
     const verts = input.positions.map(c => bm.vertCreate(c[0], c[1], c[2]))
-    // Create the edges first, in Blender's order and direction: `faces.new` starts each face's edges at
-    // (last, first) (`BM_edges_from_verts_ensure`, `bmesh_construct.cc:57`) and `Mesh.from_pydata` has
-    // its own order. The kernel's `faceCreate` starts at (first, second); see
-    // issues/open/mesh-kernel-face-create-edge-order.md. `faceCreate` then reuses these edges.
-    for (const [a, b] of input.meshEdges ?? []) bm.edgeCreate(verts[a], verts[b])
-    for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+    if (kind === 'op') {
+        // The generator's `bm.faces.new` (`BM_face_create_verts`) makes the edges itself, and so does
+        // `faceCreate`: the same edges, in the same order and direction (`BM_edges_from_verts_ensure`,
+        // `bmesh_construct.cc:57`), which the fixture records.
+        for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+        const index = new Map(verts.map((v, i) => [v, i]))
+        expect([...bm.edges].map(e => [index.get(e.v1), index.get(e.v2)])).toEqual(input.meshEdges)
+    } else {
+        // `Mesh.from_pydata` orders the edges its own way; create them first, in its order, and let
+        // `faceCreate` reuse them.
+        for (const [a, b] of input.meshEdges ?? []) bm.edgeCreate(verts[a], verts[b])
+        for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+    }
     meshNormalsUpdate(bm)
     const edgeOf = (a: number, b: number): BMEdge => {
         const e = [...bm.edges].find(x => x.joins(verts[a], verts[b]))
@@ -135,7 +142,7 @@ function compareExact(got: MeshOut, want: MeshOut): string[] {
 describe(`subdivide matches Blender ${fixture.blender}`, () => {
     for (const c of fixture.cases.filter(x => x.kind === 'op')) {
         it(c.name, () => {
-            const {bm, edges} = build(c.input)
+            const {bm, edges} = build(c.input, c.kind)
             const res = subdivideEdges(bm, edges, opOptions(c.params, edges))
             expect(bm.validate()).toEqual([])
             expect(compareExact(meshOf(bm), c.output)).toEqual([])
@@ -148,7 +155,7 @@ describe(`subdivide matches Blender ${fixture.blender}`, () => {
 describe(`edit-mode Subdivide (MESH_OT_subdivide) matches Blender ${fixture.blender}`, () => {
     for (const c of fixture.cases.filter(x => x.kind === 'edit')) {
         it(c.name, () => {
-            const {bm, edges} = build(c.input)
+            const {bm, edges} = build(c.input, c.kind)
             bm.selectMode = SelectMode.Edge
             for (const e of edges) edgeSelectSet(bm, e, true)
             selectFlushMode(bm)

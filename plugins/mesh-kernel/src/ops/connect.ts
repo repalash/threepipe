@@ -29,7 +29,6 @@ import {diskEdgeExists, diskEdges, radialLoops} from '../bmesh/structure'
 import {edgeSelectSet, selectModeFlush} from '../bmesh/marking'
 import {elemsHflagEnable} from '../bmesh/hflag'
 import {faceEdgeShareLoop} from '../bmesh/euler'
-import {normalsUpdate} from './bevel-bmquery'
 import {loopsOfVert} from './dissolve'
 import {bmeshEditEnd} from './bmo'
 import {ElemFlag, ElemType} from '../constants'
@@ -118,9 +117,35 @@ export function vertCalcNormal(v: BMVert): {no: Vec3, ok: boolean} {
 }
 
 /**
+ * `BM_vert_calc_normal_ex` (`bmesh_polygon.cc:734`): {@link vertCalcNormal} over only the faces with
+ * `hflag` set (shrink/fatten in face select mode uses the selected faces' normal).
+ */
+export function vertCalcNormalEx(v: BMVert, hflag: number): {no: Vec3, ok: boolean} {
+    let len = 0
+    const no: Vec3 = [0, 0, 0]
+    if (v.e) {
+        for (const e of diskEdges(v)) {
+            if (e.l) {
+                for (const l of radialLoops(e)) {
+                    if (l.v === v && (l.f.hflag & hflag)) {
+                        loopNormalAccum(l, no)
+                        len++
+                    }
+                }
+            }
+        }
+    }
+    if (len) {
+        normalizeV3Len(no)
+        return {no, ok: true}
+    }
+    return {no, ok: false}
+}
+
+/**
  * `BM_vert_normal_update` (`bmesh_polygon.cc:819`): `BM_vert_calc_normal(v, v->no)`. Unlike the
  * whole-mesh update there is no fallback: a vertex without faces gets the zero normal. (Named apart
- * from `bevel-bmquery`'s `vertNormalUpdate`, which is `bm_vert_calc_normals_impl` with the
+ * from `bmesh/normals.ts`'s `vertCalcNormalsImpl`, which is `bm_vert_calc_normals_impl` with the
  * normalised-position fallback of the whole-mesh update.)
  */
 export function bmVertNormalUpdate(v: BMVert): void {
@@ -676,8 +701,6 @@ function edbmConnectVertPair(bm: BMesh): {len: number, edges: BMEdge[], restored
         isPair = false
     }
 
-    // Edit mode keeps normals current; the kernel does not, so make them so (`BM_mesh_normals_update`).
-    normalsUpdate(bm)
 
     let result: ConnectVertsResult
     if (isPair) {
@@ -970,8 +993,6 @@ export function vertConnectPathSelection(bm: BMesh): VertConnectResult {
         }
     }
 
-    // Edit mode keeps normals current; the kernel does not, so make them so (`BM_mesh_normals_update`).
-    normalsUpdate(bm)
 
     const edges: BMEdge[] = []
     let ok: boolean

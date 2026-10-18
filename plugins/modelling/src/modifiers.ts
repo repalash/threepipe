@@ -18,12 +18,16 @@ import {
     arrayCurve,
     arrayLinear,
     arrayRadial,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     mirrorGeometry,
+    subdivisionSurface,
     Vec3,
+    weightedNormal,
     wireframe,
 } from '@threepipe/mesh-kernel'
+import type {SubdivBoundarySmooth, SubdivUVSmooth, WeightedNormalMode} from '@threepipe/mesh-kernel'
 import {MeshData} from '@threepipe/mesh-kernel'
 import type {ModellingDocument, ModellingEntry} from './document'
 
@@ -82,8 +86,39 @@ export interface WireframeModifierSpec {
     materialOffset?: number
 }
 
+/**
+ * Blender's Subdivision Surface modifier (`MOD_subsurf.cc`, settings per `subdiv_modifier.cc:31-39`), evaluated by
+ * the kernel's OpenSubdiv port. Defaults are `SubsurfModifierData`'s (`DNA_modifier_types.h`): levels 1, quality 3,
+ * limit surface on, creases on, boundary smooth ALL, UV smooth PRESERVE_BOUNDARIES, Catmull-Clark.
+ */
+export interface SubsurfModifierSpec {
+    type: 'subsurf'
+    levels?: number
+    quality?: number
+    useLimitSurface?: boolean
+    useCreases?: boolean
+    boundarySmooth?: SubdivBoundarySmooth
+    uvSmooth?: SubdivUVSmooth
+    /** `CATMULL_CLARK` or `SIMPLE`. */
+    subdivisionType?: 'CATMULL_CLARK' | 'SIMPLE'
+}
+
+/**
+ * Blender's Weighted Normal modifier (`MOD_weighted_normal.cc`), through the kernel's port: custom normals that
+ * mix each vertex's (or smooth fan's) face normals by area and/or corner angle, so big faces stay flat and bevels
+ * take the bend. Defaults are `WeightedNormalModifierData`'s: face area, weight 50, threshold 0.01.
+ */
+export interface WeightedNormalModifierSpec {
+    type: 'weightedNormal'
+    mode?: WeightedNormalMode
+    weight?: number
+    threshold?: number
+    keepSharp?: boolean
+    useFaceInfluence?: boolean
+}
+
 /** The modifiers this package implements. */
-export type BuiltinModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec
+export type BuiltinModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec | SubsurfModifierSpec | WeightedNormalModifierSpec
 
 /**
  * A modifier of a type another package registered with {@link registerModifierType} - for example
@@ -257,7 +292,7 @@ export function describeModifier(spec: ModifierSpec): string {
 
 /** The kernel's ops work on BMesh; each built-in converts in and out. */
 function viaBMesh(mesh: MeshData, run: (bm: ReturnType<typeof bmFromMesh>, input: {verts: any[], edges: any[], faces: any[]}) => void): MeshData {
-    const bm = bmFromMesh(mesh)
+    const bm = bmFromMesh(mesh, BM_FROM_MESH_NORMALS)
     const input = {verts: [...bm.verts], edges: [...bm.edges], faces: [...bm.faces]}
     run(bm, input)
     return bmToMesh(bm)
@@ -424,6 +459,94 @@ registerModifierType<WireframeModifierSpec>({
                 creaseWeight: spec.creaseWeight ?? 1,
                 materialOffset: spec.materialOffset ?? 0,
             })
+        })
+    },
+})
+
+registerModifierType<SubsurfModifierSpec>({
+    type: 'subsurf',
+    summary: '`{type: "subsurf", levels, ...}` (Blender\'s Subdivision Surface: levels 1, limit surface, creases from `crease`)',
+    properties: {
+        levels: {type: 'integer', minimum: 0, maximum: 6},
+        quality: {type: 'integer', minimum: 1, maximum: 10},
+        useLimitSurface: {type: 'boolean'},
+        useCreases: {type: 'boolean'},
+        boundarySmooth: {type: 'string', enum: ['ALL', 'PRESERVE_CORNERS']},
+        uvSmooth: {type: 'string', enum: ['NONE', 'PRESERVE_CORNERS', 'PRESERVE_CORNERS_AND_JUNCTIONS', 'PRESERVE_CORNERS_JUNCTIONS_AND_CONCAVE', 'PRESERVE_BOUNDARIES', 'SMOOTH_ALL']},
+        subdivisionType: {type: 'string', enum: ['CATMULL_CLARK', 'SIMPLE']},
+    },
+    read(raw) {
+        return {
+            type: 'subsurf',
+            levels: raw.levels as number | undefined,
+            quality: raw.quality as number | undefined,
+            useLimitSurface: raw.useLimitSurface as boolean | undefined,
+            useCreases: raw.useCreases as boolean | undefined,
+            boundarySmooth: raw.boundarySmooth as SubsurfModifierSpec['boundarySmooth'],
+            uvSmooth: raw.uvSmooth as SubsurfModifierSpec['uvSmooth'],
+            subdivisionType: raw.subdivisionType as SubsurfModifierSpec['subdivisionType'],
+        }
+    },
+    check(spec) {
+        const levels = spec.levels ?? 1
+        if (!Number.isInteger(levels) || levels < 0 || levels > 6) throw new Error('a subsurf modifier needs whole `levels` from 0 to 6')
+        const quality = spec.quality ?? 3
+        if (!Number.isInteger(quality) || quality < 1 || quality > 10) throw new Error('a subsurf modifier `quality` must be a whole number from 1 to 10')
+    },
+    describe: spec => `subsurf ${spec.subdivisionType === 'SIMPLE' ? 'simple ' : ''}level ${spec.levels ?? 1}${spec.useLimitSurface === false ? ', no limit surface' : ''}`,
+    // MeshData in, MeshData out: no BMesh round trip.
+    evaluate(mesh, spec) {
+        return subdivisionSurface(mesh, {
+            levels: spec.levels ?? 1,
+            quality: spec.quality ?? 3,
+            useLimitSurface: spec.useLimitSurface ?? true,
+            useCreases: spec.useCreases ?? true,
+            boundarySmooth: spec.boundarySmooth ?? 'ALL',
+            uvSmooth: spec.uvSmooth ?? 'PRESERVE_BOUNDARIES',
+            scheme: spec.subdivisionType ?? 'CATMULL_CLARK',
+        })
+    },
+})
+
+registerModifierType<WeightedNormalModifierSpec>({
+    type: 'weightedNormal',
+    summary: '`{type: "weightedNormal", mode, weight, keepSharp}` (Blender\'s Weighted Normal: custom normals so big '
+        + 'faces shade flat and bevels take the bend; weight 50 treats faces equally, 100 lets the largest dominate)',
+    properties: {
+        mode: {type: 'string', enum: ['FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE']},
+        weight: {type: 'integer', minimum: 1, maximum: 100},
+        threshold: {type: 'number', minimum: 0},
+        keepSharp: {type: 'boolean'},
+        useFaceInfluence: {type: 'boolean'},
+    },
+    read(raw) {
+        return {
+            type: 'weightedNormal',
+            mode: raw.mode as WeightedNormalModifierSpec['mode'],
+            weight: raw.weight as number | undefined,
+            threshold: raw.threshold as number | undefined,
+            keepSharp: raw.keepSharp as boolean | undefined,
+            useFaceInfluence: raw.useFaceInfluence as boolean | undefined,
+        }
+    },
+    check(spec) {
+        const w = spec.weight ?? 50
+        if (!Number.isInteger(w) || w < 1 || w > 100) throw new Error('a weightedNormal modifier `weight` must be a whole number from 1 to 100')
+        if (spec.mode && !['FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE'].includes(spec.mode)) {
+            throw new Error('a weightedNormal modifier `mode` is FACE_AREA, CORNER_ANGLE or FACE_AREA_WITH_ANGLE')
+        }
+        if (spec.threshold !== undefined && (!Number.isFinite(spec.threshold) || spec.threshold < 0)) {
+            throw new Error('a weightedNormal modifier `threshold` must be a number of 0 or more')
+        }
+    },
+    describe: spec => `weighted normal ${(spec.mode ?? 'FACE_AREA').toLowerCase().replace(/_/g, ' ')}, weight ${spec.weight ?? 50}${spec.keepSharp ? ', keep sharp' : ''}`,
+    evaluate(mesh, spec) {
+        return weightedNormal(mesh, {
+            mode: spec.mode ?? 'FACE_AREA',
+            weight: spec.weight ?? 50,
+            threshold: spec.threshold ?? 0.01,
+            keepSharp: spec.keepSharp ?? false,
+            useFaceInfluence: spec.useFaceInfluence ?? false,
         })
     },
 })

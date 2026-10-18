@@ -16,7 +16,7 @@ import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
 import {BPTreeComponent} from './tree/BPTreeComponent'
 import type {TreeNodeInfo} from './tree/treeTypes'
 import {useEditor, useEngineVersion} from './EditorContext'
-import {useContextMenu} from './ContextMenuProvider'
+import {ADD_MENU, CONTEXT_MENUS} from '@threepipe/plugin-editor-engine'
 import type {EditorEngine} from '@threepipe/plugin-editor-engine'
 import {IconButton} from './IconButton'
 
@@ -228,7 +228,6 @@ const outlinerConfig: UiObjectConfig = {type: 'hierarchy', label: 'Outliner', uu
 
 export function Outliner() {
     const {engine} = useEditor()
-    const contextMenu = useContextMenu()
     const version = useEngineVersion('sceneChanged', 'selectionChanged')
     const stats = useMemo(() => engine.stats(), [engine, version])
 
@@ -237,21 +236,15 @@ export function Outliner() {
             <span className="me-panel-title">Outliner</span>
             <span className="me-panel-sub">{stats.objects} object{stats.objects === 1 ? '' : 's'}</span>
             <span className="me-spacer" />
-            <IconButton icon="plus" size="small" label="Add" description="Add a primitive at the origin" onClick={e => {
-                const ctx = engine.context()
-                const ops = engine.operators.list(op => op.category === 'Add' && (!op.modes || op.modes.includes(ctx.mode)))
-                contextMenu.show(e, <div className="bp5-menu me-context-menu">{ops.map(op =>
-                    <a key={op.id} className="bp5-menu-item" onClick={() => { engine.run(op.id); contextMenu.hide() }}>
-                        <Icon icon={op.icon as never} /><span className="bp5-fill bp5-text-overflow-ellipsis">{op.label}</span>
-                    </a>)}</div>)
-            }} />
+            <IconButton icon="plus" size="small" label="Add" description="Add an object at the origin (the Add menu)" onClick={e =>
+                engine.callMenu(ADD_MENU, {clientX: e.clientX, clientY: e.clientY})} />
         </div>
         <div className="me-panel-body me-outliner-body">
             <HierarchyTree
                 config={outlinerConfig}
                 className="me-tree"
                 engine={engine}
-                onContextMenu={(e, obj) => contextMenu.showOperators(e, 'object', undefined, obj.name || 'Object')}
+                onContextMenu={e => { e.preventDefault(); engine.callMenu(CONTEXT_MENUS.object, {clientX: e.clientX, clientY: e.clientY}) }}
             />
             {stats.objects === 0 && <div className="me-empty">
                 <div>The scene is empty.</div>

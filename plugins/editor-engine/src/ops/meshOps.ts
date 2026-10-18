@@ -14,7 +14,7 @@
  */
 
 import {ModalTransform} from '@threepipe/plugin-mesh-edit'
-import type {TransformSavedProps} from '@threepipe/plugin-mesh-edit'
+import type {ExtrudeMacro, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import {
     BMEdge,
     BMFace,
@@ -22,6 +22,8 @@ import {
     edgeSelectSet,
     ElemFlag,
     faceSelectSet,
+    mergeSelection,
+    MergeType,
     selectHistoryActive,
     walkEdgeLoop,
     walkEdgeRing,
@@ -30,18 +32,13 @@ import {
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 import {visibleSchema} from './modellingOps'
+import {sessionOps} from './session'
 import {onlyInEditMessage, notModalMessage} from './messages'
 
 type Vec3 = [number, number, number]
 
-/** Blender's `mesh.delete` types (`editmesh_tools.cc`, `MESH_OT_delete`), as the X menu lists them. */
-const DELETE_MENU: {type: string, label: string}[] = [
-    {type: 'VERT', label: 'Vertices'},
-    {type: 'EDGE', label: 'Edges'},
-    {type: 'FACE', label: 'Faces'},
-    {type: 'EDGE_FACE', label: 'Only Edges & Faces'},
-    {type: 'ONLY_FACE', label: 'Only Faces'},
-]
+/** Blender's `mesh.delete` types, `prop_mesh_delete_types` (`editmesh_tools.cc:532`). */
+const DELETE_TYPES = ['VERT', 'EDGE', 'FACE', 'EDGE_FACE', 'ONLY_FACE']
 
 export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
@@ -59,12 +56,31 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         const p = poll(ctx)
         return p === true ? notModal() : p
     }
+    // `MESH_OT_merge` props (editmesh_tools.cc:3639): `type`, and `uvs` ("Move UVs according to merge").
+    const mergeProps: PropSchema = {type: 'object', properties: {
+        type: {type: 'string', enum: ['CENTER', 'CURSOR', 'COLLAPSE', 'FIRST', 'LAST'], default: 'CENTER',
+            description: 'Type: merge method to use - At Center, At Cursor, Collapse, At First, At Last.'},
+        uvs: {type: 'boolean', default: false, description: 'UVs: move UVs according to merge.'},
+    }}
+    const mergeSession = sessionOps(engine).runSession('Merge', mergeProps, p => {
+        const type = p.type as MergeType
+        return mergeSelection(me.state!.bm, type, !!p.uvs, type === 'CURSOR' ? me.cursorLocal() : null)
+    })
     const commandSchema = (op: string): PropSchema | undefined => {
         const def = modelling?.describeCommands().find(c => c.name === op)
         if (!def) return undefined
         const schema = visibleSchema(def.inputSchema as PropSchema)
         for (const k of ['faces', 'edges', 'verts', 'type', 'mode', 'name']) delete schema.properties[k]
         schema.required = []
+        return schema
+    }
+    const bevelSchema = (): PropSchema | undefined => {
+        const schema = commandSchema('bevel')
+        if (!schema) return undefined
+        schema.properties = {
+            affect: {type: 'string', enum: ['VERTICES', 'EDGES'], description: 'Affect: bevel the selected vertices, or the selected edges. Unset, the select mode decides.'},
+            ...schema.properties,
+        }
         return schema
     }
     const docEntry = () => me.editObject && modelling ? modelling.document.find(me.editObject.uuid) : undefined
@@ -108,7 +124,10 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const savedToProps = (saved: TransformSavedProps): Record<string, unknown> => ({
         ...(saved.mode === 'rotate'
             ? {angle: Math.round(saved.value[0] * 180 / Math.PI * 1e4) / 1e4}
-            : {value: saved.value.map(x => Math.round(x * 1e6) / 1e6)}),
+            : saved.mode === 'shrinkFatten'
+                // `TRANSFORM_OT_shrink_fatten`: `value` is one offset, and `use_even_offset` (`transform_ops.cc:1136`).
+                ? {value: Math.round(saved.value[0] * 1e6) / 1e6, useEvenOffset: !!saved.shrinkFatten?.useEvenOffset}
+                : {value: saved.value.map(x => Math.round(x * 1e6) / 1e6)}),
         orientation: saved.orientType,
         constraintAxis: saved.constraintAxis ?? [false, false, false],
         proportional: saved.proportional.enabled,
@@ -119,14 +138,17 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             connected: saved.proportional.connected, projected: saved.proportional.projected, snap: saved.snap},
     })
 
-    const propsToSaved = (mode: 'translate' | 'rotate' | 'resize', p: Record<string, unknown>): TransformSavedProps => {
+    const propsToSaved = (mode: 'translate' | 'rotate' | 'resize' | 'shrinkFatten', p: Record<string, unknown>): TransformSavedProps => {
         const hidden = (p._saved ?? {}) as Partial<{orientMatrix: TransformSavedProps['orientMatrix'], orientMatrixType: TransformSavedProps['orientMatrixType'],
             orientAxis: number, connected: boolean, projected: boolean, snap: boolean}>
         const axis = Array.isArray(p.constraintAxis) ? (p.constraintAxis as unknown[]).map(Boolean) : [false, false, false]
         const orientation = (p.orientation as TransformSavedProps['orientType']) ?? 'global'
         return {
             mode,
-            value: mode === 'rotate' ? [Number(p.angle ?? 0) * Math.PI / 180] : vec3(p.value, mode === 'resize' ? [1, 1, 1] : [0, 0, 0]),
+            value: mode === 'rotate' ? [Number(p.angle ?? 0) * Math.PI / 180]
+                : mode === 'shrinkFatten' ? [Number(p.value ?? 0)]
+                    : vec3(p.value, mode === 'resize' ? [1, 1, 1] : [0, 0, 0]),
+            ...mode === 'shrinkFatten' ? {shrinkFatten: {useEvenOffset: !!p.useEvenOffset}} : {},
             orientType: orientation,
             // A changed orientation in the panel means the stored matrix no longer applies.
             orientMatrixType: hidden.orientMatrixType === orientation ? hidden.orientMatrixType : orientation,
@@ -145,6 +167,14 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     }
 
     const ORIENTATIONS = ['global', 'local', 'normal', 'view', 'cursor', 'custom']
+    // `TRANSFORM_OT_shrink_fatten` (transform_ops.cc:1136): `value`, `use_even_offset`, proportional.
+    const shrinkFattenProps: PropSchema = {type: 'object', properties: {
+        value: {type: 'number', description: 'Offset: distance along the normals.'},
+        useEvenOffset: {type: 'boolean', default: false, description: 'Offset Even: scale the offset to give more even thickness.'},
+        proportional: {type: 'boolean', description: 'Proportional editing: move nearby unselected elements too, falling off with distance.'},
+        proportionalFalloff: {type: 'string', enum: ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear', 'constant', 'random'], description: 'Proportional falloff shape.'},
+        proportionalSize: {type: 'number', minimum: 0, description: 'Proportional radius.'},
+    }}
     const FALLOFFS = ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear', 'constant', 'random']
     const commonTransformProps = {
         orientation: {type: 'string' as const, enum: ORIENTATIONS, description: 'The axes the values and constraint are in.'},
@@ -155,7 +185,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     }
 
     const transformOp = (id: string, mode: 'translate' | 'rotate' | 'resize', label: string, icon: string, description: string, props: PropSchema): OperatorDescriptor => ({
-        id, label, icon, description, category: 'Mesh', modes: ['edit'], contextMenu: ['vertex', 'edge', 'face'],
+        id, label, icon, description, category: 'Mesh', modes: ['edit'],
         flags: {undo: true, register: true},
         props,
         poll: ready(hasSelection),
@@ -199,14 +229,12 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         })),
         {
             id: 'mesh.select_all', label: 'Select All', icon: 'select', category: 'Select', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Select every element.',
             poll: editing,
             exec: () => { me.selectAllElements(); return {ok: true} },
         },
         {
             id: 'mesh.select_none', label: 'Select None', icon: 'disable', category: 'Select', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Deselect every element.',
             poll: editing,
             exec: () => { me.deselectAllElements(); return {ok: true} },
@@ -219,14 +247,12 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.select_linked', label: 'Select Linked', icon: 'graph', category: 'Select', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Grow the selection to everything connected to it.',
             poll: hasSelection,
             exec: () => { me.selectLinked(); return {ok: true} },
         },
         {
             id: 'mesh.select_loop', label: 'Select Edge Loop', icon: 'ring', category: 'Select', modes: ['edit'],
-            contextMenu: ['edge', 'face'],
             description: 'Select the loop of edges (or faces, in face mode) running through the active edge.',
             poll: () => !!activeEdge(me) || 'Select an edge first (click one; the last selected is the active edge)',
             exec: ctx => {
@@ -240,7 +266,6 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.select_ring', label: 'Select Edge Ring', icon: 'ring', category: 'Select', modes: ['edit'],
-            contextMenu: ['edge'],
             description: 'Select the ring of edges parallel to the active edge, across the quads.',
             poll: () => !!activeEdge(me) || 'Select an edge first (click one; the last selected is the active edge)',
             exec: () => {
@@ -273,7 +298,6 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         // --- topology: session operators ------------------------------------------------------
         {
             id: 'mesh.extrude', label: 'Extrude', icon: 'arrow-up', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Extrude the selection and start moving it along its normal. Click or Enter to confirm, Esc to cancel the move.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -286,9 +310,59 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 return me.extrudeBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to extrude. Select some vertices, edges or faces first'}
             },
         },
+        // --- Shrink/Fatten (`TRANSFORM_OT_shrink_fatten`, transform_ops.cc:1120) and the extrude macros
+        // that chain into it or into Move (`mesh_ops.cc:293-327`) ---------------------------------------
+        {
+            id: 'transform.shrink_fatten', label: 'Shrink/Fatten', icon: 'arrows-vertical', category: 'Mesh', modes: ['edit'],
+            description: 'Move the selected vertices along their normals; drag up to fatten, down to shrink. S or Alt: keep the thickness even.',
+            flags: {undo: true, register: true},
+            props: shrinkFattenProps,
+            poll: ready(hasSelection),
+            exec: (_ctx, p) => {
+                if (!p) return me.startTransform('shrinkFatten', {shrinkFatten: {useEvenOffset: false}}) ? {ok: true, modal: true} : {ok: false, error: 'Nothing to shrink or fatten. Select some vertices, edges or faces first'}
+                return me.applyTransformValues(propsToSaved('shrinkFatten', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to shrink or fatten. Select some vertices, edges or faces first'}
+            },
+        },
+        ...([
+            ['mesh.extrude_vertices_move', 'Extrude Vertices', 'Extrude Only Vertices and Move: each selected vertex gets a new one joined by an edge, which then moves.', 'vert', 'Select the vertices to extrude first'],
+            ['mesh.extrude_edges_move', 'Extrude Edges', 'Extrude Only Edges and Move: the selected edges extrude on their own into a strip of faces, whose new edges then move.', 'edge', 'Select the edges to extrude first'],
+            ['mesh.extrude_faces_move', 'Extrude Individual Faces', 'Extrude Individual Faces and Move: each selected face extrudes on its own and moves out along its normal (Shrink/Fatten).', 'face', 'Select the faces to extrude first'],
+            ['mesh.extrude_region_shrink_fatten', 'Extrude Region and Shrink/Fatten', 'Extrude the selected faces as one region and move them out along their vertex normals (Shrink/Fatten).', 'face', 'Select the faces to extrude first'],
+        ] as const).map(([id, label, description, need, what]): OperatorDescriptor => {
+            const kind = id.slice('mesh.'.length) as ExtrudeMacro
+            const shrink = kind === 'extrude_faces_move' || kind === 'extrude_region_shrink_fatten'
+            const props: PropSchema = shrink ? shrinkFattenProps : {type: 'object', properties: {
+                // `MESH_OT_extrude_edges_indiv.use_normal_flip` (editmesh_extrude.cc:633).
+                ...kind === 'extrude_edges_move' ? {useNormalFlip: {type: 'boolean' as const, default: false, description: 'Flip Normals.'}} : {},
+                value: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3, description: 'Move X, Y, Z of the new geometry, in the orientation\'s axes.'},
+                ...commonTransformProps,
+            }}
+            return {
+                id, label, icon: 'arrow-up', category: 'Mesh', modes: ['edit'], description,
+                flags: {undo: true, register: true},
+                props,
+                poll: ready(() => !me.state ? onlyInEdit()
+                    : (need === 'vert' ? me.state.bm.totvertsel : need === 'edge' ? me.state.bm.totedgesel : me.state.bm.totfacesel) > 0 || what),
+                exec: (_ctx, p) => {
+                    const useNormalFlip = !!p?.useNormalFlip
+                    if (!p || p.value === undefined) {
+                        return me.extrudeMacro(kind, {useNormalFlip}) ? {ok: true, modal: true} : {ok: false, error: what}
+                    }
+                    return me.extrudeMacroBy(kind, propsToSaved(shrink ? 'shrinkFatten' : 'translate', p), {useNormalFlip})
+                        ? {ok: true, props: p} : {ok: false, error: what}
+                },
+            }
+        }),
+        {
+            // `VIEW3D_OT_edit_mesh_extrude_shrink_fatten` (scripts/startup/bl_operators/view3d.py:173): with
+            // faces selected Extrude Region and Shrink/Fatten, otherwise Extrude Region and Move.
+            id: 'view3d.edit_mesh_extrude_move_shrink_fatten', label: 'Extrude Faces Along Normals', icon: 'arrow-up', category: 'Mesh', modes: ['edit'],
+            description: 'Extrude the selected faces as one region and move them out along their vertex normals.',
+            poll: ready(hasSelection),
+            exec: () => engine.run(me.state && me.state.bm.totfacesel >= 1 ? 'mesh.extrude_region_shrink_fatten' : 'mesh.extrude'),
+        },
         {
             id: 'mesh.duplicate', label: 'Duplicate', icon: 'duplicate', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Copy the selected elements and start moving the copy.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -303,43 +377,33 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.split', label: 'Split', icon: 'fork', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Detach the selection from the rest of the mesh, keeping it in place.',
             flags: {undo: true, register: true},
             poll: ready(hasSelection),
             exec: () => me.split() ? {ok: true} : {ok: false, error: 'Nothing to split. Select some vertices, edges or faces first'},
         },
         {
+            // `MESH_OT_merge` (editmesh_tools.cc:3620): `type` (`merge_type_items`, :3565), `uvs`.
             id: 'mesh.merge', label: 'Merge', icon: 'group-objects', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
-            description: 'Collapse the selected vertices into one: at their centre, or at the first or last selected.',
+            description: 'Merge the selected vertices: at their centre, at the 3D cursor, at the first or last selected, or each connected group into one (Collapse).',
             flags: {undo: true, register: true},
-            props: {type: 'object', properties: {
-                mode: {type: 'string', enum: ['center', 'first', 'last'], description: 'Where the merged vertex ends up.', default: 'center'},
-            }},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices to merge: Shift+click adds to the selection' : p }),
-            exec: (_ctx, p) => {
+            props: mergeProps,
+            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 0 || 'Select the vertices to merge first' : p }),
+            exec: (ctx, p) => {
+                // No props: M, `op_menu("VIEW3D_MT_edit_mesh_merge")` (blender_default.py:5618).
                 if (!p) {
-                    engine.requestMenu('Merge', [
-                        {id: 'mesh.merge', label: 'At Center', props: {mode: 'center'}},
-                        {id: 'mesh.merge', label: 'At First', props: {mode: 'first'}},
-                        {id: 'mesh.merge', label: 'At Last', props: {mode: 'last'}},
-                        // VIEW3D_MT_edit_mesh_merge: `layout.operator("mesh.remove_doubles", text="By Distance")`.
-                        ...engine.operators.get('mesh.remove_doubles') ? [{id: 'mesh.remove_doubles', label: 'By Distance'}] : [],
-                    ])
+                    engine.callMenu('VIEW3D_MT_edit_mesh_merge')
                     return {ok: true}
                 }
-                const mode = (p.mode as 'center' | 'first' | 'last') ?? 'center'
-                return me.merge(mode) ? {ok: true, props: {mode}} : {ok: false, error: 'Select at least two vertices to merge'}
+                return mergeSession(ctx, p)
             },
         },
         // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.
-        // `mesh.fill` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
+        // `mesh.edge_face_add` (F) is registered by fillOps.ts, over the kernel's `edbm_add_edge_face_exec` port.
         // `mesh.subdivide` (`bmo_subdivide_edges`, all patterns) is registered by loopOps.ts.
         // --- topology: document commands ------------------------------------------------------
         {
             id: 'mesh.inset', label: 'Inset Faces', icon: 'inner-join', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['face'],
             description: 'Inset the selected faces: a smaller copy of each, ringed by new side faces. Adjust the thickness in the panel.',
             flags: {undo: true, register: true},
             props: commandSchema('inset'),
@@ -349,35 +413,34 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.bevel', label: 'Bevel', icon: 'polygon-filter', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge'],
             description: 'Round or chamfer the selected edges (or vertex corners, in vertex mode). Adjust width and segments in the panel.',
             flags: {undo: true, register: true},
-            props: commandSchema('bevel'),
+            props: bevelSchema(),
             poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? needsDocument() : p }),
             exec: (ctx, p) => {
-                const byVerts = ctx.selectMode === 'vertex'
-                return runCommand('bevel', {[byVerts ? 'verts' : 'edges']: selectedIndices(byVerts ? 'vertex' : 'edge'), offset: 0.1, segments: 1, ...p},
-                    data => ({kind: 'face', indices: data?.newFaces ?? []}))
+                // `affect` is MESH_OT_bevel's (editmesh_bevel.cc): Ctrl+B is EDGES, Ctrl+Shift+B VERTICES
+                // (blender_default.py:5550, :5556). Unset, it follows the select mode.
+                const {affect, ...rest} = p ?? {}
+                const byVerts = affect === undefined ? ctx.selectMode === 'vertex' : affect === 'VERTICES'
+                return runCommand('bevel', {[byVerts ? 'verts' : 'edges']: selectedIndices(byVerts ? 'vertex' : 'edge'), offset: 0.1, segments: 1, ...rest},
+                    // A bevel that changed nothing (width 0, or declined edges) keeps the selection.
+                    data => data?.newFaces?.length ? {kind: 'face', indices: data.newFaces} : null)
+                    .then(r => r.ok && affect !== undefined ? {...r, props: {...p}} : r)
             },
         },
         {
             id: 'mesh.delete', label: 'Delete', icon: 'trash', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Delete the selected vertices, edges or faces; the menu picks what goes (Blender\'s X).',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
-                type: {type: 'string', enum: DELETE_MENU.map(d => d.type), description: 'What to delete, as Blender\'s mesh.delete.'},
+                type: {type: 'string', enum: DELETE_TYPES, description: 'What to delete, as Blender\'s mesh.delete.'},
             }},
             poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? needsDocument() : p }),
             exec: (ctx, p) => {
                 let type = p?.type as string | undefined
+                // No type: X, `op_menu("VIEW3D_MT_edit_mesh_delete")` (blender_default.py:5634).
                 if (!type) {
-                    engine.requestMenu('Delete', [
-                        ...DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})),
-                        // VIEW3D_MT_edit_mesh_delete: the dissolve operators follow the delete types.
-                        ...['mesh.dissolve_verts', 'mesh.dissolve_edges', 'mesh.dissolve_faces', 'mesh.dissolve_limited']
-                            .filter(id => engine.operators.get(id)).map(id => ({id})),
-                    ])
+                    engine.callMenu('VIEW3D_MT_edit_mesh_delete')
                     return {ok: true}
                 }
                 // `auto` is the Design preset's Delete key: by select mode, no menu.
@@ -390,15 +453,63 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             },
         },
         {
-            id: 'mesh.separate', label: 'Separate Selection', icon: 'split-columns', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['face'],
-            description: 'Move the selected faces into a new object (Blender\'s P).',
+            // `MESH_OT_separate` (editmesh_tools.cc:4645): `type` from `prop_separate_types` - Selection and
+            // By Loose Parts (plugin-modelling's `separate` command, `faces` / `loose`); By Material is not
+            // there yet. No props: P, `WM_menu_invoke` - the type as a menu.
+            id: 'mesh.separate', label: 'Separate', icon: 'split-columns', category: 'Mesh', modes: ['edit'],
+            description: 'Move the selection, or each loose part, into new objects (Blender\'s P).',
             flags: {undo: true, register: true},
-            poll: ready(() => { const p = hasFaces(); return p === true ? needsDocument() : p }),
-            exec: async() => {
+            props: {type: 'object', properties: {
+                type: {type: 'string', enum: ['SELECTED', 'LOOSE'], default: 'SELECTED', description: 'Type: Selection, or By Loose Parts.'},
+            }},
+            poll: ready(() => !me.state ? onlyInEdit() : needsDocument()),
+            exec: async(_ctx, p) => {
+                if (!p) {
+                    engine.callMenu('MESH_OT_separate.type')
+                    return {ok: true}
+                }
+                if (p.type === 'LOOSE') {
+                    const r = await runCommand('separate', {mode: 'loose'})
+                    return r.ok ? {...r, props: {type: 'LOOSE'}} : r
+                }
+                const f = hasFaces()
+                if (f !== true) return {ok: false, error: f}
                 const faces = selectedIndices('face')
                 if (me.state && faces.length === me.state.bm.totface) return {ok: false, error: 'That would separate every face and leave nothing behind: select fewer faces'}
-                return runCommand('separate', {mode: 'faces', faces})
+                const r = await runCommand('separate', {mode: 'faces', faces})
+                return r.ok ? {...r, props: {type: 'SELECTED'}} : r
+            },
+        },
+        {
+            // `MESH_OT_hide` (editmesh_tools.cc:2596, exec :2531): H hides the selection, Shift+H everything else
+            // (`_template_items_hide_reveal_actions`, blender_default.py:461).
+            id: 'mesh.hide', label: 'Hide Selected', icon: 'eye-off', category: 'Mesh', modes: ['edit'],
+            description: 'Hide the selected vertices, edges and faces (or, Unselected, everything else) so you can work behind them; Reveal Hidden brings them back.',
+            flags: {undo: true, register: true},
+            props: {type: 'object', properties: {
+                unselected: {type: 'boolean', default: false, description: 'Unselected: hide unselected rather than selected.'},
+            }},
+            poll: ready(editing),
+            exec: (_ctx, p) => {
+                const unselected = !!p?.unselected
+                // Nothing hidden cancels (`edbm_hide_exec` :2585); `hideSelected` has already said why.
+                return me.hideSelected(unselected) ? {ok: true, props: {unselected}} : {ok: false}
+            },
+        },
+        {
+            // `MESH_OT_reveal` (editmesh_tools.cc:2645), Alt+H.
+            id: 'mesh.reveal', label: 'Reveal Hidden', icon: 'eye-open', category: 'Mesh', modes: ['edit'],
+            description: 'Show every hidden vertex, edge and face, and select what comes back.',
+            flags: {undo: true, register: true},
+            props: {type: 'object', properties: {
+                select: {type: 'boolean', default: true, description: 'Select: select the revealed elements.'},
+            }},
+            poll: ready(editing),
+            exec: (_ctx, p) => {
+                const select = p?.select === undefined ? true : !!p.select
+                // Nothing hidden is not a failure: Blender's reveal finishes either way.
+                me.revealHidden(select)
+                return {ok: true, props: {select}}
             },
         },
         {
@@ -410,12 +521,13 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     for (const op of ops) engine.operators.register(op)
 
     // A modal transform that just ended tells the redo panel what it did (Blender's `saveTransform`).
-    const onCommitted = (e: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null, saved: TransformSavedProps}) => {
+    const onCommitted = (e: {transform: ModalTransform, chained: string | null, saved: TransformSavedProps}) => {
         // Edge and vertex slide (`G G`) and Loop Cut and Slide are reported by `loopOps.ts`.
         if (!e.chained && e.saved.slide || (e.chained as string) === 'loopcut') return
         const props = savedToProps(e.saved)
         if (e.chained) engine.completeModal(`mesh.${e.chained}`, props)
-        else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate' : 'mesh.scale', props)
+        else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate'
+            : e.saved.mode === 'shrinkFatten' ? 'transform.shrink_fatten' : 'mesh.scale', props)
     }
     me.addEventListener('transformCommitted', onCommitted as never)
     engine.addEventListener('dispose' as never, () => me.removeEventListener('transformCommitted', onCommitted as never))

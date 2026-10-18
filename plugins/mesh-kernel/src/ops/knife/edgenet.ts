@@ -35,19 +35,19 @@ import {interpWeightsPolyV2} from '../../bmesh/interp'
 import {layerHasMath} from '../bevel-boundary'
 import {
     angleSignedOnAxisV3V3V3V3,
-    AxisMat,
     axisDominantV3ToM3,
-    dot2,
+    dotV2V2,
     FLT_MAX,
     isectRaySegV2,
     isectSegSegV2PointEx,
-    lenSqV2V2,
-    linePointFactorV2,
+    lenSquaredV2V2,
+    linePointFactorV2Ex,
+    Mat3Rows,
     mulV2M3V3,
-    normalize2,
-    sub3,
-    V2,
-} from './geom'
+    normalizeV2V2Length,
+    Vec2,
+} from '../../math/geom'
+import {v3sub} from '../../math'
 
 const co = (v: BMVert): [number, number, number] => [v.x, v.y, v.z]
 const fno = (f: BMFace): [number, number, number] => [f.nx, f.ny, f.nz]
@@ -110,12 +110,12 @@ function edgeFlaggedRadialFirst(e: BMEdge, nf: NetFlags): BMLoop | null {
 }
 
 /** `normalize_v2_m3_v3v3` (`:90`). */
-function normalizeV2M3V3V3(axisMat: AxisMat, v1: BMVert, v2: BMVert): V2 {
-    return normalize2(mulV2M3V3(axisMat, sub3(co(v1), co(v2))))[0]
+function normalizeV2M3V3V3(axisMat: Mat3Rows, v1: BMVert, v2: BMVert): Vec2 {
+    return normalizeV2V2Length(mulV2M3V3(axisMat, v3sub(co(v1), co(v2))))[0]
 }
 
 /** `bm_face_split_edgenet_find_loop_pair` (`:105`). `fOrig` is the face whose `no` is `face_normal`. */
-function findLoopPair(vInit: BMVert, fOrig: BMFace, axisMat: AxisMat, nf: NetFlags): [BMEdge, BMEdge] | null {
+function findLoopPair(vInit: BMVert, fOrig: BMFace, axisMat: Mat3Rows, nf: NetFlags): [BMEdge, BMEdge] | null {
     // Always find one boundary edge (to determine winding) and one wire (if available), otherwise
     // another boundary. Both lists are `BLI_SMALLSTACK`s: last pushed pops first.
     let edgesBoundary: BMEdge[] = []
@@ -162,12 +162,12 @@ function findLoopPair(vInit: BMVert, fOrig: BMFace, axisMat: AxisMat, nf: NetFla
         let vNext = pair[1].otherVert(vInit)
         const dirPrev = normalizeV2M3V3V3(axisMat, vPrev, vInit)
         const dirNext = normalizeV2M3V3V3(axisMat, vNext, vInit)
-        let angleBestCos = dot2(dirNext, dirPrev)
+        let angleBestCos = dotV2V2(dirNext, dirPrev)
         let e: BMEdge | undefined
         while ((e = edgesSearch.pop())) {
             vNext = e.otherVert(vInit)
             const dirTest = normalizeV2M3V3V3(axisMat, vNext, vInit)
-            const angleTestCos = dot2(dirPrev, dirTest)
+            const angleTestCos = dotV2V2(dirPrev, dirTest)
             if (angleTestCos > angleBestCos) {
                 angleBestCos = angleTestCos
                 pair[1] = e
@@ -284,7 +284,7 @@ function findLoopWalk(vInit: BMVert, faceNormal: [number, number, number], pair:
 }
 
 /** `bm_face_split_edgenet_find_loop` (`:414`). */
-function findLoop(vInit: BMVert, fOrig: BMFace, axisMat: AxisMat, nf: NetFlags):
+function findLoop(vInit: BMVert, fOrig: BMFace, axisMat: Mat3Rows, nf: NetFlags):
     {verts: BMVert[], edges: BMEdge[], checkFaceExists: boolean} | null {
     const pair = findLoopPair(vInit, fOrig, axisMat, nf)
     if (!pair) return null
@@ -472,7 +472,7 @@ const disableTag = (el: {hflag: number}) => { el.hflag &= ~ITAG }
 const SORT_AXIS = 0
 
 /** `edge_isect_verts_point_2d` (`:740`), on the 2D coordinates written into `x`/`y`. */
-function edgeIsectVertsPoint2d(e: BMEdge, va: BMVert, vb: BMVert): V2 | null {
+function edgeIsectVertsPoint2d(e: BMEdge, va: BMVert, vb: BMVert): Vec2 | null {
     // This bias seems like it could be too large, mostly its not needed, see #52329.
     const endpointBias = 1e-4
     const [kind, p] = isectSegSegV2PointEx([va.x, va.y], [vb.x, vb.y], [e.v1.x, e.v1.y], [e.v2.x, e.v2.y], endpointBias)
@@ -494,7 +494,7 @@ interface EdgeGroupIsland {
     vertLen: number
     edgeLen: number
     hasPrevEdge: boolean
-    vertSpan: {min: BMVert, max: BMVert, minAxis: V2, maxAxis: V2}
+    vertSpan: {min: BMVert, max: BMVert, minAxis: Vec2, maxAxis: Vec2}
 }
 
 /** `EdgeGroup_FindConnection_Args` (`:886`). */
@@ -508,7 +508,7 @@ interface FindConnectionArgs {
 
 /** `test_edges_isect_2d_vert` (`:897`), the BVH ray cast as a scan. */
 function testEdgesIsect2dVert(args: FindConnectionArgs, vOrigin: BMVert, vOther: BMVert): BMEdge | null {
-    const [dir, distOrig] = normalize2([vOther.x - vOrigin.x, vOther.y - vOrigin.y])
+    const [dir, distOrig] = normalizeV2V2Length([vOther.x - vOrigin.x, vOther.y - vOrigin.y])
     let hitDist = distOrig
     let hitIndex = -1
     // `bvhtree_test_edges_isect_2d_vert_cb` (`:825`)
@@ -516,7 +516,7 @@ function testEdgesIsect2dVert(args: FindConnectionArgs, vOrigin: BMVert, vOther:
         const e = args.edgeArr[index]
         const p = edgeIsectVertsPoint2d(e, vOrigin, vOther)
         if (!p) continue
-        const t = linePointFactorV2(p, [vOrigin.x, vOrigin.y], [vOther.x, vOther.y])
+        const t = linePointFactorV2Ex(p, [vOrigin.x, vOrigin.y], [vOther.x, vOther.y])
         const distNew = distOrig * t
         // avoid float precision issues, possible this is greater, check above zero to allow some
         // overlap (and needed for partial-connect which will overlap vertices)
@@ -538,7 +538,7 @@ function testEdgesIsect2dVert(args: FindConnectionArgs, vOrigin: BMVert, vOther:
         for (let i = 0; i < n; i++) {
             const p = edgeIsectVertsPoint2d(args.edgeArrNew[i], vOrigin, vOther)
             if (p) {
-                const tTest = linePointFactorV2(p, [vOrigin.x, vOrigin.y], [vOther.x, vOther.y])
+                const tTest = linePointFactorV2Ex(p, [vOrigin.x, vOrigin.y], [vOther.x, vOther.y])
                 if (tTest < tBest) {
                     tBest = tTest
                     eHit = args.edgeArrNew[i]
@@ -550,10 +550,10 @@ function testEdgesIsect2dVert(args: FindConnectionArgs, vOrigin: BMVert, vOther:
 }
 
 /** `test_edges_isect_2d_ray` (`:954`), the BVH ray cast as a scan. */
-function testEdgesIsect2dRay(args: FindConnectionArgs, vOrigin: BMVert, dir: V2): BMEdge | null {
+function testEdgesIsect2dRay(args: FindConnectionArgs, vOrigin: BMVert, dir: Vec2): BMEdge | null {
     let hitDist = FLT_MAX / 2 // `BVH_RAYCAST_DIST_MAX`
     let hitIndex = -1
-    const origin: V2 = [vOrigin.x, vOrigin.y]
+    const origin: Vec2 = [vOrigin.x, vOrigin.y]
     // `bvhtree_test_edges_isect_2d_ray_cb` (`:851`)
     for (let index = 0; index < args.edgeArr.length; index++) {
         const e = args.edgeArr[index]
@@ -594,7 +594,7 @@ function testEdgesIsect2dRay(args: FindConnectionArgs, vOrigin: BMVert, dir: V2)
 function findConnection(args: FindConnectionArgs, vOrigin: BMVert, directionSign: boolean, vertArr: BMVert[]): number {
     // Cast a ray along +/- SORT_AXIS, take the hit edge, cast rays to its vertices checking they
     // don't hit a closer edge, and keep stepping until a vertex is reached unblocked.
-    const dir: V2 = [0, 0]
+    const dir: Vec2 = [0, 0]
     dir[SORT_AXIS] = directionSign ? 1 : -1
     let eHit = testEdgesIsect2dRay(args, vOrigin, dir)
     let vOther: BMVert | null = null
@@ -608,7 +608,7 @@ function findConnection(args: FindConnectionArgs, vOrigin: BMVert, directionSign
         do {
             const e = eHit!
             // ensure the closest vertex is popped back off the stack first
-            const vPair = lenSqV2V2([vOrigin.x, vOrigin.y], [e.v1.x, e.v1.y]) > lenSqV2V2([vOrigin.x, vOrigin.y], [e.v2.x, e.v2.y])
+            const vPair = lenSquaredV2V2([vOrigin.x, vOrigin.y], [e.v1.x, e.v1.y]) > lenSquaredV2V2([vOrigin.x, vOrigin.y], [e.v2.x, e.v2.y])
                 ? [e.v1, e.v2] : [e.v2, e.v1]
             for (const vIter of vPair) {
                 // `VERT_IS_VALID`
@@ -915,13 +915,13 @@ export function faceSplitEdgenetConnectIslands(bm: BMesh, f: BMFace, edgeNetInit
             // init with *any* different verts
             g.vertSpan.min = g.edgeLinks[0].v1
             g.vertSpan.max = g.edgeLinks[0].v2
-            let minAxis: V2 = [FLT_MAX, FLT_MAX]
-            let maxAxis: V2 = [-FLT_MAX, -FLT_MAX]
+            let minAxis: Vec2 = [FLT_MAX, FLT_MAX]
+            let maxAxis: Vec2 = [-FLT_MAX, -FLT_MAX]
             for (const e of g.edgeLinks) {
                 for (const vIter of [e.v1, e.v2]) {
                     // `dot_m3_v3_row_x/y` of the transposed basis: the 2D projection.
                     const p = mulV2M3V3(axisMat, co(vIter))
-                    const axisValue: V2 = SORT_AXIS === 0 ? [p[0], p[1]] : [p[1], p[0]]
+                    const axisValue: Vec2 = SORT_AXIS === 0 ? [p[0], p[1]] : [p[1], p[0]]
                     if (axisPtCmp(axisValue, minAxis) === -1) {
                         g.vertSpan.min = vIter
                         minAxis = axisValue
@@ -956,7 +956,7 @@ export function faceSplitEdgenetConnectIslands(bm: BMesh, f: BMFace, edgeNetInit
                         enableTag(vIter)
                         // not nice, but alternatives aren't much better
                         vertCoordsBackup[vIndex] = co(vIter)
-                        const p = mulV2M3V3(axisMat, sub3(co(vIter), fCoRef))
+                        const p = mulV2M3V3(axisMat, v3sub(co(vIter), fCoRef))
                         vIter.x = p[0]
                         vIter.y = p[1]
                         vIter.z = 0

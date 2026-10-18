@@ -325,6 +325,9 @@ if (typeof build !== 'function') {
 }
 
 console.log(`running ${buildPath}`)
+// Run metrics the benchmark reads (demos/benchmark/metrics/run.mjs): the build's own wall time, beside the
+// per-command times. Page start-up is before this point and not counted.
+const buildStarted = Date.now()
 let failure = null
 try {
     await build({run, runAll, capture, inspect, log, page, outDir})
@@ -346,6 +349,8 @@ const summary = {
     medianMs: times.length ? times[Math.floor(times.length / 2)] : 0,
     p90Ms: times.length ? times[Math.floor(times.length * 0.9)] : 0,
     maxMs: times.length ? times[times.length - 1] : 0,
+    wallMs: Date.now() - buildStarted,
+    startedAt: new Date(buildStarted).toISOString(),
     pageErrors,
 }
 await writeFile(join(outDir, 'transcript.json'),

@@ -5,14 +5,12 @@
  * Each one is a *session* operator over the kernel's port of the matching Blender edit-mode exec
  * (`editors/mesh/editmesh_tools.cc` `edbm_*_exec`): the kernel function reads the BMesh selection,
  * runs the ported `bmo_*` operator with the RNA props, and leaves the selection as Blender leaves it.
- * Here we only snapshot, call it, and commit one labelled undo step - so the redo-last panel re-runs
- * it exactly (pop the step, `exec(newProps)`, push), as Blender's `ED_undo_operator_repeat` does.
+ * `session.ts` snapshots, calls it, and commits one labelled undo step, so redo-last re-runs it exactly.
  *
  * Props carry Blender's RNA identifiers in camelCase, Blender's defaults and descriptions. Every exec
  * reports back the full prop set it ran with, so the panel shows the values, not blanks.
  *
- * The menus here are Blender's edit-mode menus (`space_view3d.py`, `VIEW3D_MT_edit_mesh_*`), listing
- * the operators that exist in the engine, in Blender's order.
+ * The edit-mode menus that list these operators are `menus/menus.ts` (Blender's `VIEW3D_MT_edit_mesh_*`).
  */
 
 import {
@@ -27,67 +25,22 @@ import {
     gridFillSelection,
     mergeByDistanceSelection,
     MERGE_BY_DISTANCE_DEFAULTS,
-    meshNormalsUpdate,
     subdivideEdgeringSelection,
     vertConnectPathSelection,
     vertConnectSelection,
 } from '@threepipe/mesh-kernel'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
-import type {EditorContext, MenuRequestItem, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
-import {onlyInEditMessage, notModalMessage} from './messages'
-
-/** A session operator's kernel call: change `bm` in place, say what happened. */
-type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
-    {ok: true, label?: string, message?: string, props?: Record<string, unknown>} | {ok: false, error: string}
+import type {OperatorDescriptor, PropSchema} from '../registry'
+import {onlyInEditMessage} from './messages'
+import {sessionOps} from './session'
 
 export function registerFillOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
-    const notModal = () => notModalMessage(engine)
     const editing = () => me.isEditing || onlyInEditMessage(engine)
-    const ready = (poll: (ctx: EditorContext) => boolean | string) => (ctx: EditorContext) => {
-        const p = poll(ctx)
-        return p === true ? notModal() : p
-    }
+    const {ready, runSession} = sessionOps(engine)
     const hasVerts = (n: number, what: string) => () => {
         if (!me.state) return onlyInEditMessage(engine)
         return me.state.bm.totvertsel >= n || what
-    }
-
-    /** Fill `props` from the schema defaults, so redo-last shows (and re-runs with) every value. */
-    const withDefaults = (schema: PropSchema | undefined, props: Record<string, unknown> | undefined) => {
-        const out: Record<string, unknown> = {}
-        for (const [k, def] of Object.entries(schema?.properties ?? {})) if (def.default !== undefined) out[k] = def.default
-        return {...out, ...props}
-    }
-
-    /**
-     * Snapshot, run, commit one undo step. A refused run changes nothing (the kernel functions return
-     * before touching the mesh where Blender does); a run that failed after changing the mesh is
-     * rolled back from the snapshot, as Blender's `EDBM_op_finish(.., false)` / redo-state restore do.
-     */
-    const runSession = (label: string, schema: PropSchema | undefined, run: KernelRun) =>
-        (ctx: EditorContext, p?: Record<string, unknown>): OperatorResult => {
-            const before = me.snapshot()
-            if (!before || !me.state) return {ok: false, error: onlyInEditMessage(engine)}
-            const props = withDefaults(schema, p)
-            // Blender's edit mesh has current normals on entry to every operator (`EDBM_update` after
-            // each one); Grid Fill, Bridge and Edge-Ring's surface blend read them. The session does not
-            // keep them up to date (issues/open/modelling-tools/mesh-edit-normals-current.md).
-            meshNormalsUpdate(me.state.bm)
-            const r = run(props, ctx)
-            if (!r.ok) {
-                me.revert(before)
-                return {ok: false, error: r.error}
-            }
-            me.commit(before, r.label ?? label)
-            if (r.message) engine.message('info', r.message)
-            // Props the operator worked out itself (Grid Fill's span) are what the panel shows and redo reuses.
-            return {ok: true, props: {...props, ...r.props}}
-        }
-
-    const menu = (title: string, items: (MenuRequestItem | false)[]) => {
-        engine.requestMenu(title, items.filter((x): x is MenuRequestItem => !!x && !!engine.operators.get(x.id)))
-        return {ok: true}
     }
 
     // --- Merge by Distance (`MESH_OT_remove_doubles`, editmesh_tools.cc:3746) ----------------------
@@ -173,7 +126,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
     const ops: OperatorDescriptor[] = [
         {
             id: 'mesh.bridge_edge_loops', label: 'Bridge Edge Loops', icon: 'link', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['edge', 'face'],
             description: 'Join two or more selected edge loops (or the rims of selected faces) with a band of faces - tubes, handles, holes through a box. Twist, cuts and merge in the panel.',
             flags: {undo: true, register: true},
             props: bridgeProps,
@@ -188,7 +140,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.subdivide_edgering', label: 'Subdivide Edge-Ring', icon: 'layout-linear', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['edge'],
             description: 'Cut the faces between selected edge rings, with a smooth or shaped profile (Blender\'s Edge > Subdivide Edge-Ring).',
             flags: {undo: true, register: true},
             props: subdivideEdgeringProps,
@@ -218,7 +169,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.dissolve_verts', label: 'Dissolve Vertices', icon: 'eraser', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex'],
             description: 'Dissolve the selected vertices, merging the faces around each into one.',
             flags: {undo: true, register: true},
             props: dissolveVertsProps,
@@ -229,7 +179,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.dissolve_edges', label: 'Dissolve Edges', icon: 'eraser', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['edge'],
             description: 'Dissolve the selected edges, merging the faces on either side, and the vertices left with two edges.',
             flags: {undo: true, register: true},
             props: dissolveEdgesProps,
@@ -240,7 +189,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.dissolve_faces', label: 'Dissolve Faces', icon: 'eraser', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['face'],
             description: 'Merge each connected group of selected faces into one face.',
             flags: {undo: true, register: true},
             props: dissolveFacesProps,
@@ -249,7 +197,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.dissolve_limited', label: 'Limited Dissolve', icon: 'clean', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Dissolve selected edges and vertices that lie flatter than the Max Angle - removes needless detail from flat areas and straight runs.',
             flags: {undo: true, register: true},
             props: dissolveLimitedProps,
@@ -266,7 +213,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         // --- Connect (`MESH_OT_vert_connect_path` :1695, `MESH_OT_vert_connect` :1321; no props) ----
         {
             id: 'mesh.vert_connect_path', label: 'Connect Vertex Path', icon: 'git-commit', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex'],
             description: 'Cut through the faces between the selected vertices, in the order they were clicked, making new edges (Blender\'s J). With exactly two vertices, the shortest cut across faces.',
             flags: {undo: true, register: true},
             poll: ready(hasVerts(2, 'Click two or more vertices, in the order to connect them')),
@@ -277,7 +223,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.vert_connect', label: 'Connect Vertex Pairs', icon: 'git-merge', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex'],
             description: 'Split the faces between selected vertices that share a face, joining each such pair with an edge.',
             flags: {undo: true, register: true},
             poll: ready(hasVerts(2, 'Select two or more vertices on the same face')),
@@ -288,8 +233,8 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             // `MESH_OT_edge_face_add` (editmesh_tools.cc:1016): no props, so nothing to adjust afterwards.
-            id: 'mesh.fill', label: 'Make Edge/Face', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['vertex', 'edge'],
+            // Blender's `mesh.fill` is the triangle fill (Alt+F), in `editmeshToolOps.ts`.
+            id: 'mesh.edge_face_add', label: 'Make Edge/Face', icon: 'full-circle', category: 'Mesh', modes: ['edit'],
             description: 'Make an edge between two vertices, or a face from the selected vertices or edges - closed loops and edge nets fill, a lone vertex or edge on a border extends round the corner (Blender\'s F; press again to keep going).',
             flags: {undo: true, register: true},
             poll: ready(() => !me.state ? onlyInEditMessage(engine) : (me.state.bm.totvertsel > 0) || 'Select vertices or edges to make an edge or face from'),
@@ -303,7 +248,6 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.fill_grid', label: 'Grid Fill', icon: 'grid-view', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['edge'],
             description: 'Fill a closed loop of edges, or the gap between two edge loops, with a grid of quads (Blender\'s Face > Grid Fill). Adjust span and offset in the panel.',
             flags: {undo: true, register: true},
             props: gridFillProps,
@@ -334,41 +278,18 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
                 return {ok: true, message: r.removed === 1 ? 'Removed 1 vertex' : `Removed ${r.removed} vertices`}
             }),
         },
-        // --- menus (`space_view3d.py`) -----------------------------------------------------------
-        {
-            id: 'mesh.vertices_menu', label: 'Vertex', icon: 'dot', category: 'Mesh', modes: ['edit'], hidden: true,
-            description: 'The Vertex menu (Blender\'s Ctrl+V, VIEW3D_MT_edit_mesh_vertices).',
+        // --- the Ctrl+V / Ctrl+E / Ctrl+F / Alt+E menus (`wm.call_menu`, blender_default.py:5646-5648, :5602) ---
+        ...([
+            ['mesh.vertices_menu', 'Vertex', 'dot', 'VIEW3D_MT_edit_mesh_vertices'],
+            ['mesh.edges_menu', 'Edge', 'minus', 'VIEW3D_MT_edit_mesh_edges'],
+            ['mesh.faces_menu', 'Face', 'square', 'VIEW3D_MT_edit_mesh_faces'],
+            ['mesh.extrude_menu', 'Extrude', 'arrow-up', 'VIEW3D_MT_edit_mesh_extrude'],
+        ] as const).map(([id, label, icon, menu]): OperatorDescriptor => ({
+            id, label, icon, category: 'Mesh', modes: ['edit'], hidden: true,
+            description: `The ${label} menu (${menu}, menus/menus.ts), at the pointer.`,
             poll: editing,
-            exec: () => menu('Vertex', [
-                {id: 'mesh.extrude', label: 'Extrude Vertices'},
-                {id: 'mesh.bevel', label: 'Bevel Vertices'},
-                {id: 'mesh.fill', label: 'New Edge/Face from Vertices'},
-                {id: 'mesh.vert_connect_path', label: 'Connect Vertex Path'},
-                {id: 'mesh.vert_connect', label: 'Connect Vertex Pairs'},
-            ]),
-        },
-        {
-            id: 'mesh.edges_menu', label: 'Edge', icon: 'minus', category: 'Mesh', modes: ['edit'], hidden: true,
-            description: 'The Edge menu (Blender\'s Ctrl+E, VIEW3D_MT_edit_mesh_edges).',
-            poll: editing,
-            exec: () => menu('Edge', [
-                {id: 'mesh.extrude', label: 'Extrude Edges'},
-                {id: 'mesh.bevel', label: 'Bevel Edges'},
-                {id: 'mesh.bridge_edge_loops'},
-                {id: 'mesh.subdivide'},
-                {id: 'mesh.subdivide_edgering'},
-            ]),
-        },
-        {
-            id: 'mesh.faces_menu', label: 'Face', icon: 'square', category: 'Mesh', modes: ['edit'], hidden: true,
-            description: 'The Face menu (Blender\'s Ctrl+F, VIEW3D_MT_edit_mesh_faces).',
-            poll: editing,
-            exec: () => menu('Face', [
-                {id: 'mesh.extrude', label: 'Extrude Faces'},
-                {id: 'mesh.inset'},
-                {id: 'mesh.fill_grid'},
-            ]),
-        },
+            exec: () => { engine.callMenu(menu); return {ok: true} },
+        })),
     ]
     for (const op of ops) engine.operators.register(op)
 }

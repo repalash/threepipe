@@ -16,11 +16,13 @@
 
 import {angleNormalizedV2V2, crossV2, normalizeV2, Vec2, Vec3} from './math'
 
-export type MouseInputMode = 'none' | 'vector' | 'spring' | 'springFlip' | 'springDelta' | 'angle' | 'customRatio' | 'customRatioFlip'
+export type MouseInputMode = 'none' | 'vector' | 'spring' | 'springFlip' | 'springDelta' | 'angle' | 'customRatio' | 'customRatioFlip' | 'verticalAbsolute'
 
 /** What the input needs from the transform: Blender's `convertViewVec`. */
 export interface MouseInputContext {
     convertViewVec(dx: number, dy: number): Vec3
+    /** `t->viewinv[1]`: the view's up direction in world space (`verticalAbsolute`). */
+    viewUp?(): Vec3
 }
 
 /** The `MouseInput` struct (`transform.hh`). */
@@ -47,6 +49,20 @@ export class MouseInput {
 /** `InputVector` (`transform_input.cc:39`). */
 function inputVector(ctx: MouseInputContext, mi: MouseInput, mval: Vec2): Vec3 {
     return ctx.convertViewVec(mval[0] - mi.imval[0], mval[1] - mi.imval[1])
+}
+
+/**
+ * `InputVerticalAbsolute` (`transform_input.cc:125`): the cursor's travel along the view's up axis, in
+ * world units, doubled. "Dragging up increases (matching viewport zoom)."
+ */
+function inputVerticalAbsolute(ctx: MouseInputContext, mi: MouseInput, mval: Vec2): Vec3 {
+    const vec = inputVector(ctx, mi, mval)
+    const up = ctx.viewUp ? ctx.viewUp() : [0, 1, 0]
+    // `project_v3_v3v3(vec, vec, viewinv[1])`, then `dot(viewinv[1], vec) * 2`.
+    const len2 = up[0] * up[0] + up[1] * up[1] + up[2] * up[2]
+    const d = len2 ? (vec[0] * up[0] + vec[1] * up[1] + vec[2] * up[2]) / len2 : 0
+    const proj: Vec3 = [up[0] * d, up[1] * d, up[2] * d]
+    return [(up[0] * proj[0] + up[1] * proj[1] + up[2] * proj[2]) * 2, 0, 0]
 }
 
 /** `InputSpring` (`transform_input.cc:45`). */
@@ -211,6 +227,9 @@ export function applyMouseInput(ctx: MouseInputContext, mi: MouseInput, mval: Ve
         break
     case 'customRatioFlip':
         output = inputCustomRatioFlip(mi, mvalDb)
+        break
+    case 'verticalAbsolute':
+        output = inputVerticalAbsolute(ctx, mi, mvalDb)
         break
     default:
         break

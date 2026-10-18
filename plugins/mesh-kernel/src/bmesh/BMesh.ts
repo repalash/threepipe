@@ -175,8 +175,8 @@ export class BMesh {
     /**
      * Create a face from an ordered vertex loop, creating any missing edges.
      *
-     * Port of `BM_face_create_verts` composed with `BM_face_create` (`bmesh_core.cc:527`). The winding
-     * of `verts` defines the face normal.
+     * Port of `BM_face_create_verts` (`bmesh_core.cc:596`, with `create_edges`) composed with
+     * `BM_face_create` (`bmesh_core.cc:527`). The winding of `verts` defines the face normal.
      */
     faceCreate(verts: BMVert[], example?: BMFace): BMFace {
         const len = verts.length
@@ -189,9 +189,15 @@ export class BMesh {
             }
         }
 
+        // `BM_edges_from_verts_ensure` (`bmesh_construct.cc:57`): starting at the closing edge, so a quad
+        // [0, 1, 2, 3] makes (3, 0), (0, 1), (1, 2), (2, 3), each with `v1` the earlier corner of the pair
+        // as it is listed (`BM_edge_create(bm, vert_arr[i_prev], vert_arr[i], ...)`). Edge order and
+        // `v1`/`v2` decide what operators that walk `bm.edges` or split from `e->v1` produce.
         const edges: BMEdge[] = new Array(len)
+        let iPrev = len - 1
         for (let i = 0; i < len; i++) {
-            edges[i] = this.edgeCreate(verts[i], verts[(i + 1) % len], undefined, {noDouble: true})
+            edges[iPrev] = this.edgeCreate(verts[iPrev], verts[i], undefined, {noDouble: true})
+            iPrev = i
         }
         return this.faceCreateWithEdges(verts, edges, example)
     }

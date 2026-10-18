@@ -53,12 +53,12 @@ import {
     mat4TransformPoint,
     mat4Translation,
     v3cross,
-    v3dot,
     v3len,
     v3mul,
     v3normalize,
     v3sub,
 } from '../math'
+import {angleNormalizedV3V3, axisAngleNormalizedToQuat, axisAngleToQuat, bisectV3V3V3, isZeroV3, lenSquaredV3V3, mulQtQtqt, safeAcos} from '../math/geom'
 
 /** How the number of copies is decided. Blender's `MOD_ARR_FIXEDCOUNT/FITLENGTH/FITCURVE`. */
 export type ArrayFitType = 'fixedCount' | 'fitLength' | 'fitCurve'
@@ -217,11 +217,6 @@ interface SortVertsElem {
 }
 
 const sumV3 = (v: Vec3): number => v[0] + v[1] + v[2]
-
-const lenSquaredV3V3 = (a: Vec3, b: Vec3): number => {
-    const x = a[0] - b[0], y = a[1] - b[1], z = a[2] - b[2]
-    return x * x + y * y + z * z
-}
 
 /** Blender's `compare_len_v3v3`: within `limit` of each other. */
 const compareLenV3V3 = (a: Vec3, b: Vec3, limit: number): boolean =>
@@ -846,15 +841,6 @@ export interface CurvePath {
 
 const qtUnit = (): Quat => [1, 0, 0, 0]
 
-/** `mul_qt_qtqt`. */
-function mulQtQtqt(a: Quat, b: Quat): Quat {
-    const t0 = a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3]
-    const t1 = a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2]
-    const t2 = a[0] * b[2] + a[2] * b[0] + a[3] * b[1] - a[1] * b[3]
-    const t3 = a[0] * b[3] + a[3] * b[0] + a[1] * b[2] - a[2] * b[1]
-    return [t0, t1, t2, t3]
-}
-
 /** `mul_qt_v3`: rotate a vector by a quaternion, Blender's two-step form. */
 function mulQtV3(q: Quat, v: Vec3): Vec3 {
     const r: Vec3 = [v[0], v[1], v[2]]
@@ -883,20 +869,6 @@ function normalizeQt(q: Quat): Quat {
         return [q[0] * s, q[1] * s, q[2] * s, q[3] * s]
     }
     return [0, 1, 0, 0]
-}
-
-/** `axis_angle_normalized_to_quat`. */
-function axisAngleNormalizedToQuat(axis: Vec3, angle: number): Quat {
-    const phi = 0.5 * angle
-    const si = Math.sin(phi)
-    return [Math.cos(phi), axis[0] * si, axis[1] * si, axis[2] * si]
-}
-
-/** `axis_angle_to_quat`, which falls back to the identity for a zero axis. */
-function axisAngleToQuat(axis: Vec3, angle: number): Quat {
-    const len = v3len(axis)
-    if (len === 0) return qtUnit()
-    return axisAngleNormalizedToQuat([axis[0] / len, axis[1] / len, axis[2] / len], angle)
 }
 
 /** `interp_dot_slerp` + `interp_qt_qtqt`: slerp around the shortest angle. */
@@ -945,23 +917,6 @@ function quatToMat3(q: Quat): number[] {
         -qdc + qab, 1 - qaa - qcc, qda + qbc,
         qdb + qac, -qda + qbc, 1 - qaa - qbb,
     ]
-}
-
-const safeAcos = (a: number): number => Math.acos(Math.min(1, Math.max(-1, a)))
-const safeAsin = (a: number): number => Math.asin(Math.min(1, Math.max(-1, a)))
-
-/** `angle_normalized_v3v3`: acos of the dot, computed through asin for accuracy near 0 and pi. */
-function angleNormalizedV3V3(v1: Vec3, v2: Vec3): number {
-    if (v3dot(v1, v2) >= 0) return 2 * safeAsin(v3len(v3sub(v1, v2)) / 2)
-    const v2n: Vec3 = [-v2[0], -v2[1], -v2[2]]
-    return Math.PI - 2 * safeAsin(v3len(v3sub(v1, v2n)) / 2)
-}
-
-/** `bisect_v3_v3v3v3`: the normalised sum of the two normalised segment directions at `b`. */
-function bisectV3V3V3(a: Vec3, b: Vec3, c: Vec3): Vec3 {
-    const d12 = v3normalize(v3sub(b, a))
-    const d23 = v3normalize(v3sub(c, b))
-    return v3normalize([d12[0] + d23[0], d12[1] + d23[1], d12[2] + d23[2]])
 }
 
 /**
@@ -1159,8 +1114,6 @@ function bevelListCalcBisect(points: BevPoint[], cyclic: boolean): void {
         }
     }
 }
-
-const isZeroV3 = (v: Vec3): boolean => v[0] === 0 && v[1] === 0 && v[2] === 0
 
 /** Port of `minimum_twist_between_two_points` (`curve.cc:2214`). */
 function minimumTwistBetweenTwoPoints(curr: BevPoint, prev: BevPoint): void {

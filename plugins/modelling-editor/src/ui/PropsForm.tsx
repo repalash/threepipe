@@ -1,10 +1,11 @@
 /**
  * A form rendered from an operator's JSON-schema `props`: numbers, integers, booleans, enums,
  * `[x, y, z]` triples and free text. Used by the redo-last panel and by "run with options" in the
- * palette. Values are committed on change; the caller decides what to do with them.
+ * palette. Toggles, menus and the number fields' step buttons commit at once; a typed number commits
+ * on Enter or when the field loses focus. The caller decides what to do with a committed value.
  */
 
-import React from 'react'
+import React, {useRef, useState} from 'react'
 import {Button, ButtonGroup, Checkbox, HTMLSelect, InputGroup, NumericInput, Tooltip} from '@blueprintjs/core'
 import type {PropDef, PropSchema} from '@threepipe/plugin-editor-engine'
 
@@ -17,6 +18,46 @@ export interface PropsFormProps {
 
 function labelOf(key: string): string {
     return key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
+}
+
+/**
+ * A number field that behaves like Blender's: typing edits a draft that is applied on Enter (or when
+ * the field loses focus), not on every keystroke, and Enter or Esc also ends the editing so the next
+ * key goes back to the viewport (Blender: `textedit_end`, `interface_handlers.cc:3918`; keys then go
+ * to the region under the mouse).
+ * Esc drops the draft. Without this, each keystroke re-ran the operator, and the field kept the
+ * focus after Enter, so G/S/E over the viewport typed into it instead.
+ */
+function NumberField({value, onCommit, ...rest}: {value: number | undefined, onCommit(n: number | undefined): void} & Omit<React.ComponentProps<typeof NumericInput>, 'value' | 'onValueChange' | 'onButtonClick' | 'onKeyDown' | 'onBlur'>) {
+    const [draft, setDraft] = useState<string | null>(null)
+    // The draft as of the last event: Enter blurs the field, and the blur must not commit it again.
+    const pending = useRef<string | null>(null)
+    const edit = (s: string | null) => {
+        pending.current = s
+        setDraft(s)
+    }
+    const shown = draft ?? (value === undefined ? '' : String(value))
+    const commit = () => {
+        const s = pending.current
+        edit(null)
+        if (s === null) return
+        const n = parseFloat(s)
+        const next = s.trim() === '' || Number.isNaN(n) ? undefined : n
+        if (next !== value) onCommit(next)
+    }
+    return <NumericInput {...rest} value={shown}
+        onValueChange={(_n, s) => edit(s)}
+        onButtonClick={n => { edit(null); onCommit(Number.isNaN(n) ? undefined : n) }}
+        onKeyDown={e => {
+            if (e.key === 'Enter') {
+                commit()
+                e.currentTarget.blur()
+            } else if (e.key === 'Escape') {
+                edit(null)
+                e.currentTarget.blur()
+            }
+        }}
+        onBlur={commit} />
 }
 
 function Field({name, def, value, onChange, disabled}: {name: string, def: PropDef, value: unknown, onChange(v: unknown): void, disabled?: boolean}) {
@@ -36,10 +77,10 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
             onChange={e => onChange(e.currentTarget.checked)} />
     } else if (def.type === 'number' || def.type === 'integer') {
         const step = def.type === 'integer' ? 1 : def.maximum !== undefined && def.maximum <= 1 ? 0.05 : 0.1
-        control = <NumericInput id={id} value={value === undefined ? '' : value as number} disabled={disabled} fill
+        control = <NumberField id={id} value={value as number | undefined} disabled={disabled} fill
             min={def.minimum} max={def.maximum} stepSize={step} minorStepSize={def.type === 'integer' ? null : step / 10}
             majorStepSize={step * 10} placeholder={def.default !== undefined ? String(def.default) : 'default'}
-            onValueChange={(n, s) => onChange(s === '' || Number.isNaN(n) ? undefined : n)} />
+            onCommit={onChange} />
     } else if (isAxisToggles) {
         const arr = Array.isArray(value) ? (value as unknown[]).map(Boolean) : [false, false, false]
         control = <ButtonGroup id={id} fill className="me-axis-toggles">
@@ -50,9 +91,9 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
     } else if (isVec3) {
         const arr = Array.isArray(value) ? value as number[] : [0, 0, 0]
         control = <div className="me-vec3">
-            {['X', 'Y', 'Z'].map((axis, i) => <NumericInput key={axis} value={arr[i] ?? 0} disabled={disabled} stepSize={0.1}
+            {['X', 'Y', 'Z'].map((axis, i) => <NumberField key={axis} value={arr[i] ?? 0} disabled={disabled} stepSize={0.1}
                 minorStepSize={0.01} majorStepSize={1} buttonPosition="none" leftElement={<span className="me-axis">{axis}</span>}
-                onValueChange={n => { const next = [...arr]; next[i] = Number.isNaN(n) ? 0 : n; onChange(next) }} />)}
+                onCommit={n => { const next = [...arr]; next[i] = n ?? 0; onChange(next) }} />)}
         </div>
     } else {
         control = <InputGroup id={id} value={value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value)}
@@ -72,7 +113,7 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
 }
 
 export function PropsForm({schema, values, onChange, disabled}: PropsFormProps) {
-    const entries = Object.entries(schema.properties ?? {})
+    const entries = Object.entries(schema.properties ?? {}).filter(([, def]) => !def.hidden)
     if (!entries.length) return <div className="me-props-empty">No parameters.</div>
     return <div className="me-props-form">
         {entries.map(([name, def]) => <Field

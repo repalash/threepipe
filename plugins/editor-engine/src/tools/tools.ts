@@ -112,20 +112,21 @@ export function registerTools(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.inset', label: 'Inset Faces', icon: 'inner-join', group: 'modelling', modes: ['edit'],
-            description: 'Inset the selected faces; drag to set the thickness, click to confirm.',
+            description: 'Inset the selected faces: move the mouse towards their centre for a thicker rim, or type a value; click or Enter confirms, Esc cancels.',
             poll: hasFaces,
             activate: oneShot(() => {
-                void new PropDragModal(engine, {operatorId: 'mesh.inset', prop: 'thickness', min: 0, initial: {thickness: 0.05}}).start()
+                void new PropDragModal(engine, {operatorId: 'mesh.inset', prop: 'thickness', direction: -1, min: 0, initial: {thickness: 0.05},
+                    toggles: {KeyO: {prop: 'outset', label: 'Outset'}, KeyB: {prop: 'boundary', label: 'Boundary', default: true}, KeyI: {prop: 'individual', label: 'Individual'}}}).start()
                     .then(ok => { if (!ok) engine.setActiveTool('select') })
             }),
             deactivate: () => {},
         },
         {
             id: 'mesh.bevel', label: 'Bevel', icon: 'polygon-filter', group: 'modelling', modes: ['edit'],
-            description: 'Bevel the selected edges; drag to set the width, wheel for segments, click to confirm.',
+            description: 'Bevel the selected edges: move the mouse away from them for a wider bevel, or type a value; the wheel adds segments; click or Enter confirms, Esc cancels.',
             poll: hasElements,
             activate: oneShot(() => {
-                void new PropDragModal(engine, {operatorId: 'mesh.bevel', prop: 'offset', min: 0, wheelProp: 'segments', initial: {offset: 0.1, segments: 1}}).start()
+                void new PropDragModal(engine, {operatorId: 'mesh.bevel', prop: 'offset', direction: 1, min: 0, wheelProp: 'segments', initial: {offset: 0.1, segments: 1}}).start()
                     .then(ok => { if (!ok) engine.setActiveTool('select') })
             }),
             deactivate: () => {},
@@ -153,10 +154,16 @@ export function registerTools(engine: EditorEnginePlugin): void {
         if (!e.loopCut && loopCutTool() && !engine.meshEdit.activeTransform && !engine.meshEdit.activeLoopCut) engine.setActiveTool('select')
     })
 
-    // A prop-drag modal that ended hands the shelf back to Select, like the transform modals.
+    // A prop-drag modal that ended hands the shelf back to the tool that was active before it (Select,
+    // or a sticky Move/Rotate/Scale tool): I and Ctrl+B run the same modal from the keyboard, and in
+    // Blender a key operator leaves the active tool as it was.
+    const propDragTools = new Set(['mesh.inset', 'mesh.bevel'])
+    let resumeTool = 'select'
     engine.addEventListener('toolChanged', () => {
-        if (!engine.propDrag && engine.activeTool && (engine.activeTool.id === 'mesh.inset' || engine.activeTool.id === 'mesh.bevel')) {
-            engine.setActiveTool('select')
+        const tool = engine.activeTool
+        if (tool && !propDragTools.has(tool.id)) resumeTool = tool.id
+        if (!engine.propDrag && tool && propDragTools.has(tool.id)) {
+            engine.setActiveTool(engine.tools.get(resumeTool) ? resumeTool : 'select')
         }
     })
 }

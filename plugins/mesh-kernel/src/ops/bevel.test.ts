@@ -32,7 +32,17 @@ import {primitiveCube, primitiveIcoSphere} from '../generate/primitives'
 import {
     degenerateFaceProblems, eulerCharacteristic, faceCenter, faceNormal, windingProblems,
 } from '../generate/topology.testutil'
-import {bevelEdges, bevelSelection, bevelVerts} from './bevel'
+import {meshNormalsUpdate} from '../bmesh/normals'
+import * as bevel from './bevel'
+
+/*
+ * `bmo_bevel_exec` reads `f->no` and `v->no` as its caller leaves them; in Blender that is edit mode,
+ * which has them current when an operator starts (`EDBM_update`), or the bevel modifier's conversion
+ * with `calc_face_normal` / `calc_vert_normal` (`MOD_bevel.cc:147`). These tests stand in for it.
+ */
+const bevelEdges: typeof bevel.bevelEdges = (bm, ...rest) => { meshNormalsUpdate(bm); return bevel.bevelEdges(bm, ...rest) }
+const bevelVerts: typeof bevel.bevelVerts = (bm, ...rest) => { meshNormalsUpdate(bm); return bevel.bevelVerts(bm, ...rest) }
+const bevelSelection: typeof bevel.bevelSelection = (bm, ...rest) => { meshNormalsUpdate(bm); return bevel.bevelSelection(bm, ...rest) }
 
 // region fixtures and shared assertions
 
