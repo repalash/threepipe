@@ -83,7 +83,7 @@ const beats = {
         await film.panel(null)
     },
 }
-session = filmSession(film, {beats, chapters: 11, captureHold: 1.3, glide: 1.1})
+session = filmSession(film, {shadowFrustum: 80, beats, chapters: 11, captureHold: 1.3, glide: 1.1})
 session.realism = !args.includes('--no-realism')
 
 // ------------------------------------------------------------------------------------------- open

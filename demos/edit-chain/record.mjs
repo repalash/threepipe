@@ -21,7 +21,7 @@ if (main.length !== 30) throw new Error(`expected 30 main steps, got ${main.leng
 
 const film = await openFilm({out, accent: '#e8a33d', background: '#2b2d33'})
 await film.stage({op: 'lighting', environmentIntensity: 1})
-await film.stage({op: 'light', name: 'key', type: 'directional', position: [3, 5, 4], intensity: 2})
+await film.stage({op: 'light', name: 'key', type: 'directional', position: [3, 5, 4], target: [0, 0, 0], intensity: 2})
 const mark = st => st === 'PASS' ? '✓' : st === 'N/A' ? '–' : st === 'FAIL' ? '✗' : '?'
 
 film.chapter('Open')

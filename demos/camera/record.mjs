@@ -62,8 +62,8 @@ const framesFor = c => quiet.has(c.op) ? 0
 
 const film = await openFilm({out, accent: '#c0101c', background: '#e4e5e8'})
 await film.stage({op: 'lighting', environmentIntensity: 1.1})
-await film.stage({op: 'light', name: 'key', type: 'directional', position: [-260, 420, 520], intensity: 2.2})
-await film.stage({op: 'light', name: 'rim', type: 'directional', position: [380, 260, -420], intensity: 1.4})
+await film.stage({op: 'light', name: 'key', type: 'directional', position: [-260, 420, 520], target: [5, 50, 50], intensity: 2.2})
+await film.stage({op: 'light', name: 'rim', type: 'directional', position: [380, 260, -420], target: [5, 50, 50], intensity: 1.4})
 
 let i = 0
 /** Run the list up to (not including) `end`, a few frames per edit; read-only checks show in the ticker only. */

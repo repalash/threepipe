@@ -17,7 +17,7 @@ const out = flag('out', 'tmp/demo/stair/film')
 const REF = '/demos/stair/refs/'
 
 const film = await openFilm({out, accent: '#c8a25a', background: '#5b6068'})
-const session = filmSession(film, {chapters: 10, captureHold: 1.2, glide: 0.9, holdMs: true})
+const session = filmSession(film, {shadowFrustum: 45, chapters: 10, captureHold: 1.2, glide: 0.9, holdMs: true})
 session.realism = !args.includes('--no-realism')
 const credit = t => `<div style="position:absolute;right:16px;bottom:12px;font:14px system-ui;color:#c8c8cc">${t}</div>`
 

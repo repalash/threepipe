@@ -46,7 +46,17 @@ export function filmSession(film, o = {}) {
         async run(cmd) {
             if (cmd.op === 'camera') return camera(cmd)
             if (cmd.op === 'export') { film.record(cmd); return {ok: true, op: 'export', data: {skipped: 'film'}} }
-            return film.run(cmd, {frames: framesFor(cmd), quiet: true})
+            const r = await film.run(cmd, {frames: framesFor(cmd), quiet: true})
+            // Presentation only: the `light` command has no shadow-camera size (DirectionalLight2 defaults to 10 units,
+            // issues/open/modelling-tools/command-light-target-local-space.md), so the film sizes it to the scene.
+            if (r.ok && cmd.op === 'light' && cmd.castShadow && o.shadowFrustum) {
+                await film.page.evaluate(([n, f]) => {
+                    const l = window.viewer.scene.modelRoot.children.find(c => c.name === n && c.isLight)
+                    if (l && 'shadowFrustum' in l) { l.shadowFrustum = f; l.shadow.mapSize.set(4096, 4096); l.shadow.map?.dispose(); l.shadow.map = null; l.shadow.bias = -0.0005; l.shadow.normalBias = 0.02 }
+                    window.viewer.setDirty()
+                }, [cmd.name, o.shadowFrustum])
+            }
+            return r
         },
         async runAll(cmds) { const out = []; for (const c of cmds) out.push(await session.run(c)); return out },
         async inspect(object, detail = true) { return film.run({op: 'inspect', object, detail, limit: 1000000}, {frames: 0, show: false}) },
