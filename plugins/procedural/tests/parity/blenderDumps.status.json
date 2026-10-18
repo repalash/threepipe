@@ -3,10 +3,7 @@
   "groups": 13,
   "nodes": 329,
   "nodeTypes": 23,
-  "missing": {
-   "GeometryNodeObjectInfo": 11,
-   "GeometryNodeCollectionInfo": 2
-  },
+  "missing": {},
   "unevaluatedObjects": []
  },
  "buildify_1.0": {
@@ -14,7 +11,6 @@
   "nodes": 422,
   "nodeTypes": 53,
   "missing": {
-   "GeometryNodeCollectionInfo": 6,
    "GeometryNodeCaptureAttribute": 6,
    "GeometryNodeSplineLength": 5,
    "GeometryNodeSetID": 4,
@@ -45,7 +41,6 @@
   "nodes": 104,
   "nodeTypes": 33,
   "missing": {
-   "GeometryNodeObjectInfo": 9,
    "GeometryNodeRotateInstances": 2,
    "GeometryNodeProximity": 1,
    "GeometryNodeSubdivisionSurface": 1,
@@ -59,7 +54,6 @@
   "nodes": 96,
   "nodeTypes": 18,
   "missing": {
-   "GeometryNodeCollectionInfo": 3,
    "GeometryNodeDistributePointsOnFaces": 2,
    "GeometryNodeImageTexture": 2
   },
@@ -75,8 +69,7 @@
   "nodes": 26,
   "nodeTypes": 8,
   "missing": {
-   "GeometryNodeDistributePointsOnFaces": 3,
-   "GeometryNodeObjectInfo": 3
+   "GeometryNodeDistributePointsOnFaces": 3
   },
   "unevaluatedObjects": []
  },
