@@ -21,7 +21,7 @@ import {
     safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
-import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
+import {bakeGeometry, geometryDataToBufferGeometry, MeshData, meshDataFromTriangles} from '@threepipe/mesh-kernel'
 import {evaluateModifiers, ModifierSpec} from './modifiers'
 
 /** A mesh object under the document's management. */
@@ -57,6 +57,33 @@ export interface EntrySnapshot {
     visible: boolean
     parentId: string | null
     materialColor: string | null
+    /** The object's and material's UUIDs, so an object revived by undo is the same object to a file. */
+    uuid?: string
+    materialUuid?: string
+}
+
+/** What {@link ModellingDocument.importObject} did with one mesh. */
+export interface ImportedObject {
+    name: string
+    /** `topology`: already editable (kernel-made, or a glTF with `THREEPIPE_mesh_topology`); `welded`: recovered from triangles. */
+    source: 'topology' | 'welded'
+    /** Vertices the weld merged away. */
+    welded: number
+    verts: number
+    edges: number
+    faces: number
+}
+
+/** A buffer attribute's values as a flat array, de-interleaving when needed. */
+function attributeArray(attr: {array: ArrayLike<number>, count: number, itemSize: number, isInterleavedBufferAttribute?: boolean, getComponent?: (i: number, k: number) => number, getX(i: number): number, getY(i: number): number, getZ(i: number): number}, size: 2 | 3): ArrayLike<number> {
+    if (!attr.isInterleavedBufferAttribute && attr.itemSize === size) return attr.array
+    const out = new Float32Array(attr.count * size)
+    for (let i = 0; i < attr.count; i++) {
+        out[i * size] = attr.getX(i)
+        out[i * size + 1] = attr.getY(i)
+        if (size === 3) out[i * size + 2] = attr.getZ(i)
+    }
+    return out
 }
 
 let documentCounter = 0
@@ -105,8 +132,23 @@ export class ModellingDocument {
         return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
     }
 
-    /** A new object and material for `entry`, with UUIDs derived from its id. */
+    /**
+     * A new object and material for `entry`, with UUIDs derived from its id.
+     *
+     * An object imported from a file keeps the UUID it was saved with, which may be one this document
+     * would derive for a later id (a file written by an earlier session with the same document id).
+     * Rather than let threepipe replace a clash with a random UUID, the derivation is salted until it is
+     * free - still deterministic, since the scene's contents are.
+     */
     private _createObject(entryId: string, name: string, color: string): IObject3D {
+        let salt = ''
+        for (let i = 1; this.viewer.scene.getObjectByProperty('uuid', this.stableUuid(`${entryId}/object${salt}`)); i++) {
+            salt = `#${i}`
+        }
+        return this._createObjectWith(entryId + salt, name, color)
+    }
+
+    private _createObjectWith(entryId: string, name: string, color: string): IObject3D {
         const material = new PhysicalMaterial({
             color: new Color(color),
             roughness: 0.55,
@@ -274,6 +316,48 @@ export class ModellingDocument {
         return entry
     }
 
+    /**
+     * Make every mesh under `root` editable: weld its triangles back into shared-vertex topology and adopt
+     * it, keeping the object - its UUID, place in the hierarchy, transform and material.
+     *
+     * The "generate anywhere, edit here" bridge: a three.js `Group` from generated code, or a glTF from
+     * any tool, becomes document objects that every command can address. This is the same entry edit
+     * mode takes for a plain mesh (`MeshEditPlugin.enter` -> `meshDataFromTriangles`), so the result is
+     * the same as opening the object in edit mode once. Welding is lossy where coincident vertices were
+     * deliberately separate (hard UV seams, split normals); `welded` reports how many collapsed. Meshes the
+     * document already manages - including any a glTF brought in with `THREEPIPE_mesh_topology`, which
+     * restores exact topology - are reported, not re-welded.
+     */
+    importObject(root: IObject3D, options: {tolerance?: number, mergeCoplanar?: boolean} = {}): ImportedObject[] {
+        const out: ImportedObject[] = []
+        const meshes: IObject3D[] = []
+        root.traverse((o: IObject3D) => {
+            if ((o as {isMesh?: boolean}).isMesh && o.geometry?.getAttribute?.('position')) meshes.push(o)
+        })
+        for (const object of meshes) {
+            const existing = this.find(object.uuid)
+            if (existing) {
+                out.push({name: existing.name, source: 'topology', welded: 0,
+                    verts: existing.mesh.vertsNum, edges: existing.mesh.edgesNum, faces: existing.mesh.facesNum})
+                continue
+            }
+            const geometry = object.geometry!
+            const position = geometry.getAttribute('position')
+            const index = geometry.getIndex()
+            const uv = geometry.getAttribute('uv')
+            const {mesh, weldedCount} = meshDataFromTriangles({
+                position: attributeArray(position, 3),
+                index: index ? (index.array as ArrayLike<number>) : null,
+                uv: uv ? attributeArray(uv, 2) : null,
+                groups: geometry.groups,
+            }, {tolerance: options.tolerance, mergeCoplanar: options.mergeCoplanar})
+            const entry = this.adopt(object, mesh)
+            out.push({name: entry.name, source: 'welded', welded: weldedCount,
+                verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum})
+        }
+        return out
+    }
+
     /** Remove an object from the document and the scene. */
     remove(entry: ModellingEntry): void {
         this.record(entry)
@@ -317,6 +401,11 @@ export class ModellingDocument {
     // endregion
 
     // region recording, for undo
+
+    /** A command is recording before-states right now. */
+    get isRecording(): boolean {
+        return this._recorder !== null
+    }
 
     /** Start collecting before-states. One recording spans one command. */
     beginRecording(): void {
@@ -365,6 +454,8 @@ export class ModellingDocument {
             visible: o.visible,
             parentId: null,
             materialColor: mat?.color ? '#' + mat.color.getHexString() : null,
+            uuid: o.uuid,
+            materialUuid: (mat as {uuid?: string} | undefined)?.uuid,
         }
     }
 
@@ -383,6 +474,12 @@ export class ModellingDocument {
             // The command deleted it; rebuild under the same id so later snapshots still match - and
             // under the same UUIDs, which derive from that id.
             const object = this._createObject(snap.id, snap.name, snap.materialColor ?? '#b7bcc4')
+            if (snap.uuid && snap.uuid !== object.uuid) safeSetProperty(object, 'uuid', snap.uuid, true, true)
+            const material = object.material as unknown as {uuid: string, userData: Record<string, unknown>} | undefined
+            if (material && snap.materialUuid && snap.materialUuid !== material.uuid) {
+                safeSetProperty(material, 'uuid', snap.materialUuid, true, true)
+                material.userData.uuid = snap.materialUuid
+            }
             const revived: ModellingEntry = {
                 id: snap.id, name: snap.name, object,
                 mesh: snap.mesh.clone(),

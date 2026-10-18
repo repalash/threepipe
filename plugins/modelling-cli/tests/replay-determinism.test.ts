@@ -12,7 +12,7 @@ import {resolve} from 'node:path'
 import {createHash} from 'node:crypto'
 import {describe, expect, it} from 'vitest'
 import {NodeSession} from '../src/node/NodeSession'
-import {parseCommands} from '../src/core/transcript'
+import {parseCommands} from '@threepipe/plugin-modelling'
 
 const TRANSCRIPT = resolve(__dirname, '../../../examples/modelling-api/builds/eiffel-tower.transcript.json')
 

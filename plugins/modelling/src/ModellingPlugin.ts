@@ -42,6 +42,7 @@ import {shapeCommands} from './commands/shape'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
 import {lookCommand} from './commands/look'
+import {importCommand} from './commands/import'
 import {checkCommands, computeLocality, targetIds} from './commands/checks'
 
 export interface CaptureResult {
@@ -155,6 +156,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             ...cutCommands,
             lookCommand,
             ...checkCommands,
+            importCommand,
         ])
     }
 
@@ -248,9 +250,12 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 return entry ? {mesh: entry.mesh, modifiers: entry.modifiers} : null
             },
             write: (object, mesh, modifiers) => {
-                this.document.beginRecording()
+                // Inside a command (`import`) the adoption is part of that command's undo step; a glTF
+                // dropped on the page records nothing, as before.
+                const nested = this.document.isRecording
+                if (!nested) this.document.beginRecording()
                 this.document.adopt(object, mesh, modifiers)
-                this.document.endRecording()
+                if (!nested) this.document.endRecording()
                 this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
             },
         })

@@ -215,19 +215,21 @@ if (typeof g.document === 'undefined') {
     // Blob URLs, so the asset importer's `URL.createObjectURL(file)` -> `fetch(url)` round trip works.
     const blobs = new Map<string, Blob>()
     let blobCounter = 0
+    // threepipe appends `#name.ext` to blob URLs so loaders can see the extension.
+    const blobKey = (url: string) => url.split(/[?#]/)[0].split('/').pop() ?? ''
     URL.createObjectURL = (obj: Blob | MediaSource) => {
         const key = `node-${++blobCounter}`
         blobs.set(key, obj as Blob)
         return `blob:http://localhost/${key}`
     }
     URL.revokeObjectURL = (url: string) => {
-        blobs.delete(url.split('/').pop() ?? '')
+        blobs.delete(blobKey(url))
     }
     const nodeFetch = g.fetch as typeof fetch
     g.fetch = async(input: string | URL | Request, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
         if (url.startsWith('blob:')) {
-            const blob = blobs.get(url.split('/').pop() ?? '')
+            const blob = blobs.get(blobKey(url))
             if (!blob) throw new Error(`no blob for ${url}`)
             return new Response(blob)
         }

@@ -5336,3 +5336,62 @@ test('modelling-editor-cut', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 })
+
+test('modelling-replay', async({page}) => {
+    // A replay restarts the whole 271-command build once more below; give it room on a loaded runner.
+    test.setTimeout(360000)
+    await expect(page).toHaveTitle('Modelling Replay')
+
+    const state = () => page.evaluate(() => {
+        const w = window as any
+        return {
+            done: w.replay.done as boolean,
+            next: w.replay.next as number,
+            commands: w.replay.commands.length as number,
+            failed: w.replay.failed.map((f: any) => `${f.command.op}: ${f.error}`) as string[],
+            objects: w.modelling.document.entries.map((e: any) => e.name) as string[],
+            history: w.engine.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+            dirty: w.engine.file.dirty as boolean,
+        }
+    })
+
+    // The page reports ready only after the default transcript - the Eiffel tower build - has replayed.
+    let s = await state()
+    expect(s.done).toBe(true)
+    expect(s.commands).toBe(271)
+    expect(s.next).toBe(271)
+    expect(s.failed).toEqual([])
+    expect(s.objects.length).toBe(39)
+    expect(s.objects).toContain('antenna')
+    expect(s.dirty).toBe(false)
+    // Every mutating command is a step in the editor's undo history, labelled as a person's would be.
+    expect(s.history.length).toBe(268)
+    expect(s.history[0]).toBe('Add Cube')
+    expect(s.history.at(-1)).toBe('Lathe')
+    await expect(page.locator('[data-replay-status]')).toContainText('271 commands')
+    await expect(page.locator('[data-replay-status]')).toContainText('no failures')
+
+    // The replayed build passes the structural checks, and every one of its edits was local.
+    const validate = await page.evaluate(() => (window as any).modelling.run({op: 'validate'}))
+    expect(validate.ok).toBe(true)
+    expect(validate.data.verdict).toBe('PASS')
+    expect(validate.data.objects.length).toBe(39)
+
+    // Real input: Ctrl+Z in the viewport takes the last command (the antenna lathe) back, Ctrl+Shift+Z redoes it.
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    await page.mouse.click(vp.x + 30, vp.y + 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).objects.includes('antenna')).toBe(false)
+    expect((await state()).history.at(-1)).toBe('Lathe *')
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await expect.poll(async() => (await state()).objects.includes('antenna')).toBe(true)
+
+    // Real input: Restart clears the scene and history and replays from the first command again.
+    await page.locator('[data-replay-restart]').click()
+    await expect.poll(async() => (await state()).next, {timeout: 30000}).toBeLessThan(271)
+    await expect.poll(async() => (await state()).done, {timeout: 240000, intervals: [2000]}).toBe(true)
+    s = await state()
+    expect(s.failed).toEqual([])
+    expect(s.objects.length).toBe(39)
+    expect(s.history.length).toBe(268)
+})
