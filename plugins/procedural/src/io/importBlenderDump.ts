@@ -11,6 +11,8 @@
 
 import type {InterfaceItemJSON, InterfaceSocketJSON, JSONValue, LinkJSON, NodeGroupLibrary, NodeJSON, NodeTreeJSON} from '../runtime/types'
 import {getNodeType, NodeInstance} from '../runtime/registry'
+import type {ExpectedGeometry} from '../testing/compareGeometry'
+import type {DumpReferenced} from './geometryFromDump'
 
 /** A modifier input as dumped (`mod.properties.inputs.<identifier>`). */
 export interface DumpModifierInput {
@@ -85,10 +87,21 @@ export interface DumpV2 {
     format: string
     blender: string
     node_groups: Record<string, V2Tree>
+    hash?: string
+    blend_file?: string
     objects: {
         name: string
+        type?: string
+        matrix_world?: number[]
         modifiers: {name: string, type: string, enabled: boolean, nodeGroup: string | null, inputs: Record<string, DumpModifierInput> | null}[]
+        /** Geometry entering the first enabled nodes modifier (`geometry_dump.py` format). */
+        input_geometry?: ExpectedGeometry | null
+        /** The evaluated object (all modifiers applied). */
+        output_geometry?: ExpectedGeometry | null
     }[]
+    referenced?: DumpReferenced
+    /** Objects the depsgraph did not evaluate (their geometry is empty in Blender too). */
+    unevaluated_objects?: string[]
 }
 
 function importInterfaceV2(items: V2Tree['interface']): InterfaceItemJSON[] {
