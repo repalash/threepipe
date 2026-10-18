@@ -10,6 +10,7 @@ import type {ModellingDocument, ModellingEntry, ModellingPlugin} from '@threepip
 import {GeometrySet} from '@threepipe/plugin-procedural'
 import {documentScene, geometryNodesModifierType} from './geometryNodesModifier'
 import {nodeGroupCommand} from './nodeGroupCommand'
+import {blendAssetCommand, linkedMaterials} from './blendAsset'
 import {GeometrySetRenderer, RenderStats} from './GeometrySetRenderer'
 
 interface Display {
@@ -33,10 +34,12 @@ export class ProceduralPlugin extends AViewerPluginSync {
         registerModifierType(geometryNodesModifierType, true)
         viewer.forPlugin<ModellingPlugin>('ModellingPlugin', modelling => {
             if (!modelling.commands.get(nodeGroupCommand.op)) modelling.addCommand(nodeGroupCommand)
+            if (!modelling.commands.get(blendAssetCommand.op)) modelling.addCommand(blendAssetCommand)
             modelling.addEventListener('documentChanged', this._documentChanged)
             this._sync(modelling.document)
         }, modelling => {
             modelling.commands.unregister(nodeGroupCommand.op)
+            modelling.commands.unregister(blendAssetCommand.op)
             modelling.removeEventListener('documentChanged', this._documentChanged)
             this._clear()
         }, this)
@@ -47,6 +50,7 @@ export class ProceduralPlugin extends AViewerPluginSync {
         unregisterModifierType(geometryNodesModifierType.type)
         const modelling = viewer.getPlugin<ModellingPlugin>('ModellingPlugin')
         modelling?.commands.unregister(nodeGroupCommand.op)
+        modelling?.commands.unregister(blendAssetCommand.op)
         modelling?.removeEventListener('documentChanged', this._documentChanged)
         viewer.removeEventListener('preFrame', this._followObjects)
         this._clear()
@@ -73,7 +77,7 @@ export class ProceduralPlugin extends AViewerPluginSync {
             live.add(entry)
             let d = this._displays.get(entry)
             if (!d) {
-                const renderer = new GeometrySetRenderer({scene: documentScene(doc)})
+                const renderer = new GeometrySetRenderer({scene: documentScene(doc), materials: linkedMaterials})
                 renderer.root.matrixAutoUpdate = false
                 renderer.root.userData.__procedural = entry.name
                 this._viewer.scene.addObject(renderer.root, {addToRoot: true})

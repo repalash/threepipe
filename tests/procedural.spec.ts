@@ -147,7 +147,7 @@ test('procedural-editor', async({page}, testInfo) => {
 })
 
 // The bundle is made locally from the maintainer's .blend (porting/blender/bundle_dump.py); it is not in git.
-test.describe(() => {
+test.describe('with local bundles', () => {
     test.skip(!existsSync(join(dirname(fileURLToPath(import.meta.url)), '../tmp/bundles/blender-procedural-buildings/bundle.json')), 'no local bundle (tmp/bundles)')
     test('procedural-blend-asset', async({page}, testInfo) => {
         await expect(page).toHaveTitle('Blender geometry nodes asset (procedural)')
@@ -169,5 +169,23 @@ test.describe(() => {
         await width.fill(x)
         await width.dispatchEvent('change')
         await expect.poll(async() => (await stats()).draws).toBe(351)
+    })
+
+    // A Blender object with its geometry-nodes modifier in the editor: same draws as the standalone example, inputs
+    // editable in the Modifiers panel, instances realized on apply.
+    test('procedural-editor', async({page}) => {
+        const run = (c: Record<string, unknown>) => page.evaluate(cmd => (window as any).modelling.run(cmd), c)
+        const added = await run({op: 'blendAsset', url: '/tmp/bundles/blender-procedural-buildings', object: 'Building 1'})
+        expect(added.ok, added.error).toBe(true)
+        const drawn = () => page.evaluate(() => (window as any).procedural.drawn('Building 1'))
+        expect((await drawn()).draws).toBe(351)
+        expect((await drawn()).uniqueMeshes).toBe(18)
+        const spec = await page.evaluate(() => (window as any).modelling.document.find('Building 1').modifiers[0])
+        expect(spec.type).toBe('geometryNodes')
+        // A wider building: an input change through the modifier command.
+        expect((await run({op: 'modifier', object: 'Building 1', index: 0, update: {inputs: {...spec.inputs, Input_2: 9}}})).ok).toBe(true)
+        expect((await drawn()).draws).toBeGreaterThan(351)
+        expect((await run({op: 'undo'})).ok).toBe(true)
+        expect((await drawn()).draws).toBe(351)
     })
 })
