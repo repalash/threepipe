@@ -2,7 +2,7 @@
  * Score a build against a target's ground truth (issues/open/modelling-tools/16-realism.md §2).
  *
  *     npm run benchmark:score -- --target canon-5d4 --glb <build.glb> [--transcript transcript.json]
- *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name]
+ *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name] [--frame spec|raw]
  *     npm run benchmark:score -- --target canon-5d4 --ceiling      # the reference, scaled to spec, vs itself
  *
  * Writes <out>/score.json (every metric, inputs' hashes, renderer) and <out>/index.html (sheets per view,
@@ -85,9 +85,11 @@ function transformParts(parts, m) {
     })
 }
 
-// --- frames: everything in the reference's frame, in mm ------------------------------------------
-const refToMm = new Matrix4().makeScale(S, S, S)
-const refMm = transformParts(refParts, refToMm)
+// --- geometry, in one reference frame -----------------------------------------------------------------
+// `spec`: the reference scaled per axis to the published size (target.spec.refScaleToSpec, about its bounding-box
+// centre) - the frame for a build made to published dimensions. `raw`: the reference as it is. The target's
+// `frame` (or `--frame`) picks the primary; the other is reported as `secondary`. Heat maps and renders always use
+// the raw frame, because the render page shows the unscaled reference.
 const unit = cand.units === 'ref' ? S : cand.units === 'm' ? 1000 : cand.units === 'cm' ? 10 : 1
 const D = Math.PI / 180
 const pre = new Matrix4()
@@ -100,23 +102,12 @@ if (cand.prescale) {
 }
 const M0 = new Matrix4().makeRotationFromEuler(new Euler(cand.rotation[0] * D, cand.rotation[1] * D, cand.rotation[2] * D))
     .multiply(new Matrix4().makeScale(unit, unit, unit)).multiply(pre)
-const refSoup = soup(refMm)
 const bbox = s => { const b = new Box3(), v = new Vector3(); for (let i = 0; i < s.tris.length; i += 3) b.expandByPoint(v.set(s.tris[i], s.tris[i + 1], s.tris[i + 2])); return b }
-const cR = bbox(refSoup).getCenter(new Vector3()), cC = bbox(soup(candParts, M0.toArray())).getCenter(new Vector3())
-const init = new Matrix4().makeTranslation(cR.x - cC.x, cR.y - cC.y, cR.z - cC.z).multiply(M0)
-const refBVH = new TriangleBVH(refSoup)
-lap('bvh')
-
-// --- align: trimmed ICP ---------------------------------------------------------------------------
 // Default `scale-translation`: the orientation is the target's convention and a tilt is a modelling error to
 // count, not to fit away. A free-rotation (similarity) fit is run as a diagnostic and reported beside it.
 const alignMode = flags.align ?? target.align ?? 'scale-translation'
 const candRaw = soup(candParts)
 const icpSource = sample(candRaw, 20000, seed + 6).points
-const icpRes = icp(icpSource, refBVH, init, {mode: alignMode, keep: 0.9})
-const A = icpRes.matrix
-const pos = new Vector3(), quat = new Quaternion(), scl = new Vector3()
-A.decompose(pos, quat, scl)
 const R0 = new Quaternion().setFromEuler(new Euler(cand.rotation[0] * D, cand.rotation[1] * D, cand.rotation[2] * D))
 const tilt = m => {
     const q = new Quaternion(), p = new Vector3(), s = new Vector3()
@@ -124,48 +115,82 @@ const tilt = m => {
     const d = R0.clone().invert().multiply(q), ang = 2 * Math.acos(Math.min(1, Math.abs(d.w))), sn = Math.sin(ang / 2) || 1
     return {deg: ang / D, axis: [d.x / sn, d.y / sn, d.z / sn].map(v => +v.toFixed(3))}
 }
-const free = alignMode === 'similarity' ? icpRes : icp(icpSource, refBVH, init, {mode: 'similarity', keep: 0.9})
-const alignment = {
-    mode: alignMode, initialRotationDeg: cand.rotation, units: cand.units, prescale: cand.prescale ?? null,
-    scale: scl.x / unit, rotationResidualDeg: tilt(A).deg,
-    translationMm: pos.toArray(), iterations: icpRes.iterations, rmsMm: icpRes.rms, rmsHistory: icpRes.history,
-    matrix: A.toArray(),
-    freeRotationDiagnostic: {rotationDeg: tilt(free.matrix).deg, axisInCandidateFrame: tilt(free.matrix).axis, rmsMm: free.rms, iterations: free.iterations},
-}
-lap('align')
-
-// --- shape ----------------------------------------------------------------------------------------
-const candMm = transformParts(candParts, A)
-const candSoup = soup(candMm)
-const candBVH = new TriangleBVH(candSoup)
-const sa = sample(candSoup, samples, seed), sb = sample(refSoup, samples, seed + 1)
-const dAB = distances(sa.points, refBVH), dBA = distances(sb.points, candBVH)
-const shape = summarize(dAB, dBA, taus)
-shape.samples = samples
-shape.areaMm2 = {reference: area(refSoup), candidate: area(candSoup)}
-lap('shape')
-
-// per group: completeness of each reference group, accuracy of each candidate group
 const groupOfRef = new Map(), groupOfCand = new Map()
 for (const [g, def] of Object.entries(target.groups ?? {})) {
     for (const n of def.ref) groupOfRef.set(n, g)
     const rs = (def.candidate ?? []).map(globRe)
     candParts.forEach((p, i) => { if (!groupOfCand.has(i) && rs.some(r => r.test(p.name))) groupOfCand.set(i, g) })
 }
-const tau2 = taus.includes(2) ? 2 : taus[0]
-const groups = {}
-for (const g of Object.keys(target.groups ?? {})) groups[g] = {refParts: target.groups[g].ref.length, candParts: 0, completeness: [], accuracy: []}
-for (let i = 0; i < samples; i++) {
-    const g = groupOfRef.get(refParts[refSoup.part[sb.tri[i]]].name); if (g) groups[g].completeness.push(dBA[i])
-    const h = groupOfCand.get(candSoup.part[sa.tri[i]]); if (h) groups[h].accuracy.push(dAB[i])
-}
-candParts.forEach((p, i) => { const g = groupOfCand.get(i); if (g) groups[g].candParts++ })
 const unassigned = candParts.filter((_, i) => !groupOfCand.has(i)).map(p => p.name)
-for (const g of Object.values(groups)) {
-    const st = a => a.length ? {samples: a.length, meanMm: a.reduce((x, y) => x + y, 0) / a.length, within: a.filter(v => v <= tau2).length / a.length} : null
-    g.completeness = st(g.completeness); g.accuracy = st(g.accuracy)
+const tau2 = taus.includes(2) ? 2 : taus[0]
+
+function frameMatrix(frame) {
+    const m = new Matrix4().makeScale(S, S, S)
+    if (frame !== 'spec') return m
+    const b = new Box3()
+    for (const p of refParts) for (let i = 0; i < p.position.length; i += 3) b.expandByPoint(new Vector3().fromArray(p.position, i).multiplyScalar(S))
+    const c = b.getCenter(new Vector3())
+    return m.premultiply(new Matrix4().makeTranslation(c.x, c.y, c.z).multiply(new Matrix4().makeScale(...target.spec.refScaleToSpec)).multiply(new Matrix4().makeTranslation(-c.x, -c.y, -c.z)))
 }
-lap('groups')
+
+function geometry(frame) {
+    const refMm = transformParts(refParts, frameMatrix(frame))
+    const refSoup = soup(refMm)
+    const cR = bbox(refSoup).getCenter(new Vector3()), cC = bbox(soup(candParts, M0.toArray())).getCenter(new Vector3())
+    const init = new Matrix4().makeTranslation(cR.x - cC.x, cR.y - cC.y, cR.z - cC.z).multiply(M0)
+    const refBVH = new TriangleBVH(refSoup)
+    lap(`bvh-${frame}`)
+
+    // align: trimmed ICP
+    const icpRes = icp(icpSource, refBVH, init, {mode: alignMode, keep: 0.9})
+    const A = icpRes.matrix
+    const pos = new Vector3(), quat = new Quaternion(), scl = new Vector3()
+    A.decompose(pos, quat, scl)
+    const free = alignMode === 'similarity' ? icpRes : icp(icpSource, refBVH, init, {mode: 'similarity', keep: 0.9})
+    const alignment = {
+        mode: alignMode, initialRotationDeg: cand.rotation, units: cand.units, prescale: cand.prescale ?? null,
+        referenceFrame: frame === 'spec' ? {spec: target.spec.refScaleToSpec} : 'as-is',
+        scale: scl.x / unit, rotationResidualDeg: tilt(A).deg,
+        translationMm: pos.toArray(), iterations: icpRes.iterations, rmsMm: icpRes.rms, rmsHistory: icpRes.history,
+        matrix: A.toArray(),
+        freeRotationDiagnostic: {rotationDeg: tilt(free.matrix).deg, axisInCandidateFrame: tilt(free.matrix).axis, rmsMm: free.rms, iterations: free.iterations},
+    }
+    lap(`align-${frame}`)
+
+    // shape
+    const candMm = transformParts(candParts, A)
+    const candSoup = soup(candMm)
+    const candBVH = new TriangleBVH(candSoup)
+    const sa = sample(candSoup, samples, seed), sb = sample(refSoup, samples, seed + 1)
+    const dAB = distances(sa.points, refBVH), dBA = distances(sb.points, candBVH)
+    const shape = summarize(dAB, dBA, taus)
+    shape.samples = samples
+    shape.areaMm2 = {reference: area(refSoup), candidate: area(candSoup)}
+    lap(`shape-${frame}`)
+
+    // per group: completeness of each reference group, accuracy of each candidate group
+    const groups = {}
+    for (const g of Object.keys(target.groups ?? {})) groups[g] = {refParts: target.groups[g].ref.length, candParts: 0, completeness: [], accuracy: []}
+    for (let i = 0; i < samples; i++) {
+        const g = groupOfRef.get(refParts[refSoup.part[sb.tri[i]]].name); if (g) groups[g].completeness.push(dBA[i])
+        const h = groupOfCand.get(candSoup.part[sa.tri[i]]); if (h) groups[h].accuracy.push(dAB[i])
+    }
+    candParts.forEach((p, i) => { const g = groupOfCand.get(i); if (g) groups[g].candParts++ })
+    for (const g of Object.values(groups)) {
+        const st = a => a.length ? {samples: a.length, meanMm: a.reduce((x, y) => x + y, 0) / a.length, within: a.filter(v => v <= tau2).length / a.length} : null
+        g.completeness = st(g.completeness); g.accuracy = st(g.accuracy)
+    }
+    lap(`groups-${frame}`)
+    return {frame, refMm, refBVH, A, candMm, candBVH, alignment, shape, groups}
+}
+// the ceiling already brings the reference (as the candidate) to the spec, so it is scored in the raw frame only
+const primaryFrame = ceiling ? 'raw' : flags['spec-frame'] ? 'spec' : (flags.frame ?? target.frame ?? 'raw')
+const P = geometry(primaryFrame)
+const Q = ceiling ? null : geometry(primaryFrame === 'spec' ? 'raw' : 'spec')
+const {alignment, shape, groups} = P
+const rawGeo = P.frame === 'raw' ? P : Q
+const {refMm, candMm, refBVH, candBVH, A} = rawGeo
+const secondary = Q && {frame: Q.frame, alignment: Q.alignment, shape: Q.shape, groups: Q.groups}
 
 // per-vertex heat: each model's vertices, distance to the other surface
 const heatMax = target.render?.heatMaxMm ?? 5
@@ -238,7 +263,8 @@ if (mode !== 'none') {
         const log = vm.run(root, `rm -rf ${runRel}/renders && npm run benchmark:render -- ${runRel}/job.json 2>&1 | tail -3 && tar czf ${runRel}/renders.tgz -C ${runRel} renders`)
         console.log(log.trim().split('\n').slice(-3).join('\n'))
         await vm.pull(root, `${runRel}/renders.tgz`, join(out, 'renders.tgz'))
-        execFileSync('tar', ['xzf', join(out, 'renders.tgz'), '-C', out])
+        // -m: do not restore mtimes; the workspace mount sometimes refuses utime on the directory ("Cannot utime")
+        execFileSync('tar', ['xzmf', join(out, 'renders.tgz'), '-C', out])
         timings.vmRenderMs = Date.now() - tr
     } else if (mode === 'local') {
         execFileSync('node', [join(root, 'demos/benchmark/render.mjs'), join(out, 'job.json')], {cwd: root, stdio: 'inherit'})
@@ -320,12 +346,12 @@ timings.totalMs = Date.now() - t0
 const score = {
     target: {name: target.name, file: relative(root, targetPath)}, label, ceiling, date: new Date().toISOString(),
     inputs: {reference: {path: target.reference.path, sha256: refSha, mmPerUnit: S}, candidate: {path: relative(root, candPath), sha256: sha256(candPath)}},
-    alignment, shape, groups, unassignedCandidateParts: unassigned, quality, image, renders: renderInfo && {renderer: renderInfo.renderer, gpu: renderInfo.gpu, mode: renderInfo.mode, width: renderInfo.width, height: renderInfo.height, ms: renderInfo.ms, heatErrors: renderInfo.heatErrors},
+    frame: primaryFrame, alignment, shape, groups, secondary, unassignedCandidateParts: unassigned, quality, image, renders: renderInfo && {renderer: renderInfo.renderer, gpu: renderInfo.gpu, mode: renderInfo.mode, width: renderInfo.width, height: renderInfo.height, ms: renderInfo.ms, heatErrors: renderInfo.heatErrors},
     run, composite, timings,
 }
 writeFileSync(join(out, 'score.json'), JSON.stringify(score, null, 1))
 writeReport(out, score, {views, heatStops: STOPS, heatMax})
 const f = x => Number.isFinite(x) ? +x.toFixed(3) : x
-console.log(JSON.stringify({out: relative(root, out), composite: f(composite.score), chamferMm: f(shape.chamfer), hausdorff95Mm: f(shape.hausdorff95),
+console.log(JSON.stringify({out: relative(root, out), frame: primaryFrame, composite: f(composite.score), chamferMm: f(shape.chamfer), hausdorff95Mm: f(shape.hausdorff95),
     fscore: Object.fromEntries(Object.entries(shape.fscore).map(([k, v]) => [k, f(v.f)])), iou: f(image.mean.iou), ssimFull: f(image.mean.ssim_full),
-    edgeSsimClay: f(image.mean.edgeSsim_clay), scale: f(alignment.scale), renderer: renderInfo?.renderer, totalMs: timings.totalMs}))
+    edgeSsimClay: f(image.mean.edgeSsim_clay), scale: f(alignment.scale), secondaryChamferMm: f(secondary?.shape.chamfer), renderer: renderInfo?.renderer, totalMs: timings.totalMs}))

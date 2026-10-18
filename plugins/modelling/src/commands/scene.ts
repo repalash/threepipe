@@ -18,6 +18,9 @@ import {
 } from 'threepipe'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readTargets, readVec3} from './params'
+import {MATERIAL_PRESETS} from '../materials/presets'
+import {reliefNormalTexture} from '../materials/surfaceTexture'
+import type {SurfacePattern} from '../materials/textures'
 import {setShading} from './params'
 
 export const renameCommand: CommandDefinition = {
@@ -55,6 +58,25 @@ export const materialCommand: CommandDefinition = {
         wireframe: S.boolean('Draw edges only.'),
         shading: S.enum('Per-face shading written into the mesh, re-baked immediately.',
             ['auto', 'flat', 'smooth']),
+        preset: S.enum('A product surface: colour, roughness, metalness, transmission and a tiling relief (normal map) '
+            + 'measured from a reference product. Other parameters given with it override it. Relief needs UVs: run '
+            + '`uv {object, size}` first, size being one relief tile in scene units (14 mm for leather, 8 for plastic grain, 6 for rubber - RELIEF_TILE_MM).',
+        Object.keys(MATERIAL_PRESETS)),
+        transmission: S.number('0..1: light passing through (glass). Needs `ior`.', {minimum: 0, maximum: 1}),
+        ior: S.number('Index of refraction, 1.5 for glass.', {minimum: 1, maximum: 2.333}),
+        thickness: S.number('Thickness for transmission, in scene units.', {minimum: 0}),
+        emissive: S.string('Emitted colour (a lit screen), any CSS colour.'),
+        emissiveIntensity: S.number('Emission strength.', {minimum: 0}),
+        relief: {
+            type: 'object', description: 'A tiling relief as a normal map: `pattern` leather, grain or rubber; `strength` '
+                + 'the normal scale (0.1-0.5); `pattern: "none"` removes it. One tile per UV unit.',
+            properties: {
+                pattern: {type: 'string', enum: ['leather', 'grain', 'rubber', 'none']},
+                strength: {type: 'number', minimum: 0, maximum: 2},
+            },
+            required: ['pattern'],
+            additionalProperties: false,
+        },
     }),
 
     run(p: Record<string, unknown>, ctx) {
@@ -67,9 +89,44 @@ export const materialCommand: CommandDefinition = {
                 ctx.warn(`"${entry.name}" has no material`)
                 continue
             }
-            if (p.color !== undefined) mat.color = new Color(p.color as string)
-            if (p.metalness !== undefined) mat.metalness = p.metalness as number
-            if (p.roughness !== undefined) mat.roughness = p.roughness as number
+            const preset = p.preset !== undefined ? MATERIAL_PRESETS[p.preset as string] : undefined
+            if (p.preset !== undefined && !preset) throw new Error(`unknown preset "${p.preset}"`)
+            const v = <T>(k: string, fromPreset?: T): T | undefined => (p[k] !== undefined ? p[k] as T : fromPreset)
+            const color = v<string>('color', preset?.color)
+            if (color !== undefined) mat.color = new Color(color)
+            const metalness = v<number>('metalness', preset?.metalness)
+            if (metalness !== undefined) mat.metalness = metalness
+            const roughness = v<number>('roughness', preset?.roughness)
+            if (roughness !== undefined) mat.roughness = roughness
+            const transmission = v<number>('transmission', preset?.transmission ?? (preset ? 0 : undefined))
+            if (transmission !== undefined) mat.transmission = transmission
+            const ior = v<number>('ior', preset?.ior)
+            if (ior !== undefined) mat.ior = ior
+            const thickness = v<number>('thickness', preset?.thickness)
+            if (thickness !== undefined) mat.thickness = thickness
+            const emissive = v<string>('emissive', preset?.emissive)
+            if (emissive !== undefined) mat.emissive = new Color(emissive)
+            const emissiveIntensity = v<number>('emissiveIntensity', preset?.emissiveIntensity)
+            if (emissiveIntensity !== undefined) mat.emissiveIntensity = emissiveIntensity
+            const relief = (p.relief as {pattern: string, strength?: number} | undefined)
+                ?? (preset ? preset.relief ? {pattern: preset.relief.pattern, strength: preset.relief.strength} : {pattern: 'none'} : undefined)
+            if (relief) {
+                if (relief.pattern === 'none') {
+                    if (mat.normalMap) mat.needsUpdate = true
+                    mat.normalMap = null
+                }
+                else if (!ctx.viewer.renderManager.webglRenderer) {
+                    // the Node polyfill's canvas cannot encode images, so a texture would make the GLB unsavable
+                    // (issues/open/modelling-tools/modelling-node-texture-export.md)
+                    ctx.warn(`"${entry.name}": relief maps need a browser session (a Node session cannot encode textures); left without one`)
+                } else {
+                    if (mat.normalMap !== reliefNormalTexture(relief.pattern as SurfacePattern)) mat.needsUpdate = true
+                    mat.normalMap = reliefNormalTexture(relief.pattern as SurfacePattern)
+                    const k = relief.strength ?? 0.3
+                    mat.normalScale.set(k, k)
+                    if (!entry.mesh.attributes.get('uv')) ctx.warn(`"${entry.name}" has no UVs, so its relief will not show - run \`uv\` on it`)
+                }
+            }
             if (p.opacity !== undefined) {
                 mat.opacity = p.opacity as number
                 mat.transparent = (p.opacity as number) < 1

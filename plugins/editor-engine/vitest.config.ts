@@ -15,6 +15,7 @@ export default defineConfig({
             'threepipe': path.resolve(__dirname, '../../src/index.ts'),
             'three': path.resolve(__dirname, '../../node_modules/three/'),
             '@threepipe/mesh-kernel': path.resolve(__dirname, '../mesh-kernel/src/index.ts'),
+            '@threepipe/modelling-parts': path.resolve(__dirname, '../modelling-parts/src/index.ts'),
             '@threepipe/plugin-mesh-edit': path.resolve(__dirname, '../mesh-edit/src/index.ts'),
             '@threepipe/plugin-modelling': path.resolve(__dirname, '../modelling/src/index.ts'),
         },

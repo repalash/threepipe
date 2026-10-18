@@ -19,6 +19,8 @@
   ]
  },
  "align": "scale-translation",
+ "frame": "spec",
+ "frameNote": "Geometry is scored primarily in the spec frame: the reference scaled per axis to Canon's published 150.7 x 116.4 x 75.9 mm (spec.refScaleToSpec). The raw frame (the reference as it is) is reported as secondary: the reference shell is 122.8 mm tall against the published 116.4 mm with the shoe (about 6 mm taller than the spec body), so a build to the published numbers loses millimetres at the top there. Renders and image metrics use the raw reference.",
  "spec": {
   "source": "Canon published dimensions, approx. 150.7 x 116.4 x 75.9 mm (W x H x D)",
   "note": "The reference is off-spec: height 1.5627 u = 126.7 mm (+9 %); depth of the shell `Cube005001` 0.9656 u = 78.3 mm. The ceiling run scores the reference scaled per axis to the spec against itself.",
@@ -316,7 +318,9 @@
     "dial-main",
     "btn-shutter",
     "shoe",
-    "shoe-contact"
+    "shoe-contact",
+    "btn-top*",
+    "btn-mfn"
    ]
   },
   "other": {

@@ -24,3 +24,5 @@ export * from './session/EditorSession'
 export * from './cli/main'
 export {failure} from './cli/hints'
 export {quietViewerConsole} from './cli/stdio'
+// Parametric parts and print layouts, for build scripts that write `part` and `decal` commands
+export {PARTS, PRODUCT_PARTS, ringLabels, ringText, scaleLabels, wordmark} from '@threepipe/modelling-parts'

@@ -40,6 +40,9 @@ import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {shadingCommands} from './commands/shading'
+import {decalCommands} from './commands/decal'
+import {partCommands} from './commands/part'
+import {grooveCommands} from './commands/groove'
 import {booleanCommands} from './commands/boolean'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
@@ -147,10 +150,13 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this._registerGltfExtension(viewer)
         // Grouped for progressive disclosure: an MCP client sees a group's commands when it asks for them.
         this.commands.registerAll(createCommands, 'create')
+        this.commands.registerAll(partCommands, 'create')
         this.commands.registerAll(editCommands, 'edit')
         this.commands.registerAll(shapeCommands, 'shape')
         this.commands.registerAll(shadingCommands, 'shading')
+        this.commands.registerAll(decalCommands, 'shading')
         this.commands.registerAll(booleanCommands, 'boolean')
+        this.commands.registerAll(grooveCommands, 'boolean')
         this.commands.registerAll(loopCommands, 'loop')
         this.commands.registerAll(cutCommands, 'cut')
         this.commands.registerAll(fillCommands, 'fill')

@@ -251,6 +251,13 @@ Changes from the design above, from what the runs showed:
   4.45° (mostly about X) to trade the reference's extra height for a lower RMS (2.19 vs 2.44 mm) and lifts
   F@2 mm from 0.517 to 0.578: the fit was hiding a shape error. The free fit is still run and reported as a
   diagnostic (`alignment.freeRotationDiagnostic`).
+- **Geometry frame (2026-10-18, after §3.3): the spec frame is primary.** Shape and per-group numbers are scored
+  against the reference scaled to Canon's published size (`targets/canon-5d4.json` `"frame": "spec"`); the raw
+  frame (the reference as it is) is reported beside it as `secondary`. The reference shell is 122.8 mm tall
+  against the published 116.4 mm with the shoe - its body is about 6 mm taller than the spec - so in the raw
+  frame a build to published numbers loses millimetres at the top that are the reference's, not the build's.
+  Renders, heat maps and image metrics stay in the raw frame (the page shows the unscaled reference).
+  `--frame raw|spec` overrides; the ceiling is raw only (it already scales the reference).
 - The **ceiling** is measured: the reference scaled per axis to Canon's published size
   (`spec.refScaleToSpec` = 0.9987, 0.9188, 0.9696) scored against the reference.
 - Builds now record their own wall time: `scripts/modelling-session.mjs` and the CLI `session` verb write
@@ -345,6 +352,156 @@ parts shade flat), but they move the benchmark by noise-level amounts. The dista
 proportions and missing parts — the taller prism and hot shoe (top group 5.8 mm), the printed markings (decals
 4.6 mm), the rear dials and the left port doors' relief — which is R3 (parts library) and R4 (markings), plus
 better measurements, not surface quality. R2 is the prerequisite those need, not a score lever on its own.
+
+### 3.3 Measure, then block out: the camera re-blocked from public measurements (2026-10-18)
+
+Approved next step after 3.2. The reference GLB is the scorer only; nothing in the build reads it.
+
+- **Measurement set** `demos/benchmark/targets/canon-5d4-measure/measurements.json`: Canon's 150.7 x 116.4 x 75.9 mm,
+  EF mount (54 mm, flange 44 mm), ISO 518 shoe, and readings from three CC BY-SA Commons photos kept beside it
+  (front `body-mount.jpg`, rear `body-rear.jpg`, and a new top view, `body-top.jpg`, Dinkun Chen), each with source,
+  calibration and uncertainty. The front photo is near level (shoe top 116.5 vs 116.4 mm), so it carries heights and
+  the outline; the rear looks down (x only); the top view is close and oblique (top-plate z only, 0.47 mm/mm height
+  correction). Not measurable from public photos: a true side elevation, so the depth layout (rear 0, front 58,
+  flange 73, grip 75.9) stays as in the demo.
+- **Silhouette check** `demos/benchmark/scripts/silhouette.mjs` (build projected on a calibrated photo: IoU, top and
+  side profiles in mm, overlay). Front-photo IoU: demo 0.965, R2 0.963, re-block **0.990**.
+- **Cages** (`scripts/cage.mjs`, `scripts/camera-reblock.mjs`): a closed control polygon solved so its limit
+  points (OpenSubdiv's regular mask, 1/6 4/6 1/6) land on the measured outline, sampled with equal counts on
+  opposite sides so Grid Fill makes the caps quads (n-gon caps shaded as starbursts). Body: front outline extruded,
+  support loops 4 mm in. Grip: top-photo plan extruded, top on the measured shoulder and falling at the shutter's
+  35 degree tilt. Prism: measured flanks and 114 mm top, rims creased (a plane-cut loop twisted its kinked front).
+  Shoe at the measured 24.1 mm with ISO 518 rails. Controls moved to measured places: mode dial 7 mm back and
+  3.8 mm taller, main dial turned to roll front to back, top LCD 48 x 21 mm (was 34.6 x 19.6), four top buttons and
+  M-Fn added, shutter tilted, lugs 6 mm lower; R2's port doors had been cut on the grip side and are now on the far
+  side. Subsurf level 2 (62.5k triangles; level 3 gave 166k at the same scores).
+- **Scorer finding:** the reference shell is 122.8 mm tall against Canon's 116.4 mm (which includes the shoe), so a
+  build to published numbers loses several mm at the top in the default frame. `benchmark:score --spec-frame`
+  scores against the reference scaled to the spec (the ceiling's scaling, applied to the other side).
+
+Per-group completeness, mean mm / within 2 mm (`tmp/bench/{demo-camera, camera-r2, camera-reblock-final}`, spec
+frame `tmp/bench/spec-*`):
+
+| group | demo | R2 | re-block | | demo (spec) | R2 (spec) | re-block (spec) |
+| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
+| top | 5.97 / 15 % | 5.79 / 16 % | **4.63 / 19 %** | | 3.21 / 32 % | 3.34 / 31 % | **2.43 / 45 %** |
+| shell | 3.29 / 50 % | 3.25 / 50 % | 3.30 / 47 % | | 2.92 / 49 % | 2.94 / 49 % | 2.91 / 48 % |
+| screens | 2.31 / 68 % | 2.21 / 68 % | **1.60 / 71 %** | | 1.21 / 77 % | 1.26 / 76 % | **0.77 / 87 %** |
+| decals | 4.68 / 47 % | 4.59 / 47 % | **3.09 / 46 %** | | 3.89 / 24 % | 4.04 / 23 % | **2.57 / 37 %** |
+| rear-controls | 1.45 / 72 % | 1.45 / 72 % | 1.33 / 75 % | | 1.39 / 71 % | 1.37 / 73 % | 1.29 / 74 % |
+| eyepiece | 2.12 / 59 % | 2.27 / 58 % | 2.09 / 61 % | | 1.24 / 79 % | 1.36 / 74 % | 1.39 / 74 % |
+| mount | 2.66 / 49 % | 2.66 / 49 % | 2.64 / 47 % | | 2.62 / 49 % | 2.61 / 49 % | 2.59 / 48 % |
+| lens | 2.84 / 44 % | 2.89 / 44 % | 2.98 / 42 % | | 2.94 / 43 % | 2.90 / 43 % | 2.99 / 42 % |
+| other (lugs, front buttons) | 3.62 / 37 % | 3.60 / 37 % | 3.75 / 35 % | | 3.57 / 36 % | 3.57 / 36 % | 3.68 / 35 % |
+
+Whole model, default frame: Chamfer 2.81 / 2.82 / 2.84 mm, IoU 0.881 / 0.879 / 0.886, composite 56.6 / 58.1 / 57.7,
+faceting 85 / 47 / 46 %. Sheet `tmp/bench/camera-reblock-final/sheet-reblock.png` (reference, demo, R2, re-block),
+front silhouettes before/after `tmp/bench/camera-reblock-final/silhouette-front-before-after.png`.
+
+Reading: the controls the measurements moved are where the score moved (top, screens, decals). The shell did not
+move although its front outline now fits the photo to 0.99 IoU: with the front fixed, what is left of the shell
+error is depth and height, which no public photo here measures (no side elevation) and where the reference is off
+the published size. Target "top and shell < 2-3 mm": top reaches it in the spec frame (2.43), not in the default
+frame (4.63); shell does not (3.30 / 2.91). An earlier variant with 64-gon caps scored better (default top 4.59,
+shell 3.27; spec top 2.04, shell 2.74) because the fans pulled the prism front and grip top in; it shaded as
+starbursts and was not what the measurements say, so it was not kept. A top-photo reading of a curved prism front
+was tried and scored worse; it is recorded in the set as not used.
+
+Cost of the re-block (measurement set, tools, cages, eight scored iterations): 12:58 to 14:24 UTC, 86 min
+wall time, 161 tool calls, 165k output and 44M input tokens (mostly cache reads); the re-blocked transcript is
+223 commands, of which 44 are the new body, grip, prism and shoe blocks (the demo build: 308 commands, 189 active
+minutes, 262 tool calls, 160k output and 129M input tokens for the whole camera).
+
+Next for the shell: a side elevation (a CC photo, or Canon's own side product shot if that is acceptable as a public
+source) to fix the depth layout, the grip's front profile and the prism's front slope, which are the remaining
+unmeasured inputs.
+
+### 3.4 R4 + R3 on the camera: markings, surfaces and parts (2026-10-18)
+
+Phase after §3.3 (proportions frozen). Judged visually on full renders against the reference, full-render SSIM as
+the number. Built, in this order:
+
+- **Kernel** `uv/cubeProject.ts`: Blender's UV Cube Projection (`uvedit_unwrap_cube_project`,
+  `uvedit_unwrap_ops.cc:4245`, `axis_dominant_v3`). Command `uv {object, size}`.
+- **Materials**: `material {preset, relief, transmission, ior, thickness, emissive}`. 16 presets with §1.4's measured
+  values (satin/gloss plastic, rubber, leather, metals, coated glass, screen, prints). Leather, plastic grain and rubber
+  carry tiling normal maps from a seeded Node-safe generator (`materials/textures.ts`, after webgi-worlds
+  `riad/mosaic.ts`), one shared texture per pattern. A tiling map baked to a glTF texture, not a shader extension,
+  because the benchmark and any glTF consumer only see what exports.
+- **Markings**: `decal {mode: plane | project | wrap, content: {text | svg}}`, the reference's own approach (prints on
+  decal meshes with textures). `project` drops a quad grid onto a surface by ray casts and leaves out cells that miss;
+  `wrap` bends it round an axis. SVG is rasterised by the browser. Generic type, no logotypes.
+- **Parts**: new package `@threepipe/modelling-parts` (source-only for now, bundled by plugin-modelling):
+  `product/knurled-ring`, `dial`, `button`, `rocker`, `eyecup`, `strap-lug`, `lens-barrel`, plus SVG layouts
+  (`ringLabels`, `ringText`, `scaleLabels`, `wordmark`). Command `part {type, name, params, position, rotation}`;
+  `part {name, params}` regenerates until another command edits the object.
+- **Camera**: `demos/benchmark/scripts/camera-dress.mjs` - 32 `part`s replace the hand-made lens rings, dials,
+  buttons, eyecup and lugs (+ a lens baffle and inner element); 3 `uv`, 16 `material`, 21 `decal`s (word marks,
+  model badge, monitor screen, button legends, mode-dial legends, top LCD, port legends, lens word mark,
+  focal-length scale, front-ring legend). Geometry runs in Node (171 commands, 5 s); surfaces and prints in a
+  browser session (40 commands, < 1 s of command time, about 8 min of session overhead here).
+
+Results (`tmp/bench/dress-v5`, sheet `tmp/bench/dress-v5/sheet-before-after.png`: reference | re-block | dressed,
+full and clay): full-render SSIM, mean of 7 views, **0.504 -> 0.489**; notex 0.538 -> 0.532; clay 0.615 -> 0.611;
+silhouette IoU 0.886 -> 0.887. Per view, full: front 0.515 -> 0.483, back 0.397 -> 0.405, hero-front 0.547 ->
+0.537 (0.566 in v4), hero-rear 0.476 -> 0.449. Geometry, spec frame (completeness mm): top 2.43 -> 2.16, screens
+0.77 -> 0.56, decals 2.57 -> 2.26, eyepiece 1.39 -> 1.31, shell 2.91 -> 2.78, lens 2.99 -> 2.88; Chamfer 2.64 ->
+2.58. 39 -> 74 parts, 62.5k -> 84.1k triangles.
+
+Reading: visually the dressed camera reads as the product (legends, monitor, lens prints, ribs, glass, leather
+and gloss), while full SSIM dropped slightly. SSIM on 1200x800 greyscale rewards matching flat dark areas and
+punishes detail that is not pixel-registered with the reference's: our legends and screen are in measured places,
+the reference's are where its (taller) model puts them, so each added print is new high-frequency content in the
+wrong pixels. Between iterations SSIM also moves by +-0.02 per view with the ICP alignment alone (v4 -> v5 shifted
+the left and hero views without changing them). It is a weak judge of markings; the sheet is the result.
+
+What still looks better in the reference, and why:
+- **Surface sculpting**: its rear has a raised rubber thumb rest wrapping the quick dial and the multi-controller,
+  contour lines round the controls, and port covers as separate parts with black gap strips (9 `GapsColor` strips);
+  ours is a flat rear face with parts on it, no panel lines.
+- **Leather**: a photographed leather normal map at 512 px x6 reads as grain at render distance; our procedural
+  cells are finer and read as noise on the grip and thumb rest.
+- **Lens**: 3D lettering on the front ring, more visible inner elements, a sharper red ring; ours prints the front
+  legend flat and small.
+- **Eyecup**: a softer, rounded rubber form with an inner frame; ours (measured 54 x 36 mm) still reads boxy.
+- **Screen and top LCD**: real UI screenshots as textures vs our drawn SVG screens.
+- **Form**: its prism and grip are taller (off-spec, §3.3), so the silhouettes differ in every view.
+
+Cost: 14:26 to 15:53 UTC (87 min) including housekeeping, 191 tool calls, 168k output and 89M input tokens (mostly
+cache reads). Housekeeping: the photos are fetched by `fetch-refs.mjs` (URL + sha256), the spec frame is primary
+(§2.1), `tpvm sync` is used again; `score.mjs` extracts renders with `tar -m` (the mount refused `utime`).
+Issue filed: `modelling-node-texture-export.md` (Node sessions cannot export textures).
+
+### 3.5 Final camera pass: sculpted rear, leather grain, lens, eyecup (2026-10-18)
+
+Last pass on the camera; each item built as a general tool or part:
+- **`groove`** (plugin-modelling): a panel line cut along a `path` or round a rounded-rectangle `outline`, projected
+  onto curved bodies, subtracted with the Manifold boolean, with an optional `fill` gap strip (`gap-black`). On the
+  camera: the two port doors and the monitor surround.
+- **`product/pad`** (modelling-parts): a raised panel from a smoothed outline with a rounded top edge. On the camera:
+  the rubber thumb rest wrapping the quick dial, multi-controller, Q and START (holes by `boolean`).
+- **Leather grain at real scale**: the generated cells were 0.18 mm and averaged out under mipmapping, so the grip
+  rendered smooth. Tuned against a crop of the reference's grip: 10 pebbles per 14 mm tile (about 1.4 mm), strength
+  0.6; plastic grain and rubber rescaled too; `RELIEF_TILE_MM` gives the `uv` size per pattern.
+- **Lens**: `decal {emboss}` turns a print's alpha into a normal map (raised silver front-ring type); inner elements
+  wider than the bore so only their coated faces show; a matte retaining ring; the red ring as a raised `lens-barrel`
+  band with crisp edges.
+- **`product/eyecup`**: a soft rolled-rim section (wall bulge, outer roll, top band, inner roll) plus an inner frame
+  (a second, thin eyecup instance in gloss plastic).
+- **Skill**: a "Realism kit" section (measure, block cages, parts, grooves, shading, surfaces, markings, judging) and
+  tested cookbook entries for `groove`, presets and `decal`.
+
+Results (`tmp/bench/dress-v7`, sheet `tmp/bench/dress-v7/sheet-final.png`: reference | re-block | dressed | final,
+full and clay, 5 views): full-render SSIM 0.504 (re-block) / 0.489 (3.4) / **0.484**; edge-SSIM full 0.434 / 0.421 /
+**0.446**; clay 0.615 / 0.611 / 0.611; IoU 0.886 / 0.887 / 0.888. Spec-frame completeness (mm), re-block / 3.4 /
+final: lens 2.99 / 2.88 / 2.62, rear-controls 1.29 / 1.29 / 1.16, eyepiece 1.39 / 1.31 / 1.29, shell 2.91 / 2.78 /
+2.87, top 2.43 / 2.16 / 2.33, screens 0.77 / 0.56 / 0.70, decals 2.57 / 2.26 / 2.51, other 3.68 / 3.65 / 3.62; Chamfer
+2.64 / 2.58 / 2.51. 80 parts, 92.4k triangles. The edge-SSIM rise is the grain and seams; the small group moves
+(top, screens, decals) follow the per-run alignment shift, not edits to those parts.
+
+Still better in the reference: its quick dial and multi-controller are sculpted into the pad with contour lines; its
+front element shows true inner optics (ours shows one reflection ring); photographed leather and real UI textures;
+and its off-spec taller prism and grip, which no published measurement supports. The camera work stops here.
 
 ### 3.1 R2c status (2026-10-18)
 

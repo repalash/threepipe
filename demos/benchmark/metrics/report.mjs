@@ -37,7 +37,7 @@ td:first-child,th:first-child{text-align:left}.small{color:#666;font-size:12px}.
 
 <h2>Components (the result)</h2>
 <div class="cols"><div>
-${table([`Shape (mm, after ${esc(a.mode)} alignment)`, ''], [
+${table([`Shape (mm, ${esc(s.frame ?? 'raw')} frame, after ${esc(a.mode)} alignment)`, ''], [
         ['accuracy: candidate → reference, mean', n(sh.accuracy)], ['completeness: reference → candidate, mean', n(sh.completeness)],
         ['Chamfer (mean of the two)', n(sh.chamfer)], ['Hausdorff95', n(sh.hausdorff95)], ['Hausdorff (max)', n(sh.hausdorff)],
         ...Object.entries(sh.fscore).map(([t, f]) => [`F-score @ ${t} mm (precision / recall)`, `${n(f.f)} (${n(f.precision)} / ${n(f.recall)})`]),
@@ -59,6 +59,11 @@ ${table(['group', 'ref parts', 'completeness mean (mm)', 'ref within 2 mm', 'can
         Object.entries(s.groups).map(([g, v]) => [esc(g), v.refParts,
             {v: n(v.completeness?.meanMm), style: heatBg(v.completeness?.meanMm, heatStops, heatMax)}, pct(v.completeness?.within), v.candParts,
             {v: n(v.accuracy?.meanMm), style: heatBg(v.accuracy?.meanMm, heatStops, heatMax)}, pct(v.accuracy?.within)]))}
+${s.secondary ? `<h2>Secondary: the ${esc(s.secondary.frame)} frame</h2>
+<div class="small">${s.secondary.frame === 'raw' ? 'The reference as it is: its body is about 6 mm taller than the published size, so a build to published dimensions loses millimetres at the top here that it does not lose in the primary (spec) frame.' : 'The reference scaled to the published size.'}</div>
+${table(['group', 'completeness mean (mm)', 'ref within 2 mm', 'accuracy mean (mm)'],
+        Object.entries(s.secondary.groups).map(([g, v]) => [esc(g), n(v.completeness?.meanMm), pct(v.completeness?.within), n(v.accuracy?.meanMm)]))}
+<div class="small">Chamfer ${n(s.secondary.shape.chamfer)} mm · Hausdorff95 ${n(s.secondary.shape.hausdorff95)} mm · fitted scale ${n(s.secondary.alignment.scale, 4)}</div>` : ''}
 ${s.unassignedCandidateParts?.length ? `<div class="small">candidate parts in no group: ${esc(s.unassignedCandidateParts.join(', '))}</div>` : ''}
 
 <h2>Per view</h2>

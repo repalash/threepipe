@@ -1,0 +1,27 @@
+{
+    "name": "@threepipe/modelling-parts",
+    "description": "Parametric parts for threepipe modelling - knurled rings, dials, buttons, eyecups, lugs, lens barrels - as editable n-gon meshes",
+    "version": "0.1.0",
+    "devDependencies": {},
+    "dependencies": {
+        "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/"
+    },
+    "peerDependencies": {
+        "@threepipe/mesh-kernel": ">=0.1.0"
+    },
+    "type": "module",
+    "main": "src/index.ts",
+    "files": [
+        "src"
+    ],
+    "scripts": {
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/repalash/threepipe.git"
+    }
+}

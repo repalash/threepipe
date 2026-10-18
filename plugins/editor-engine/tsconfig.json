@@ -33,6 +33,7 @@
         "paths": {
             "threepipe": ["../../dist/index.d.ts"],
             "@threepipe/mesh-kernel": ["../mesh-kernel/src/index.ts"],
+            "@threepipe/modelling-parts": ["../modelling-parts/src/index.ts"],
             "@threepipe/plugin-mesh-edit": ["../mesh-edit/src/index.ts"],
             "@threepipe/plugin-modelling": ["../modelling/src/index.ts"]
         }
