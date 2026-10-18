@@ -27,9 +27,10 @@
         "build": "rimraf dist && vite build --config vite.page.config.js && vite build",
         "build:page": "vite build --config vite.page.config.js",
         "typecheck": "tsc --noEmit -p tsconfig.json",
-        "test": "vitest run",
+        "test": "vitest run --exclude 'tests/browser/**'",
         "test:watch": "vitest",
-        "cli": "node dist/cli.mjs"
+        "cli": "node dist/cli.mjs",
+        "test:browser": "vitest run tests/browser"
     },
     "dependencies": {
         "playwright-core": "~1.58.2",
