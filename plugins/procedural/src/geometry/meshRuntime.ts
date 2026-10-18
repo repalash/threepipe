@@ -24,6 +24,11 @@ export interface MeshRuntime {
     bvh: {verts?: unknown, edges?: unknown, tris?: unknown, cornerTris?: Int32Array, triFaces?: Int32Array}
     /** `vert_to_face_map_cache`, `vert_to_corner_map_cache`, `corner_to_face_map_cache`, loose element caches (`meshTopology.ts`). */
     topology: Record<string, unknown>
+    /**
+     * `max_material_index` (`BKE_mesh_types.hh`): only ever filled here by Set Material (`node_geo_set_material.cc:76`,
+     * :84), shared by copies (`mesh.cc:174`), dropped when `material_index` changes. Realize Instances reads it.
+     */
+    maxMaterialIndex?: number
 }
 
 const runtimes = new WeakMap<MeshData, MeshRuntime>()
@@ -48,6 +53,7 @@ export function copyMesh(src: MeshData): MeshData {
             normals: {...r.normals},
             bvh: {...r.bvh},
             topology: {...r.topology},
+            maxMaterialIndex: r.maxMaterialIndex,
         })
     }
     return dst
@@ -102,4 +108,20 @@ export function meshTagTopologyChanged(mesh: MeshData): void {
  */
 export function meshAttributeChanged(mesh: MeshData, name: string): void {
     if (name === 'position') meshTagPositionsChanged(mesh)
+    // `tag_material_index_changed` (`mesh_attributes.cc:676`, `mesh_runtime.cc:422`).
+    if (name === 'material_index') {
+        const r = runtimes.get(mesh)
+        if (r) delete r.maxMaterialIndex
+    }
+}
+
+/** `max_material_index.ensure([](data) { data = value; })`: fills the cache unless it is already filled. */
+export function meshEnsureMaxMaterialIndex(mesh: MeshData, value: number): void {
+    const r = meshRuntime(mesh)
+    if (r.maxMaterialIndex === undefined) r.maxMaterialIndex = value
+}
+
+/** `max_material_index.is_cached() ? data() : nothing`. */
+export function meshCachedMaxMaterialIndex(mesh: MeshData): number | undefined {
+    return runtimes.get(mesh)?.maxMaterialIndex
 }
