@@ -16,6 +16,7 @@ import {add3, angleNormalizedV3V3, cross3, dot3, isZero3, length3, normalize3, s
 import {CurvesGeometry} from './components'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
 import {createDefaultMixer, mix2} from './mixers'
+import {sincosf} from '../blender/libm'
 
 // region enums (`makesdna/DNA_curves_types.h:34-94`)
 export const CURVE_TYPE_CATMULL_ROM = 0
@@ -620,7 +621,8 @@ export function rotateDirectionAroundAxis(direction: ArrayLike<number>, axis: Ar
     const axisScaled = scale3(axis, dot3(direction, axis))
     const diff = sub3(direction, axisScaled)
     const cross = cross3(axis, diff)
-    return add3(add3(axisScaled, scale3(diff, f32(Math.cos(angle)))), scale3(cross, f32(Math.sin(angle))))
+    const [s, c] = sincosf(angle)
+    return add3(add3(axisScaled, scale3(diff, c)), scale3(cross, s))
 }
 
 /** `calculate_next_normal` (:140). */

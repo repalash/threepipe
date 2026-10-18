@@ -8,7 +8,7 @@
 
 import {f32} from '../f32'
 import {angleV3V3, dot3, normalizeV3V3, V3} from './vec'
-import {atan2f} from '../libm'
+import {atan2f, sincosf} from '../libm'
 
 export type M3 = Float32Array
 
@@ -17,8 +17,7 @@ export type M3 = Float32Array
  * `float` argument, so C++ overload resolution calls the `float` overload (`cosf`) and widens its result.
  */
 export function eulToMat3(eul: ArrayLike<number>): M3 {
-    const ci = f32(Math.cos(eul[0])), cj = f32(Math.cos(eul[1])), ch = f32(Math.cos(eul[2]))
-    const si = f32(Math.sin(eul[0])), sj = f32(Math.sin(eul[1])), sh = f32(Math.sin(eul[2]))
+    const [si, ci] = sincosf(eul[0]), [sj, cj] = sincosf(eul[1]), [sh, ch] = sincosf(eul[2])
     const cc = ci * ch, cs = ci * sh, sc = si * ch, ss = si * sh
     const m = new Float32Array(9)
     m[0] = cj * ch
@@ -65,7 +64,7 @@ export function axisAngleToMat3(axis: ArrayLike<number>, angle: number): M3 {
         return m
     }
     // `axis_angle_normalized_to_mat3` (:1173): `sinf` / `cosf`.
-    return axisAngleNormalizedToMat3Ex(nor, f32(Math.sin(angle)), f32(Math.cos(angle)))
+    return axisAngleNormalizedToMat3Ex(nor, ...sincosf(angle))
 }
 
 /** `mul_m3_m3m3(R, A, B)` (`math_matrix_c.cc:319`): `R[i][j] = B[i][0] * A[0][j] + B[i][1] * A[1][j] + B[i][2] * A[2][j]`. */

@@ -38,7 +38,7 @@ export const libmProof: {
     table?: Partial<Record<LibmName, Record<string, number[]>>>
 } = {}
 
-export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf'
+export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf' | 'sinf' | 'cosf' | 'tanf' | 'powf'
 
 /** `String(x)`, keeping the sign of zero. */
 const key = (x: number) => (Object.is(x, -0) ? '-0' : String(x))
@@ -79,4 +79,32 @@ export function sincosf(x: number): [number, number] {
     const t = substituted('sincosf', key(x))
     if (t) return [t[0], t[1]]
     return [f32(Math.sin(x)), f32(Math.cos(x))]
+}
+
+/** `sinf` called alone (no `cosf` of the same value in the block, see `sincosf`). Correctly rounded here. */
+export function sinf(x: number): number {
+    const t = substituted('sinf', key(x))
+    return t ? t[0] : f32(Math.sin(x))
+}
+
+/** `cosf` called alone (see `sincosf`). Correctly rounded here. */
+export function cosf(x: number): number {
+    const t = substituted('cosf', key(x))
+    return t ? t[0] : f32(Math.cos(x))
+}
+
+/** `tanf`. Correctly rounded here. */
+export function tanf(x: number): number {
+    const t = substituted('tanf', key(x))
+    return t ? t[0] : f32(Math.tan(x))
+}
+
+/**
+ * `powf`: `Math.pow` then rounded, except where C99 Annex F and JS disagree - `pow(1, y)` is 1 for every
+ * `y` (also NaN and infinities) and `pow(-1, +-inf)` is 1 in C, NaN in JS.
+ */
+export function powf(a: number, b: number): number {
+    if (a === 1 || (a === -1 && (b === Infinity || b === -Infinity))) return 1
+    const t = substituted('powf', `${key(a)},${key(b)}`)
+    return t ? t[0] : f32(Math.pow(a, b))
 }

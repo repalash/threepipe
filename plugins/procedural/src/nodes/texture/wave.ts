@@ -9,6 +9,7 @@ import {perlinFbm} from '../../blender/noiseTextures'
 import {MultiFunction} from '../../fields/field'
 import {registerNodeType} from '../../runtime/registry'
 import {cached} from '../util'
+import {sinf} from '../../blender/libm'
 
 const WAVE_TYPE: Record<string, number> = {BANDS: 0, RINGS: 1}
 const BANDS_DIRECTION: Record<string, number> = {X: 0, Y: 1, Z: 2, DIAGONAL: 3}
@@ -68,7 +69,7 @@ const waveFunction = cached((key: string): MultiFunction => {
                 switch (waveProfile) {
                 case 0:
                     // `sinf(n - M_PI_2)`: the double difference is converted to the float argument.
-                    val = f32(0.5 + f32(0.5 * f32(Math.sin(f32(n - M_PI_2)))))
+                    val = f32(0.5 + f32(0.5 * sinf(f32(n - M_PI_2))))
                     break
                 case 1:
                     n = f32(n / (Math.PI * 2.0))

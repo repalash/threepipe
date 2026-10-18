@@ -5,14 +5,14 @@
  */
 
 import {f32} from '../f32'
+import {sincosf} from '../libm'
 
 /**
  * `from_rotation<float3x3>(AxisAngle(axis, angle))` (`BLI_math_matrix.hh:1124`) in float: `sin`/`cos` of an
  * `AngleRadian` are `sinf`/`cosf`. `axis` must be unit length (asserted in Blender).
  */
 export function mat3FromAxisAngle(axis: ArrayLike<number>, angle: number): Float32Array {
-    const s = f32(Math.sin(angle))
-    const c = f32(Math.cos(angle))
+    const [s, c] = sincosf(angle)
     const ico = f32(1 - c)
     const nsi = [f32(axis[0] * s), f32(axis[1] * s), f32(axis[2] * s)]
     const n012 = [0, 1, 2].map(k => f32(f32(axis[k] * axis[k]) * ico))

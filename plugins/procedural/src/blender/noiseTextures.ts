@@ -26,14 +26,8 @@ const stdMax = (a: number, b: number) => (a < b ? b : a)
 /** `std::clamp` (libstdc++: `v < lo ? lo : hi < v ? hi : v`). */
 export const stdClamp = (v: number, lo: number, hi: number) => (v < lo ? lo : hi < v ? hi : v)
 
-/**
- * `powf`: `Math.pow` then rounded, except where C99 Annex F and JS disagree - `pow(1, y)` is 1 for every
- * `y` (also NaN and infinities) and `pow(-1, +-inf)` is 1 in C, NaN in JS.
- */
-export function powf(a: number, b: number): number {
-    if (a === 1 || (a === -1 && (b === Infinity || b === -Infinity))) return 1
-    return f32(Math.pow(a, b))
-}
+import {powf} from './libm'
+export {powf}
 
 /** C `int(x)` of a floored float (UB out of range in C; callers stay in range). */
 const toInt = (x: number) => Math.trunc(x) | 0

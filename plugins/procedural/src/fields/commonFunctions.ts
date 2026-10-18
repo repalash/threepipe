@@ -11,6 +11,7 @@ import {
 } from '../blender/math/vec'
 import type {DataType} from '../geometry/dataTypes'
 import {elementwise, MultiFunction} from './field'
+import {cosf, sinf, tanf} from '../blender/libm'
 
 type V = ArrayLike<number>
 
@@ -93,9 +94,9 @@ const FUNCTIONS: Record<string, MultiFunction> = {
     // :499: `math::sign` (`BLI_math_base.hh:38`).
     'sign(float3)': v1('sign(float3)', each1(a => (0 < a ? 1 : 0) - (a < 0 ? 1 : 0))),
     // :503-511: `sinf` / `cosf` / `tanf`.
-    'sin(float3)': v1('sin(float3)', each1(a => f32(Math.sin(a)))),
-    'cos(float3)': v1('cos(float3)', each1(a => f32(Math.cos(a)))),
-    'tan(float3)': v1('tan(float3)', each1(a => f32(Math.tan(a)))),
+    'sin(float3)': v1('sin(float3)', each1(sinf)),
+    'cos(float3)': v1('cos(float3)', each1(cosf)),
+    'tan(float3)': v1('tan(float3)', each1(tanf)),
 }
 
 /** `mf::registry::lookup(name)`. */

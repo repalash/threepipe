@@ -13,6 +13,7 @@ import {MultiFunction} from '../../fields/field'
 import {registerNodeType} from '../../runtime/registry'
 import {cached, fmodf, fn1, fn2, fn3, maxFF, minFF, stdMax, stdMin} from '../util'
 import {acosf, asinf, atan2f} from '../../blender/libm'
+import {cosf, powf, sinf, tanf} from '../../blender/libm'
 
 const FLT_EPSILON = 1.1920928955078125e-7
 
@@ -31,7 +32,7 @@ const safeInverseSqrtf = (a: number) => (a > 0 ? f32(1 / f32(Math.sqrt(a))) : 0)
 /** `safe_asinf` / `safe_acosf` (`:49`, `:55`): clamp then the libm function. */
 const clamp1 = (a: number) => (a < -1 ? -1 : a > 1 ? 1 : a)
 /** `safe_powf` (`:61`). */
-const safePowf = (base: number, exponent: number) => (base < 0 && exponent !== Math.trunc(exponent) ? 0 : f32(Math.pow(base, exponent)))
+const safePowf = (base: number, exponent: number) => (base < 0 && exponent !== Math.trunc(exponent) ? 0 : powf(base, exponent))
 /** `compatible_signf` (`math_base_inline.cc:530`). */
 const compatibleSignf = (a: number) => (a > 0 ? 1 : a < 0 ? -1 : 0)
 /** `fractf` (`:265`). */
@@ -87,9 +88,9 @@ const OPS: Record<string, MultiFunction> = {
     WRAP: fn3('wrap(float, float, float)', wrapf),
     SNAP: fn2('snap(float, float)', (a, b) => f32(Math.floor(safeDivide(a, b)) * b)),
     PINGPONG: fn2('pingpong(float, float)', pingpongf),
-    SINE: fn1('sin(float)', a => Math.sin(a)),
-    COSINE: fn1('cos(float)', a => Math.cos(a)),
-    TANGENT: fn1('tan(float)', a => Math.tan(a)),
+    SINE: fn1('sin(float)', sinf),
+    COSINE: fn1('cos(float)', cosf),
+    TANGENT: fn1('tan(float)', tanf),
     ARCSINE: fn1('asin(float)', a => asinf(clamp1(a))),
     ARCCOSINE: fn1('acos(float)', a => acosf(clamp1(a))),
     ARCTANGENT: fn1('atan(float)', a => Math.atan(a)),

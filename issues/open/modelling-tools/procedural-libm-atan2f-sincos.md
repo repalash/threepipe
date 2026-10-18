@@ -60,3 +60,18 @@ The substitution proof is now a tool instead of a temporary probe:
 and `__sincosf_stret`, plus the expmap mixers.
 - Before: pq 2, pm 70, cq 10 and cm 134 values differ.
 - With 55 `acosf`, 613 `atan2f` and 623 `sincosf` platform results: **exact**, after two rounds.
+
+## Addendum (2026-10-18): every "pass (ulp)" case proven
+
+`libm.ts` now also routes `sinf`, `cosf`, `tanf` and `powf` through the proof hook. The call sites that take the sine
+and cosine of one value in one block use `sincosf`; clang emits `__sincosf_stret` for them. These sites are: circle,
+cone, UV sphere rings, `eul_to_mat3`, axis-angle matrices, curve tilt rotation and `vec_to_quat`.
+
+`LIBM_PROOF=pass npm run test -- tests/parity/libmProof` covers all 78 cases whose committed status is "pass (... ulp)".
+- It took three evaluation rounds, ending at about 935k platform results, mostly `powf` from Voronoi Minkowski.
+- **77 / 78 are bit-exact** with the platform libm.
+- The remaining one is `meshCluster/merge-points`. Its `radius` is 1 ulp off, which is Blender's single-value attribute
+  storage (`procedural-single-value-attribute-storage.md`), not libm.
+
+So the ported code matches Blender to the bit everywhere. Every remaining difference is the platform `libm`, apart from
+that one data-model gap.
