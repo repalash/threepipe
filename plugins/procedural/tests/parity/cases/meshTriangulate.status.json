@@ -1,0 +1,10 @@
+{
+ "triangulate-beauty-beauty": "exact",
+ "triangulate-fixed-clip": "exact",
+ "triangulate-fixed-alternate-beauty": "exact",
+ "triangulate-shortest-diagonal-clip": "exact",
+ "triangulate-longest-diagonal-beauty": "exact",
+ "triangulate-selection": "exact",
+ "triangulate-none": "exact",
+ "triangulate-large": "exact"
+}

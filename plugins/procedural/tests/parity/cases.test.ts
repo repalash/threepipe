@@ -24,6 +24,10 @@ import {topologyCases} from './cases/topology'
 import {inputCases} from './cases/inputs'
 import {geometryOpCases} from './cases/geometryOps'
 import {meshFieldOpCases} from './cases/meshFieldOps'
+import {meshReorderCases} from './cases/meshReorder'
+import {meshSplitCases} from './cases/meshSplit'
+import {meshScaleCases} from './cases/meshScale'
+import {meshTriangulateCases} from './cases/meshTriangulate'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -80,6 +84,10 @@ SETS.curvesBasic = curvesBasicCases
 SETS.curvesOps = curvesOpsCases
 SETS.subdivMesh = subdivMeshCases
 SETS.meshFieldOps = meshFieldOpCases
+SETS.meshReorder = meshReorderCases
+SETS.meshSplit = meshSplitCases
+SETS.meshScale = meshScaleCases
+SETS.meshTriangulate = meshTriangulateCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {
