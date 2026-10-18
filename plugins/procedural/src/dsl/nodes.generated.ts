@@ -133,6 +133,18 @@ export type BezierSegmentNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeBlurAttribute` (Blur Attribute). */
+export interface BlurAttributeArgs {
+    dataType?: "FLOAT" | "INT" | "FLOAT_VECTOR" | "FLOAT_COLOR"
+    value?: (In<"FLOAT"> | In<"INT"> | In<"VECTOR"> | In<"RGBA">)
+    iterations?: In<"INT">
+    weight?: In<"FLOAT">
+    mute?: boolean
+}
+export type BlurAttributeNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "VECTOR" | "RGBA">
+}
+
 /** `FunctionNodeInputBool` (Boolean). */
 export interface BooleanArgs {
     boolean?: boolean
@@ -723,6 +735,17 @@ export interface IndexArgs {
 }
 export type IndexNode = NodeHandle & {
     readonly index: Socket<"INT">
+}
+
+/** `GeometryNodeIndexOfNearest` (Index of Nearest). */
+export interface IndexOfNearestArgs {
+    position?: In<"VECTOR">
+    groupID?: In<"INT">
+    mute?: boolean
+}
+export type IndexOfNearestNode = NodeHandle & {
+    readonly index: Socket<"INT">
+    readonly hasNeighbor: Socket<"BOOLEAN">
 }
 
 /** `GeometryNodeIndexSwitch` (Index Switch). */
@@ -1986,6 +2009,7 @@ export interface NodeConstructors {
     AttributeStatistic(args?: AttributeStatisticArgs): AttributeStatisticNode
     AxisAngleToRotation(args?: AxisAngleToRotationArgs): AxisAngleToRotationNode
     BezierSegment(args?: BezierSegmentArgs): BezierSegmentNode
+    BlurAttribute(args?: BlurAttributeArgs): BlurAttributeNode
     Boolean(args?: BooleanArgs): BooleanNode
     BooleanMath(args?: BooleanMathArgs): BooleanMathNode
     BoundingBox(args?: BoundingBoxArgs): BoundingBoxNode
@@ -2037,6 +2061,7 @@ export interface NodeConstructors {
     Image(args?: ImageArgs): ImageNode
     ImageTexture(args?: ImageTextureArgs): ImageTextureNode
     Index(args?: IndexArgs): IndexNode
+    IndexOfNearest(args?: IndexOfNearestArgs): IndexOfNearestNode
     IndexSwitch(args?: IndexSwitchArgs): IndexSwitchNode
     InstanceOnPoints(args?: InstanceOnPointsArgs): InstanceOnPointsNode
     InstanceRotation(args?: InstanceRotationArgs): InstanceRotationNode

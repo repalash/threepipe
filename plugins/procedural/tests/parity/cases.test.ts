@@ -23,6 +23,7 @@ import {fieldNodeCases} from './cases/fieldNodes'
 import {topologyCases} from './cases/topology'
 import {inputCases} from './cases/inputs'
 import {geometryOpCases} from './cases/geometryOps'
+import {meshFieldOpCases} from './cases/meshFieldOps'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -78,6 +79,7 @@ SETS.meshMerge = meshMergeCases
 SETS.curvesBasic = curvesBasicCases
 SETS.curvesOps = curvesOpsCases
 SETS.subdivMesh = subdivMeshCases
+SETS.meshFieldOps = meshFieldOpCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {
