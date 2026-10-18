@@ -428,8 +428,8 @@ export type EulerToRotationNode = NodeHandle & {
 export interface EvaluateAtIndexArgs {
     domain?: "POINT" | "EDGE" | "FACE" | "CORNER" | "CURVE" | "INSTANCE" | "LAYER"
     dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
-    index?: In<"INT">
     value?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    index?: In<"INT">
     mute?: boolean
 }
 export type EvaluateAtIndexNode = NodeHandle & {

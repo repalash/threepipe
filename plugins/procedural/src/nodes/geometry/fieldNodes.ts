@@ -51,12 +51,12 @@ registerNodeType({
     label: 'Evaluate at Index',
     properties: {domain: 'POINT', data_type: 'FLOAT'},
     enums: {domain: DOMAINS, data_type: SOCKET_TYPES},
-    // :21-33: Index is a field input defaulting to the index.
+    // :21-33: Value, then Index (a field input; unlinked it is 0 - `min(0)`, no implicit field).
     declare(b, node) {
         const type = socketTypeFromRNA(node.prop<string>('data_type'))
-        b.input('INT', 'Index').min(0).implicit('INDEX').field()
         b.input(type, 'Value').hideValue().field()
         b.output(type, 'Value').field()
+        b.input('INT', 'Index').min(0).field()
     },
     execute(p) {
         p.set('Value', GField.fromInput(new EvaluateAtIndexInput(p.field('Index'), p.field('Value'), domainOf(p.node.prop<string>('domain')))))
