@@ -5,7 +5,7 @@
  */
 
 import {getNodeType, NodeInstance} from '../runtime/registry'
-import {dslClassName, dslKey} from './builder'
+import {dslClassName, dslKey, dslPropertyKey} from './builder'
 import {InterfaceSocketJSON, isInterfaceSocket, JSONValue, NodeGroupLibrary, NodeJSON, NodeTreeJSON, socketTypeFromIdname, SocketType} from '../runtime/types'
 
 const INPUT_FN: Partial<Record<SocketType, string>> = {
@@ -170,7 +170,7 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         for (const [k, val] of Object.entries(node.properties ?? {})) {
             if (def.properties && !(k in def.properties)) continue
             if (JSON.stringify(def.properties?.[k]) === JSON.stringify(val)) continue
-            args.push(`${dslKey(k)}: ${lit(val as JSONValue)}`)
+            args.push(`${dslPropertyKey(def, k)}: ${lit(val as JSONValue)}`)
         }
         if (node.mute) args.push('mute: true')
         const inst = new NodeInstance(node, def)

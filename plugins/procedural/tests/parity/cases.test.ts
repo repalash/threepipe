@@ -54,6 +54,7 @@ import {subdivMeshCases} from './cases/subdivMesh'
 import {curvesQueryCases} from './cases/curvesQuery'
 import {curvesGenerateCases} from './cases/curvesGenerate'
 import {curvesEditingCases} from './cases/curvesEditing'
+import {functionMiscCases} from './cases/functionMisc'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -98,6 +99,7 @@ SETS.meshScale = meshScaleCases
 SETS.meshTriangulate = meshTriangulateCases
 SETS.meshDual = meshDualCases
 SETS.meshPaths = meshPathCases
+SETS.functionMisc = functionMiscCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

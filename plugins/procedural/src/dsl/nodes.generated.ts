@@ -131,6 +131,18 @@ export type AttributeStatisticNode = NodeHandle & {
     readonly variance: Socket<"FLOAT" | "VECTOR">
 }
 
+/** `FunctionNodeAxesToRotation` (Axes to Rotation). */
+export interface AxesToRotationArgs {
+    primaryAxisEnum?: "X" | "Y" | "Z"
+    secondaryAxisEnum?: "X" | "Y" | "Z"
+    primaryAxis?: In<"VECTOR">
+    secondaryAxis?: In<"VECTOR">
+    mute?: boolean
+}
+export type AxesToRotationNode = NodeHandle & {
+    readonly rotation: Socket<"ROTATION">
+}
+
 /** `FunctionNodeAxisAngleToRotation` (Axis Angle to Rotation). */
 export interface AxisAngleToRotationArgs {
     axis?: In<"VECTOR">
@@ -153,6 +165,18 @@ export interface BezierSegmentArgs {
 }
 export type BezierSegmentNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
+}
+
+/** `FunctionNodeBitMath` (Bit Math). */
+export interface BitMathArgs {
+    operation?: "AND" | "OR" | "XOR" | "NOT" | "SHIFT" | "ROTATE"
+    a?: In<"INT">
+    b?: In<"INT">
+    shift?: In<"INT">
+    mute?: boolean
+}
+export type BitMathNode = NodeHandle & {
+    readonly value: Socket<"INT">
 }
 
 /** `GeometryNodeBlurAttribute` (Blur Attribute). */
@@ -280,6 +304,30 @@ export interface CombineColorArgs {
 }
 export type CombineColorNode = NodeHandle & {
     readonly color: Socket<"RGBA">
+}
+
+/** `FunctionNodeCombineMatrix` (Combine Matrix). */
+export interface CombineMatrixArgs {
+    column1Row1?: In<"FLOAT">
+    column1Row2?: In<"FLOAT">
+    column1Row3?: In<"FLOAT">
+    column1Row4?: In<"FLOAT">
+    column2Row1?: In<"FLOAT">
+    column2Row2?: In<"FLOAT">
+    column2Row3?: In<"FLOAT">
+    column2Row4?: In<"FLOAT">
+    column3Row1?: In<"FLOAT">
+    column3Row2?: In<"FLOAT">
+    column3Row3?: In<"FLOAT">
+    column3Row4?: In<"FLOAT">
+    column4Row1?: In<"FLOAT">
+    column4Row2?: In<"FLOAT">
+    column4Row3?: In<"FLOAT">
+    column4Row4?: In<"FLOAT">
+    mute?: boolean
+}
+export type CombineMatrixNode = NodeHandle & {
+    readonly matrix: Socket<"MATRIX">
 }
 
 /** `FunctionNodeCombineTransform` (Combine Transform). */
@@ -743,6 +791,18 @@ export type FieldVarianceNode = NodeHandle & {
     readonly variance: Socket<"FLOAT" | "VECTOR">
 }
 
+/** `FunctionNodeFindInString` (Find in String). */
+export interface FindInStringArgs {
+    string?: In<"STRING">
+    search?: In<"STRING">
+    mode?: In<"MENU">
+    mute?: boolean
+}
+export type FindInStringNode = NodeHandle & {
+    readonly firstFound: Socket<"INT">
+    readonly count: Socket<"INT">
+}
+
 /** `GeometryNodeFlipFaces` (Flip Faces). */
 export interface FlipFacesArgs {
     mesh?: In<"GEOMETRY">
@@ -761,6 +821,16 @@ export interface FloatCurveArgs {
 }
 export type FloatCurveNode = NodeHandle & {
     readonly value: Socket<"FLOAT">
+}
+
+/** `FunctionNodeFloatToInt` (Float to Integer). */
+export interface FloatToIntegerArgs {
+    roundingMode?: "ROUND" | "FLOOR" | "CEILING" | "TRUNCATE"
+    float?: In<"FLOAT">
+    mute?: boolean
+}
+export type FloatToIntegerNode = NodeHandle & {
+    readonly integer: Socket<"INT">
 }
 
 /** `GeometryNodeProximity` (Geometry Proximity). */
@@ -1029,6 +1099,16 @@ export type JoinGeometryNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeStringJoin` (Join Strings). */
+export interface JoinStringsArgs {
+    delimiter?: In<"STRING">
+    strings?: In<"STRING"> | In<"STRING">[]
+    mute?: boolean
+}
+export type JoinStringsNode = NodeHandle & {
+    readonly string: Socket<"STRING">
+}
+
 /** `ShaderNodeMapRange` (Map Range). */
 export interface MapRangeArgs {
     clamp?: boolean
@@ -1051,6 +1131,17 @@ export interface MapRangeArgs {
 export type MapRangeNode = NodeHandle & {
     readonly result: Socket<"FLOAT">
     readonly vector: Socket<"VECTOR">
+}
+
+/** `FunctionNodeMatchString` (Match String). */
+export interface MatchStringArgs {
+    string?: In<"STRING">
+    operation?: In<"MENU">
+    key?: In<"STRING">
+    mute?: boolean
+}
+export type MatchStringNode = NodeHandle & {
+    readonly result: Socket<"BOOLEAN">
 }
 
 /** `GeometryNodeInputMaterial` (Material). */
@@ -1090,6 +1181,15 @@ export interface MathArgs {
 }
 export type MathNode = NodeHandle & {
     readonly value: Socket<"FLOAT">
+}
+
+/** `FunctionNodeMatrixDeterminant` (Matrix Determinant). */
+export interface MatrixDeterminantArgs {
+    matrix?: In<"MATRIX">
+    mute?: boolean
+}
+export type MatrixDeterminantNode = NodeHandle & {
+    readonly determinant: Socket<"FLOAT">
 }
 
 /** `GeometryNodeMenuSwitch` (Menu Switch). */
@@ -1439,6 +1539,16 @@ export type PositionNode = NodeHandle & {
     readonly position: Socket<"VECTOR">
 }
 
+/** `FunctionNodeProjectPoint` (Project Point). */
+export interface ProjectPointArgs {
+    vector?: In<"VECTOR">
+    transform?: In<"MATRIX">
+    mute?: boolean
+}
+export type ProjectPointNode = NodeHandle & {
+    readonly vector: Socket<"VECTOR">
+}
+
 /** `GeometryNodeCurveQuadraticBezier` (Quadratic Bézier). */
 export interface QuadraticBezierArgs {
     resolution?: In<"INT">
@@ -1559,6 +1669,17 @@ export type ReplaceMaterialNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeReplaceString` (Replace String). */
+export interface ReplaceStringArgs {
+    string?: In<"STRING">
+    find?: In<"STRING">
+    replace?: In<"STRING">
+    mute?: boolean
+}
+export type ReplaceStringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
+}
+
 /** `GeometryNodeResampleCurve` (Resample Curve). */
 export interface ResampleCurveArgs {
     keepLastSegment?: boolean
@@ -1581,6 +1702,15 @@ export interface ReverseCurveArgs {
 }
 export type ReverseCurveNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
+}
+
+/** `FunctionNodeReverseString` (Reverse String). */
+export interface ReverseStringArgs {
+    string?: In<"STRING">
+    mute?: boolean
+}
+export type ReverseStringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
 }
 
 /** `FunctionNodeRotateEuler` (Rotate Euler). */
@@ -1814,6 +1944,30 @@ export type SeparateGeometryNode = NodeHandle & {
     readonly inverted: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeSeparateMatrix` (Separate Matrix). */
+export interface SeparateMatrixArgs {
+    matrix?: In<"MATRIX">
+    mute?: boolean
+}
+export type SeparateMatrixNode = NodeHandle & {
+    readonly column1Row1: Socket<"FLOAT">
+    readonly column1Row2: Socket<"FLOAT">
+    readonly column1Row3: Socket<"FLOAT">
+    readonly column1Row4: Socket<"FLOAT">
+    readonly column2Row1: Socket<"FLOAT">
+    readonly column2Row2: Socket<"FLOAT">
+    readonly column2Row3: Socket<"FLOAT">
+    readonly column2Row4: Socket<"FLOAT">
+    readonly column3Row1: Socket<"FLOAT">
+    readonly column3Row2: Socket<"FLOAT">
+    readonly column3Row3: Socket<"FLOAT">
+    readonly column3Row4: Socket<"FLOAT">
+    readonly column4Row1: Socket<"FLOAT">
+    readonly column4Row2: Socket<"FLOAT">
+    readonly column4Row3: Socket<"FLOAT">
+    readonly column4Row4: Socket<"FLOAT">
+}
+
 /** `FunctionNodeSeparateTransform` (Separate Transform). */
 export interface SeparateTransformArgs {
     transform?: In<"MATRIX">
@@ -2035,6 +2189,16 @@ export type SetSplineTypeNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeSetStringCase` (Set String Case). */
+export interface SetStringCaseArgs {
+    string?: In<"STRING">
+    case?: In<"MENU">
+    mute?: boolean
+}
+export type SetStringCaseNode = NodeHandle & {
+    readonly string: Socket<"STRING">
+}
+
 /** `GeometryNodeInputShortestEdgePaths` (Shortest Edge Paths). */
 export interface ShortestEdgePathsArgs {
     endVertex?: In<"BOOLEAN">
@@ -2044,6 +2208,17 @@ export interface ShortestEdgePathsArgs {
 export type ShortestEdgePathsNode = NodeHandle & {
     readonly nextVertexIndex: Socket<"INT">
     readonly totalCost: Socket<"FLOAT">
+}
+
+/** `FunctionNodeSliceString` (Slice String). */
+export interface SliceStringArgs {
+    string?: In<"STRING">
+    position?: In<"INT">
+    length?: In<"INT">
+    mute?: boolean
+}
+export type SliceStringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
 }
 
 /** `GeometryNodeSortElements` (Sort Elements). */
@@ -2057,6 +2232,15 @@ export interface SortElementsArgs {
 }
 export type SortElementsNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
+}
+
+/** `FunctionNodeInputSpecialCharacters` (Special Characters). */
+export interface SpecialCharactersArgs {
+    mute?: boolean
+}
+export type SpecialCharactersNode = NodeHandle & {
+    readonly lineBreak: Socket<"STRING">
+    readonly tab: Socket<"STRING">
 }
 
 /** `GeometryNodeCurveSpiral` (Spiral). */
@@ -2150,6 +2334,24 @@ export type StoreNamedAttributeNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeInputString` (String). */
+export interface StringArgs {
+    string?: string
+    mute?: boolean
+}
+export type StringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
+}
+
+/** `FunctionNodeStringLength` (String Length). */
+export interface StringLengthArgs {
+    string?: In<"STRING">
+    mute?: boolean
+}
+export type StringLengthNode = NodeHandle & {
+    readonly length: Socket<"INT">
+}
+
 /** `GeometryNodeSubdivideCurve` (Subdivide Curve). */
 export interface SubdivideCurveArgs {
     curve?: In<"GEOMETRY">
@@ -2228,6 +2430,15 @@ export type TranslateInstancesNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeTransposeMatrix` (Transpose Matrix). */
+export interface TransposeMatrixArgs {
+    matrix?: In<"MATRIX">
+    mute?: boolean
+}
+export type TransposeMatrixNode = NodeHandle & {
+    readonly matrix: Socket<"MATRIX">
+}
+
 /** `GeometryNodeTriangulate` (Triangulate). */
 export interface TriangulateArgs {
     mesh?: In<"GEOMETRY">
@@ -2255,12 +2466,38 @@ export type TrimCurveNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
 }
 
+/** `FunctionNodeTrimString` (Trim String). */
+export interface TrimStringArgs {
+    string?: In<"STRING">
+    characters?: In<"STRING">
+    whitespace?: In<"BOOLEAN">
+    start?: In<"BOOLEAN">
+    end?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type TrimStringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
+}
+
 /** `ShaderNodeValue` (Value). */
 export interface ValueArgs {
     mute?: boolean
 }
 export type ValueNode = NodeHandle & {
     readonly value: Socket<"FLOAT">
+}
+
+/** `FunctionNodeValueToString` (Value to String). */
+export interface ValueToStringArgs {
+    dataType?: "FLOAT" | "INT"
+    value?: (In<"FLOAT"> | In<"INT">)
+    decimals?: In<"INT">
+    base?: In<"INT">
+    padding?: In<"INT">
+    mute?: boolean
+}
+export type ValueToStringNode = NodeHandle & {
+    readonly string: Socket<"STRING">
 }
 
 /** `FunctionNodeInputVector` (Vector). */
@@ -2385,8 +2622,10 @@ export interface NodeConstructors {
     AlignRotationToVector(args?: AlignRotationToVectorArgs): AlignRotationToVectorNode
     Arc(args?: ArcArgs): ArcNode
     AttributeStatistic(args?: AttributeStatisticArgs): AttributeStatisticNode
+    AxesToRotation(args?: AxesToRotationArgs): AxesToRotationNode
     AxisAngleToRotation(args?: AxisAngleToRotationArgs): AxisAngleToRotationNode
     BezierSegment(args?: BezierSegmentArgs): BezierSegmentNode
+    BitMath(args?: BitMathArgs): BitMathNode
     BlurAttribute(args?: BlurAttributeArgs): BlurAttributeNode
     Boolean(args?: BooleanArgs): BooleanNode
     BooleanMath(args?: BooleanMathArgs): BooleanMathNode
@@ -2398,6 +2637,7 @@ export interface NodeConstructors {
     Color(args?: ColorArgs): ColorNode
     ColorRamp(args?: ColorRampArgs): ColorRampNode
     CombineColor(args?: CombineColorArgs): CombineColorNode
+    CombineMatrix(args?: CombineMatrixArgs): CombineMatrixNode
     CombineTransform(args?: CombineTransformArgs): CombineTransformNode
     CombineXYZ(args?: CombineXYZArgs): CombineXYZNode
     Compare(args?: CompareArgs): CompareNode
@@ -2438,8 +2678,10 @@ export interface NodeConstructors {
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
     FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
     FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
+    FindInString(args?: FindInStringArgs): FindInStringNode
     FlipFaces(args?: FlipFacesArgs): FlipFacesNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
+    FloatToInteger(args?: FloatToIntegerArgs): FloatToIntegerNode
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
@@ -2466,11 +2708,14 @@ export interface NodeConstructors {
     IsSplineCyclic(args?: IsSplineCyclicArgs): IsSplineCyclicNode
     IsViewport(args?: IsViewportArgs): IsViewportNode
     JoinGeometry(args?: JoinGeometryArgs): JoinGeometryNode
+    JoinStrings(args?: JoinStringsArgs): JoinStringsNode
     MapRange(args?: MapRangeArgs): MapRangeNode
+    MatchString(args?: MatchStringArgs): MatchStringNode
     Material(args?: MaterialArgs): MaterialNode
     MaterialIndex(args?: MaterialIndexArgs): MaterialIndexNode
     MaterialSelection(args?: MaterialSelectionArgs): MaterialSelectionNode
     Math(args?: MathArgs): MathNode
+    MatrixDeterminant(args?: MatrixDeterminantArgs): MatrixDeterminantNode
     MenuSwitch(args?: MenuSwitchArgs): MenuSwitchNode
     MergeByDistance(args?: MergeByDistanceArgs): MergeByDistanceNode
     MeshCircle(args?: MeshCircleArgs): MeshCircleNode
@@ -2497,6 +2742,7 @@ export interface NodeConstructors {
     PointsToCurves(args?: PointsToCurvesArgs): PointsToCurvesNode
     PointsToVertices(args?: PointsToVerticesArgs): PointsToVerticesNode
     Position(args?: PositionArgs): PositionNode
+    ProjectPoint(args?: ProjectPointArgs): ProjectPointNode
     QuadraticBezier(args?: QuadraticBezierArgs): QuadraticBezierNode
     Quadrilateral(args?: QuadrilateralArgs): QuadrilateralNode
     QuaternionToRotation(args?: QuaternionToRotationArgs): QuaternionToRotationNode
@@ -2506,8 +2752,10 @@ export interface NodeConstructors {
     RealizeInstances(args?: RealizeInstancesArgs): RealizeInstancesNode
     RemoveNamedAttribute(args?: RemoveNamedAttributeArgs): RemoveNamedAttributeNode
     ReplaceMaterial(args?: ReplaceMaterialArgs): ReplaceMaterialNode
+    ReplaceString(args?: ReplaceStringArgs): ReplaceStringNode
     ResampleCurve(args?: ResampleCurveArgs): ResampleCurveNode
     ReverseCurve(args?: ReverseCurveArgs): ReverseCurveNode
+    ReverseString(args?: ReverseStringArgs): ReverseStringNode
     RotateEuler(args?: RotateEulerArgs): RotateEulerNode
     RotateInstances(args?: RotateInstancesArgs): RotateInstancesNode
     RotateRotation(args?: RotateRotationArgs): RotateRotationNode
@@ -2527,6 +2775,7 @@ export interface NodeConstructors {
     SeparateColor(args?: SeparateColorArgs): SeparateColorNode
     SeparateComponents(args?: SeparateComponentsArgs): SeparateComponentsNode
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
+    SeparateMatrix(args?: SeparateMatrixArgs): SeparateMatrixNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
     SeparateXYZ(args?: SeparateXYZArgs): SeparateXYZNode
     SetCurveNormal(args?: SetCurveNormalArgs): SetCurveNormalNode
@@ -2546,8 +2795,11 @@ export interface NodeConstructors {
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
     SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
     SetSplineType(args?: SetSplineTypeArgs): SetSplineTypeNode
+    SetStringCase(args?: SetStringCaseArgs): SetStringCaseNode
     ShortestEdgePaths(args?: ShortestEdgePathsArgs): ShortestEdgePathsNode
+    SliceString(args?: SliceStringArgs): SliceStringNode
     SortElements(args?: SortElementsArgs): SortElementsNode
+    SpecialCharacters(args?: SpecialCharactersArgs): SpecialCharactersNode
     Spiral(args?: SpiralArgs): SpiralNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplineParameter(args?: SplineParameterArgs): SplineParameterNode
@@ -2556,6 +2808,8 @@ export interface NodeConstructors {
     SplitToInstances(args?: SplitToInstancesArgs): SplitToInstancesNode
     Star(args?: StarArgs): StarNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
+    String(args?: StringArgs): StringNode
+    StringLength(args?: StringLengthArgs): StringLengthNode
     SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
@@ -2563,9 +2817,12 @@ export interface NodeConstructors {
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
     TransformPoint(args?: TransformPointArgs): TransformPointNode
     TranslateInstances(args?: TranslateInstancesArgs): TranslateInstancesNode
+    TransposeMatrix(args?: TransposeMatrixArgs): TransposeMatrixNode
     Triangulate(args?: TriangulateArgs): TriangulateNode
     TrimCurve(args?: TrimCurveArgs): TrimCurveNode
+    TrimString(args?: TrimStringArgs): TrimStringNode
     Value(args?: ValueArgs): ValueNode
+    ValueToString(args?: ValueToStringArgs): ValueToStringNode
     Vector(args?: VectorArgs): VectorNode
     VectorMath(args?: VectorMathArgs): VectorMathNode
     VectorRotate(args?: VectorRotateArgs): VectorRotateNode

@@ -3,10 +3,13 @@
  * (`blenlib/intern/math_matrix.cc:203`, `:131`) take, as built for Blender 5.2.2's reference platform
  * (macOS arm64). Blender 5.2.2 builds Eigen commit 8a1083e9 (`build_files/build_environment/cmake/
  * versions.cmake:1474`); on arm64 Eigen vectorises with NEON and, because `__ARM_FEATURE_FMA` is defined,
- * sets `EIGEN_VECTORIZE_FMA` and `EIGEN_SCALAR_MADD_USE_FMA` (`Core/util/ConfigureVectorization.h:516`,
- * `Core/util/Macros.h:67`), so scalar `pmadd` is `std::fma`.
+ * sets `EIGEN_VECTORIZE_FMA` (`Core/util/ConfigureVectorization.h:516`), so packet `pmadd` is fused. Scalar
+ * `pmadd` is not: `Eigen/Core` includes `util/Macros.h` (:22) before `util/ConfigureVectorization.h` (:25), so
+ * `EIGEN_SCALAR_MADD_USE_FMA` (`Macros.h:67`) is decided while `EIGEN_VECTORIZE_FMA` is still undefined and is 0;
+ * `numext::madd` is then `x * y + z`, which Blender's `-ffp-contract=off` leaves unfused. (Checked against Blender:
+ * the fully unfused determinant matches all 64 cases of `functionMisc/matrix-nodes`, every fused variant does not.)
  *
- * - `determinant_impl<Derived, 4>` (`LU/Determinant.h`): 2x2 minors, then `pmadd` (fused) chains.
+ * - `determinant_impl<Derived, 4>` (`LU/Determinant.h`): 2x2 minors, then scalar `pmadd` (unfused) chains.
  * - `compute_inverse_size4<Architecture::Target, float>` (`LU/arch/InverseSize4.h`): the SIMD block
  *   inverse, lane by lane, with `preciprocal` = FRECPE + two FRECPS Newton steps
  *   (`Core/arch/NEON/PacketMath.h:4500`).
@@ -114,19 +117,22 @@ export function neonReciprocal(x: number): number {
     return r
 }
 
+/** Scalar `numext::madd` with `EIGEN_SCALAR_MADD_USE_FMA` 0 (`MathFunctions.h:1000`): `x * y + z`, two roundings. */
+const madd = (x: number, y: number, z: number) => f32(f32(x * y) + z)
+
 /** `determinant_impl<Derived, 4>::run` (`Eigen/src/LU/Determinant.h`), `m` column major (`m(r, c) = m[c * 4 + r]`). */
 export function eigenDeterminant4(m: ArrayLike<number>): number {
     const at = (r: number, c: number) => m[c * 4 + r]
     const det2 = (i0: number, i1: number) => f32(f32(at(i0, 0) * at(i1, 1)) - f32(at(i1, 0) * at(i0, 1)))
     const det3 = (i0: number, d0: number, i1: number, d1: number, i2: number, d2: number) =>
-        fmaf(at(i0, 2), d0, fmaf(-at(i1, 2), d1, f32(at(i2, 2) * d2)))
+        madd(at(i0, 2), d0, madd(-at(i1, 2), d1, f32(at(i2, 2) * d2)))
     const d01 = det2(0, 1), d02 = det2(0, 2), d03 = det2(0, 3)
     const d12 = det2(1, 2), d13 = det2(1, 3), d23 = det2(2, 3)
     const d30 = det3(1, d23, 2, d13, 3, d12)
     const d31 = det3(0, d23, 2, d03, 3, d02)
     const d32 = det3(0, d13, 1, d03, 3, d01)
     const d33 = det3(0, d12, 1, d02, 2, d01)
-    return f32(fmaf(-at(0, 3), d30, f32(at(1, 3) * d31)) + fmaf(-at(2, 3), d32, f32(at(3, 3) * d33)))
+    return f32(madd(-at(0, 3), d30, f32(at(1, 3) * d31)) + madd(-at(2, 3), d32, f32(at(3, 3) * d33)))
 }
 
 type P4 = [number, number, number, number]

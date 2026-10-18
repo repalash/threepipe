@@ -56,6 +56,11 @@ export interface NodeTypeDef {
     readonly enums?: Record<string, readonly string[]>
     /** DSL class name when the UI label is ambiguous (`Grid` → `MeshGrid`). */
     readonly dslName?: string
+    /**
+     * DSL keys for properties whose camelCase name is also an input socket's (Axes to Rotation's `primary_axis` enum
+     * and "Primary Axis" vector): the socket keeps the plain key, the property takes the key given here.
+     */
+    readonly dslPropertyKeys?: Record<string, string>
     /** `node_declare`. May read `node.prop(...)` for dynamic declarations. */
     declare(b: DeclarationBuilder, node: NodeInstance): void
     /**
