@@ -412,6 +412,20 @@ export type IDNode = NodeHandle & {
     readonly iD: Socket<"INT">
 }
 
+/** `GeometryNodeImageTexture` (Image Texture). */
+export interface ImageTextureArgs {
+    interpolation?: "Linear" | "Closest" | "Cubic"
+    extension?: "REPEAT" | "EXTEND" | "CLIP" | "MIRROR"
+    image?: In<"IMAGE">
+    vector?: In<"VECTOR">
+    frame?: In<"INT">
+    mute?: boolean
+}
+export type ImageTextureNode = NodeHandle & {
+    readonly color: Socket<"RGBA">
+    readonly alpha: Socket<"FLOAT">
+}
+
 /** `GeometryNodeInputIndex` (Index). */
 export interface IndexArgs {
     mute?: boolean
@@ -1391,6 +1405,7 @@ export interface NodeConstructors {
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
     HashValue(args?: HashValueArgs): HashValueNode
     ID(args?: IDArgs): IDNode
+    ImageTexture(args?: ImageTextureArgs): ImageTextureNode
     Index(args?: IndexArgs): IndexNode
     IndexSwitch(args?: IndexSwitchArgs): IndexSwitchNode
     InstanceOnPoints(args?: InstanceOnPointsArgs): InstanceOnPointsNode

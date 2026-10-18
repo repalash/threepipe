@@ -64,8 +64,10 @@ describe.skipIf(!assets.length)('Blender 5.2.2 assets', () => {
                 const diffs = compareGeometry(geometry, inlineBinRefs(object.output_geometry!, resolve), {byteColor: 'srgb'})
                 let result = diffs.length ? diffs.slice(0, 3).join(' | ') : 'pass'
                 if (!diffs.length) {
-                    const exact = !compareGeometry(geometry, inlineBinRefs(object.output_geometry!, resolve), {byteColor: 'srgb', ulps: 0}).length
-                    result = exact ? 'exact' : 'pass (within 1e-5, not bit-exact)'
+                    // Float32 policy (plan 2.6): the smallest ulp bound the whole result meets, as for the cases.
+                    const expected = inlineBinRefs(object.output_geometry!, resolve)
+                    const ulps = [0, 1, 2, 4, 16, 256].find(u => !compareGeometry(geometry, expected, {byteColor: 'srgb', ulps: u}).length)
+                    result = ulps === 0 ? 'exact' : `pass (${ulps === undefined ? 'within 1e-5, > 256' : `<= ${ulps}`} ulp)`
                 }
                 status[asset][object.name] = result
                 writeFileSync(join(__dirname, 'assets.status.json'), JSON.stringify(status, null, 1) + '\n')

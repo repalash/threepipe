@@ -29,6 +29,10 @@ export interface SceneImage {
     height: number
     /** RGBA float pixels, row major from the bottom row, as Blender's `ImBuf::float_buffer`. */
     pixels: Float32Array
+    /** `Image::alpha_mode` (RNA identifiers). Default `'STRAIGHT'` (`DNA_image_types.h:261`). */
+    alphaMode?: 'STRAIGHT' | 'PREMUL' | 'CHANNEL_PACKED' | 'NONE'
+    /** The image's colour space is a data space (`IMB_colormanagement_space_name_is_data`, e.g. Non-Color). */
+    isData?: boolean
     version?: number
 }
 

@@ -18,27 +18,13 @@ import {bvhFindNearest, meshBVHCornerTris, meshBVHEdges, meshBVHTrisForFaces, me
 import {mix3} from '../../geometry/meshSample'
 import {GVArray} from '../../geometry/varray'
 import {registerNodeType} from '../../runtime/registry'
+import {applyFunction} from '../util'
 import {domainFromRNA, socketTypeFromRNA} from '../attributeTypes'
 
 const FLT_MAX = 3.4028234663852886e38
 
 /** `attribute_type_type_with_socket_fn` / `generic_attribute_type_supported_with_socket` (`rna_nodetree.cc:2399`). */
 const SOCKET_ATTRIBUTE_TYPES = ['FLOAT', 'INT', 'BOOLEAN', 'FLOAT_VECTOR', 'FLOAT_COLOR', 'QUATERNION', 'FLOAT4X4']
-
-/**
- * `execute_multi_function_on_value_variant` (`geometry_nodes_lazy_function.cc:502`): single inputs run the function
- * once and give single values, otherwise its outputs are field operations.
- */
-function applyFunction(fn: MultiFunction, inputs: GField[]): GField[] {
-    if (inputs.every(f => !f.dependsOnInput)) {
-        const singles = inputs.map(f => GVArray.fromSingle(f.type, 1, evaluateConstantField(f)))
-        const outs = fn.outputs.map(t => new DATA_TYPES[t].array(DATA_TYPES[t].components))
-        fn.call(1, singles, outs)
-        return fn.outputs.map((t, i) => GField.constant(t, Array.from(outs[i])))
-    }
-    const op = new FieldOperation(fn, inputs)
-    return fn.outputs.map((_, i) => op.output(i))
-}
 
 /** `CPPType::value_initialize`: zeros for every type, including `math::Quaternion` (defaulted constructor). */
 function valueInitialize(out: TypedArray, i: number, c: number): void {
