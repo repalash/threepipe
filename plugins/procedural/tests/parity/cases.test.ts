@@ -147,7 +147,7 @@ for (const [set, generate] of Object.entries(SETS)) {
                 it.skip(`${c.id} (no Blender result yet)`, () => undefined)
                 continue
             }
-            it(c.id, () => {
+            it(c.id, {timeout: c.timeoutMs}, () => {
                 const gt = readFixtureJSON<{geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced, input?: ExpectedGeometry}>(join(dir, `${c.id}.json`))
                 if (gt.error) throw new Error(`Blender failed on this case: ${gt.error}`)
                 const bin = readFixture(join(dir, `${c.id}.bin`))
