@@ -30,7 +30,7 @@ await modelling.run({op: 'part', name: 'focus', params: {length: 20}})
 The object remembers its `{type, params}`, so `part {name, params}` regenerates it in place. That holds only until
 another command edits it: after, say, a `bevel` it is plain topology (like an applied modifier in Blender) and
 `part {name, ...}` fails with "was edited after it was built ... build a new part instead". A missing required
-parameter fails with `<type> needs \`<param>\``, an unknown one with the list of parameters the part has.
+parameter fails (``product/dial needs `height` ``), an unknown one with the list of parameters the part has.
 
 | `part` parameter | |
 | --- | --- |

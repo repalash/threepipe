@@ -4,8 +4,8 @@ prev:
     link: './mesh-kernel'
 
 next:
-    text: '@threepipe/plugin-mesh-edit'
-    link: './plugin-mesh-edit'
+    text: '@threepipe/modelling-parts'
+    link: './modelling-parts'
 
 aside: false
 ---

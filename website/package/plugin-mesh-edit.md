@@ -1,7 +1,7 @@
 ---
 prev:
-    text: '@threepipe/plugin-modelling'
-    link: './plugin-modelling'
+    text: '@threepipe/plugin-procedural'
+    link: './plugin-procedural'
 next:
     text: '@threepipe/plugin-editor-engine'
     link: './plugin-editor-engine'

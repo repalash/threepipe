@@ -230,6 +230,8 @@ export default defineConfig({
           {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
           {text: 'Mesh Kernel', link: 'package/mesh-kernel'},
           {text: 'Modelling Command API', link: 'package/plugin-modelling'},
+          {text: 'Modelling Parts', link: 'package/modelling-parts'},
+          {text: 'Procedural (Geometry Nodes)', link: 'package/plugin-procedural'},
           {text: 'Mesh Edit Plugin', link: 'package/plugin-mesh-edit'},
           {text: 'Editor Engine', link: 'package/plugin-editor-engine'},
           {text: 'Modelling Editor', link: 'package/plugin-modelling-editor'},
