@@ -113,10 +113,10 @@ const measure = stage => `<svg viewBox="0 0 1920 1298" preserveAspectRatio="xMid
    ${stage >= 3 ? `<circle cx="${X(LENS[0])}" cy="${Y(LENS[1])}" r="${27 / mm}"/>` : ''}
    ${stage >= 4 ? `<path d="M${X(16.4 - 12.05)} ${Y(121)} V${Y(125)} H${X(16.4 + 12.05)} V${Y(121)}"/>` : ''}
   </g>
-  ${stage >= 1 ? lbl(X(0), Y(-22) + 10, '150.7 mm  Canon spec') : ''}
+  ${stage >= 1 ? lbl(X(0), Y(-10) - 16, '150.7 mm  Canon spec') : ''}
   ${stage >= 2 ? lbl(X(94), Y(58), '116.4 mm', 'start') : ''}
   ${stage >= 3 ? lbl(X(LENS[0]), Y(LENS[1]) + 12, 'EF throat 54 mm') : ''}
-  ${stage >= 4 ? lbl(X(16.4), Y(126) - 6, 'shoe 24.1 mm · ISO 518') : ''}
+  ${stage >= 4 ? lbl(X(16.4) + 150, Y(118) + 10, 'shoe 24.1 mm · ISO 518', 'start') : ''}
 </svg><div style="position:absolute;right:16px;bottom:12px;font:14px system-ui;color:#9a9ca4">${credit}</div>`
 await film.layer(measure(0))
 await film.step('1 / 8  Measure')
@@ -255,7 +255,7 @@ await film.hold(0.4)
 await film.still('turntable-end')
 await film.layer(`<div style="position:absolute;inset:0;display:flex;"><div style="flex:1;background:#0d0e10 url(/demos/camera/refs/hero-5d4-ef24-105.jpg) center/cover no-repeat"></div><div style="width:4px;background:#c0101c"></div><div style="flex:1"></div></div>
   <div style="position:absolute;left:16px;bottom:12px;font:14px system-ui;color:#ddd">${heroCredit}</div>`, 0)
-await film.camera({...V.hero, fov: 30})
+await film.camera({...V.hero, fov: 21})
 await film.shift(-0.25)
 await film.layerOpacity(1, 0.5)
 await film.caption('The photograph, and the model from the hero view')

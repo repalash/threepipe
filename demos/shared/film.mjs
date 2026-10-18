@@ -55,8 +55,15 @@ export async function openFilm(o = {}) {
     const errors = []
     page.on('pageerror', e => errors.push(e.message))
     const tLoad = Date.now()
-    await page.goto(`http://127.0.0.1:${port}${page0}`, {timeout: 300000})
-    await page.waitForFunction(() => !!window.modelling && !!window.viewer?.scene?.environment, null, {timeout: 300000})
+    const ready = o.ready ?? (() => !!window.modelling && !!window.viewer?.scene?.environment)
+    const stageOpts = {accent: o.accent ?? '#c0101c', background: o.background ?? '#e6e7ea', stage: o.stage ?? true}
+    /** Open a page of the repo and put the film's overlays on it (`stage: false` keeps the page's own layout). */
+    async function load(path, readyFn = ready) {
+        await page.goto(`http://127.0.0.1:${port}${path}`, {timeout: 300000})
+        await page.waitForFunction(readyFn, null, {timeout: 300000})
+        await page.evaluate(installStage, stageOpts)
+    }
+    await load(page0)
     const loadMs = Date.now() - tLoad
     const renderer = await page.evaluate(() => {
         const gl = window.viewer.renderManager.renderer.getContext()
@@ -64,7 +71,6 @@ export async function openFilm(o = {}) {
         return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
     })
     console.log('renderer:', renderer)
-    await page.evaluate(installStage, {accent: o.accent ?? '#c0101c', background: o.background ?? '#e6e7ea'})
 
     // ------------------------------------------------------------------------------------------- frames
     const list = []        // [{file, frames}]
@@ -102,7 +108,7 @@ export async function openFilm(o = {}) {
     }
 
     const film = {
-        page, renderer, errors, transcript, width, height, out,
+        page, renderer, errors, transcript, width, height, out, load,
         get seconds() { return seconds() },
         /** A named chapter starting now (for the report's seek links). */
         chapter(name) { chapters.push({name, t: +seconds().toFixed(2)}) },
@@ -212,17 +218,19 @@ export async function openFilm(o = {}) {
 }
 
 /** Runs in the page: the stage (viewport only) and the overlays, all driven per frame - no CSS transitions. */
-async function installStage({accent, background}) {
+async function installStage({accent, background, stage}) {
     const viewer = window.viewer
     const T = await import('threepipe')
-    for (const sel of ['#console', '#side', '#tweakpaneUiContainer', '.code-preview', '#example-code-preview', '#example-code-btn',
+    if (stage) for (const sel of ['#console', '#side', '#tweakpaneUiContainer', '.code-preview', '#example-code-preview', '#example-code-btn',
         '[class*="loadingScreen"]', '[class*="code-btn"]', 'a.code-btn'])
         document.querySelectorAll(sel).forEach(n => (n.style.display = 'none'))
-    document.body.style.gridTemplateColumns = '1fr'
-    document.body.style.gridTemplateRows = '1fr'
-    document.body.style.gridTemplateAreas = '"view"'
+    if (stage) {
+        document.body.style.gridTemplateColumns = '1fr'
+        document.body.style.gridTemplateRows = '1fr'
+        document.body.style.gridTemplateAreas = '"view"'
+        viewer.scene.setBackgroundColor?.(background)
+    }
     viewer.getPlugin('LoadingScreenPlugin')?.hide?.()
-    viewer.scene.setBackgroundColor?.(background)
     const css = document.createElement('style')
     css.textContent = `
       body > *:not(#film):not(canvas):not(#mcanvas):not(#canvas-container):not(main):not(#view) { }
@@ -268,7 +276,7 @@ async function installStage({accent, background}) {
     let cage = null
     const esc = s => String(s).replace(/[&<>]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'})[c])
     const f = window.__film = {
-        T: {...T, clay: new T.PhysicalMaterial({color: '#7f8287', roughness: 0.5, metalness: 0})},
+        T: {...T, clay: new T.PhysicalMaterial({color: '#6f6c68', roughness: 0.55, metalness: 0})},
         async frame() {
             f.drawCage()
             viewer.setDirty()
