@@ -67,5 +67,28 @@ export function geometryCases(): ParityCase[] {
             geometry: n.TransformGeometry({geometry: attributedGrid(), translation: [0.3, -0.2, 1.1], rotation: [0.4, -0.7, 1.3], scale: [1.2, 0.8, 1.7]}).geometry,
             offset: n.Position().position.scale(0.1), selection: mod(n.Index().index, 2).eq(0),
         }).geometry))
+    for (const mode of ['VERTICES', 'EDGES', 'FACES', 'CORNERS']) {
+        cases.push(single(`mesh-to-points-${mode.toLowerCase()}`, `Mesh to Points ${mode} with attributes, radius field`, () =>
+            n.MeshToPoints({mesh: attributedGrid(), mode, selection: mod(n.Index().index, 3).lt(2), radius: n.Index().index.mul(0.01).sub(0.05)}).points))
+    }
+    cases.push(single('points-to-vertices', 'Points to Vertices with a selection and a point attribute', () =>
+        n.PointsToVertices({
+            points: n.StoreNamedAttribute({geometry: n.Points({count: 7, position: n.Index().index.mul(0.3)}).geometry, name: 'w', value: n.Index().index.mul(2)}).geometry,
+            selection: n.Index().index.gt(2),
+        }).mesh))
+    cases.push(single('shade-smooth', 'Set Shade Smooth on faces (field) and edges (constant), read back', () => {
+        const g = n.SetShadeSmooth({
+            geometry: n.SetShadeSmooth({geometry: attributedGrid(), shadeSmooth: mod(n.Index().index, 2).eq(0)}).geometry,
+            domain: 'EDGE', selection: n.Index().index.lt(5), shadeSmooth: false,
+        }).geometry
+        return n.StoreNamedAttribute({
+            geometry: n.StoreNamedAttribute({geometry: g, dataType: 'BOOLEAN', domain: 'FACE', name: 'fs', value: n.IsFaceSmooth().smooth}).geometry,
+            dataType: 'BOOLEAN', domain: 'EDGE', name: 'es', value: n.IsEdgeSmooth().smooth,
+        }).geometry
+    }))
+    cases.push(single('geometry-to-instance', 'Geometry to Instance of three inputs, two equal cubes from separate nodes', () => {
+        // Two Cube nodes: one output can feed a multi-input only once.
+        return n.GeometryToInstance({geometry: [n.MeshCube().mesh, n.MeshLine({count: 3}).mesh, n.MeshCube().mesh]}).instances
+    }))
     return cases
 }

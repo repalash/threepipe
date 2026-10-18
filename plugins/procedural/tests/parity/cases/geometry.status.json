@@ -16,5 +16,12 @@
  "delete-instances": "exact",
  "cube-variants": "exact",
  "mesh-line-modes": "exact",
- "transform-set-position": "exact"
+ "transform-set-position": "exact",
+ "mesh-to-points-vertices": "exact",
+ "mesh-to-points-edges": "exact",
+ "mesh-to-points-faces": "exact",
+ "mesh-to-points-corners": "exact",
+ "points-to-vertices": "exact",
+ "shade-smooth": "exact",
+ "geometry-to-instance": "exact"
 }

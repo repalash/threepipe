@@ -208,6 +208,10 @@ export class TreeBuilder {
         const a = socketDataType(from.type), b = socketDataType(toType)
         const ok = from.type === toType || (a && b && isConvertible(a, b))
         if (!ok) throw new Error(`cannot link ${from.type} ${from.node}.${from.identifier} to ${toType} ${toNode}.${toId}: Blender has no conversion`)
+        // A socket pair has at most one link: `links.new` replaces an existing one (`rna_nodetree.cc:1488`).
+        if (this.tree.links.some(l => l.from[0] === from.node && l.from[1] === from.identifier && l.to[0] === toNode && l.to[1] === toId)) {
+            throw new Error(`${from.node}.${from.identifier} is already linked to ${toNode}.${toId}; Blender keeps one link per socket pair`)
+        }
         this.tree.links.push({from: [from.node, from.identifier], to: [toNode, toId]} satisfies LinkJSON)
     }
 

@@ -77,6 +77,8 @@ export function ulpDistance(a: number, b: number): number {
     return Math.abs(x - y)
 }
 
+const MESH_TOPOLOGY = ['.edge_verts', '.corner_vert', '.corner_edge']
+
 /** Editor UI state Blender's primitive operators add; geometry nodes only carry them along. */
 export const EDITOR_STATE_ATTRIBUTES = [
     '.select_vert', '.select_edge', '.select_poly', '.uv_select_vert', '.uv_select_edge', '.uv_select_face',
@@ -156,6 +158,9 @@ function compareAttributes(
     }
     for (const name of storage.names()) {
         if (seen.has(name) || o.ignore.includes(name) || name.startsWith('.a_')) continue
+        // Meshes from `mesh_new_no_attributes` have no topology layers; the kernel's MeshData always has
+        // them. With no elements on their domain they hold nothing, so absent and empty are the same mesh.
+        if (MESH_TOPOLOGY.includes(name) && storage.get(name)!.data.length === 0) continue
         if (expected.some(e => e.name === name)) continue
         out.push(`${where}: unexpected attribute '${name}'`)
     }
