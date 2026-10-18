@@ -18,7 +18,8 @@ import {mixIndicesWeighted} from './mixIndices'
 import {meshBoundsMinMax} from './meshBounds'
 import {meshRuntime} from './meshRuntime'
 import {newMesh} from './meshPrimitives'
-import {looseEdges} from './meshTopology'
+import {GroupedIndices, looseEdges, vertToEdgeMap} from './meshTopology'
+import {keyCurvePositionWeights} from '../blender/math/colorband'
 import {evalBeginFromMesh, evalFaceVarying, evalFinalPoint, evalLimitPoint, meshUvMapNames, Subdiv} from './subdiv'
 import {foreachSubdivGeometry, ForeachContext, ORIGINDEX_NONE, ToMeshSettings} from './subdivForeach'
 
@@ -100,6 +101,8 @@ class SubdivMeshContext {
     readonly faces: Int32Array
     readonly cornerVerts: Int32Array
     subdivMesh!: MeshData
+    /** `vert_to_edge_map`, built when the coarse mesh has loose edges. */
+    vertToEdge?: GroupedIndices
     subdivPositions!: Float32Array
     subdivEdges!: Int32Array
     subdivCornerVerts!: Int32Array
@@ -260,13 +263,31 @@ class SubdivMeshContext {
             mixAttrs2(this.vertAttrs, this.vertSrc, e0, e1, u, subdivVert, this.vertDst)
         }
         // `mesh_interpolate_position_on_edge` (:1413).
-        if (!this.subdiv.settings.isSimple) {
-            throw new Error('subdiv: smooth loose edge positions (mesh_interpolate_position_on_edge, KEY_BSPLINE) are not ported')
+        const P = this.coarsePositions, out = this.subdivPositions
+        if (this.subdiv.settings.isSimple) {
+            // `math::interpolate(a, b, u)`: `a * (1 - u) + b * u`.
+            const omu = f32(1 - u)
+            for (let k = 0; k < 3; k++) out[subdivVert * 3 + k] = f32(f32(P[e0 * 3 + k] * omu) + f32(P[e1 * 3 + k] * u))
+            return
         }
-        // `math::interpolate(a, b, u)`: `a * (1 - u) + b * u`.
-        const omu = f32(1 - u)
+        // `find_edge_neighbors` (:1370): the other edge of an end vertex with exactly two edges (else infinitely sharp).
+        const map = this.vertToEdge!
+        const neighbor = (vert: number): number => {
+            if (map.offsets[vert + 1] - map.offsets[vert] !== 2) return -1
+            const a = map.indices[map.offsets[vert]], b = map.indices[map.offsets[vert] + 1]
+            return a === coarseEdge ? b : a
+        }
+        // `edge_other_vert`: `(edge[0] - vert) + edge[1]`.
+        const other = (edge: number, vert: number) => (this.coarseEdges[edge * 2] - vert) + this.coarseEdges[edge * 2 + 1]
+        const n0 = neighbor(e0), n1 = neighbor(e1)
+        // `find_loose_edge_interpolation_positions` (:1387): end points mirrored when there is no neighbor.
+        const w = keyCurvePositionWeights(u, false)
         for (let k = 0; k < 3; k++) {
-            this.subdivPositions[subdivVert * 3 + k] = f32(f32(this.coarsePositions[e0 * 3 + k] * omu) + f32(this.coarsePositions[e1 * 3 + k] * u))
+            const p1 = P[e0 * 3 + k], p2 = P[e1 * 3 + k]
+            const p0 = n0 >= 0 ? P[other(n0, e0) * 3 + k] : f32(f32(p1 * 2) - p2)
+            const p3 = n1 >= 0 ? P[other(n1, e1) * 3 + k] : f32(f32(p2 * 2) - p1)
+            // `attribute_math::mix4<float3>`: `w.x * v0 + w.y * v1 + w.z * v2 + w.w * v3`.
+            out[subdivVert * 3 + k] = f32(f32(f32(f32(w[0] * p0) + f32(w[1] * p1)) + f32(w[2] * p2)) + f32(w[3] * p3))
         }
     }
 
@@ -366,9 +387,8 @@ export function subdivToMesh(subdiv: Subdiv, settings: ToMeshSettings, coarse: M
         if (coarse.facesNum) return null
     }
     const ctx = new SubdivMeshContext(subdiv, settings, coarse)
-    if (!subdiv.settings.isSimple && looseEdges(coarse).count) {
-        throw new Error('subdiv: smooth loose edges (vert_to_edge_map, mesh_interpolate_position_on_edge) are not ported')
-    }
+    // `subdiv_to_mesh` (:1546): the vertex to edge map, for smooth loose edges.
+    if (looseEdges(coarse).count) ctx.vertToEdge = vertToEdgeMap(coarse)
     // `setup_foreach_callbacks` (:1493): no displacement, so no `vert_every_corner` / `vert_every_edge`.
     const fc: ForeachContext<SubdivMeshTLS> = {
         topologyInfo: (v, e, l, f) => ctx.topologyInfo(v, e, l, f),

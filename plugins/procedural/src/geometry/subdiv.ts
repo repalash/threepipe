@@ -7,7 +7,7 @@
  * Displacement (multires) and orco/cloth orco vertex data are not part of a procedural mesh and are not ported.
  */
 
-import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
+import {AttrDomain, createSubdivLimitEvaluator, MeshData, SubdivLimitEvaluator} from '@threepipe/mesh-kernel'
 import {f32} from '../blender/f32'
 import {createEvaluatorFromTopologyRefiner, createTopologyRefinerFromConverter, OpenSubdivConverter, OpenSubdivEvaluator, TopologyRefinerImpl} from '../blender/opensubdiv/blenderOpenSubdiv'
 import {FVarLinearInterpolation, SchemeType, VtxBoundaryInterpolation} from '../blender/opensubdiv/sdc'
@@ -315,6 +315,12 @@ export interface Subdiv {
     settings: SubdivSettings
     topologyRefiner?: TopologyRefinerImpl
     evaluator?: OpenSubdivEvaluator
+    /**
+     * The limit-surface evaluator (`is_adaptive`): the kernel's OpenSubdiv port (`createSubdivLimitEvaluator`), whose
+     * adaptive refinement and patch tables evaluate in double where Blender's CPU evaluator uses float - results
+     * agree to about 1e-7, not to the bit (issue `procedural-subdiv-one-port.md`).
+     */
+    limitEvaluator?: SubdivLimitEvaluator
     facePtexOffset?: Int32Array
 }
 
@@ -391,8 +397,29 @@ function setFaceVaryingDataFromUv(subdiv: Subdiv, mesh: MeshData, uvMap: ArrayLi
     subdiv.evaluator!.evalOutput.setFaceVaryingData(layer, buffer, 0, numValues)
 }
 
+const BOUNDARY_SMOOTH = {[SubdivVtxBoundaryInterpolation.EDGE_AND_CORNER]: 'PRESERVE_CORNERS'} as Record<number, 'PRESERVE_CORNERS' | undefined>
+const UV_SMOOTH = {
+    [SubdivFVarLinearInterpolation.ALL]: 'NONE', [SubdivFVarLinearInterpolation.CORNERS_ONLY]: 'PRESERVE_CORNERS',
+    [SubdivFVarLinearInterpolation.CORNERS_AND_JUNCTIONS]: 'PRESERVE_CORNERS_AND_JUNCTIONS',
+    [SubdivFVarLinearInterpolation.CORNERS_JUNCTIONS_AND_CONCAVE]: 'PRESERVE_CORNERS_JUNCTIONS_AND_CONCAVE',
+    [SubdivFVarLinearInterpolation.BOUNDARIES]: 'PRESERVE_BOUNDARIES', [SubdivFVarLinearInterpolation.NONE]: 'SMOOTH_ALL',
+} as const
+
 /** `eval_begin_from_mesh` (`subdiv_eval.cc:216`) with `eval_refine_from_mesh` (:233). */
 export function evalBeginFromMesh(subdiv: Subdiv, mesh: MeshData): boolean {
+    if (subdiv.settings.isAdaptive) {
+        // The adaptive evaluator (`evaluator_impl.cc:439`): refined to `level` (the node's Quality) with patch tables.
+        if (!subdiv.topologyRefiner) return false
+        const s = subdiv.settings
+        if (s.vtxBoundaryInterpolation === SubdivVtxBoundaryInterpolation.NONE) throw new Error('subdiv: VTX_BOUNDARY_NONE is not supported by the limit evaluator')
+        subdiv.limitEvaluator = createSubdivLimitEvaluator(mesh, {
+            quality: s.level, useCreases: s.useCreases,
+            boundarySmooth: BOUNDARY_SMOOTH[s.vtxBoundaryInterpolation] ?? 'ALL',
+            uvSmooth: UV_SMOOTH[s.fvarLinearInterpolation],
+            uvMaps: meshUvMapNames(mesh).map(name => mesh.attributes.get(name)!.data),
+        }) ?? undefined
+        return !!subdiv.limitEvaluator
+    }
     // `get_mesh_evaluator_settings`: no orco layers on a procedural mesh.
     if (!evalBegin(subdiv, 0)) return false
     setCoarsePositions(subdiv, mesh.positions, mesh.vertsNum, vertsNoFace(mesh))
@@ -403,8 +430,16 @@ export function evalBeginFromMesh(subdiv: Subdiv, mesh: MeshData): boolean {
 
 /** `eval_limit_point` (`subdiv_eval.cc:273`). */
 export function evalLimitPoint(subdiv: Subdiv, ptexFace: number, u: number, v: number, out: number[]): void {
+    if (subdiv.limitEvaluator) {
+        // `evaluateLimit` writes floats (`float P[3]`).
+        subdiv.limitEvaluator.evaluateLimit(ptexFace, u, v, limitScratch)
+        for (let k = 0; k < 3; k++) out[k] = f32(limitScratch[k])
+        return
+    }
     subdiv.evaluator!.evalOutput.evaluateLimit(ptexFace, u, v, out)
 }
+
+const limitScratch = new Float64Array(3)
 
 /** `eval_final_point` (`subdiv_eval.cc:384`): no displacement evaluator, so the limit point. */
 export function evalFinalPoint(subdiv: Subdiv, ptexFace: number, u: number, v: number, out: number[]): void {
@@ -413,6 +448,12 @@ export function evalFinalPoint(subdiv: Subdiv, ptexFace: number, u: number, v: n
 
 /** `eval_face_varying` (`subdiv_eval.cc:345`). */
 export function evalFaceVarying(subdiv: Subdiv, channel: number, ptexFace: number, u: number, v: number, out: number[]): void {
+    if (subdiv.limitEvaluator) {
+        subdiv.limitEvaluator.evaluateFaceVarying(channel, ptexFace, u, v, limitScratch)
+        out[0] = f32(limitScratch[0])
+        out[1] = f32(limitScratch[1])
+        return
+    }
     subdiv.evaluator!.evalOutput.evaluateFaceVarying(channel, ptexFace, u, v, out)
 }
 

@@ -25,19 +25,19 @@ const BOWTIE: CaseObject = {
     },
 }
 
-const SCENE: Extra = {objects: [SHAPE, BOWTIE]}
+export const SCENE: Extra = {objects: [SHAPE, BOWTIE]}
 
 const index = () => n.Index().index
-const bowtie = () => n.ObjectInfo({object: {_ref: 'OBJECT', name: 'Bowtie'}}).geometry
+export const bowtie = () => n.ObjectInfo({object: {_ref: 'OBJECT', name: 'Bowtie'}}).geometry
 
 /** The shape, the bowtie and the shared test meshes (cube, grid with deleted faces, line), joined. */
-const allMeshes = () => n.JoinGeometry({geometry: [testMeshes(), n.TransformGeometry({geometry: bowtie(), translation: [0, -6, 0]}).geometry]}).geometry
+export const allMeshes = () => n.JoinGeometry({geometry: [testMeshes(), n.TransformGeometry({geometry: bowtie(), translation: [0, -6, 0]}).geometry]}).geometry
 
 /**
  * Attributes of the types `attributed` does not cover, on every mesh domain (`*8`, `*col`, `*bc`, `*q`, `*m`, `*2`).
  * FLOAT4 is left out: the package has no FLOAT4 attribute type yet (`issues/open/modelling-tools/procedural-float4-attribute-type.md`).
  */
-function typed(geometry: Socket<'GEOMETRY'>, matrices = false): Socket<'GEOMETRY'> {
+export function typed(geometry: Socket<'GEOMETRY'>, matrices = false): Socket<'GEOMETRY'> {
     let g = geometry
     for (const [domain, p] of [['POINT', 'p'], ['EDGE', 'e'], ['FACE', 'f'], ['CORNER', 'c']] as const) {
         const i = index()
@@ -58,7 +58,7 @@ function typed(geometry: Socket<'GEOMETRY'>, matrices = false): Socket<'GEOMETRY
 }
 
 /** UV maps on the corners: `uv_pos` (continuous: the position), `uv_seam` (seams between faces of different parity). */
-function uvs(geometry: Socket<'GEOMETRY'>): Socket<'GEOMETRY'> {
+export function uvs(geometry: Socket<'GEOMETRY'>): Socket<'GEOMETRY'> {
     const pos = n.Position().position
     let g = n.StoreNamedAttribute({geometry, domain: 'CORNER', dataType: 'FLOAT2', name: 'uv_pos', value: pos}).geometry
     const face = n.EvaluateOnDomain({domain: 'FACE', dataType: 'INT', value: index()}).value as Socket<'INT'>

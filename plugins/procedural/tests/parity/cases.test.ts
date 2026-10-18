@@ -37,6 +37,7 @@ import {meshClusterCases} from './cases/meshCluster'
 import {listCases} from './cases/lists'
 import {transferCases} from './cases/transfer'
 import {functionMatrixSvdCases} from './cases/functionMatrixSvd'
+import {subdivSurfaceCases} from './cases/subdivSurface'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -124,6 +125,7 @@ SETS.meshCluster = meshClusterCases
 SETS.lists = listCases
 SETS.transfer = transferCases
 SETS.functionMatrixSvd = functionMatrixSvdCases
+SETS.subdivSurface = subdivSurfaceCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

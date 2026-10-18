@@ -17,9 +17,7 @@
   "groups": 7,
   "nodes": 104,
   "nodeTypes": 33,
-  "missing": {
-   "GeometryNodeSubdivisionSurface": 1
-  },
+  "missing": {},
   "unevaluatedObjects": []
  },
  "flower_scattering": {
@@ -45,9 +43,7 @@
   "groups": 7,
   "nodes": 171,
   "nodeTypes": 33,
-  "missing": {
-   "GeometryNodeSubdivisionSurface": 1
-  },
+  "missing": {},
   "unevaluatedObjects": []
  }
 }
