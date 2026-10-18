@@ -274,10 +274,19 @@ def apply_sets(sets):
     return applied
 
 
+UNEVALUATED = []
+
+
 def geometry_of(obj, writer):
+    """The object's evaluated geometry set; None when the depsgraph does not evaluate the object, which
+    Blender treats as an empty geometry set (`object_get_evaluated_geometry_set`, geometry_set_instances.cc:44)."""
     depsgraph = bpy.context.evaluated_depsgraph_get()
     depsgraph.update()
-    return read_geometry(obj.evaluated_get(depsgraph).evaluated_geometry(), writer)
+    evaluated = obj.evaluated_get(depsgraph)
+    if not evaluated.is_evaluated:
+        UNEVALUATED.append(obj.name)
+        return None
+    return read_geometry(evaluated.evaluated_geometry(), writer)
 
 
 def input_geometry(obj, writer):
@@ -311,16 +320,28 @@ def referenced_ids(groups, objects):
 
     visit(groups)
     visit([o["modifiers"] for o in objects])
-    # Collections pull in their objects and children.
+    # Collections pull in their objects and children; Empties pull in the collection they instance.
+    def add_collection(coll):
+        if coll.name not in found["COLLECTION"]:
+            found["COLLECTION"].add(coll.name)
+            pending.append(coll.name)
+
+    def add_object(obj):
+        found["OBJECT"].add(obj.name)
+        if obj.type == "EMPTY" and obj.instance_collection is not None:
+            add_collection(obj.instance_collection)
+
     pending = list(found["COLLECTION"])
+    for name in list(found["OBJECT"]):
+        obj = bpy.data.objects.get(name)
+        if obj is not None:
+            add_object(obj)
     while pending:
         coll = bpy.data.collections[pending.pop()]
         for o in coll.objects:
-            found["OBJECT"].add(o.name)
+            add_object(o)
         for c in coll.children:
-            if c.name not in found["COLLECTION"]:
-                found["COLLECTION"].add(c.name)
-                pending.append(c.name)
+            add_collection(c)
     return found
 
 
@@ -368,7 +389,12 @@ def main():
             "type": obj.type,
             "matrix_world": matrix_list(obj.matrix_world),
             "parent": obj.parent.name if obj.parent else None,
-            "geometry": geometry_of(obj, writer) if obj.type in ("MESH", "CURVES", "POINTCLOUD", "CURVE", "EMPTY") else None,
+            # Empties have no evaluated geometry (`evaluated_geometry()` raises); an Empty instancing a
+            # collection is one collection instance (`object_get_evaluated_geometry_set`,
+            # geometry_set_instances.cc:63), rebuilt from `instance_collection` by the importer.
+            "geometry": geometry_of(obj, writer) if obj.type in ("MESH", "CURVES", "POINTCLOUD", "CURVE") else None,
+            "instance_collection": obj.instance_collection.name
+            if obj.type == "EMPTY" and obj.instance_collection is not None else None,
         }
     for name in sorted(refs["COLLECTION"]):
         coll = bpy.data.collections.get(name)
@@ -405,12 +431,15 @@ def main():
         "node_groups": groups,
         "objects": objects,
         "referenced": referenced,
+        "unevaluated_objects": sorted(set(UNEVALUATED)),
     }
     writer.close()
     with open(os.path.join(out, "dump.json"), "w", encoding="utf8") as handle:
         json.dump(result, handle, indent=1, allow_nan=True)
     print(f"[procedural] {out}: {len(groups)} groups, {len(objects)} objects, "
           f"{len(referenced['objects'])} referenced objects, Blender {bpy.app.version_string}")
+    if UNEVALUATED:
+        print(f"  not evaluated by the depsgraph (empty geometry): {', '.join(sorted(set(UNEVALUATED)))}")
     for o in objects:
         for m in o["modifiers"]:
             if m["inputs"]:
