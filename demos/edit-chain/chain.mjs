@@ -1167,6 +1167,7 @@ export const ISSUES = [
     {file: 'chain-redo-rotation-not-exact.md', title: 'Redo re-created rotated objects from an Euler snapshot: not bit-exact (fixed)', steps: ['array-03']},
     {file: 'chain-display-material-overwrites-colour.md', title: '`display material` throws away colours set while solid', steps: ['scene-06']},
     {file: 'chain-export-ignores-objects.md', title: '`export {objects}` exports the whole scene', steps: ['export-02']},
+    {file: 'chain-export-not-deterministic.md', title: '`export` is not byte-deterministic: random uuids, and a second export differs from the first', steps: ['export-02']},
     {file: 'chain-no-import-command.md', title: 'No command re-imports an exported file (Track 1 adding `import`)', steps: ['export-02']},
     {file: 'chain-transform-range-schema.md', title: '`transform {verts: {from, to}}` rejected by the schema though the code supports it', steps: ['hazard-06']},
     {file: 'chain-api-measure-diff-dump.md', title: 'No lossless mesh dump, topology measure or claimed/collateral diff in the API', steps: []},
