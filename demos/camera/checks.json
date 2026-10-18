@@ -1,0 +1,600 @@
+{
+  "checks": [
+    {
+      "what": "body width (shell + grip, without lugs)",
+      "expected": 150.7,
+      "measured": 150.7,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "body height (base to hot-shoe top)",
+      "expected": 116.4,
+      "measured": 116.4,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "body depth (monitor face to grip front)",
+      "expected": 75.9,
+      "measured": 75.9,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "lens maximum diameter (zoom ring)",
+      "expected": 83.5,
+      "measured": 83.5,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "lens length (mount flange to front)",
+      "expected": 107,
+      "measured": 107,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "filter thread diameter",
+      "expected": 77,
+      "measured": 77,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "EF mount throat diameter",
+      "expected": 54,
+      "measured": 54,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "EF mount"
+    },
+    {
+      "what": "lens flange seated on the body flange (z)",
+      "expected": 73,
+      "measured": 73,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "EF mount"
+    },
+    {
+      "what": "monitor diagonal (3.2 in, active area)",
+      "expected": 81.28,
+      "measured": 81.28,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "Canon"
+    },
+    {
+      "what": "hot-shoe channel width",
+      "expected": 18.6,
+      "measured": 18.6,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "ISO 518"
+    },
+    {
+      "what": "hot-shoe channel depth",
+      "expected": 2,
+      "measured": 2,
+      "delta": 0,
+      "pct": 0,
+      "ok": true,
+      "source": "ISO 518"
+    }
+  ],
+  "topology": [
+    {
+      "name": "lens-mount",
+      "verts": 576,
+      "edges": 1152,
+      "faces": 576,
+      "tris": 0,
+      "quads": 576,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-barrel",
+      "verts": 2820,
+      "edges": 5640,
+      "faces": 2820,
+      "tris": 0,
+      "quads": 2820,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-focus-ring",
+      "verts": 1200,
+      "edges": 2400,
+      "faces": 1200,
+      "tris": 0,
+      "quads": 1200,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-zoom-ring",
+      "verts": 1200,
+      "edges": 2400,
+      "faces": 1200,
+      "tris": 0,
+      "quads": 1200,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-red-ring",
+      "verts": 384,
+      "edges": 768,
+      "faces": 384,
+      "tris": 0,
+      "quads": 384,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-front-element",
+      "verts": 1058,
+      "edges": 2304,
+      "faces": 1248,
+      "tris": 384,
+      "quads": 864,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-switch-panel",
+      "verts": 60,
+      "edges": 116,
+      "faces": 58,
+      "tris": 0,
+      "quads": 58,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-switch-0",
+      "verts": 56,
+      "edges": 108,
+      "faces": 54,
+      "tris": 0,
+      "quads": 54,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lens-switch-1",
+      "verts": 56,
+      "edges": 108,
+      "faces": 54,
+      "tris": 0,
+      "quads": 54,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "body",
+      "verts": 264,
+      "edges": 492,
+      "faces": 230,
+      "tris": 0,
+      "quads": 217,
+      "ngons": 13,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lcd-screen",
+      "verts": 8,
+      "edges": 12,
+      "faces": 6,
+      "tris": 0,
+      "quads": 6,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "grip",
+      "verts": 816,
+      "edges": 1584,
+      "faces": 770,
+      "tris": 0,
+      "quads": 768,
+      "ngons": 2,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "body-prism",
+      "verts": 168,
+      "edges": 308,
+      "faces": 142,
+      "tris": 0,
+      "quads": 140,
+      "ngons": 2,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "top-lcd-glass",
+      "verts": 8,
+      "edges": 12,
+      "faces": 6,
+      "tris": 0,
+      "quads": 6,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "shoe",
+      "verts": 32,
+      "edges": 56,
+      "faces": 26,
+      "tris": 8,
+      "quads": 13,
+      "ngons": 5,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "shoe-contact",
+      "verts": 50,
+      "edges": 120,
+      "faces": 72,
+      "tris": 48,
+      "quads": 24,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "dial-mode",
+      "verts": 650,
+      "edges": 1368,
+      "faces": 720,
+      "tris": 144,
+      "quads": 576,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "dial-main",
+      "verts": 362,
+      "edges": 780,
+      "faces": 420,
+      "tris": 120,
+      "quads": 300,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-shutter",
+      "verts": 242,
+      "edges": 520,
+      "faces": 280,
+      "tris": 80,
+      "quads": 200,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "dial-quick",
+      "verts": 512,
+      "edges": 1024,
+      "faces": 512,
+      "tris": 0,
+      "quads": 512,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-set",
+      "verts": 130,
+      "edges": 288,
+      "faces": 160,
+      "tris": 64,
+      "quads": 96,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-rear-column",
+      "verts": 650,
+      "edges": 1440,
+      "faces": 800,
+      "tris": 320,
+      "quads": 480,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-menu",
+      "verts": 260,
+      "edges": 576,
+      "faces": 320,
+      "tris": 128,
+      "quads": 192,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-af",
+      "verts": 390,
+      "edges": 864,
+      "faces": 480,
+      "tris": 192,
+      "quads": 288,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-q",
+      "verts": 130,
+      "edges": 288,
+      "faces": 160,
+      "tris": 64,
+      "quads": 96,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-start",
+      "verts": 130,
+      "edges": 288,
+      "faces": 160,
+      "tris": 64,
+      "quads": 96,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-joystick",
+      "verts": 130,
+      "edges": 288,
+      "faces": 160,
+      "tris": 64,
+      "quads": 96,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-release",
+      "verts": 130,
+      "edges": 288,
+      "faces": 160,
+      "tris": 64,
+      "quads": 96,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "btn-front",
+      "verts": 260,
+      "edges": 576,
+      "faces": 320,
+      "tris": 128,
+      "quads": 192,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "rubber-thumb",
+      "verts": 96,
+      "edges": 192,
+      "faces": 98,
+      "tris": 8,
+      "quads": 90,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "eyecup",
+      "verts": 448,
+      "edges": 896,
+      "faces": 448,
+      "tris": 0,
+      "quads": 448,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "eyepiece",
+      "verts": 12,
+      "edges": 20,
+      "faces": 10,
+      "tris": 0,
+      "quads": 10,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "eyepiece-glass",
+      "verts": 8,
+      "edges": 12,
+      "faces": 6,
+      "tris": 0,
+      "quads": 6,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "mount-boss",
+      "verts": 672,
+      "edges": 1344,
+      "faces": 672,
+      "tris": 0,
+      "quads": 672,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "mount-flange",
+      "verts": 480,
+      "edges": 960,
+      "faces": 480,
+      "tris": 0,
+      "quads": 480,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "mount-index",
+      "verts": 42,
+      "edges": 120,
+      "faces": 80,
+      "tris": 80,
+      "quads": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    },
+    {
+      "name": "lug",
+      "verts": 36,
+      "edges": 68,
+      "faces": 34,
+      "tris": 0,
+      "quads": 34,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0,
+      "manifold": true
+    }
+  ],
+  "total": {
+    "verts": 14526,
+    "edges": 29780,
+    "faces": 15326,
+    "tris": 1960,
+    "quads": 13344,
+    "ngons": 22,
+    "manifold": 37
+  },
+  "parts": [
+    {
+      "name": "lens-*",
+      "what": "lathe profiles, knurled with inset, window inset"
+    },
+    {
+      "name": "body",
+      "what": "cube, bevel x3 (6/6/3 segments), bisect x4 + inset recess, bevel lip"
+    },
+    {
+      "name": "grip",
+      "what": "sweep of a superellipse section with per-station radii, cap rims bevelled"
+    },
+    {
+      "name": "body-prism",
+      "what": "cube, top vertices pulled to the measured slope, bevel 6 + 4 segments"
+    },
+    {
+      "name": "shoe",
+      "what": "cube, inset + sunk to the ISO 518 channel"
+    },
+    {
+      "name": "dial-*",
+      "what": "lathe, rims knurled with inset"
+    },
+    {
+      "name": "btn-*",
+      "what": "lathe; repeated buttons arrayed at the measured pitch"
+    },
+    {
+      "name": "eyecup",
+      "what": "sweep of a section round a closed rounded-rectangle path, bevelled"
+    },
+    {
+      "name": "mount-*",
+      "what": "lathe; bayonet flange at the published 54 mm throat"
+    },
+    {
+      "name": "lug",
+      "what": "sweep along a D path, live mirror modifier"
+    }
+  ]
+}

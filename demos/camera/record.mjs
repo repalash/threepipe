@@ -39,6 +39,8 @@ const refBase = flag('refs', new URL('/demos/camera/refs/', url).href)
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const AX = 15.5, AY = 48, L = z => 73 + z
+/** The hero photograph's viewpoint, as build.mjs has it: 25° right of the lens axis, 28° up, 590 mm out. */
+const HERO = [228.2, 329.0, 552.1]
 
 /**
  * The storyboard, keyed by the build's beats. `camera` is set when the beat starts; `continuous`
@@ -63,11 +65,11 @@ const DIRECTION = {
         camera: {position: [90, 190, -210], target: [AX, 88, 0], fov: 30}, continuous: true},
     mount: {title: 'Mount and lugs', sub: 'EF throat 54 mm · lugs mirrored live',
         camera: {position: [150, 120, 420], target: [0, 58, 60], fov: 30}, continuous: true},
-    assembled: {title: null, camera: {position: [330, 210, 470], target: [8, 52, 80], fov: 26}, hold: 2500},
+    assembled: {title: null, camera: {position: HERO, target: [8, 52, 80], fov: 26}, hold: 2500},
     compare: {title: 'Against the photographs', sub: 'Orthographic, registered to each calibrated plane',
         hold: 1600},
     closeups: {title: 'Close-ups', sub: 'Bevelled edges and knurling - every mesh edge drawn in red', hold: 1700},
-    hero: {title: null, camera: {position: [330, 210, 470], target: [8, 52, 80], fov: 22}, continuous: true, hold: 2500},
+    hero: {title: null, camera: {position: HERO, target: [8, 52, 80], fov: 22}, continuous: true, hold: 2500},
 }
 
 const browser = ws
@@ -280,7 +282,7 @@ await page.evaluate(() => {
     window.dispatchEvent(new Event('resize'))
 })
 await ui.photo('hero-5d4-ef24-105.jpg', true)
-await run({op: 'camera', projection: 'perspective', fov: 34, position: [330, 210, 470], target: [8, 52, 80]})
+await run({op: 'camera', projection: 'perspective', fov: 34, position: HERO, target: [8, 52, 80]})
 await ui.caption('photograph · model')
 await sleep(6000)
 await ui.caption('')

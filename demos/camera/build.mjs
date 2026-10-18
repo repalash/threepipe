@@ -65,6 +65,10 @@ const LCD = {cx: 20.2, cy: 40.95, w: 72.5, h: 49.8}
 const L = z => Z.flange + z
 /** The camera for the lens stages: one framing, so the lathe reads as one continuous shot. */
 const LENS_VIEW = {position: [AX + 250, AY + 150, L(230)], target: [AX, AY, L(52)]}
+/** The hero photograph's viewpoint, estimated: 25° to the right of the lens axis, 28° above it. */
+const HERO = {position: [8 + 590 * Math.cos(28 * Math.PI / 180) * Math.sin(25 * Math.PI / 180),
+    52 + 590 * Math.sin(28 * Math.PI / 180), 80 + 590 * Math.cos(28 * Math.PI / 180) * Math.cos(25 * Math.PI / 180)],
+target: [8, 52, 80]}
 
 // --- materials --------------------------------------------------------------------------------
 
@@ -475,9 +479,9 @@ export default async (session) => {
     await beat('controls')
     // Mode dial (rear photo: Ø23 mm, 55.9 mm left of centre), knurled round its side.
     await must({op: 'lathe', name: 'dial-mode', axis: 'y', center: [57.5, 0, 30], segments: 72,
-        profile: [[0, 88.0], [11.6, 88.0], [11.6, 88.8], [11.6, 95.0], [11.6, 95.6], [11.0, 96.2], [4.6, 96.2],
-            [4.6, 97.4], [0, 97.4]]})
-    await knurl('dial-mode', {axis: 'y', center: [57.5, 0, 30], band: [88.9, 94.9], depth: 0.45})
+        profile: [[0, 88.0], [11.6, 88.0], [11.6, 88.8], [11.6, 92.6], [11.6, 93.1], [11.0, 93.7], [4.6, 93.7],
+            [4.6, 94.5], [0, 94.5]]})
+    await knurl('dial-mode', {axis: 'y', center: [57.5, 0, 30], band: [88.9, 92.5], depth: 0.45})
     await paint('dial-mode', MAT.anodised)
     // Main dial, in front of the shutter button, turning on X.
     await must({op: 'lathe', name: 'dial-main', axis: 'x', center: [0, 85.5, 57], segments: 60,
@@ -580,7 +584,7 @@ export default async (session) => {
 
     // --- assembled --------------------------------------------------------------------------------
     await beat('assembled')
-    await shot('assembled', [330, 210, 470], [8, 52, 80], 26)
+    await shot('assembled', HERO.position, HERO.target, 26)
 
     // --- checks: the model against the published numbers -----------------------------------------
     //
@@ -636,6 +640,38 @@ export default async (session) => {
     }
     const failed = checks.filter(c => !c.ok)
 
+    // --- cross-checks against the photographs (not gating) ---------------------------------------
+    //
+    // The checks above pin numbers the build was given. These compare the *result* with readings
+    // off the photographs that the build was not given, so they show where the model departs from
+    // the product. The photographs are perspective and slightly yawed, so they are reported, not
+    // enforced.
+    /** Width along x of a mesh's cross-section by the plane y = h: where its edges cross it. */
+    const widthAt = (d, h) => {
+        const xs = []
+        for (const [a, b] of d.edgeVerts) {
+            const p = d.vertices[a], q = d.vertices[b]
+            if ((p[1] - h) * (q[1] - h) > 0 || p[1] === q[1]) continue
+            const t = (h - p[1]) / (q[1] - p[1])
+            xs.push(p[0] + t * (q[0] - p[0]))
+        }
+        return Math.max(...xs) - Math.min(...xs)
+    }
+    const photo = []
+    const vsPhoto = (what, got, read, source) => {
+        const delta = got - read
+        photo.push({what, photo: read, measured: +got.toFixed(2), delta: +delta.toFixed(2),
+            pct: +(Math.abs(delta) / read * 100).toFixed(1), source})
+        log(`  photo ${what}: model ${got.toFixed(1)} mm, photo ${read} mm (${delta >= 0 ? '+' : ''}${delta.toFixed(1)})`)
+    }
+    {
+        const prism = await detail('body-prism')
+        vsPhoto('prism width, 99.3 mm up', widthAt(prism, 99.3), 55.8, 'body-mount.jpg, y 250 px')
+        vsPhoto('prism width, 107.8 mm up', widthAt(prism, 107.8), 51.9, 'body-rear.jpg, y 300 px')
+        vsPhoto('mode dial top', (await unionBox(['dial-mode'])).max[1], 93.8, 'body-mount.jpg, y 300 px')
+        vsPhoto('top plate, grip side', (await unionBox(['body'])).max[1], 89.7, 'body-mount.jpg, y 337 px')
+    }
+
     // --- topology, per object ------------------------------------------------------------------
     const doc = (await must({op: 'inspect'})).data
     const topo = []
@@ -646,7 +682,7 @@ export default async (session) => {
     log(`model: ${doc.objects} objects, ${total.verts} verts / ${total.edges} edges / ${total.faces} faces, `
         + `${(100 * total.quads / total.faces).toFixed(1)} % quads, ${total.manifold}/${topo.length} closed manifolds`)
     for (const t of topo.filter(t => !t.manifold)) log(`  open/non-manifold: ${t.name} (${t.boundary} boundary, ${t.nonManifold} non-manifold edges)`)
-    await writeFile(join(outDir, '..', 'checks.json'), JSON.stringify({checks, topology: topo, total, parts}, null, 2))
+    await writeFile(join(outDir, '..', 'checks.json'), JSON.stringify({checks, photo, topology: topo, total, parts}, null, 2))
     if (failed.length) throw new Error(`${failed.length} dimension checks failed: ${failed.map(c => c.what).join('; ')}`)
 
     // --- against the photographs, orthographic --------------------------------------------------
@@ -698,7 +734,9 @@ export default async (session) => {
     // --- hero and turntable -------------------------------------------------------------------------
     await beat('hero')
     // The hero photograph looks at the camera from its front right, a little above, on a long lens.
-    await must({op: 'camera', fov: 22, position: [330, 210, 470], target: [8, 52, 80]})
+    // The hero photograph looks at the camera from its front right and well above (about 25° round
+    // and 28° up), on a long lens.
+    await must({op: 'camera', fov: 22, position: HERO.position, target: HERO.target})
     await capture('hero, three-quarter front')
     for (const [k, a] of [[0, 30], [1, 120], [2, 210], [3, 300]]) {
         const t = a * Math.PI / 180

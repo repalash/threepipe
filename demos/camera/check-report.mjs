@@ -33,6 +33,7 @@ const video = await page.evaluate(() => {
         v.load()
     })
 })
+await page.evaluate(() => window.scrollTo(0, 0))
 await page.screenshot({path: 'tmp/camera-report-check.png', fullPage: false})
 await browser.close()
 console.log(JSON.stringify({url, images: images.length, broken: bad.map(b => b.src), video, problems}, null, 2))

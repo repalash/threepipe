@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canon EOS 5D Mark IV, to scale — threepipe modelling demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --ink: #16171a; --mute: #6b6e76; --line: #e2e4e8; --red: #c0101c; --bg: #f6f7f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: #0d0e10; color: #f2f2f4; padding: 40px 6vw 28px; }
+  header .k { font: 600 12px ui-monospace, monospace; letter-spacing: .2em; color: var(--red); }
+  header h1 { font-weight: 300; font-size: 40px; margin: 8px 0 4px; letter-spacing: .01em; }
+  header p { color: #9a9ca4; margin: 0; max-width: 70ch; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 22px; }
+  .stats div { font: 13px ui-monospace, monospace; color: #c9cbd1; }
+  .stats b { display: block; font: 300 26px ui-sans-serif, system-ui, sans-serif; color: #fff; }
+  main { padding: 10px 6vw 60px; }
+  h2 { font-weight: 400; font-size: 22px; margin: 44px 0 6px; border-top: 1px solid var(--line); padding-top: 18px; }
+  h2 small { color: var(--mute); font-size: 14px; margin-left: 10px; }
+  p.lead { color: var(--mute); margin: 0 0 14px; max-width: 80ch; }
+  figure { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  figure img, figure video { display: block; width: 100%; height: auto; background: #e8eaee; }
+  figcaption { font-size: 12.5px; color: var(--mute); padding: 6px 10px; }
+  .hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+  .trio figure img { aspect-ratio: 3 / 2; object-fit: contain; }
+  .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .strip figcaption::before { content: attr(data-n) "  "; color: var(--red); font-family: ui-monospace, monospace; }
+  .pair { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border: 1px solid var(--line); font-size: 13.5px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--mute); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  td.n { font-family: ui-monospace, monospace; text-align: right; }
+  .ok { color: #11823b; font-weight: 600; } .bad { color: var(--red); font-weight: 600; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  ul.issues { padding-left: 18px; } ul.issues li { margin: 4px 0; } code { font-size: 12.5px; background: #eceef1; padding: 1px 4px; border-radius: 3px; }
+  a { color: var(--red); }
+  .note { font-size: 13px; color: var(--mute); }
+  @media (max-width: 900px) { .hero, .cols, .trio, .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="k">THREEPIPE · @threepipe/plugin-modelling · LAUNCH DEMO</div>
+  <h1>Canon EOS 5D Mark IV + EF 24-105mm f/4L IS USM</h1>
+  <p>Modelled to scale from product photographs and published dimensions, entirely through the JSON command API —
+  no imported meshes, no typed-in vertices. Lathe for the lens, sweep for the grip, eyecup and lugs, inset and
+  bisect for the recesses, bevel on every product edge.</p>
+  <div class="stats">
+    <div><b>305</b>commands</div>
+    <div><b>0</b>failed</div>
+    <div><b>11/11</b>dimension checks ≤ 2 %</div>
+    <div><b>37</b>objects</div>
+    <div><b>14,526</b>vertices</div>
+    <div><b>15,326</b>faces</div>
+    <div><b>87.1 %</b>quads</div>
+    <div><b>37/37</b>closed manifolds</div>
+  </div>
+</header>
+<main>
+
+<h2>Hero <small>render vs. photograph</small></h2>
+<div class="hero">
+  <figure class=""><img src="shots/027-hero-three-quarter-front.png" alt="The model, from the photograph's viewpoint (fov 22°)" loading="lazy"><figcaption>The model, from the photograph's viewpoint (fov 22°)</figcaption></figure>
+  <figure class=""><img src="refs/hero-5d4-ef24-105.jpg" alt="Photograph: 根川孝太郎, CC BY-SA 4.0 (refs/SOURCES.md)" loading="lazy"><figcaption>Photograph: 根川孝太郎, CC BY-SA 4.0 (refs/SOURCES.md)</figcaption></figure>
+</div>
+
+<h2>Against the references <small>orthographic, registered to each calibrated plane</small></h2>
+<p class="lead">Each photograph is placed on a world plane by two points and a published distance
+(<code>reference {calibrate}</code>); <code>camera {view: "ref:…"}</code> then frames the model exactly as the photo frames the camera.</p>
+<div class="trio">
+  <figure class=""><img src="refs/body-mount.jpg" alt="Front photograph (CEphoto, Uwe Aranas)" loading="lazy"><figcaption>Front photograph (CEphoto, Uwe Aranas)</figcaption></figure>
+  <figure class=""><img src="shots/014-front-over-the-photograph.png" alt="Model over the front photograph" loading="lazy"><figcaption>Model over the front photograph</figcaption></figure>
+  <figure class=""><img src="shots/015-front-model-only.png" alt="Model, front" loading="lazy"><figcaption>Model, front</figcaption></figure>
+</div>
+<div class="trio">
+  <figure class=""><img src="refs/body-rear.jpg" alt="Rear photograph (CEphoto, Uwe Aranas)" loading="lazy"><figcaption>Rear photograph (CEphoto, Uwe Aranas)</figcaption></figure>
+  <figure class=""><img src="shots/016-back-over-the-photograph.png" alt="Model over the rear photograph" loading="lazy"><figcaption>Model over the rear photograph</figcaption></figure>
+  <figure class=""><img src="shots/017-back-model-only.png" alt="Model, back" loading="lazy"><figcaption>Model, back</figcaption></figure>
+</div>
+<div class="trio">
+  <figure class=""><img src="refs/lens-side-rotated.jpg" alt="Lens elevation (Jinho Jung), turned to lie along +Z" loading="lazy"><figcaption>Lens elevation (Jinho Jung), turned to lie along +Z</figcaption></figure>
+  <figure class=""><img src="shots/018-side-over-the-lens-elevation.png" alt="Model over the lens elevation" loading="lazy"><figcaption>Model over the lens elevation</figcaption></figure>
+  <figure class=""><img src="shots/019-side-model-only.png" alt="Model, side" loading="lazy"><figcaption>Model, side</figcaption></figure>
+</div>
+<div class="trio">
+  <figure class=""><img src="refs/body-three-quarter.jpg" alt="No CC top view exists; three-quarter photograph for the top plate" loading="lazy"><figcaption>No CC top view exists; three-quarter photograph for the top plate</figcaption></figure>
+  <figure class=""><img src="shots/020-top-model-only.png" alt="Model, top" loading="lazy"><figcaption>Model, top</figcaption></figure>
+  <figure class=""><img src="refs/lens-optical-diagram.png" alt="Optical diagram of the lens (Alessio Facchin) - 18 elements, 13 groups; the front element is the only glass modelled" loading="lazy"><figcaption>Optical diagram of the lens (Alessio Facchin) - 18 elements, 13 groups; the front element is the only glass modelled</figcaption></figure>
+</div>
+
+<h2>The build <small>captures in order, as the session took them</small></h2>
+<div class="strip">
+<figure class=""><img src="shots/001-reference-front-calibrated.png" alt="reference front, calibrated" loading="lazy"><figcaption data-n="01">reference front, calibrated</figcaption></figure>
+<figure class=""><img src="shots/002-reference-back-calibrated.png" alt="reference back, calibrated" loading="lazy"><figcaption data-n="02">reference back, calibrated</figcaption></figure>
+<figure class=""><img src="shots/003-reference-lens-calibrated.png" alt="reference lens, calibrated" loading="lazy"><figcaption data-n="03">reference lens, calibrated</figcaption></figure>
+<figure class=""><img src="shots/004-lens-barrel-lathed.png" alt="lens barrel, lathed" loading="lazy"><figcaption data-n="04">lens barrel, lathed</figcaption></figure>
+<figure class=""><img src="shots/005-lens-rings-knurled.png" alt="lens, rings knurled" loading="lazy"><figcaption data-n="05">lens, rings knurled</figcaption></figure>
+<figure class=""><img src="shots/006-body-block-bevelled.png" alt="body block, bevelled" loading="lazy"><figcaption data-n="06">body block, bevelled</figcaption></figure>
+<figure class=""><img src="shots/007-monitor-recess-bisect-inset.png" alt="monitor recess: bisect, inset" loading="lazy"><figcaption data-n="07">monitor recess: bisect, inset</figcaption></figure>
+<figure class=""><img src="shots/008-grip-swept.png" alt="grip, swept" loading="lazy"><figcaption data-n="08">grip, swept</figcaption></figure>
+<figure class=""><img src="shots/009-prism-top-lcd-and-hot-shoe.png" alt="prism, top LCD and hot shoe" loading="lazy"><figcaption data-n="09">prism, top LCD and hot shoe</figcaption></figure>
+<figure class=""><img src="shots/010-rear-controls.png" alt="rear controls" loading="lazy"><figcaption data-n="10">rear controls</figcaption></figure>
+<figure class=""><img src="shots/011-eyecup-swept-round-a-closed-path.png" alt="eyecup, swept round a closed path" loading="lazy"><figcaption data-n="11">eyecup, swept round a closed path</figcaption></figure>
+<figure class=""><img src="shots/012-mount-and-lugs.png" alt="mount and lugs" loading="lazy"><figcaption data-n="12">mount and lugs</figcaption></figure>
+<figure class=""><img src="shots/013-assembled.png" alt="assembled" loading="lazy"><figcaption data-n="13">assembled</figcaption></figure>
+<figure class=""><img src="shots/021-bevelled-corners-and-grip-from-behind.png" alt="bevelled corners and grip, from behind" loading="lazy"><figcaption data-n="14">bevelled corners and grip, from behind</figcaption></figure>
+<figure class=""><img src="shots/022-bevelled-corners-mesh-edges.png" alt="bevelled corners, mesh edges" loading="lazy"><figcaption data-n="15">bevelled corners, mesh edges</figcaption></figure>
+<figure class=""><img src="shots/023-lens-knurling-mesh-edges.png" alt="lens knurling, mesh edges" loading="lazy"><figcaption data-n="16">lens knurling, mesh edges</figcaption></figure>
+<figure class=""><img src="shots/024-mode-dial-knurling.png" alt="mode dial knurling" loading="lazy"><figcaption data-n="17">mode dial knurling</figcaption></figure>
+<figure class=""><img src="shots/025-mode-dial-knurling-mesh-edges.png" alt="mode dial knurling, mesh edges" loading="lazy"><figcaption data-n="18">mode dial knurling, mesh edges</figcaption></figure>
+<figure class=""><img src="shots/026-x-ray-mount-and-bayonet-inside-the-shell.png" alt="x-ray: mount and bayonet inside the shell" loading="lazy"><figcaption data-n="19">x-ray: mount and bayonet inside the shell</figcaption></figure>
+</div>
+
+<h2>Close-ups <small>wireframe and x-ray</small></h2>
+<div class="pair">
+  <figure class=""><img src="shots/021-bevelled-corners-and-grip-from-behind.png" alt="Bevelled corners: 6-segment silhouette rounds, 3-segment edge rounds" loading="lazy"><figcaption>Bevelled corners: 6-segment silhouette rounds, 3-segment edge rounds</figcaption></figure>
+  <figure class=""><img src="shots/022-bevelled-corners-mesh-edges.png" alt="The same, every mesh edge drawn as a strut" loading="lazy"><figcaption>The same, every mesh edge drawn as a strut</figcaption></figure>
+  <figure class=""><img src="shots/023-lens-knurling-mesh-edges.png" alt="Focus and zoom ribs: every other face inset and sunk" loading="lazy"><figcaption>Focus and zoom ribs: every other face inset and sunk</figcaption></figure>
+  <figure class=""><img src="shots/025-mode-dial-knurling-mesh-edges.png" alt="Mode dial knurl, mesh edges" loading="lazy"><figcaption>Mode dial knurl, mesh edges</figcaption></figure>
+  <figure class=""><img src="shots/024-mode-dial-knurling.png" alt="Mode dial knurl" loading="lazy"><figcaption>Mode dial knurl</figcaption></figure>
+  <figure class=""><img src="shots/026-x-ray-mount-and-bayonet-inside-the-shell.png" alt="X-ray: the bayonet seated on the body flange at 73 mm" loading="lazy"><figcaption>X-ray: the bayonet seated on the body flange at 73 mm</figcaption></figure>
+  <figure class=""><img src="shots/028-turntable-1.png" alt="Turntable" loading="lazy"><figcaption>Turntable</figcaption></figure>
+  <figure class=""><img src="shots/030-turntable-3.png" alt="Turntable, from behind" loading="lazy"><figcaption>Turntable, from behind</figcaption></figure>
+</div>
+
+<h2>Video <small>direction.md</small></h2>
+<p class="note">video.webm is not in this folder (it is not committed); run <code>node demos/camera/record.mjs</code>.</p>
+
+<div class="cols">
+<section>
+<h2>Dimension checks <small>measured off the model; the build throws above 2 %</small></h2>
+<table>
+<tr><th>Check</th><th>Expected</th><th>Measured</th><th>Δ</th><th>%</th><th></th></tr>
+<tr><td>body width (shell + grip, without lugs)<br><span class="note">Canon</span></td><td class="n">150.70</td><td class="n">150.70</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>body height (base to hot-shoe top)<br><span class="note">Canon</span></td><td class="n">116.40</td><td class="n">116.40</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>body depth (monitor face to grip front)<br><span class="note">Canon</span></td><td class="n">75.90</td><td class="n">75.90</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>lens maximum diameter (zoom ring)<br><span class="note">Canon</span></td><td class="n">83.50</td><td class="n">83.50</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>lens length (mount flange to front)<br><span class="note">Canon</span></td><td class="n">107.00</td><td class="n">107.00</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>filter thread diameter<br><span class="note">Canon</span></td><td class="n">77.00</td><td class="n">77.00</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>EF mount throat diameter<br><span class="note">EF mount</span></td><td class="n">54.00</td><td class="n">54.00</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>lens flange seated on the body flange (z)<br><span class="note">EF mount</span></td><td class="n">73.00</td><td class="n">73.00</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>monitor diagonal (3.2 in, active area)<br><span class="note">Canon</span></td><td class="n">81.28</td><td class="n">81.28</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>hot-shoe channel width<br><span class="note">ISO 518</span></td><td class="n">18.60</td><td class="n">18.60</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+<tr><td>hot-shoe channel depth<br><span class="note">ISO 518</span></td><td class="n">2.00</td><td class="n">2.00</td><td class="n">+0.00</td><td class="n">0.00</td><td class="ok">ok</td></tr>
+</table>
+<p class="note">All lengths in mm. The checks pin the published numbers (body 150.7 × 116.4 × 75.9, lens 83.5 × 107,
+77 mm filter, 54 mm EF throat, 3.2-inch 3:2 monitor, ISO 518 shoe channel). What is <em>read off photographs</em>
+(axis offset, button positions, the prism slope) carries ±1–2 mm and is listed in refs/SOURCES.md, not here.
+The shoe check caught a real error during the build: an inset wider than the corner bevel inverts the corners.</p>
+</section>
+<section>
+<h2>Topology <small>per object, from inspect detail</small></h2>
+<table>
+<tr><th>Object</th><th>V</th><th>E</th><th>F</th><th>quads</th><th>tris</th><th>n-gons</th><th>closed</th></tr>
+<tr><td>lens-mount</td><td class="n">576</td><td class="n">1152</td><td class="n">576</td><td class="n">576</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-barrel</td><td class="n">2820</td><td class="n">5640</td><td class="n">2820</td><td class="n">2820</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-focus-ring</td><td class="n">1200</td><td class="n">2400</td><td class="n">1200</td><td class="n">1200</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-zoom-ring</td><td class="n">1200</td><td class="n">2400</td><td class="n">1200</td><td class="n">1200</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-red-ring</td><td class="n">384</td><td class="n">768</td><td class="n">384</td><td class="n">384</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-front-element</td><td class="n">1058</td><td class="n">2304</td><td class="n">1248</td><td class="n">864</td><td class="n">384</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-switch-panel</td><td class="n">60</td><td class="n">116</td><td class="n">58</td><td class="n">58</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-switch-0</td><td class="n">56</td><td class="n">108</td><td class="n">54</td><td class="n">54</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lens-switch-1</td><td class="n">56</td><td class="n">108</td><td class="n">54</td><td class="n">54</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>body</td><td class="n">264</td><td class="n">492</td><td class="n">230</td><td class="n">217</td><td class="n">0</td><td class="n">13</td><td class="ok">yes</td></tr>
+<tr><td>lcd-screen</td><td class="n">8</td><td class="n">12</td><td class="n">6</td><td class="n">6</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>grip</td><td class="n">816</td><td class="n">1584</td><td class="n">770</td><td class="n">768</td><td class="n">0</td><td class="n">2</td><td class="ok">yes</td></tr>
+<tr><td>body-prism</td><td class="n">168</td><td class="n">308</td><td class="n">142</td><td class="n">140</td><td class="n">0</td><td class="n">2</td><td class="ok">yes</td></tr>
+<tr><td>top-lcd-glass</td><td class="n">8</td><td class="n">12</td><td class="n">6</td><td class="n">6</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>shoe</td><td class="n">32</td><td class="n">56</td><td class="n">26</td><td class="n">13</td><td class="n">8</td><td class="n">5</td><td class="ok">yes</td></tr>
+<tr><td>shoe-contact</td><td class="n">50</td><td class="n">120</td><td class="n">72</td><td class="n">24</td><td class="n">48</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>dial-mode</td><td class="n">650</td><td class="n">1368</td><td class="n">720</td><td class="n">576</td><td class="n">144</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>dial-main</td><td class="n">362</td><td class="n">780</td><td class="n">420</td><td class="n">300</td><td class="n">120</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-shutter</td><td class="n">242</td><td class="n">520</td><td class="n">280</td><td class="n">200</td><td class="n">80</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>dial-quick</td><td class="n">512</td><td class="n">1024</td><td class="n">512</td><td class="n">512</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-set</td><td class="n">130</td><td class="n">288</td><td class="n">160</td><td class="n">96</td><td class="n">64</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-rear-column</td><td class="n">650</td><td class="n">1440</td><td class="n">800</td><td class="n">480</td><td class="n">320</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-menu</td><td class="n">260</td><td class="n">576</td><td class="n">320</td><td class="n">192</td><td class="n">128</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-af</td><td class="n">390</td><td class="n">864</td><td class="n">480</td><td class="n">288</td><td class="n">192</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-q</td><td class="n">130</td><td class="n">288</td><td class="n">160</td><td class="n">96</td><td class="n">64</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-start</td><td class="n">130</td><td class="n">288</td><td class="n">160</td><td class="n">96</td><td class="n">64</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-joystick</td><td class="n">130</td><td class="n">288</td><td class="n">160</td><td class="n">96</td><td class="n">64</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-release</td><td class="n">130</td><td class="n">288</td><td class="n">160</td><td class="n">96</td><td class="n">64</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>btn-front</td><td class="n">260</td><td class="n">576</td><td class="n">320</td><td class="n">192</td><td class="n">128</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>rubber-thumb</td><td class="n">96</td><td class="n">192</td><td class="n">98</td><td class="n">90</td><td class="n">8</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>eyecup</td><td class="n">448</td><td class="n">896</td><td class="n">448</td><td class="n">448</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>eyepiece</td><td class="n">12</td><td class="n">20</td><td class="n">10</td><td class="n">10</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>eyepiece-glass</td><td class="n">8</td><td class="n">12</td><td class="n">6</td><td class="n">6</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>mount-boss</td><td class="n">672</td><td class="n">1344</td><td class="n">672</td><td class="n">672</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>mount-flange</td><td class="n">480</td><td class="n">960</td><td class="n">480</td><td class="n">480</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>mount-index</td><td class="n">42</td><td class="n">120</td><td class="n">80</td><td class="n">0</td><td class="n">80</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><td>lug</td><td class="n">36</td><td class="n">68</td><td class="n">34</td><td class="n">34</td><td class="n">0</td><td class="n">0</td><td class="ok">yes</td></tr>
+<tr><th>Total</th><th>14526</th><th>29780</th><th>15326</th><th>13344</th><th>1960</th><th>22</th><th>37/37</th></tr>
+</table>
+<p class="note">N-gons are the caps Blender would also leave as n-gons (lathe and sweep caps, inset and bisect faces);
+triangles are the apex fans of lathed buttons and the icosphere index mark.</p>
+</section>
+</div>
+
+<h2>Commands used</h2>
+<p class="lead"><code>inspect</code> ×74 · <code>capture</code> ×31 · <code>material</code> ×30 · <code>camera</code> ×27 · <code>reference</code> ×24 · <code>lathe</code> ×22 · <code>bevel</code> ×13 · <code>primitive</code> ×12 · <code>applyTransform</code> ×12 · <code>inset</code> ×11 · <code>duplicate</code> ×9 · <code>wireframe</code> ×9 · <code>bisect</code> ×8 · <code>measure</code> ×5 · <code>delete</code> ×4 · <code>array</code> ×4 · <code>sweep</code> ×3 · <code>light</code> ×2 · <code>lighting</code> ×1 · <code>vertices</code> ×1 · <code>modifier</code> ×1 · <code>selftest</code> ×1 · <code>export</code> ×1</p>
+<table>
+<tr><th>Part</th><th>How</th></tr>
+<tr><td><code>lens-*</code></td><td>lathe profiles, knurled with inset, window inset</td></tr>
+<tr><td><code>body</code></td><td>cube, bevel x3 (6/6/3 segments), bisect x4 + inset recess, bevel lip</td></tr>
+<tr><td><code>grip</code></td><td>sweep of a superellipse section with per-station radii, cap rims bevelled</td></tr>
+<tr><td><code>body-prism</code></td><td>cube, top vertices pulled to the measured slope, bevel 6 + 4 segments</td></tr>
+<tr><td><code>shoe</code></td><td>cube, inset + sunk to the ISO 518 channel</td></tr>
+<tr><td><code>dial-*</code></td><td>lathe, rims knurled with inset</td></tr>
+<tr><td><code>btn-*</code></td><td>lathe; repeated buttons arrayed at the measured pitch</td></tr>
+<tr><td><code>eyecup</code></td><td>sweep of a section round a closed rounded-rectangle path, bevelled</td></tr>
+<tr><td><code>mount-*</code></td><td>lathe; bayonet flange at the published 54 mm throat</td></tr>
+<tr><td><code>lug</code></td><td>sweep along a D path, live mirror modifier</td></tr>
+</table>
+
+<h2>What the API lacked <small>issues filed while building</small></h2>
+<ul class="issues">
+<li><a href="../../issues/open/modelling-tools/command-no-edge-listing.md">command-no-edge-listing.md</a> — Edge indices could not be discovered — fixed here: <code>inspect {detail}</code> now lists <code>edgeVerts</code></li>
+<li><a href="../../issues/open/modelling-tools/command-camera-duration-ignored.md">command-camera-duration-ignored.md</a> — <code>camera {duration}</code> only animates saved views; every move in the video is tweened client-side</li>
+<li><a href="../../issues/open/modelling-tools/command-inspect-no-topology-stats.md">command-inspect-no-topology-stats.md</a> — <code>inspect</code> gives no quad/tri/n-gon mix or manifoldness; the table below is computed from full detail dumps</li>
+<li><a href="../../issues/open/modelling-tools/command-material-no-slots.md">command-material-no-slots.md</a> — One material per object: the monitor, top LCD and eyepiece glass are separate objects instead of face material slots</li>
+<li><a href="../../issues/open/modelling-tools/command-reference-no-image-rotation.md">command-reference-no-image-rotation.md</a> — <code>reference</code> cannot rotate an image; the lens elevation ships as a rotated copy</li>
+<li><a href="../../issues/open/modelling-tools/command-reference-update-resets-plane.md">command-reference-update-resets-plane.md</a> — Bug, fixed here: <code>reference {name, visible}</code> moved the plane to <code>front</code>, so <code>ref:back</code> looked at the front</li>
+<li><a href="../../issues/open/modelling-tools/command-display-wireframe-triangles.md">command-display-wireframe-triangles.md</a> — <code>display {mode: "wireframe"}</code> draws the triangulation; the edge close-ups are <code>duplicate</code> + <code>wireframe</code> struts instead</li>
+<li><a href="../../issues/open/modelling-tools/command-sweep-profile-orientation.md">command-sweep-profile-orientation.md</a> — (known) sweep profile axes undocumented, no tilt; every sweep here uses a symmetric section</li>
+<li><a href="../../issues/open/modelling-tools/03-agent-modelling-api.md">03-agent-modelling-api.md</a> — (known) no booleans: the grip, prism and dials are separate closed shells that interpenetrate the body</li>
+</ul>
+
+<p class="note">Files: <a href="build.mjs">build.mjs</a> · <a href="transcript.json">transcript.json</a> ·
+<a href="camera.glb">camera.glb</a> · <a href="direction.md">direction.md</a> · <a href="record.mjs">record.mjs</a> ·
+<a href="refs/SOURCES.md">refs/SOURCES.md</a> · <a href="report.mjs">report.mjs</a> (writes this page from the transcript).</p>
+</main>
+</body>
+</html>

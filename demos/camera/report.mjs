@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const transcript = JSON.parse(await readFile(join(here, 'transcript.json'), 'utf8'))
-const {checks, topology, total, parts} = JSON.parse(await readFile(join(here, 'checks.json'), 'utf8'))
+const {checks, photo = [], topology, total, parts} = JSON.parse(await readFile(join(here, 'checks.json'), 'utf8'))
 const exists = async f => stat(join(here, f)).then(() => true, () => false)
 
 const ops = transcript.operations
@@ -22,12 +22,12 @@ const shot = label => shots.find(s => s.label === label)?.file
 const failed = ops.filter(o => !o.result.ok).length
 const opCounts = {}
 for (const o of ops) opCounts[o.command.op] = (opCounts[o.command.op] ?? 0) + 1
-const modelling = ['primitive', 'lathe', 'sweep', 'bevel', 'inset', 'extrude', 'bisect', 'array', 'modifier',
-    'vertices', 'applyTransform', 'material']
 const quadPct = (100 * total.quads / total.faces).toFixed(1)
 const video = await exists('video.webm')
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+/** Escaped, with `code` spans. */
+const md = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>')
 const fig = (file, caption, cls = '') => file
     ? `<figure class="${cls}"><img src="${file}" alt="${esc(caption)}" loading="lazy"><figcaption>${esc(caption)}</figcaption></figure>`
     : ''
@@ -39,6 +39,7 @@ const issues = [
     ['command-material-no-slots.md', 'One material per object: the monitor, top LCD and eyepiece glass are separate objects instead of face material slots'],
     ['command-reference-no-image-rotation.md', '`reference` cannot rotate an image; the lens elevation ships as a rotated copy'],
     ['command-reference-update-resets-plane.md', 'Bug, fixed here: `reference {name, visible}` moved the plane to `front`, so `ref:back` looked at the front'],
+    ['command-display-wireframe-triangles.md', '`display {mode: "wireframe"}` draws the triangulation; the edge close-ups are `duplicate` + `wireframe` struts instead'],
     ['command-sweep-profile-orientation.md', '(known) sweep profile axes undocumented, no tilt; every sweep here uses a symmetric section'],
     ['03-agent-modelling-api.md', '(known) no booleans: the grip, prism and dials are separate closed shells that interpenetrate the body'],
 ]
@@ -137,7 +138,7 @@ const html = `<!DOCTYPE html>
 
 <h2>The build <small>captures in order, as the session took them</small></h2>
 <div class="strip">
-${shots.filter(s => !/^turntable|^hero|^front|^back|^side|^top/.test(s.label))
+${shots.filter(s => !/^turntable|^hero|^front|^back|^side|^top|^bevelled|knurling|^x-ray/.test(s.label))
         .map((s, i) => fig(s.file, s.label).replace('<figcaption>', `<figcaption data-n="${String(i + 1).padStart(2, '0')}">`)).join('\n')}
 </div>
 
@@ -167,7 +168,16 @@ ${checks.map(c => `<tr><td>${esc(c.what)}<br><span class="note">${esc(c.source)}
 <p class="note">All lengths in mm. The checks pin the published numbers (body 150.7 × 116.4 × 75.9, lens 83.5 × 107,
 77 mm filter, 54 mm EF throat, 3.2-inch 3:2 monitor, ISO 518 shoe channel). What is <em>read off photographs</em>
 (axis offset, button positions, the prism slope) carries ±1–2 mm and is listed in refs/SOURCES.md, not here.
-The shoe check caught a real error during the build: an inset wider than the corner bevel inverts the corners.</p>
+These numbers are inputs, so a pass means the operations kept them - bevel clamping, insets and
+sweeps did not eat into a dimension - not that the shape is right. The shoe check caught a real error that way: an inset
+wider than the corner bevel inverts the corners. Whether the <em>shape</em> is right is the next table.</p>
+${photo.length ? `<h2>Against the photographs <small>readings the build was not given; reported, not enforced</small></h2>
+<table>
+<tr><th>Feature</th><th>Photo</th><th>Model</th><th>Δ</th><th>%</th></tr>
+${photo.map(c => `<tr><td>${esc(c.what)}<br><span class="note">${esc(c.source)}</span></td><td class="n">${c.photo.toFixed(1)}</td><td class="n">${c.measured.toFixed(1)}</td><td class="n">${c.delta >= 0 ? '+' : ''}${c.delta.toFixed(1)}</td><td class="n">${c.pct.toFixed(1)}</td></tr>`).join('\n')}
+</table>
+<p class="note">Read off the photographs at their calibrated scale (refs/SOURCES.md); both are perspective shots and the
+front one is yawed a few degrees, so a few percent either way is within the reading.</p>` : ''}
 </section>
 <section>
 <h2>Topology <small>per object, from inspect detail</small></h2>
@@ -190,13 +200,12 @@ ${parts.map(p => `<tr><td><code>${esc(p.name)}</code></td><td>${esc(p.what)}</td
 
 <h2>What the API lacked <small>issues filed while building</small></h2>
 <ul class="issues">
-${issues.map(([f, t]) => `<li><a href="../../issues/open/modelling-tools/${f}">${f}</a> — ${esc(t)}</li>`).join('\n')}
+${issues.map(([f, t]) => `<li><a href="../../issues/open/modelling-tools/${f}">${f}</a> — ${md(t)}</li>`).join('\n')}
 </ul>
 
 <p class="note">Files: <a href="build.mjs">build.mjs</a> · <a href="transcript.json">transcript.json</a> ·
 <a href="camera.glb">camera.glb</a> · <a href="direction.md">direction.md</a> · <a href="record.mjs">record.mjs</a> ·
-<a href="refs/SOURCES.md">refs/SOURCES.md</a>. Modelling ops used: ${modelling.filter(m => opCounts[m]).length} of the
-command set's generators and edits.</p>
+<a href="refs/SOURCES.md">refs/SOURCES.md</a> · <a href="report.mjs">report.mjs</a> (writes this page from the transcript).</p>
 </main>
 </body>
 </html>

@@ -46,3 +46,14 @@ the body silhouette, excluding strap lugs.
   vertical readings are foreshortened ~7 %. Lens axis 48 ± 2 mm above the base.
 - `body-side.jpg`: wide lens, on a battery grip; used only for the depth order of the mount
   flange, the front face beside the mount (≈15 mm behind the flange), the prism front and the rear.
+
+## Readings used only as cross-checks (not given to the build)
+
+`build.mjs` compares the finished model with these and reports the difference, without failing on it:
+
+- prism housing width 55.8 mm at 99.3 mm up (`body-mount.jpg`, row y = 250 px: 794–1300 px);
+- prism housing width 51.9 mm at 107.8 mm up (`body-rear.jpg`, row y = 300 px: 576–1093 px);
+- mode dial top 93.8 mm (`body-mount.jpg`, y = 300 px); grip-side top plate 89.7 mm (y = 337 px).
+
+(The mode dial's height was first modelled at 97.4 mm and lowered after this comparison flagged it.
+The top plate is a flat 88.5 mm across; on the camera the grip side rises a little higher.)
