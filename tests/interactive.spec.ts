@@ -6617,7 +6617,7 @@ test('modelling-editor-ops', async({page}) => {
     expect((await state()).counts).toEqual(CUBE)
 })
 
-test('modelling-editor-feedback', async({page}) => {
+test('modelling-editor-feedback', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Modelling Editor Feedback')
     // A local threepipe-cloud worker (services/cloud, `wrangler dev --local`: workerd with a local D1 and R2), on a
     // free port with its own store, started through the package's dev script. Turnstile's test secret passes offline.
@@ -6637,8 +6637,19 @@ test('modelling-editor-feedback', async({page}) => {
         const res = await fetch(cloud + '/staff' + path, {headers: {authorization: 'Bearer dev-staff-token-local'}})
         return res.headers.get('content-type')?.includes('json') ? res.json() : new Uint8Array(await res.arrayBuffer())
     }
+    // Until the worker answers. Its output goes into the error (and the attachment below): a poll's `message` is
+    // read once, before the server has written anything.
+    const workerReady = async() => {
+        const t0 = Date.now()
+        for (;;) {
+            if (worker.exitCode !== null || worker.signalCode !== null) throw new Error(`the cloud worker exited (${worker.exitCode ?? worker.signalCode}) before answering on ${cloud}:\n${out}`)
+            if ((await fetch(cloud + '/').catch(() => null))?.status === 200) return
+            if (Date.now() - t0 > 90000) throw new Error(`the cloud worker did not answer on ${cloud} in 90 s:\n${out}`)
+            await new Promise(r => setTimeout(r, 250))
+        }
+    }
     try {
-        await expect.poll(async() => (await fetch(cloud + '/').catch(() => null))?.status ?? 0, {timeout: 90000, message: out}).toBe(200)
+        await workerReady()
 
         // Turnstile's script comes from Cloudflare; here a stub answers as the test site key does (a pass at once).
         await page.route('https://challenges.cloudflare.com/turnstile/**', route => route.fulfill({contentType: 'text/javascript', body:
@@ -6730,5 +6741,6 @@ test('modelling-editor-feedback', async({page}) => {
     } finally {
         try { process.kill(-worker.pid!, 'SIGTERM') } catch { /* already gone */ }
         fs.rmSync(persist, {recursive: true, force: true})
+        await testInfo.attach('cloud-worker.log', {body: out, contentType: 'text/plain'})
     }
 })
