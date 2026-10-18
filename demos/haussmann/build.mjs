@@ -670,17 +670,19 @@ export default async (session) => {
     // dark coated glass, and the pavement real joints - `groove`s cut with the Manifold boolean.
     if (session.realism !== false) {
         await beat('realism')
-        await shotCam([-16, 1.7, 26], [3, 12, -6], 45)
+        // close on the lower cut corner: ground floor, the 2nd-floor balcony, the pavement
+        const CLOSE = [[-7.5, 2.2, 8.5], [1.5, 4.2, -1.2], 50]
+        await shotCam(...CLOSE)
         await capture('before the realism pass: flat colours')
         const STONE = ['facade', 'chimney-party', 'chimneys', 'balcony-2', 'balcony-4', 'balcony-5', 'balconette-slabs-3']
         const ZINC = ['roof', 'dormers-sebastopol', 'dormers-greneta', 'dormers-other']
         const IRON = ['railing-2', 'railing-4', 'railing-5', 'balconettes-3', 'guards-1']
         const GLASS = ['glass', 'dormers-sebastopol-glass', 'dormers-greneta-glass', 'dormers-other-glass']
-        await must({op: 'uv', objects: [...STONE, 'neighbour'], size: 0.6})
-        await must({op: 'material', objects: STONE, ...MAT.stone, relief: {pattern: 'grain', strength: 0.5}})
-        await must({op: 'material', object: 'neighbour', ...MAT.neighbour, relief: {pattern: 'grain', strength: 0.4}})
-        await must({op: 'uv', objects: ZINC, size: 0.5})
-        await must({op: 'material', objects: ZINC, preset: 'metal-satin', color: '#8f999f', roughness: 0.5, metalness: 0.8})
+        await must({op: 'uv', objects: [...STONE, 'neighbour'], size: 0.3})
+        await must({op: 'material', objects: STONE, ...MAT.stone, relief: {pattern: 'grain', strength: 1}})
+        await must({op: 'material', object: 'neighbour', ...MAT.neighbour, relief: {pattern: 'grain', strength: 0.8}})
+        await must({op: 'uv', objects: ZINC, size: 0.4})
+        await must({op: 'material', objects: ZINC, preset: 'metal-satin', color: '#9aa3a8', roughness: 0.55, metalness: 0.6, relief: {pattern: 'grain', strength: 0.4}})
         await must({op: 'material', objects: IRON, preset: 'metal-dark', roughness: 0.45})
         await must({op: 'material', objects: GLASS, preset: 'screen-glass', roughness: 0.05})
         // pavement: a joint across the slabs every 1.2 m along each street front, and the kerb line 0.3 m in
@@ -699,6 +701,8 @@ export default async (session) => {
         }
         log(`realism: ${joints} pavement joints`)
         await capture('after: tooled stone, zinc, wrought iron, coated glass, pavement joints')
+        await shotCam([-16, 1.7, 26], [3, 12, -6], 45)
+        await capture('after, from the rue Greneta corner')
     }
 
     // --- checks: the model against the drawings -------------------------------------------------
