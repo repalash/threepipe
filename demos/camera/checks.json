@@ -100,6 +100,40 @@
       "source": "ISO 518"
     }
   ],
+  "photo": [
+    {
+      "what": "prism width, 99.3 mm up",
+      "photo": 55.8,
+      "measured": 54.41,
+      "delta": -1.39,
+      "pct": 2.5,
+      "source": "body-mount.jpg, y 250 px"
+    },
+    {
+      "what": "prism width, 107.8 mm up",
+      "photo": 51.9,
+      "measured": 48.22,
+      "delta": -3.68,
+      "pct": 7.1,
+      "source": "body-rear.jpg, y 300 px"
+    },
+    {
+      "what": "mode dial top",
+      "photo": 93.8,
+      "measured": 94.5,
+      "delta": 0.7,
+      "pct": 0.7,
+      "source": "body-mount.jpg, y 300 px"
+    },
+    {
+      "what": "top plate, grip side",
+      "photo": 89.7,
+      "measured": 88.5,
+      "delta": -1.2,
+      "pct": 1.3,
+      "source": "body-mount.jpg, y 337 px"
+    }
+  ],
   "topology": [
     {
       "name": "lens-mount",

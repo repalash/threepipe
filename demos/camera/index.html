@@ -48,7 +48,7 @@
   no imported meshes, no typed-in vertices. Lathe for the lens, sweep for the grip, eyecup and lugs, inset and
   bisect for the recesses, bevel on every product edge.</p>
   <div class="stats">
-    <div><b>305</b>commands</div>
+    <div><b>308</b>commands</div>
     <div><b>0</b>failed</div>
     <div><b>11/11</b>dimension checks ≤ 2 %</div>
     <div><b>37</b>objects</div>
@@ -105,12 +105,6 @@
 <figure class=""><img src="shots/011-eyecup-swept-round-a-closed-path.png" alt="eyecup, swept round a closed path" loading="lazy"><figcaption data-n="11">eyecup, swept round a closed path</figcaption></figure>
 <figure class=""><img src="shots/012-mount-and-lugs.png" alt="mount and lugs" loading="lazy"><figcaption data-n="12">mount and lugs</figcaption></figure>
 <figure class=""><img src="shots/013-assembled.png" alt="assembled" loading="lazy"><figcaption data-n="13">assembled</figcaption></figure>
-<figure class=""><img src="shots/021-bevelled-corners-and-grip-from-behind.png" alt="bevelled corners and grip, from behind" loading="lazy"><figcaption data-n="14">bevelled corners and grip, from behind</figcaption></figure>
-<figure class=""><img src="shots/022-bevelled-corners-mesh-edges.png" alt="bevelled corners, mesh edges" loading="lazy"><figcaption data-n="15">bevelled corners, mesh edges</figcaption></figure>
-<figure class=""><img src="shots/023-lens-knurling-mesh-edges.png" alt="lens knurling, mesh edges" loading="lazy"><figcaption data-n="16">lens knurling, mesh edges</figcaption></figure>
-<figure class=""><img src="shots/024-mode-dial-knurling.png" alt="mode dial knurling" loading="lazy"><figcaption data-n="17">mode dial knurling</figcaption></figure>
-<figure class=""><img src="shots/025-mode-dial-knurling-mesh-edges.png" alt="mode dial knurling, mesh edges" loading="lazy"><figcaption data-n="18">mode dial knurling, mesh edges</figcaption></figure>
-<figure class=""><img src="shots/026-x-ray-mount-and-bayonet-inside-the-shell.png" alt="x-ray: mount and bayonet inside the shell" loading="lazy"><figcaption data-n="19">x-ray: mount and bayonet inside the shell</figcaption></figure>
 </div>
 
 <h2>Close-ups <small>wireframe and x-ray</small></h2>
@@ -126,7 +120,7 @@
 </div>
 
 <h2>Video <small>direction.md</small></h2>
-<p class="note">video.webm is not in this folder (it is not committed); run <code>node demos/camera/record.mjs</code>.</p>
+<figure><video src="video.webm" controls preload="metadata"></video><figcaption>Recorded by record.mjs: the build running live, with the storyboard in direction.md.</figcaption></figure>
 
 <div class="cols">
 <section>
@@ -148,7 +142,19 @@
 <p class="note">All lengths in mm. The checks pin the published numbers (body 150.7 × 116.4 × 75.9, lens 83.5 × 107,
 77 mm filter, 54 mm EF throat, 3.2-inch 3:2 monitor, ISO 518 shoe channel). What is <em>read off photographs</em>
 (axis offset, button positions, the prism slope) carries ±1–2 mm and is listed in refs/SOURCES.md, not here.
-The shoe check caught a real error during the build: an inset wider than the corner bevel inverts the corners.</p>
+These numbers are inputs, so a pass means the operations kept them - bevel clamping, insets and
+sweeps did not eat into a dimension - not that the shape is right. The shoe check caught a real error that way: an inset
+wider than the corner bevel inverts the corners. Whether the <em>shape</em> is right is the next table.</p>
+<h2>Against the photographs <small>readings the build was not given; reported, not enforced</small></h2>
+<table>
+<tr><th>Feature</th><th>Photo</th><th>Model</th><th>Δ</th><th>%</th></tr>
+<tr><td>prism width, 99.3 mm up<br><span class="note">body-mount.jpg, y 250 px</span></td><td class="n">55.8</td><td class="n">54.4</td><td class="n">-1.4</td><td class="n">2.5</td></tr>
+<tr><td>prism width, 107.8 mm up<br><span class="note">body-rear.jpg, y 300 px</span></td><td class="n">51.9</td><td class="n">48.2</td><td class="n">-3.7</td><td class="n">7.1</td></tr>
+<tr><td>mode dial top<br><span class="note">body-mount.jpg, y 300 px</span></td><td class="n">93.8</td><td class="n">94.5</td><td class="n">+0.7</td><td class="n">0.7</td></tr>
+<tr><td>top plate, grip side<br><span class="note">body-mount.jpg, y 337 px</span></td><td class="n">89.7</td><td class="n">88.5</td><td class="n">-1.2</td><td class="n">1.3</td></tr>
+</table>
+<p class="note">Read off the photographs at their calibrated scale (refs/SOURCES.md); both are perspective shots and the
+front one is yawed a few degrees, so a few percent either way is within the reading.</p>
 </section>
 <section>
 <h2>Topology <small>per object, from inspect detail</small></h2>
@@ -199,7 +205,7 @@ triangles are the apex fans of lathed buttons and the icosphere index mark.</p>
 </div>
 
 <h2>Commands used</h2>
-<p class="lead"><code>inspect</code> ×74 · <code>capture</code> ×31 · <code>material</code> ×30 · <code>camera</code> ×27 · <code>reference</code> ×24 · <code>lathe</code> ×22 · <code>bevel</code> ×13 · <code>primitive</code> ×12 · <code>applyTransform</code> ×12 · <code>inset</code> ×11 · <code>duplicate</code> ×9 · <code>wireframe</code> ×9 · <code>bisect</code> ×8 · <code>measure</code> ×5 · <code>delete</code> ×4 · <code>array</code> ×4 · <code>sweep</code> ×3 · <code>light</code> ×2 · <code>lighting</code> ×1 · <code>vertices</code> ×1 · <code>modifier</code> ×1 · <code>selftest</code> ×1 · <code>export</code> ×1</p>
+<p class="lead"><code>inspect</code> ×75 · <code>capture</code> ×31 · <code>material</code> ×30 · <code>camera</code> ×27 · <code>reference</code> ×24 · <code>lathe</code> ×22 · <code>bevel</code> ×13 · <code>primitive</code> ×12 · <code>applyTransform</code> ×12 · <code>inset</code> ×11 · <code>duplicate</code> ×9 · <code>wireframe</code> ×9 · <code>bisect</code> ×8 · <code>measure</code> ×7 · <code>delete</code> ×4 · <code>array</code> ×4 · <code>sweep</code> ×3 · <code>light</code> ×2 · <code>lighting</code> ×1 · <code>vertices</code> ×1 · <code>modifier</code> ×1 · <code>selftest</code> ×1 · <code>export</code> ×1</p>
 <table>
 <tr><th>Part</th><th>How</th></tr>
 <tr><td><code>lens-*</code></td><td>lathe profiles, knurled with inset, window inset</td></tr>
