@@ -51,5 +51,10 @@ export function geometryUtilCases(): ParityCase[] {
         g = store(g, 'INSTANCE', 'max', n.InstanceBounds({useRadius: false}).max)
         return store(g, 'INSTANCE', 'show', show)
     })
+    add('instance-reference', 'Instance Reference: the reference index of each instance, after picking instances', () => {
+        const refs = n.GeometryToInstance({geometry: [n.MeshCube().mesh, n.MeshCone().mesh, n.MeshGrid().mesh]}).instances
+        const inst = n.InstanceOnPoints({points: n.MeshLine({count: 7}).mesh, instance: refs, pickInstance: true, instanceIndex: mod(index().mul(5), 3)}).instances
+        return store(inst, 'INSTANCE', 'ref', n.InstanceReference().referenceIndex)
+    })
     return cases
 }

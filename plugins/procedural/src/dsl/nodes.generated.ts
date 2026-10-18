@@ -1053,6 +1053,14 @@ export type InstanceOnPointsNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeInputInstanceReference` (Instance Reference). */
+export interface InstanceReferenceArgs {
+    mute?: boolean
+}
+export type InstanceReferenceNode = NodeHandle & {
+    readonly referenceIndex: Socket<"INT">
+}
+
 /** `GeometryNodeInputInstanceRotation` (Instance Rotation). */
 export interface InstanceRotationArgs {
     mute?: boolean
@@ -2843,6 +2851,7 @@ export interface NodeConstructors {
     IndexSwitch(args?: IndexSwitchArgs): IndexSwitchNode
     InstanceBounds(args?: InstanceBoundsArgs): InstanceBoundsNode
     InstanceOnPoints(args?: InstanceOnPointsArgs): InstanceOnPointsNode
+    InstanceReference(args?: InstanceReferenceArgs): InstanceReferenceNode
     InstanceRotation(args?: InstanceRotationArgs): InstanceRotationNode
     InstanceScale(args?: InstanceScaleArgs): InstanceScaleNode
     InstancesToPoints(args?: InstancesToPointsArgs): InstancesToPointsNode
