@@ -20,6 +20,11 @@ export class CommandRegistry {
         for (const d of defs) this.register(d)
     }
 
+    /** Remove a command, e.g. when the plugin that added it is removed. */
+    unregister(op: string): boolean {
+        return this._commands.delete(op)
+    }
+
     /** Replace an existing command. Used by extensions that specialise a built-in. */
     override(def: CommandDefinition): void {
         this._commands.set(def.op, def)

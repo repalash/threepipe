@@ -21,7 +21,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
-import {evaluateModifiers, ModifierSpec} from './modifiers'
+import {evaluateModifierStack, ModifierSpec} from './modifiers'
 
 /** A mesh object under the document's management. */
 export interface ModellingEntry {
@@ -40,12 +40,20 @@ export interface ModellingEntry {
     modifiers: ModifierSpec[]
     /** What the renderer draws: the master run through the stack. Equals `mesh` when it is empty. */
     evaluated: MeshData
+    /**
+     * Richer output of the last modifier, when its type produces one (instances, points, curves of a
+     * `geometryNodes` modifier). Opaque here; the registering package draws it.
+     */
+    evaluatedGeometry?: unknown
+    /** Per-entry state modifier types keep between evaluations (see `ModifierContext.state`). */
+    modifierState?: Map<string, unknown>
     /** Bumped on every topology or position change, so callers can tell what is stale. */
     revision: number
 }
 
 /** A restorable snapshot of one object. `null` `mesh` means the object did not exist. */
 export interface EntrySnapshot {
+    kind?: 'entry'
     id: string
     name: string
     mesh: MeshData | null
@@ -57,6 +65,23 @@ export interface EntrySnapshot {
     parentId: string | null
     materialColor: string | null
 }
+
+/**
+ * A restorable copy of one document data slot (see {@link ModellingDocument.setData}). `value`
+ * undefined means the slot did not exist.
+ */
+export interface DataSnapshot {
+    kind: 'data'
+    /** `data:<key>`, so data and entry snapshots share one recorder keyed by id. */
+    id: string
+    key: string
+    value: unknown
+}
+
+/** What undo records: objects and document data. */
+export type DocumentSnapshot = EntrySnapshot | DataSnapshot
+
+const cloneData = (v: unknown): unknown => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)))
 
 let documentCounter = 0
 
@@ -72,7 +97,8 @@ export class ModellingDocument {
 
     private _entries = new Map<string, ModellingEntry>()
     private _nextId = 1
-    private _recorder: Map<string, EntrySnapshot> | null = null
+    private _recorder: Map<string, DocumentSnapshot> | null = null
+    private _data = new Map<string, unknown>()
 
     constructor(readonly viewer: ThreeViewer, documentId?: string) {
         this.documentId = documentId ?? `doc-${++documentCounter}-${Math.random().toString(36).slice(2, 8)}`
@@ -262,7 +288,10 @@ export class ModellingDocument {
      * keeps the master mesh and the drawn mesh from drifting apart.
      */
     rebake(entry: ModellingEntry): void {
-        entry.evaluated = evaluateModifiers(entry.mesh, entry.modifiers)
+        if (!entry.modifierState) entry.modifierState = new Map()
+        const result = evaluateModifierStack(entry.mesh, entry.modifiers, {doc: this, entry, state: entry.modifierState})
+        entry.evaluated = result.mesh
+        entry.evaluatedGeometry = result.geometry
         const {data} = bakeGeometry(entry.evaluated, {includeNormals: true})
         const geometry = geometryDataToBufferGeometry<BufferGeometry2>(data, {
             BufferGeometry: BufferGeometry2,
@@ -285,7 +314,7 @@ export class ModellingDocument {
     }
 
     /** Stop collecting and hand back what changed. */
-    endRecording(): EntrySnapshot[] {
+    endRecording(): DocumentSnapshot[] {
         const snaps = this._recorder ? [...this._recorder.values()] : []
         this._recorder = null
         return snaps
@@ -311,6 +340,54 @@ export class ModellingDocument {
         } : this.snapshot(entry))
     }
 
+    // region document data
+
+    /**
+     * Document-level JSON data, by key - for example `nodeGroups`, the geometry-node groups that
+     * `geometryNodes` modifiers name. Recorded for undo like objects, and saved in the glTF topology
+     * extension. Values are plain JSON; treat what {@link getData} returns as read-only.
+     */
+    getData<T = unknown>(key: string): T | undefined {
+        return this._data.get(key) as T | undefined
+    }
+
+    /** Every data key, in insertion order. */
+    get dataKeys(): string[] {
+        return [...this._data.keys()]
+    }
+
+    /**
+     * Set (or with `undefined`, remove) a data slot. Recorded for undo within a command. Objects whose
+     * modifier stacks may read document data are re-evaluated.
+     */
+    setData(key: string, value: unknown): void {
+        this.recordData(key)
+        if (value === undefined) this._data.delete(key)
+        else this._data.set(key, cloneData(value))
+        this._rebakeModified()
+    }
+
+    /** Note a data slot's value before it changes (first call per command counts). */
+    recordData(key: string): void {
+        const id = `data:${key}`
+        if (!this._recorder || this._recorder.has(id)) return
+        this._recorder.set(id, {kind: 'data', id, key, value: cloneData(this._data.get(key))})
+    }
+
+    /** Objects with a modifier stack, re-evaluated after document data changed. */
+    private _rebakeModified(): void {
+        for (const entry of this._entries.values()) if (entry.modifiers.length) this.rebake(entry)
+    }
+
+    // endregion
+
+    /** The current state of whatever `snap` recorded: an object (`mesh: null` when it is gone) or a data slot. */
+    resnapshot(snap: DocumentSnapshot): DocumentSnapshot {
+        if (snap.kind === 'data') return {kind: 'data', id: snap.id, key: snap.key, value: cloneData(this._data.get(snap.key))}
+        const entry = this._entries.get(snap.id)
+        return entry ? this.snapshot(entry) : {...snap, mesh: null}
+    }
+
     /** A full restorable copy of one object's state. */
     snapshot(entry: ModellingEntry): EntrySnapshot {
         const o = entry.object
@@ -330,7 +407,13 @@ export class ModellingDocument {
     }
 
     /** Put one object back the way a snapshot found it. A `null` mesh means: it should not exist. */
-    restore(snap: EntrySnapshot): void {
+    restore(snap: DocumentSnapshot): void {
+        if (snap.kind === 'data') {
+            if (snap.value === undefined) this._data.delete(snap.key)
+            else this._data.set(snap.key, cloneData(snap.value))
+            this._rebakeModified()
+            return
+        }
         const entry = this._entries.get(snap.id)
         if (!snap.mesh) {
             if (entry) {
@@ -366,6 +449,7 @@ export class ModellingDocument {
         entry.object.name = snap.name
         entry.mesh = snap.mesh.clone()
         entry.modifiers = snap.modifiers.map(m => ({...m}))
+        entry.modifierState?.clear()
         this.rebake(entry)
         this._applyTransform(entry, snap)
     }

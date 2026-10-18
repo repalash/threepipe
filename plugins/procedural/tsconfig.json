@@ -32,6 +32,15 @@
         "paths": {
             "@threepipe/mesh-kernel": [
                 "../mesh-kernel/src/index.ts"
+            ],
+            "threepipe": [
+                "../../dist/index.d.ts"
+            ],
+            "@threepipe/plugin-modelling": [
+                "../modelling/src/index.ts"
+            ],
+            "@threepipe/plugin-procedural": [
+                "./src/index.ts"
             ]
         }
     },
