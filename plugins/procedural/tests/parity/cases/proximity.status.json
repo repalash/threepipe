@@ -1,0 +1,13 @@
+{
+ "proximity-points": "exact",
+ "proximity-points-groups": "exact",
+ "proximity-edges": "exact",
+ "proximity-edges-groups": "exact",
+ "proximity-faces": "exact",
+ "proximity-faces-groups": "exact",
+ "proximity-pointcloud": "exact",
+ "proximity-mesh-and-points-points": "exact",
+ "proximity-mesh-and-points-faces": "exact",
+ "proximity-single": "exact",
+ "proximity-empty": "exact"
+}

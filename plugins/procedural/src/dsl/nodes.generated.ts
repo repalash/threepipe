@@ -436,6 +436,23 @@ export type FloatCurveNode = NodeHandle & {
     readonly value: Socket<"FLOAT">
 }
 
+/** `GeometryNodeProximity` (Geometry Proximity). */
+export interface GeometryProximityArgs {
+    targetElement?: "POINTS" | "EDGES" | "FACES"
+    target?: In<"GEOMETRY">
+    geometry?: In<"GEOMETRY">
+    groupID?: In<"INT">
+    sourcePosition?: In<"VECTOR">
+    samplePosition?: In<"VECTOR">
+    sampleGroupID?: In<"INT">
+    mute?: boolean
+}
+export type GeometryProximityNode = NodeHandle & {
+    readonly position: Socket<"VECTOR">
+    readonly distance: Socket<"FLOAT">
+    readonly isValid: Socket<"BOOLEAN">
+}
+
 /** `GeometryNodeGeometryToInstance` (Geometry to Instance). */
 export interface GeometryToInstanceArgs {
     geometry?: In<"GEOMETRY"> | In<"GEOMETRY">[]
@@ -978,6 +995,25 @@ export interface RandomValueArgs {
 }
 export type RandomValueNode = NodeHandle & {
     readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR">
+}
+
+/** `GeometryNodeRaycast` (Raycast). */
+export interface RaycastArgs {
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
+    targetGeometry?: In<"GEOMETRY">
+    attribute?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    interpolation?: In<"MENU">
+    sourcePosition?: In<"VECTOR">
+    rayDirection?: In<"VECTOR">
+    rayLength?: In<"FLOAT">
+    mute?: boolean
+}
+export type RaycastNode = NodeHandle & {
+    readonly isHit: Socket<"BOOLEAN">
+    readonly hitPosition: Socket<"VECTOR">
+    readonly hitNormal: Socket<"VECTOR">
+    readonly hitDistance: Socket<"FLOAT">
+    readonly attribute: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX">
 }
 
 /** `GeometryNodeRealizeInstances` (Realize Instances). */
@@ -1528,6 +1564,7 @@ export interface NodeConstructors {
     FaceArea(args?: FaceAreaArgs): FaceAreaNode
     FaceNeighbors(args?: FaceNeighborsArgs): FaceNeighborsNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
+    GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
     GradientTexture(args?: GradientTextureArgs): GradientTextureNode
     HashValue(args?: HashValueArgs): HashValueNode
@@ -1571,6 +1608,7 @@ export interface NodeConstructors {
     Position(args?: PositionArgs): PositionNode
     QuaternionToRotation(args?: QuaternionToRotationArgs): QuaternionToRotationNode
     RandomValue(args?: RandomValueArgs): RandomValueNode
+    Raycast(args?: RaycastArgs): RaycastNode
     RealizeInstances(args?: RealizeInstancesArgs): RealizeInstancesNode
     RemoveNamedAttribute(args?: RemoveNamedAttributeArgs): RemoveNamedAttributeNode
     ResampleCurve(args?: ResampleCurveArgs): ResampleCurveNode

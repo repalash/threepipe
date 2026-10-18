@@ -24,10 +24,10 @@ import {domainFromRNA, socketTypeFromRNA} from '../attributeTypes'
 const FLT_MAX = 3.4028234663852886e38
 
 /** `attribute_type_type_with_socket_fn` / `generic_attribute_type_supported_with_socket` (`rna_nodetree.cc:2399`). */
-const SOCKET_ATTRIBUTE_TYPES = ['FLOAT', 'INT', 'BOOLEAN', 'FLOAT_VECTOR', 'FLOAT_COLOR', 'QUATERNION', 'FLOAT4X4']
+export const SOCKET_ATTRIBUTE_TYPES = ['FLOAT', 'INT', 'BOOLEAN', 'FLOAT_VECTOR', 'FLOAT_COLOR', 'QUATERNION', 'FLOAT4X4']
 
 /** `CPPType::value_initialize`: zeros for every type, including `math::Quaternion` (defaulted constructor). */
-function valueInitialize(out: TypedArray, i: number, c: number): void {
+export function valueInitialize(out: TypedArray, i: number, c: number): void {
     for (let k = 0; k < c; k++) out[i * c + k] = 0
 }
 
@@ -39,7 +39,7 @@ function findSourceComponent(geometry: GeometrySet, domain: AttrDomain, types: C
 }
 
 /** Values of `field` on `domain` of a component (`prepare_for_execution`), computed on first use. */
-function lazyComponentValues(geometry: GeometrySet, type: ComponentType, domain: AttrDomain, field: GField): () => GVArray {
+export function lazyComponentValues(geometry: GeometrySet, type: ComponentType, domain: AttrDomain, field: GField): () => GVArray {
     let values: GVArray | undefined
     return () => {
         if (!values) {
@@ -250,7 +250,7 @@ function sampleNearestSurfaceFn(mesh: MeshData, groupIdField: GField): MultiFunc
 }
 
 /** `BaryWeightFromPositionFn::call` (`mesh_sample.cc:411`), `sample_barycentric_weights<true>` (:159). */
-function baryWeightFromPositionFn(mesh: MeshData): MultiFunction {
+export function baryWeightFromPositionFn(mesh: MeshData): MultiFunction {
     return {
         name: 'Bary Weight from Position', inputs: ['float3', 'int32'], outputs: ['float3'],
         call(n, ins, outs) {
@@ -276,7 +276,7 @@ function baryWeightFromPositionFn(mesh: MeshData): MultiFunction {
  * (`geometry_fields.cc:1187`), which in 5.2.2 returns `nullopt` for every field (its loop returns after the first
  * input whatever it found), so the value is always evaluated on corners and mixed with `sample_corner_attribute`.
  */
-function baryWeightSampleFn(mesh: MeshData, field: GField): MultiFunction {
+export function baryWeightSampleFn(mesh: MeshData, field: GField): MultiFunction {
     const dt: DataType = field.type
     const c = DATA_TYPES[dt].components
     let source: GVArray | undefined

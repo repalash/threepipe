@@ -359,6 +359,141 @@ export class BVHTree {
     }
 
     // endregion
+
+    // region ray cast
+
+    /**
+     * `BLI_bvhtree_ray_cast` (:2017) = `BLI_bvhtree_ray_cast_ex(..., BVH_RAYCAST_DEFAULT)` (watertight): depth-first
+     * `dfs_raycast` (:1862) with the `fast_ray_nearest_hit` box test (:1840). `dir` must be normalized. Rays with a
+     * radius (`ray_nearest_hit`, sphere casts) are not ported.
+     */
+    rayCast(co: readonly number[], dir: readonly number[], radius: number, hit: BVHTreeRayHit, callback?: RayCastCallback): number {
+        if (radius !== 0) throw new Error('BLI_bvhtree_ray_cast: rays with a radius (ray_nearest_hit) are not ported')
+        const root = this.leafNum ? this.nodes[this.leafNum] : undefined
+        // `bvhtree_ray_cast_data_precalc` (:1930).
+        const rayDotAxis: number[] = [], idotAxis: number[] = [], index: number[] = []
+        for (let i = 0; i < 3; i++) {
+            const ax = KDOP_AXES[i]
+            rayDotAxis[i] = f32(f32(f32(dir[0] * ax[0]) + f32(dir[1] * ax[1])) + f32(dir[2] * ax[2]))
+            if (Math.abs(rayDotAxis[i]) < FLT_EPSILON) {
+                rayDotAxis[i] = 0
+                idotAxis[i] = FLT_MAX
+            } else {
+                idotAxis[i] = f32(1 / rayDotAxis[i])
+            }
+            index[2 * i] = (idotAxis[i] < 0 ? 1 : 0) + 2 * i
+            index[2 * i + 1] = 1 - (idotAxis[i] < 0 ? 1 : 0) + 2 * i
+        }
+        const ray: BVHTreeRay = {origin: co, direction: dir, radius, isectPrecalc: isectRayTriWatertightPrecalc(dir)}
+        const fastRayNearestHit = (node: BVHNode): number => {
+            const bv = node.bv
+            const t1x = f32(f32(bv[index[0]] - co[0]) * idotAxis[0])
+            const t2x = f32(f32(bv[index[1]] - co[0]) * idotAxis[0])
+            const t1y = f32(f32(bv[index[2]] - co[1]) * idotAxis[1])
+            const t2y = f32(f32(bv[index[3]] - co[1]) * idotAxis[1])
+            const t1z = f32(f32(bv[index[4]] - co[2]) * idotAxis[2])
+            const t2z = f32(f32(bv[index[5]] - co[2]) * idotAxis[2])
+            if ((t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z) ||
+                (t2x < 0 || t2y < 0 || t2z < 0) ||
+                (t1x > hit.dist || t1y > hit.dist || t1z > hit.dist)) return FLT_MAX
+            // `std::max({t1x, t1y, t1z})`: the first of the largest, by `<`.
+            let m = t1x
+            if (m < t1y) m = t1y
+            if (m < t1z) m = t1z
+            return m
+        }
+        const dfs = (node: BVHNode) => {
+            const dist = fastRayNearestHit(node)
+            if (dist >= hit.dist) return
+            if (node.nodeNum === 0) {
+                if (callback) {
+                    callback(node.index, ray, hit)
+                } else {
+                    hit.index = node.index
+                    hit.dist = dist
+                    hit.co = [f32(co[0] + f32(dir[0] * dist)), f32(co[1] + f32(dir[1] * dist)), f32(co[2] + f32(dir[2] * dist))]
+                }
+                return
+            }
+            if (rayDotAxis[node.mainAxis] > 0) {
+                for (let i = 0; i !== node.nodeNum; i++) dfs(node.children[i]!)
+            } else {
+                for (let i = node.nodeNum - 1; i >= 0; i--) dfs(node.children[i]!)
+            }
+        }
+        if (root) dfs(root)
+        return hit.index
+    }
+
+    // endregion
+}
+
+/** `BVHTreeRay` (`BLI_kdopbvh.hh:61`) with the watertight precalculation (`USE_KDOPBVH_WATERTIGHT`, :22). */
+export interface BVHTreeRay {
+    origin: readonly number[]
+    direction: readonly number[]
+    radius: number
+    isectPrecalc: IsectRayPrecalc
+}
+
+/** `BVHTreeRayHit` (`BLI_kdopbvh.hh:73`). */
+export interface BVHTreeRayHit {
+    index: number
+    co: [number, number, number]
+    no: [number, number, number]
+    dist: number
+}
+
+/** `BVHTree_RayCastCallback`. */
+export type RayCastCallback = (index: number, ray: BVHTreeRay, hit: BVHTreeRayHit) => void
+
+/** `IsectRayPrecalc` (`BLI_math_geom.h`). */
+export interface IsectRayPrecalc {
+    kx: number
+    ky: number
+    kz: number
+    sx: number
+    sy: number
+    sz: number
+}
+
+/** `axis_dominant_v3_single` (`math_geom_inline.cc:86`). */
+function axisDominantSingle(v: readonly number[]): number {
+    const x = Math.abs(v[0]), y = Math.abs(v[1]), z = Math.abs(v[2])
+    return x > y ? (x > z ? 0 : 2) : (y > z ? 1 : 2)
+}
+
+/** `isect_ray_tri_watertight_v3_precalc` (`math_geom.cc:1897`). */
+export function isectRayTriWatertightPrecalc(dir: readonly number[]): IsectRayPrecalc {
+    const kz = axisDominantSingle(dir)
+    let kx = kz !== 2 ? kz + 1 : 0
+    let ky = kx !== 2 ? kx + 1 : 0
+    if (dir[kz] < 0) [kx, ky] = [ky, kx]
+    const invDirZ = f32(1 / dir[kz])
+    return {kx, ky, kz, sx: f32(dir[kx] * invDirZ), sy: f32(dir[ky] * invDirZ), sz: invDirZ}
+}
+
+/** `isect_ray_tri_watertight_v3` (`math_geom.cc:1924`): the hit distance, or undefined. */
+export function isectRayTriWatertight(origin: readonly number[], pre: IsectRayPrecalc, v0: ArrayLike<number>, v1: ArrayLike<number>, v2: ArrayLike<number>): number | undefined {
+    const {kx, ky, kz, sx, sy, sz} = pre
+    const a = [f32(v0[0] - origin[0]), f32(v0[1] - origin[1]), f32(v0[2] - origin[2])]
+    const b = [f32(v1[0] - origin[0]), f32(v1[1] - origin[1]), f32(v1[2] - origin[2])]
+    const c = [f32(v2[0] - origin[0]), f32(v2[1] - origin[1]), f32(v2[2] - origin[2])]
+    const ax = f32(a[kx] - f32(sx * a[kz])), ay = f32(a[ky] - f32(sy * a[kz]))
+    const bx = f32(b[kx] - f32(sx * b[kz])), by = f32(b[ky] - f32(sy * b[kz]))
+    const cx = f32(c[kx] - f32(sx * c[kz])), cy = f32(c[ky] - f32(sy * c[kz]))
+    const u = f32(f32(cx * by) - f32(cy * bx))
+    const v = f32(f32(ax * cy) - f32(ay * cx))
+    const w = f32(f32(bx * ay) - f32(by * ax))
+    if ((u < 0 || v < 0 || w < 0) && (u > 0 || v > 0 || w > 0)) return undefined
+    const det = f32(f32(u + v) + w)
+    if (det === 0 || !Number.isFinite(det)) return undefined
+    const t = f32(f32(f32(f32(u * a[kz]) + f32(v * b[kz])) + f32(w * c[kz])) * sz)
+    // `xor_fl(t, sign_det)`: t with its sign flipped when det is negative (sign bit, so -0 too).
+    const signT = det < 0 || Object.is(det, -0) ? -t : t
+    if (signT < 0) return undefined
+    const invDet = f32(1 / det)
+    return f32(t * invDet)
 }
 
 /** A fresh `BVHTreeNearest` as the callers initialise it (`index = -1`, `dist_sq = FLT_MAX`). */
