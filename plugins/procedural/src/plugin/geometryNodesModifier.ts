@@ -4,26 +4,31 @@
  *
  * `{type: 'geometryNodes', group: 'Terrain', inputs: {Size: 20, Seed: 3}}` evaluates the group with the
  * previous stack output as its geometry input. Inputs are keyed by interface socket name or identifier.
- * The modifier's mesh is the realized mesh component of the result (what the next modifier and the
- * renderer get); the whole geometry set is kept as `entry.evaluatedGeometry` for instance/point/curve
- * drawing.
+ * An input can read a mesh attribute instead: `{attribute: 'UVMap'}`. The modifier's mesh is the result's mesh
+ * component (what the next modifier and the renderer get); instances, points and curves are kept as
+ * `entry.evaluatedGeometry` (ProceduralPlugin draws them) and realized when the stack is applied.
  */
 
 import {MeshData} from '@threepipe/mesh-kernel'
 import type {ModifierContext, ModifierType, ModellingDocument} from '@threepipe/plugin-modelling'
 import {
-    copyMesh, GeometryNodesEvaluator, GeometrySet, isInterfaceSocket, JSONValue, NodeGroupLibrary, realizeInstances,
-    newMeshData, SceneProvider, socketTypeFromIdname,
+    AttributeFieldInput, copyMesh, GeometryNodesEvaluator, GeometrySet, GField, isInterfaceSocket, JSONValue, NodeGroupLibrary,
+    realizeInstances, newMeshData, SceneProvider, socketDataType, socketTypeFromIdname,
 } from '@threepipe/plugin-procedural'
 
 export const NODE_GROUPS_KEY = 'nodeGroups'
+
+export type ModifierInputValue = JSONValue | {attribute: string}
 
 export interface GeometryNodesModifierSpec {
     type: 'geometryNodes'
     /** Name of a node group in the document's `nodeGroups`. */
     group: string
-    /** Modifier input values by interface socket name or identifier; missing ones take the socket default. */
-    inputs?: Record<string, JSONValue>
+    /**
+     * Modifier input values by interface socket name or identifier; missing ones take the socket default. A field input
+     * can read a mesh attribute instead: `{attribute: 'UVMap'}`.
+     */
+    inputs?: Record<string, ModifierInputValue>
     [key: string]: unknown
 }
 
@@ -32,26 +37,88 @@ export function documentNodeGroups(doc: ModellingDocument): NodeGroupLibrary {
     return doc.getData<NodeGroupLibrary>(NODE_GROUPS_KEY) ?? {}
 }
 
-/** Objects of the document, for Object Info: world matrix and evaluated mesh. */
+/**
+ * Scenes linked into every document's geometry nodes besides the document's own objects: the objects, collections
+ * and images of loaded Blender bundles (`blendAsset`), like Blender's linked library data. Their transforms are in
+ * Blender's (Z-up) world.
+ */
+const linkedScenes: SceneProvider[] = []
+
+export function linkScene(scene: SceneProvider): void {
+    if (!linkedScenes.includes(scene)) linkedScenes.push(scene)
+}
+
+export function unlinkScene(scene: SceneProvider): void {
+    const i = linkedScenes.indexOf(scene)
+    if (i >= 0) linkedScenes.splice(i, 1)
+}
+
+/**
+ * threepipe's Y-up world from Blender's Z-up one (`RotX(-90deg)`, the conversion the modelling commands make), so
+ * graphs see document objects in Blender's world like linked ones: `blender = Y_TO_Z * three`.
+ */
+const Y_TO_Z = [1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1]
+
+function mul4(a: ArrayLike<number>, b: ArrayLike<number>): Float32Array {
+    const out = new Float32Array(16)
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+        out[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3]
+    }
+    return out
+}
+
+/**
+ * Objects of the document (world matrix in Blender's Z-up world, evaluated geometry), then the linked scenes, for
+ * Object Info, Collection Info and Image Texture.
+ */
 export function documentScene(doc: ModellingDocument): SceneProvider {
     return {
         object(name) {
             const entry = doc.find(name)
-            if (!entry) return undefined
+            if (!entry) {
+                for (const s of linkedScenes) {
+                    const o = s.object?.(name)
+                    if (o) return o
+                }
+                return undefined
+            }
             entry.object.updateMatrixWorld?.()
+            const extra = entry.evaluatedGeometry
+            const geometry = extra instanceof GeometrySet ? extra.copy() : new GeometrySet()
+            geometry.setMesh(entry.evaluated, true)
             return {
-                transform: Float32Array.from(entry.object.matrixWorld.elements),
-                geometry: GeometrySet.fromMesh(entry.evaluated),
+                transform: mul4(Y_TO_Z, entry.object.matrixWorld.elements),
+                geometry,
                 version: entry.revision,
             }
         },
+        collection(name) {
+            for (const s of linkedScenes) {
+                const c = s.collection?.(name)
+                if (c) return c
+            }
+            return undefined
+        },
+        image(name) {
+            for (const s of linkedScenes) {
+                const i = s.image?.(name)
+                if (i) return i
+            }
+            return undefined
+        },
     }
+}
+
+/** A modifier input reading a mesh attribute (Blender's "use attribute" toggle on a field input): `{attribute: name}`. */
+function isAttributeInput(v: unknown): v is {attribute: string} {
+    return !!v && typeof v === 'object' && !Array.isArray(v) && typeof (v as {attribute?: unknown}).attribute === 'string'
 }
 
 interface CachedEvaluator {
     library: NodeGroupLibrary
     group: string
     evaluator: GeometryNodesEvaluator
+    attributeFields: Map<string, GField>
 }
 
 export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> = {
@@ -62,7 +129,7 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         inputs: {type: 'object', description: 'Input values by interface socket name or identifier.'},
     },
     read(raw) {
-        return {type: 'geometryNodes', group: raw.group as string, inputs: {...(raw.inputs as Record<string, JSONValue> ?? {})}}
+        return {type: 'geometryNodes', group: raw.group as string, inputs: {...(raw.inputs as Record<string, ModifierInputValue> ?? {})}}
     },
     check(spec) {
         if (typeof spec.group !== 'string' || !spec.group) throw new Error('a geometryNodes modifier needs a `group` name')
@@ -78,6 +145,8 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         const values: Record<string, unknown> = {}
         for (const s of tree.interface.filter(isInterfaceSocket).filter(i => i.inOut === 'INPUT')) {
             const type = socketTypeFromIdname(s.socketType)
+            // An input reading an attribute is not a value to edit here.
+            if (isAttributeInput(spec.inputs?.[s.name] ?? spec.inputs?.[s.identifier])) continue
             const def: Record<string, unknown> = {description: s.description || undefined, default: s.default}
             if (type === 'FLOAT' || type === 'INT') {
                 def.type = type === 'INT' ? 'integer' : 'number'
@@ -96,7 +165,7 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
             values,
             // Only inputs already set or now differing from their default are written, so the spec stays minimal.
             update: next => {
-                const inputs: Record<string, JSONValue> = {...(spec.inputs ?? {})}
+                const inputs: Record<string, ModifierInputValue> = {...(spec.inputs ?? {})}
                 for (const [k, v] of Object.entries(next)) {
                     const d = (properties[k] as {default?: unknown}).default
                     if (k in inputs || JSON.stringify(v) !== JSON.stringify(d)) inputs[k] = v as JSONValue
@@ -121,7 +190,7 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         const key = `geometryNodes:${ctx.index}`
         let cached = ctx.state.get(key) as CachedEvaluator | undefined
         if (!cached || cached.library !== library || cached.group !== spec.group) {
-            cached = {library, group: spec.group, evaluator: new GeometryNodesEvaluator(library, spec.group, {scene: documentScene(ctx.doc), selfObject: ctx.entry?.name})}
+            cached = {library, group: spec.group, evaluator: new GeometryNodesEvaluator(library, spec.group, {scene: documentScene(ctx.doc), selfObject: ctx.entry?.name}), attributeFields: new Map()}
             ctx.state.set(key, cached)
         }
         const ev = cached.evaluator
@@ -130,6 +199,16 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
         for (const s of ev.interfaceInputs.filter(isInterfaceSocket)) {
             if (s.socketType.startsWith('NodeSocketGeometry')) continue
             const v = given[s.identifier] ?? given[s.name]
+            if (isAttributeInput(v)) {
+                // The same field object while the name stays, so the evaluator reuses what depends on it.
+                const dt = socketDataType(socketTypeFromIdname(s.socketType))
+                if (!dt) throw new Error(`modifier input "${s.name}" is not a field input, it cannot read attribute "${v.attribute}"`)
+                const fieldKey = `${s.identifier}:${v.attribute}:${dt}`
+                let field = cached.attributeFields.get(fieldKey)
+                if (!field) cached.attributeFields.set(fieldKey, field = GField.fromInput(new AttributeFieldInput(v.attribute, dt)))
+                ev.setInput(s.identifier, field)
+                continue
+            }
             ev.setInput(s.identifier, (v ?? s.default ?? null) as JSONValue)
         }
         for (const k of Object.keys(given)) {
