@@ -3,7 +3,7 @@
  "capture-edge-every-type": "pass (<= 16 ulp)",
  "capture-face-every-type": "pass (<= 2 ulp)",
  "capture-corner-every-type": "pass (<= 16 ulp)",
- "capture-point-matrix-on-edge": "blocked: math::interpolate(float4x4) needs Eigen JacobiSVD (math_matrix.cc:336), not ported - issues/open/modelling-tools/procedural-eigen-port-licence.md",
+ "capture-point-matrix-on-edge": "exact",
  "capture-selection": "exact",
  "capture-position-before-move": "exact",
  "capture-instances": "exact",

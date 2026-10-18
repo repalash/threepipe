@@ -81,9 +81,8 @@ export function subdivMeshCases(): ParityCase[] {
         add(`subdiv-matrix-quads-l${level}`, `Subdivide Mesh level ${level}: rotation and matrix attributes on an all-quad mesh (mix4 and copies only; level 0 is the input)`, {}, () =>
             n.SubdivideMesh({mesh: typed(n.MeshCube({size: [1, 0.5, 2], verticesX: 3, verticesY: 2, verticesZ: 3}).mesh, true), level}).mesh)
     }
-    cases.push({...meshCase('subdiv-matrix-ngons', 'Subdivide Mesh level 1: matrix attributes on triangles / n-gons need the float4x4 mix2', SCENE, () =>
-        n.SubdivideMesh({mesh: typed(n.JoinGeometry({geometry: [shape(), bowtie()]}).geometry, true), level: 1}).mesh),
-    blocked: 'attribute_math::mix2<float4x4> (math::interpolate polar decomposition, Eigen JacobiSVD)'})
+    cases.push(meshCase('subdiv-matrix-ngons', 'Subdivide Mesh level 1: matrix attributes on triangles / n-gons need the float4x4 mix2', SCENE, () =>
+        n.SubdivideMesh({mesh: typed(n.JoinGeometry({geometry: [shape(), bowtie()]}).geometry, true), level: 1}).mesh))
     add('subdiv-uv-l2', 'Subdivide Mesh level 2: two UV maps (continuous and with seams) as face-varying channels', SCENE,
         () => n.SubdivideMesh({mesh: uvs(allMeshes()), level: 2}).mesh)
     add('subdiv-uv-primitives', 'Subdivide Mesh level 1: UV maps of the cube, UV sphere and cylinder primitives (seams, poles, n-gon caps)', {}, () => {

@@ -11,6 +11,7 @@
 
 import {f32, roundHalfAway, floatToUint8} from '../blender/f32'
 import {quatFromExpmap, quatToExpmap} from '../blender/math/quaternion'
+import {interpolateMat4} from '../blender/math/matrixInterpolate'
 import {quatInterpolate} from '../blender/math/rotation'
 import {mat4FromLocQuatScale, mat4ToLocQuatScaleSafe} from '../blender/math/matrix'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
@@ -348,9 +349,14 @@ export function mix2(type: DataType, factor: number, a: ArrayLike<number>, ia: n
         for (let k = 0; k < 4; k++) out[io * 4 + k] = q[k]
         return
     }
+    case 'float4x4': {
+        // `mix2(factor, float4x4, float4x4)` (`attribute_math.cc:45`): `math::interpolate(a, b, factor)`, the polar
+        // decomposition interpolation (`math_matrix.cc:380`).
+        const m = interpolateMat4(Array.prototype.slice.call(a, ia * 16, ia * 16 + 16), Array.prototype.slice.call(b, ib * 16, ib * 16 + 16), t)
+        for (let k = 0; k < 16; k++) out[io * 16 + k] = m[k]
+        return
+    }
     default:
-        // float4x4: `mix2` is `math::interpolate(float4x4)` (`attribute_math.cc:45`), a polar decomposition through
-        // Eigen's SVD (`math_matrix.cc:336`), which is not ported.
-        throw new Error(`attribute_math::mix2 for '${type}' is not ported yet (float4x4 needs math::interpolate: polar_decompose, math_matrix.cc:336)`)
+        throw new Error(`attribute_math::mix2 for '${type}' is not ported`)
     }
 }

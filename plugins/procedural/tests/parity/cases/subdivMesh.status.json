@@ -6,7 +6,7 @@
  "subdiv-typed-l2": "pass (> 16 ulp)",
  "subdiv-matrix-quads-l0": "exact",
  "subdiv-matrix-quads-l2": "pass (> 16 ulp)",
- "subdiv-matrix-ngons": "blocked: attribute_math::mix2<float4x4> (math::interpolate polar decomposition, Eigen JacobiSVD)",
+ "subdiv-matrix-ngons": "pass (> 16 ulp)",
  "subdiv-uv-l2": "exact",
  "subdiv-uv-primitives": "exact",
  "subdiv-uv-flipped": "exact",
