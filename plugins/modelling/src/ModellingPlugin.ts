@@ -313,17 +313,25 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         try {
             const output = await def.run(params, ctx) || {}
             const before = def.mutates ? this.document.endRecording() : []
+            // A mutating command that left the document as it found it - a weld with nothing in range,
+            // a bevel of edges Blender declines - pushes no undo step and says so, so a following
+            // `undo` is never mistaken for undoing it.
+            let changed: boolean | undefined
             if (def.mutates) {
                 const label = describeCommand(command)
                 const entry = this.history.push(op, label, before, index)
-                if (entry) this._recordUndoStep(entry, labelForUndo(command))
-                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'command'})
+                changed = !!entry
+                if (entry) {
+                    this._recordUndoStep(entry, labelForUndo(command))
+                    this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'command'})
+                }
             }
             const result: CommandResult = {
                 ok: true,
                 op,
                 index,
                 documentId: this.document.documentId,
+                changed,
                 objects: output.objects,
                 data: output.data,
                 warnings: warnings.length ? warnings : undefined,
