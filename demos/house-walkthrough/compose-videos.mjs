@@ -34,15 +34,15 @@ if (files.every(existsSync)) {
     const [a, b] = files.map(probe)
     const len = Math.max(a, b)
     const out = join(here, 'video-side-by-side.webm')
-    // Each run scaled to 960x540, held on its last frame to the longer one's length, side by side
-    // (1920x540), with a label over each half. VP9 at a bitrate that keeps a 3-4 minute clip under 25 MB.
+    // Each run scaled to 800x450, held on its last frame to the longer one's length, side by side
+    // (1600x450), with a label over each half. VP9 at a bitrate that keeps a 3-4 minute clip under 25 MB.
     const filter = [
-        `[0:v]scale=960:540,tpad=stop_mode=clone:stop_duration=${Math.ceil(len - a + 1)},drawtext=text='Blender keymap':x=16:y=12:fontsize=26:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[l]`,
-        `[1:v]scale=960:540,tpad=stop_mode=clone:stop_duration=${Math.ceil(len - b + 1)},drawtext=text='Design keymap':x=16:y=12:fontsize=26:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[r]`,
+        `[0:v]scale=800:450,tpad=stop_mode=clone:stop_duration=${Math.ceil(len - a + 1)},drawtext=text='Blender keymap':x=16:y=12:fontsize=26:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[l]`,
+        `[1:v]scale=800:450,tpad=stop_mode=clone:stop_duration=${Math.ceil(len - b + 1)},drawtext=text='Design keymap':x=16:y=12:fontsize=26:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[r]`,
         `[l][r]hstack=inputs=2,trim=duration=${Math.ceil(len)}[v]`,
     ].join(';')
     execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', files[0], '-i', files[1], '-filter_complex', filter, '-map', '[v]',
-        '-c:v', 'libvpx-vp9', '-b:v', '700k', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', out], {stdio: 'inherit'})
+        '-c:v', 'libvpx-vp9', '-b:v', '550k', '-maxrate', '650k', '-bufsize', '1300k', '-deadline', 'good', '-cpu-used', '5', '-row-mt', '1', out], {stdio: 'inherit'})
     info['video-side-by-side.webm'] = {duration: Math.round(probe(out)), sizeMB: Math.round(statSync(out).size / 1e5) / 10}
 }
 writeFileSync(join(here, 'videos.json'), JSON.stringify(info, null, 2))

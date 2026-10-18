@@ -96,7 +96,7 @@ const stepCard = (s) => `<li class="step ${s.ok ? 'ok' : 'fail'}">
     <div class="meta"><span class="n">${s.n}</span> ${esc(s.title)}</div>
     <div class="keys">${esc(s.keys)}</div>
     ${s.ok ? '' : `<div class="err">${esc(s.error)}</div>`}
-    ${s.toasts?.length ? `<div class="toasts">toasts: ${s.toasts.map(t => esc(t)).join(' · ')}</div>` : ''}
+    ${s.toasts?.length ? `<div class="toasts">toasts: ${[...new Set(s.toasts)].map(t => esc(t)).join(' · ')}</div>` : ''}
   </li>`
 const findingCard = (f, i) => {
     const shot = shotFor(f.shot)
@@ -185,8 +185,9 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
   ${video('video-blender.webm', 'Blender keymap')}
   ${video('video-design.webm', 'Design keymap (Figma / trackpad)')}
 </div>
-<p class="sub">Recorded in SwiftShader (no GPU) on a shared, heavily loaded container, so the frame rate is low; the driver takes
-<code>--ws &lt;endpoint&gt;</code> to re-record on a GPU browser. Videos are not committed: run <code>drive.mjs</code> to make them.</p>
+<p class="sub">Recorded with Playwright in headless Chromium on SwiftShader (no GPU), 1280x720; the cursor dot, key chips and title
+cards are overlays drawn by the driver, not part of the editor. <code>drive.mjs --ws &lt;endpoint&gt;</code> re-records on a GPU
+browser. Videos are not committed: run <code>drive.mjs</code> and <code>compose-videos.mjs</code> to make them.</p>
 
 <h2>Result and glb round trip</h2>
 <table>

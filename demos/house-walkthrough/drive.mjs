@@ -126,12 +126,16 @@ function overlayInit() {
     }
     // Toasts the editor shows, collected per step for the report.
     window.__demoToasts = []
-    new MutationObserver(muts => {
+    const seen = new WeakSet()
+    const note = t => { if (!seen.has(t)) { seen.add(t); window.__demoToasts.push(t.textContent) } }
+    const observe = () => new MutationObserver(muts => {
         for (const m of muts) for (const n of m.addedNodes) {
-            if (n.nodeType === 1 && n.classList?.contains('bp5-toast')) window.__demoToasts.push(n.textContent)
-            else if (n.nodeType === 1) n.querySelectorAll?.('.bp5-toast').forEach(t => window.__demoToasts.push(t.textContent))
+            if (n.nodeType === 1 && n.classList?.contains('bp5-toast')) note(n)
+            else if (n.nodeType === 1) n.querySelectorAll?.('.bp5-toast').forEach(note)
         }
     }).observe(document.documentElement, {childList: true, subtree: true})
+    if (document.documentElement) observe()
+    else document.addEventListener('DOMContentLoaded', observe)
 }
 
 // ── page helpers: read state, find things on screen ─────────────────────────────────────────────
@@ -371,10 +375,17 @@ async function runKeymap(browser, keymap) {
                 return {history: s.history.slice(-2), lastProps: s.lastProps}
             }, {note: 'Typed values go in the redo panel; Enter applies them.'})
         }
-        await step('frame', 'Frame the selection', keyLabel(K.frameSel), async() => {
+        await step('frame', 'Zoom in: the wheel does nothing, so frame the selection', (keymap === 'blender' ? 'wheel ×3 · ' : 'pinch (Ctrl+wheel) ×3 · ') + keyLabel(K.frameSel), async() => {
             await moveTo(centre())
+            const dist = () => page.evaluate(() => window.viewer.scene.mainCamera.controls?.getDistance?.())
+            const before = await dist()
+            if (keymap === 'design') await page.keyboard.down('Control')
+            for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, keymap === 'blender' ? -100 : -8); await sleep(350) }
+            if (keymap === 'design') await page.keyboard.up('Control')
+            const afterWheel = await dist()
             await press(K.frameSel, 1500)
-        }, {note: 'The mouse wheel does not zoom (finding #1): framing is the only zoom.', finding: true})
+            return {distanceBefore: before, afterWheel, afterFrame: await dist()}
+        }, {note: 'Wheel and pinch zoom are dead (three-modded OrbitControls.js:422, fix awaiting a release); there are no zoom keys or View > Zoom either. Framing is the only zoom.', finding: true})
 
         // ── 4. roof: two loop cuts, then lift the ridge ──
         const xEdgeTopFront = 'Math.abs(e.a[2]-0.7)<1e-3 && Math.abs(e.b[2]-0.7)<1e-3 && e.a[1]>0.4 && e.b[1]>0.4'
@@ -473,28 +484,30 @@ async function runKeymap(browser, keymap) {
         })
 
         // ── 6. side view: a window from the tool shelf, the porch with the knife ──
-        await step('side-view', 'Side view, to work on the gable end', keyLabel(K.rightView), async() => {
-            await moveTo(centre()); await press(K.rightView, 1500)
+        await step('side-view', 'Side view, to work on the gable end', keyLabel(K.rightView) + ' · ' + keyLabel(K.frameAll), async() => {
+            await moveTo(centre()); await press(K.rightView, 1500); await press(K.frameAll, 1500)
         })
-        await step('window-toolbar', 'Window 3, from the tool shelf: Inset Faces, then Extrude', 'click · Inset Faces tool · move towards the centre · click · Extrude tool · move · click · panel Z = -0.05 ↵', async() => {
+        await step('window-toolbar', 'Window 3, from the tool shelf: Inset Faces, then Extrude', 'click · Inset Faces tool · drag towards the centre · Extrude tool · move · click · panel Z = -0.05 ↵', async() => {
             const p = await faceAt('Math.abs(f.c[0]-1)<1e-3 && f.c[2]<-0.1 && f.n===4')
             if (!p) throw new Error('gable face not found')
             await clickAt(p)
             await page.locator('[data-tool="mesh.inset"]').hover(); await sleep(900)
             await page.locator('[data-tool="mesh.inset"]').click(); await sleep(400)
-            await page.mouse.move(p.x + 150, p.y + 20, {steps: 10}); await sleep(300)
-            await page.mouse.move(p.x + 105, p.y + 14, {steps: 16}); await sleep(600)
-            await page.mouse.click(p.x + 105, p.y + 14); await sleep(600)
+            // Blender's tool: press in the viewport, drag towards the face's centre, release.
+            await page.mouse.move(p.x + 70, p.y + 10, {steps: 12}); await sleep(300)
+            await page.mouse.down(); await sleep(200)
+            await page.mouse.move(p.x + 52, p.y + 8, {steps: 16}); await sleep(600)
+            await page.mouse.up(); await sleep(600)
             const s1 = await waitFor('inset by tool', s => s.lastOp === 'mesh.inset' && !s.modal)
             await page.locator('[data-tool="mesh.extrude"]').click(); await sleep(400)
             await page.mouse.move(p.x + 60, p.y + 10, {steps: 6}); await sleep(200)
             await page.mouse.move(p.x + 30, p.y + 10, {steps: 12}); await sleep(500)
             await page.mouse.click(p.x + 30, p.y + 10); await sleep(600)
-            await waitFor('extruded by tool', s => s.lastOp === 'mesh.extrude' && !s.modal)
+            const byMouse = (await waitFor('extruded by tool', s => s.lastOp === 'mesh.extrude' && !s.modal)).lastProps?.value
             // the depth the mouse gave is whatever it was: set it exactly in the redo panel
             await panelVec(2, -0.05)
             const s = await waitFor('extrude depth', s => s.lastOp === 'mesh.extrude' && Math.abs((s.lastProps?.value?.[2] ?? 0) + 0.05) < 1e-6)
-            return {insetThickness: s1.lastProps?.thickness, extrude: s.lastProps?.value}
+            return {insetThickness: s1.lastProps?.thickness, extrudeByMouse: byMouse, extrude: s.lastProps?.value}
         })
         await step('knife-porch', 'Knife the porch outline on the gable wall', keymap === 'blender' ? 'K · click 4 points · ↵' : 'K (Knife tool) · click 4 points · ↵ · Q', async() => {
             const a = await at([1, -0.5, 0.58]), b = await at([1, -0.22, 0.58]), c = await at([1, -0.22, 0.12]), d = await at([1, -0.5, 0.12])
@@ -524,13 +537,14 @@ async function runKeymap(browser, keymap) {
             await moveTo(c)
             if (keymap === 'blender') {
                 await page.mouse.down({button: 'middle'})
-                await page.mouse.move(c.x - 160, c.y + 70, {steps: 24}); await page.mouse.up({button: 'middle'})
+                await page.mouse.move(c.x + 150, c.y + 60, {steps: 24}); await page.mouse.up({button: 'middle'})
             } else {
                 await page.keyboard.down('Shift')
-                for (let i = 0; i < 30; i++) { await page.mouse.wheel(5.5, 2.2); await sleep(30) }
+                for (let i = 0; i < 30; i++) { await page.mouse.wheel(5.5, 1.1); await sleep(30) }
                 await page.keyboard.up('Shift')
             }
             await sleep(600); await press(K.frameAll, 1500)
+            return {camera: await page.evaluate(() => window.viewer.scene.mainCamera.position.toArray().map(n => Math.round(n * 100) / 100))}
         })
         await step('chimney', 'Chimney: inset a roof face, extrude it straight up', keymap === 'blender' ? 'click · I 0.22 ↵ · E Y 0.5 ↵' : 'click · I 0.22 ↵ · Ctrl+E Y 0.5 ↵', async() => {
             const p = await faceAt('f.c[1]>0.6 && f.c[2]>0.1 && f.c[0]>0.4')

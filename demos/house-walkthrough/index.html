@@ -52,33 +52,355 @@
 <main>
 <h1>House walkthrough</h1>
 <p class="sub">threepipe modelling editor, used as a newcomer would: a low-poly house from the start cube, with real keyboard and
-mouse input only (Playwright), once with the Blender keymap and once with the Design keymap. Branch <code>demo-house-walkthrough</code> at <code>d7a15f4</code>.
+mouse input only (Playwright), once with the Blender keymap and once with the Design keymap. Branch <code>demo-house-walkthrough</code> at <code>7599f955</code>.
 Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">ux-findings.md</a>.</p>
 
 <section class="summary">
-  <div class="card"><strong>What worked</strong><ul><li>The welcome asks one question (Blender or not) and the move-around cards follow the answer and the device.</li><li>Tab / Enter, 1-2-3, A, G/R/S with axis keys and typed values, E with typed distance: Blender muscle memory works, and the status strip shows the modal keys while you type.</li><li>Ctrl+R loop cut: the ring preview, the wheel for more cuts, the right click to keep it centred, exactly as in Blender.</li><li>The redo panel re-runs an operator with new values in one undo step; the History tab jumps to any step.</li><li>Knife: click points, Enter; one undo step. Save As downloads a .glb that re-opens with the same topology, editable.</li></ul></div>
-  <div class="card"><strong>What did not</strong><ul><li><span class="badge blocking">blocking</span><a href="#wheel-zoom">The mouse wheel and trackpad pinch do not zoom</a> - <span class="status filed">filed (fix in three.js-modded, pending a three-modded release; not worked around in the editor)</span></li><li><span class="badge blocking">blocking</span><a href="#inset-tool-dead">Dragging the Inset Faces / Bevel tool did nothing but stack toasts</a> - <span class="status fixed">fixed</span></li><li><span class="badge blocking">blocking</span><a href="#inset-typed-value">I then 0.1 switched to vertex select mode instead of setting the inset</a> - <span class="status fixed">fixed</span></li><li><span class="badge blocking">blocking</span><a href="#panel-keeps-keys">After typing a value in the redo panel, the viewport stopped taking keys</a> - <span class="status fixed">fixed</span></li><li><span class="badge major">major</span><a href="#header-placeholders">Snapping, pivot, orientation and proportional editing are placeholders in the header</a> - <span class="status filed">filed</span></li><li><span class="badge major">major</span><a href="#y-up">Up is Y; Blender tutorials say Z</a> - <span class="status filed">filed (design decision for the maintainer)</span></li><li><span class="badge major">major</span><a href="#toasts">Repeated messages stack up as separate toasts over the model</a> - <span class="status filed">filed</span></li></ul></div>
+  <div class="card"><strong>What worked</strong><ul><li>The welcome asks one question (Blender or not) and the move-around cards follow the answer and the device.</li><li>Tab / Enter, 1-2-3, A, G/R/S with axis keys and typed values, E with typed distance: Blender muscle memory works, and the status strip shows the modal keys while you type.</li><li>Ctrl+R loop cut: the ring preview, the wheel for more cuts, the right click to keep it centred, exactly as in Blender.</li><li>The redo panel re-runs an operator with new values in one undo step; the History tab jumps to any step.</li><li>Knife: click points, Enter; one undo step. Save As downloads a .glb that re-opens with the same topology, editable.</li><li>Design keymap: the Scale and Move gizmo handles plus exact values typed in the redo panel build the same house; Shift + two-finger scroll orbits, two-finger scroll pans.</li></ul></div>
+  <div class="card"><strong>What did not</strong><ul><li><span class="badge blocking">blocking</span><a href="#wheel-zoom">The mouse wheel and trackpad pinch do not zoom</a> - <span class="status filed">filed (fix on three.js-modded branch fix/orbit-dolly-without-damping, awaiting a three-modded release; not worked around in the editor)</span></li><li><span class="badge blocking">blocking</span><a href="#inset-tool-dead">Dragging the Inset Faces / Bevel tool did nothing but stack toasts</a> - <span class="status fixed">fixed (2b51318, 7599f95)</span></li><li><span class="badge blocking">blocking</span><a href="#inset-typed-value">I then 0.1 switched to vertex select mode instead of setting the inset</a> - <span class="status fixed">fixed (2b51318, f5e481d)</span></li><li><span class="badge blocking">blocking</span><a href="#panel-keeps-keys">After typing a value in the redo panel, the viewport stopped taking keys</a> - <span class="status fixed">fixed (34ca389, add661b)</span></li><li><span class="badge major">major</span><a href="#header-placeholders">Snapping, pivot, orientation and proportional editing are placeholders in the header</a> - <span class="status filed">filed</span></li><li><span class="badge major">major</span><a href="#y-up">Up is Y; Blender tutorials say Z</a> - <span class="status filed">filed (design decision for the maintainer)</span></li><li><span class="badge major">major</span><a href="#extrude-tool">The Extrude tool on the shelf barely follows the mouse</a> - <span class="status filed">filed</span></li><li><span class="badge major">major</span><a href="#toasts">Repeated messages stack up as separate toasts over the model</a> - <span class="status filed">filed</span></li></ul></div>
 </section>
 
 <h2>Videos</h2>
 <div class="videos">
-  
+  <figure class="video wide"><video controls preload="metadata" src="video-side-by-side.webm"></video>
+      <figcaption>Blender keymap (left) and Design keymap (right), side by side · 182 s · 23.4 MB · <a href="video-side-by-side.webm">video-side-by-side.webm</a></figcaption></figure>
   <figure class="video"><video controls preload="metadata" src="video-blender.webm"></video>
-      <figcaption>Blender keymap · <a href="video-blender.webm">video-blender.webm</a></figcaption></figure>
+      <figcaption>Blender keymap · 170 s · 13.4 MB · <a href="video-blender.webm">video-blender.webm</a></figcaption></figure>
   <figure class="video"><video controls preload="metadata" src="video-design.webm"></video>
-      <figcaption>Design keymap (Figma / trackpad) · <a href="video-design.webm">video-design.webm</a></figcaption></figure>
+      <figcaption>Design keymap (Figma / trackpad) · 181 s · 13.7 MB · <a href="video-design.webm">video-design.webm</a></figcaption></figure>
 </div>
-<p class="sub">Recorded in SwiftShader (no GPU) on a shared, heavily loaded container, so the frame rate is low; the driver takes
-<code>--ws &lt;endpoint&gt;</code> to re-record on a GPU browser. Videos are not committed: run <code>drive.mjs</code> to make them.</p>
+<p class="sub">Recorded with Playwright in headless Chromium on SwiftShader (no GPU), 1280x720; the cursor dot, key chips and title
+cards are overlays drawn by the driver, not part of the editor. <code>drive.mjs --ws &lt;endpoint&gt;</code> re-records on a GPU
+browser. Videos are not committed: run <code>drive.mjs</code> and <code>compose-videos.mjs</code> to make them.</p>
 
 <h2>Result and glb round trip</h2>
 <table>
   <tr><th>keymap</th><th>steps completed</th><th>final mesh</th><th>saved</th><th>re-opened from the .glb</th><th>run time</th></tr>
-  
+  <tr><td>blender</td><td>26 / 26</td><td>88 verts · 166 edges · 80 faces</td>
+    <td><code>house-blender.glb</code>, 21756 bytes</td>
+    <td>88 verts · 166 edges · 80 faces <span class="same">same</span></td>
+    <td>170 s</td></tr><tr><td>design</td><td>26 / 26</td><td>88 verts · 166 edges · 80 faces</td>
+    <td><code>house-design.glb</code>, 21756 bytes</td>
+    <td>88 verts · 166 edges · 80 faces <span class="same">same</span></td>
+    <td>180 s</td></tr>
 </table>
 
 <h2>Step by step</h2>
-
+<h3 id="steps-blender">Blender keymap</h3>
+<ul class="strip" style="margin-top:10px"><li class="step ok">
+    <a href="shots/blender-01-welcome.jpg"><img loading="lazy" src="shots/blender-01-welcome.jpg" alt="First run: the welcome asks &quot;Have you used Blender?&quot;"></a>
+    <div class="meta"><span class="n">1</span> First run: the welcome asks &quot;Have you used Blender?&quot;</div>
+    <div class="keys">click: Yes, I have used Blender · Mouse</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-02-move-around.jpg"><img loading="lazy" src="shots/blender-02-move-around.jpg" alt="How to move around, drawn for the preset and the device"></a>
+    <div class="meta"><span class="n">2</span> How to move around, drawn for the preset and the device</div>
+    <div class="keys">click: Start modelling</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-03-select-cube.jpg"><img loading="lazy" src="shots/blender-03-select-cube.jpg" alt="Click the cube to select it"></a>
+    <div class="meta"><span class="n">3</span> Click the cube to select it</div>
+    <div class="keys">click</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-04-edit-mode.jpg"><img loading="lazy" src="shots/blender-04-edit-mode.jpg" alt="Edit mode"></a>
+    <div class="meta"><span class="n">4</span> Edit mode</div>
+    <div class="keys">Tab</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-05-walls.jpg"><img loading="lazy" src="shots/blender-05-walls.jpg" alt="Scale the cube into a house footprint: 2 wide, 1.4 deep"></a>
+    <div class="meta"><span class="n">5</span> Scale the cube into a house footprint: 2 wide, 1.4 deep</div>
+    <div class="keys">A · S X 2 ↵ · S Z 1.4 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-06-frame.jpg"><img loading="lazy" src="shots/blender-06-frame.jpg" alt="Zoom in: the wheel does nothing, so frame the selection"></a>
+    <div class="meta"><span class="n">6</span> Zoom in: the wheel does nothing, so frame the selection</div>
+    <div class="keys">wheel ×3 · Numpad .</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-07-loopcut-walls.jpg"><img loading="lazy" src="shots/blender-07-loopcut-walls.jpg" alt="Loop cut: two cuts across the front, for a door and two windows"></a>
+    <div class="meta"><span class="n">7</span> Loop cut: two cuts across the front, for a door and two windows</div>
+    <div class="keys">Ctrl+R · hover the top front edge · wheel ↑ (2 cuts) · click · right-click (keep centred)</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-08-loopcut-ridge.jpg"><img loading="lazy" src="shots/blender-08-loopcut-ridge.jpg" alt="Loop cut along the length: the roof ridge"></a>
+    <div class="meta"><span class="n">8</span> Loop cut along the length: the roof ridge</div>
+    <div class="keys">Ctrl+R · hover the top side edge · click · right-click</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-09-ridge.jpg"><img loading="lazy" src="shots/blender-09-ridge.jpg" alt="Lift the ridge: select its three edges and move them up"></a>
+    <div class="meta"><span class="n">9</span> Lift the ridge: select its three edges and move them up</div>
+    <div class="keys">2 (edges) · Alt+A · click · Shift+click ×2 · G Y 0.7 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-10-frame-all.jpg"><img loading="lazy" src="shots/blender-10-frame-all.jpg" alt="Frame everything again"></a>
+    <div class="meta"><span class="n">10</span> Frame everything again</div>
+    <div class="keys">Home</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-11-door.jpg"><img loading="lazy" src="shots/blender-11-door.jpg" alt="Door, by keys: inset the middle front face, narrow it, push it in"></a>
+    <div class="meta"><span class="n">11</span> Door, by keys: inset the middle front face, narrow it, push it in</div>
+    <div class="keys">3 (faces) · click · I 0.1 ↵ · S X 0.6 ↵ · E -0.1 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-12-window-context.jpg"><img loading="lazy" src="shots/blender-12-window-context.jpg" alt="Window 1, from the right-click Face menu"></a>
+    <div class="meta"><span class="n">12</span> Window 1, from the right-click Face menu</div>
+    <div class="keys">right-click · Inset Faces · panel Thickness 0.15 ↵ · right-click · Extrude · -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-13-window-keys.jpg"><img loading="lazy" src="shots/blender-13-window-keys.jpg" alt="Window 2, by keys"></a>
+    <div class="meta"><span class="n">13</span> Window 2, by keys</div>
+    <div class="keys">click · I 0.15 ↵ · E -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-14-side-view.jpg"><img loading="lazy" src="shots/blender-14-side-view.jpg" alt="Side view, to work on the gable end"></a>
+    <div class="meta"><span class="n">14</span> Side view, to work on the gable end</div>
+    <div class="keys">Numpad 3 · Home</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-15-window-toolbar.jpg"><img loading="lazy" src="shots/blender-15-window-toolbar.jpg" alt="Window 3, from the tool shelf: Inset Faces, then Extrude"></a>
+    <div class="meta"><span class="n">15</span> Window 3, from the tool shelf: Inset Faces, then Extrude</div>
+    <div class="keys">click · Inset Faces tool · drag towards the centre · Extrude tool · move · click · panel Z = -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-16-knife-porch.jpg"><img loading="lazy" src="shots/blender-16-knife-porch.jpg" alt="Knife the porch outline on the gable wall"></a>
+    <div class="meta"><span class="n">16</span> Knife the porch outline on the gable wall</div>
+    <div class="keys">K · click 4 points · ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-17-porch.jpg"><img loading="lazy" src="shots/blender-17-porch.jpg" alt="Extrude the porch out of the wall"></a>
+    <div class="meta"><span class="n">17</span> Extrude the porch out of the wall</div>
+    <div class="keys">3 · click the new face · E 0.4 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-18-orbit-back.jpg"><img loading="lazy" src="shots/blender-18-orbit-back.jpg" alt="Orbit back to a three-quarter view"></a>
+    <div class="meta"><span class="n">18</span> Orbit back to a three-quarter view</div>
+    <div class="keys">middle-drag</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-19-chimney.jpg"><img loading="lazy" src="shots/blender-19-chimney.jpg" alt="Chimney: inset a roof face, extrude it straight up"></a>
+    <div class="meta"><span class="n">19</span> Chimney: inset a roof face, extrude it straight up</div>
+    <div class="keys">click · I 0.22 ↵ · E Y 0.5 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-20-bevel.jpg"><img loading="lazy" src="shots/blender-20-bevel.jpg" alt="Bevel the ridge, then add segments in the redo panel"></a>
+    <div class="meta"><span class="n">20</span> Bevel the ridge, then add segments in the redo panel</div>
+    <div class="keys">2 · click the ridge edges · Ctrl+B 0.06 ↵ · panel Segments = 3 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-21-undo-redo.jpg"><img loading="lazy" src="shots/blender-21-undo-redo.jpg" alt="Undo three steps, redo them, in the History tab"></a>
+    <div class="meta"><span class="n">21</span> Undo three steps, redo them, in the History tab</div>
+    <div class="keys">History tab · Ctrl+Z ×3 · Ctrl+Shift+Z ×3</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-22-shade-smooth.jpg"><img loading="lazy" src="shots/blender-22-shade-smooth.jpg" alt="Shade Smooth / Flat? Search for it"></a>
+    <div class="meta"><span class="n">22</span> Shade Smooth / Flat? Search for it</div>
+    <div class="keys">F3 · &quot;smooth&quot;</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-23-object-mode.jpg"><img loading="lazy" src="shots/blender-23-object-mode.jpg" alt="Back to Object mode"></a>
+    <div class="meta"><span class="n">23</span> Back to Object mode</div>
+    <div class="keys">Tab</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-24-save.jpg"><img loading="lazy" src="shots/blender-24-save.jpg" alt="File &gt; Save As… house.glb"></a>
+    <div class="meta"><span class="n">24</span> File &gt; Save As… house.glb</div>
+    <div class="keys">File menu · Save As… · name · Save</div>
+    
+    <div class="toasts">toasts: Saved house-blender.glb to your downloads. It re-opens editable with File &gt; Open (Ctrl+O).</div>
+  </li><li class="step ok">
+    <a href="shots/blender-25-reopen.jpg"><img loading="lazy" src="shots/blender-25-reopen.jpg" alt="File &gt; Open… the saved .glb: the house comes back editable"></a>
+    <div class="meta"><span class="n">25</span> File &gt; Open… the saved .glb: the house comes back editable</div>
+    <div class="keys">File menu · Open… · pick house.glb · Tab</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/blender-26-final-orbit.jpg"><img loading="lazy" src="shots/blender-26-final-orbit.jpg" alt="The house"></a>
+    <div class="meta"><span class="n">26</span> The house</div>
+    <div class="keys">middle-drag to orbit</div>
+    
+    
+  </li></ul><div style="height:24px"></div><h3 id="steps-design">Design keymap</h3>
+<ul class="strip" style="margin-top:10px"><li class="step ok">
+    <a href="shots/design-01-welcome.jpg"><img loading="lazy" src="shots/design-01-welcome.jpg" alt="First run: the welcome asks &quot;Have you used Blender?&quot;"></a>
+    <div class="meta"><span class="n">1</span> First run: the welcome asks &quot;Have you used Blender?&quot;</div>
+    <div class="keys">click: No, or I know Figma · Trackpad</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-02-move-around.jpg"><img loading="lazy" src="shots/design-02-move-around.jpg" alt="How to move around, drawn for the preset and the device"></a>
+    <div class="meta"><span class="n">2</span> How to move around, drawn for the preset and the device</div>
+    <div class="keys">click: Start modelling</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-03-select-cube.jpg"><img loading="lazy" src="shots/design-03-select-cube.jpg" alt="Click the cube to select it"></a>
+    <div class="meta"><span class="n">3</span> Click the cube to select it</div>
+    <div class="keys">click</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-04-edit-mode.jpg"><img loading="lazy" src="shots/design-04-edit-mode.jpg" alt="Edit mode"></a>
+    <div class="meta"><span class="n">4</span> Edit mode</div>
+    <div class="keys">Enter</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-05-walls.jpg"><img loading="lazy" src="shots/design-05-walls.jpg" alt="Scale with the gizmo, then type exact values in the redo panel"></a>
+    <div class="meta"><span class="n">5</span> Scale with the gizmo, then type exact values in the redo panel</div>
+    <div class="keys">Ctrl+A · R (Scale tool) · drag the X handle · panel X = 2 ↵ · drag Z · panel Z = 1.4 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-06-frame.jpg"><img loading="lazy" src="shots/design-06-frame.jpg" alt="Zoom in: the wheel does nothing, so frame the selection"></a>
+    <div class="meta"><span class="n">6</span> Zoom in: the wheel does nothing, so frame the selection</div>
+    <div class="keys">pinch (Ctrl+wheel) ×3 · F</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-07-loopcut-walls.jpg"><img loading="lazy" src="shots/design-07-loopcut-walls.jpg" alt="Loop cut: two cuts across the front, for a door and two windows"></a>
+    <div class="meta"><span class="n">7</span> Loop cut: two cuts across the front, for a door and two windows</div>
+    <div class="keys">Loop Cut tool · hover the top front edge · wheel ↑ (2 cuts) · click</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-08-loopcut-ridge.jpg"><img loading="lazy" src="shots/design-08-loopcut-ridge.jpg" alt="Loop cut along the length: the roof ridge"></a>
+    <div class="meta"><span class="n">8</span> Loop cut along the length: the roof ridge</div>
+    <div class="keys">hover the top side edge · click · Q (back to Select)</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-09-ridge.jpg"><img loading="lazy" src="shots/design-09-ridge.jpg" alt="Lift the ridge: select its three edges and move them up"></a>
+    <div class="meta"><span class="n">9</span> Lift the ridge: select its three edges and move them up</div>
+    <div class="keys">2 (edges) · click · Shift+click ×2 · W (Move tool) · drag the Y arrow · panel Y = 0.7 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-10-frame-all.jpg"><img loading="lazy" src="shots/design-10-frame-all.jpg" alt="Frame everything again"></a>
+    <div class="meta"><span class="n">10</span> Frame everything again</div>
+    <div class="keys">A</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-11-door.jpg"><img loading="lazy" src="shots/design-11-door.jpg" alt="Door, by keys: inset the middle front face, narrow it, push it in"></a>
+    <div class="meta"><span class="n">11</span> Door, by keys: inset the middle front face, narrow it, push it in</div>
+    <div class="keys">3 (faces) · click · I 0.1 ↵ · R · drag X · panel X = 0.6 ↵ · Ctrl+E -0.1 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-12-window-context.jpg"><img loading="lazy" src="shots/design-12-window-context.jpg" alt="Window 1, from the right-click Face menu"></a>
+    <div class="meta"><span class="n">12</span> Window 1, from the right-click Face menu</div>
+    <div class="keys">right-click · Inset Faces · panel Thickness 0.15 ↵ · right-click · Extrude · -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-13-window-keys.jpg"><img loading="lazy" src="shots/design-13-window-keys.jpg" alt="Window 2, by keys"></a>
+    <div class="meta"><span class="n">13</span> Window 2, by keys</div>
+    <div class="keys">click · I 0.15 ↵ · Ctrl+E -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-14-side-view.jpg"><img loading="lazy" src="shots/design-14-side-view.jpg" alt="Side view, to work on the gable end"></a>
+    <div class="meta"><span class="n">14</span> Side view, to work on the gable end</div>
+    <div class="keys">F2 · A</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-15-window-toolbar.jpg"><img loading="lazy" src="shots/design-15-window-toolbar.jpg" alt="Window 3, from the tool shelf: Inset Faces, then Extrude"></a>
+    <div class="meta"><span class="n">15</span> Window 3, from the tool shelf: Inset Faces, then Extrude</div>
+    <div class="keys">click · Inset Faces tool · drag towards the centre · Extrude tool · move · click · panel Z = -0.05 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-16-knife-porch.jpg"><img loading="lazy" src="shots/design-16-knife-porch.jpg" alt="Knife the porch outline on the gable wall"></a>
+    <div class="meta"><span class="n">16</span> Knife the porch outline on the gable wall</div>
+    <div class="keys">K (Knife tool) · click 4 points · ↵ · Q</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-17-porch.jpg"><img loading="lazy" src="shots/design-17-porch.jpg" alt="Extrude the porch out of the wall"></a>
+    <div class="meta"><span class="n">17</span> Extrude the porch out of the wall</div>
+    <div class="keys">3 · click the new face · Ctrl+E 0.4 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-18-orbit-back.jpg"><img loading="lazy" src="shots/design-18-orbit-back.jpg" alt="Orbit back to a three-quarter view"></a>
+    <div class="meta"><span class="n">18</span> Orbit back to a three-quarter view</div>
+    <div class="keys">Shift + two-finger scroll</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-19-chimney.jpg"><img loading="lazy" src="shots/design-19-chimney.jpg" alt="Chimney: inset a roof face, extrude it straight up"></a>
+    <div class="meta"><span class="n">19</span> Chimney: inset a roof face, extrude it straight up</div>
+    <div class="keys">click · I 0.22 ↵ · Ctrl+E Y 0.5 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-20-bevel.jpg"><img loading="lazy" src="shots/design-20-bevel.jpg" alt="Bevel the ridge, then add segments in the redo panel"></a>
+    <div class="meta"><span class="n">20</span> Bevel the ridge, then add segments in the redo panel</div>
+    <div class="keys">2 · click the ridge edges · Ctrl+B 0.06 ↵ · panel Segments = 3 ↵</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-21-undo-redo.jpg"><img loading="lazy" src="shots/design-21-undo-redo.jpg" alt="Undo three steps, redo them, in the History tab"></a>
+    <div class="meta"><span class="n">21</span> Undo three steps, redo them, in the History tab</div>
+    <div class="keys">History tab · Ctrl+Z ×3 · Ctrl+Shift+Z ×3</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-22-shade-smooth.jpg"><img loading="lazy" src="shots/design-22-shade-smooth.jpg" alt="Shade Smooth / Flat? Search for it"></a>
+    <div class="meta"><span class="n">22</span> Shade Smooth / Flat? Search for it</div>
+    <div class="keys">Ctrl+K · &quot;smooth&quot;</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-23-object-mode.jpg"><img loading="lazy" src="shots/design-23-object-mode.jpg" alt="Back to Object mode"></a>
+    <div class="meta"><span class="n">23</span> Back to Object mode</div>
+    <div class="keys">Escape</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-24-save.jpg"><img loading="lazy" src="shots/design-24-save.jpg" alt="File &gt; Save As… house.glb"></a>
+    <div class="meta"><span class="n">24</span> File &gt; Save As… house.glb</div>
+    <div class="keys">File menu · Save As… · name · Save</div>
+    
+    <div class="toasts">toasts: Saved house-design.glb to your downloads. It re-opens editable with File &gt; Open (Ctrl+O).</div>
+  </li><li class="step ok">
+    <a href="shots/design-25-reopen.jpg"><img loading="lazy" src="shots/design-25-reopen.jpg" alt="File &gt; Open… the saved .glb: the house comes back editable"></a>
+    <div class="meta"><span class="n">25</span> File &gt; Open… the saved .glb: the house comes back editable</div>
+    <div class="keys">File menu · Open… · pick house.glb · Tab</div>
+    
+    
+  </li><li class="step ok">
+    <a href="shots/design-26-final-orbit.jpg"><img loading="lazy" src="shots/design-26-final-orbit.jpg" alt="The house"></a>
+    <div class="meta"><span class="n">26</span> The house</div>
+    <div class="keys">Shift + two-finger scroll to orbit</div>
+    
+    
+  </li></ul>
 
 <h2>Findings, ranked</h2>
 <article class="finding blocking" id="wheel-zoom">
@@ -86,13 +408,13 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
     <div class="cols">
       <dl>
         <dt>Tried</dt><dd>Scrolled the wheel over the viewport to get closer to the cube (Blender, Figma, Tinkercad: wheel or pinch zooms).</dd>
-        <dt>Happened</dt><dd>Nothing: the camera distance stays 7.51. Frame Selected / Frame All are the only zoom, and there are no zoom commands or keys either.</dd>
+        <dt>Happened</dt><dd>Nothing: three wheel notches (Blender run) or three Ctrl+wheel pinch events (Design run) leave the camera distance at 7.51 (run-*.json, step frame). Frame Selected / Frame All are the only zoom, and there are no zoom commands, keys or View menu entries either, so the demo zooms by framing.</dd>
         <dt>Elsewhere</dt><dd>Blender: wheel, Ctrl+MMB drag, Numpad +/-, View &gt; Navigation. Figma: pinch, Ctrl+wheel, Ctrl +/-. Tinkercad: wheel and +/- buttons on the view cube.</dd>
         <dt>Where</dt><dd><code>three-modded examples/jsm/controls/OrbitControls.js:422 multiplies the dolly by (enableDamping ? dampingFactor : 0); the editor turns damping off at plugins/modelling-editor/src/EditorViewportPlugin.ts:141. No zoom operators: plugins/modelling-editor/src/ops/viewOps.ts.</code></dd>
         <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-wheel-zoom-dead.md</code><br><code>issues/open/modelling-tools/ux-no-zoom-commands.md</code></dd>
-        <dt>Status</dt><dd class="status filed">filed (fix in three.js-modded, pending a three-modded release; not worked around in the editor)</dd>
+        <dt>Status</dt><dd class="status filed">filed (fix on three.js-modded branch fix/orbit-dolly-without-damping, awaiting a three-modded release; not worked around in the editor)</dd>
       </dl>
-      
+      <a class="shot" href="shots/blender-06-frame.jpg"><img loading="lazy" src="shots/blender-06-frame.jpg" alt="The mouse wheel and trackpad pinch do not zoom"></a>
     </div>
   </article>
 <article class="finding blocking" id="inset-tool-dead">
@@ -104,7 +426,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Elsewhere</dt><dd>Blender: Inset Faces follows the mouse live (edbm_inset_modal), so does Bevel; the header shows the value.</dd>
         <dt>Where</dt><dd><code>plugins/editor-engine/src/ops/messages.ts:17 (notModalMessage refused engine.propDrag), called on every re-run from plugins/editor-engine/src/tools/PropDragModal.ts _apply.</code></dd>
         
-        <dt>Status</dt><dd class="status fixed">fixed: the modal's own re-runs pass (PropDragModal.applying). e2e: modelling-editor-inset-bevel, section 3.</dd>
+        <dt>Status</dt><dd class="status fixed">fixed (2b51318, 7599f95): the modal's own re-runs pass (PropDragModal.applying), and the shelf tool runs on a press-drag-release in the viewport as Blender's does - before that, the reference was taken where the pointer crossed into the viewport and the first driver run got an inset of 1.87 that turned the gable wall inside out. e2e: modelling-editor-inset-bevel, section 3.</dd>
       </dl>
       <a class="shot" href="findings/toast-stack.jpg"><img loading="lazy" src="findings/toast-stack.jpg" alt="Dragging the Inset Faces / Bevel tool did nothing but stack toasts"></a>
     </div>
@@ -118,7 +440,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Elsewhere</dt><dd>Blender: I and Ctrl+B are modal; the mouse distance from the selection centre sets the value, digits type it (handleNumInput), Enter confirms, Esc cancels; I / O / B toggle individual / outset / boundary while it runs.</dd>
         <dt>Where</dt><dd><code>plugins/editor-engine/src/keymap/presets/blender.ts:88-89 (before the fix) bound I and Ctrl+B to the instant operators; PropDragModal had no numeric input (its docstring said &quot;digits type the value&quot;, handleKey had none) and mapped horizontal mouse travel instead of Blender's distance from the centre.</code></dd>
         
-        <dt>Status</dt><dd class="status fixed">fixed: I and Ctrl+B start the inset/bevel modal in both presets; PropDragModal ports edbm_inset_modal / edbm_bevel_modal (NumInput, radial mouse mapping, Shift precision, I/O/B toggles). e2e: modelling-editor-inset-bevel, sections 1, 2, 4.</dd>
+        <dt>Status</dt><dd class="status fixed">fixed (2b51318, f5e481d): I and Ctrl+B start the inset/bevel modal in both presets; PropDragModal ports edbm_inset_modal / edbm_bevel_modal (NumInput, radial mouse mapping, Shift precision, I/O/B toggles). Typing a width that starts with 0 ran a bevel of width 0, which errored (&quot;indices is not iterable&quot;: the bevel command returned newFaces: 0) and cleared the selection; fixed in the command, the reselect and the modal. e2e: modelling-editor-inset-bevel, sections 1, 2, 4; unit test in plugins/modelling/tests/undo-fidelity.test.ts.</dd>
       </dl>
       <a class="shot" href="findings/inset-typed-keys.jpg"><img loading="lazy" src="findings/inset-typed-keys.jpg" alt="I then 0.1 switched to vertex select mode instead of setting the inset"></a>
     </div>
@@ -132,7 +454,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Elsewhere</dt><dd>Blender: keys go to the area under the pointer (wm_event_system.cc:4400); a number field applies on Enter and ends its editing. Figma: Enter commits a field and returns to the canvas.</dd>
         <dt>Where</dt><dd><code>plugins/modelling-editor/src/ui/PropsForm.tsx (NumericInput onValueChange committed per keystroke, focus kept after Enter); plugins/editor-engine/src/input/InputRouter.ts (routing by document.activeElement only).</code></dd>
         <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-keys-after-redo-panel.md (filed by the parent on modelling-editor)</code></dd>
-        <dt>Status</dt><dd class="status fixed">fixed: number fields commit on Enter or blur and end editing on Enter/Esc; the viewport takes the keys back when the pointer is over it unless a text field is being typed into. e2e: modelling-editor-panel-keys.</dd>
+        <dt>Status</dt><dd class="status fixed">fixed (34ca389, add661b): number fields commit on Enter or blur and end editing on Enter/Esc; the viewport takes the keys back when the pointer is over it unless a text field is being typed into. e2e: modelling-editor-panel-keys (fails with the router change taken out).</dd>
       </dl>
       <a class="shot" href="findings/after-panel-keys-lost.jpg"><img loading="lazy" src="findings/after-panel-keys-lost.jpg" alt="After typing a value in the redo panel, the viewport stopped taking keys"></a>
     </div>
@@ -162,11 +484,25 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-axis-keys-y-up.md</code></dd>
         <dt>Status</dt><dd class="status filed">filed (design decision for the maintainer)</dd>
       </dl>
-      
+      <a class="shot" href="shots/blender-09-ridge.jpg"><img loading="lazy" src="shots/blender-09-ridge.jpg" alt="Up is Y; Blender tutorials say Z"></a>
+    </div>
+  </article>
+<article class="finding major" id="extrude-tool">
+    <header><span class="badge major">major</span> <h3>M3. The Extrude tool on the shelf barely follows the mouse</h3></header>
+    <div class="cols">
+      <dl>
+        <dt>Tried</dt><dd>Window 3 from the tool shelf: after Inset Faces, clicked Extrude, moved over the face and clicked.</dd>
+        <dt>Happened</dt><dd>An extrude of 0.0005: the modal starts while the pointer is on the shelf and the move over the face hardly changes it. The depth had to be typed in the redo panel.</dd>
+        <dt>Elsewhere</dt><dd>Blender's Extrude Region tool drags a gizmo arrow (or a left drag on the selection); SketchUp/Tinkercad push-pull is press, drag, release on the face.</dd>
+        <dt>Where</dt><dd><code>plugins/editor-engine/src/tools/tools.ts, the mesh.extrude tool (oneShot run of the modal extrude from the shelf).</code></dd>
+        <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-extrude-tool-no-drag.md</code></dd>
+        <dt>Status</dt><dd class="status filed">filed</dd>
+      </dl>
+      <a class="shot" href="shots/blender-15-window-toolbar.jpg"><img loading="lazy" src="shots/blender-15-window-toolbar.jpg" alt="The Extrude tool on the shelf barely follows the mouse"></a>
     </div>
   </article>
 <article class="finding major" id="toasts">
-    <header><span class="badge major">major</span> <h3>M3. Repeated messages stack up as separate toasts over the model</h3></header>
+    <header><span class="badge major">major</span> <h3>M4. Repeated messages stack up as separate toasts over the model</h3></header>
     <div class="cols">
       <dl>
         <dt>Tried</dt><dd>Kept working while a message was on screen.</dd>
@@ -190,7 +526,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-shade-smooth-missing.md</code></dd>
         <dt>Status</dt><dd class="status filed">filed</dd>
       </dl>
-      
+      <a class="shot" href="shots/blender-22-shade-smooth.jpg"><img loading="lazy" src="shots/blender-22-shade-smooth.jpg" alt="No Shade Smooth / Shade Flat"></a>
     </div>
   </article>
 <article class="finding minor" id="context-menu">
@@ -232,7 +568,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
         <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-history-labels.md</code></dd>
         <dt>Status</dt><dd class="status filed">filed</dd>
       </dl>
-      
+      <a class="shot" href="shots/blender-21-undo-redo.jpg"><img loading="lazy" src="shots/blender-21-undo-redo.jpg" alt="History labels mix &quot;Inset cube&quot; with &quot;Extrude&quot; and &quot;Scale&quot;"></a>
     </div>
   </article>
 <article class="finding minor" id="hint-covers">
@@ -249,8 +585,22 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
       <a class="shot" href="findings/hint-covers-cube.jpg"><img loading="lazy" src="findings/hint-covers-cube.jpg" alt="The first hint covers the cube it points at"></a>
     </div>
   </article>
+<article class="finding minor" id="panel-tab-trap">
+    <header><span class="badge minor">minor</span> <h3>M6. Tab through the redo panel gets stuck on a field label</h3></header>
+    <div class="cols">
+      <dl>
+        <dt>Tried</dt><dd>Tabbed from Value X towards the Orientation menu in the Scale panel.</dd>
+        <dt>Happened</dt><dd>X, Y, Z, then the &quot;Orientation&quot; label - and every further Tab stays on it (its tooltip target is focusable).</dd>
+        <dt>Elsewhere</dt><dd>Blender and web forms move from control to control.</dd>
+        <dt>Where</dt><dd><code>plugins/modelling-editor/src/ui/PropsForm.tsx, Field: &lt;Tooltip targetTagName=&quot;label&quot;&gt;.</code></dd>
+        <dt>Issue</dt><dd><code>issues/open/modelling-tools/ux-panel-tab-trap.md</code></dd>
+        <dt>Status</dt><dd class="status filed">filed</dd>
+      </dl>
+      
+    </div>
+  </article>
 <article class="finding minor" id="cube-size">
-    <header><span class="badge minor">minor</span> <h3>M6. The start cube is 1 m; Blender's is 2 m</h3></header>
+    <header><span class="badge minor">minor</span> <h3>M7. The start cube is 1 m; Blender's is 2 m</h3></header>
     <div class="cols">
       <dl>
         <dt>Tried</dt><dd>Typed a Blender tutorial's numbers.</dd>
@@ -264,7 +614,9 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
     </div>
   </article>
 
-
+<h2>Fixes in this branch</h2>
+<table><tr><th>commit</th><th>what</th><th>e2e test</th></tr>
+<tr><td><code>2b51318</code></td><td>I / Ctrl+B start Blender's inset and bevel modals (typed values, radial mouse, Shift precision, I/O/B toggles); the shelf tools' drag no longer refused by its own modal check</td><td><code>modelling-editor-inset-bevel</code></td></tr><tr><td><code>34ca389</code></td><td>Redo-panel number fields commit on Enter/blur and hand the keys back; the viewport takes keys when the pointer is over it (ux-keys-after-redo-panel.md)</td><td><code>modelling-editor-panel-keys</code></td></tr><tr><td><code>add661b</code></td><td>panel-keys e2e reaches a focused select the way a person does (click, Esc)</td><td><code>modelling-editor-panel-keys</code></td></tr><tr><td><code>f5e481d</code></td><td>Typing a bevel width that starts with 0: bevel command returns newFaces: [] when it declines, reselect keeps the selection, the modal re-runs afresh after a no-op</td><td><code>modelling-editor-inset-bevel; plugins/modelling/tests/undo-fidelity.test.ts</code></td></tr><tr><td><code>7599f95</code></td><td>Inset Faces / Bevel shelf tools run on press-drag-release in the viewport (blender_default.py:7840, :7851)</td><td><code>modelling-editor-inset-bevel</code></td></tr></table>
 </main>
 </body>
 </html>
