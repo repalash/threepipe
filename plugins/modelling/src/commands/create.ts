@@ -26,10 +26,11 @@ import {
     primitiveSweep,
     primitiveTorus,
     primitiveUVSphere,
+    SweepOptions,
     Vec3,
 } from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
-import {meshBounds, readPoints, readVec3, setShading, Vec3Tuple} from './params'
+import {meshBounds, readPoints, readVec3, setShading, transformMeshVerts, Vec3Tuple} from './params'
 import {ModellingEntry} from '../document'
 
 const PRIMITIVE_TYPES = [
@@ -269,13 +270,39 @@ export const latheCommand: CommandDefinition = {
     },
 }
 
+/**
+ * {@link primitiveSweep} for a Y-up world.
+ *
+ * The kernel is Blender's Curve to Mesh, and Blender's frames are Z-up: `calculate_normals_z_up` and
+ * the first normal of `calculate_normals_minimum` (`curve_poly.cc:126`, `:166`) are perpendicular to
+ * the tangent and to world Z. Handing it threepipe coordinates unconverted made "up" threepipe's +Z,
+ * a horizontal axis, so the same custom section faced differently on a path in the XY plane than on
+ * one in the YZ plane, and `zUp` kept sections level with nothing in particular. The conversion is
+ * the one every other generator here makes (see the file header): the path goes into Blender's axes
+ * with the inverse of {@link axisMatrix}`('y')`, and the mesh comes back out through it. Both are
+ * rotations, so lengths, radii and face winding are unchanged; only which way is up.
+ */
+export function sweepYUp(opts: SweepOptions): MeshData {
+    const toZUp = (p: Vec3): Vec3 => [p[0], -p[2], p[1]]
+    const mesh = primitiveSweep({...opts, path: opts.path.map(toZUp)})
+    transformMeshVerts(mesh, new Matrix4().fromArray(axisMatrix('y')), null)
+    return mesh
+}
+
 export const sweepCommand: CommandDefinition = {
     op: 'sweep',
     summary: 'Sweep a circular (or custom) section along a path to make a tube, rail or handle.',
     description:
         'Frames along the path are rotation-minimising, so the section does not corkscrew around a '
         + 'bend, and a closed path has its residual twist distributed so the seam matches. Output is '
-        + 'quads; caps, when asked for, are single n-gons.',
+        + 'quads; caps, when asked for, are single n-gons.\n\n'
+        + 'How a custom `profile` faces, exactly as Blender\'s Curve to Mesh: profile x runs along the '
+        + 'frame normal and profile y along tangent x normal, so looking along the direction of travel '
+        + 'x points right and y points down. The first normal is horizontal - perpendicular to the '
+        + 'tangent and to world up (+Y) - and minimum twist carries it along the path; `zUp` keeps '
+        + 'every normal horizontal. So on a horizontal path profile x is horizontal, to the right of '
+        + 'travel; on a path in a vertical plane it is across that plane, whichever vertical plane it '
+        + 'is. A path straight up or down has no horizontal normal and falls back to +X.',
     mutates: true,
     schema: schema({
         path: S.array('Path points in object space.', S.vec3('A point.'), {minItems: 2}),
@@ -305,7 +332,7 @@ export const sweepCommand: CommandDefinition = {
                 throw new Error('every entry of `radii` must be a finite number')
             }
         }
-        const mesh = primitiveSweep({
+        const mesh = sweepYUp({
             radii: p.radii as number[] | undefined,
             path,
             radius: (p.radius as number) ?? 0.05,
