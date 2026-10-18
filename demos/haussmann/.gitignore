@@ -1,0 +1,7 @@
+# Local only: the film, large renders and the reference images (listed with sources in refs/SOURCES.md;
+# restored with `git archive demo-haussmann demos/haussmann/refs | tar x`).
+video.mp4
+*.webm
+*.glb
+refs/*.jpg
+film/

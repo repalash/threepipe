@@ -74,11 +74,17 @@ export async function openFilm(o = {}) {
     let commandMs = 0
     const state = {ticker: true}
 
+    // CDP's screenshot (optimizeForSpeed) is several times faster than page.screenshot's stable-frame checks.
+    const cdp = await page.context().newCDPSession(page)
+    const grab = async path => {
+        const {data} = await cdp.send('Page.captureScreenshot', {format: 'jpeg', quality: 93, optimizeForSpeed: true})
+        writeFileSync(path, Buffer.from(data, 'base64'))
+    }
     /** Render one frame of the current page state and capture it; `n` repeats it (a hold). */
     async function shoot(n = 1) {
         await page.evaluate(() => window.__film.frame())
         const file = `f${String(++uniq).padStart(6, '0')}.jpg`
-        await page.screenshot({path: join(frameDir, file), type: 'jpeg', quality: 93})
+        await grab(join(frameDir, file))
         list.push({file, frames: n})
         frameNo += n
         return file
@@ -107,6 +113,7 @@ export async function openFilm(o = {}) {
          *  moving the camera along the current move if one is set (`film.move`). */
         async run(cmd, {frames = 3, show = true, quiet = false} = {}) {
             const r = await page.evaluate(c => window.modelling.run(c), cmd)
+            if (r.ok && cmd.op === 'decal') await page.evaluate(() => new Promise(r => setTimeout(r, 120))) // its texture decodes async
             commandMs += r.ms ?? 0
             transcript.push({command: cmd, ok: r.ok, ms: r.ms, error: r.ok ? undefined : r.error,
                 warnings: r.warnings?.length ? r.warnings : undefined})
@@ -115,6 +122,8 @@ export async function openFilm(o = {}) {
             for (let i = 0; i < frames; i++) { await page.evaluate(() => window.__film.step()); await shoot(1) }
             return r
         },
+        /** Note a command the film carried out itself (an eased camera move) in the transcript. */
+        record(cmd) { transcript.push({command: cmd, ok: true, ms: 0, film: true}) },
         /** A read-only command for the film itself (camera, reference, display): not in the transcript. */
         stage: cmd => page.evaluate(c => window.modelling.run(c), cmd),
         /** Set the camera now. */
@@ -167,7 +176,7 @@ export async function openFilm(o = {}) {
         /** Save the current frame as a still (full size JPEG) under <out>/stills. */
         async still(name) {
             await page.evaluate(() => window.__film.frame())
-            await page.screenshot({path: join(out, 'stills', `${name}.jpg`), type: 'jpeg', quality: 92})
+            await grab(join(out, 'stills', `${name}.jpg`))
         },
         /** Counts over the document: objects, verts, faces, triangles (evaluated). */
         stats: () => page.evaluate(() => window.__film.stats()),
