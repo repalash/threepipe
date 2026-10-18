@@ -18,6 +18,7 @@ import {zoneCases} from './cases/zones'
 import {proximityCases} from './cases/proximity'
 import {raycastCases} from './cases/raycast'
 import {demoCases} from './cases/demos'
+import {curveSetterCases} from './cases/curveSetters'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -59,6 +60,7 @@ SETS.zones = zoneCases
 SETS.proximity = proximityCases
 SETS.raycast = raycastCases
 SETS.demos = demoCases
+SETS.curveSetters = curveSetterCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
