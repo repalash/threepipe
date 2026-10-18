@@ -19,16 +19,14 @@
   "reason": "not ported: GeometryNodeCurvePrimitiveCircle"
  },
  "attr-interp-int-rounding": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath"
+  "status": "pass"
  },
  "attr-interp-loose": {
   "status": "skip",
   "reason": "not ported: GeometryNodeMeshLine, GeometryNodePointsToVertices"
  },
  "attr-interp-point-to-all": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "attr-interp-quaternion": {
   "status": "skip",
@@ -41,148 +39,112 @@
   "status": "pass"
  },
  "bool-AND-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-AND-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-AND-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-AND-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-float-negative": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-IMPLY-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-IMPLY-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-IMPLY-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-IMPLY-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-int-negative": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath, FunctionNodeIntegerMath"
+  "status": "pass"
  },
  "bool-NAND-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NAND-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NAND-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NAND-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NIMPLY-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NIMPLY-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NIMPLY-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NIMPLY-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOR-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOR-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOR-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOR-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOT-0": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-NOT-1": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-OR-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-OR-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-OR-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-OR-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XNOR-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XNOR-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XNOR-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XNOR-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XOR-00": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XOR-01": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XOR-10": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "bool-XOR-11": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeBooleanMath"
+  "status": "pass"
  },
  "collection-info-none": {
   "status": "skip",
@@ -221,132 +183,100 @@
   "reason": "not ported: ShaderNodeCombineXYZ"
  },
  "compare-coerce-op": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-brighter": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-eq-alpha": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-b-above": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-b-at": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-b-hi": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-g-hi": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-g-lo": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-r-at": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-r-below": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-color-luma-r-hi": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-float-eq-eps": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-float-eq-neg-eps": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-float-nan-eq": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-float-nan-ne": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-float-ne-neg-eps": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-int-from-float-link": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-int-le": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-new-node-default": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-string-case": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-average-eq": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dir-both-zero": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dir-gt": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dir-opposite": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dir-zero": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dot-eq-at-eps": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dot-gt": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-dot-ne-at-eps": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-element-ge": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-element-lt": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-element-ne": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "compare-vec-length-eq": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeCompare"
+  "status": "pass"
  },
  "edge-angle-cube": {
   "status": "skip",
@@ -397,11 +327,11 @@
  },
  "eval-switch-field": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "eval-switch-geometry-field-condition": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "eval-switch-single": {
   "status": "skip",
@@ -479,12 +409,10 @@
   "reason": "not ported: GeometryNodeDuplicateElements"
  },
  "fields-constant-field-into-single": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt, FunctionNodeIntegerMath"
+  "status": "pass"
  },
  "fields-context-field-into-single": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath"
+  "status": "pass"
  },
  "fields-geometry-binding": {
   "status": "skip",
@@ -499,11 +427,10 @@
  },
  "fields-selection": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeSetPosition"
+  "reason": "not ported: GeometryNodeSetPosition"
  },
  "fields-two-consumers": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath"
+  "status": "pass"
  },
  "grid-3x2": {
   "status": "pass"
@@ -512,23 +439,19 @@
   "status": "pass"
  },
  "grid-large-count": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt"
+  "status": "pass"
  },
  "grid-line-x1": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt"
+  "status": "pass"
  },
  "grid-line-y1": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt"
+  "status": "pass"
  },
  "grid-negative-size-uv": {
   "status": "pass"
  },
  "grid-single-vertex": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt"
+  "status": "pass"
  },
  "grid-to-points-faces": {
   "status": "skip",
@@ -545,8 +468,7 @@
   "status": "pass"
  },
  "grid-zero-vertices": {
-  "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt"
+  "status": "pass"
  },
  "gs-join-curves-radius-resolution": {
   "status": "skip",
@@ -612,7 +534,7 @@
  },
  "iop-pick-wrap": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
  },
  "iop-points-inside-instances": {
   "status": "skip",
@@ -620,7 +542,7 @@
  },
  "iop-selection-rot-scale": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
  },
  "is-edge-smooth-cube-default": {
   "status": "skip",
@@ -972,7 +894,7 @@
  },
  "position-mesh-face": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeSetPosition"
+  "reason": "not ported: GeometryNodeSetPosition"
  },
  "position-mesh-point": {
   "status": "pass"
@@ -991,7 +913,7 @@
  },
  "realize-id-hash": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
  },
  "realize-instance-attr-curves-domain": {
   "status": "skip",
@@ -1007,7 +929,7 @@
  },
  "realize-selection-kept-first": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
  },
  "rv-bool-default": {
   "status": "skip",
@@ -1019,11 +941,11 @@
  },
  "rv-face-domain-ignores-id": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-float-big-id": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-float-default": {
   "status": "skip",
@@ -1031,7 +953,7 @@
  },
  "rv-float-id-attribute": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-float-min-above-max": {
   "status": "skip",
@@ -1039,7 +961,7 @@
  },
  "rv-float-negative-id": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-float-range-seed": {
   "status": "skip",
@@ -1055,7 +977,7 @@
  },
  "rv-int-negative": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeIntegerMath, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-int-swapped": {
   "status": "skip",
@@ -1063,7 +985,7 @@
  },
  "rv-into-single-constant": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeInputInt, FunctionNodeRandomValue"
+  "reason": "not ported: FunctionNodeRandomValue"
  },
  "rv-into-single-context": {
   "status": "skip",
@@ -1183,7 +1105,7 @@
  },
  "switch-field-condition": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
  },
  "switch-field-values": {
   "status": "skip",
@@ -1199,7 +1121,7 @@
  },
  "switch-geometry-field-condition": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
  },
  "switch-int": {
   "status": "skip",
@@ -1251,7 +1173,7 @@
  },
  "translate-local-field": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
  },
  "translate-nested-untouched": {
   "status": "skip",
@@ -1259,6 +1181,6 @@
  },
  "translate-selection": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCompare, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
  }
 }

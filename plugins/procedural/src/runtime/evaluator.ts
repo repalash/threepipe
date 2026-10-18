@@ -388,6 +388,11 @@ class TreeEval {
             break
         }
         const def = n.def!
+        const single = def.singleValueFunction?.(n.inst!)
+        if (single) {
+            this.executeSingleValueFunction(n, cache, single)
+            return
+        }
         if (def.multiFunction) {
             this.executeMultiFunction(n, cache)
             return
@@ -406,6 +411,21 @@ class TreeEval {
             err.stack = (e as Error).stack
             throw err
         }
+    }
+
+    /** {@link NodeTypeDef.singleValueFunction}: `execute_multi_function_on_value_variant__single` over non-field types. */
+    private executeSingleValueFunction(n: CNode, cache: NodeCache, fn: (inputs: SocketValue[]) => SocketValue[]): void {
+        const inputs = [...n.inputDecls.values()].filter(d => d.available)
+        const outputs = [...n.outputDecls.values()].filter(d => d.available)
+        const values = inputs.map(d => {
+            const v = this.inputValue(n, d.identifier, cache.deps)
+            if (v instanceof GField && v.dependsOnInput) {
+                throw new Error(`procedural: ${n.json.type} '${n.json.name}': input ${d.identifier} is a field, but this function takes single values`)
+            }
+            return v
+        })
+        const result = fn(values)
+        outputs.forEach((d, i) => cache.outputs.set(d.identifier, result[i]))
     }
 
     /** `LazyFunctionForMultiFunctionNode` + `execute_multi_function_on_value_variant`. */

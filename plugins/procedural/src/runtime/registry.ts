@@ -8,6 +8,7 @@ import type {MultiFunction} from '../fields/field'
 import {Declaration, DeclarationBuilder} from './declaration'
 import type {ExecParams} from './params'
 import type {JSONValue, NodeJSON} from './types'
+import type {SocketValue} from './values'
 
 /** A node of a tree as node code sees it. */
 export class NodeInstance {
@@ -64,6 +65,13 @@ export interface NodeTypeDef {
      * `geometry_nodes_lazy_function.cc:502`).
      */
     multiFunction?(node: NodeInstance): MultiFunction
+    /**
+     * Multi-functions whose parameters are socket types that never hold fields (`std::string`, `ID *`, e.g.
+     * Compare of strings, `node_fn_compare.cc:636`): Blender runs them on single values only. Returns
+     * undefined when the node's current properties use {@link multiFunction} instead; otherwise a function
+     * from the available input values to the available output values, in declaration order.
+     */
+    singleValueFunction?(node: NodeInstance): ((inputs: SocketValue[]) => SocketValue[]) | undefined
     /** Everything else (`geometry_node_execute`). */
     execute?(params: ExecParams): void
     /** `internally_linked_input` override for muted nodes. */

@@ -1,5 +1,5 @@
 /**
- * Every ported node declaration against Blender 5.2.2's own (`geonodes-kit/nodes-5.2.2.json`: socket
+ * Every ported node declaration against Blender 5.2.2's own (`geonodes-kit/coverage/nodes-5.2.2.json`: socket
  * identifiers, names, types and subtypes, defaults, hidden values, availability and RNA properties of a
  * freshly added node). Blender output, read as data.
  */
@@ -16,7 +16,7 @@ interface InvSocket {identifier: string, name: string, type: string, default: un
 interface InvProp {identifier: string, type: string, items?: string[], default: unknown}
 interface InvNode {idname: string, label: string, inputs: InvSocket[], outputs: InvSocket[], properties: InvProp[]}
 
-const inventory = JSON.parse(readFileSync(join(__dirname, 'geonodes-kit/nodes-5.2.2.json'), 'utf8')) as {blender: string, nodes: InvNode[]}
+const inventory = JSON.parse(readFileSync(join(__dirname, 'geonodes-kit/coverage/nodes-5.2.2.json'), 'utf8')) as {blender: string, nodes: InvNode[]}
 const byId = new Map(inventory.nodes.map(x => [x.idname, x]))
 
 /** `NodeSocketFloatDistance` → `DISTANCE`, `NodeSocketVectorEuler` → `EULER`, `NodeSocketFloat` → `NONE`. */
@@ -66,11 +66,16 @@ describe(`node declarations match Blender ${inventory.blender}`, () => {
             compareSockets('input', inv.inputs, inst.decl.inputs, errors)
             compareSockets('output', inv.outputs, inst.decl.outputs, errors)
             for (const p of inv.properties) {
+                // Struct pointers (`texture_mapping`, `color_mapping`: shader-editor mapping the geometry multi-functions
+                // never read; `color_ramp`, `mapping`: carried as `colorRamp`/`curveMapping`; `paired_output`, `node_tree`:
+                // `pairedOutput`/`group`) and item collections (carried as `items`) are not RNA values.
+                if (p.type === 'POINTER' || p.type === 'COLLECTION') continue
                 if (!def.properties || !(p.identifier in def.properties)) {
                     errors.push(`property '${p.identifier}' (${p.type}, default ${JSON.stringify(p.default)}) is not declared`)
                     continue
                 }
-                if (!sameDefault(p.default, def.properties[p.identifier])) {
+                // The inventory records no default for array properties (`vector`, `rotation_euler`, ...).
+                if (p.default !== undefined && !sameDefault(p.default, def.properties[p.identifier])) {
                     errors.push(`property '${p.identifier}' default: Blender ${JSON.stringify(p.default)}, ours ${JSON.stringify(def.properties[p.identifier])}`)
                 }
                 // The inventory lists an enum's static items; nodes filter them with an item function

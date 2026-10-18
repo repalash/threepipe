@@ -27,6 +27,8 @@ registerNodeType({
     idname: 'FunctionNodeBooleanMath',
     label: 'Boolean Math',
     properties: {operation: 'AND'},
+    // rna_enum_node_boolean_math_items (node_fn_boolean_math.cc:160).
+    enums: {operation: ['AND', 'OR', 'NOT', 'NAND', 'NOR', 'XNOR', 'XOR', 'IMPLY', 'NIMPLY']},
     declare(b, node) {
         b.input('BOOLEAN', 'Boolean')
         if (node.prop<string>('operation') !== 'NOT') b.input('BOOLEAN', 'Boolean', 'Boolean_001')

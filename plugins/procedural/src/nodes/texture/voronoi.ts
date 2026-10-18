@@ -184,6 +184,10 @@ registerNodeType({
     label: 'Voronoi Texture',
     // `node_shader_init_tex_voronoi` (:139): 3D, Euclidean, F1, normalize off.
     properties: {voronoi_dimensions: '3D', distance: 'EUCLIDEAN', feature: 'F1', normalize: false},
+    enums: {
+        voronoi_dimensions: ['1D', '2D', '3D', '4D'], distance: ['EUCLIDEAN', 'MANHATTAN', 'CHEBYCHEV', 'MINKOWSKI'],
+        feature: ['F1', 'F2', 'SMOOTH_F1', 'DISTANCE_TO_EDGE', 'N_SPHERE_RADIUS'],
+    },
     declare(b, node) {
         const dimensions = texDimensions(node.prop<string>('voronoi_dimensions'))
         const feat = feature(node.prop<string>('feature'))
