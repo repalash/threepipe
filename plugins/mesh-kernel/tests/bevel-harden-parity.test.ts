@@ -15,7 +15,7 @@
 import {describe, expect, it} from 'vitest'
 import {MeshData} from '../src/MeshData'
 import {AttrDomain, AttrName} from '../src/constants'
-import {bmFromMesh, bmToMesh} from '../src/bmesh/convert'
+import {BM_FROM_MESH_NORMALS, bmFromMesh, bmToMesh} from '../src/bmesh/convert'
 import {bevelEdges} from '../src/ops/bevel'
 import {CornerFanSpaces, faceNormalsTrue, meshCornerNormals, normalsCalcCorners} from '../src/normals'
 import {FACE_WEIGHT_LAYER} from '../src/weightedNormal'
@@ -39,7 +39,9 @@ describe(`bevel harden normals parity with Blender ${fixture.blender}`, () => {
         it(c.name, () => {
             const input = MeshData.fromFaces({positions: c.input.positions.flat(), faces: c.input.faces})
             if (!c.input.smooth) input.attributes.ensure(AttrName.sharpFace, AttrDomain.Face, 'bool').data.fill(1)
-            const bm = bmFromMesh(input)
+            // bm.from_mesh in the generator computes face and vertex normals (bmesh_py_types.cc:1537, use_fnorm /
+            // use_vert_normal default true); bevel reads them as left
+            const bm = bmFromMesh(input, BM_FROM_MESH_NORMALS)
             const verts = [...bm.verts]
             const edges = c.input.edges === 'all'
                 ? [...bm.edges]
