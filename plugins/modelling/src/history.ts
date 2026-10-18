@@ -12,15 +12,15 @@
  * far simpler and cost little.
  */
 
-import {EntrySnapshot, ModellingDocument} from './document'
+import {DocumentSnapshot, ModellingDocument} from './document'
 
 export interface HistoryEntry {
     op: string
     label: string
-    /** Object states as they were *before* the command ran. */
-    before: EntrySnapshot[]
+    /** Object (and document data) states as they were *before* the command ran. */
+    before: DocumentSnapshot[]
     /** Object states as they were *after*. Filled in when the entry is pushed. */
-    after: EntrySnapshot[]
+    after: DocumentSnapshot[]
     /** Named by a `checkpoint` command, so `undo {to}` can rewind to it. */
     checkpoint?: string
     index: number
@@ -64,18 +64,16 @@ export class ModellingHistory {
         }))
     }
 
-    push(op: string, label: string, before: EntrySnapshot[], index: number): HistoryEntry | null {
+    push(op: string, label: string, before: DocumentSnapshot[], index: number): HistoryEntry | null {
         if (!before.length) return null
         // A new command discards anything that was undone, as every editor does.
         this._entries.length = this._position
-        const after = before
-            .map(b => this._doc.find(b.id))
-            .filter((e): e is NonNullable<typeof e> => !!e)
-            .map(e => this._doc.snapshot(e))
-        // Objects the command deleted have no "after"; record the absence so redo removes them again.
-        for (const b of before) {
-            if (!this._doc.find(b.id)) after.push({...b, mesh: null})
-        }
+        const after = before.map((b): DocumentSnapshot => {
+            if (b.kind === 'data') return this._doc.resnapshot(b)
+            const entry = this._doc.find(b.id)
+            // Objects the command deleted have no "after"; record the absence so redo removes them again.
+            return entry ? this._doc.snapshot(entry) : {...b, mesh: null}
+        })
         const entry: HistoryEntry = {op, label, before, after, index}
         this._entries.push(entry)
         if (this._entries.length > this.limit) this._entries.shift()

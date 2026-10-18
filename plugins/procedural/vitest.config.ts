@@ -8,6 +8,8 @@ export default defineConfig({
         alias: {
             'three': path.resolve(__dirname, '../../node_modules/three/'),
             '@threepipe/mesh-kernel': path.resolve(__dirname, '../mesh-kernel/src/index.ts'),
+            // `src/plugin` imports the package by name, so its bundle shares the core's node registry.
+            '@threepipe/plugin-procedural': path.resolve(__dirname, 'src/index.ts'),
         },
     },
     test: {

@@ -225,6 +225,20 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 this.document.endRecording()
                 this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
             },
+            readDocument: () => {
+                const keys = this.document.dataKeys
+                return keys.length ? Object.fromEntries(keys.map(k => [k, this.document.getData(k)])) : undefined
+            },
+            // Imported data merges into what the document has, per key (a file's node groups join the
+            // session's; a group of the same name is replaced).
+            writeDocument: data => {
+                for (const [key, value] of Object.entries(data)) {
+                    const existing = this.document.getData(key)
+                    const merged = isPlainObject(existing) && isPlainObject(value) ? {...existing, ...value} : value
+                    this.document.setData(key, merged)
+                }
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
+            },
         })
         viewer.assetManager.registerGltfExtension(this._gltfExtension.extension as never)
     }
@@ -455,4 +469,8 @@ function base64ToBytes(base64: string): Uint8Array {
     }
     // Node without a DOM polyfill.
     return new Uint8Array(Buffer.from(base64, 'base64'))
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return !!v && typeof v === 'object' && !Array.isArray(v)
 }

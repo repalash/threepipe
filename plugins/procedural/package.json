@@ -10,13 +10,20 @@
     },
     "peerDependencies": {
         "three": ">=0.168.0",
-        "@threepipe/mesh-kernel": ">=0.1.0"
+        "@threepipe/mesh-kernel": ">=0.1.0",
+        "threepipe": ">=0.5.0",
+        "@threepipe/plugin-modelling": ">=0.1.0"
     },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
             "require": "./dist/index.js"
+        },
+        "./plugin": {
+            "types": "./dist/plugin/index.d.ts",
+            "import": "./dist/plugin.mjs",
+            "require": "./dist/plugin.js"
         },
         "./dist/": {
             "import": "./dist/",
@@ -34,7 +41,7 @@
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "prepare": "npm run build",
-        "build": "rimraf dist && vite build",
+        "build": "rimraf dist && vite build && vite build -c vite.plugin.config.js",
         "dev": "NODE_ENV=development vite build --watch",
         "test": "vitest run",
         "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -71,6 +78,14 @@
         ],
         "replace": {
             "dependencies": {}
+        }
+    },
+    "peerDependenciesMeta": {
+        "threepipe": {
+            "optional": true
+        },
+        "@threepipe/plugin-modelling": {
+            "optional": true
         }
     }
 }
