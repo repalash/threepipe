@@ -55,7 +55,7 @@ const parts = [
     button('btn-front.0', -19.5, 21, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     button('btn-front.1', -19.5, 34, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     // eyecup: rubber frame round the eyepiece, standing 10.4 out of the rear
-    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 13, windowWidth: 24, windowHeight: 16, windowRadius: 3, windowDepth: 9, flare: 2}, [15.5, 90, 0.2], toMinusZ),
+    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 16, windowWidth: 24, windowHeight: 16, windowRadius: 3.5, windowDepth: 9, flare: 2.5}, [15.5, 90, 0.2], toMinusZ),
     // the lens bore: a matte baffle and an inner element behind the front glass, so the glass shows a dark,
     // reflective interior instead of the chrome mount through an empty tube
     part('product/lens-barrel', 'lens-baffle', {stations: [[22.6, 0], [22.6, 1.2]], segments: 64}, [...LENS, 150], toZ),

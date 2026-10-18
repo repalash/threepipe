@@ -62,6 +62,12 @@ describe('surface commands', () => {
         for (const v of q.vertices) expect(Math.hypot(...v as [number, number, number])).toBeGreaterThan(9.8)
         b = q.bounds
         expect(b.size[2]).toBeGreaterThan(0.5) // curved, not flat
+        // larger than the ball: the cells that miss it are left out, nothing floats on the plane
+        const big = await s.run({op: 'decal', name: 'big', mode: 'project', object: 'ball', at: [0, 0, 10], normal: [0, 0, 1], size: [30, 30], content: {text: {text: 'x'}}, segments: [12, 12]})
+        expect(String(big.warnings)).toMatch(/left out/)
+        const bg = (await s.run({op: 'inspect', object: 'big', detail: true})).data as any
+        expect(bg.faces).toBeLessThan(144)
+        for (const v of bg.vertices) expect(Math.hypot(...v as [number, number, number])).toBeCloseTo(10.05, 0)
         s.dispose()
     })
 })

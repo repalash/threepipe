@@ -58,18 +58,29 @@ export function decalSvg(content: {svg?: string, text?: DecalText}, w: number, h
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><text ${attrs}>${esc(t.text)}</text></svg>`
 }
 
-/** A quad grid `nx` x `ny` with a `uv` corner layer (u right, v up), positions from `at(u, v)`. Exported for tests. */
-export function decalGrid(nx: number, ny: number, at: (u: number, v: number) => V3): MeshData {
-    const positions: number[] = []
-    for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) positions.push(...at(i / nx, j / ny))
-    const faces: number[][] = []
+/**
+ * A quad grid `nx` x `ny` with a `uv` corner layer (u right, v up), positions from `at(u, v)`, which returns null for
+ * a point to leave out (a projected point that missed): faces touching such a point are dropped. Exported for tests.
+ */
+export function decalGrid(nx: number, ny: number, at: (u: number, v: number) => V3 | null): MeshData {
+    const pts: (V3 | null)[] = []
+    for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) pts.push(at(i / nx, j / ny))
     const id = (i: number, j: number) => j * (nx + 1) + i
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) faces.push([id(i, j), id(i + 1, j), id(i + 1, j + 1), id(i, j + 1)])
+    const gridFaces: number[][] = []
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const q = [id(i, j), id(i + 1, j), id(i + 1, j + 1), id(i, j + 1)]
+        if (q.every(g => pts[g])) gridFaces.push(q)
+    }
+    if (!gridFaces.length) throw new Error('the decal has no faces left: every grid cell missed the surface')
+    // vertices keep grid order (row by row), skipping the unused ones
+    const used = new Set(gridFaces.flat()), index = new Map<number, number>(), positions: number[] = [], gridOf: number[] = []
+    for (let g = 0; g < pts.length; g++) if (used.has(g)) { index.set(g, gridOf.length); gridOf.push(g); positions.push(...pts[g]!) }
+    const faces = gridFaces.map(q => q.map(g => index.get(g)!))
     const mesh = MeshData.fromFaces({positions, faces})
     const uv = mesh.attributes.ensure('uv', AttrDomain.Corner, 'float2').data
     const CV = mesh.cornerVerts
     for (let c = 0; c < mesh.cornersNum; c++) {
-        const v = CV[c], i = v % (nx + 1), j = Math.floor(v / (nx + 1))
+        const g = gridOf[CV[c]], i = g % (nx + 1), j = Math.floor(g / (nx + 1))
         uv[2 * c] = i / nx
         uv[2 * c + 1] = j / ny
     }
@@ -96,7 +107,8 @@ export const decalCommand: CommandDefinition = {
     summary: 'A printed marking - text, logo or legend - as a thin textured object on a surface.',
     description: 'Builds a grid of quads `size` [width, height] across, centred on `at`, and textures it with `content` '
         + '(SVG, or `text` turned into SVG). `mode`: `plane` - flat, facing `normal`; `project` - each grid point dropped '
-        + 'onto `object` along `-normal` and lifted by `offset`, so the print follows a curved body; `wrap` - bent round '
+        + 'onto `object` along `-normal` and lifted by `offset`, so the print follows a curved body (cells that miss it are '
+        + 'left out); `wrap` - bent round '
         + '`wrap.axis` through `wrap.center` at the radius of `at` (or `wrap.radius`), width measured along the arc, for '
         + 'text round a lens ring. `up` is the text\'s up direction. The print is rasterised by the browser; in a Node '
         + 'session only the geometry is made.',
@@ -171,11 +183,11 @@ export const decalCommand: CommandDefinition = {
                     ray.set(new Vector3(...add(q, mul(n, reach))), new Vector3(...mul(n, -1)))
                     ray.far = reach * 2
                     const hit = ray.intersectObject(obj as never, true)[0]
-                    if (!hit) { misses++; return add(q, mul(n, offset)) }
+                    if (!hit) { misses++; return null }
                     const fn = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : new Vector3(...n)
                     return [hit.point.x + fn.x * offset, hit.point.y + fn.y * offset, hit.point.z + fn.z * offset]
                 })
-                if (misses) ctx.warn(`${misses} of ${(nx + 1) * (ny + 1)} decal points missed "${target.name}" and stay on the plane`)
+                if (misses) ctx.warn(`${misses} of ${(nx + 1) * (ny + 1)} decal points missed "${target.name}"; the cells around them are left out`)
             } else throw new Error(`unknown mode "${mode}" - use plane, project or wrap`)
         }
 
