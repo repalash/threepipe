@@ -18,6 +18,8 @@ for (const [idname, label, out, type, attribute, dataType] of [
     ['GeometryNodeInputCurveTilt', 'Curve Tilt', 'Tilt', 'FLOAT', 'tilt', 'float'],
     ['GeometryNodeInputSplineCyclic', 'Is Spline Cyclic', 'Cyclic', 'BOOLEAN', 'cyclic', 'bool'],
     ['GeometryNodeInputSplineResolution', 'Spline Resolution', 'Resolution', 'INT', 'resolution', 'int32'],
+    // `node_geo_input_instance_reference.cc`: `AttributeFieldInput::get_field<int, ".reference_index">()`.
+    ['GeometryNodeInputInstanceReference', 'Instance Reference', 'Reference Index', 'INT', '.reference_index', 'int32'],
 ] as const) {
     registerNodeType({
         idname,

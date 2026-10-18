@@ -2,5 +2,6 @@
  "rename-single": "exact",
  "rename-prefix": "exact",
  "get-component": "exact",
- "warning-and-bounds": "exact"
+ "warning-and-bounds": "exact",
+ "instance-reference": "exact"
 }
