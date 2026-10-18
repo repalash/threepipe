@@ -1695,6 +1695,21 @@ export type OffsetPointInCurveNode = NodeHandle & {
     readonly pointIndex: Socket<"INT">
 }
 
+/** `GeometryNodeUVPackIslands` (Pack UV Islands). */
+export interface PackUVIslandsArgs {
+    uV?: In<"VECTOR">
+    selection?: In<"BOOLEAN">
+    margin?: In<"FLOAT">
+    rotate?: In<"BOOLEAN">
+    method?: In<"MENU">
+    bottomLeft?: In<"VECTOR">
+    topRight?: In<"VECTOR">
+    mute?: boolean
+}
+export type PackUVIslandsNode = NodeHandle & {
+    readonly uV: Socket<"VECTOR">
+}
+
 /** `GeometryNodePoints` (Points). */
 export interface PointsArgs {
     count?: In<"INT">
@@ -3113,6 +3128,7 @@ export interface NodeConstructors {
     ObjectInfo(args?: ObjectInfoArgs): ObjectInfoNode
     OffsetCornerInFace(args?: OffsetCornerInFaceArgs): OffsetCornerInFaceNode
     OffsetPointInCurve(args?: OffsetPointInCurveArgs): OffsetPointInCurveNode
+    PackUVIslands(args?: PackUVIslandsArgs): PackUVIslandsNode
     Points(args?: PointsArgs): PointsNode
     PointsOfCurve(args?: PointsOfCurveArgs): PointsOfCurveNode
     PointsToCurves(args?: PointsToCurvesArgs): PointsToCurvesNode

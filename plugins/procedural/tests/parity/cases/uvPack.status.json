@@ -1,0 +1,10 @@
+{
+ "pack-bounding": "exact",
+ "pack-bounding-norotate": "exact",
+ "pack-convex": "exact",
+ "pack-convex-norotate": "exact",
+ "pack-exact": "exact",
+ "pack-exact-norotate": "exact",
+ "pack-bounds-margin": "exact",
+ "pack-empty-selection": "exact"
+}

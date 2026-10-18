@@ -38,7 +38,7 @@ export const libmProof: {
     table?: Partial<Record<LibmName, Record<string, number[]>>>
 } = {}
 
-export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf' | 'sinf' | 'cosf' | 'tanf' | 'powf'
+export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf' | 'sinf' | 'cosf' | 'tanf' | 'powf' | 'sincos' | 'atan2'
 
 /** `String(x)`, keeping the sign of zero. */
 const key = (x: number) => (Object.is(x, -0) ? '-0' : String(x))
@@ -107,4 +107,20 @@ export function powf(a: number, b: number): number {
     if (a === 1 || (a === -1 && (b === Infinity || b === -Infinity))) return 1
     const t = substituted('powf', `${key(a)},${key(b)}`)
     return t ? t[0] : f32(Math.pow(a, b))
+}
+
+/**
+ * Double `sin(x)` and `cos(x)` of one value, which clang combines into one `__sincos_stret(x)` call on Darwin. `Math.sin`
+ * / `Math.cos` (fdlibm) here, which can differ from libSystem in the last bit.
+ */
+export function sincos(x: number): [number, number] {
+    const t = substituted('sincos', key(x))
+    if (t) return [t[0], t[1]]
+    return [Math.sin(x), Math.cos(x)]
+}
+
+/** Double `atan2`. `Math.atan2` (fdlibm) here. */
+export function atan2(y: number, x: number): number {
+    const t = substituted('atan2', `${key(y)},${key(x)}`)
+    return t ? t[0] : Math.atan2(y, x)
 }
