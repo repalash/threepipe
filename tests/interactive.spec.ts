@@ -5595,7 +5595,9 @@ test('modelling-editor-menus', async({page}) => {
     await hoverSub('VIEW3D_MT_edit_mesh', 'Show/Hide', 'VIEW3D_MT_edit_mesh_showhide')
     await entry('VIEW3D_MT_edit_mesh_showhide', 'Reveal Hidden').click()
     await expect.poll(async() => (await state()).hiddenFaces).toBe(0)
-    expect((await state()).sel).toEqual([8, 12, 6])
+    // `EDBM_mesh_reveal` (editmesh_utils.cc:1618) selects the revealed elements of the select mode's
+    // domain only - vertices here - without a flush.
+    expect((await state()).sel).toEqual([8, 0, 0])
     // View > Frame Selected; File > Export > STL; Help > About.
     await header('View').click()
     await entry('VIEW3D_MT_view', 'Frame Selected').click()
@@ -5611,7 +5613,7 @@ test('modelling-editor-menus', async({page}) => {
     await header('Help').click()
     await entry('TOPBAR_MT_help', 'About').click()
     await expect(page.locator('.me-dialog')).toBeVisible()
-    await page.keyboard.press('Escape')
+    await page.locator('.me-dialog .bp5-dialog-footer').getByRole('button', {name: 'Close'}).click()
     await expect(page.locator('.me-dialog')).toHaveCount(0)
 
     // ── 3. Ctrl+V / Ctrl+E / Ctrl+F, X and M open the same definitions at the pointer. ──
@@ -5623,7 +5625,7 @@ test('modelling-editor-menus', async({page}) => {
         await page.mouse.move(cx, cy)
         await page.keyboard.press(key)
         await expect(popup).toBeVisible()
-        await expect(popup.locator('ul[data-menu-id]').first()).toHaveAttribute('data-menu-id', id)
+        await expect(popup).toHaveAttribute('data-menu-id', id)
         expect(await labels(id)).toEqual(fromHeader)
         await insideWindow()
         await shot(`popup-${label.toLowerCase()}`)
@@ -5639,7 +5641,9 @@ test('modelling-editor-menus', async({page}) => {
     await shot('popup-merge')
     await page.keyboard.press('Escape')
     await expect(popup).toHaveCount(0)
-    // Ctrl+E > Subdivide from the popup.
+    // Ctrl+E > Subdivide from the popup, with everything selected.
+    await page.keyboard.press('KeyA')
+    await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
     await page.keyboard.press('Control+KeyE')
     await entry('VIEW3D_MT_edit_mesh_edges', 'Subdivide').click()
     await expect.poll(async() => (await state()).counts).toEqual([26, 48, 24])
@@ -5688,4 +5692,133 @@ test('modelling-editor-menus', async({page}) => {
     await entry('VIEW3D_MT_edit_mesh_delete', 'Only Faces').click()
     await expect.poll(async() => (await state()).counts![2]).toBe(0)
     await page.setViewportSize({width: 1280, height: 720})
+})
+
+test('modelling-edit-normals', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Edit Normals')
+    await page.waitForFunction(() => (window as any).engine?.operators.list().length > 0)
+    await page.waitForTimeout(300)
+
+    const state = () => page.evaluate(() => {
+        const e = (window as any).engine
+        const bm = e.meshEdit.state?.bm
+        return {
+            mode: e.mode as string,
+            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
+            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
+            transform: !!e.meshEdit.activeTransform,
+            history: e.history.entries().filter((x: any) => !x.undone).map((x: any) => x.label) as string[],
+        }
+    })
+    /** A point of the cube (object space; the cube sits at the origin, unscaled) on the screen. */
+    const onScreen = (p: [number, number, number]) => page.evaluate(([x, y, z]) => {
+        const w = window as any
+        const o = w.engine.modelObjects()[0]
+        o.updateWorldMatrix(true, false)
+        const v = o.localToWorld(o.position.clone().set(x, y, z)).project(w.viewer.scene.mainCamera)
+        const r = w.viewer.canvas.getBoundingClientRect()
+        return {x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height}
+    }, p)
+    /**
+     * How far each face's stored normal (`f.nx/ny/nz`, what operators read) is from its polygon's normal
+     * now, and whether every vertex normal is a unit vector - the session's normals are current when
+     * both hold.
+     */
+    const normalsStale = () => page.evaluate(() => {
+        const bm = (window as any).engine.meshEdit.state.bm
+        let worstFace = 0
+        for (const f of bm.faces) {
+            const vs = [...f.eachLoop()].map((l: any) => l.v)
+            let nx = 0, ny = 0, nz = 0
+            for (let i = 0; i < vs.length; i++) {
+                const a = vs[i], b = vs[(i + 1) % vs.length]
+                nx += (a.y - b.y) * (a.z + b.z)
+                ny += (a.z - b.z) * (a.x + b.x)
+                nz += (a.x - b.x) * (a.y + b.y)
+            }
+            const l = Math.hypot(nx, ny, nz)
+            worstFace = Math.max(worstFace, Math.hypot(f.nx - nx / l, f.ny - ny / l, f.nz - nz / l))
+        }
+        let worstVert = 0
+        for (const v of bm.verts) worstVert = Math.max(worstVert, Math.abs(Math.hypot(v.nx, v.ny, v.nz) - 1))
+        return {worstFace, worstVert}
+    })
+    /** The mean colour of a 5x5 block of the page around a point, from a real screenshot. */
+    const colourAt = async(points: {x: number, y: number}[]) => {
+        const png = (await page.screenshot()).toString('base64')
+        return page.evaluate(async([data, pts]) => {
+            const img = new Image()
+            img.src = 'data:image/png;base64,' + data
+            await img.decode()
+            const c = document.createElement('canvas')
+            c.width = img.width
+            c.height = img.height
+            const g = c.getContext('2d')!
+            g.drawImage(img, 0, 0)
+            return (pts as {x: number, y: number}[]).map(p => {
+                const d = g.getImageData(Math.round(p.x) - 2, Math.round(p.y) - 2, 5, 5).data
+                const sum = [0, 0, 0]
+                for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += d[i + k]
+                return sum.map(s => s / 25)
+            })
+        }, [png, points] as const)
+    }
+
+    // Solid shading: flat grey lit by the normal, so equal normals give equal colours.
+    await page.locator('[data-shading="solid"]').click()
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+    await page.keyboard.press('Tab')
+    await expect.poll(async() => (await state()).mode).toBe('edit')
+    // Entering edit mode computes them (`BKE_editmesh_looptris_and_normals_calc`).
+    let n = await normalsStale()
+    expect(n.worstFace).toBeLessThan(1e-9)
+    expect(n.worstVert).toBeLessThan(1e-9)
+
+    // Face mode, a click on the top face (+Y), E 0.5 Enter: extrude it up along its normal.
+    await page.keyboard.press('3')
+    const top = await onScreen([0, 0.5, 0])
+    await page.mouse.click(top.x, top.y)
+    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
+    await page.mouse.move(vp.x + vp.width * 0.8, vp.y + vp.height * 0.3)
+    await page.keyboard.press('KeyE')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.keyboard.type('0.5')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBe(false)
+    expect((await state()).counts).toEqual([12, 20, 10])
+    // Then G X 0.3 Enter: slide the new top sideways, so the new side faces lean.
+    await page.keyboard.press('KeyG')
+    await expect.poll(async() => (await state()).transform).toBe(true)
+    await page.keyboard.press('KeyX')
+    await page.keyboard.type('0.3')
+    await page.keyboard.press('Enter')
+    await expect.poll(async() => (await state()).transform).toBe(false)
+    expect((await state()).history.slice(-2)).toEqual(['Extrude', 'Move'])
+    const topNow = await page.evaluate(() => [...(window as any).engine.meshEdit.state.bm.verts]
+        .filter((v: any) => v.y > 0.9).map((v: any) => [v.x, v.y, v.z].map(c => Math.round(c * 1e4) / 1e4)))
+    expect(topNow.map(c => c[1])).toEqual([1, 1, 1, 1])
+    expect(topNow.map(c => c[0]).sort((a, b) => a - b)).toEqual([-0.2, -0.2, 0.8, 0.8])
+
+    // Every normal is current once the move ends: the side faces the extrude made with no area, and
+    // which the move then leaned, included. (They are not recomputed on each frame of the drag.)
+    n = await normalsStale()
+    expect(n.worstFace).toBeLessThan(1e-9)
+    expect(n.worstVert).toBeLessThan(1e-9)
+
+    // The shading: the extrusion's face that looks at the camera is in the same plane as the cube's
+    // face below it, so the two shade the same; the top shades like a top.
+    const towards = await page.evaluate(() => Math.sign((window as any).viewer.scene.mainCamera.position.z) || 1)
+    const zFront = 0.5 * towards
+    // Off the face centres, where face mode draws its dots, and away from the edges.
+    const pts = [
+        await onScreen([-0.25, -0.2, zFront]),   // the cube's front face
+        await onScreen([0, 0.65, zFront]),       // the extrusion's front face (a parallelogram)
+        await onScreen([0.5, 1, 0.25]),          // the moved top
+    ]
+    await page.waitForTimeout(300)
+    await page.screenshot({path: 'tmp/normals/extrude-move.png'})
+    const [below, extruded, topColour] = await colourAt(pts)
+    for (let k = 0; k < 3; k++) expect(Math.abs(below[k] - extruded[k])).toBeLessThan(12)
+    expect(Math.abs(topColour[0] - below[0]) + Math.abs(topColour[1] - below[1]) + Math.abs(topColour[2] - below[2])).toBeGreaterThan(15)
 })
