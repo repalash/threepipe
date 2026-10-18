@@ -1,0 +1,9 @@
+{
+ "title": "Cast iron and stone",
+ "blurb": "A cast-iron spiral stair and a Gothic arcade, built live by JSON commands, then a realism pass.",
+ "hero": "shots/21-hero-both-pieces.jpg",
+ "line": "222 commands, 0 failed · 121,876 triangles · 2:04 film · 16.7 ms/frame",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)",
+ "seconds": 124.43,
+ "generated": "2026-10-18"
+}
