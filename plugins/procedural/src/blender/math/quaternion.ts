@@ -7,7 +7,7 @@
  */
 
 import {f32} from '../f32'
-import {atan2f} from '../libm'
+import {atan2f, sincosf} from '../libm'
 
 export type Quat = [number, number, number, number]
 export type Float3 = [number, number, number]
@@ -50,8 +50,7 @@ export function angleWrapped(radian: number): number {
 /** `to_quaternion(AxisAngle)` (`BLI_math_axis_angle.hh:71`). `axis` must be unit length. */
 export function axisAngleToQuat(axis: ArrayLike<number>, angle: number): Quat {
     const half = f32(angle / 2)
-    const hs = f32(Math.sin(half))
-    const hc = f32(Math.cos(half))
+    const [hs, hc] = sincosf(half)
     return [hc, f32(axis[0] * hs), f32(axis[1] * hs), f32(axis[2] * hs)]
 }
 

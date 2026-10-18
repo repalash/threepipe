@@ -183,6 +183,8 @@ for (const [set, generate] of Object.entries(SETS)) {
                     const actual = evaluate().geometry!
                     const ulps = [0, 1, 2, 4, 16].find(u => !compareGeometry(actual, expected, {byteColor: 'srgb', ulps: u}).length)
                     status[c.id] = ulps === 0 ? 'exact' : `pass (${ulps === undefined ? '> 16' : `<= ${ulps}`} ulp)`
+                    // `PARITY_DIFFS=<case id>`: print the bit-level differences of a case that is not exact.
+                    if (ulps !== 0 && process.env.PARITY_DIFFS === c.id) writeFileSync(`/tmp/parity-diffs-${c.id}.txt`, compareGeometry(actual, expected, {byteColor: 'srgb', ulps: 0}).join('\n'))
                 } else {
                     status[c.id] = diffs.slice(0, 3).join(' | ')
                 }

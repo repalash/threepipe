@@ -27,19 +27,56 @@ const HALF_PI_BELOW = 1.5707962512969971
 
 const apple = () => blenderSystem.libm === 'apple-arm64'
 
+/**
+ * Platform results to substitute, and recorded inputs, for proving that a difference from Blender is libm only
+ * (`tests/parity/libmProof.test.ts`): `record` collects every float argument of the functions below; `table` maps
+ * `name -> argument key -> result(s)` measured on the reference platform (`porting/blender/libm_eval.py`). Both are
+ * unset in normal use.
+ */
+export const libmProof: {
+    record?: Record<LibmName, Set<string>>
+    table?: Partial<Record<LibmName, Record<string, number[]>>>
+} = {}
+
+export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf'
+
+/** `String(x)`, keeping the sign of zero. */
+const key = (x: number) => (Object.is(x, -0) ? '-0' : String(x))
+
+function substituted(name: LibmName, k: string): number[] | undefined {
+    libmProof.record?.[name].add(k)
+    return libmProof.table?.[name]?.[k]
+}
+
 export function acosf(a: number): number {
+    const t = substituted('acosf', key(a))
+    if (t) return t[0]
     const r = f32(Math.acos(a))
     return r === F_PI && apple() ? PI_BELOW : r
 }
 
 export function asinf(a: number): number {
+    const t = substituted('asinf', key(a))
+    if (t) return t[0]
     const r = f32(Math.asin(a))
     if (Math.abs(r) === F_HALF_PI && apple()) return r > 0 ? HALF_PI_BELOW : -HALF_PI_BELOW
     return r
 }
 
 export function atan2f(y: number, x: number): number {
+    const t = substituted('atan2f', `${key(y)},${key(x)}`)
+    if (t) return t[0]
     const r = f32(Math.atan2(y, x))
     if (Math.abs(r) === F_PI && apple()) return r > 0 ? PI_BELOW : -PI_BELOW
     return r
+}
+
+/**
+ * `sinf(x)` and `cosf(x)` of one value, which clang combines into one `__sincosf_stret(x)` call on Darwin; that
+ * function is not always correctly rounded (`procedural-libm-atan2f-sincos.md`). Correctly rounded here.
+ */
+export function sincosf(x: number): [number, number] {
+    const t = substituted('sincosf', key(x))
+    if (t) return [t[0], t[1]]
+    return [f32(Math.sin(x)), f32(Math.cos(x))]
 }
