@@ -10,7 +10,7 @@ import {describe, expect, it} from 'vitest'
 import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator} from '../../src'
-import {binResolver, inlineBinRefs} from '../../src/io/geometryFromDump'
+import {binResolver, DumpReferenced, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import {ParityCase} from './cases/types'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -20,8 +20,9 @@ import {functionSwitchCases} from './cases/functionSwitch'
 import {textureCases} from './cases/textures'
 import {instanceCases} from './cases/instances'
 import {geometryCases} from './cases/geometry'
+import {sceneCases} from './cases/scene'
 
-const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases}
+const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases, scene: sceneCases}
 SETS.functionMath = functionMathCases
 SETS.functionRandom = functionRandomCases
 SETS.functionRotation = functionRotationCases
@@ -48,20 +49,23 @@ for (const [set, generate] of Object.entries(SETS)) {
                 continue
             }
             it(c.id, () => {
-                const gt = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {geometry?: ExpectedGeometry, error?: string}
+                const gt = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced}
                 if (gt.error) throw new Error(`Blender failed on this case: ${gt.error}`)
                 const bin = join(dir, `${c.id}.bin`)
-                const expected = inlineBinRefs(gt.geometry!, binResolver(existsSync(bin) ? {[`${c.id}.bin`]: readFileSync(bin)} : {}))
+                const resolver = binResolver(existsSync(bin) ? {[`${c.id}.bin`]: readFileSync(bin)} : {})
+                const expected = inlineBinRefs(gt.geometry!, resolver)
+                // The case's object is named after the case (`run_cases.py`); Object/Collection Info read the scene Blender built.
+                const options = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: c.id} : {}
                 let diffs: string[]
                 try {
-                    const out = new GeometryNodesEvaluator(c.library, c.group).evaluate()
+                    const out = new GeometryNodesEvaluator(c.library, c.group, options).evaluate()
                     diffs = compareGeometry(out.geometry!, expected, {byteColor: 'srgb'})
                 } catch (e) {
                     diffs = [`error: ${(e as Error).message}`]
                 }
                 // Float32 policy: record whether the case is bit-exact, not only within the 1e-5 tolerance.
                 if (!diffs.length) {
-                    const actual = new GeometryNodesEvaluator(c.library, c.group).evaluate().geometry!
+                    const actual = new GeometryNodesEvaluator(c.library, c.group, options).evaluate().geometry!
                     const ulps = [0, 1, 2, 4, 16].find(u => !compareGeometry(actual, expected, {byteColor: 'srgb', ulps: u}).length)
                     status[c.id] = ulps === 0 ? 'exact' : `pass (${ulps === undefined ? '> 16' : `<= ${ulps}`} ulp)`
                 } else {
