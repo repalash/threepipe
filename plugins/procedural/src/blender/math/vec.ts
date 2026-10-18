@@ -74,3 +74,41 @@ export function interpolate3(a: ArrayLike<number>, b: ArrayLike<number>, t: numb
 export function isZero3(a: ArrayLike<number>): boolean {
     return a[0] === 0 && a[1] === 0 && a[2] === 0
 }
+
+const FLT_1E_35 = f32(1.0e-35)
+
+/**
+ * `normalize_v3_v3` (`blenlib/intern/math_vector_inline.cc:889` via `normalize_v3_v3_length` :872): the C
+ * API multiplies by `unit_length / d` instead of dividing.
+ */
+export function normalizeV3V3(a: ArrayLike<number>): V3 {
+    let d = dot3(a, a)
+    if (d > FLT_1E_35) {
+        d = f32(Math.sqrt(d))
+        const m = f32(1 / d)
+        return [f32(a[0] * m), f32(a[1] * m), f32(a[2] * m)]
+    }
+    return [0, 0, 0]
+}
+
+/** `len_v3v3` (`math_vector_inline.cc:820`): `len_v3(b - a)`. */
+export function lenV3V3(a: ArrayLike<number>, b: ArrayLike<number>): number {
+    return length3(sub3(b, a))
+}
+
+/** `safe_asinf` (`math_base_safe_inline.cc:49`): CLAMP to [-1, 1] then `asinf`. */
+function safeAsinf(a: number): number {
+    return f32(Math.asin(a < -1 ? -1 : a > 1 ? 1 : a))
+}
+
+/** `angle_normalized_v3v3` (`blenlib/intern/math_vector.cc:336`). */
+export function angleNormalizedV3V3(v1: ArrayLike<number>, v2: ArrayLike<number>): number {
+    if (dot3(v1, v2) >= 0) return f32(2 * safeAsinf(f32(lenV3V3(v1, v2) / 2)))
+    const v2n: V3 = [-v2[0], -v2[1], -v2[2]]
+    return f32(f32(Math.PI) - f32(2 * safeAsinf(f32(lenV3V3(v1, v2n) / 2))))
+}
+
+/** `angle_v3v3` (`math_vector.cc:276`). */
+export function angleV3V3(a: ArrayLike<number>, b: ArrayLike<number>): number {
+    return angleNormalizedV3V3(normalizeV3V3(a), normalizeV3V3(b))
+}

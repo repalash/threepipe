@@ -25,7 +25,7 @@ export function socketTypeFromRNA(name: string): SocketType {
     switch (name) {
     case 'FLOAT': return 'FLOAT'
     case 'INT': case 'INT8': return 'INT'
-    case 'FLOAT_VECTOR': case 'FLOAT2': return 'VECTOR'
+    case 'FLOAT_VECTOR': case 'FLOAT2': case 'FLOAT4': return 'VECTOR'
     case 'FLOAT_COLOR': case 'BYTE_COLOR': return 'RGBA'
     case 'BOOLEAN': return 'BOOLEAN'
     case 'QUATERNION': return 'ROTATION'

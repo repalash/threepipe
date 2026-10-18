@@ -190,6 +190,7 @@ registerNodeType({
     idname: 'ShaderNodeMath',
     label: 'Math',
     properties: {operation: 'ADD', use_clamp: false},
+    enums: {operation: Object.keys(OPS)},
     declare(b, node) {
         const arity = ARITY[node.prop<string>('operation')] ?? 2
         b.input('FLOAT', 'Value').default(0.5).min(-10000).max(10000)

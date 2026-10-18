@@ -11,6 +11,7 @@ import {registerNodeType} from '../../runtime/registry'
 registerNodeType({
     idname: 'GeometryNodeMeshGrid',
     label: 'Grid',
+    dslName: 'MeshGrid',
     declare(b) {
         b.input('FLOAT', 'Size X').default(1).min(0).subtype('DISTANCE')
         b.input('FLOAT', 'Size Y').default(1).min(0).subtype('DISTANCE')

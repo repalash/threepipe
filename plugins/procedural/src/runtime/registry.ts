@@ -51,6 +51,10 @@ export interface NodeTypeDef {
     readonly label: string
     /** RNA properties of a freshly added node, with Blender's defaults (`node_init`). */
     readonly properties?: Record<string, JSONValue | JSONValue[]>
+    /** Allowed values of enum properties (RNA enum identifiers), for validation and DSL typings. */
+    readonly enums?: Record<string, readonly string[]>
+    /** DSL class name when the UI label is ambiguous (`Grid` → `MeshGrid`). */
+    readonly dslName?: string
     /** `node_declare`. May read `node.prop(...)` for dynamic declarations. */
     declare(b: DeclarationBuilder, node: NodeInstance): void
     /**

@@ -48,3 +48,19 @@ export function cached<T>(build: (key: string) => T): (key: string) => T {
         return v
     }
 }
+
+/** A multi-function with one boolean output (`mf::build::SI*_SO<..., bool>`): `pred` reads each input's components. */
+export function elementwiseBool(name: string, inputs: readonly DataType[], pred: (...ins: number[][]) => boolean): MultiFunction {
+    return elementwise(name, inputs, ['bool'], (i, o) => {
+        o[0][0] = pred(...i) ? 1 : 0
+    })
+}
+
+/**
+ * `IMB_colormanagement_get_luminance` (`imbuf/intern/colormanagement_inline.h:24`): `dot_v3v3` with the
+ * OCIO config's luma coefficients - Blender's default config, as `geometry/typeConversions.ts` assumes.
+ */
+const LUMA = [f32(0.2126), f32(0.7152), f32(0.0722)]
+export function colormanagementLuminance(rgb: ArrayLike<number>): number {
+    return f32(f32(f32(LUMA[0] * rgb[0]) + f32(LUMA[1] * rgb[1])) + f32(LUMA[2] * rgb[2]))
+}

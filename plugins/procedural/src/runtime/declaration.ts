@@ -41,7 +41,7 @@ export class DeclarationBuilder {
     readonly decl: Declaration = {inputs: [], outputs: []}
 
     input(type: SocketType, name: string, identifier = name): SocketBuilder {
-        const s: SocketDecl = {identifier, name, type, available: true, structure: defaultStructure(type)}
+        const s: SocketDecl = {identifier, name, type, available: true, structure: defaultStructure(type), default: declDefault(type)}
         this.decl.inputs.push(s)
         return new SocketBuilder(s)
     }
@@ -50,6 +50,23 @@ export class DeclarationBuilder {
         const s: SocketDecl = {identifier, name, type, available: true, structure: defaultStructure(type)}
         this.decl.outputs.push(s)
         return new SocketBuilder(s)
+    }
+}
+
+/**
+ * The default value of each socket declaration class before `.default_value()` (`NOD_socket_declarations.hh`:
+ * Float 0 :34, Int 0 :64, Vector 0 :94, Bool false :162, Color (0.8, 0.8, 0.8, 1) :185, Rotation identity
+ * Euler :209, String "" :251).
+ */
+function declDefault(type: SocketType): SocketDecl['default'] {
+    switch (type) {
+    case 'FLOAT': case 'INT': return 0
+    case 'BOOLEAN': return false
+    case 'VECTOR': return [0, 0, 0]
+    case 'RGBA': return [0.8, 0.8, 0.8, 1]
+    case 'ROTATION': return [0, 0, 0]
+    case 'STRING': return ''
+    default: return undefined
     }
 }
 
