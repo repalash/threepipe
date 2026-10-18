@@ -60,6 +60,29 @@ describe('InputRouter', () => {
         expect(dispatched).toHaveLength(0)
     })
 
+    it('keeps a shortcut typed into a form control from the document-level listeners, and only shortcuts', () => {
+        // JSUndoManager (UndoManagerPlugin) listens for Ctrl+Z on the document: typed in a redo-panel field it
+        // undid the scene. The field had the key already; the router stops it on the way up.
+        const {router, dispatched} = makeRouter()
+        const input = {tagName: 'INPUT'}
+        const undo = fakeEvent('KeyZ', {ctrlKey: true, target: input})
+        expect(router.route(undo)).toBeNull()
+        expect(undo.prevented || undo.stopped).toBe(false)
+        expect(router.fieldKey(undo)).toBe(true)
+        expect(undo.stopped).toBe(true)
+        // The field's own default action (its text undo, the typed character) is left alone.
+        expect(undo.prevented).toBe(false)
+        // A key the keymap does not bind is nobody's shortcut: it goes on as before.
+        const plain = fakeEvent('KeyQ', {shiftKey: true, ctrlKey: true, altKey: true, target: input})
+        expect(router.fieldKey(plain)).toBe(false)
+        expect(plain.stopped).toBe(false)
+        // Not typed into a control: the capture-phase route already decided, nothing to do here.
+        const viewport = fakeEvent('KeyZ', {ctrlKey: true, target: {tagName: 'CANVAS'}})
+        expect(router.fieldKey(viewport)).toBe(false)
+        expect(viewport.stopped).toBe(false)
+        expect(dispatched).toHaveLength(0)
+    })
+
     it('lets Space and Enter activate a focused button, but takes other keys', () => {
         const {router} = makeRouter()
         const button = {tagName: 'BUTTON', getAttribute: () => null}
