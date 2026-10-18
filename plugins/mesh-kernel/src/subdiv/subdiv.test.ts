@@ -2,10 +2,11 @@ import {describe, expect, it} from 'vitest'
 import {MeshData} from '../MeshData'
 import {AttrDomain, AttrName} from '../constants'
 import {primitiveCube} from '../generate/primitives'
-import {Level, VTag} from './level'
-import {createBaseLevel, TopologyRefiner} from './refiner'
 import {subdivisionSurface, subdivisionSurfaceEvaluate} from './subdivisionSurface'
-import {computeVertexVertexMask, Mask, Rule, CreasingMethod, FVarLinearInterpolation, VtxBoundaryInterpolation} from './sdc'
+import {subdivNewFromMesh, SubdivFVarLinearInterpolation, SubdivVtxBoundaryInterpolation} from './bke/subdiv'
+import {adaptiveOptions, TopologyRefiner} from './osd/topologyRefiner'
+import {LocalMask, Options, Rule, Scheme, SchemeType, VertexNeighborhood} from './osd/sdc'
+import {VT_INCOMPLETE} from './osd/vtrTypes'
 
 const cube = () => MeshData.fromFaces({
     positions: [-1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1],
@@ -14,20 +15,25 @@ const cube = () => MeshData.fromFaces({
 const point = (m: MeshData, v: number) => [m.positions[3 * v], m.positions[3 * v + 1], m.positions[3 * v + 2]]
 const near = (a: number[], b: number[], eps = 1e-6) => a.every((x, i) => Math.abs(x - b[i]) < eps)
 const find = (m: MeshData, p: number[], eps = 1e-6) => { for (let v = 0; v < m.vertsNum; v++) if (near(point(m, v), p, eps)) return v; return -1 }
-const OPTS = {vtxBoundaryInterpolation: VtxBoundaryInterpolation.EdgeOnly, fvarLinearInterpolation: FVarLinearInterpolation.Boundaries, creasingMethod: CreasingMethod.Uniform}
+
+/** The OpenSubdiv refiner Blender builds for `mesh` (`subdiv_new_from_mesh`), before refinement. */
+function refinerOf(mesh: MeshData, adaptive = false, level = 1): TopologyRefiner {
+    const subdiv = subdivNewFromMesh({isSimple: false, isAdaptive: adaptive, level, useCreases: true,
+        vtxBoundaryInterpolation: SubdivVtxBoundaryInterpolation.EDGE_ONLY, fvarLinearInterpolation: SubdivFVarLinearInterpolation.BOUNDARIES}, mesh)
+    return subdiv!.topologyRefiner!.topologyRefiner
+}
 
 describe('OpenSubdiv port: Vtr level', () => {
     it('rebuilds edges and orders a cube vertex\'s faces and edges counter-clockwise', () => {
-        const m = cube()
-        const L = Level.fromFaceVertices(8, [4, 4, 4, 4, 4, 4], Array.from(m.cornerVerts))
-        expect(L.numEdges).toBe(12)
+        const L = refinerOf(cube()).getVtrLevel(0)
+        expect(L.getNumEdges()).toBe(12)
         for (let v = 0; v < 8; v++) {
-            const faces = L.getVertexFaces(v), edges = L.getVertexEdges(v)
+            const faces = L.getVertexFaces(v).toArray(), edges = L.getVertexEdges(v).toArray()
             expect(faces.length).toBe(3)
             expect(edges.length).toBe(3)
             // interleaved: edge i lies between face i-1 and face i
             for (let i = 0; i < 3; i++) {
-                const ef = Array.from(L.getEdgeFaces(edges[i]))
+                const ef = L.getEdgeFaces(edges[i]).toArray()
                 expect(ef).toContain(faces[i])
                 expect(ef).toContain(faces[(i + 2) % 3])
             }
@@ -35,30 +41,49 @@ describe('OpenSubdiv port: Vtr level', () => {
     })
 
     it('tags a fin edge (three faces) and its vertices non-manifold', () => {
-        const L = Level.fromFaceVertices(8, [4, 4, 4], [0, 2, 3, 1, 1, 5, 4, 0, 0, 6, 7, 1])
+        const m = MeshData.fromFaces({positions: new Array(24).fill(0).map((_, i) => i * 0.1), faces: [[0, 2, 3, 1], [1, 5, 4, 0], [0, 6, 7, 1]]})
+        const L = refinerOf(m).getVtrLevel(0)
         const e = L.findEdge(0, 1)
         expect(L.isEdgeNonManifold(e)).toBe(true)
-        expect(L.getEdgeFaces(e).length).toBe(3)
+        expect(L.getEdgeFaces(e).size).toBe(3)
+        expect(L.isVertexNonManifold(0)).toBe(true)
+        expect(L.isVertexNonManifold(1)).toBe(true)
     })
 })
 
-describe('OpenSubdiv port: masks', () => {
+/** A vertex neighbourhood for the Sdc masks: `n` edges and faces with the given sharpness. */
+function vertexNeighborhood(n: number, sharpnessPerEdge: number[], childSharpnessPerEdge = new Array(n).fill(0)): VertexNeighborhood {
+    return {
+        getNumEdges: () => n,
+        getNumFaces: () => n,
+        getSharpness: () => 0,
+        getSharpnessPerEdge: out => { sharpnessPerEdge.forEach((s, i) => { out[i] = s }); return out },
+        getChildSharpness: () => 0,
+        getChildSharpnessPerEdge: (_c, out) => { childSharpnessPerEdge.forEach((s, i) => { out[i] = s }); return out },
+    }
+}
+
+describe('OpenSubdiv port: masks (float, as Blender evaluates them)', () => {
+    const scheme = new Scheme(SchemeType.CATMARK, new Options())
+
     it('a smooth valence-3 vertex gets (n-2)/n, 1/n^2 on edges and face centres', () => {
-        const m = new Mask()
-        computeVertexVertexMask(OPTS, {numEdges: 3, numFaces: 3, sharpness: 0, sharpnessPerEdge: [0, 0, 0], childSharpness: 0}, m, Rule.Smooth, Rule.Smooth)
-        expect(m.vertex[0]).toBeCloseTo(1 / 3, 15)
-        expect(m.edge.slice(0, 3)).toEqual([1 / 9, 1 / 9, 1 / 9])
-        expect(m.face.slice(0, 3)).toEqual([1 / 9, 1 / 9, 1 / 9])
+        const m = new LocalMask(3)
+        scheme.computeVertexVertexMask(vertexNeighborhood(3, [0, 0, 0]), m, Rule.SMOOTH, Rule.SMOOTH)
+        expect(m.vertexWeight(0)).toBeCloseTo(1 / 3, 7)
+        for (let i = 0; i < 3; i++) {
+            expect(m.edgeWeight(i)).toBeCloseTo(1 / 9, 7)
+            expect(m.faceWeight(i)).toBeCloseTo(1 / 9, 7)
+        }
     })
 
     it('a semi-sharp crease of 0.5 blends the crease and smooth masks half and half', () => {
-        const m = new Mask()
-        computeVertexVertexMask(OPTS, {numEdges: 4, numFaces: 4, sharpness: 0, sharpnessPerEdge: [0.5, 0, 0.5, 0], childSharpness: 0}, m)
+        const m = new LocalMask(4)
+        scheme.computeVertexVertexMask(vertexNeighborhood(4, [0.5, 0, 0.5, 0]), m)
         // crease: v 3/4, e 1/8 on the two sharp edges; smooth: v 1/2, e 1/16, f 1/16
-        expect(m.vertex[0]).toBeCloseTo(0.5 * 0.75 + 0.5 * 0.5, 15)
-        expect(m.edge[0]).toBeCloseTo(0.5 * 0.125 + 0.5 / 16, 15)
-        expect(m.edge[1]).toBeCloseTo(0.5 / 16, 15)
-        expect(m.face[0]).toBeCloseTo(0.5 / 16, 15)
+        expect(m.vertexWeight(0)).toBeCloseTo(0.5 * 0.75 + 0.5 * 0.5, 7)
+        expect(m.edgeWeight(0)).toBeCloseTo(0.5 * 0.125 + 0.5 / 16, 7)
+        expect(m.edgeWeight(1)).toBeCloseTo(0.5 / 16, 7)
+        expect(m.faceWeight(0)).toBeCloseTo(0.5 / 16, 7)
     })
 })
 
@@ -124,22 +149,21 @@ describe('subdivisionSurface', () => {
         crease[0] = 0.5 // sharpness 2.5
         // `subdiv_to_mesh` at resolution (1 << levels) + 1, whatever the quality the limit surface is refined to
         for (const quality of [1, 3]) expect(subdivisionSurfaceEvaluate(m, {levels: 1, quality})!.mesh.facesNum).toBe(24)
-        const options = OPTS
         const adaptive = (quality: number) => {
-            const r = new TopologyRefiner(createBaseLevel(m, options, {useCreases: true, simple: false}).level, options)
-            r.refineAdaptive({isolationLevel: quality, useInfSharpPatch: true, considerFVarChannels: false})
+            const r = refinerOf(m, true, quality)
+            r.refineAdaptive({...adaptiveOptions(quality), useInfSharpPatch: true})
             return r
         }
         // the cube's valence-3 corners are extraordinary: isolated at every level up to quality, sparsely
         const r3 = adaptive(3), r2 = adaptive(2)
-        expect(r3.maxLevel).toBe(3)
-        expect(r2.maxLevel).toBe(2)
-        expect(r3.levels[3].numFaces).toBeGreaterThan(0)
-        expect(r3.levels[3].numFaces).toBeLessThan(6 * 4 ** 3)
+        expect(r3.getMaxLevel()).toBe(3)
+        expect(r2.getMaxLevel()).toBe(2)
+        expect(r3.getVtrLevel(3).getNumFaces()).toBeGreaterThan(0)
+        expect(r3.getVtrLevel(3).getNumFaces()).toBeLessThan(6 * 4 ** 3)
         // every level-1 face touches a cube corner; from level 2 only those around the corners are refined further,
         // with their neighbouring (incomplete) vertices
         let incomplete = 0
-        for (let v = 0; v < r3.levels[3].numVertices; v++) if (r3.levels[3].vertTags[v] & VTag.Incomplete) incomplete++
+        for (let v = 0; v < r3.getVtrLevel(3).getNumVertices(); v++) if (r3.getVtrLevel(3).getVertexTag(v) & VT_INCOMPLETE) incomplete++
         expect(incomplete).toBeGreaterThan(0)
     })
 

@@ -1,13 +1,13 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/far/patchDescriptor.h`, `far/patchParam.h`, `far/ptexIndices.cpp`,
- * `far/patchTable.h` (the arrays a uniform table uses), `far/patchTableFactory.cpp` (`PatchTableBuilder` constructor
- * and `BuildUniformPolygons`) and `far/patchBuilder.cpp` (`ComputePatchParam`), Copyright 2013-2018 Pixar /
- * DreamWorks Animation LLC. Adaptive patches (`BuildPatches`, end caps, local points, the patch builders' basis
- * conversions) are not ported: Blender's Subdivide Mesh builds a uniform table (issue 15b, Phase A).
+ * `far/patchTable.h/.cpp` (the arrays Blender's evaluator reads), `far/patchTableFactory.cpp` (`BuildUniformPolygons`;
+ * the adaptive `BuildPatches` is in `patchTableFactory.ts`) and `far/patchBuilder.cpp` (`ComputePatchParam` for uniform
+ * tables), Copyright 2013-2018 Pixar / DreamWorks Animation LLC.
  * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
-import {SchemeType, SchemeTypeTraits} from './sdc'
+import {FVarLinearInterpolation, SchemeType, SchemeTypeTraits} from './sdc'
+import type {StencilTable} from './stencilTable'
 import type {TopologyRefiner} from './topologyRefiner'
 
 /** `PatchDescriptor::Type` (`patchDescriptor.h:31`). */
@@ -98,6 +98,7 @@ export interface PatchArrayInfo {
 
 /** A face-varying channel of a patch table (`PatchTable::FVarPatchChannel`). */
 export interface FVarPatchChannel {
+    interpolation?: FVarLinearInterpolation
     regType: PatchType
     irregType: PatchType
     stride: number
@@ -105,7 +106,7 @@ export interface FVarPatchChannel {
     params: PatchParam[]
 }
 
-/** `Far::PatchTable` (`patchTable.h:58`): the parts a uniform table fills. */
+/** `Far::PatchTable` (`patchTable.h:58`). The legacy-Gregory quad-offset and valence tables are not kept. */
 export class PatchTable {
     isUniformLinear = false
     numPtexFaces = 0
@@ -114,6 +115,12 @@ export class PatchTable {
     paramTable: PatchParam[] = []
     fvarChannels: FVarPatchChannel[] = []
     varyingType: PatchType = PatchType.NON_PATCH
+    varyingVerts: number[] = []
+    sharpnessIndices: number[] = []
+    sharpnessValues: number[] = []
+    localPointStencils?: StencilTable
+    localPointVaryingStencils?: StencilTable
+    localPointFaceVaryingStencils: (StencilTable | undefined)[] = []
 
     constructor(readonly maxValence: number) {}
 
@@ -123,31 +130,55 @@ export class PatchTable {
     getPatchArrayType(array: number) { return this.patchArrays[array].type }
     getNumControlVertices(array: number) { return this.patchArrays[array].numPatches * patchNumControlVertices(this.patchArrays[array].type) }
     getNumFVarChannels() { return this.fvarChannels.length }
-    getLocalPointStencilTable(): undefined { return undefined }
+    getLocalPointStencilTable() { return this.localPointStencils }
+    getLocalPointFaceVaryingStencilTable(channel = 0) { return this.localPointFaceVaryingStencils[channel] }
+    getFVarValueStride(channel = 0) { return this.fvarChannels[channel].stride }
 
-    /** `pushPatchArray` (`patchTable.cpp`). */
+    /** `pushPatchArray` (`patchTable.cpp:187`): arrays without patches are not added. */
     pushPatchArray(type: PatchType, npatches: number, voffset: {v: number}, poffset: {v: number}): void {
-        this.patchArrays.push({type, numPatches: npatches, vertIndex: voffset.v, patchIndex: poffset.v})
-        voffset.v += npatches * patchNumControlVertices(type)
-        poffset.v += npatches
+        if (npatches > 0) {
+            this.patchArrays.push({type, numPatches: npatches, vertIndex: voffset.v, patchIndex: poffset.v})
+            voffset.v += npatches * patchNumControlVertices(type)
+            poffset.v += npatches
+        }
     }
 }
 
-/** `PatchTableFactory::Options` (`patchTableFactory.h:46`) - the fields Blender sets. */
+/** `PatchTableFactory::Options::EndCapType` (`patchTableFactory.h:38`). */
+export const enum EndCapType {
+    NONE = 0,
+    BILINEAR_BASIS = 1,
+    BSPLINE_BASIS = 2,
+    GREGORY_BASIS = 3,
+    LEGACY_GREGORY = 4,
+}
+
+/** `PatchTableFactory::Options` (`patchTableFactory.h:46`). `numFVarChannels` / `fvarChannelIndices` are left at "all". */
 export interface PatchTableOptions {
     maxIsolationLevel: number
     generateAllLevels: boolean
     includeBaseLevelIndices: boolean
     includeFVarBaseLevelIndices: boolean
     triangulateQuads: boolean
+    useSingleCreasePatch: boolean
     useInfSharpPatch: boolean
+    endCapType: EndCapType
+    shareEndCapPatchPoints: boolean
+    generateVaryingTables: boolean
+    generateVaryingLocalPoints: boolean
     generateFVarTables: boolean
+    patchPrecisionDouble: boolean
+    fvarPatchPrecisionDouble: boolean
     generateFVarLegacyLinearPatches: boolean
+    generateLegacySharpCornerPatches: boolean
 }
 
+/** `PatchTableFactory::Options(maxIsolation)` (:46): the defaults. */
 export function patchTableOptions(maxIsolation = 10): PatchTableOptions {
     return {maxIsolationLevel: maxIsolation & 0xf, generateAllLevels: false, includeBaseLevelIndices: true, includeFVarBaseLevelIndices: false,
-        triangulateQuads: false, useInfSharpPatch: false, generateFVarTables: false, generateFVarLegacyLinearPatches: true}
+        triangulateQuads: false, useSingleCreasePatch: false, useInfSharpPatch: false, endCapType: EndCapType.GREGORY_BASIS,
+        shareEndCapPatchPoints: true, generateVaryingTables: true, generateVaryingLocalPoints: true, generateFVarTables: false,
+        patchPrecisionDouble: false, fvarPatchPrecisionDouble: false, generateFVarLegacyLinearPatches: true, generateLegacySharpCornerPatches: true}
 }
 
 /** `PatchBuilder::GetLinearPatchType` for the quad schemes (`bilinearPatchBuilder.cpp`, `catmarkPatchBuilder.cpp`): QUADS. */
@@ -198,14 +229,8 @@ export function computePatchParam(refiner: TopologyRefiner, levelIndex: number, 
     return PatchParam.make(ptexIndex, u, v, depth, irregBase, boundaryMask, transitionMask, isRegular)
 }
 
-/** `PatchTableFactory::Create` (`patchTableFactory.cpp:1957`): uniform refiners only. */
-export function createPatchTable(refiner: TopologyRefiner, options: PatchTableOptions): PatchTable {
-    if (!refiner.getIsUniform()) throw new Error('OpenSubdiv: PatchTableFactory adaptive patches (BuildPatches) are not ported')
-    return buildUniformPolygons(refiner, options)
-}
-
 /** `PatchTableBuilder::BuildUniformPolygons` (`patchTableFactory.cpp:728`) after the builder constructor (:362). */
-function buildUniformPolygons(refiner: TopologyRefiner, options: PatchTableOptions): PatchTable {
+export function buildUniformPolygons(refiner: TopologyRefiner, options: PatchTableOptions): PatchTable {
     const ptexIndices = new PtexIndices(refiner)
     const fvarChannelIndices: number[] = []
     if (options.generateFVarTables) for (let c = 0; c < refiner.getNumFVarChannels(); c++) fvarChannelIndices.push(c)

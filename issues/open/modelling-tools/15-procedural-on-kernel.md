@@ -624,8 +624,11 @@ One subdivision port (approved 15:30, item 4): `15e-one-subdivision-port.md`.
   - every case has Blender's order: vertex, edge and face i match Blender's;
   - the 7 uniform cases (no limit surface) are bit-exact;
   - the 27 limit-surface cases are within 1e-6 or 4 ulps, until the float adaptive port (15e phase 2).
-- Still to do: 15e phase 2, the exact limit surface (`RefineAdaptive`, the patch tables and Gregory end caps in
-  float).
+- 15e phase 2 is also done: the limit surface is ported in float (adaptive refinement, B-spline and Gregory patches,
+  local points).
+  - Kernel `subsurf-parity`: 34/34 bit-exact.
+  - Procedural `subdivSurface`: every limit case is exact.
+  - The double subdivision modules are deleted.
 
 **Update 2026-10-18 14:30 (acceptance):**
 - Node coverage: 232 of the 319 geometry and function node types in Blender 5.2.2's inventory are ported, counting

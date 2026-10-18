@@ -23,7 +23,7 @@ import type {ParityCase} from './cases/types'
 import {fixtureExists, readFixture, readFixtureJSON} from './fixtures'
 
 const spec = process.env.LIBM_PROOF
-const NAMES: LibmName[] = ['acosf', 'asinf', 'atan2f', 'sincosf', 'sinf', 'cosf', 'tanf', 'powf', 'sincos', 'atan2']
+const NAMES: LibmName[] = ['acosf', 'asinf', 'atan2f', 'sincosf', 'sinf', 'cosf', 'tanf', 'powf', 'sincos', 'sin', 'cos', 'atan2']
 const OUT = join(__dirname, '../../../../tmp/libm-proof')
 const CASES = join(__dirname, 'cases')
 

@@ -1,8 +1,7 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/far/topologyRefiner.h`, `far/topologyRefiner.cpp`,
  * `far/topologyRefinerFactory.h` and `far/topologyRefinerFactory.cpp` (Copyright 2014 DreamWorks Animation LLC).
- * Adaptive refinement (`RefineAdaptive`, `selectFeatureAdaptiveComponents`, `FeatureMask`) is not ported: Blender's
- * Subdivide Mesh refines uniformly (issue 15b, Phase A); it throws instead.
+ * and `vtr/sparseSelector.h/.cpp` (feature-adaptive refinement for the limit surface, subplan 15e phase 2).
  * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  */
 
@@ -14,7 +13,7 @@ import type {Refinement} from './refinement'
 import {
     ET_BOUNDARY, ET_INF_SHARP, ET_NON_MANIFOLD, ET_SEMI_SHARP, FT_HOLE, IndexArray, VALENCE_LIMIT, VT_BOUNDARY, VT_CORNER, VT_INCID_IRREG_FACE,
     VT_INCOMPLETE, VT_INF_IRREGULAR, VT_INF_SHARP, VT_INF_SHARP_CREASE, VT_INF_SHARP_EDGES, VT_NON_MANIFOLD, VT_SEMI_SHARP,
-    VT_SEMI_SHARP_EDGES, VT_XORDINARY, vtWithRule,
+    VT_SEMI_SHARP_EDGES, VT_XORDINARY, vtRule, vtWithRule,
 } from './vtrTypes'
 
 /** `TopologyRefiner::UniformOptions` (`topologyRefiner.h:103`). */
@@ -147,11 +146,286 @@ export class TopologyRefiner {
         this.assembleFarLevels()
     }
 
-    /** `RefineAdaptive` (:330) - not ported (Phase C of issue 15b, owned by the realism track). */
-    refineAdaptive(): void {
-        throw new Error('OpenSubdiv: TopologyRefiner::RefineAdaptive (feature-adaptive refinement) is not ported')
+    adaptiveOptions: AdaptiveOptions = adaptiveOptions(0)
+
+    /** `appendLevel` (:149). */
+    appendLevel(newLevel: Level): void {
+        this.levels.push(newLevel)
+        this.updateInventory(newLevel)
+    }
+
+    /** `RefineAdaptive(options, baseFacesToRefine)` (:330). */
+    refineAdaptive(options: AdaptiveOptions, baseFacesToRefine: number[] = []): void {
+        if (this.levels[0].getNumVertices() === 0) throw new Error('Failure in TopologyRefiner::RefineAdaptive() -- base level is uninitialized.')
+        if (this.refinements.length) throw new Error('Failure in TopologyRefiner::RefineAdaptive() -- previous refinements already applied.')
+        this.isUniform = false
+        this.adaptiveOptions = options
+        const nonLinearScheme = SchemeTypeTraits.getLocalNeighborhoodSize(this.subdivType)
+        const shallowLevel = Math.min(options.secondaryLevel, options.isolationLevel)
+        const deeperLevel = options.isolationLevel
+        const potentialMaxLevel = nonLinearScheme ? deeperLevel : (this.hasIrregFaces ? 1 : 0)
+        const moreFeaturesMask = initializeFeatures(options, this.regFaceSize)
+        const lessFeaturesMask = {...moreFeaturesMask}
+        if (shallowLevel < potentialMaxLevel) reduceFeatures(lessFeaturesMask, options)
+        if (moreFeaturesMask.selectFVarFeatures && nonLinearScheme) {
+            let nonLinearChannelsPresent = false
+            for (let channel = 0; channel < this.levels[0].getNumFVarChannels(); ++channel) {
+                nonLinearChannelsPresent ||= !this.levels[0].getFVarLevel(channel).isLinear
+            }
+            if (!nonLinearChannelsPresent) {
+                moreFeaturesMask.selectFVarFeatures = false
+                lessFeaturesMask.selectFVarFeatures = false
+            }
+        }
+        const refineOptions = {sparse: true, minimalTopology: false, faceVertsFirst: options.orderVerticesFromFacesFirst}
+        const splitType = SchemeTypeTraits.getTopologicalSplitType(this.subdivType)
+        if (splitType !== Split.TO_QUADS) throw new Error('OpenSubdiv: Vtr::TriRefinement (Loop scheme) is not ported')
+        for (let i = 1; i <= potentialMaxLevel; ++i) {
+            const parentLevel = this.levels[i - 1]
+            const childLevel = new Level()
+            const refinement = new QuadRefinement(parentLevel, childLevel, this.subdivOptions)
+            const selector = new SparseSelector(refinement)
+            const levelFeatures = i <= shallowLevel ? moreFeaturesMask : lessFeaturesMask
+            if (i > 1) this.selectFeatureAdaptiveComponents(selector, levelFeatures, [])
+            else if (nonLinearScheme) this.selectFeatureAdaptiveComponents(selector, levelFeatures, baseFacesToRefine)
+            else this.selectLinearIrregularFaces(selector, baseFacesToRefine)
+            if (selector.isSelectionEmpty()) break
+            refinement.refine(refineOptions)
+            this.appendLevel(childLevel)
+            this.refinements.push(refinement)
+        }
+        this.maxLevel = this.refinements.length
+        this.assembleFarLevels()
+    }
+
+    /** `selectFeatureAdaptiveComponents` (:740). */
+    selectFeatureAdaptiveComponents(selector: SparseSelector, featureMask: FeatureMask, facesToRefine: number[]): void {
+        const level = selector.getRefinement().parent
+        const numFacesToRefine = facesToRefine.length ? facesToRefine.length : level.getNumFaces()
+        const numFVarChannels = featureMask.selectFVarFeatures ? level.getNumFVarChannels() : 0
+        for (let fIndex = 0; fIndex < numFacesToRefine; ++fIndex) {
+            const face = facesToRefine.length ? facesToRefine[fIndex] : fIndex
+            if (this.hasHoles && level.isFaceHole(face)) continue
+            let selectFace = doesFaceHaveFeatures(level, face, featureMask, this.regFaceSize)
+            if (!selectFace && featureMask.selectFVarFeatures) {
+                for (let channel = 0; !selectFace && channel < numFVarChannels; ++channel) {
+                    if (!level.doesFaceFVarTopologyMatch(face, channel)) {
+                        selectFace = doesFaceHaveDistinctFaceVaryingFeatures(level, face, featureMask, channel)
+                    }
+                }
+            }
+            if (selectFace) selector.selectFace(face)
+        }
+    }
+
+    /** `selectLinearIrregularFaces` (:788). */
+    selectLinearIrregularFaces(selector: SparseSelector, facesToRefine: number[]): void {
+        const level = selector.getRefinement().parent
+        const numFacesToRefine = facesToRefine.length ? facesToRefine.length : level.getNumFaces()
+        for (let fIndex = 0; fIndex < numFacesToRefine; ++fIndex) {
+            const face = facesToRefine.length ? facesToRefine[fIndex] : fIndex
+            if (this.hasHoles && level.isFaceHole(face)) continue
+            if (level.getFaceVertices(face).size !== this.regFaceSize) selector.selectFace(face)
+        }
     }
 }
+
+/** `TopologyRefiner::AdaptiveOptions` (`topologyRefiner.h:139`). */
+export interface AdaptiveOptions {
+    isolationLevel: number
+    secondaryLevel: number
+    useSingleCreasePatch: boolean
+    useInfSharpPatch: boolean
+    considerFVarChannels: boolean
+    orderVerticesFromFacesFirst: boolean
+}
+
+export function adaptiveOptions(level: number): AdaptiveOptions {
+    return {isolationLevel: level & 0xf, secondaryLevel: 0xf, useSingleCreasePatch: false, useInfSharpPatch: false, considerFVarChannels: false,
+        orderVerticesFromFacesFirst: false}
+}
+
+// region feature-adaptive selection (`topologyRefiner.cpp:259-737`)
+
+/** `internal::FeatureMask` (:270). */
+export interface FeatureMask {
+    selectXOrdinaryInterior: boolean
+    selectXOrdinaryBoundary: boolean
+    selectSemiSharpSingle: boolean
+    selectSemiSharpNonSingle: boolean
+    selectInfSharpRegularCrease: boolean
+    selectInfSharpRegularCorner: boolean
+    selectInfSharpIrregularDart: boolean
+    selectInfSharpIrregularCrease: boolean
+    selectInfSharpIrregularCorner: boolean
+    selectUnisolatedInteriorEdge: boolean
+    selectNonManifold: boolean
+    selectFVarFeatures: boolean
+}
+
+/** `FeatureMask::InitializeFeatures` (:311). */
+function initializeFeatures(options: AdaptiveOptions, regFaceSize: number): FeatureMask {
+    const useSingleCreasePatch = options.useSingleCreasePatch && regFaceSize === 4
+    return {
+        selectXOrdinaryInterior: true,
+        selectXOrdinaryBoundary: true,
+        selectSemiSharpSingle: !useSingleCreasePatch,
+        selectSemiSharpNonSingle: true,
+        selectInfSharpRegularCrease: !(options.useInfSharpPatch || useSingleCreasePatch),
+        selectInfSharpRegularCorner: !options.useInfSharpPatch,
+        selectInfSharpIrregularDart: true,
+        selectInfSharpIrregularCrease: true,
+        selectInfSharpIrregularCorner: true,
+        selectUnisolatedInteriorEdge: useSingleCreasePatch && !options.useInfSharpPatch,
+        selectNonManifold: true,
+        selectFVarFeatures: options.considerFVarChannels,
+    }
+}
+
+/** `FeatureMask::ReduceFeatures` (:350). */
+function reduceFeatures(m: FeatureMask, options: AdaptiveOptions): void {
+    m.selectXOrdinaryInterior = false
+    m.selectXOrdinaryBoundary = false
+    if (options.useInfSharpPatch) {
+        m.selectInfSharpRegularCrease = false
+        m.selectInfSharpRegularCorner = false
+        m.selectInfSharpIrregularDart = false
+        m.selectInfSharpIrregularCrease = false
+    }
+}
+
+/** `doesInfSharpVTagHaveFeatures` (:493). */
+function doesInfSharpVTagHaveFeatures(compVTag: number, featureMask: FeatureMask): boolean {
+    const rule = vtRule(compVTag)
+    if (compVTag & VT_INF_IRREGULAR) {
+        if (rule & Rule.CORNER) return featureMask.selectInfSharpIrregularCorner
+        else if (rule & Rule.CREASE) return compVTag & VT_BOUNDARY ? featureMask.selectXOrdinaryBoundary : featureMask.selectInfSharpIrregularCrease
+        else if (rule & Rule.DART) return featureMask.selectInfSharpIrregularDart
+    } else if (compVTag & VT_BOUNDARY) {
+        if (rule & Rule.CORNER) return compVTag & VT_CORNER ? false : featureMask.selectInfSharpRegularCorner
+        else return false
+    } else {
+        if (rule & Rule.CORNER) return featureMask.selectInfSharpRegularCorner
+        else return featureMask.selectInfSharpRegularCrease
+    }
+    return false
+}
+
+/** `doesInfSharpFaceHaveFeatures` (:531). */
+function doesInfSharpFaceHaveFeatures(compVTag: number, vTags: number[], numVerts: number, featureMask: FeatureMask): boolean {
+    const isolateQuadBoundaries = false
+    const atLeastOneSmoothCorner = (vtRule(compVTag) & Rule.SMOOTH) !== 0
+    if (numVerts === 4) {
+        if (atLeastOneSmoothCorner) return doesInfSharpVTagHaveFeatures(compVTag, featureMask)
+        else if (isolateQuadBoundaries) return true
+        else if (featureMask.selectUnisolatedInteriorEdge) {
+            for (let i = 0; i < 4; ++i) if (vTags[i] & VT_INF_SHARP_EDGES && !(vTags[i] & VT_BOUNDARY)) return true
+        }
+    } else {
+        if (atLeastOneSmoothCorner && !(compVTag & VT_BOUNDARY)) return doesInfSharpVTagHaveFeatures(compVTag, featureMask)
+    }
+    for (let i = 0; i < numVerts; ++i) {
+        if (!(vtRule(vTags[i]) & Rule.SMOOTH)) {
+            if (doesInfSharpVTagHaveFeatures(vTags[i], featureMask)) return true
+        }
+    }
+    return false
+}
+
+/** `Level::VTag::BitwiseOr` (`level.h:100`). */
+function vTagBitwiseOr(vTags: number[], size: number): number {
+    let t = vTags[0]
+    for (let i = 1; i < size; ++i) t |= vTags[i]
+    return t
+}
+
+/** `doesFaceHaveFeatures` (:597). */
+function doesFaceHaveFeatures(level: Level, face: number, featureMask: FeatureMask, regFaceSize: number): boolean {
+    const fVerts = level.getFaceVertices(face)
+    if (fVerts.size !== regFaceSize) return true
+    const vTags: number[] = []
+    level.getFaceVTags(face, vTags)
+    const compFaceVTag = vTagBitwiseOr(vTags, fVerts.size)
+    if (compFaceVTag & VT_INCID_IRREG_FACE) return true
+    if (compFaceVTag & VT_INCOMPLETE) return false
+    if (compFaceVTag & VT_NON_MANIFOLD && featureMask.selectNonManifold) return true
+    const compRule = vtRule(compFaceVTag)
+    if (compFaceVTag & VT_XORDINARY && featureMask.selectXOrdinaryInterior) {
+        if (compRule === Rule.SMOOTH) return true
+        else if (level.getDepth() < 2) {
+            for (let i = 0; i < fVerts.size; ++i) {
+                if (vTags[i] & VT_XORDINARY && vtRule(vTags[i]) === Rule.SMOOTH) return true
+            }
+        }
+    }
+    if (compRule === Rule.SMOOTH) return false
+    if (compFaceVTag & (VT_SEMI_SHARP | VT_SEMI_SHARP_EDGES)) {
+        if (featureMask.selectSemiSharpSingle && featureMask.selectSemiSharpNonSingle) return true
+        else if (level.isSingleCreasePatch(face)) return featureMask.selectSemiSharpSingle
+        else return featureMask.selectSemiSharpNonSingle
+    }
+    if (compFaceVTag & (VT_INF_SHARP | VT_INF_SHARP_EDGES)) return doesInfSharpFaceHaveFeatures(compFaceVTag, vTags, fVerts.size, featureMask)
+    return false
+}
+
+/** `doesFaceHaveDistinctFaceVaryingFeatures` (:691). */
+function doesFaceHaveDistinctFaceVaryingFeatures(level: Level, face: number, featureMask: FeatureMask, fvarChannel: number): boolean {
+    const fVerts = level.getFaceVertices(face)
+    const vTags: number[] = []
+    for (let i = 0; i < fVerts.size; ++i) vTags[i] = level.getVertexCompositeFVarVTag(fVerts.get(i), fvarChannel)
+    const compVTag = vTagBitwiseOr(vTags, fVerts.size)
+    if (compVTag & VT_INCOMPLETE) return false
+    if (compVTag & VT_NON_MANIFOLD && featureMask.selectNonManifold) return true
+    if (compVTag & VT_XORDINARY && featureMask.selectXOrdinaryInterior) return true
+    return doesInfSharpFaceHaveFeatures(compVTag, vTags, fVerts.size, featureMask)
+}
+
+/** `Vtr::internal::SparseSelector` (`vtr/sparseSelector.h`, `.cpp`). */
+export class SparseSelector {
+    private selected = false
+    constructor(private readonly refine: Refinement) {}
+
+    getRefinement(): Refinement { return this.refine }
+    isSelectionEmpty() { return !this.selected }
+
+    /** `initializeSelection` (:29). */
+    private initializeSelection(): void {
+        if (!this.selected) {
+            this.refine.initializeSparseSelectionTags()
+            this.selected = true
+        }
+    }
+
+    selectVertex(parentVertex: number): void {
+        this.initializeSelection()
+        this.refine.getParentVertexSparseTag(parentVertex).selected = true
+    }
+
+    selectEdge(parentEdge: number): void {
+        this.initializeSelection()
+        if (!this.refine.getParentEdgeSparseTag(parentEdge).selected) {
+            this.refine.getParentEdgeSparseTag(parentEdge).selected = true
+            const eVerts = this.refine.parent.getEdgeVertices(parentEdge)
+            this.refine.getParentVertexSparseTag(eVerts.get(0)).selected = true
+            this.refine.getParentVertexSparseTag(eVerts.get(1)).selected = true
+        }
+    }
+
+    selectFace(parentFace: number): void {
+        this.initializeSelection()
+        if (!this.refine.getParentFaceSparseTag(parentFace).selected) {
+            this.refine.getParentFaceSparseTag(parentFace).selected = true
+            const fEdges = this.refine.parent.getFaceEdges(parentFace)
+            const fVerts = this.refine.parent.getFaceVertices(parentFace)
+            for (let i = 0; i < fVerts.size; ++i) {
+                this.refine.getParentEdgeSparseTag(fEdges.get(i)).selected = true
+                this.refine.getParentVertexSparseTag(fVerts.get(i)).selected = true
+            }
+        }
+    }
+}
+
+// endregion
 
 // region TopologyRefinerFactory
 

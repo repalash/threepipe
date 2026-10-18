@@ -1,10 +1,10 @@
 /**
  * Port of OpenSubdiv v3_7_0 `opensubdiv/osd/cpuKernel.cpp` (`CpuEvalStencils`, the scalar path), `osd/cpuEvaluator.cpp`
  * (`CpuEvaluator::EvalPatches` without derivatives), `osd/cpuPatchTable.cpp`, `osd/types.h` (`PatchCoord`,
- * `PatchArray`), `osd/bufferDescriptor.h` and the linear part of `osd/patchBasis.h` / `osd/patchBasisTypes.h`
- * (`OsdEvaluatePatchBasis`, `Osd_EvalBasisLinear`, `OsdPatchParamNormalize`), Copyright 2013-2018 Pixar.
+ * `PatchArray`), `osd/bufferDescriptor.h` and the quad bases of `osd/patchBasis.h` / `osd/patchBasisTypes.h`
+ * (`OsdEvaluatePatchBasis` - linear, B-spline, Gregory - and `OsdPatchParamNormalize`), Copyright 2013-2018 Pixar.
  * The SIMD stencil kernels (`ComputeStencilKernel<4|8>`, used only for 4- and 8-float primvars - Blender's are 3 and 2
- * floats) and the cubic bases are not ported.
+ * floats), derivatives and the triangle bases are not ported.
  * Licensed under the Tomorrow Open Source Technology License 1.0 - see `OPENSUBDIV-LICENSE.txt` in this folder.
  *
  * Float exactness: compiled in the OpenSubdiv library with clang `-ffp-contract=on`, so `dst[k] += src[k] * weight` is
@@ -106,14 +106,14 @@ function paramFraction(p: PatchParam): number {
     return f32(1 / (1 << (p.getDepth() - (p.nonQuadRoot() ? 1 : 0))))
 }
 
-/** `OsdEvaluatePatchBasis` (`patchBasis.h:1541`) without derivatives; only the linear quad basis is ported. */
-export function osdEvaluatePatchBasis(patchType: PatchType, param: PatchParam, s: number, t: number, wP: number[]): number {
-    if (patchType !== PatchType.QUADS) throw new Error(`OpenSubdiv: Osd patch basis for patch type ${patchType} is not ported (only QUADS)`)
-    // `OsdPatchParamNormalize` (`patchBasisTypes.h:372`).
+/** `OsdPatchParamNormalize` (`patchBasisTypes.h:372`): `uv * fracInv - U` contracts to an FMA. */
+function normalize(param: PatchParam, s: number, t: number): [number, number] {
     const fracInv = f32(1 / paramFraction(param))
-    s = fmaf(s, fracInv, -param.getU())
-    t = fmaf(t, fracInv, -param.getV())
-    // `Osd_EvalBasisLinear` (`patchBasis.h:39`).
+    return [fmaf(s, fracInv, -param.getU()), fmaf(t, fracInv, -param.getV())]
+}
+
+/** `Osd_EvalBasisLinear` (`patchBasis.h:39`), position weights. */
+function evalBasisLinear(s: number, t: number, wP: number[]): number {
     const sC = f32(1 - s)
     const tC = f32(1 - t)
     wP[0] = f32(sC * tC)
@@ -121,6 +121,121 @@ export function osdEvaluatePatchBasis(patchType: PatchType, param: PatchParam, s
     wP[2] = f32(s * t)
     wP[3] = f32(sC * t)
     return 4
+}
+
+const ONE_6TH = f32(1 / 6)
+
+/**
+ * `Osd_evalBSplineCurve` (`patchBasis.h:89`), position weights:
+ * `one6th * (1.0f - 3.0f*(t - t2) - t3)` contracts its inner `1 - 3 * (t - t2)`;
+ * `one6th * (4.0f - 6.0f*t2 + 3.0f*t3)` contracts both terms, `fma(3, t3, fma(-6, t2, 4))`;
+ * `one6th * (1.0f + 3.0f*(t + t2 - t3))` contracts `1 + 3 * (...)`.
+ */
+function evalBSplineCurve(t: number, wP: number[]): void {
+    const t2 = f32(t * t)
+    const t3 = f32(t * t2)
+    wP[0] = f32(ONE_6TH * f32(fmaf(-3, f32(t - t2), 1) - t3))
+    wP[1] = f32(ONE_6TH * fmaf(3, t3, fmaf(-6, t2, 4)))
+    wP[2] = f32(ONE_6TH * fmaf(3, f32(f32(t + t2) - t3), 1))
+    wP[3] = f32(ONE_6TH * t3)
+}
+
+/** `Osd_EvalBasisBSpline` (`patchBasis.h:189`), position weights. */
+function evalBasisBSpline(s: number, t: number, wP: number[]): number {
+    const sWeights: number[] = [], tWeights: number[] = []
+    evalBSplineCurve(s, sWeights)
+    evalBSplineCurve(t, tWeights)
+    for (let i = 0; i < 4; ++i) for (let j = 0; j < 4; ++j) wP[4 * i + j] = f32(sWeights[j] * tWeights[i])
+    return 16
+}
+
+/** `Osd_adjustBSplineBoundaryWeights` (`patchBasis.h:121`): `w[a] += w[b] * 2.0f` contracts (exactly: `2 * w` is exact). */
+function adjustBSplineBoundaryWeights(boundary: number, w: number[]): void {
+    if ((boundary & 1) !== 0) {
+        for (let i = 0; i < 4; ++i) {
+            w[i + 8] = f32(w[i + 8] - w[i + 0])
+            w[i + 4] = fmaf(w[i + 0], 2, w[i + 4])
+            w[i + 0] = 0
+        }
+    }
+    if ((boundary & 2) !== 0) {
+        for (let i = 0; i < 16; i += 4) {
+            w[i + 1] = f32(w[i + 1] - w[i + 3])
+            w[i + 2] = fmaf(w[i + 3], 2, w[i + 2])
+            w[i + 3] = 0
+        }
+    }
+    if ((boundary & 4) !== 0) {
+        for (let i = 0; i < 4; ++i) {
+            w[i + 4] = f32(w[i + 4] - w[i + 12])
+            w[i + 8] = fmaf(w[i + 12], 2, w[i + 8])
+            w[i + 12] = 0
+        }
+    }
+    if ((boundary & 8) !== 0) {
+        for (let i = 0; i < 16; i += 4) {
+            w[i + 2] = f32(w[i + 2] - w[i + 0])
+            w[i + 1] = fmaf(w[i + 0], 2, w[i + 1])
+            w[i + 0] = 0
+        }
+    }
+}
+
+/** `Osd_evalBezierCurve` (`patchBasis.h:282`), position weights. */
+function evalBezierCurve(t: number, wP: number[]): void {
+    const t2 = f32(t * t)
+    const tC = f32(1 - t)
+    const tC2 = f32(tC * tC)
+    wP[0] = f32(tC2 * tC)
+    wP[1] = f32(f32(tC2 * t) * 3)
+    wP[2] = f32(f32(t2 * tC) * 3)
+    wP[3] = f32(t2 * t)
+}
+
+const BOUNDARY_GREGORY = [0, 1, 7, 5, 2, 6, 16, 12, 15, 17, 11, 10]
+const BOUNDARY_BEZ_S_COL = [0, 1, 2, 3, 0, 3, 0, 3, 0, 1, 2, 3]
+const BOUNDARY_BEZ_T_ROW = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3]
+const INTERIOR_GREGORY = [3, 4, 8, 9, 13, 14, 18, 19]
+const INTERIOR_BEZ_S_COL = [1, 1, 2, 2, 2, 2, 1, 1]
+const INTERIOR_BEZ_T_ROW = [1, 1, 1, 1, 2, 2, 2, 2]
+
+/** `Osd_EvalBasisGregory` (`patchBasis.h:317`), position weights. `1.0f - s * df0` contracts to an FMA. */
+function evalBasisGregory(s: number, t: number, wP: number[]): number {
+    const Bs: number[] = [], Bt: number[] = []
+    evalBezierCurve(s, Bs)
+    evalBezierCurve(t, Bt)
+    const sC = f32(1 - s)
+    const tC = f32(1 - t)
+    let df0 = f32(s + t); df0 = df0 <= 0 ? 1 : f32(1 / df0)
+    let df1 = f32(sC + t); df1 = df1 <= 0 ? 1 : f32(1 / df1)
+    let df2 = f32(sC + tC); df2 = df2 <= 0 ? 1 : f32(1 / df2)
+    let df3 = f32(s + tC); df3 = df3 <= 0 ? 1 : f32(1 / df3)
+    const G = [f32(s * df0), fmaf(-s, df0, 1), f32(t * df1), fmaf(-t, df1, 1), f32(sC * df2), fmaf(-sC, df2, 1), f32(tC * df3), fmaf(-tC, df3, 1)]
+    for (let i = 0; i < 12; ++i) wP[BOUNDARY_GREGORY[i]] = f32(Bs[BOUNDARY_BEZ_S_COL[i]] * Bt[BOUNDARY_BEZ_T_ROW[i]])
+    for (let j = 0; j < 8; ++j) wP[INTERIOR_GREGORY[j]] = f32(f32(Bs[INTERIOR_BEZ_S_COL[j]] * Bt[INTERIOR_BEZ_T_ROW[j]]) * G[j])
+    return 20
+}
+
+/**
+ * `OsdEvaluatePatchBasis` (`patchBasis.h:1541`) with `OsdEvaluatePatchBasisNormalized` (:1430), without derivatives,
+ * for the quad patch types (linear, B-spline with its boundary mask, Gregory basis).
+ */
+export function osdEvaluatePatchBasis(patchType: PatchType, param: PatchParam, s: number, t: number, wP: number[]): number {
+    if (patchType === PatchType.LOOP || patchType === PatchType.GREGORY_TRIANGLE || patchType === PatchType.TRIANGLES) {
+        throw new Error(`OpenSubdiv: Osd triangle patch bases (type ${patchType}) are not ported`)
+    }
+    const [ns, nt] = normalize(param, s, t)
+    const boundaryMask = param.getBoundary()
+    switch (patchType) {
+    case PatchType.REGULAR: {
+        const n = evalBasisBSpline(ns, nt, wP)
+        if (boundaryMask !== 0) adjustBSplineBoundaryWeights(boundaryMask, wP)
+        return n
+    }
+    case PatchType.GREGORY_BASIS: return evalBasisGregory(ns, nt, wP)
+    case PatchType.QUADS: return evalBasisLinear(ns, nt, wP)
+    default: return 0
+    }
 }
 
 /**

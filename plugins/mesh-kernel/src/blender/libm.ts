@@ -38,7 +38,7 @@ export const libmProof: {
     table?: Partial<Record<LibmName, Record<string, number[]>>>
 } = {}
 
-export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf' | 'sinf' | 'cosf' | 'tanf' | 'powf' | 'sincos' | 'atan2'
+export type LibmName = 'acosf' | 'asinf' | 'atan2f' | 'sincosf' | 'sinf' | 'cosf' | 'tanf' | 'powf' | 'sincos' | 'sin' | 'cos' | 'atan2'
 
 /** `String(x)`, keeping the sign of zero. */
 const key = (x: number) => (Object.is(x, -0) ? '-0' : String(x))
@@ -117,6 +117,18 @@ export function sincos(x: number): [number, number] {
     const t = substituted('sincos', key(x))
     if (t) return [t[0], t[1]]
     return [Math.sin(x), Math.cos(x)]
+}
+
+/** Double `sin` called alone (see `sincos`). `Math.sin` (fdlibm) here. */
+export function sin(x: number): number {
+    const t = substituted('sin', key(x))
+    return t ? t[0] : Math.sin(x)
+}
+
+/** Double `cos` called alone (see `sincos`). `Math.cos` (fdlibm) here. */
+export function cos(x: number): number {
+    const t = substituted('cos', key(x))
+    return t ? t[0] : Math.cos(x)
 }
 
 /** Double `atan2`. `Math.atan2` (fdlibm) here. */

@@ -98,7 +98,29 @@ Done when:
     - output size follows `levels` at any `quality`.
   - The unused `edgeCrease` / `vertexCrease` overrides were dropped from `SubdivisionSurfaceOptions`.
   - The OpenSubdiv licence moved to `osd/OPENSUBDIV-LICENSE.txt`.
-- **Phase 4, partly done.** The procedural copies are gone. The kernel's double adaptive modules (`adaptive.ts`,
-  `patchBuilder.ts`, `patchTable.ts`, `gregory.ts`, `refiner.ts`, ...) are deleted once phase 2 replaces them.
-- **Phase 2, open.** This is the exact limit surface. Once it lands, `subsurf-parity.test.ts`'s `TOLERANCE` becomes
-  exact for every case.
+- **Phase 2, done.** Ported from OpenSubdiv 3.7.0 into `osd/`, in float, with clang's `-ffp-contract=on` contractions:
+  - `TopologyRefiner::RefineAdaptive` with `FeatureMask` and `SparseSelector` (`topologyRefiner.ts`);
+  - `PatchBuilder`, `SourcePatch`, `CatmarkLimits` and `GregoryConverter`, plus `BilinearPatchBuilder`
+    (`patchBuilder.ts`);
+  - `SparseMatrix<float>` (`sparseMatrix.ts`);
+  - the adaptive `PatchTableBuilder` and `LocalPointHelper`, with shared end-cap points and varying tables
+    (`patchTableFactory.ts`);
+  - `AppendLocalPointStencilTable` (vertex and face-varying) in `stencilTable.ts`;
+  - the Osd B-spline (with boundary mask) and Gregory bases in `osdCpu.ts`;
+  - Blender's `is_adaptive` face-varying source offset.
+
+  The libm hooks gained double `sin` / `cos`, and `libm_eval.py` evaluates them on the reference platform.
+
+  Results:
+  - `subsurf-parity.test.ts`: 34/34 bit-exact, index for index, for every case including the limit surface and
+    Simple.
+  - Procedural `subdivSurface`: every limit case is exact. Left over:
+    - four single values on shared loose-edge end points (`procedural-subdiv-loose-edge-endpoint-race.md`);
+    - `ss-typed-uniform` quaternion/matrix mixing, unchanged from before.
+- **Phase 4, done.**
+  - The kernel's double modules (`refiner`, `level`, `refinement`, `fvar*`, `sdc`, `attributes`, `adaptive`,
+    `patchBuilder`, `patchTable`, `gregory`, `limitEvaluator`) are deleted, together with their public exports
+    (`createSubdivLimitEvaluator`, `creaseToSharpness`, `fvarInterpolationFromUVSmooth`). Nothing used them.
+  - The unit tests that tested the double internals (Vtr level, masks, adaptive isolation) now test the float
+    modules.
+  - Verified: every unit suite and `typecheck:plugins`.

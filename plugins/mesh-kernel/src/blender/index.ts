@@ -3,7 +3,7 @@
 // Names that would clash with the kernel's own exports are prefixed with `blender`.
 export {f32, floatAsInt, floatAsUint, floatToUint8, roundHalfAway, truncToInt, uintAsFloat} from './f32'
 export {fmaf} from './fma'
-export {acosf, asinf, atan2, atan2f, cosf, libmProof, powf, sincos, sincosf, sinf, tanf} from './libm'
+export {acosf, asinf, atan2, atan2f, cos, cosf, libmProof, powf, sin, sincos, sincosf, sinf, tanf} from './libm'
 export type {LibmName} from './libm'
 export {blenderSystem, powerOf2MinI} from './system'
 export {decodeByteColor, encodeByteColor, linearToSrgb, srgbToLinear, unitFloatToUcharClamp} from './color'
