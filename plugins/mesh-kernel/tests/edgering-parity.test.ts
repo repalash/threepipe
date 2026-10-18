@@ -40,12 +40,20 @@ const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as {blender: string, c
 const TOL = 1e-4
 
 
-function build(input: Case['input']) {
+function build(input: Case['input'], kind: Case['kind']) {
     const bm = new BMesh()
     const verts = input.positions.map(c => bm.vertCreate(c[0], c[1], c[2]))
-    // Blender's edge order and direction first (issues/open/mesh-kernel-face-create-edge-order.md).
-    for (const [a, b] of input.meshEdges) bm.edgeCreate(verts[a], verts[b])
-    for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+    if (kind === 'op') {
+        // `bm.faces.new` in the generator and `faceCreate` here make the same edges, in the same order
+        // and direction (`BM_edges_from_verts_ensure`, `bmesh_construct.cc:57`); the fixture records them.
+        for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+        const index = new Map(verts.map((v, i) => [v, i]))
+        expect([...bm.edges].map(e => [index.get(e.v1), index.get(e.v2)])).toEqual(input.meshEdges)
+    } else {
+        // The edit-mode cases' meshes come from `Mesh.from_pydata`, which orders edges its own way.
+        for (const [a, b] of input.meshEdges) bm.edgeCreate(verts[a], verts[b])
+        for (const f of input.faces) bm.faceCreate(f.map(i => verts[i]))
+    }
     meshNormalsUpdate(bm)
     const edgeOf = (a: number, b: number): BMEdge => {
         const e = [...bm.edges].find(x => x.joins(verts[a], verts[b]))
@@ -119,7 +127,7 @@ function compareUnordered(got: MeshOut, want: MeshOut): string[] {
 describe(`subdivide edge-ring matches Blender ${fixture.blender}`, () => {
     for (const c of fixture.cases.filter(x => x.kind === 'op')) {
         it(c.name, () => {
-            const {bm, edges} = build(c.input)
+            const {bm, edges} = build(c.input, c.kind)
             const p = c.params
             const res = bmoSubdivideEdgering(bm, edges, {
                 cuts: p.cuts,
@@ -149,7 +157,7 @@ describe(`subdivide edge-ring matches Blender ${fixture.blender}`, () => {
 describe(`edit-mode Subdivide Edge-Ring (MESH_OT_subdivide_edgering) matches Blender ${fixture.blender}`, () => {
     for (const c of fixture.cases.filter(x => x.kind === 'edit')) {
         it(c.name, () => {
-            const {bm, edges} = build(c.input)
+            const {bm, edges} = build(c.input, c.kind)
             bm.selectMode = SelectMode.Edge
             for (const e of edges) edgeSelectSet(bm, e, true)
             selectFlushMode(bm)

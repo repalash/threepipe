@@ -143,8 +143,9 @@ selection result. Also Blender 3.4.1; the one later change, the vertex-crease re
 own unit test. Subdivide never kills an element, so here order *is* compared:
 [`../subdivide-parity.test.ts`](../subdivide-parity.test.ts) checks vertices, edges and faces index for
 index, and the `geom_inner` / `geom_split` outputs and the selection as index sets. The fixture records
-Blender's input edge order and direction too, which the kernel's `faceCreate` does not reproduce
-(`issues/open/mesh-kernel-face-create-edge-order.md`).
+Blender's input edge order and direction too: for the `bmesh.ops` cases the test checks that
+`faceCreate` makes the same edges as `faces.new` (`BM_edges_from_verts_ensure`); the edit-mode cases'
+`Mesh.from_pydata` order is created as recorded.
 
 ```sh
 blender --background --factory-startup --python plugins/mesh-kernel/tests/fixtures/gen-bmesh-ops-subdivide-fixtures.py
