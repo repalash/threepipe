@@ -5443,20 +5443,24 @@ test('modelling-editor-inset-bevel', async({page}) => {
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
     expect((await state()).history.filter(h => !h.endsWith('*')).length).toBe(steps)
 
-    // 3. The mouse drives it, from the tool shelf too (Blender's `edbm_inset_modal`): moving towards the
-    // face's centre makes the rim thicker. The re-runs are the modal's own - no "finish the current
-    // operation first" toasts - and the shelf goes back to Select when it ends.
+    // 3. The tool shelf runs it as Blender's Inset Faces tool does (a left drag with release_confirm):
+    // moving onto the viewport changes nothing, the press is the reference, dragging towards the face's
+    // centre makes the rim thicker, the release confirms. The re-runs are the modal's own - no "finish
+    // the current operation first" toasts - and the shelf goes back to Select when it ends.
     await page.locator('[data-tool="mesh.inset"]').click()
     await expect.poll(async() => (await state()).propDrag).toBe('mesh.inset')
-    // Off the canvas when it started: the first move over the canvas is the reference (one pixel there
-    // is about 0.01 units at the cube's depth).
-    await page.mouse.move(f.centre.x + 200, f.centre.y)
+    await page.mouse.move(f.centre.x + 260, f.centre.y + 60, {steps: 8})
+    await page.mouse.move(f.centre.x + 200, f.centre.y, {steps: 4})
+    await page.waitForTimeout(200)
+    expect(Number((await state()).lastProps?.thickness)).toBe(0.05)
+    // About 0.01 units per pixel at the cube's depth.
+    await page.mouse.down()
     await page.mouse.move(f.centre.x + 185, f.centre.y, {steps: 5})
     await expect.poll(async() => Number((await state()).lastProps?.thickness)).toBeGreaterThan(0.1)
     const dragged = Number((await state()).lastProps?.thickness)
     await page.mouse.move(f.centre.x + 196, f.centre.y, {steps: 5})
     await expect.poll(async() => Number((await state()).lastProps?.thickness)).toBeLessThan(dragged)
-    await page.mouse.click(f.centre.x + 196, f.centre.y)
+    await page.mouse.up()
     await expect.poll(async() => (await state()).propDrag).toBeNull()
     s = await state()
     expect(s.toasts).toEqual([])

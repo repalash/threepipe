@@ -20,9 +20,13 @@
  * path - pop the step, exec with the new value, push - which is exactly what the panel does, so the
  * modal and the panel cannot disagree. The cost is one command run per change, throttled to a frame.
  *
- * One deviation: Blender takes the reference distance where the operator was invoked, which is always
- * inside the 3D view. Started from the toolbar, the pointer is outside the canvas, so the reference is
- * taken where the pointer first moves over it instead.
+ * Started from a key, the reference distance is the pointer's where the key was pressed, as in Blender.
+ * Started from the tool shelf (the pointer is on the shelf), the modal waits for a press in the
+ * viewport: the press is the reference, dragging sets the value and the release confirms, as Blender's
+ * Inset Faces and Bevel tools run the operator from a left drag with `release_confirm`
+ * (`blender_default.py:7840`, `km_3d_view_tool_edit_mesh_inset_faces`, and `:7851` for bevel).
+ * Moving onto the viewport before the press changes nothing, so the value does not jump on the way
+ * from the shelf.
  */
 
 import {
@@ -84,6 +88,8 @@ export class PropDragModal {
     /** Re-runs are serialised: a change waits for the one before it. */
     private _running: Promise<void> = Promise.resolve()
     private _applying = false
+    /** Started from the tool shelf and dragged: the release confirms. */
+    private _releaseConfirm = false
     /** The last re-run's warnings, shown once the modal is confirmed. */
     private _warnings: string[] = []
 
@@ -183,11 +189,9 @@ export class PropDragModal {
 
     private _onMove = (event: PointerEvent): void => {
         if (!this.active) return
+        // Started from the tool shelf: nothing moves until the press in the viewport.
+        if (this._initialLength === null) return
         const len = Math.hypot(event.clientX - this._centre.x, event.clientY - this._centre.y)
-        if (this._initialLength === null) {
-            this._initialLength = len
-            return
-        }
         // A typed value is final until Backspace clears it (`if (!has_numinput)`, :414).
         if (hasNumInput(this._num)) return
         let value = this._initialValue + (this.spec.direction ?? 1) * (len - this._initialLength) * this._pixelSize
@@ -202,7 +206,16 @@ export class PropDragModal {
 
     private _onDown = (event: PointerEvent): void => {
         if (!this.active) return
-        if (event.button === 0) {
+        if (event.button === 0 && this._initialLength === null) {
+            // The tool's drag (Blender's `builtin.inset_faces` / `builtin.bevel`: a left drag in the
+            // viewport runs the operator with `release_confirm`): the press is the reference, the
+            // release confirms.
+            event.preventDefault()
+            event.stopPropagation()
+            this._initialLength = Math.hypot(event.clientX - this._centre.x, event.clientY - this._centre.y)
+            this._releaseConfirm = true
+            window.addEventListener('pointerup', this._onUp, true)
+        } else if (event.button === 0) {
             event.preventDefault()
             event.stopPropagation()
             void this.confirm()
@@ -211,6 +224,13 @@ export class PropDragModal {
             event.stopPropagation()
             this.cancel()
         }
+    }
+
+    private _onUp = (event: PointerEvent): void => {
+        if (!this.active || !this._releaseConfirm || event.button !== 0) return
+        event.preventDefault()
+        event.stopPropagation()
+        void this.confirm()
     }
 
     private _onWheel = (event: WheelEvent): void => {
@@ -333,6 +353,7 @@ export class PropDragModal {
         const canvas = this._engine.viewer.canvas
         canvas.removeEventListener('pointermove', this._onMove)
         canvas.removeEventListener('pointerdown', this._onDown, true)
+        window.removeEventListener('pointerup', this._onUp, true)
         canvas.removeEventListener('wheel', this._onWheel, true)
         if (this._engine.propDrag === this) this._engine.propDrag = null
         this._engine.dispatchEvent({type: 'statusChanged', hints: this._engine.status})
