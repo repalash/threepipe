@@ -238,7 +238,7 @@ export const bevelCommand: CommandDefinition = {
         if (!result.faces.length) {
             ctx.warn('nothing was beveled - the selection may be boundary or non-manifold edges, '
                 + 'which are declined rather than corrupted')
-            return {objects: [entry.name], data: {newFaces: 0}}
+            return {objects: [entry.name], data: {mode: byVerts ? 'verts' : 'edges', newFaces: []}}
         }
 
         const mesh = bmToMesh(bm)

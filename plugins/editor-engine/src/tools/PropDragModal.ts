@@ -84,6 +84,8 @@ export class PropDragModal {
     /** Re-runs are serialised: a change waits for the one before it. */
     private _running: Promise<void> = Promise.resolve()
     private _applying = false
+    /** The last re-run's warnings, shown once the modal is confirmed. */
+    private _warnings: string[] = []
 
     constructor(private _engine: EditorEnginePlugin, readonly spec: PropDragSpec) {
         initNumInput(this._num)
@@ -283,8 +285,9 @@ export class PropDragModal {
     }
 
     private async _apply(value: number): Promise<void> {
-        const last = this._engine.lastOperation
-        if (!last?.redo || last.operator.id !== this.spec.operatorId) {
+        const engine = this._engine
+        const last = engine.lastOperation
+        if (!last || last.operator.id !== this.spec.operatorId) {
             this.cancel()
             return
         }
@@ -292,12 +295,17 @@ export class PropDragModal {
         this._props = {...this._props, [this.spec.prop]: this._value}
         this._applying = true
         try {
-            await last.redo(this._props)
+            // A re-run that changed nothing (a bevel of width 0, while "0.15" is being typed) pushes no
+            // undo step, so it has no redo; the mesh is then as it was before the operator, and the next
+            // value runs it afresh.
+            const result = last.redo ? await last.redo(this._props) : await engine.run(this.spec.operatorId, this._props)
+            this._warnings = result.ok ? result.warnings ?? [] : []
         } finally {
             this._applying = false
         }
-        this._step = this._engine.history.peek()
-        this._engine.dispatchEvent({type: 'statusChanged', hints: this._engine.status})
+        // The step to take back on cancel; none when the last re-run changed nothing.
+        this._step = engine.lastOperation?.operator.id === this.spec.operatorId && engine.lastOperation.redo ? engine.history.peek() : null
+        engine.dispatchEvent({type: 'statusChanged', hints: engine.status})
     }
 
     /** Apply what is still pending (a value typed just before Enter), then leave. */
@@ -307,6 +315,7 @@ export class PropDragModal {
         this._frame = 0
         await this._flush()
         this._finish()
+        for (const w of this._warnings) this._engine.message('warning', w)
     }
 
     /** Undo the operator's step and leave. */

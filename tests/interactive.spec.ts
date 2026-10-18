@@ -5363,7 +5363,7 @@ test('modelling-editor-inset-bevel', async({page}) => {
             lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
             lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
             history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
-            toasts: document.querySelectorAll('.bp5-toast').length,
+            toasts: [...document.querySelectorAll('.bp5-toast')].map(e => e.textContent ?? ''),
         }
     })
     /** The face most turned towards the camera: its centre and one edge's midpoint, in client pixels. */
@@ -5431,7 +5431,7 @@ test('modelling-editor-inset-bevel', async({page}) => {
     expect(s.history.filter(h => h.startsWith('Inset')).length).toBe(1)
     // A 1-unit face inset by 0.2 on every side leaves a 0.6 square (and no extent along the normal).
     expect(await selectedExtent()).toEqual([0, 0.6, 0.6])
-    expect(s.toasts).toBe(0)
+    expect(s.toasts).toEqual([])
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -5459,7 +5459,7 @@ test('modelling-editor-inset-bevel', async({page}) => {
     await page.mouse.click(f.centre.x + 196, f.centre.y)
     await expect.poll(async() => (await state()).propDrag).toBeNull()
     s = await state()
-    expect(s.toasts).toBe(0)
+    expect(s.toasts).toEqual([])
     expect(s.tool).toBe('select')
     expect(s.counts).toEqual([12, 20, 10])
     expect(s.history.filter(h => h.startsWith('Inset') && !h.endsWith('*')).length).toBe(1)
@@ -5475,7 +5475,9 @@ test('modelling-editor-inset-bevel', async({page}) => {
     await page.mouse.move(f.centre.x + 150, f.centre.y + 100, {steps: 4})
     await page.keyboard.press('Control+KeyB')
     await expect.poll(async() => (await state()).propDrag).toBe('mesh.bevel')
-    await page.keyboard.type('0.15')
+    // Typed slowly enough that each key is applied: 0 (and 0.) is a bevel of width 0, which changes
+    // nothing and leaves no undo step; the next key runs it afresh, without a warning or error toast.
+    await page.keyboard.type('0.15', {delay: 250})
     await page.mouse.wheel(0, -100)
     await page.mouse.wheel(0, -100)
     await expect(modalText).toContainText('segments: 3')
@@ -5486,7 +5488,7 @@ test('modelling-editor-inset-bevel', async({page}) => {
     expect(s.lastProps).toMatchObject({offset: 0.15, segments: 3})
     // One edge, three segments: the edge becomes a strip of three faces.
     expect(s.counts![2]).toBe(9)
-    expect(s.toasts).toBe(0)
+    expect(s.toasts).toEqual([])
     expect(s.selectMode).toBe('edge')
 })
 
