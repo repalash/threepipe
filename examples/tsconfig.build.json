@@ -3,6 +3,7 @@
     "compilerOptions": {
         "paths": {
             "threepipe": ["../dist/"],
+            "@threepipe/plugin-procedural/plugin": ["../plugins/procedural/dist/plugin/index.d.ts"],
             "@threepipe/plugin-*": ["../plugins/*/dist"],
             "@threepipe/plugins-*": ["../plugins/*/dist"],
             "@threepipe/mesh-kernel": ["../plugins/mesh-kernel/dist"],

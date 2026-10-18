@@ -1,4 +1,7 @@
 import {expect, test} from '@playwright/test'
+import {existsSync} from 'node:fs'
+import {dirname, join} from 'node:path'
+import {fileURLToPath} from 'node:url'
 import {screenshotMatch, setupTestHooks} from './helpers'
 
 setupTestHooks()
@@ -121,4 +124,30 @@ test('procedural-editor', async({page}, testInfo) => {
     // Undo returns to the default input and the same mesh.
     await page.evaluate(() => (window as any).modelling.run({op: 'undo'}))
     await expect.poll(async() => (await state()).verts).toBe(before.verts)
+})
+
+// The bundle is made locally from the maintainer's .blend (porting/blender/bundle_dump.py); it is not in git.
+test.describe(() => {
+    test.skip(!existsSync(join(dirname(fileURLToPath(import.meta.url)), '../tmp/bundles/blender-procedural-buildings/bundle.json')), 'no local bundle (tmp/bundles)')
+    test('procedural-blend-asset', async({page}, testInfo) => {
+        await expect(page).toHaveTitle('Blender geometry nodes asset (procedural)')
+        await expect(page.locator('#error')).toHaveText('')
+        const stats = async() => page.evaluate(() => ({...(window as any).renderer.stats}))
+        // The same draw list as in Node: Building 1's 351 instances of 18 referenced meshes.
+        const first = await stats()
+        expect(first.draws).toBe(351)
+        expect(first.uniqueMeshes).toBe(18)
+        await expect(page.locator('#source')).toContainText('blender-procedural-buildings.blend / Building 1 (Blender 5.2.2')
+        await screenshotMatch(page, testInfo, 'building')
+
+        // Inputs are live: a wider building has more modules; the original width gives the same draws back.
+        const width = page.locator('label.row', {has: page.locator('span', {hasText: /^X$/})}).locator('input')
+        const x = await width.inputValue()
+        await width.fill(String(+x + 4))
+        await width.dispatchEvent('change')
+        await expect.poll(async() => (await stats()).draws).toBeGreaterThan(351)
+        await width.fill(x)
+        await width.dispatchEvent('change')
+        await expect.poll(async() => (await stats()).draws).toBe(351)
+    })
 })

@@ -1,6 +1,6 @@
 # Track 2 — Geometry nodes on the mesh kernel (subplan)
 
-**Status**: proposed 2026-10-16 for the parent's review. Parent: [13-roadmap-2026-10](./13-roadmap-2026-10.md)
+**Status**: approved 2026-10-16; in progress (progress in §12). Parent: [13-roadmap-2026-10](./13-roadmap-2026-10.md)
 §1.2, §3 "Track 2", §5 "Launch". Branch `track2-procedural` (worktree `.repos/threepipe-track2-procedural`,
 off `modelling-editor` `d7a15f4`). Comm: `.repos/threepipe-editor/tmp/agent-comm/track2-procedural/`.
 
@@ -354,8 +354,8 @@ export const terrain = geometryNodes('Terrain', g => {
     const lifted = n.SetPosition({geometry: grid.mesh, offset: n.CombineXYZ({z: noise.fac.mul(height)})})
     g.output.geometry('Geometry', lifted.geometry)
 })
-terrain.json   // NodeTreeJSON, the only thing the runtime reads
-terrain.toCode() // back to this text (also works on imported Blender trees)
+terrain.json   // NodeGroupLibrary (the group and every group it uses), the only thing the runtime reads
+terrain.toCode() // back to this text (also works on imported Blender trees: toCode(library, name))
 ```
 - Node classes are PascalCase Blender UI names; input keys are camelCase socket names (`'Size X'` → `sizeX`,
   identifier used when names repeat, e.g. Math `value`, `value1`, `value2`); properties are camelCase RNA
@@ -564,8 +564,10 @@ parity, reactive in the browser and in the modifier panel.
 
 ## 9. How an agent writes a graph (for the Track 1 SKILL.md)
 
-1. Write a DSL module (`geometryNodes(...)`) in the session script; `tree.json` is what goes to the document.
-2. `{op: 'nodeGroup', name, tree}` then `{op: 'modifier', object, add: {type: 'geometryNodes', group, inputs}}`.
+1. Write a DSL module (`geometryNodes(...)`) in the session script; `group.json` (a NodeGroupLibrary) is what
+   goes to the document.
+2. `{op: 'nodeGroup', library: group.json}` (or `{op: 'nodeGroup', name, tree}` for one tree) then
+   `{op: 'modifier', object, add: {type: 'geometryNodes', group, inputs}}`.
 3. Iterate with `{op: 'modifier', object, index, update: {inputs: {Seed: 4}}}` — only the dirty part re-runs;
    `measure`/`look` read the evaluated result.
 4. Validation errors name the node, the socket and Blender's rule (type mismatch, field into single value,
@@ -605,3 +607,44 @@ parity, reactive in the browser and in the modifier panel.
   the 11 code generators as DSL graphs in M11; erosion as a named threepipe extension node). **Yes**.
 - **[A6]** Large GT: binary float32 under 5 MB in git; anything bigger stays in `tmp/` referenced by hash.
 - **[A7]** Blender pin: **v5.2.2** (`.repos/blender-5.2.2`), not `.repos/blender-gn-source` (5.2 alpha).
+
+---
+
+## 12. Progress (2026-10-18)
+
+Numbers are test results in `plugins/procedural` (`npm run test`), statuses in `tests/parity/*.status.json`.
+
+**Runtime and data model (M0-M2)**: done as planned (§1-§2), plus Blender's mesh built-in table for procedural
+meshes (kernel `AttributeStorage.setBuiltins`, additive), measured libm boundaries (`src/blender/libm.ts`,
+`blenderSystem.libm`), `blenderSystem.threadCount` for thread-count-dependent orders. Dump importer v1/v2 and
+runtime bundles (`porting/blender/bundle_dump.py`: the dump without evaluated output; unorm8 images).
+
+**Nodes**: function nodes F1-F8 and S (all), G1-G5, G6 except Subdivide Mesh / Flip Faces / Triangulate / Scale
+Elements, G7 except Raycast / Proximity, I1-I3 (Image Info pending), mesh primitives incl. Circle/Cylinder/Cone/UV
+Sphere (Ico Sphere pending), Bounding Box, Merge by Distance, Duplicate Elements. Curves (C1-C3) in progress.
+
+**Parity** (Blender 5.2.2, run through `run_cases.py` on the maintainer's Mac):
+- geonodes-kit corpus: 316 pass / 23 skip (unported nodes) / 0 fail.
+- own case sets (19 sets): 587 bit-exact, 66 within 16 ulp (libm `sinf`/`cosf`/`powf`/`acosf` differences, §2.6),
+  1 `blenderBug` (Face Is Planar threshold, issue filed), 1 `blocked` (float4x4 `mix2` = Eigen JacobiSVD, issue
+  `procedural-eigen-port-licence.md`), 1 failing (uv-sphere-normals: mesh runtime caches through copies, in work).
+- assets (whole graphs vs Blender's evaluated output): Blender procedural buildings 3/3 bit-exact; Buildify
+  14/15 bit-exact (`building_base` needs curves + Subdivide Mesh); flower scatter (30 740 instances, Image
+  Texture) and pebble scatter (40 758 instances) match within 1e-5 - 18 / 1 matrix values beyond 256 ulp (near-
+  zero rotation terms); candy bounce jumpers <= 16 ulp, well <= 4 ulp. Not yet: candy floor (Proximity,
+  Subdivision Surface), rose (repeat zone, Scene Time, Subdivision Surface).
+- reactivity (§7.2): `tests/parity/reactivity.test.ts` perturbs every modifier input of every evaluable asset.
+
+**Modifier, editor, examples (M5)**: `geometryNodes` modifier type and `nodeGroup` command (`./plugin`), editable
+modifier fields in the editor's Properties > Modifiers (any modifier type, `modifierFields`), node group as code.
+Examples: `procedural-terrain` (DSL), `procedural-editor` (editor + DSL group), `procedural-blend-asset` (a
+bundle of any dumped .blend: evaluates, draws instances as `InstancedMesh2` per referenced mesh, live inputs;
+bundles are local, see below). e2e: `tests/procedural.spec.ts`.
+
+**Blockers / decisions for the maintainer**
+- Subdivide Mesh and Subdivision Surface go through OpenSubdiv in 5.2.2 (`bke::subdiv`), not a Blender-only
+  bilinear path as §3 G6 assumed: the exact port needs the OpenSubdiv pieces the bilinear/Catmull-Clark schemes
+  use (topology refiner, patch evaluation; Apache-2.0). Next milestone; [A4] to be revisited with this.
+- Asset bundles are derived from third-party .blend files (Buildify, flower/pebble scatter, candy bounce): they
+  stay out of git (`tmp/bundles`) until their licences and hosting are decided ([A6]); the flower bundle is 40 MB.
+- Eigen (float4x4 interpolate / invert / determinant): licence decision in `procedural-eigen-port-licence.md`.

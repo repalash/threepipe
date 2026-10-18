@@ -6,3 +6,4 @@
 export * from './ProceduralPlugin'
 export * from './geometryNodesModifier'
 export * from './nodeGroupCommand'
+export * from './GeometrySetRenderer'
