@@ -13,7 +13,7 @@ is from the ground truth, so every later step (R2–R6) is judged by it.
 ## 1. The reference, dissected
 
 `tmp/ref/webgi-camera.glb` (2,822,688 bytes; Canon EOS 5D Mark IV + EF 24-105 f/4L, the 2021 webgi demo
-model). Decoded in Node by `demos/benchmark/lib/glb.mjs` (GLB + `KHR_draco_mesh_compression` through three's
+model). Decoded in Node by `demos/benchmark/metrics/glb.mjs` (GLB + `KHR_draco_mesh_compression` through three's
 own `draco_decoder.js`); per-part analysis by `tmp/realism/dissect2.mjs`, components by `tmp/realism/cc.mjs`.
 
 ### 1.1 Frame and scale
@@ -114,7 +114,7 @@ removed), 1200×800, seven calibrated views (front, back, right, left, top, two 
 Styles: `full`; `notex` (every texture removed; colour textures folded into the material as their mean colour
 and alpha); `clay` (one grey dielectric everywhere); `mask` (unlit white on black). Our model is aligned
 into the reference frame (rotation 180° about Y, 1/81.07 scale, lens axis and eyecup back matched). Job:
-`demos/benchmark/jobs/phase-a-styles.json`; metrics `tmp/realism/contrib.mjs` (SSIM of `lib/image.mjs`,
+`demos/benchmark/jobs/phase-a-styles.json`; metrics `tmp/realism/contrib.mjs` (SSIM of `metrics/image.mjs`,
 over the union bounding box of the two silhouettes, mean of 7 views):
 
 | Comparison | SSIM (gray) | SSIM (Sobel edges) |
@@ -183,9 +183,9 @@ path and sha256 and must exist locally):
 
 Steps:
 
-1. **Read** both GLBs into world-space triangle soups (`lib/glb.mjs`), in mm. Reads `THREEPIPE_mesh_topology`
+1. **Read** both GLBs into world-space triangle soups (`metrics/glb.mjs`), in mm. Reads `THREEPIPE_mesh_topology`
    when present (n-gons, so quads % and poles are real, not inferred from triangles).
-2. **Align** (`lib/shape.mjs`): initial rotation from the target file, translation by bbox centres, then
+2. **Align** (`metrics/shape.mjs`): initial rotation from the target file, translation by bbox centres, then
    trimmed ICP (Chetverikov 2002, keep 90 %) with closest points on the reference surface (BVH), solving each
    step with Horn's quaternion method (1987) for a **similarity** (rotation, uniform scale, translation).
    Reported: fitted scale, rotation residual (°), translation, RMS history. The scale is reported, not hidden:
@@ -203,7 +203,7 @@ Steps:
    `demos/benchmark/vm.mjs push`, `tpvm run`, `tpvm pull` one tarball): styles `full`, `clay`, `mask`, and
    `heat` (per-vertex distance colours) for each view. Locally the same job runs on SwiftShader (marked as such
    in `score.json`, not comparable to GPU numbers).
-6. **Image metrics** (`lib/image.mjs`, all local): SSIM on grayscale and on Sobel magnitude per view and style
+6. **Image metrics** (`metrics/image.mjs`, all local): SSIM on grayscale and on Sobel magnitude per view and style
    (a port of Wang's `ssim.m`, 11×11 Gaussian σ 1.5, auto-downsampling, averaged over the union bounding box of
    both silhouettes), silhouette IoU from the masks, plus an overlay (ref red, candidate cyan).
 7. **Run metrics**: from the build's `transcript.json` (commands, failed, captures, per-command ms, and a new
