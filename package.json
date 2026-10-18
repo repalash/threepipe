@@ -65,6 +65,7 @@
     "modelling:mcp": "node plugins/modelling-mcp/dist/server.mjs",
     "build:modelling-mcp": "npm run build --prefix plugins/modelling-mcp",
     "test:unit:modelling-mcp": "npm run test --prefix plugins/modelling-mcp",
+    "modelling:skill": "node plugins/modelling-cli/dist/skill.mjs --root .",
     "test:e2e:precache": "node tests/precache-cdn.mjs",
     "test:e2e": "npx playwright test",
     "test:e2e:interactive": "npx playwright test tests/interactive.spec.ts",

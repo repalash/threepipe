@@ -19,6 +19,7 @@
         "target": "ES2022",
         "strictNullChecks": true,
         "allowImportingTsExtensions": true,
+        "resolveJsonModule": true,
         "lib": ["es2022", "esnext", "dom", "dom.iterable"],
         "types": ["node"],
         "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],

@@ -31,6 +31,7 @@ export default defineConfig({
                 cli: path.resolve(__dirname, 'src/cli.ts'),
                 // The relay alone - no threepipe, no DOM stubs - for the MCP server and tests.
                 relay: path.resolve(__dirname, 'src/relay.ts'),
+                skill: path.resolve(__dirname, 'src/skill.ts'),
             },
             external: ['ws', 'playwright-core', ...builtinModules, ...builtinModules.map(m => `node:${m}`)],
             output: {

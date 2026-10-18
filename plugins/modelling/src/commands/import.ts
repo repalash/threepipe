@@ -72,7 +72,7 @@ export const importCommand: CommandDefinition = {
         if (!imported.length) ctx.warn('no meshes found to import')
         if (p.name !== undefined) {
             if (imported.length !== 1) ctx.warn(`\`name\` applies to a single object; ${imported.length} were imported`)
-            else {
+            else if (imported[0].name !== p.name) {
                 imported[0].name = ctx.doc.rename(ctx.doc.require(imported[0].name), ctx.doc.uniqueName(p.name as string))
             }
         }
